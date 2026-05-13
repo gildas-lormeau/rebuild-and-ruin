@@ -25,6 +25,7 @@ import {
   isWater,
   packTile,
   unpackTile,
+  zoneOwnerIdAt,
 } from "../shared/core/spatial.ts";
 import type { GameState } from "../shared/core/types.ts";
 import type { ZoneId } from "../shared/core/zone-id.ts";
@@ -298,7 +299,9 @@ export function inspectTile(
   }
   for (const gruntEntity of state.grunts) {
     if (gruntEntity.row === row && gruntEntity.col === col) {
-      grunt = { playerId: gruntEntity.victimPlayerId };
+      // Grunts are ownerless — display by current-zone owner ("the player
+      // it's attacking right now"). Falls back to slot 0 on water/no-zone.
+      grunt = { playerId: zoneOwnerIdAt(state, row, col) };
       break;
     }
   }

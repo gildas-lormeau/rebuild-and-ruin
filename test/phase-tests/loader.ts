@@ -12,10 +12,7 @@
  * bonus squares, walls) are applied on top of the settled state.
  */
 
-import {
-  addPlayerWall,
-  zoneOwnerIdAt,
-} from "../../src/shared/core/board-occupancy.ts";
+import { addPlayerWall } from "../../src/shared/core/board-occupancy.ts";
 import { TOWER_SIZE } from "../../src/shared/core/game-constants.ts";
 import { Phase } from "../../src/shared/core/game-phase.ts";
 import { GRID_COLS, GRID_ROWS, Tile } from "../../src/shared/core/grid.ts";
@@ -194,27 +191,9 @@ export function applyGruntOverrides(
   for (const override of overrides) {
     const { row, col } = override;
     validateGruntPos(state, towerTiles, wallTiles, gruntTiles, row, col);
-    const derivedVictim = zoneOwnerIdAt(state, row, col);
-    let victimId: ValidPlayerId;
-    if (override.victimPlayerId === undefined) {
-      victimId = derivedVictim;
-    } else {
-      if (
-        !Number.isInteger(override.victimPlayerId) ||
-        override.victimPlayerId < 0 ||
-        override.victimPlayerId >= state.players.length
-      ) {
-        throw new Error(
-          `grunt override (${row},${col}) has invalid victimPlayerId ${override.victimPlayerId} ` +
-            `(expected 0..${state.players.length - 1})`,
-        );
-      }
-      victimId = override.victimPlayerId as ValidPlayerId;
-    }
     state.grunts.push({
       row,
       col,
-      victimPlayerId: victimId,
       blockedRounds: 0,
       ...(override.kind && { kind: override.kind }),
     });

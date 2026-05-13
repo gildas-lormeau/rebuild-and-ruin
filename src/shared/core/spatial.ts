@@ -17,6 +17,7 @@ import type {
   TowerIdx,
 } from "./geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, TILE_SIZE, Tile, type TileKey } from "./grid.ts";
+import type { ValidPlayerId } from "./player-slot.ts";
 import { type Player, playerByZone } from "./player-types.ts";
 import type { ZoneCell, ZoneId } from "./zone-id.ts";
 
@@ -511,6 +512,22 @@ export function inBounds(r: number, c: number): boolean {
 /** True if an object's row/col matches the given position. */
 export function isAtTile(obj: TilePos, row: number, col: number): boolean {
   return obj.row === row && obj.col === col;
+}
+
+/** Return the player id owning the zone at (row, col), or `0` if no
+ *  owner found (water, unassigned zone, eliminated slot). Uses
+ *  `playerZones` (stable across elimination) rather than `homeTower`
+ *  (nulled on elimination). Thin glue over `zoneAt` + `playerByZone` —
+ *  the fall-back-to-0 convention is preserved for rendering callers
+ *  that want a non-undefined `ValidPlayerId`. */
+export function zoneOwnerIdAt(
+  state: { readonly map: GameMap; readonly playerZones: readonly ZoneId[] },
+  row: number,
+  col: number,
+): ValidPlayerId {
+  const zone = zoneAt(state.map, row, col);
+  if (zone === undefined) return 0 as ValidPlayerId;
+  return (playerByZone(state.playerZones, zone) ?? 0) as ValidPlayerId;
 }
 
 /** Boundary helper: read a cell from `map.zones` and return it as a `ZoneId`,

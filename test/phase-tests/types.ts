@@ -86,11 +86,6 @@ export interface WallOverride {
 export interface GruntOverride {
   row: number;
   col: number;
-  /** Optional — overrides the victim derived from zone ownership at
-   *  (row, col). Useful when authoring a cross-zone grunt (e.g. one that
-   *  spawned in zone A but is hunting a tower in zone B because A's
-   *  player is eliminated). Defaults to the zone owner. */
-  victimPlayerId?: number;
   /** Grunt variant. Omitted = regular grunt; "catapult" = range-2 siege
    *  variant (modern-mode catapults feature). */
   kind?: "catapult";

@@ -109,6 +109,9 @@
       "pair": "GameState@src/shared/core/types.ts ↔ ResolvedGameConfig@src/runtime/runtime-bootstrap.ts"
     },
     {
+      "pair": "GruntOverride@test/phase-tests/types.ts ↔ SerializedGrunt@src/protocol/checkpoint-data.ts"
+    },
+    {
       "pair": "LobbySystem@src/runtime/runtime-lobby.ts ↔ RuntimeLobby@src/runtime/runtime-types.ts"
     },
     {
@@ -140,6 +143,9 @@
     },
     {
       "pair": "RoofParams@src/render/3d/sprites/house-scene.ts ↔ TurretParams@src/render/3d/sprites/tower-scene.ts"
+    },
+    {
+      "pair": "Sample@test/dead-zone-grunt-cleanup.test.ts ↔ Snapshot@test/seed-833681-round27-grunt.test.ts"
     },
     {
       "pair": "SerializedBonusSquare@src/protocol/checkpoint-data.ts ↔ SerializedHouse@src/protocol/checkpoint-data.ts"
@@ -616,16 +622,19 @@
       "pair": "GameState@src/shared/core/types.ts ↔ Sample@test/dead-zone-grunt-cleanup.test.ts"
     },
     {
+      "pair": "GameState@src/shared/core/types.ts ↔ Snapshot@test/seed-833681-round27-grunt.test.ts"
+    },
+    {
       "pair": "GameState@src/shared/core/types.ts ↔ UpgradePickViewState@src/shared/core/system-interfaces.ts"
     },
     {
       "pair": "Grunt@src/shared/core/battle-types.ts ↔ SerializedGrunt@src/protocol/checkpoint-data.ts"
     },
     {
-      "pair": "GruntOverride@test/phase-tests/types.ts ↔ SerializedGrunt@src/protocol/checkpoint-data.ts"
+      "pair": "GruntFingerprint@test/seed-833681-round27-grunt.test.ts ↔ TileInspection@src/runtime/dev-console-grid.ts"
     },
     {
-      "pair": "GruntSpawnedMessage@src/shared/core/battle-events.ts ↔ SerializedGrunt@src/protocol/checkpoint-data.ts"
+      "pair": "GruntOverride@test/phase-tests/types.ts ↔ SerializedGrunt@src/protocol/checkpoint-data.ts"
     },
     {
       "pair": "GruntVariant@src/render/3d/sprites/grunt-scene.ts ↔ PitVariant@src/render/3d/sprites/pit-scene.ts"
@@ -842,6 +851,9 @@
     },
     {
       "pair": "SailParams@src/render/3d/sprites/supply-ship-scene.ts ↔ WindowParams@src/render/3d/sprites/house-scene.ts"
+    },
+    {
+      "pair": "Sample@test/dead-zone-grunt-cleanup.test.ts ↔ Snapshot@test/seed-833681-round27-grunt.test.ts"
     },
     {
       "pair": "ScheduledPiecePlacement@src/game/scheduled-actions.ts ↔ WallDestroyedMessage@src/shared/core/battle-events.ts"

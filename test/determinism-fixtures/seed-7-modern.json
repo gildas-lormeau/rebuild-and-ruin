@@ -16649,8 +16649,7 @@
       "type": "gruntSpawn",
       "payload": {
         "col": 23,
-        "row": 18,
-        "victimPlayerId": 0
+        "row": 18
       }
     },
     {
@@ -22469,40 +22468,35 @@
       "type": "gruntSpawn",
       "payload": {
         "col": 22,
-        "row": 18,
-        "victimPlayerId": 0
+        "row": 18
       }
     },
     {
       "type": "gruntSpawn",
       "payload": {
         "col": 33,
-        "row": 15,
-        "victimPlayerId": 1
+        "row": 15
       }
     },
     {
       "type": "gruntSpawn",
       "payload": {
         "col": 24,
-        "row": 18,
-        "victimPlayerId": 0
+        "row": 18
       }
     },
     {
       "type": "gruntSpawn",
       "payload": {
         "col": 32,
-        "row": 15,
-        "victimPlayerId": 1
+        "row": 15
       }
     },
     {
       "type": "gruntSpawn",
       "payload": {
         "col": 5,
-        "row": 3,
-        "victimPlayerId": 2
+        "row": 3
       }
     },
     {
@@ -25807,48 +25801,42 @@
       "type": "gruntSpawn",
       "payload": {
         "col": 33,
-        "row": 15,
-        "victimPlayerId": 1
+        "row": 15
       }
     },
     {
       "type": "gruntSpawn",
       "payload": {
         "col": 9,
-        "row": 15,
-        "victimPlayerId": 2
+        "row": 15
       }
     },
     {
       "type": "gruntSpawn",
       "payload": {
         "col": 32,
-        "row": 15,
-        "victimPlayerId": 1
+        "row": 15
       }
     },
     {
       "type": "gruntSpawn",
       "payload": {
         "col": 17,
-        "row": 8,
-        "victimPlayerId": 2
+        "row": 8
       }
     },
     {
       "type": "gruntSpawn",
       "payload": {
         "col": 34,
-        "row": 15,
-        "victimPlayerId": 1
+        "row": 15
       }
     },
     {
       "type": "gruntSpawn",
       "payload": {
         "col": 10,
-        "row": 15,
-        "victimPlayerId": 2
+        "row": 15
       }
     },
     {
@@ -26629,24 +26617,21 @@
       "type": "gruntSpawn",
       "payload": {
         "col": 25,
-        "row": 18,
-        "victimPlayerId": 0
+        "row": 18
       }
     },
     {
       "type": "gruntSpawn",
       "payload": {
         "col": 9,
-        "row": 15,
-        "victimPlayerId": 2
+        "row": 15
       }
     },
     {
       "type": "gruntSpawn",
       "payload": {
         "col": 26,
-        "row": 7,
-        "victimPlayerId": 1
+        "row": 7
       }
     },
     {
@@ -26669,24 +26654,21 @@
       "type": "gruntSpawn",
       "payload": {
         "col": 21,
-        "row": 17,
-        "victimPlayerId": 0
+        "row": 17
       }
     },
     {
       "type": "gruntSpawn",
       "payload": {
         "col": 26,
-        "row": 18,
-        "victimPlayerId": 0
+        "row": 18
       }
     },
     {
       "type": "gruntSpawn",
       "payload": {
         "col": 33,
-        "row": 15,
-        "victimPlayerId": 1
+        "row": 15
       }
     },
     {
@@ -40484,8 +40466,7 @@
       "type": "gruntSpawn",
       "payload": {
         "col": 9,
-        "row": 15,
-        "victimPlayerId": 2
+        "row": 15
       }
     },
     {
@@ -44124,16 +44105,14 @@
       "type": "gruntSpawn",
       "payload": {
         "col": 33,
-        "row": 15,
-        "victimPlayerId": 1
+        "row": 15
       }
     },
     {
       "type": "gruntSpawn",
       "payload": {
         "col": 9,
-        "row": 15,
-        "victimPlayerId": 2
+        "row": 15
       }
     },
     {
@@ -46162,48 +46141,42 @@
       "type": "gruntSpawn",
       "payload": {
         "col": 27,
-        "row": 18,
-        "victimPlayerId": 0
+        "row": 18
       }
     },
     {
       "type": "gruntSpawn",
       "payload": {
         "col": 18,
-        "row": 18,
-        "victimPlayerId": 0
+        "row": 18
       }
     },
     {
       "type": "gruntSpawn",
       "payload": {
         "col": 33,
-        "row": 15,
-        "victimPlayerId": 1
+        "row": 15
       }
     },
     {
       "type": "gruntSpawn",
       "payload": {
         "col": 28,
-        "row": 18,
-        "victimPlayerId": 0
+        "row": 18
       }
     },
     {
       "type": "gruntSpawn",
       "payload": {
         "col": 32,
-        "row": 15,
-        "victimPlayerId": 1
+        "row": 15
       }
     },
     {
       "type": "gruntSpawn",
       "payload": {
         "col": 14,
-        "row": 9,
-        "victimPlayerId": 2
+        "row": 9
       }
     },
     {
@@ -47299,16 +47272,14 @@
       "type": "gruntSpawn",
       "payload": {
         "col": 17,
-        "row": 18,
-        "victimPlayerId": 0
+        "row": 18
       }
     },
     {
       "type": "gruntSpawn",
       "payload": {
         "col": 33,
-        "row": 15,
-        "victimPlayerId": 1
+        "row": 15
       }
     },
     {
@@ -49357,8 +49328,7 @@
       "type": "gruntSpawn",
       "payload": {
         "col": 12,
-        "row": 25,
-        "victimPlayerId": 0
+        "row": 25
       }
     },
     {
@@ -50122,16 +50092,14 @@
       "type": "gruntSpawn",
       "payload": {
         "col": 16,
-        "row": 18,
-        "victimPlayerId": 0
+        "row": 18
       }
     },
     {
       "type": "gruntSpawn",
       "payload": {
         "col": 33,
-        "row": 15,
-        "victimPlayerId": 1
+        "row": 15
       }
     },
     {
@@ -50805,48 +50773,42 @@
       "type": "gruntSpawn",
       "payload": {
         "col": 16,
-        "row": 18,
-        "victimPlayerId": 0
+        "row": 18
       }
     },
     {
       "type": "gruntSpawn",
       "payload": {
         "col": 9,
-        "row": 15,
-        "victimPlayerId": 2
+        "row": 15
       }
     },
     {
       "type": "gruntSpawn",
       "payload": {
         "col": 15,
-        "row": 18,
-        "victimPlayerId": 0
+        "row": 18
       }
     },
     {
       "type": "gruntSpawn",
       "payload": {
         "col": 10,
-        "row": 15,
-        "victimPlayerId": 2
+        "row": 15
       }
     },
     {
       "type": "gruntSpawn",
       "payload": {
         "col": 14,
-        "row": 18,
-        "victimPlayerId": 0
+        "row": 18
       }
     },
     {
       "type": "gruntSpawn",
       "payload": {
         "col": 11,
-        "row": 15,
-        "victimPlayerId": 2
+        "row": 15
       }
     },
     {

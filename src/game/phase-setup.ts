@@ -475,7 +475,9 @@ function applyLifePenalties(state: GameState): {
       } else {
         needsReselect.push(player.id);
       }
-      if (zone !== undefined) resetZoneState(state, zone);
+      if (zone !== undefined) {
+        resetZoneState(state, zone, isPlayerEliminated(player));
+      }
     }
   }
   return { needsReselect, eliminated };
@@ -494,9 +496,17 @@ function applyLifePenalties(state: GameState): {
  *
  *  River-state outside the zone (frozen river, river-edge effects whose
  *  tiles aren't owned by this zone) is untouched — modifiers are global
- *  by definition; only their per-zone footprint goes away here. */
-function resetZoneState(state: GameState, zone: ZoneId): void {
-  evictEntitiesInZone(state, zone);
+ *  by definition; only their per-zone footprint goes away here.
+ *
+ *  `ownerEliminated` distinguishes life-loss from elimination. The two
+ *  cases agree on every step except the cross-zone grunt sweep in
+ *  `evictEntitiesInZone` — see that function's contract. */
+function resetZoneState(
+  state: GameState,
+  zone: ZoneId,
+  ownerEliminated: boolean,
+): void {
+  evictEntitiesInZone(state, zone, ownerEliminated);
   for (let towerIndex = 0; towerIndex < state.map.towers.length; towerIndex++) {
     if (state.map.towers[towerIndex]!.zone === zone) {
       state.towerAlive[towerIndex] = true;
@@ -506,15 +516,25 @@ function resetZoneState(state: GameState, zone: ZoneId): void {
   recomputeMapZones(state);
 }
 
-/** Remove every entity bound to `zone` — grunts (in-zone or targeting an
- *  in-zone tower), houses, bonus squares, burning pits. Towers are NOT
- *  evicted; the caller revives them. Zone-keyed counterpart to
- *  `evictEntitiesOnTiles` (which is tile-set-keyed). */
-function evictEntitiesInZone(state: GameState, zone: ZoneId): void {
+/** Remove every entity bound to `zone` — grunts (in-zone or, when the
+ *  owner is eliminated, targeting an in-zone tower), houses, bonus
+ *  squares, burning pits. Towers are NOT evicted; the caller revives
+ *  them. Zone-keyed counterpart to `evictEntitiesOnTiles` (which is
+ *  tile-set-keyed).
+ *
+ *  Cross-zone grunts (in another zone but targeting a tower in `zone`)
+ *  are only wiped when `ownerEliminated`. On a plain life-loss reset
+ *  the zone's towers are revived by `resetZoneState` two lines later,
+ *  so a grunt mid-crossing to attack one of them keeps a valid target
+ *  and must survive. */
+function evictEntitiesInZone(
+  state: GameState,
+  zone: ZoneId,
+  ownerEliminated: boolean,
+): void {
   state.grunts = state.grunts.filter((grunt) => {
     if (zoneAt(state.map, grunt.row, grunt.col) === zone) return false;
-    // Remove grunts stuck en route to towers in this zone (e.g. frozen river crossings)
-    if (grunt.targetTowerIdx !== undefined) {
+    if (ownerEliminated && grunt.targetTowerIdx !== undefined) {
       if (getGruntTargetTower(state, grunt)?.zone === zone) return false;
     }
     return true;

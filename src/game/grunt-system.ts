@@ -14,7 +14,6 @@ import {
   hasGruntAt,
   hasInteriorAt,
   hasWallAt,
-  zoneOwnerIdAt,
 } from "../shared/core/board-occupancy.ts";
 import { FID } from "../shared/core/feature-defs.ts";
 import {
@@ -56,7 +55,6 @@ import {
 } from "../shared/core/spatial.ts";
 import { type GameState, hasFeature } from "../shared/core/types.ts";
 import {
-  adjacentLivingTowerIndex,
   getDeadZones,
   getGruntTargetTower,
   getLiveTargetTower,
@@ -228,14 +226,19 @@ export function gruntAttackTowers(
   const events: TowerKilledMessage[] = [];
   const wallEvents: ImpactEvent[] = [];
   for (const grunt of state.grunts) {
-    // Catapult path-blocking: a wall between a catapult and its target
-    // tower diverts the shot to the wall. Detected per-tick (cheap, only
-    // for catapults) so that after destroying one wall, the next wall in
-    // path is automatically picked up next tick. Routes through the
-    // existing wall-attack flow below by setting attackingWall +
-    // targetedWall; resets countdown when the target switches.
+    // Attack target is derived from the grunt's CURRENT zone every tick —
+    // a grunt attacks the nearest live tower in its current territory that
+    // it's in range of, regardless of where it was originally heading.
+    // The pathing target (grunt.targetTowerIdx) drives movement during
+    // build but is irrelevant here.
+    const attackTarget = nearestAttackableTowerInZone(state, grunt, deadZones);
+
+    // Catapult path-blocking: a wall between a catapult and its attack
+    // target diverts the shot to the wall. Re-evaluated per-tick so that
+    // after destroying one wall, the next wall in path is automatically
+    // picked up. Sets attackingWall + targetedWall when blocked.
     if (grunt.kind === "catapult") {
-      maybeRouteCatapultToBlockingWall(state, grunt, deadZones);
+      maybeRouteCatapultToBlockingWall(state, grunt, attackTarget);
     }
 
     // Wall attack: executing decision made by rollGruntWallAttacks() at
@@ -295,31 +298,6 @@ export function gruntAttackTowers(
       grunt.attackingWall = false;
     }
 
-    // Grunts with a locked target only attack that specific tower.
-    // Untargeted grunts (e.g. spawned by grunt-surge modifier at battle start)
-    // attack any adjacent living tower.
-    let attackTarget: TowerIdx | undefined;
-    if (grunt.targetTowerIdx !== undefined) {
-      const targetTower = getGruntTargetTower(state, grunt);
-      if (
-        targetTower !== null &&
-        !deadZones.has(targetTower.zone) &&
-        isInTowerAttackRange(
-          state,
-          grunt.row,
-          grunt.col,
-          grunt.targetTowerIdx,
-          grunt.kind,
-        )
-      ) {
-        attackTarget = grunt.targetTowerIdx;
-      }
-      // else: target dead or in dead zone — no retargeting (per game rules)
-    } else {
-      attackTarget =
-        adjacentLivingTowerIndex(state, grunt.row, grunt.col, deadZones) ??
-        undefined;
-    }
     if (attackTarget !== undefined) {
       if (tickGruntAttackTimer(grunt, dt)) {
         // Lookup BEFORE mutating towerAlive so POV-filtered consumers
@@ -449,6 +427,45 @@ export function spawnGruntOnZone(
   }
 }
 
+/** Nearest live tower in the grunt's current zone that the grunt is in
+ *  attack range of (4-dir adjacency for regular grunts, Manhattan ≤ 3
+ *  for catapults). Returns undefined when the grunt is off-zone (e.g.
+ *  standing on frozen water) or no in-zone tower is in range. Used by
+ *  `gruntAttackTowers` to enforce "grunts attack towers in their
+ *  current territory". */
+function nearestAttackableTowerInZone(
+  state: GameState,
+  grunt: Grunt,
+  deadZones: ReadonlySet<number>,
+): TowerIdx | undefined {
+  const gruntZone = zoneAt(state.map, grunt.row, grunt.col);
+  if (gruntZone === undefined) return undefined;
+  if (deadZones.has(gruntZone)) return undefined;
+  let best: TowerIdx | undefined;
+  let bestDist = Infinity;
+  for (let i = 0; i < state.map.towers.length; i++) {
+    if (!state.towerAlive[i]) continue;
+    const tower = state.map.towers[i]!;
+    if (tower.zone !== gruntZone) continue;
+    if (
+      !isInTowerAttackRange(
+        state,
+        grunt.row,
+        grunt.col,
+        i as TowerIdx,
+        grunt.kind,
+      )
+    )
+      continue;
+    const dist = distanceToTower(tower, grunt.row, grunt.col);
+    if (dist < bestDist) {
+      best = i as TowerIdx;
+      bestDist = dist;
+    }
+  }
+  return best;
+}
+
 /** Pick the adjacent wall a grunt would attack — the one closest to its
  *  target tower. Returns undefined if the grunt has no live target tower or
  *  no adjacent wall. Bypasses the blocked-battles requirement (this is the
@@ -470,31 +487,20 @@ function computeGruntTargetedWall(
 }
 
 /** Per-tick check for catapults: if a wall sits between the catapult and
- *  its target tower (within attack range), tag that wall as the attack
- *  target so the existing wall-attack flow handles destruction. When the
- *  blocking wall changes or disappears, reset the attack countdown so the
- *  catapult starts a fresh swing on the new target. */
+ *  its in-zone attack target, tag that wall as the attack target so the
+ *  existing wall-attack flow handles destruction. When the blocking wall
+ *  changes or disappears, reset the attack countdown so the catapult
+ *  starts a fresh swing on the new target. Caller passes the precomputed
+ *  attack target (`nearestAttackableTowerInZone`); no-op when undefined
+ *  (no in-zone tower in catapult's range). */
 function maybeRouteCatapultToBlockingWall(
   state: GameState,
   grunt: Grunt,
-  deadZones: ReadonlySet<number>,
+  attackTarget: TowerIdx | undefined,
 ): void {
-  if (grunt.targetTowerIdx === undefined) return;
-  const tower = getGruntTargetTower(state, grunt);
-  if (tower === null) return;
-  if (deadZones.has(tower.zone)) return;
-  if (!state.towerAlive[grunt.targetTowerIdx]) return;
-  if (
-    !isInTowerAttackRange(
-      state,
-      grunt.row,
-      grunt.col,
-      grunt.targetTowerIdx,
-      "catapult",
-    )
-  ) {
-    return;
-  }
+  if (attackTarget === undefined) return;
+  const tower = state.map.towers[attackTarget];
+  if (!tower) return;
   const blockingWall = findCatapultBlockingWall(
     state,
     grunt.row,
@@ -547,13 +553,13 @@ function findCatapultBlockingWall(
 }
 
 /** Add a grunt at (row, col). Validates position is in-bounds and on passable grass.
- *  victimPlayerId is derived from the zone owner at spawn.
- *  lockGruntTarget() is the source of truth — it reassigns victimPlayerId
- *  based on the actual target tower's zone (e.g. during frozen river crossings). */
+ *  Grunts are ownerless hazards — the "victim" (player whose territory is
+ *  being attacked) is derived from the grunt's current zone at read time,
+ *  never stored. Listeners on GRUNT_SPAWN do `zoneOwnerIdAt(state, row, col)`
+ *  if they need that. */
 function addGrunt(state: GameState, row: number, col: number): void {
   if (!inBounds(row, col) || !isGrass(state.map.tiles, row, col)) return;
-  const victimPlayerId = zoneOwnerIdAt(state, row, col);
-  const grunt: Grunt = { row, col, victimPlayerId, blockedRounds: 0 };
+  const grunt: Grunt = { row, col, blockedRounds: 0 };
   if (hasFeature(state, FID.CATAPULTS) && state.rng.bool(CATAPULT_SPAWN_CHANCE))
     grunt.kind = "catapult";
   state.grunts.push(grunt);
@@ -561,7 +567,6 @@ function addGrunt(state: GameState, row: number, col: number): void {
     type: GAME_EVENT.GRUNT_SPAWN,
     row,
     col,
-    victimPlayerId,
   });
 }
 

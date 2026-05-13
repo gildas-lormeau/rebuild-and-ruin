@@ -49,7 +49,7 @@ const GRUNT_BLOCKED_NEARBY_DISTANCE = 2;
  * towers. Returns true if any grunt moved (for animation purposes).
  *
  * INVARIANT: targets must be locked before movement. The two-pass order is:
- * 1. lockGruntTarget() for all grunts (assigns targetTowerIdx/victimPlayerId)
+ * 1. lockGruntTarget() for all grunts (assigns targetTowerIdx)
  * 2. Sort by distance, then move each grunt toward its locked target
  * These passes must not be interleaved — a grunt's target must not change mid-move.
  * Enforced by the single call site in this function; no external API exposes
@@ -110,25 +110,15 @@ export function getLiveTargetTower(
   return { towerIndex: grunt.targetTowerIdx, tower };
 }
 
-export function adjacentLivingTowerIndex(
-  state: GameState,
-  row: number,
-  col: number,
-  deadZones?: ReadonlySet<number>,
-): TowerIdx | null {
-  for (const [dr, dc] of DIRS_4) {
-    const towerIndex = findLivingTowerIndexAt(state, row + dr, col + dc);
-    if (towerIndex === null) continue;
-    if (deadZones?.has(state.map.towers[towerIndex]!.zone)) continue;
-    return towerIndex;
-  }
-  return null;
-}
-
 /**
  * Lock a grunt onto its nearest tower target if not already locked.
- * Mutates grunt.targetTowerIdx and grunt.victimPlayerId.
- * Call once per grunt before any sorting or movement.
+ * Sets the pathing target (`grunt.targetTowerIdx`) used by `moveGrunts`.
+ * Sticky across ticks once set, cleared only when the target's zone is
+ * eliminated — the stickiness avoids cross-zone oscillation during
+ * frozen-river crossings. `gruntAttackTowers` does NOT use this field;
+ * it derives the attack target from the grunt's current zone every
+ * tick (so a grunt stranded in another zone attacks adjacent towers
+ * THERE, regardless of its sticky pathing goal).
  */
 function lockGruntTarget(
   state: GameState,
@@ -183,16 +173,6 @@ function lockGruntTarget(
 
   if (bestIdx === undefined) return;
   grunt.targetTowerIdx = bestIdx;
-
-  // Ensure victimPlayerId matches the target tower's zone owner
-  // (frozen river can redirect grunts cross-zone, changing the victim)
-  const towerZone = state.map.towers[bestIdx]!.zone;
-  const zoneOwner = state.players.find(
-    (player) => player.homeTower?.zone === towerZone,
-  );
-  if (zoneOwner && zoneOwner.id !== grunt.victimPlayerId) {
-    grunt.victimPlayerId = zoneOwner.id;
-  }
 }
 
 /** Move a single grunt toward its target. Returns true if it moved. */

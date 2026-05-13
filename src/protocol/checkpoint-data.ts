@@ -8,7 +8,6 @@
  */
 
 import type { TowerIdx } from "../shared/core/geometry-types.ts";
-import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 
 export interface SerializedCannon {
   row: number;
@@ -36,7 +35,6 @@ export interface SerializedHouse {
 export interface SerializedGrunt {
   row: number;
   col: number;
-  victimPlayerId: ValidPlayerId;
   targetTowerIdx?: TowerIdx;
   attackCountdown?: number;
   blockedRounds?: number;

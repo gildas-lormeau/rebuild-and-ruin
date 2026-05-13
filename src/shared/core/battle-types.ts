@@ -10,9 +10,13 @@ import type { ValidPlayerId } from "./player-slot.ts";
 import { WALL_DESTROY_ANIM_DURATION } from "./wall-destroy-anim.ts";
 
 export interface Grunt extends TilePos {
-  /** The player whose territory this grunt is attacking. Grunts are ownerless hazards. */
-  victimPlayerId: ValidPlayerId;
-  /** Locked target tower index. Stays until the tower is destroyed. */
+  /** Pathing target (a tower the grunt is walking toward) — used by
+   *  `moveGrunts` during build phase. Sticky until the target's zone is
+   *  eliminated, to avoid oscillation during frozen-river crossings.
+   *  NOT the attack target: `gruntAttackTowers` computes that from the
+   *  grunt's current zone each tick, so a grunt stranded in another
+   *  zone attacks whatever tower is adjacent THERE, not this pathing
+   *  goal (see "grunts attack towers in their current territory"). */
   targetTowerIdx?: TowerIdx;
   /** Countdown (seconds) before killing an adjacent tower or wall. Starts at 3 when adjacent. */
   attackCountdown?: number;

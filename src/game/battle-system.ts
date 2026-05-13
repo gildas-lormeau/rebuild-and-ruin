@@ -22,10 +22,7 @@ import {
   isRampartCannon,
   isSuperCannon,
 } from "../shared/core/battle-types.ts";
-import {
-  filterActiveEnemies,
-  zoneOwnerIdAt,
-} from "../shared/core/board-occupancy.ts";
+import { filterActiveEnemies } from "../shared/core/board-occupancy.ts";
 import { GRAVITY, MUZZLE_Y } from "../shared/core/elevation-constants.ts";
 import {
   BALL_SPEED,
@@ -823,7 +820,6 @@ function applyImpactEvent(
       state.grunts.push({
         row: event.row,
         col: event.col,
-        victimPlayerId: event.victimPlayerId,
         blockedRounds: 0,
       });
       break;
@@ -1349,7 +1345,6 @@ function collectHouseImpacts(
             type: BATTLE_MESSAGE.GRUNT_SPAWNED,
             row: spawnPos.row,
             col: spawnPos.col,
-            victimPlayerId: zoneOwnerIdAt(state, spawnPos.row, spawnPos.col),
           });
         }
       }
@@ -1402,7 +1397,6 @@ function collectGruntImpacts(
           type: BATTLE_MESSAGE.GRUNT_SPAWNED,
           row: spawnPos.row,
           col: spawnPos.col,
-          victimPlayerId: respawn.victimId,
         });
       }
     }

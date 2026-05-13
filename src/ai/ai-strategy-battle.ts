@@ -324,8 +324,8 @@ export function planIceTrench(
   const playerZone = state.playerZones[playerId];
 
   // Precondition: collect grunts on the opposite bank (enemy zone, 4-dir
-  // adjacent to frozen water).  At battle start, victimPlayerId is stale
-  // (pre-retarget), so we check location only.
+  // adjacent to frozen water). Grunts are ownerless — partition by
+  // current zone, not by any stored "victim" field.
   const bankGrunts: TilePos[] = [];
   for (const grunt of state.grunts) {
     const gruntZone = zoneAt(state.map, grunt.row, grunt.col);
@@ -647,25 +647,19 @@ export function trackShot(
  *  @param victimPlayerId — the player whose territory the grunts are attacking
  *    (the AI when called for our own defense; an enemy when called by
  *    `planCharitySweep` to clean up someone who can't fight back).
- *  During frozen river, skip grunts heading cross-zone (they're attacking the enemy, not us). */
+ *  Grunts are ownerless: "attacking the victim" means "currently sitting
+ *  in the victim's zone", per the rule that grunts attack towers in
+ *  their current territory. */
 export function planGruntSweep(
   state: BattleViewState,
   victimPlayerId: ValidPlayerId,
   usableCannonCount: number,
   rng: Rng,
 ): TilePos[] | null {
-  const frozenActive = state.modern?.frozenTiles != null;
-  const defenderZone = state.playerZones[victimPlayerId];
-  const grunts = state.grunts.filter((grunt) => {
-    if (grunt.victimPlayerId !== victimPlayerId) return false;
-    // Frozen river: grunts in the defender's own zone will cross to attack the enemy —
-    // don't kill them. Only target grunts that are already in enemy territory heading back.
-    if (frozenActive) {
-      const gruntZone = zoneAt(state.map, grunt.row, grunt.col);
-      if (gruntZone === defenderZone) return false;
-    }
-    return true;
-  });
+  const victimZone = state.playerZones[victimPlayerId];
+  const grunts = state.grunts.filter(
+    (grunt) => zoneAt(state.map, grunt.row, grunt.col) === victimZone,
+  );
   const mod = state.modern?.activeModifier;
   const threshold =
     mod === MODIFIER_ID.GRUNT_SURGE || mod === MODIFIER_ID.FROZEN_RIVER
@@ -714,12 +708,18 @@ function collectGruntBlockingWallTargets(
   playerId: ValidPlayerId,
 ): TilePos[] {
   const gruntWalls: TilePos[] = [];
+  const myZone = state.playerZones[playerId];
   for (const grunt of state.grunts) {
-    if (grunt.victimPlayerId === playerId) continue;
+    const gruntZone = zoneAt(state.map, grunt.row, grunt.col);
+    // Skip grunts in my own zone (they attack me — not a "charity" target).
+    if (gruntZone === undefined || gruntZone === myZone) continue;
     if (grunt.targetTowerIdx == null) continue;
     const tower = getGruntTargetTower(state, grunt);
     if (!tower) continue;
-    const enemy = state.players[grunt.victimPlayerId];
+    // "Enemy" = owner of the zone the grunt is currently in (the player
+    // it's attacking, under the current-zone attack rule).
+    const enemyId = state.playerZones.indexOf(gruntZone);
+    const enemy = enemyId >= 0 ? state.players[enemyId] : undefined;
     if (!enemy || isPlayerEliminated(enemy)) continue;
     let bestTowerRow = tower.row,
       bestTowerCol = tower.col,

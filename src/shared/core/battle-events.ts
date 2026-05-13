@@ -103,12 +103,12 @@ export interface HouseDestroyedMessage {
 }
 
 /** A grunt was spawned (from house destruction or inter-battle).
- *  victimPlayerId = the zone owner where the grunt spawned. */
+ *  Listeners derive the "victim" (zone owner being attacked) from
+ *  `(row, col)` via `zoneOwnerIdAt` — the grunt itself is ownerless. */
 export interface GruntSpawnedMessage {
   type: "gruntSpawned";
   row: number;
   col: number;
-  victimPlayerId: ValidPlayerId;
 }
 
 /** A burning pit was created by an incendiary cannonball. */

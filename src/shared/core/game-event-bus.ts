@@ -223,7 +223,6 @@ export type EntityEvent =
       type: "gruntSpawn";
       row: number;
       col: number;
-      victimPlayerId: ValidPlayerId;
     }
   | {
       type: "gruntSpawnBlocked";
