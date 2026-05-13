@@ -7,6 +7,7 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "test:scenario": "timeout 30 deno test --no-check test/scenario.test.ts",
+    "test:catapult": "timeout 60 deno test --no-check test/catapult.test.ts",
     "test:phase": "timeout 60 deno test --no-check test/phase-tests/",
     "fixture:check": "deno run --no-check -A scripts/fixture-check.ts",
     "fixture": "deno run --no-check -A scripts/fixture-cli.ts",
