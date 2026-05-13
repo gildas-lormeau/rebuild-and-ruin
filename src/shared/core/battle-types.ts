@@ -40,6 +40,10 @@ export interface Grunt extends TilePos {
    *  variant that can attack towers from Manhattan distance ≤ 2 (bypasses
    *  cannon-row shielding). Gated by the "catapults" feature. */
   kind?: "catapult";
+  /** Catapult-only: toggles each build-phase movement tick. When true, the
+   *  catapult skips this tick (half movement speed). Cleared on skip; set
+   *  after a move. Ignored for regular grunts. */
+  slowSkip?: true;
 }
 
 export enum CannonMode {

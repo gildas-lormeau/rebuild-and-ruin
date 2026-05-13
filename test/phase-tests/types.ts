@@ -91,4 +91,7 @@ export interface GruntOverride {
    *  spawned in zone A but is hunting a tower in zone B because A's
    *  player is eliminated). Defaults to the zone owner. */
   victimPlayerId?: number;
+  /** Grunt variant. Omitted = regular grunt; "catapult" = range-2 siege
+   *  variant (modern-mode catapults feature). */
+  kind?: "catapult";
 }

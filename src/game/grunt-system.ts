@@ -16,7 +16,9 @@ import {
   hasWallAt,
   zoneOwnerIdAt,
 } from "../shared/core/board-occupancy.ts";
+import { FID } from "../shared/core/feature-defs.ts";
 import {
+  CATAPULT_SPAWN_CHANCE,
   FIRST_GRUNT_SPAWN_ROUND,
   GRUNT_ATTACK_DURATION,
   GRUNT_WALL_ATTACK_CHANCE,
@@ -47,14 +49,14 @@ import {
   unpackTile,
   zoneAt,
 } from "../shared/core/spatial.ts";
-import type { GameState } from "../shared/core/types.ts";
+import { type GameState, hasFeature } from "../shared/core/types.ts";
 import {
   adjacentLivingTowerIndex,
   getDeadZones,
   getGruntTargetTower,
   getLiveTargetTower,
-  isAdjacentToLivingTower,
   isGruntPassableTile,
+  isInTowerAttackRange,
 } from "./grunt-movement.ts";
 import { applyWallShield, resolveWallShield } from "./wall-impact.ts";
 
@@ -285,11 +287,12 @@ export function gruntAttackTowers(
       if (
         targetTower !== null &&
         !deadZones.has(targetTower.zone) &&
-        isAdjacentToLivingTower(
+        isInTowerAttackRange(
           state,
           grunt.row,
           grunt.col,
           grunt.targetTowerIdx,
+          grunt.kind,
         )
       ) {
         attackTarget = grunt.targetTowerIdx;
@@ -327,21 +330,23 @@ export function gruntAttackTowers(
 
 /**
  * Called at end of battle: update blockedRounds counter for each grunt.
- * A grunt is "blocked" if it has an alive target tower but is not adjacent to it.
+ * A grunt is "blocked" if it has an alive target tower but is not in attack
+ * range (adjacent for grunts, Manhattan ≤ 2 for catapults).
  */
 export function updateGruntBlockedBattles(state: GameState): void {
   for (const grunt of state.grunts) {
     const liveTarget = getLiveTargetTower(state, grunt);
     if (!liveTarget) continue;
 
-    const adjacent = isAdjacentToLivingTower(
+    const inRange = isInTowerAttackRange(
       state,
       grunt.row,
       grunt.col,
       liveTarget.towerIndex,
+      grunt.kind,
     );
 
-    if (adjacent) {
+    if (inRange) {
       grunt.blockedRounds = 0;
     } else {
       grunt.blockedRounds += 1;
@@ -454,7 +459,10 @@ function computeGruntTargetedWall(
 function addGrunt(state: GameState, row: number, col: number): void {
   if (!inBounds(row, col) || !isGrass(state.map.tiles, row, col)) return;
   const victimPlayerId = zoneOwnerIdAt(state, row, col);
-  state.grunts.push({ row, col, victimPlayerId, blockedRounds: 0 });
+  const grunt: Grunt = { row, col, victimPlayerId, blockedRounds: 0 };
+  if (hasFeature(state, FID.CATAPULTS) && state.rng.bool(CATAPULT_SPAWN_CHANCE))
+    grunt.kind = "catapult";
+  state.grunts.push(grunt);
   state.bus.emit(GAME_EVENT.GRUNT_SPAWN, {
     type: GAME_EVENT.GRUNT_SPAWN,
     row,

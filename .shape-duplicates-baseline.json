@@ -133,9 +133,6 @@
       "pair": "ActiveBannerState@src/runtime/runtime-contracts.ts ↔ BannerUi@src/shared/ui/overlay-types.ts"
     },
     {
-      "pair": "AimUpdateMessage@src/protocol/protocol.ts ↔ Crosshair@src/shared/core/battle-types.ts"
-    },
-    {
       "pair": "AiPersonality@src/shared/core/ai-personality.ts ↔ AiStrategy@src/ai/ai-strategy.ts"
     },
     {
@@ -433,9 +430,6 @@
       "pair": "CargoCrateParams@src/render/3d/sprites/supply-ship-scene.ts ↔ TurretParams@src/render/3d/sprites/tower-scene.ts"
     },
     {
-      "pair": "CastleData@src/shared/ui/overlay-types.ts ↔ Player@src/shared/core/player-types.ts"
-    },
-    {
       "pair": "CheeksSupportsParams@src/render/3d/sprites/cannon-scene.ts ↔ DoorParams@src/render/3d/sprites/house-scene.ts"
     },
     {
@@ -560,6 +554,9 @@
     },
     {
       "pair": "Grunt@src/shared/core/battle-types.ts ↔ SerializedGrunt@src/protocol/checkpoint-data.ts"
+    },
+    {
+      "pair": "GruntOverride@test/phase-tests/types.ts ↔ SerializedGrunt@src/protocol/checkpoint-data.ts"
     },
     {
       "pair": "GruntSpawnedMessage@src/shared/core/battle-events.ts ↔ SerializedGrunt@src/protocol/checkpoint-data.ts"

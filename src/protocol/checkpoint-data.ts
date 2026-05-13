@@ -45,6 +45,8 @@ export interface SerializedGrunt {
   chipped?: boolean;
   /** Variant tag — omitted for regular grunts. */
   kind?: "catapult";
+  /** Catapult skip-tick toggle — omitted when absent. */
+  slowSkip?: true;
 }
 
 export interface SerializedPlayer {

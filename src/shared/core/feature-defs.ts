@@ -43,7 +43,7 @@ const FEATURE_POOL: readonly FeatureDef[] = [
     label: "Catapults",
     description:
       "Slow tank variant that attacks towers from up to 2 tiles away",
-    implemented: false,
+    implemented: true,
   },
 ];
 /** Features with gameplay code — used for mode composition. */
@@ -111,6 +111,9 @@ export const FEATURE_CONSUMERS = {
   },
   catapults: {
     "data:gruntKind": "src/shared/core/battle-types.ts",
+    "gate:spawnRoll": "src/game/grunt-system.ts",
+    "stateAccess:rangeAttack": "src/game/grunt-system.ts",
+    "stateAccess:slowMovement": "src/game/grunt-movement.ts",
     "serialize:gruntKind": "src/online/online-serialize.ts",
   },
 } as const satisfies Record<FeatureId, Readonly<Record<string, string>>>;

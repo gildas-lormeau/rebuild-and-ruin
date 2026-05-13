@@ -142,6 +142,10 @@ export const STARTING_LIVES = 3;
 export const BALL_SPEED = 150;
 /** Interval between grunt movement ticks during build phase (seconds). */
 export const GRUNT_TICK_INTERVAL = 1.0;
+/** Probability a spawned grunt becomes a catapult (modern mode + catapults feature). */
+export const CATAPULT_SPAWN_CHANCE = 0.25;
+/** Manhattan distance a catapult can attack a tower from (bypasses cannon-row shielding). */
+export const CATAPULT_TOWER_ATTACK_RANGE = 2;
 /** Scoring weight for super guns in balloon threat evaluation. */
 export const SUPER_GUN_THREAT_WEIGHT = 100;
 /** Shield HP pool for rampart cannons (absorbs wall hits in 2-tile Chebyshev radius). */

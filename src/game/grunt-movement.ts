@@ -13,7 +13,11 @@ import {
   hasInteriorAt,
   hasWallAt,
 } from "../shared/core/board-occupancy.ts";
-import { MODIFIER_ID, TOWER_SIZE } from "../shared/core/game-constants.ts";
+import {
+  CATAPULT_TOWER_ATTACK_RANGE,
+  MODIFIER_ID,
+  TOWER_SIZE,
+} from "../shared/core/game-constants.ts";
 import type {
   TilePos,
   Tower,
@@ -193,19 +197,35 @@ function lockGruntTarget(
 
 /** Move a single grunt toward its target. Returns true if it moved. */
 function moveOneGrunt(state: GameState, grunt: Grunt): boolean {
-  // Already adjacent to alive target tower — stay put unless blocking a friend
+  // Catapults move every other tick (half speed). slowSkip toggles each
+  // call: when set, this tick is skipped and the flag is cleared; otherwise
+  // the flag is set and movement proceeds.
+  if (grunt.kind === "catapult") {
+    if (grunt.slowSkip) {
+      grunt.slowSkip = undefined;
+      return false;
+    }
+    grunt.slowSkip = true;
+  }
+  // Already in attack range of alive target tower — stay put unless blocking a friend
   if (grunt.targetTowerIdx !== undefined) {
     const tower = getGruntTargetTower(state, grunt);
     if (tower && state.towerAlive[grunt.targetTowerIdx]!) {
-      const adjacent = isAdjacentToLivingTower(
+      const inRange = isInTowerAttackRange(
         state,
         grunt.row,
         grunt.col,
         grunt.targetTowerIdx,
+        grunt.kind,
       );
-      if (adjacent) {
-        // Slide along the tower perimeter to make room for grunts behind us
-        if (hasNonAdjacentBlockedAlly(state, grunt)) {
+      if (inRange) {
+        // Slide along the tower perimeter to make room for grunts behind us.
+        // Only regular grunts slide — catapults are siege engines that hold
+        // their range-2 position.
+        if (
+          grunt.kind !== "catapult" &&
+          hasNonAdjacentBlockedAlly(state, grunt)
+        ) {
           const slide = findAdjacentSlideTarget(state, grunt);
           if (slide) {
             applyGruntMove(grunt, slide.row, slide.col);
@@ -231,7 +251,25 @@ function moveOneGrunt(state: GameState, grunt: Grunt): boolean {
   return false;
 }
 
-export function isAdjacentToLivingTower(
+/** Attack range from a tile to a tower, factoring in grunt kind.
+ *  Catapults reach Manhattan distance ≤ CATAPULT_TOWER_ATTACK_RANGE; regular
+ *  grunts must be cardinally adjacent. */
+export function isInTowerAttackRange(
+  state: GameState,
+  row: number,
+  col: number,
+  towerIndex: TowerIdx,
+  kind: Grunt["kind"],
+): boolean {
+  if (!state.towerAlive[towerIndex]) return false;
+  if (kind === "catapult") {
+    const tower = state.map.towers[towerIndex]!;
+    return distanceToTower(tower, row, col) <= CATAPULT_TOWER_ATTACK_RANGE;
+  }
+  return isAdjacentToLivingTower(state, row, col, towerIndex);
+}
+
+function isAdjacentToLivingTower(
   state: GameState,
   row: number,
   col: number,

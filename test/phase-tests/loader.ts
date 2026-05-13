@@ -216,6 +216,7 @@ export function applyGruntOverrides(
       col,
       victimPlayerId: victimId,
       blockedRounds: 0,
+      ...(override.kind && { kind: override.kind }),
     });
     gruntTiles.add(packTile(row, col));
   }
