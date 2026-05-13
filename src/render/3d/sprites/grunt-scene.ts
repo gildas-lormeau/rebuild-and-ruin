@@ -134,9 +134,19 @@ const BARREL_DARK: MaterialSpec = {
   roughness: 0.5,
   metalness: 0.7,
 };
-// Warm saddle-brown wood for the catapult arm — contrasts the olive-green
-// chassis from any camera angle so the silhouette also reads as colour-
-// distinct, not just shape-distinct. Matte (rope-bound timber).
+// Warmer, weathered olive for the catapult hull — pushes the chassis
+// toward brown-yellow so the green doesn't dominate the read. Same
+// "tank-shaped" silhouette, but visibly the dustier/older sibling of
+// the regular grunt's bright olive.
+const CATAPULT_HULL: MaterialSpec = {
+  kind: "standard",
+  color: 0x6e6740,
+  roughness: 0.9,
+  metalness: 0.1,
+};
+// Warm saddle-brown wood for the catapult arm + base plate — contrasts
+// the chassis from any camera angle so the silhouette also reads as
+// colour-distinct, not just shape-distinct. Matte (rope-bound timber).
 const CATAPULT_ARM_WOOD: MaterialSpec = {
   kind: "standard",
   color: 0x8b5a2b,
@@ -511,16 +521,16 @@ function gruntParams(yawDegrees: number): GruntParams {
 
 function catapultParams(yawDegrees: number): GruntParams {
   return {
-    // Same hull + tracks as the regular grunt — siege engines ride on
-    // the same chassis (same army, different role). The visual
-    // distinction is the top: a tilted launcher arm instead of a
-    // turret + horizontal barrel.
+    // Same hull + tracks shape as the regular grunt — siege engines ride
+    // on the same chassis (same army, different role). Hull tint is
+    // shifted toward weathered brown-olive so the green doesn't
+    // dominate the read; the wooden upper rig sits on it naturally.
     hull: {
       width: cells(10),
       depth: cells(13),
       height: cells(5),
       yBase: cells(1),
-      material: HULL_GREEN,
+      material: CATAPULT_HULL,
     },
     tracks: {
       width: cells(2),
@@ -533,15 +543,16 @@ function catapultParams(yawDegrees: number): GruntParams {
     },
     top: {
       kind: "launcher",
-      // Small mount near the front of the hull where the arm pivots.
+      // Wooden mount near the front of the hull where the arm pivots.
       // Sits ~1.5 cells forward of hull center so the arm clearly
-      // anchors at the front shoulder rather than dead-centre.
+      // anchors at the front shoulder rather than dead-centre. Same
+      // wood material as the arm — the whole upper rig is timber.
       basePlate: {
         width: cells(5),
         depth: cells(3),
         height: cells(1.5),
         forwardOffset: cells(1.5),
-        material: TURRET_GREEN,
+        material: CATAPULT_ARM_WOOD,
       },
       // Inclined wooden beam — 7 cells long, pitched 40° above horizontal
       // so the tip lifts well clear of the hull but well short of
