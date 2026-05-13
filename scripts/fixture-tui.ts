@@ -6,7 +6,7 @@
  *
  * Keys:
  *   arrows  — move cursor
- *   h/b/w   — place house / bonus / wall at cursor
+ *   h/b/w/g — place house / bonus / wall / grunt at cursor
  *   x       — remove any override at cursor
  *   0..N    — switch active wall owner
  *   u       — undo last edit
@@ -38,6 +38,7 @@ import {
 import type {
   BonusSquareOverride,
   FixtureFile,
+  GruntOverride,
   HouseOverride,
   WallOverride,
 } from "../test/phase-tests/types.ts";
@@ -48,7 +49,7 @@ import {
   waitForPhase,
 } from "../test/scenario.ts";
 
-type Tool = "house" | "bonus" | "wall";
+type Tool = "house" | "bonus" | "wall" | "grunt";
 
 type Mode = "author" | "replay";
 
@@ -105,6 +106,7 @@ type Action =
   | "tool:house"
   | "tool:bonus"
   | "tool:wall"
+  | "tool:grunt"
   | "primary"
   | "remove"
   | "undo"
@@ -222,6 +224,7 @@ async function bootScenarioSource(spec: ScenarioSpec): Promise<BootedSource> {
       houses: undefined,
       bonusSquares: undefined,
       walls: undefined,
+      grunts: undefined,
     };
     const sc = await createPhaseScenario(baselineFixture);
     return {
@@ -422,6 +425,8 @@ function decodeKey(bytes: Uint8Array): Action {
         return "tool:bonus";
       case "w":
         return "tool:wall";
+      case "g":
+        return "tool:grunt";
       case " ":
       case "\r":
       case "\n":
@@ -501,6 +506,12 @@ async function handleAction(state: EditorState, action: Action): Promise<void> {
       if (state.mode === "replay") return rejectInReplay(state);
       state.tool = "wall";
       state.message = "tool = wall";
+      state.messageKind = "info";
+      return;
+    case "tool:grunt":
+      if (state.mode === "replay") return rejectInReplay(state);
+      state.tool = "grunt";
+      state.message = "tool = grunt (victim derived from zone owner)";
       state.messageKind = "info";
       return;
     case "primary":
@@ -627,6 +638,13 @@ function placeAtCursor(state: EditorState): void {
       state.message = `placed wall at (${row},${col}) owner=${state.owner}`;
       break;
     }
+    case "grunt": {
+      const grunts: GruntOverride[] = [...(fixture.grunts ?? [])];
+      grunts.push({ row, col });
+      state.fixture = { ...fixture, grunts };
+      state.message = `placed grunt at (${row},${col})`;
+      break;
+    }
   }
   state.dirty = true;
   state.messageKind = "ok";
@@ -659,6 +677,13 @@ function removeAtCursor(state: EditorState): void {
     }
     return true;
   });
+  const grunts = (fixture.grunts ?? []).filter((grunt) => {
+    if (grunt.row === row && grunt.col === col) {
+      removed.push("grunt");
+      return false;
+    }
+    return true;
+  });
   if (removed.length === 0) {
     state.message = `nothing to remove at (${row},${col})`;
     state.messageKind = "error";
@@ -670,6 +695,7 @@ function removeAtCursor(state: EditorState): void {
     houses: houses.length > 0 ? houses : undefined,
     bonusSquares: bonusSquares.length > 0 ? bonusSquares : undefined,
     walls: walls.length > 0 ? walls : undefined,
+    grunts: grunts.length > 0 ? grunts : undefined,
   };
   state.dirty = true;
   state.message = `removed ${removed.join(", ")} at (${row},${col})`;
@@ -756,6 +782,21 @@ function validatePlacement(
     );
     if (exists) return `bonus already at (${row},${col})`;
   }
+  if (state.tool === "grunt") {
+    if (baseCell.kind === CellKind.Wall) return `(${row},${col}) is a wall`;
+    const fixtureWallHere = (fixture.walls ?? []).some(
+      (wall) => wall.row === row && wall.col === col,
+    );
+    if (fixtureWallHere) return `(${row},${col}) has a fixture-wall`;
+    const exists = (fixture.grunts ?? []).some(
+      (grunt) => grunt.row === row && grunt.col === col,
+    );
+    if (exists) return `grunt already at (${row},${col})`;
+    const baselineGrunt = state.baselineState?.grunts.some(
+      (grunt) => grunt.row === row && grunt.col === col,
+    );
+    if (baselineGrunt) return `(${row},${col}) already has a snapshot grunt`;
+  }
   return null;
 }
 
@@ -773,7 +814,8 @@ function hasOverrides(fixture: FixtureFile): boolean {
   return (
     (fixture.houses?.length ?? 0) +
       (fixture.bonusSquares?.length ?? 0) +
-      (fixture.walls?.length ?? 0) >
+      (fixture.walls?.length ?? 0) +
+      (fixture.grunts?.length ?? 0) >
     0
   );
 }
@@ -918,6 +960,12 @@ function tileInfoLine(state: EditorState): string {
         `${BOLD}${color}fixture-wall(${playerLabel(wall.ownerId)})${RESET}`,
       );
     }
+    const fixtureGrunt = (fixture.grunts ?? []).find(
+      (grunt) => grunt.row === row && grunt.col === col,
+    );
+    if (fixtureGrunt) {
+      parts.push(`${BOLD}${FG_MAGENTA}fixture-grunt${RESET}`);
+    }
   }
 
   return `tile (${row},${col}): ${parts.join(", ")}`;
@@ -949,7 +997,7 @@ function helpLine(state: EditorState): string {
   }
   return [
     "arrows: move",
-    "h/b/w: tool",
+    "h/b/w/g: tool",
     "space/enter: place",
     "x: remove",
     "0-2: owner",
@@ -1000,10 +1048,16 @@ function renderCell(state: EditorState, row: number, col: number): string {
   const fixtureWall = (fixture?.walls ?? []).find(
     (wall) => wall.row === row && wall.col === col,
   );
+  const fixtureGrunt = (fixture?.grunts ?? []).find(
+    (grunt) => grunt.row === row && grunt.col === col,
+  );
 
   if (fixtureWall) {
     char = "#";
     style = `${BOLD}${OWNER_COLORS[fixtureWall.ownerId] ?? ""}`;
+  } else if (fixtureGrunt) {
+    char = "!";
+    style = `${BOLD}${FG_MAGENTA}`;
   } else if (fixtureHouse) {
     char = "H";
     style = `${BOLD}${FG_MAGENTA}`;
@@ -1054,6 +1108,7 @@ function summarizeOverrides(fixture: FixtureFile): string {
     parts.push(`B:${fixture.bonusSquares.length}`);
   }
   if (fixture.walls?.length) parts.push(`W:${fixture.walls.length}`);
+  if (fixture.grunts?.length) parts.push(`G:${fixture.grunts.length}`);
   if (parts.length === 0) return "overrides: (none)";
   return `overrides: ${parts.join(" ")}`;
 }

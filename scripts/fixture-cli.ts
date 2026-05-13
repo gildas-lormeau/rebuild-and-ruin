@@ -11,6 +11,7 @@
  *   add-house  --fixture <path> --row N --col N
  *   add-bonus  --fixture <path> --row N --col N
  *   add-wall   --fixture <path> --row N --col N --owner N
+ *   add-grunt  --fixture <path> --row N --col N
  *       Appends an override; validates by re-running the loader end-to-end;
  *       writes the fixture back on success (refuses on validation failure).
  *
@@ -40,6 +41,7 @@ import {
 import type {
   BonusSquareOverride,
   FixtureFile,
+  GruntOverride,
   HouseOverride,
   WallOverride,
 } from "../test/phase-tests/types.ts";
@@ -57,6 +59,7 @@ interface FixtureKeySets {
   fixtureHouses: ReadonlySet<number>;
   fixtureBonuses: ReadonlySet<number>;
   fixtureWalls: ReadonlySet<number>;
+  fixtureGrunts: ReadonlySet<number>;
 }
 
 const RESET = "\x1b[0m";
@@ -91,6 +94,9 @@ async function main(): Promise<void> {
         break;
       case "add-wall":
         await runAddWall(flags);
+        break;
+      case "add-grunt":
+        await runAddGrunt(flags);
         break;
       case "remove":
         await runRemove(flags);
@@ -167,6 +173,10 @@ function colorizeGrid(
   for (const wall of fixture.walls ?? []) {
     fixtureWalls.add(wall.row * GRID_COLS + wall.col);
   }
+  const fixtureGrunts = new Set<number>();
+  for (const grunt of fixture.grunts ?? []) {
+    fixtureGrunts.add(grunt.row * GRID_COLS + grunt.col);
+  }
 
   const rowLabelW = String(GRID_ROWS - 1).length;
   const pad = " ".repeat(rowLabelW);
@@ -184,6 +194,7 @@ function colorizeGrid(
         fixtureHouses,
         fixtureBonuses,
         fixtureWalls,
+        fixtureGrunts,
       });
     }
     lines.push(`${String(row).padStart(rowLabelW, " ")} |${painted}|`);
@@ -229,7 +240,9 @@ function paintCell(
     case CellKind.Cannon:
       return `${OWNER_COLORS[cell.playerId] ?? ""}${cell.char}${RESET}`;
     case CellKind.Grunt:
-      return `${OWNER_COLORS[cell.playerId] ?? ""}${cell.char}${RESET}`;
+      return keys.fixtureGrunts.has(key)
+        ? `${BOLD}${FG_MAGENTA}${cell.char}${RESET}`
+        : `${OWNER_COLORS[cell.playerId] ?? ""}${cell.char}${RESET}`;
     case CellKind.Water:
     case CellKind.FrozenWater:
       return `${FG_BLUE}${cell.char}${RESET}`;
@@ -287,6 +300,19 @@ async function runAddWall(flags: Flags): Promise<void> {
   console.log(`added wall at (${row},${col}) owner=${owner}`);
 }
 
+async function runAddGrunt(flags: Flags): Promise<void> {
+  const path = requireFixturePath(flags);
+  const row = requireInt(flags, "row");
+  const col = requireInt(flags, "col");
+  const fixture = await readFixture(path);
+  const grunts: GruntOverride[] = [...(fixture.grunts ?? [])];
+  grunts.push({ row, col });
+  await writeAndValidate(path, { ...fixture, grunts });
+  console.log(
+    `added grunt at (${row},${col}) (victim derived from zone owner)`,
+  );
+}
+
 async function runRemove(flags: Flags): Promise<void> {
   const path = requireFixturePath(flags);
   const row = requireInt(flags, "row");
@@ -314,6 +340,13 @@ async function runRemove(flags: Flags): Promise<void> {
     }
     return true;
   });
+  const grunts = (fixture.grunts ?? []).filter((grunt) => {
+    if (grunt.row === row && grunt.col === col) {
+      removed.push("grunt");
+      return false;
+    }
+    return true;
+  });
   if (removed.length === 0) {
     throw new Error(`no override at (${row},${col}) to remove`);
   }
@@ -322,6 +355,7 @@ async function runRemove(flags: Flags): Promise<void> {
     houses: houses.length > 0 ? houses : undefined,
     bonusSquares: bonusSquares.length > 0 ? bonusSquares : undefined,
     walls: walls.length > 0 ? walls : undefined,
+    grunts: grunts.length > 0 ? grunts : undefined,
   });
   console.log(`removed at (${row},${col}): ${removed.join(", ")}`);
 }
@@ -364,6 +398,7 @@ function summarizeOverrides(fixture: FixtureFile): string {
     parts.push(`${fixture.bonusSquares.length} bonus(es)`);
   }
   if (fixture.walls?.length) parts.push(`${fixture.walls.length} wall(s)`);
+  if (fixture.grunts?.length) parts.push(`${fixture.grunts.length} grunt(s)`);
   if (parts.length === 0) return "overrides: (none)";
   return `overrides: ${parts.join(", ")}`;
 }
@@ -421,6 +456,7 @@ function printUsage(): void {
       "  add-house  --fixture <path> --row N --col N",
       "  add-bonus  --fixture <path> --row N --col N",
       "  add-wall   --fixture <path> --row N --col N --owner N",
+      "  add-grunt  --fixture <path> --row N --col N",
       "  remove     --fixture <path> --row N --col N",
       "  validate   --fixture <path>",
     ].join("\n"),
