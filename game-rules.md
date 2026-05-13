@@ -72,7 +72,7 @@ Players place cannons inside their enclosed territory (interior tiles only).
 - Home castle enclosed with alive tower: **2 new slots**
 - Each additional enclosed alive tower: **1 new slot**
 
-**After reselection** (lost a life): formula **replaces** the tower-based award above (a reselecting player has no cannons to carry over). New budget = `min(3 + livesLost, 8)`.
+**After reselection** (lost a life): formula **replaces** the tower-based award above (a reselecting player has no cannons to carry over). New budget = `firstRoundCannons + livesLost` (where `firstRoundCannons` is difficulty-scaled: 4 Easy / 3 Normal / 2 Hard / 1 Very Hard). With 3 starting lives the 3rd loss eliminates the player, so `livesLost` is at most 2 — realized maximum is 6 (Easy, last-life reselect).
 
 ### Placement Rules
 

@@ -148,8 +148,6 @@ export const SUPER_GUN_THREAT_WEIGHT = 100;
 export const RAMPART_SHIELD_HP = 6;
 /** Chebyshev distance (tiles) for rampart wall absorption radius. */
 export const RAMPART_SHIELD_RADIUS = 2;
-/** Maximum total cannon slots a reselecting player can earn. */
-export const MAX_CANNON_LIMIT_ON_RESELECT = 8;
 /** Balloon flight animation duration in seconds. Exceeds the jaws
  *  theme (~7.66 s) by ~0.84 s; the music tail finishes before the
  *  animation ends (silent tail is intentional). */

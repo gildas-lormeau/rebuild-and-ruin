@@ -13,7 +13,6 @@ import {
 } from "../shared/core/board-occupancy.ts";
 import { cannonModeDef } from "../shared/core/cannon-mode-defs.ts";
 import {
-  MAX_CANNON_LIMIT_ON_RESELECT,
   RAMPART_SHIELD_HP,
   STARTING_LIVES,
   TOWER_SIZE,
@@ -501,11 +500,10 @@ function cannonSlotsForRound(
   const existingSlots = cannonSlotsUsed(player);
   let newSlots: number;
   if (player.inGracePeriod) {
-    // Fresh castle: compensate for lost lives (zero in round 1), capped at MAX_CANNON_LIMIT_ON_RESELECT
-    newSlots = Math.min(
-      state.firstRoundCannons + (STARTING_LIVES - player.lives),
-      MAX_CANNON_LIMIT_ON_RESELECT,
-    );
+    // Fresh castle: compensate for lost lives (zero in round 1). With
+    // STARTING_LIVES = 3, livesLost is at most 2 (the 3rd loss eliminates),
+    // so the value is naturally bounded — no explicit cap needed.
+    newSlots = state.firstRoundCannons + (STARTING_LIVES - player.lives);
   } else {
     const aliveTowers = filterAliveOwnedTowers(player, state);
     const ownsHome =
