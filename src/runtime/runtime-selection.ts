@@ -32,13 +32,13 @@ import {
   tickCastleBuildAnimation,
 } from "./runtime-castle-build.ts";
 import { type RuntimeState, setMode } from "./runtime-state.ts";
+import { isRemotePlayer } from "./runtime-tick-context.ts";
+import type { CameraSystem, RuntimeSelection } from "./runtime-types.ts";
 import {
   ACCUM_SELECT,
-  isRemotePlayer,
   type MutableAccums,
   resetAccum,
-} from "./runtime-tick-context.ts";
-import type { CameraSystem, RuntimeSelection } from "./runtime-types.ts";
+} from "./timer-accums.ts";
 
 interface SelectionSystemDeps {
   runtimeState: RuntimeState;

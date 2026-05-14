@@ -67,15 +67,9 @@ import {
   setMode,
 } from "./runtime-state.ts";
 import {
-  ACCUM_BATTLE,
-  ACCUM_BUILD,
-  ACCUM_CANNON,
-  ACCUM_GRUNT,
-  ACCUM_MODIFIER_REVEAL,
   advancePhaseTimer,
   isRemotePlayer,
   localControllers,
-  resetAccum,
   tickGruntsIfDue,
 } from "./runtime-tick-context.ts";
 import type {
@@ -83,6 +77,14 @@ import type {
   RuntimeConfig,
   RuntimeLifeLost,
 } from "./runtime-types.ts";
+import {
+  ACCUM_BATTLE,
+  ACCUM_BUILD,
+  ACCUM_CANNON,
+  ACCUM_GRUNT,
+  ACCUM_MODIFIER_REVEAL,
+  resetAccum,
+} from "./timer-accums.ts";
 
 interface PhaseTicksDeps extends Pick<RuntimeConfig, "log"> {
   runtimeState: RuntimeState;

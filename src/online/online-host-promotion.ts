@@ -9,7 +9,7 @@ import {
   enterCannonPhase,
   finalizeCastleConstruction,
 } from "../game/index.ts";
-import type { MutableAccums } from "../runtime/runtime-tick-context.ts";
+import type { MutableAccums } from "../runtime/timer-accums.ts";
 import type { AiPersonality } from "../shared/core/ai-personality.ts";
 import { BATTLE_TIMER } from "../shared/core/game-constants.ts";
 import { Phase } from "../shared/core/game-phase.ts";

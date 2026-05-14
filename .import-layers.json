@@ -22,6 +22,7 @@
       "src/runtime/modifier-reveal-ramp.ts",
       "src/runtime/music-assets.ts",
       "src/runtime/runtime-browser-dom.ts",
+      "src/runtime/timer-accums.ts",
       "src/runtime/waved-ramp.ts",
       "src/shared/core/ai-personality.ts",
       "src/shared/core/game-constants.ts",

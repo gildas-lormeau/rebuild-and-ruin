@@ -32,7 +32,7 @@ import {
 } from "../shared/ui/player-config.ts";
 import { isGameplayMode, Mode } from "../shared/ui/ui-mode.ts";
 import { type BannerState, createBannerState } from "./runtime-banner-state.ts";
-import { createTimerAccums, type TimerAccums } from "./runtime-tick-context.ts";
+import { createTimerAccums, type TimerAccums } from "./timer-accums.ts";
 
 /** Discriminant for pause source. See `RuntimeState.pausedBy`. */
 export type PauseReason = "none" | "user" | "visibility";
