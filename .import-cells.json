@@ -219,14 +219,6 @@
   },
   {
     "layer": 3,
-    "domain": "entry",
-    "role": "dev sprite viewer page",
-    "files": [
-      "src/sprite-viewer-page.ts"
-    ]
-  },
-  {
-    "layer": 3,
     "domain": "online",
     "role": "presence wire payload",
     "files": [
@@ -449,7 +441,7 @@
   {
     "layer": 7,
     "domain": "render",
-    "role": "entity renderers, 3D effect factories & alternate renderers",
+    "role": "entity renderers & 3D effect factories",
     "files": [
       "src/render/3d/effects/bonus-squares.ts",
       "src/render/3d/effects/crosshairs.ts",
@@ -469,8 +461,7 @@
       "src/render/3d/entities/tower-labels.ts",
       "src/render/3d/entities/towers.ts",
       "src/render/3d/entities/walls.ts",
-      "src/render/3d/terrain.ts",
-      "src/render/ascii-renderer.ts"
+      "src/render/3d/terrain.ts"
     ]
   },
   {

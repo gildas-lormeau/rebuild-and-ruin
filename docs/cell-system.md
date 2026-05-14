@@ -131,22 +131,19 @@ the analysis — a lie there is a bug.
 ## Min-depth outliers
 
 A file whose imports pin it to a lower layer than its role suggests is
-called a **min-depth outlier**. Examples:
-
-- `src/sprite-viewer-page.ts` — a dev browser page that lands at L3
-  because it only imports L2 sprite scenes. It's not a "wire payload &
-  shared definition," it's just stuck there by import depth.
-- `src/render/ascii-renderer.ts` — an alternate renderer landing at L7
-  alongside entity renderers, because its only deep dependency is
-  `dev-console-grid.ts` at L6.
+called a **min-depth outlier**. The most common cause: a dev-only browser
+entry whose deepest dependency lands shallow (it doesn't need the full
+production wiring stack).
 
 Recognized resolutions:
 
-- **Move it out of `src/`** — if the file is dev/test tooling rather than
-  production code, relocate to `dev/`, `scripts/`, or `test/` (all
-  outside the layer system).
+- **Move it out of `src/`** — dev/test tooling belongs in `dev/`,
+  `scripts/`, or `test/` (all outside the layer system). This is the
+  default for dev-only browser entries like the ASCII debug renderer
+  and the sprite viewer page; they currently live in `dev/`.
 - **Widen the cell label** — accept the outlier; document via the label.
-  This is the documented pattern for legitimate cases.
+  Use this only when the file is genuinely production code that happens
+  to sit lower than its role suggests.
 - **Force a real higher dependency** — only if such a dependency genuinely
   exists. Never invent a fake import.
 

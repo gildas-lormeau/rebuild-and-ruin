@@ -105,8 +105,7 @@
       "src/online/online-presence-state.ts",
       "src/shared/core/battle-types.ts",
       "src/shared/core/game-event-bus.ts",
-      "src/shared/ui/settings-ui.ts",
-      "src/sprite-viewer-page.ts"
+      "src/shared/ui/settings-ui.ts"
     ]
   },
   {
@@ -231,7 +230,6 @@
       "src/render/3d/entities/towers.ts",
       "src/render/3d/entities/walls.ts",
       "src/render/3d/terrain.ts",
-      "src/render/ascii-renderer.ts",
       "src/runtime/dev-console.ts",
       "src/runtime/modifier-reveal-time.ts",
       "src/runtime/runtime-audio.ts",

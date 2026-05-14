@@ -7,13 +7,13 @@
  */
 
 import {
+  type AsciiRendererInternal,
+  createAsciiRenderer,
+} from "../dev/ascii-renderer.ts";
+import {
   GAME_CONTAINER_ACTIVE,
   GAME_EXIT_EVENT,
 } from "./online/online-router.ts";
-import {
-  type AsciiRendererInternal,
-  createAsciiRenderer,
-} from "./render/ascii-renderer.ts";
 import {
   createBrowserRuntimeBindings,
   createGameRuntime,

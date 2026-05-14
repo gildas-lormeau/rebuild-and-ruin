@@ -81,7 +81,6 @@ const LABELS: Record<string, string> = {
   "2::shared": "derived shared types & UI configs",
 
   // L3 — wire payloads & shared definitions
-  "3::entry": "dev sprite viewer page",
   "3::online": "presence wire payload",
   "3::shared": "battle wire types & event bus",
 
@@ -109,7 +108,7 @@ const LABELS: Record<string, string> = {
   "7::controllers": "human controller",
   "7::game": "game init, zone recompute & fire modifier",
   "7::online": "online action send, host crosshairs & stores",
-  "7::render": "entity renderers, 3D effect factories & alternate renderers",
+  "7::render": "entity renderers & 3D effect factories",
   "7::runtime": "runtime contracts & battle anim",
   "7::server": "server room manager",
   "7::shared": "shared board occupancy",

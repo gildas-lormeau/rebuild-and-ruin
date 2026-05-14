@@ -10,9 +10,9 @@ import {
   buildGrid,
   buildLegend,
   formatGrid,
-} from "../runtime/dev-console-grid.ts";
-import type { GameState } from "../shared/core/types.ts";
-import type { RendererInterface } from "../shared/ui/overlay-types.ts";
+} from "../src/runtime/dev-console-grid.ts";
+import type { GameState } from "../src/shared/core/types.ts";
+import type { RendererInterface } from "../src/shared/ui/overlay-types.ts";
 
 export interface AsciiRendererInternal extends RendererInterface {
   setStateGetter(getter: () => GameState): void;

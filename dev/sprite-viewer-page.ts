@@ -7,48 +7,48 @@
  */
 
 import * as THREE from "three";
-import { createWorldLights, setSunBlend } from "./render/3d/lights.ts";
+import { createWorldLights, setSunBlend } from "../src/render/3d/lights.ts";
 import {
   buildBalloon,
   getBalloonVariant,
-} from "./render/3d/sprites/balloon-scene.ts";
+} from "../src/render/3d/sprites/balloon-scene.ts";
 import {
   buildCannon,
   getCannonVariant,
-} from "./render/3d/sprites/cannon-scene.ts";
+} from "../src/render/3d/sprites/cannon-scene.ts";
 import {
   buildCannonball,
   getCannonballVariant,
-} from "./render/3d/sprites/cannonball-scene.ts";
+} from "../src/render/3d/sprites/cannonball-scene.ts";
 import {
   buildDebris,
   getDebrisVariant,
-} from "./render/3d/sprites/debris-scene.ts";
+} from "../src/render/3d/sprites/debris-scene.ts";
 import {
   buildGrunt,
   getGruntVariant,
-} from "./render/3d/sprites/grunt-scene.ts";
+} from "../src/render/3d/sprites/grunt-scene.ts";
 import {
   buildHouse,
   getHouseVariant,
-} from "./render/3d/sprites/house-scene.ts";
-import { buildPit, getPitVariant } from "./render/3d/sprites/pit-scene.ts";
+} from "../src/render/3d/sprites/house-scene.ts";
+import { buildPit, getPitVariant } from "../src/render/3d/sprites/pit-scene.ts";
 import {
   buildRampart,
   getRampartVariant,
-} from "./render/3d/sprites/rampart-scene.ts";
+} from "../src/render/3d/sprites/rampart-scene.ts";
 import {
   buildSupplyShip,
   getSupplyShipVariant,
-} from "./render/3d/sprites/supply-ship-scene.ts";
+} from "../src/render/3d/sprites/supply-ship-scene.ts";
 import {
   buildTower,
   getTowerVariant,
-} from "./render/3d/sprites/tower-scene.ts";
+} from "../src/render/3d/sprites/tower-scene.ts";
 import {
   buildWall,
   VARIANTS as WALL_VARIANTS,
-} from "./render/3d/sprites/wall-scene.ts";
+} from "../src/render/3d/sprites/wall-scene.ts";
 
 type SpriteKind =
   | "cannon"
