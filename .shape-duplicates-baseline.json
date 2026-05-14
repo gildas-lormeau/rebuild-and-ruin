@@ -376,6 +376,12 @@
       "pair": "BuildViewState@src/shared/core/system-interfaces.ts ↔ RenderViewShared@src/shared/core/render-view.ts"
     },
     {
+      "pair": "BurningPitOverride@test/phase-tests/types.ts ↔ PitCreatedMessage@src/shared/core/battle-events.ts"
+    },
+    {
+      "pair": "BurningPitOverride@test/phase-tests/types.ts ↔ SerializedBurningPit@src/protocol/checkpoint-data.ts"
+    },
+    {
       "pair": "BurstHost@src/render/3d/effects/modifier-reveal-burst.ts ↔ ThawHost@src/render/3d/effects/thawing.ts"
     },
     {

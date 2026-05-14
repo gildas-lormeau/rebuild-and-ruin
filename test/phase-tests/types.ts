@@ -69,6 +69,11 @@ export interface FixtureFile {
    *  CANNON_MAX_HP / player.defaultFacing. Used to pre-place cannons in
    *  a CANNON_PLACE fixture so AI tests see a partially-filled state. */
   cannons?: CannonOverride[];
+  /** Burning-pit additions, applied after cannons. Each pit occupies one
+   *  grass tile; must be in-bounds, off any tower / wall / cannon / existing
+   *  pit. `roundsLeft` defaults to `BURNING_PIT_DURATION` (3). Used to
+   *  pre-place pits to test cannon placement / grunt navigation around them. */
+  pits?: BurningPitOverride[];
   /** Free-form, ignored at runtime. Surfaced in the editor for context. */
   notes?: string;
 }
@@ -111,4 +116,11 @@ export interface CannonOverride {
   hp?: number;
   /** Facing in radians. Defaults to the player's `defaultFacing`. */
   facing?: number;
+}
+
+export interface BurningPitOverride {
+  row: number;
+  col: number;
+  /** Battle rounds remaining before expiry. Defaults to `BURNING_PIT_DURATION`. */
+  roundsLeft?: number;
 }

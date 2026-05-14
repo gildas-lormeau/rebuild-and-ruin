@@ -19,6 +19,7 @@ import {
   cannonModeDef,
 } from "../../src/shared/core/cannon-mode-defs.ts";
 import {
+  BURNING_PIT_DURATION,
   CANNON_MAX_HP,
   TOWER_SIZE,
 } from "../../src/shared/core/game-constants.ts";
@@ -41,6 +42,7 @@ import {
 import type { GameMessage } from "../../src/protocol/protocol.ts";
 import type {
   BonusSquareOverride,
+  BurningPitOverride,
   CannonOverride,
   FixtureFile,
   GruntOverride,
@@ -71,6 +73,9 @@ export async function createPhaseScenario(
   }
   if (fixture.cannons && fixture.cannons.length > 0) {
     applyCannonOverrides(sc.state, fixture.cannons);
+  }
+  if (fixture.pits && fixture.pits.length > 0) {
+    applyPitOverrides(sc.state, fixture.pits);
   }
   return sc;
 }
@@ -309,6 +314,61 @@ export function applyCannonOverrides(
       facing: override.facing ?? player.defaultFacing,
     });
     for (const key of cannonFootprintKeys(row, col, size)) occupied.add(key);
+  }
+}
+
+/** Append authored burning pits to `state.burningPits`. Each pit must sit
+ *  on a grass tile, in-bounds, off any tower / wall / cannon / existing
+ *  pit. `roundsLeft` defaults to `BURNING_PIT_DURATION` and must be ≥ 1. */
+export function applyPitOverrides(
+  state: GameState,
+  overrides: readonly BurningPitOverride[],
+): void {
+  const towerTiles = collectTowerTiles(state);
+  const occupied = new Set<number>();
+  for (const player of state.players) {
+    for (const key of player.walls) occupied.add(key);
+    for (const cannon of player.cannons) {
+      const cannonSize = cannonModeDef(cannon.mode).size;
+      for (const key of cannonFootprintKeys(
+        cannon.row,
+        cannon.col,
+        cannonSize,
+      )) {
+        occupied.add(key);
+      }
+    }
+  }
+  const pitTiles = new Set<number>();
+  for (const pit of state.burningPits) {
+    pitTiles.add(packTile(pit.row, pit.col));
+  }
+  for (const override of overrides) {
+    const { row, col } = override;
+    if (row < 0 || row >= GRID_ROWS || col < 0 || col >= GRID_COLS) {
+      throw new Error(`pit override (${row},${col}) out of bounds`);
+    }
+    if (state.map.tiles[row]![col] !== Tile.Grass) {
+      throw new Error(`pit override (${row},${col}) is not grass`);
+    }
+    const key = packTile(row, col);
+    if (towerTiles.has(key)) {
+      throw new Error(`pit override (${row},${col}) overlaps a tower`);
+    }
+    if (occupied.has(key)) {
+      throw new Error(`pit override (${row},${col}) overlaps a wall or cannon`);
+    }
+    if (pitTiles.has(key)) {
+      throw new Error(`pit override (${row},${col}) already has a pit`);
+    }
+    const roundsLeft = override.roundsLeft ?? BURNING_PIT_DURATION;
+    if (!Number.isInteger(roundsLeft) || roundsLeft < 1) {
+      throw new Error(
+        `pit override (${row},${col}) has invalid roundsLeft ${roundsLeft} (expected ≥ 1)`,
+      );
+    }
+    state.burningPits.push({ row, col, roundsLeft });
+    pitTiles.add(key);
   }
 }
 

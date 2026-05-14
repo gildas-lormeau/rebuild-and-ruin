@@ -6,8 +6,9 @@
  *
  * Keys:
  *   arrows  — move cursor
- *   h/b/w/g/c — place house / bonus / wall / grunt / cannon at cursor
- *               (cannons occupy a 2×2 footprint anchored at the cursor)
+ *   h/b/w/g/c/p — place house / bonus / wall / grunt / cannon / pit at
+ *                 cursor (cannons occupy a 2×2 footprint anchored at the
+ *                 cursor; pits are single-tile burning hazards)
  *   x       — remove any override at cursor
  *   0..N    — switch active wall owner
  *   u       — undo last edit
@@ -40,6 +41,7 @@ import {
 } from "../test/phase-tests/loader.ts";
 import type {
   BonusSquareOverride,
+  BurningPitOverride,
   CannonOverride,
   FixtureFile,
   GruntOverride,
@@ -53,7 +55,7 @@ import {
   waitForPhase,
 } from "../test/scenario.ts";
 
-type Tool = "house" | "bonus" | "wall" | "grunt" | "cannon";
+type Tool = "house" | "bonus" | "wall" | "grunt" | "cannon" | "pit";
 
 type Mode = "author" | "replay";
 
@@ -112,6 +114,7 @@ type Action =
   | "tool:wall"
   | "tool:grunt"
   | "tool:cannon"
+  | "tool:pit"
   | "primary"
   | "remove"
   | "undo"
@@ -434,6 +437,8 @@ function decodeKey(bytes: Uint8Array): Action {
         return "tool:grunt";
       case "c":
         return "tool:cannon";
+      case "p":
+        return "tool:pit";
       case " ":
       case "\r":
       case "\n":
@@ -525,6 +530,12 @@ async function handleAction(state: EditorState, action: Action): Promise<void> {
       if (state.mode === "replay") return rejectInReplay(state);
       state.tool = "cannon";
       state.message = "tool = cannon (2×2 footprint, mode=normal hp=max)";
+      state.messageKind = "info";
+      return;
+    case "tool:pit":
+      if (state.mode === "replay") return rejectInReplay(state);
+      state.tool = "pit";
+      state.message = "tool = burning pit (1 tile, roundsLeft=default)";
       state.messageKind = "info";
       return;
     case "primary":
@@ -665,6 +676,13 @@ function placeAtCursor(state: EditorState): void {
       state.message = `placed cannon at (${row},${col}) owner=${state.owner}`;
       break;
     }
+    case "pit": {
+      const pits: BurningPitOverride[] = [...(fixture.pits ?? [])];
+      pits.push({ row, col });
+      state.fixture = { ...fixture, pits };
+      state.message = `placed burning pit at (${row},${col})`;
+      break;
+    }
   }
   state.dirty = true;
   state.messageKind = "ok";
@@ -714,6 +732,13 @@ function removeAtCursor(state: EditorState): void {
     }
     return true;
   });
+  const pits = (fixture.pits ?? []).filter((pit) => {
+    if (pit.row === row && pit.col === col) {
+      removed.push("pit");
+      return false;
+    }
+    return true;
+  });
   if (removed.length === 0) {
     state.message = `nothing to remove at (${row},${col})`;
     state.messageKind = "error";
@@ -727,6 +752,7 @@ function removeAtCursor(state: EditorState): void {
     walls: walls.length > 0 ? walls : undefined,
     grunts: grunts.length > 0 ? grunts : undefined,
     cannons: cannons.length > 0 ? cannons : undefined,
+    pits: pits.length > 0 ? pits : undefined,
   };
   state.dirty = true;
   state.message = `removed ${removed.join(", ")} at (${row},${col})`;
@@ -828,6 +854,33 @@ function validatePlacement(
     );
     if (baselineGrunt) return `(${row},${col}) already has a snapshot grunt`;
   }
+  if (state.tool === "pit") {
+    if (baseCell.kind === CellKind.Wall) return `(${row},${col}) is a wall`;
+    const fixtureWallHere = (fixture.walls ?? []).some(
+      (wall) => wall.row === row && wall.col === col,
+    );
+    if (fixtureWallHere) return `(${row},${col}) has a fixture-wall`;
+    const cannonHere = (fixture.cannons ?? []).some((cannon) => {
+      const size = cannonModeDef(
+        (cannon.mode ?? CannonMode.NORMAL) as CannonMode,
+      ).size;
+      return (
+        row >= cannon.row &&
+        row < cannon.row + size &&
+        col >= cannon.col &&
+        col < cannon.col + size
+      );
+    });
+    if (cannonHere) return `(${row},${col}) has a fixture-cannon`;
+    const exists = (fixture.pits ?? []).some(
+      (pit) => pit.row === row && pit.col === col,
+    );
+    if (exists) return `pit already at (${row},${col})`;
+    const baselinePit = state.baselineState?.burningPits.some(
+      (pit) => pit.row === row && pit.col === col,
+    );
+    if (baselinePit) return `(${row},${col}) already has a snapshot pit`;
+  }
   if (state.tool === "cannon") {
     if (state.owner < 0 || state.owner >= state.playerCount) {
       return `owner ${state.owner} out of range (0..${state.playerCount - 1})`;
@@ -896,7 +949,8 @@ function hasOverrides(fixture: FixtureFile): boolean {
       (fixture.bonusSquares?.length ?? 0) +
       (fixture.walls?.length ?? 0) +
       (fixture.grunts?.length ?? 0) +
-      (fixture.cannons?.length ?? 0) >
+      (fixture.cannons?.length ?? 0) +
+      (fixture.pits?.length ?? 0) >
     0
   );
 }
@@ -1078,7 +1132,7 @@ function helpLine(state: EditorState): string {
   }
   return [
     "arrows: move",
-    "h/b/w/g/c: tool",
+    "h/b/w/g/c/p: tool",
     "space/enter: place",
     "x: remove",
     "0-2: owner",
@@ -1143,10 +1197,16 @@ function renderCell(state: EditorState, row: number, col: number): string {
       col < cannon.col + size
     );
   });
+  const fixturePit = (fixture?.pits ?? []).find(
+    (pit) => pit.row === row && pit.col === col,
+  );
 
   if (fixtureCannon) {
     char = "C";
     style = `${BOLD}${OWNER_COLORS[fixtureCannon.ownerId] ?? ""}`;
+  } else if (fixturePit) {
+    char = "*";
+    style = `${BOLD}${FG_RED}`;
   } else if (fixtureWall) {
     char = "#";
     style = `${BOLD}${OWNER_COLORS[fixtureWall.ownerId] ?? ""}`;
@@ -1205,6 +1265,7 @@ function summarizeOverrides(fixture: FixtureFile): string {
   if (fixture.walls?.length) parts.push(`W:${fixture.walls.length}`);
   if (fixture.grunts?.length) parts.push(`G:${fixture.grunts.length}`);
   if (fixture.cannons?.length) parts.push(`C:${fixture.cannons.length}`);
+  if (fixture.pits?.length) parts.push(`P:${fixture.pits.length}`);
   if (parts.length === 0) return "overrides: (none)";
   return `overrides: ${parts.join(" ")}`;
 }

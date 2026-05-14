@@ -24,9 +24,11 @@
  *   add-grunt  --fixture <path> --row N --col N
  *   add-cannon --fixture <path> --row N --col N --owner N
  *              [--cannon-mode M] [--hp N] [--facing rad]
+ *   add-pit    --fixture <path> --row N --col N [--rounds-left N]
  *       Appends an override; validates by re-running the loader end-to-end;
  *       writes the fixture back on success (refuses on validation failure).
  *       `add-cannon`'s --row/--col give the top-left of the 2×2 footprint.
+ *       `add-pit`'s --rounds-left defaults to BURNING_PIT_DURATION.
  *
  *   remove     --fixture <path> --row N --col N
  *       Removes any override (house / bonus / wall) at the given tile.
@@ -60,6 +62,7 @@ import {
 } from "../test/phase-tests/loader.ts";
 import type {
   BonusSquareOverride,
+  BurningPitOverride,
   CannonOverride,
   FixtureFile,
   FixtureMode,
@@ -90,6 +93,7 @@ interface Flags {
   cannonMode?: string;
   hp?: number;
   facing?: number;
+  roundsLeft?: number;
 }
 
 interface FixtureKeySets {
@@ -173,6 +177,9 @@ async function main(): Promise<void> {
         break;
       case "add-cannon":
         await runAddCannon(flags);
+        break;
+      case "add-pit":
+        await runAddPit(flags);
         break;
       case "remove":
         await runRemove(flags);
@@ -788,6 +795,21 @@ async function runAddCannon(flags: Flags): Promise<void> {
   console.log(`added cannon at (${row},${col}) owner=${owner}${suffix}`);
 }
 
+async function runAddPit(flags: Flags): Promise<void> {
+  const path = requireFixturePath(flags);
+  const row = requireInt(flags, "row");
+  const col = requireInt(flags, "col");
+  const fixture = await readFixture(path);
+  const pits: BurningPitOverride[] = [...(fixture.pits ?? [])];
+  const entry: BurningPitOverride = { row, col };
+  if (flags.roundsLeft !== undefined) entry.roundsLeft = flags.roundsLeft;
+  pits.push(entry);
+  await writeAndValidate(path, { ...fixture, pits });
+  const suffix =
+    entry.roundsLeft !== undefined ? ` roundsLeft=${entry.roundsLeft}` : "";
+  console.log(`added burning pit at (${row},${col})${suffix}`);
+}
+
 async function runRemove(flags: Flags): Promise<void> {
   const path = requireFixturePath(flags);
   const row = requireInt(flags, "row");
@@ -835,6 +857,13 @@ async function runRemove(flags: Flags): Promise<void> {
     }
     return true;
   });
+  const pits = (fixture.pits ?? []).filter((pit) => {
+    if (pit.row === row && pit.col === col) {
+      removed.push("burning pit");
+      return false;
+    }
+    return true;
+  });
   if (removed.length === 0) {
     throw new Error(`no override at (${row},${col}) to remove`);
   }
@@ -845,6 +874,7 @@ async function runRemove(flags: Flags): Promise<void> {
     walls: walls.length > 0 ? walls : undefined,
     grunts: grunts.length > 0 ? grunts : undefined,
     cannons: cannons.length > 0 ? cannons : undefined,
+    pits: pits.length > 0 ? pits : undefined,
   });
   console.log(`removed at (${row},${col}): ${removed.join(", ")}`);
 }
@@ -989,6 +1019,9 @@ function parseFlags(argv: readonly string[]): Flags {
       case "--facing":
         out.facing = Number(argv[++i]);
         break;
+      case "--rounds-left":
+        out.roundsLeft = Number(argv[++i]);
+        break;
       default:
         throw new Error(`unknown flag: ${arg}`);
     }
@@ -1028,6 +1061,7 @@ function printUsage(): void {
       "  add-grunt  --fixture <path> --row N --col N",
       "  add-cannon --fixture <path> --row N --col N --owner N",
       "             [--cannon-mode M] [--hp N] [--facing rad]",
+      "  add-pit    --fixture <path> --row N --col N [--rounds-left N]",
       "  remove     --fixture <path> --row N --col N",
       "  validate   --fixture <path>",
     ].join("\n"),
