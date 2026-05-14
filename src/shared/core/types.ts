@@ -191,17 +191,22 @@ export type UpgradeOfferTuple = [UpgradeId, UpgradeId, UpgradeId];
  *
  *  `disabledModifiers`/`disabledUpgrades` exclude IDs from the candidate
  *  pool BEFORE the weighted draw — RNG still consumes from the smaller
- *  pool. */
+ *  pool.
+ *
+ *  Array-shaped (instead of Set) so the same struct can ride a fixture
+ *  JSON via `FixtureFile.testHooks` without a runtime → wire conversion
+ *  step. Pool sizes are tiny (≤13 modifiers, ≤19 upgrades), so the
+ *  linear `.includes()` lookup is fine. */
 export interface TestHooks {
   /** Modifier IDs excluded from the random pool. The roll still consumes
    *  RNG (via `bool` + weighted draw on the remaining candidates). */
-  disabledModifiers?: ReadonlySet<ModifierId>;
+  disabledModifiers?: readonly ModifierId[];
   /** When set, `rollModifier` returns this value directly — no RNG draw.
    *  Pass `null` to force "no modifier this round" (bypasses both the
    *  fire-chance roll and the weighted draw). */
   forceModifier?: ModifierId | null;
   /** Upgrade IDs excluded from `drawOffers`. */
-  disabledUpgrades?: ReadonlySet<UpgradeId>;
+  disabledUpgrades?: readonly UpgradeId[];
   /** When set, `drawOffers` returns this id as the first of the 3 offers.
    *  The remaining 2 are drawn normally from the (filtered) pool. */
   forceUpgrade?: UpgradeId;

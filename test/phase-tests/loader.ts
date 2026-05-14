@@ -59,6 +59,14 @@ export async function createPhaseScenario(
   const sc = fixture.checkpoint
     ? await createCheckpointScenario(fixture)
     : await createFreshScenario(fixture);
+  if (fixture.testHooks) {
+    // Apply before any subsequent tick so rollModifier / drawOffers see
+    // the filter on the next phase transition. Fresh-scenario creation
+    // already drove the runtime to entryPhase, but no modifier roll fires
+    // before round 3 (MODIFIER_FIRST_ROUND) so round-1 fixtures stay
+    // unaffected by the late assignment.
+    sc.state.testHooks = fixture.testHooks;
+  }
   if (fixture.houses && fixture.houses.length > 0) {
     applyHouseOverrides(sc.state, fixture.houses);
   }

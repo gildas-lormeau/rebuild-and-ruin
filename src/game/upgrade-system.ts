@@ -379,7 +379,9 @@ function cannonTierSpeedMult(tier: 1 | 2 | 3): number {
 function drawOffers(state: GameState): [UpgradeId, UpgradeId, UpgradeId] {
   const hooks = state.testHooks;
   const disabled = hooks?.disabledUpgrades;
-  const pool = IMPLEMENTED_UPGRADES.filter((def) => !disabled?.has(def.id));
+  const pool = IMPLEMENTED_UPGRADES.filter(
+    (def) => !disabled?.includes(def.id),
+  );
   const picked: UpgradeId[] = [];
 
   if (hooks?.forceUpgrade !== undefined) {

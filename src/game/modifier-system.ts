@@ -76,7 +76,8 @@ export function rollModifier(state: GameState): ModifierId | null {
 
   const disabled = state.testHooks?.disabledModifiers;
   const candidates = IMPLEMENTED_MODIFIERS.filter(
-    (mod) => mod.id !== state.modern?.lastModifierId && !disabled?.has(mod.id),
+    (mod) =>
+      mod.id !== state.modern?.lastModifierId && !disabled?.includes(mod.id),
   );
   if (candidates.length === 0) return null;
 

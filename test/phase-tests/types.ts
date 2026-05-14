@@ -16,6 +16,7 @@
 
 import type { FullStateMessage } from "../../src/protocol/protocol.ts";
 import type { Phase } from "../../src/shared/core/game-phase.ts";
+import type { TestHooks } from "../../src/shared/core/types.ts";
 
 export type FixtureMode = "classic" | "modern";
 
@@ -74,6 +75,11 @@ export interface FixtureFile {
    *  pit. `roundsLeft` defaults to `BURNING_PIT_DURATION` (3). Used to
    *  pre-place pits to test cannon placement / grunt navigation around them. */
   pits?: BurningPitOverride[];
+  /** Test-only filters for modifier rolls + upgrade offers. Copied onto
+   *  `state.testHooks` after bootstrap (before any modifier roll or
+   *  upgrade draw). Lets a fixture pin which modifier fires or which
+   *  upgrade is offered without depending on the seed's RNG luck. */
+  testHooks?: TestHooks;
   /** Free-form, ignored at runtime. Surfaced in the editor for context. */
   notes?: string;
 }

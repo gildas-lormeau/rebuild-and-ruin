@@ -598,6 +598,9 @@
       "pair": "EntityOverlay@src/shared/ui/overlay-types.ts ↔ UpgradePickViewState@src/shared/core/system-interfaces.ts"
     },
     {
+      "pair": "FixtureFile@test/phase-tests/types.ts ↔ ScenarioOptions@test/scenario.ts"
+    },
+    {
       "pair": "FlagParams@src/render/3d/sprites/tower-scene.ts ↔ SailParams@src/render/3d/sprites/supply-ship-scene.ts"
     },
     {
