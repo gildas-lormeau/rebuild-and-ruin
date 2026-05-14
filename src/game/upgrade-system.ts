@@ -369,12 +369,28 @@ function cannonTierSpeedMult(tier: 1 | 2 | 3): number {
   return tier === 1 ? 1 : tier === 2 ? 1.2 : 1.44;
 }
 
-/** Draw N unique upgrades from the implemented pool using state.rng. */
+/** Draw N unique upgrades from the implemented pool using state.rng.
+ *
+ *  Test-only escape hatches (`state.testHooks`):
+ *    - `disabledUpgrades` removes IDs from the pool before the draw.
+ *    - `forceUpgrade` makes that ID the first offer (no RNG draw for that
+ *      slot); the remaining N-1 are drawn normally from the pool minus
+ *      the forced id. */
 function drawOffers(state: GameState): [UpgradeId, UpgradeId, UpgradeId] {
-  const pool = [...IMPLEMENTED_UPGRADES];
+  const hooks = state.testHooks;
+  const disabled = hooks?.disabledUpgrades;
+  const pool = IMPLEMENTED_UPGRADES.filter((def) => !disabled?.has(def.id));
   const picked: UpgradeId[] = [];
 
-  for (let idx = 0; idx < OFFER_COUNT && pool.length > 0; idx++) {
+  if (hooks?.forceUpgrade !== undefined) {
+    const forcedIdx = pool.findIndex((def) => def.id === hooks.forceUpgrade);
+    if (forcedIdx >= 0) {
+      picked.push(pool[forcedIdx]!.id);
+      pool.splice(forcedIdx, 1);
+    }
+  }
+
+  for (let idx = picked.length; idx < OFFER_COUNT && pool.length > 0; idx++) {
     const totalWeight = pool.reduce((sum, def) => sum + def.weight, 0);
     let roll = state.rng.next() * totalWeight;
     let chosenIdx = pool.length - 1;

@@ -66,7 +66,7 @@ import type { Phase } from "../src/shared/core/game-phase.ts";
 import type { GameMessage, ServerMessage } from "../src/protocol/protocol.ts";
 import type { ValidPlayerId } from "../src/shared/core/player-slot.ts";
 import type { BannerState } from "../src/runtime/runtime-contracts.ts";
-import type { GameState } from "../src/shared/core/types.ts";
+import type { GameState, TestHooks } from "../src/shared/core/types.ts";
 import type { Mode } from "../src/shared/ui/ui-mode.ts";
 import {
   createAsciiRenderer,
@@ -143,6 +143,10 @@ export interface ScenarioOptions {
    *  Camera-determinism tests opt in. Defaults to false (matches the
    *  existing fixtures, which were recorded with mobile zoom off). */
   mobileZoomEnabled?: boolean;
+  /** Test-only filters for modifier rolls + upgrade offers — see
+   *  `TestHooks` in shared/core/types.ts. Threaded onto `state.testHooks`
+   *  after bootstrap, mirroring the `debugTag` pattern. */
+  testHooks?: TestHooks;
 }
 
 export interface Scenario extends Disposable {
@@ -377,6 +381,9 @@ export async function createScenario(
   // until a slot joins. Tag once it exists; safe to skip when it doesn't.
   if (headless.runtime.runtimeState.state) {
     headless.runtime.runtimeState.state.debugTag = "LOCAL";
+    if (opts.testHooks) {
+      headless.runtime.runtimeState.state.testHooks = opts.testHooks;
+    }
   }
   if (ascii) {
     ascii.bind(() => headless.runtime.runtimeState.state);

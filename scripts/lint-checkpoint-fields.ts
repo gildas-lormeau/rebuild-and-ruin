@@ -41,6 +41,8 @@ const SERIALIZE_FILE = join(process.cwd(), "src/online/online-serialize.ts");
 const GAME_STATE_EXCLUSIONS: Record<string, string> = {
   debugTag:
     "test-only diagnostic label set by test scenarios (HOST/WATCHER/LOCAL) so capture-point traces can attribute interleaved frames to the runtime that produced them — production never sets or reads it",
+  testHooks:
+    "test-only modifier/upgrade filters consumed by rollModifier + drawOffers (forceModifier / disabledModifiers / forceUpgrade / disabledUpgrades) — set post-bootstrap from ScenarioOptions.testHooks, mirrored on every peer via the same mechanism so host/watcher stay in sync; production never sets or reads it",
   bus: "transient — created by createGameEventBus() at game start, not observable state",
   map: "immutable after init (tiles/zones/towers) — sub-fields that mutate (houses, tile overrides) are serialized individually; tile modifier effects go through applyCheckpointModifierTiles",
   activeFeatures:

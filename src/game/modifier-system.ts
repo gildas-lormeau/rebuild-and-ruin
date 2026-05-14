@@ -57,14 +57,26 @@ export const MODIFIER_REGISTRY = new Map<ModifierId, ModifierImpl>(
 );
 
 /** Roll a modifier for the current round. Returns null if no modifier fires.
- *  Must be called at a deterministic point using state.rng for online sync. */
+ *  Must be called at a deterministic point using state.rng for online sync.
+ *
+ *  Test-only escape hatches (consumed from `state.testHooks`):
+ *    - `forceModifier` set → returns that value (or null) immediately, no
+ *      RNG consumption. Tests use this to pin a specific modifier.
+ *    - `disabledModifiers` → those IDs are removed from the candidate pool
+ *      before the weighted draw. RNG is still consumed (bool + draw on
+ *      the reduced pool), so the surrounding RNG sequence is preserved
+ *      modulo the smaller pool. */
 export function rollModifier(state: GameState): ModifierId | null {
   if (!hasFeature(state, FID.MODIFIERS)) return null;
   if (state.round < MODIFIER_FIRST_ROUND) return null;
+  if (state.testHooks?.forceModifier !== undefined) {
+    return state.testHooks.forceModifier;
+  }
   if (!state.rng.bool(MODIFIER_ROLL_CHANCE)) return null;
 
+  const disabled = state.testHooks?.disabledModifiers;
   const candidates = IMPLEMENTED_MODIFIERS.filter(
-    (mod) => mod.id !== state.modern?.lastModifierId,
+    (mod) => mod.id !== state.modern?.lastModifierId && !disabled?.has(mod.id),
   );
   if (candidates.length === 0) return null;
 

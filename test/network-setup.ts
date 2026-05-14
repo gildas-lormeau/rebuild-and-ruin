@@ -225,6 +225,9 @@ async function buildHostRuntime(opts: ScenarioOptions): Promise<RuntimeBuild> {
     onlinePhaseTicks: buildHostPhaseTicks((msg) => sentMessages.push(msg)),
   });
   headless.runtime.runtimeState.state.debugTag = "HOST";
+  if (opts.testHooks) {
+    headless.runtime.runtimeState.state.testHooks = opts.testHooks;
+  }
   // DEBUG: tag the canonical state.rng instance so capture points inside
   // Rng.next() can filter+partition by peer via `this.tag`.
   // deno-lint-ignore no-explicit-any
@@ -264,6 +267,9 @@ async function buildWatcherRuntime(
     amHost: () => false,
   });
   headless.runtime.runtimeState.state.debugTag = "WATCHER";
+  if (opts.testHooks) {
+    headless.runtime.runtimeState.state.testHooks = opts.testHooks;
+  }
   // DEBUG: tag the canonical state.rng instance so capture points inside
   // Rng.next() can filter+partition by peer via `this.tag`.
   // deno-lint-ignore no-explicit-any
@@ -307,6 +313,9 @@ async function buildBidirectionalHost(
     onlinePhaseTicks: buildHostPhaseTicks((msg) => sentMessages.push(msg)),
   });
   headless.runtime.runtimeState.state.debugTag = "HOST";
+  if (opts.testHooks) {
+    headless.runtime.runtimeState.state.testHooks = opts.testHooks;
+  }
 
   // Host needs to receive the watcher's assisted-slot broadcasts.
   // `createMessageHandler` returns a per-instance closure (not the
@@ -358,6 +367,9 @@ async function buildBidirectionalWatcher(
     amHost: () => false,
   });
   headless.runtime.runtimeState.state.debugTag = "WATCHER";
+  if (opts.testHooks) {
+    headless.runtime.runtimeState.state.testHooks = opts.testHooks;
+  }
 
   const client = buildPeerClient(remotePlayerSlots, false);
   const handler = createMessageHandler({

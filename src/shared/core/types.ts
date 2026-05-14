@@ -51,6 +51,14 @@ export interface GameState {
    *  it's pure test/diagnostic infrastructure. Kept on the type so
    *  V8-side capture expressions can reference it without a cast. */
   debugTag?: string;
+  /** Test-only filters for modifier rolls + upgrade offers. Honoured by
+   *  `rollModifier` (game/modifier-system.ts) and `drawOffers`
+   *  (game/upgrade-system.ts). Set by `createScenario` from `ScenarioOptions`
+   *  after bootstrap, mirrored on every peer so host/watcher stay in sync.
+   *  Never serialized in the wire format — checkpoint roundtrips drop it,
+   *  but tests set it at boot so that's fine. Production code never sets or
+   *  reads this. */
+  testHooks?: TestHooks;
   /** Shared seeded RNG for deterministic gameplay decisions.
    *  Available methods: .next() → [0,1), .int(lo,hi), .bool(prob),
    *  .pick(arr), .shuffle(arr). See rng.ts for full API. */
@@ -172,6 +180,32 @@ export interface GameState {
 
 /** Upgrade offer triple — 3 unique upgrade choices offered to a player. */
 export type UpgradeOfferTuple = [UpgradeId, UpgradeId, UpgradeId];
+
+/** Test-only filters consumed by `rollModifier` and `drawOffers`.
+ *
+ *  `forceModifier`/`forceUpgrade` short-circuit the RNG-driven draw — when
+ *  set, no `state.rng` is consumed at the draw site. That keeps the
+ *  override predictable but means subsequent RNG-dependent state (grunt
+ *  positions, AI picks) differs vs. an unfiltered scenario. Tests that
+ *  care about post-roll RNG should pin them via fixtures instead.
+ *
+ *  `disabledModifiers`/`disabledUpgrades` exclude IDs from the candidate
+ *  pool BEFORE the weighted draw — RNG still consumes from the smaller
+ *  pool. */
+export interface TestHooks {
+  /** Modifier IDs excluded from the random pool. The roll still consumes
+   *  RNG (via `bool` + weighted draw on the remaining candidates). */
+  disabledModifiers?: ReadonlySet<ModifierId>;
+  /** When set, `rollModifier` returns this value directly — no RNG draw.
+   *  Pass `null` to force "no modifier this round" (bypasses both the
+   *  fire-chance roll and the weighted draw). */
+  forceModifier?: ModifierId | null;
+  /** Upgrade IDs excluded from `drawOffers`. */
+  disabledUpgrades?: ReadonlySet<UpgradeId>;
+  /** When set, `drawOffers` returns this id as the first of the 3 offers.
+   *  The remaining 2 are drawn normally from the (filtered) pool. */
+  forceUpgrade?: UpgradeId;
+}
 
 /** State exclusive to modern mode. null on GameState in classic mode. */
 /** Floating combo event — structured data aged by the renderer, removed when expired.
