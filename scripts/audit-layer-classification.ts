@@ -235,9 +235,13 @@ function nameSignal(
         why: `name "${base}" implies pure type/contract module, but file has value exports — name is misleading`,
       };
     }
+    // Pure-type files genuinely sit one tier above the types they compose
+    // (e.g. a Pick<> of an L4 type lands at L5 — mechanically unavoidable).
+    // Logic tier is accepted as "structural types-of-types"; only systems+
+    // signals a non-type dep is leaking in (the real bug to flag).
     return {
-      tiers: new Set(["types"]),
-      why: `name "${base}" implies pure type/contract module (file is pure types — layer system pulls it up because its imports cross into non-types)`,
+      tiers: new Set(["types", "logic"]),
+      why: `name "${base}" implies pure type/contract module — pin imports must stay in types or logic tier`,
     };
   }
   if (/-(system|strategy|engine|machine)\.ts$/.test(base)) {
