@@ -6,7 +6,8 @@
  *
  * Keys:
  *   arrows  — move cursor
- *   h/b/w/g — place house / bonus / wall / grunt at cursor
+ *   h/b/w/g/c — place house / bonus / wall / grunt / cannon at cursor
+ *               (cannons occupy a 2×2 footprint anchored at the cursor)
  *   x       — remove any override at cursor
  *   0..N    — switch active wall owner
  *   u       — undo last edit
@@ -26,6 +27,8 @@ import {
   CellKind,
   inspectTile,
 } from "../src/runtime/dev-console-grid.ts";
+import { CannonMode } from "../src/shared/core/battle-types.ts";
+import { cannonModeDef } from "../src/shared/core/cannon-mode-defs.ts";
 import { TOWER_SIZE } from "../src/shared/core/game-constants.ts";
 import { Phase } from "../src/shared/core/game-phase.ts";
 import { GRID_COLS, GRID_ROWS } from "../src/shared/core/grid.ts";
@@ -37,6 +40,7 @@ import {
 } from "../test/phase-tests/loader.ts";
 import type {
   BonusSquareOverride,
+  CannonOverride,
   FixtureFile,
   GruntOverride,
   HouseOverride,
@@ -49,7 +53,7 @@ import {
   waitForPhase,
 } from "../test/scenario.ts";
 
-type Tool = "house" | "bonus" | "wall" | "grunt";
+type Tool = "house" | "bonus" | "wall" | "grunt" | "cannon";
 
 type Mode = "author" | "replay";
 
@@ -107,6 +111,7 @@ type Action =
   | "tool:bonus"
   | "tool:wall"
   | "tool:grunt"
+  | "tool:cannon"
   | "primary"
   | "remove"
   | "undo"
@@ -427,6 +432,8 @@ function decodeKey(bytes: Uint8Array): Action {
         return "tool:wall";
       case "g":
         return "tool:grunt";
+      case "c":
+        return "tool:cannon";
       case " ":
       case "\r":
       case "\n":
@@ -512,6 +519,12 @@ async function handleAction(state: EditorState, action: Action): Promise<void> {
       if (state.mode === "replay") return rejectInReplay(state);
       state.tool = "grunt";
       state.message = "tool = grunt (victim derived from zone owner)";
+      state.messageKind = "info";
+      return;
+    case "tool:cannon":
+      if (state.mode === "replay") return rejectInReplay(state);
+      state.tool = "cannon";
+      state.message = "tool = cannon (2×2 footprint, mode=normal hp=max)";
       state.messageKind = "info";
       return;
     case "primary":
@@ -645,6 +658,13 @@ function placeAtCursor(state: EditorState): void {
       state.message = `placed grunt at (${row},${col})`;
       break;
     }
+    case "cannon": {
+      const cannons: CannonOverride[] = [...(fixture.cannons ?? [])];
+      cannons.push({ row, col, ownerId: state.owner });
+      state.fixture = { ...fixture, cannons };
+      state.message = `placed cannon at (${row},${col}) owner=${state.owner}`;
+      break;
+    }
   }
   state.dirty = true;
   state.messageKind = "ok";
@@ -684,6 +704,16 @@ function removeAtCursor(state: EditorState): void {
     }
     return true;
   });
+  // Cannons match anywhere in the 2×2 footprint anchored at (cannon.row, cannon.col).
+  const cannons = (fixture.cannons ?? []).filter((cannon) => {
+    const dr = row - cannon.row;
+    const dc = col - cannon.col;
+    if (dr >= 0 && dr <= 1 && dc >= 0 && dc <= 1) {
+      removed.push(`cannon(owner=${cannon.ownerId})`);
+      return false;
+    }
+    return true;
+  });
   if (removed.length === 0) {
     state.message = `nothing to remove at (${row},${col})`;
     state.messageKind = "error";
@@ -696,6 +726,7 @@ function removeAtCursor(state: EditorState): void {
     bonusSquares: bonusSquares.length > 0 ? bonusSquares : undefined,
     walls: walls.length > 0 ? walls : undefined,
     grunts: grunts.length > 0 ? grunts : undefined,
+    cannons: cannons.length > 0 ? cannons : undefined,
   };
   state.dirty = true;
   state.message = `removed ${removed.join(", ")} at (${row},${col})`;
@@ -797,6 +828,55 @@ function validatePlacement(
     );
     if (baselineGrunt) return `(${row},${col}) already has a snapshot grunt`;
   }
+  if (state.tool === "cannon") {
+    if (state.owner < 0 || state.owner >= state.playerCount) {
+      return `owner ${state.owner} out of range (0..${state.playerCount - 1})`;
+    }
+    for (let dr = 0; dr < 2; dr++) {
+      for (let dc = 0; dc < 2; dc++) {
+        const tr = row + dr;
+        const tc = col + dc;
+        if (tr >= GRID_ROWS || tc >= GRID_COLS) {
+          return `cannon footprint (${tr},${tc}) out of bounds`;
+        }
+        const tileCell = baseline[tr]?.[tc];
+        if (!tileCell) return `cannon footprint (${tr},${tc}) has no baseline`;
+        if (
+          tileCell.kind === CellKind.Water ||
+          tileCell.kind === CellKind.FrozenWater
+        ) {
+          return `cannon footprint (${tr},${tc}) is water`;
+        }
+        const tileKey = tr * GRID_COLS + tc;
+        if (state.towerTiles.has(tileKey)) {
+          return `cannon footprint (${tr},${tc}) overlaps a tower`;
+        }
+        if (tileCell.kind === CellKind.Wall) {
+          return `cannon footprint (${tr},${tc}) overlaps a baseline wall`;
+        }
+        const fixtureWallHere = (fixture.walls ?? []).some(
+          (wall) => wall.row === tr && wall.col === tc,
+        );
+        if (fixtureWallHere) {
+          return `cannon footprint (${tr},${tc}) overlaps a fixture-wall`;
+        }
+        const existingCannonOverlap = (fixture.cannons ?? []).some((cannon) => {
+          const otherSize = cannonModeDef(
+            (cannon.mode ?? CannonMode.NORMAL) as CannonMode,
+          ).size;
+          return (
+            tr >= cannon.row &&
+            tr < cannon.row + otherSize &&
+            tc >= cannon.col &&
+            tc < cannon.col + otherSize
+          );
+        });
+        if (existingCannonOverlap) {
+          return `cannon footprint (${tr},${tc}) overlaps an existing cannon`;
+        }
+      }
+    }
+  }
   return null;
 }
 
@@ -815,7 +895,8 @@ function hasOverrides(fixture: FixtureFile): boolean {
     (fixture.houses?.length ?? 0) +
       (fixture.bonusSquares?.length ?? 0) +
       (fixture.walls?.length ?? 0) +
-      (fixture.grunts?.length ?? 0) >
+      (fixture.grunts?.length ?? 0) +
+      (fixture.cannons?.length ?? 0) >
     0
   );
 }
@@ -867,7 +948,7 @@ function statusLine(state: EditorState): string {
   const cursor = `cursor (${state.cursorRow},${state.cursorCol})`;
   const tool = `tool ${state.tool.toUpperCase()}`;
   const owner =
-    state.tool === "wall"
+    state.tool === "wall" || state.tool === "cannon"
       ? ` owner ${state.owner} (${OWNER_COLORS[state.owner] ?? ""}${ownerName}${RESET})`
       : "";
   const counts = state.fixture
@@ -997,7 +1078,7 @@ function helpLine(state: EditorState): string {
   }
   return [
     "arrows: move",
-    "h/b/w/g: tool",
+    "h/b/w/g/c: tool",
     "space/enter: place",
     "x: remove",
     "0-2: owner",
@@ -1051,8 +1132,22 @@ function renderCell(state: EditorState, row: number, col: number): string {
   const fixtureGrunt = (fixture?.grunts ?? []).find(
     (grunt) => grunt.row === row && grunt.col === col,
   );
+  const fixtureCannon = (fixture?.cannons ?? []).find((cannon) => {
+    const size = cannonModeDef(
+      (cannon.mode ?? CannonMode.NORMAL) as CannonMode,
+    ).size;
+    return (
+      row >= cannon.row &&
+      row < cannon.row + size &&
+      col >= cannon.col &&
+      col < cannon.col + size
+    );
+  });
 
-  if (fixtureWall) {
+  if (fixtureCannon) {
+    char = "C";
+    style = `${BOLD}${OWNER_COLORS[fixtureCannon.ownerId] ?? ""}`;
+  } else if (fixtureWall) {
     char = "#";
     style = `${BOLD}${OWNER_COLORS[fixtureWall.ownerId] ?? ""}`;
   } else if (fixtureGrunt) {
@@ -1109,6 +1204,7 @@ function summarizeOverrides(fixture: FixtureFile): string {
   }
   if (fixture.walls?.length) parts.push(`W:${fixture.walls.length}`);
   if (fixture.grunts?.length) parts.push(`G:${fixture.grunts.length}`);
+  if (fixture.cannons?.length) parts.push(`C:${fixture.cannons.length}`);
   if (parts.length === 0) return "overrides: (none)";
   return `overrides: ${parts.join(" ")}`;
 }

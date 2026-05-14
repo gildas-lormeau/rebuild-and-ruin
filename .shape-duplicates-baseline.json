@@ -73,6 +73,9 @@
       "pair": "CannonHost@src/ai/ai-phase-cannon.ts ↔ SelectionHost@src/ai/ai-phase-select.ts"
     },
     {
+      "pair": "CannonOverride@test/phase-tests/types.ts ↔ WallOverride@test/phase-tests/types.ts"
+    },
+    {
       "pair": "CannonPlacement@src/ai/ai-strategy-cannon.ts ↔ CannonShapePayload@src/shared/core/phantom-types.ts"
     },
     {
@@ -385,6 +388,9 @@
       "pair": "CameraSystem@src/runtime/runtime-types.ts ↔ ZoomButtonDeps@src/runtime/runtime-contracts.ts"
     },
     {
+      "pair": "Cannon@src/render/3d/entities/cannons.ts ↔ CannonOverride@test/phase-tests/types.ts"
+    },
+    {
       "pair": "Cannon@src/render/3d/entities/cannons.ts ↔ CannonPlacement@src/ai/ai-strategy-cannon.ts"
     },
     {
@@ -428,6 +434,12 @@
     },
     {
       "pair": "CannonHost@src/ai/ai-phase-cannon.ts ↔ SelectionHost@src/ai/ai-phase-select.ts"
+    },
+    {
+      "pair": "CannonOverride@test/phase-tests/types.ts ↔ SerializedCannon@src/protocol/checkpoint-data.ts"
+    },
+    {
+      "pair": "CannonOverride@test/phase-tests/types.ts ↔ SerializedGrunt@src/protocol/checkpoint-data.ts"
     },
     {
       "pair": "CannonPlacement@src/ai/ai-strategy-cannon.ts ↔ CannonShapePayload@src/shared/core/phantom-types.ts"

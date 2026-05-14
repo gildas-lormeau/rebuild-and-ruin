@@ -22,8 +22,11 @@
  *   add-bonus  --fixture <path> --row N --col N
  *   add-wall   --fixture <path> --row N --col N --owner N
  *   add-grunt  --fixture <path> --row N --col N
+ *   add-cannon --fixture <path> --row N --col N --owner N
+ *              [--cannon-mode M] [--hp N] [--facing rad]
  *       Appends an override; validates by re-running the loader end-to-end;
  *       writes the fixture back on success (refuses on validation failure).
+ *       `add-cannon`'s --row/--col give the top-left of the 2×2 footprint.
  *
  *   remove     --fixture <path> --row N --col N
  *       Removes any override (house / bonus / wall) at the given tile.
@@ -57,6 +60,7 @@ import {
 } from "../test/phase-tests/loader.ts";
 import type {
   BonusSquareOverride,
+  CannonOverride,
   FixtureFile,
   FixtureMode,
   GruntOverride,
@@ -83,6 +87,9 @@ interface Flags {
   maxSeeds?: number;
   force?: boolean;
   notes?: string;
+  cannonMode?: string;
+  hp?: number;
+  facing?: number;
 }
 
 interface FixtureKeySets {
@@ -163,6 +170,9 @@ async function main(): Promise<void> {
         break;
       case "add-grunt":
         await runAddGrunt(flags);
+        break;
+      case "add-cannon":
+        await runAddCannon(flags);
         break;
       case "remove":
         await runRemove(flags);
@@ -757,6 +767,27 @@ async function runAddGrunt(flags: Flags): Promise<void> {
   );
 }
 
+async function runAddCannon(flags: Flags): Promise<void> {
+  const path = requireFixturePath(flags);
+  const row = requireInt(flags, "row");
+  const col = requireInt(flags, "col");
+  const owner = requireInt(flags, "owner");
+  const fixture = await readFixture(path);
+  const cannons: CannonOverride[] = [...(fixture.cannons ?? [])];
+  const entry: CannonOverride = { row, col, ownerId: owner };
+  if (flags.cannonMode !== undefined) entry.mode = flags.cannonMode;
+  if (flags.hp !== undefined) entry.hp = flags.hp;
+  if (flags.facing !== undefined) entry.facing = flags.facing;
+  cannons.push(entry);
+  await writeAndValidate(path, { ...fixture, cannons });
+  const details: string[] = [];
+  if (entry.mode) details.push(`mode=${entry.mode}`);
+  if (entry.hp !== undefined) details.push(`hp=${entry.hp}`);
+  if (entry.facing !== undefined) details.push(`facing=${entry.facing}`);
+  const suffix = details.length > 0 ? ` ${details.join(" ")}` : "";
+  console.log(`added cannon at (${row},${col}) owner=${owner}${suffix}`);
+}
+
 async function runRemove(flags: Flags): Promise<void> {
   const path = requireFixturePath(flags);
   const row = requireInt(flags, "row");
@@ -791,6 +822,19 @@ async function runRemove(flags: Flags): Promise<void> {
     }
     return true;
   });
+  // Cannons match if the tile is anywhere in the 2×2 footprint, since the
+  // top-left coord may not be the natural click target.
+  const cannons = (fixture.cannons ?? []).filter((cannon) => {
+    const dr = row - cannon.row;
+    const dc = col - cannon.col;
+    if (dr >= 0 && dr <= 1 && dc >= 0 && dc <= 1) {
+      removed.push(
+        `cannon (owner=${cannon.ownerId}, top-left=${cannon.row},${cannon.col})`,
+      );
+      return false;
+    }
+    return true;
+  });
   if (removed.length === 0) {
     throw new Error(`no override at (${row},${col}) to remove`);
   }
@@ -800,6 +844,7 @@ async function runRemove(flags: Flags): Promise<void> {
     bonusSquares: bonusSquares.length > 0 ? bonusSquares : undefined,
     walls: walls.length > 0 ? walls : undefined,
     grunts: grunts.length > 0 ? grunts : undefined,
+    cannons: cannons.length > 0 ? cannons : undefined,
   });
   console.log(`removed at (${row},${col}): ${removed.join(", ")}`);
 }
@@ -935,6 +980,15 @@ function parseFlags(argv: readonly string[]): Flags {
       case "--notes":
         out.notes = argv[++i];
         break;
+      case "--cannon-mode":
+        out.cannonMode = argv[++i];
+        break;
+      case "--hp":
+        out.hp = Number(argv[++i]);
+        break;
+      case "--facing":
+        out.facing = Number(argv[++i]);
+        break;
       default:
         throw new Error(`unknown flag: ${arg}`);
     }
@@ -972,6 +1026,8 @@ function printUsage(): void {
       "  add-bonus  --fixture <path> --row N --col N",
       "  add-wall   --fixture <path> --row N --col N --owner N",
       "  add-grunt  --fixture <path> --row N --col N",
+      "  add-cannon --fixture <path> --row N --col N --owner N",
+      "             [--cannon-mode M] [--hp N] [--facing rad]",
       "  remove     --fixture <path> --row N --col N",
       "  validate   --fixture <path>",
     ].join("\n"),

@@ -62,6 +62,13 @@ export interface FixtureFile {
    *  it. Position must be on grass, in bounds, and off any wall / tower /
    *  existing grunt. */
   grunts?: GruntOverride[];
+  /** Cannon additions, applied after grunts. Each cannon's 2×2 footprint
+   *  ([row..row+1] × [col..col+1]) must be in-bounds, fully on grass, and
+   *  off any tower / wall / existing cannon. `ownerId` references a
+   *  player slot. Optional `mode` / `hp` / `facing` default to NORMAL /
+   *  CANNON_MAX_HP / player.defaultFacing. Used to pre-place cannons in
+   *  a CANNON_PLACE fixture so AI tests see a partially-filled state. */
+  cannons?: CannonOverride[];
   /** Free-form, ignored at runtime. Surfaced in the editor for context. */
   notes?: string;
 }
@@ -89,4 +96,19 @@ export interface GruntOverride {
   /** Grunt variant. Omitted = regular grunt; "catapult" = range-2 siege
    *  variant (modern-mode catapults feature). */
   kind?: "catapult";
+}
+
+export interface CannonOverride {
+  /** Top-left row of the cannon's 2×2 footprint. */
+  row: number;
+  /** Top-left column of the cannon's 2×2 footprint. */
+  col: number;
+  /** Player slot index (0..state.players.length-1) that owns the cannon. */
+  ownerId: number;
+  /** Cannon variant. Defaults to "normal". Must be a value of `CannonMode`. */
+  mode?: string;
+  /** Starting HP. Defaults to `CANNON_MAX_HP`. */
+  hp?: number;
+  /** Facing in radians. Defaults to the player's `defaultFacing`. */
+  facing?: number;
 }

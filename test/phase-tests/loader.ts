@@ -13,7 +13,15 @@
  */
 
 import { addPlayerWall } from "../../src/shared/core/board-occupancy.ts";
-import { TOWER_SIZE } from "../../src/shared/core/game-constants.ts";
+import { CannonMode } from "../../src/shared/core/battle-types.ts";
+import {
+  CANNON_MODE_IDS,
+  cannonModeDef,
+} from "../../src/shared/core/cannon-mode-defs.ts";
+import {
+  CANNON_MAX_HP,
+  TOWER_SIZE,
+} from "../../src/shared/core/game-constants.ts";
 import { Phase } from "../../src/shared/core/game-phase.ts";
 import { GRID_COLS, GRID_ROWS, Tile } from "../../src/shared/core/grid.ts";
 import type { ValidPlayerId } from "../../src/shared/core/player-slot.ts";
@@ -33,6 +41,7 @@ import {
 import type { GameMessage } from "../../src/protocol/protocol.ts";
 import type {
   BonusSquareOverride,
+  CannonOverride,
   FixtureFile,
   GruntOverride,
   HouseOverride,
@@ -59,6 +68,9 @@ export async function createPhaseScenario(
   }
   if (fixture.grunts && fixture.grunts.length > 0) {
     applyGruntOverrides(sc.state, fixture.grunts);
+  }
+  if (fixture.cannons && fixture.cannons.length > 0) {
+    applyCannonOverrides(sc.state, fixture.cannons);
   }
   return sc;
 }
@@ -201,6 +213,105 @@ export function applyGruntOverrides(
   }
 }
 
+/** Append authored cannons to the owners' `player.cannons` arrays. The 2×2
+ *  footprint at (row..row+1, col..col+1) must be in-bounds, fully on grass,
+ *  off any tower, off any wall (any owner), and off any existing cannon
+ *  (any owner). `ownerId` must reference an existing player slot. `mode`
+ *  defaults to "normal", `hp` to `CANNON_MAX_HP`, `facing` to the player's
+ *  `defaultFacing`.
+ *
+ *  Does NOT enforce interior membership — the runtime's checkpoint path
+ *  also doesn't validate this, and tests may want to author cannons in
+ *  unusual locations. */
+export function applyCannonOverrides(
+  state: GameState,
+  overrides: readonly CannonOverride[],
+): void {
+  const towerTiles = collectTowerTiles(state);
+  const occupied = new Set<number>();
+  for (const player of state.players) {
+    for (const key of player.walls) occupied.add(key);
+    for (const cannon of player.cannons) {
+      const cannonSize = cannonModeDef(cannon.mode).size;
+      for (const key of cannonFootprintKeys(
+        cannon.row,
+        cannon.col,
+        cannonSize,
+      )) {
+        occupied.add(key);
+      }
+    }
+  }
+  for (const override of overrides) {
+    const { row, col, ownerId } = override;
+    if (
+      !Number.isInteger(ownerId) ||
+      ownerId < 0 ||
+      ownerId >= state.players.length
+    ) {
+      throw new Error(
+        `cannon override (${row},${col}) has invalid ownerId ${ownerId} ` +
+          `(expected 0..${state.players.length - 1})`,
+      );
+    }
+    const mode = override.mode ?? CannonMode.NORMAL;
+    if (!CANNON_MODE_IDS.has(mode as CannonMode)) {
+      throw new Error(
+        `cannon override (${row},${col}) has invalid mode "${mode}" ` +
+          `(expected one of ${[...CANNON_MODE_IDS].join("|")})`,
+      );
+    }
+    const hp = override.hp ?? CANNON_MAX_HP;
+    if (!Number.isInteger(hp) || hp < 0) {
+      throw new Error(
+        `cannon override (${row},${col}) has invalid hp ${hp} (expected ≥ 0)`,
+      );
+    }
+    const size = cannonModeDef(mode as CannonMode).size;
+    for (let dr = 0; dr < size; dr++) {
+      for (let dc = 0; dc < size; dc++) {
+        const tileRow = row + dr;
+        const tileCol = col + dc;
+        if (tileRow < 0 || tileRow >= GRID_ROWS) {
+          throw new Error(
+            `cannon override (${row},${col}) ${size}x${size} footprint tile (${tileRow},${tileCol}) out of bounds`,
+          );
+        }
+        if (tileCol < 0 || tileCol >= GRID_COLS) {
+          throw new Error(
+            `cannon override (${row},${col}) ${size}x${size} footprint tile (${tileRow},${tileCol}) out of bounds`,
+          );
+        }
+        if (state.map.tiles[tileRow]![tileCol] !== Tile.Grass) {
+          throw new Error(
+            `cannon override (${row},${col}) ${size}x${size} footprint tile (${tileRow},${tileCol}) is not grass`,
+          );
+        }
+        const key = packTile(tileRow, tileCol);
+        if (towerTiles.has(key)) {
+          throw new Error(
+            `cannon override (${row},${col}) ${size}x${size} footprint tile (${tileRow},${tileCol}) overlaps a tower`,
+          );
+        }
+        if (occupied.has(key)) {
+          throw new Error(
+            `cannon override (${row},${col}) ${size}x${size} footprint tile (${tileRow},${tileCol}) overlaps an existing wall or cannon`,
+          );
+        }
+      }
+    }
+    const player = state.players[ownerId as ValidPlayerId]!;
+    player.cannons.push({
+      row,
+      col,
+      hp,
+      mode: mode as CannonMode,
+      facing: override.facing ?? player.defaultFacing,
+    });
+    for (const key of cannonFootprintKeys(row, col, size)) occupied.add(key);
+  }
+}
+
 /** Recompute every player's interior, owned-tower set, and territory-derived
  *  cleanup (enclosed grunts / houses / bonus squares). Wraps the game's
  *  `recheckTerritory` so callers don't have to import from `src/game/`.
@@ -260,6 +371,20 @@ export function validateFixture(fixture: FixtureFile): void {
       `Fixture rounds must be a positive integer, got ${fixture.rounds}`,
     );
   }
+}
+
+function cannonFootprintKeys(
+  row: number,
+  col: number,
+  size: number,
+): number[] {
+  const keys: number[] = [];
+  for (let dr = 0; dr < size; dr++) {
+    for (let dc = 0; dc < size; dc++) {
+      keys.push(packTile(row + dr, col + dc));
+    }
+  }
+  return keys;
 }
 
 /** Round-1 path: AI-drive from boot to `entryPhase`. */
