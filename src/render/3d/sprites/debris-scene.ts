@@ -15,7 +15,6 @@ import {
 } from "./sprite-kit.ts";
 import {
   BAND_GREEN,
-  FLAG_BASE,
   WALL_STONE_DARK,
   WALL_STONE_LIGHT,
   WALL_STONE_MAIN,
@@ -74,21 +73,9 @@ interface LayoutPiece {
 }
 
 // ---------- scene-local materials ----------
-const STONE_DARK: MaterialSpec = {
-  kind: "standard",
-  color: 0x2a2a28,
-  roughness: 0.85,
-  metalness: 0.1,
-};
 const STONE_MID: MaterialSpec = {
   kind: "standard",
   color: 0x4a4a48,
-  roughness: 0.85,
-  metalness: 0.1,
-};
-const STONE_LIGHT: MaterialSpec = {
-  kind: "standard",
-  color: 0x7a7a78,
   roughness: 0.85,
   metalness: 0.1,
 };
@@ -138,11 +125,27 @@ const WOOD_MID: MaterialSpec = {
   roughness: 0.95,
   metalness: 0.0,
 };
-const ROOF_BLUE: MaterialSpec = {
+// Whitewashed limestone palette — towers ditched their colored roof tiles
+// and per-owner flags, so rubble reads as pale masonry rather than tinted
+// debris. Kept distinct from the cannon-rubble greys so a destroyed keep
+// is visually separable from a destroyed gun emplacement.
+const TOWER_STONE_DARK: MaterialSpec = {
   kind: "standard",
-  color: 0x1c699d,
-  roughness: 0.55,
-  metalness: 0.25,
+  color: 0x9a9a96,
+  roughness: 0.9,
+  metalness: 0.05,
+};
+const TOWER_STONE_MID: MaterialSpec = {
+  kind: "standard",
+  color: 0xc8c8c4,
+  roughness: 0.9,
+  metalness: 0.05,
+};
+const TOWER_STONE_LIGHT: MaterialSpec = {
+  kind: "standard",
+  color: 0xefefea,
+  roughness: 0.85,
+  metalness: 0.05,
 };
 // Frequency-weighted material lists. Each entry: [material, weight].
 // Higher weight → picked more often. Rare colors (bands, flag, blue)
@@ -166,13 +169,14 @@ const RAMPART_MATERIALS: ReadonlyArray<readonly [MaterialSpec, number]> = [
   [RAMPART_METAL_LIGHT, 3],
   [BAND_GREEN, 1],
 ];
+// Tower rubble is pale masonry — no roof tile, no flag scrap. Wood adds
+// a faint warm fleck (broken flagpole / scaffolding) so the pile isn't
+// uniformly grey-white.
 const TOWER_MATERIALS: ReadonlyArray<readonly [MaterialSpec, number]> = [
-  [STONE_DARK, 3],
-  [STONE_MID, 5],
-  [STONE_LIGHT, 4],
+  [TOWER_STONE_DARK, 3],
+  [TOWER_STONE_MID, 6],
+  [TOWER_STONE_LIGHT, 5],
   [WOOD_DARK, 1],
-  [ROOF_BLUE, 2],
-  [FLAG_BASE, 1],
 ];
 // Wall rubble uses only stone tones — walls are pure masonry, no wood
 // or roof tile. Weights bias toward the lit main shade.
@@ -696,7 +700,7 @@ export const VARIANTS: VariantDescriptor[] = [
     params: {
       seed: 0xc1a6,
       rocks: {
-        count: 102,
+        count: 130,
         footprint: { width: 1.625, depth: 1.5 },
         sizeRange: [0.16, 0.32],
         maxHeight: 0.375,
@@ -710,7 +714,7 @@ export const VARIANTS: VariantDescriptor[] = [
           dims: { width: 0.5625, height: 0.3125, depth: 0.1875 },
           pos: [-0.05, 0.15, -0.1],
           rot: [-0.1, 0.2, 0.18],
-          material: STONE_LIGHT,
+          material: TOWER_STONE_LIGHT,
         },
         // Second keep-wall fragment — shorter, tilted opposite.
         {
@@ -718,7 +722,7 @@ export const VARIANTS: VariantDescriptor[] = [
           dims: { width: 0.4, height: 0.26, depth: 0.17 },
           pos: [0.35, 0.13, 0.3],
           rot: [0.08, -0.25, -0.2],
-          material: STONE_MID,
+          material: TOWER_STONE_MID,
         },
         // Crenellation merlon — small square battlement block.
         {
@@ -726,7 +730,7 @@ export const VARIANTS: VariantDescriptor[] = [
           dims: { width: 0.14, height: 0.14, depth: 0.14 },
           pos: [-0.05, 0.36, -0.1],
           rot: [-0.05, 0.2, 0.12],
-          material: STONE_LIGHT,
+          material: TOWER_STONE_LIGHT,
         },
         // Second merlon, fallen away from the wall.
         {
@@ -734,23 +738,7 @@ export const VARIANTS: VariantDescriptor[] = [
           dims: { width: 0.13, height: 0.13, depth: 0.13 },
           pos: [-0.35, 0.07, 0.1],
           rot: [0.35, 0.1, 0.5],
-          material: STONE_MID,
-        },
-        // A snapped-off blue roof shard on top.
-        {
-          shape: "box",
-          dims: { width: 0.3125, height: 0.0625, depth: 0.1875 },
-          pos: [0.1, 0.34, -0.05],
-          rot: [-0.2, 0.3, -0.12],
-          material: ROOF_BLUE,
-        },
-        // Second roof shard — narrower, tipped far.
-        {
-          shape: "box",
-          dims: { width: 0.22, height: 0.05, depth: 0.14 },
-          pos: [-0.3, 0.05, -0.3],
-          rot: [0.5, 0.3, 0.6],
-          material: ROOF_BLUE,
+          material: TOWER_STONE_MID,
         },
         // Arch stone — wedge-shaped keystone, part of a window arch.
         {
@@ -758,7 +746,7 @@ export const VARIANTS: VariantDescriptor[] = [
           dims: { width: 0.2, height: 0.12, depth: 0.14 },
           pos: [0.25, 0.08, -0.35],
           rot: [0.25, -0.3, 0.18],
-          material: STONE_DARK,
+          material: TOWER_STONE_DARK,
         },
         // Broken pole stub.
         {
@@ -784,19 +772,12 @@ export const VARIANTS: VariantDescriptor[] = [
     params: {
       seed: 0xc1a7,
       rocks: {
-        count: 126,
+        count: 150,
         footprint: { width: 1.625, depth: 1.625 },
         sizeRange: [0.17, 0.34],
         maxHeight: 0.4375,
         flatness: [0.35, 0.9],
-        materials: [
-          [STONE_DARK, 3],
-          [STONE_MID, 5],
-          [STONE_LIGHT, 4],
-          [WOOD_DARK, 1],
-          [ROOF_BLUE, 2],
-          [FLAG_BASE, 1],
-        ],
+        materials: TOWER_MATERIALS,
       },
       chunks: [
         // Main keep-wall chunk — leaning slab.
@@ -805,7 +786,7 @@ export const VARIANTS: VariantDescriptor[] = [
           dims: { width: 0.625, height: 0.3125, depth: 0.1875 },
           pos: [-0.1, 0.17, -0.1],
           rot: [-0.06, 0.1, 0.14],
-          material: STONE_LIGHT,
+          material: TOWER_STONE_LIGHT,
         },
         // Second wall chunk.
         {
@@ -813,7 +794,7 @@ export const VARIANTS: VariantDescriptor[] = [
           dims: { width: 0.375, height: 0.3125, depth: 0.1875 },
           pos: [0.3, 0.14, 0.2],
           rot: [0.08, -0.2, -0.18],
-          material: STONE_MID,
+          material: TOWER_STONE_MID,
         },
         // Third wall fragment — shorter, different angle.
         {
@@ -821,7 +802,7 @@ export const VARIANTS: VariantDescriptor[] = [
           dims: { width: 0.32, height: 0.24, depth: 0.17 },
           pos: [-0.35, 0.13, 0.3],
           rot: [0.1, 0.5, -0.12],
-          material: STONE_DARK,
+          material: TOWER_STONE_DARK,
         },
         // Crenellation merlons — three battlement cubes fallen away.
         {
@@ -829,21 +810,21 @@ export const VARIANTS: VariantDescriptor[] = [
           dims: { width: 0.15, height: 0.15, depth: 0.15 },
           pos: [0.0, 0.37, -0.1],
           rot: [-0.08, 0.15, 0.1],
-          material: STONE_LIGHT,
+          material: TOWER_STONE_LIGHT,
         },
         {
           shape: "box",
           dims: { width: 0.14, height: 0.14, depth: 0.14 },
           pos: [0.4, 0.08, -0.38],
           rot: [0.4, 0.2, 0.5],
-          material: STONE_MID,
+          material: TOWER_STONE_MID,
         },
         {
           shape: "box",
           dims: { width: 0.13, height: 0.13, depth: 0.13 },
           pos: [-0.25, 0.07, -0.35],
           rot: [0.3, 0.5, -0.2],
-          material: STONE_LIGHT,
+          material: TOWER_STONE_LIGHT,
         },
         // Arch keystone — wedge from the gateway.
         {
@@ -851,30 +832,7 @@ export const VARIANTS: VariantDescriptor[] = [
           dims: { width: 0.22, height: 0.14, depth: 0.16 },
           pos: [0.1, 0.08, 0.4],
           rot: [0.18, 0.3, -0.15],
-          material: STONE_DARK,
-        },
-        // Two roof shards.
-        {
-          shape: "box",
-          dims: { width: 0.375, height: 0.0625, depth: 0.1875 },
-          pos: [-0.2, 0.36, 0.1],
-          rot: [-0.18, 0.4, -0.22],
-          material: ROOF_BLUE,
-        },
-        {
-          shape: "box",
-          dims: { width: 0.25, height: 0.0625, depth: 0.1875 },
-          pos: [0.28, 0.32, -0.2],
-          rot: [0.3, -0.2, 0.12],
-          material: ROOF_BLUE,
-        },
-        // Third roof shard — tipped flat on the pile.
-        {
-          shape: "box",
-          dims: { width: 0.2, height: 0.05, depth: 0.13 },
-          pos: [-0.38, 0.04, -0.1],
-          rot: [0.55, 0.3, 0.4],
-          material: ROOF_BLUE,
+          material: TOWER_STONE_DARK,
         },
         // Broken pole stub.
         {
@@ -888,16 +846,6 @@ export const VARIANTS: VariantDescriptor[] = [
           pos: [0.1, 0.12, 0.4],
           rot: [-Math.PI / 2 + 0.3, 0.0, 0.6],
           material: WOOD_DARK,
-        },
-        // Torn flag fragment — long thin slab lying near the pole stub,
-        // identifying this pile as the home tower. Named "flag" so the
-        // entity manager can tint it per-owner (see debris.ts).
-        {
-          shape: "box",
-          dims: { width: 0.3125, height: 0.03125, depth: 0.1875 },
-          pos: [-0.3, 0.02, 0.3],
-          rot: [0.05, 0.65, -0.12],
-          material: FLAG_BASE,
         },
       ],
     },
@@ -949,10 +897,14 @@ export const VARIANTS: VariantDescriptor[] = [
 // Combines the cannon and tower color sets — every variant quantizes to
 // the same shared palette regardless of which materials it uses.
 export const PALETTE: [number, number, number][] = [
-  // stone / iron greys (tower, cannon)
+  // iron greys (cannon)
   [0x2a, 0x2a, 0x28],
   [0x4a, 0x4a, 0x48],
   [0x7a, 0x7a, 0x78],
+  // pale limestone (tower)
+  [0x9a, 0x9a, 0x96],
+  [0xc8, 0xc8, 0xc4],
+  [0xef, 0xef, 0xea],
   // lighter stones — wall palette
   [0x6a, 0x6a, 0x65],
   [0x8a, 0x8a, 0x85],
@@ -963,14 +915,6 @@ export const PALETTE: [number, number, number][] = [
   [0x8a, 0x58, 0x30],
   // band green
   [0x3a, 0x5a, 0x28],
-  // roof blue
-  [0x0d, 0x3a, 0x6a],
-  [0x1c, 0x69, 0x9d],
-  [0x5a, 0xa0, 0xd0],
-  // flag red
-  [0x80, 0x1a, 0x1a],
-  [0xb0, 0x2a, 0x2a],
-  [0xd8, 0x50, 0x40],
   // dark accent
   [0x0a, 0x0a, 0x0a],
 ];
@@ -1011,10 +955,6 @@ export function buildDebris(
       createPieceGeometry(three, piece),
       mat(piece.material),
     );
-    // Name the signature flag chunk so the entity manager can tint it
-    // per-owner without walking material references. Matches the
-    // `home_tower_debris` chunk that carries FLAG_BASE.
-    if (piece.material === FLAG_BASE) mesh.name = "flag";
     mesh.position.set(piece.pos[0], piece.pos[1], piece.pos[2]);
     if (piece.rot) mesh.rotation.set(piece.rot[0], piece.rot[1], piece.rot[2]);
     if (piece.scale)
