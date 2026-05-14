@@ -46,7 +46,7 @@ Modern mode is the explicit exception channel: features with a `FeatureId`, pool
 ### Directory structure
 `src/` is organized into 9 domain directories matching `.domain-boundaries.json`:
 `shared/` (types, constants, config) · `protocol/` (wire format: messages, routes, checkpoints) · `game/` (systems, phase logic) · `ai/` (AI strategy / decision logic only — no controllers) · `controllers/` (BaseController + Human + AI controller wrappers + factory) · `input/` (keyboard, mouse, touch handlers — true input only) · `render/` (canvas, sprites, layout, render UI) · `online/` (multiplayer, checkpoints, online runtime) · `runtime/` (game loop, state, lifecycle, UI deps-object contracts, sound/haptics observer sub-systems).
-Entry points (`entry.ts`, `main.ts`, `online-client.ts`) stay at `src/` root. `server/` is separate (Deno Deploy target).
+Entry points (`entry.ts`, `main.ts`, `online-client.ts`) stay at `src/` root. `server/` is separate (Deno Deploy target). `dev/` holds dev-only browser entries (ASCII debug renderer at `dev/ascii-renderer.ts`, sprite viewer at `dev/sprite-viewer-page.ts`) — outside the layer/cell system but type-checked, formatted, and linted alongside `src/`.
 
 ### Module layers (19 groups in 5 tiers, `.import-layers.json`)
 Each layer falls within one of 5 tiers (`tierOfLayer(n)` in `scripts/cells/tier-of-layer.ts`): **types** (L0–L4) → **logic** (L5–L6) → **systems** (L7–L9) → **assembly** (L10–L13) → **roots** (L14–L18). Tier is a function of layer index, not a stored field — lint scripts (`lint-domain-boundaries.ts`, `lint-entry-placement.ts`) call the helper.
