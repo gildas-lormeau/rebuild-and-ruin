@@ -237,11 +237,19 @@ function nameSignal(
     }
     // Pure-type files genuinely sit one tier above the types they compose
     // (e.g. a Pick<> of an L4 type lands at L5 — mechanically unavoidable).
-    // Logic tier is accepted as "structural types-of-types"; only systems+
-    // signals a non-type dep is leaking in (the real bug to flag).
+    // Logic tier is accepted as "structural types-of-types". Runtime-domain
+    // types files climb further — `RuntimeState` references `GameState` (L5)
+    // plus other L5-pinned shapes, so a pure-type `runtime-types.ts` floors
+    // at L7 systems without parameterizing every consumer's state type.
+    // Accept systems tier for `src/runtime/` types files; for other domains,
+    // systems+ still signals a non-type dep is leaking in.
+    const allowSystems = file.startsWith("src/runtime/");
+    const acceptedTiers: Tier[] = allowSystems
+      ? ["types", "logic", "systems"]
+      : ["types", "logic"];
     return {
-      tiers: new Set(["types", "logic"]),
-      why: `name "${base}" implies pure type/contract module — pin imports must stay in types or logic tier`,
+      tiers: new Set(acceptedTiers),
+      why: `name "${base}" implies pure type/contract module — pin imports must stay in ${acceptedTiers.join("/")} tier`,
     };
   }
   if (/-(system|strategy|engine|machine)\.ts$/.test(base)) {
