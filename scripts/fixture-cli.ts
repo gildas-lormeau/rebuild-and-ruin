@@ -96,6 +96,10 @@ interface PickedSeed {
   seed: number;
   zones: number[];
   homeTowers: Tower[];
+  /** Wall tile coords per active player, parallel to `homeTowers`. Either
+   *  an N×N ring (castleSize ≥ 4) or the zone boundary (castleSize = -1).
+   *  Precomputed in `trySeed` so `buildCheckpoint` doesn't need the map. */
+  playerWalls: { row: number; col: number }[][];
   towerCount: number;
   castleSize: number;
 }
@@ -113,6 +117,11 @@ const DEFAULT_CREATE_CHECKPOINT_CANNONS_PER_PLAYER = 2;
  *  `eliminated: true` stubs with no castle, walls, or cannons. */
 const FIXED_PLAYER_COUNT = 3;
 const DEFAULT_CREATE_CHECKPOINT_PLAYERS = 3;
+/** Sentinel for `--castle-size -1`: build a wall ring along the entire
+ *  zone boundary (every grass tile with any 8-dir neighbor outside the
+ *  zone), making the player's territory the whole zone and enclosing
+ *  every in-zone tower. */
+const CASTLE_SIZE_WHOLE_ZONE = -1;
 const RESET = "\x1b[0m";
 const BOLD = "\x1b[1m";
 const DIM = "\x1b[2m";
@@ -228,10 +237,14 @@ async function runCreateCheckpoint(flags: Flags): Promise<void> {
         `(got ${entryPhase})`,
     );
   }
-  if (castleSize < 4 || castleSize % 2 !== 0) {
+  if (
+    castleSize !== CASTLE_SIZE_WHOLE_ZONE &&
+    (castleSize < 4 || castleSize % 2 !== 0)
+  ) {
     throw new Error(
-      `--castle-size must be an even integer ≥ 4 (got ${castleSize}); ` +
-        `4 = 2×2 tower + 1-tile ring with no gap, 10 = 8×8 interior + ring`,
+      `--castle-size must be an even integer ≥ 4 or -1 (got ${castleSize}); ` +
+        `4 = 2×2 tower + 1-tile ring with no gap, 10 = 8×8 interior + ring, ` +
+        `-1 = wall along the whole zone boundary (covers every in-zone tower)`,
     );
   }
   if (players < 1 || players > FIXED_PLAYER_COUNT) {
@@ -310,11 +323,10 @@ function pickSingleSeed(
   return result;
 }
 
-/** Look for a seed where the runtime's 3-zone bootstrap succeeds AND the
- *  largest `players` zones each contain a ring-fitting tower. The remaining
- *  3 − `players` zones still need to exist (the checkpoint slot count is
- *  fixed at 3) but their towers don't need to fit a ring — those slots
- *  become eliminated stubs. */
+/** Look for a seed where the runtime's 3-zone bootstrap succeeds AND every
+ *  active player's zone admits the chosen castle layout. Inactive slots
+ *  (3 − `players`) need only a zone to exist; their entries are emitted
+ *  as eliminated stubs. */
 function trySeed(
   seed: number,
   castleSize: number,
@@ -326,18 +338,29 @@ function trySeed(
   if (top.length < FIXED_PLAYER_COUNT) return null;
   const zones = top.map((entry) => entry.zone);
   const homeTowers: Tower[] = [];
+  const playerWalls: { row: number; col: number }[][] = [];
   for (let i = 0; i < players; i++) {
     const zone = zones[i]!;
-    const fits = map.towers.filter(
-      (tower) => tower.zone === zone && ringFits(map, tower, castleSize),
-    );
-    if (fits.length === 0) return null;
-    homeTowers.push(fits[0]!);
+    if (castleSize === CASTLE_SIZE_WHOLE_ZONE) {
+      const inZoneTowers = map.towers.filter((tower) => tower.zone === zone);
+      if (inZoneTowers.length === 0) return null;
+      homeTowers.push(inZoneTowers[0]!);
+      playerWalls.push(wholeZoneWallTiles(map, zone));
+    } else {
+      const fits = map.towers.filter(
+        (tower) => tower.zone === zone && ringFits(map, tower, castleSize),
+      );
+      if (fits.length === 0) return null;
+      const tower = fits[0]!;
+      homeTowers.push(tower);
+      playerWalls.push(ringTiles(tower, castleSize));
+    }
   }
   return {
     seed,
     zones,
     homeTowers,
+    playerWalls,
     towerCount: map.towers.length,
     castleSize,
   };
@@ -372,6 +395,47 @@ function ringFits(map: GameMap, tower: Tower, castleSize: number): boolean {
   return true;
 }
 
+/** Every grass tile of `zone` with at least one 8-dir neighbor that is NOT
+ *  zone-grass (water, off-map, or another zone). The set is 8-dir closed —
+ *  `computeOutside` flood-fill from edges cannot reach the zone's interior
+ *  through any diagonal. Tower tiles on the boundary are included as walls;
+ *  the runtime accepts this and grunts/cannons read tower state separately. */
+function wholeZoneWallTiles(
+  map: GameMap,
+  zone: number,
+): { row: number; col: number }[] {
+  const result: { row: number; col: number }[] = [];
+  for (let r = 0; r < GRID_ROWS; r++) {
+    for (let c = 0; c < GRID_COLS; c++) {
+      if (!isGrass(map.tiles, r, c)) continue;
+      if (map.zones[r]![c] !== zone) continue;
+      if (isZoneBoundaryTile(map, r, c, zone)) {
+        result.push({ row: r, col: c });
+      }
+    }
+  }
+  return result;
+}
+
+function isZoneBoundaryTile(
+  map: GameMap,
+  r: number,
+  c: number,
+  zone: number,
+): boolean {
+  for (let dr = -1; dr <= 1; dr++) {
+    for (let dc = -1; dc <= 1; dc++) {
+      if (dr === 0 && dc === 0) continue;
+      const nr = r + dr;
+      const nc = c + dc;
+      if (nr < 0 || nr >= GRID_ROWS || nc < 0 || nc >= GRID_COLS) return true;
+      if (!isGrass(map.tiles, nr, nc)) return true;
+      if (map.zones[nr]![nc] !== zone) return true;
+    }
+  }
+  return false;
+}
+
 function buildCheckpoint(
   picked: PickedSeed,
   opts: {
@@ -381,14 +445,12 @@ function buildCheckpoint(
     entryPhase: Phase;
   },
 ): FullStateMessage {
-  const { zones, homeTowers, towerCount, castleSize } = picked;
+  const { zones, homeTowers, playerWalls, towerCount } = picked;
   const activeCount = homeTowers.length;
   const players = [];
   for (let idx = 0; idx < activeCount; idx++) {
     const tower = homeTowers[idx]!;
-    const wallKeys = ringTiles(tower, castleSize).map(
-      (t) => t.row * GRID_COLS + t.col,
-    );
+    const wallKeys = playerWalls[idx]!.map((t) => t.row * GRID_COLS + t.col);
     players.push({
       id: idx,
       walls: wallKeys,
@@ -896,11 +958,14 @@ function printUsage(): void {
       "                    [--castle-size N] [--players N] [--max-seeds N]",
       '                    [--notes "..."] [--force]',
       "                      Synthesize a round-≥2 fixture with one hand-built",
-      "                      N×N castle per active player. --players 1..3",
-      "                      builds N castles; remaining slots are emitted",
-      "                      as eliminated stubs (lives=0, no walls/cannons,",
-      "                      AI skipped). Defaults: round=2, players=3,",
-      "                      castle-size=10, entry=CANNON_PLACE.",
+      "                      castle per active player. --castle-size N (even,",
+      "                      ≥4) → N×N square ring; --castle-size -1 → walls",
+      "                      along the whole zone boundary, enclosing every",
+      "                      in-zone tower. --players 1..3 builds N castles;",
+      "                      remaining slots are emitted as eliminated stubs",
+      "                      (lives=0, no walls/cannons, AI skipped).",
+      "                      Defaults: round=2, players=3, castle-size=10,",
+      "                      entry=CANNON_PLACE.",
       "",
       "  show       --fixture <path>",
       "  add-house  --fixture <path> --row N --col N",
