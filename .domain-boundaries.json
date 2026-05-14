@@ -327,6 +327,7 @@
       "src/entry.ts",
       "src/main.ts",
       "src/online-client.ts",
+      "src/sprite-viewer-page.ts",
       "server/server.ts"
     ]
   },

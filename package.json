@@ -38,6 +38,7 @@
     "test:e2e:banner-prev-scene": "deno run -A test/e2e-banner-prev-scene.ts",
     "test:dt-divergence": "deno test --no-check test/dt-divergence.test.ts",
     "find-seed": "deno run -A scripts/find-seed.ts",
+    "sprite-view": "deno run -A scripts/sprite-view.ts",
     "record-seeds": "deno run -A scripts/record-seeds.ts --parallel 4",
     "test:all": "npm run test:scenario && npm run test:determinism && npm run test:speed && npm run test:input && npm run test:touch && npm run test:dpad && npm run test:haptics && npm run test:network && npm run test:network-vs-local && npm run test:online && npm run test:banner && npm run test:banner:high-tide && npm run test:modifiers && npm run test:upgrades && npm run test:cannon-tier && npm run test:e2e:local:quick",
     "format": "biome format --write src/ server/",

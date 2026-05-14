@@ -101,13 +101,14 @@
     ]
   },
   {
-    "name": "wire payloads & shared definitions",
+    "name": "wire payloads, shared definitions & dev entry",
     "tier": "types",
     "files": [
       "src/online/online-presence-state.ts",
       "src/shared/core/battle-types.ts",
       "src/shared/core/game-event-bus.ts",
-      "src/shared/ui/settings-ui.ts"
+      "src/shared/ui/settings-ui.ts",
+      "src/sprite-viewer-page.ts"
     ]
   },
   {
