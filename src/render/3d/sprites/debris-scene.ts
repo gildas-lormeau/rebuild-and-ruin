@@ -195,7 +195,7 @@ export const VARIANTS: VariantDescriptor[] = [
     params: {
       seed: 0xc1a1,
       rocks: {
-        count: 28,
+        count: 120,
         footprint: { width: 1.5, depth: 1.375 },
         sizeRange: [0.16, 0.32],
         maxHeight: 0.3125,
@@ -307,7 +307,7 @@ export const VARIANTS: VariantDescriptor[] = [
     params: {
       seed: 0xc1a2,
       rocks: {
-        count: 112,
+        count: 120,
         footprint: { width: 1.5, depth: 1.375 },
         sizeRange: [0.12, 0.28],
         maxHeight: 0.375,
@@ -353,7 +353,7 @@ export const VARIANTS: VariantDescriptor[] = [
     params: {
       seed: 0xc1a3,
       rocks: {
-        count: 128,
+        count: 120,
         footprint: { width: 1.5, depth: 1.5 },
         sizeRange: [0.13, 0.3],
         maxHeight: 0.4375,
@@ -397,7 +397,7 @@ export const VARIANTS: VariantDescriptor[] = [
     params: {
       seed: 0xc1a4,
       rocks: {
-        count: 40,
+        count: 120,
         footprint: { width: 1.5, depth: 1.5 },
         sizeRange: [0.2, 0.4],
         maxHeight: 0.5,
@@ -524,7 +524,7 @@ export const VARIANTS: VariantDescriptor[] = [
     params: {
       seed: 0xc1a5,
       rocks: {
-        count: 32,
+        count: 120,
         footprint: { width: 1.5, depth: 1.375 },
         sizeRange: [0.18, 0.34],
         maxHeight: 0.4375,
@@ -610,7 +610,7 @@ export const VARIANTS: VariantDescriptor[] = [
     params: {
       seed: 0xc1a6,
       rocks: {
-        count: 26,
+        count: 120,
         footprint: { width: 1.5, depth: 1.375 },
         sizeRange: [0.16, 0.32],
         maxHeight: 0.3125,
