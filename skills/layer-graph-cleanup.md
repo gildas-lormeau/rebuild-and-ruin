@@ -69,7 +69,7 @@ Formal violations (upward edges) are already caught by `--check`. Look instead f
 | High layer → low layer (unexpected) | Online logic (L15) → handlers (L7) | Networking code shouldn't know about input handlers |
 | Entry point bypassing runtime | `online-client` → `assembly` directly | Should go through the composition/wiring layers |
 | Cross-domain edges | Input files import render files at same layer | Input should be usable independently of rendering |
-| File group name doesn't match files inside | `server.ts` in "deep logic" | Name drift signals a misclassified file |
+| Cell label doesn't match files inside | `server.ts` landed in "deep logic" cell | Label drift signals a misclassified file or a needed cell-label update |
 
 Ask for each edge: **"Should this layer need to know about that layer?"** If the answer is no, there's work to do.
 
@@ -85,10 +85,10 @@ Then classify:
 
 | Root cause | Fix |
 |---|---|
-| Type/interface defined in wrong layer | Move it to a lower layer (or reclassify the file) |
-| File has no deps above layer N but is classified higher | Reclassify the file in `.import-layers.json` — no code change needed |
+| Type/interface defined in wrong layer | Move it to a lower layer (the file follows automatically — layer = max(imports) + 1) |
 | Injected dependency passed from entry point | Import directly in the consuming layer (hoist) |
 | Factory logic inlined at entry point | Extract a factory helper into a lower module |
+| File domain inferred wrong by path | Add an `exceptions` entry in `.domain-boundaries.json` |
 | Agent-only convention lives only in examples | Add or tighten docs/comments/scripts so later agents don't have to infer it |
 
 ## Step 4 — Apply the fix
@@ -147,18 +147,15 @@ Re-read the graph. Fixes often cascade — removing one edge may reveal another 
 
 If the fix introduced a new architectural convention or clarified an old one, update the relevant skill/doc immediately. In this repo, documentation is part of the architecture, not an afterthought.
 
-## Step 6 — Update group names and tiers
+## Step 6 — Update cell labels (where naming now lives)
 
-After moving files, check that group names and tiers still describe their contents:
+Layer names in `.import-layers.json` are pure indices `L0`..`L18` — no semantic content. Role labeling lives in `.import-cells.json`, keyed by `(layer, domain)`. After moving files, check that the affected cells' labels still describe their contents:
 
-- Files with a `render-` prefix but no canvas deps → belong in a shared types group, not "render"
-- Logic files (game rules, phase transitions) mixed into "controllers" → move to "game systems"
-- A file whose only reason for being in group G is a single type → move the type, then move the file
-- If a group moved across a tier boundary (e.g., from logic to systems), update its `tier` field
+- A file moved across a domain or layer boundary may land in a different cell. Run `deno run -A scripts/cells/regen-cells.ts` and inspect the diff.
+- If a new `(layer, domain)` cell appeared, the regen will fail with the cell key; add a `LABELS` entry in `scripts/cells/regen-cells.ts`.
+- Tier crossings still matter — if a layer's contents moved across a tier boundary (e.g., from logic to systems), update its `tier` field in `.import-layers.json`.
 
-Rename groups in `.import-layers.json` to match reality. **Naming is the analysis** — a mismatch is always a signal. Tier assignments: **types** (L0–L4), **logic** (L5–L6), **systems** (L7–L9), **assembly** (L10–L13), **roots** (L14+).
-
-**Name drift after refactors.** The generator preserves `name` and `tier` across regens (indexed by layer number); it never rewrites them. After any refactor that adds/removes files at a layer, the preserved label may no longer describe the contents. Treat this as a **bug**, not cosmetic: the project's stated invariant is a perfect graph where every group name honestly describes its files. When a refactor lands, re-read every affected group's file list and rename if the label lies. Legitimate min-depth edge cases (entry points, server stubs, barrel files) should be accommodated by broader names (e.g., "derived types & local entry"), not hidden behind a narrower label.
+**Naming is the analysis** — a cell label that lies is a bug, not cosmetic. Read the cell's files (`cell-lookup` shows them) and rename if the label drifted. Legitimate min-depth outliers (entry points, server stubs, dev pages, alternate renderers) are accommodated by broader cell labels (e.g., "entity renderers, 3D effect factories & alternate renderers"), not hidden behind a narrower label. See `docs/cell-system.md` for the full workflow.
 
 ## Step 7 — Find single-consumer exports crossing domains
 
@@ -261,7 +258,7 @@ The systematic workflow for a clean architecture session:
 4. Re-run the health report after each fix to measure improvement (Pain should decrease)
 5. Stop when: no formal violations, no domain violations, no Pain points that represent misplaced code (high Pain on abstract type files is acceptable)
 
-Rename groups and update tiers in `.import-layers.json` to match reality. **Naming is the analysis** — a mismatch is always a signal.
+Update cell labels in `scripts/cells/regen-cells.ts` and tiers in `.import-layers.json` to match reality. **Naming is the analysis** — a cell label that no longer describes its files is a signal. See `docs/cell-system.md`.
 
 ## Step 10 — Bottom-up placement audit
 

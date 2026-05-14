@@ -59,7 +59,7 @@ Workflow tools at `scripts/cells/`:
 - `cell-lookup.ts "<role>"` — find which cell a new file should land in. Use this before grepping for similar files.
 - `cell-edit-impact.ts <file>` — show same-cell peers, cross-cell consumers, and test consumers before editing a contract or wiring file.
 - `regen-cells.ts` — regenerate the cell map after `generate-import-layers.ts`. `--check` mode fails if stale. The `LABELS` map inside the script is the source of truth for role names.
-File → domain is derived from path (`src/X/...` → `X`, `src/<root>.ts` → `entry`, `server/...` → `server`), with the `exceptions` block in `.domain-boundaries.json` for role-overrides like `server/server.ts → entry`.
+File → domain is derived from path (`src/X/...` → `X`, `src/<root>.ts` → `entry`, `server/...` → `server`), with the `exceptions` block in `.domain-boundaries.json` for role-overrides like `server/server.ts → entry`. Full workflow reference in `docs/cell-system.md`.
 
 ### Type file organization (L1–L4)
 - `interaction-types.ts` (L1) — LifeLostDialogState, UpgradePickDialogState, ControlsState, CastleBuildState, CastleWallPlan, GameOverFocus
@@ -141,7 +141,7 @@ The single `lint-registries.ts` pre-commit check iterates all 4 `*_CONSUMERS` ma
 - ESLint enforces min 2-char identifiers. When fixing a 1-letter name, choose an expressive name (e.g. `player`, `tower`), never a 2-letter abbreviation (`pl`, `tw`).
 - File order: imports → types → constants → exported functions → private functions (enforced by pre-commit)
 - Use `deno run -A scripts/cells/cell-lookup.ts "<role>"` to find where new code should go (e.g. "modifier effect", "wire payload", "AI strategy"). The cell map at `.import-cells.json` is the role → location index; `.import-layers.json` is the mechanical layer-index view.
-- After adding a **new file**, run `deno run -A scripts/generate-import-layers.ts` to assign it a layer, then review the diff. The pre-commit `--check` fails if any file is missing from the map — the fix is always to regenerate, never to hand-assign (the generator computes the layer from imports).
+- After adding a **new file**, run `deno run -A scripts/generate-import-layers.ts` to assign it a layer, then `deno run -A scripts/cells/regen-cells.ts` to refresh the cell map. Both have `--check` modes the pre-commit hook runs — the fix for a `--check` failure is always to regenerate, never to hand-assign. If `regen-cells` flags a new `(domain, layer)` cell, add a `LABELS` entry in `scripts/cells/regen-cells.ts`.
 - Use `npx biome check --write <files>` for import sorting, never reorder manually
 - Prefer spatial helpers (`isWater`, `isGrass`, `waterKeys`) over importing Tile enum directly
 - Check existing helpers (`npm run export-search`) before inlining logic; create new helpers when a pattern appears 2+ times
