@@ -176,7 +176,6 @@ const TOWER_MATERIALS: ReadonlyArray<readonly [MaterialSpec, number]> = [
   [TOWER_STONE_DARK, 3],
   [TOWER_STONE_MID, 6],
   [TOWER_STONE_LIGHT, 5],
-  [WOOD_DARK, 1],
 ];
 // Wall rubble uses only stone tones — walls are pure masonry, no wood
 // or roof tile. Weights bias toward the lit main shade.
@@ -700,7 +699,7 @@ export const VARIANTS: VariantDescriptor[] = [
     params: {
       seed: 0xc1a6,
       rocks: {
-        count: 130,
+        count: 250,
         footprint: { width: 1.625, depth: 1.5 },
         sizeRange: [0.16, 0.32],
         maxHeight: 0.375,
@@ -748,19 +747,6 @@ export const VARIANTS: VariantDescriptor[] = [
           rot: [0.25, -0.3, 0.18],
           material: TOWER_STONE_DARK,
         },
-        // Broken pole stub.
-        {
-          shape: "cylinder",
-          dims: {
-            radiusTop: 0.018,
-            radiusBottom: 0.018,
-            height: 0.1875,
-            segments: 8,
-          },
-          pos: [0.2, 0.1, 0.3],
-          rot: [-Math.PI / 2 + 0.4, 0.0, 0.5],
-          material: WOOD_DARK,
-        },
       ],
     },
   },
@@ -772,7 +758,7 @@ export const VARIANTS: VariantDescriptor[] = [
     params: {
       seed: 0xc1a7,
       rocks: {
-        count: 150,
+        count: 300,
         footprint: { width: 1.625, depth: 1.625 },
         sizeRange: [0.17, 0.34],
         maxHeight: 0.4375,
@@ -833,19 +819,6 @@ export const VARIANTS: VariantDescriptor[] = [
           pos: [0.1, 0.08, 0.4],
           rot: [0.18, 0.3, -0.15],
           material: TOWER_STONE_DARK,
-        },
-        // Broken pole stub.
-        {
-          shape: "cylinder",
-          dims: {
-            radiusTop: 0.02,
-            radiusBottom: 0.02,
-            height: 0.25,
-            segments: 8,
-          },
-          pos: [0.1, 0.12, 0.4],
-          rot: [-Math.PI / 2 + 0.3, 0.0, 0.6],
-          material: WOOD_DARK,
         },
       ],
     },
