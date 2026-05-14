@@ -152,13 +152,18 @@ export const noopNetworkSend: (msg: GameMessage) => void = () => {};
 export function createBrowserRuntimeBindings(
   uiCanvas: HTMLCanvasElement,
   worldCanvas: HTMLCanvasElement,
+  rendererOverride?: RendererInterface,
 ): {
   renderer: RendererInterface;
   timing: TimingApi;
   keyboardEventSource: Document;
 } {
+  // When an override is passed (dev-only alternate renderers, e.g.
+  // ASCII), skip the 3D renderer entirely — instantiating Three.js +
+  // WebGL just to discard it is wasteful when a debug renderer takes
+  // its place.
   return {
-    renderer: createRender3d(worldCanvas, uiCanvas),
+    renderer: rendererOverride ?? createRender3d(worldCanvas, uiCanvas),
     timing: createBrowserTimingApi(),
     keyboardEventSource: document,
   };

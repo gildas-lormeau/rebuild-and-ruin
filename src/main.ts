@@ -30,17 +30,20 @@ const worldCanvas = document.getElementById(
   "world-canvas",
 ) as HTMLCanvasElement;
 // `?renderer=ascii` swaps the 3D renderer for a text-based one that
-// paints into a <pre> sibling of the canvas stack. Dev-only — no
-// input wiring, no overlays, no audio sync; reads game state via the
-// late-bind getter installed after the runtime is constructed.
+// paints into a <pre> sibling of the canvas stack. Dev-only (gated on
+// IS_DEV so deployed prod builds ignore the param) — no input wiring,
+// no overlays, no audio sync; reads game state via the late-bind getter
+// installed after the runtime is constructed.
 const useAsciiRenderer =
-  new URL(location.href).searchParams.get("renderer") === "ascii";
+  IS_DEV && new URL(location.href).searchParams.get("renderer") === "ascii";
 const asciiRenderer: AsciiRendererInternal | null = useAsciiRenderer
   ? mountAsciiRenderer()
   : null;
-const browserBindings = createBrowserRuntimeBindings(canvas, worldCanvas);
-const renderer = asciiRenderer ?? browserBindings.renderer;
-const { timing, keyboardEventSource } = browserBindings;
+const { renderer, timing, keyboardEventSource } = createBrowserRuntimeBindings(
+  canvas,
+  worldCanvas,
+  asciiRenderer ?? undefined,
+);
 const runtime = createGameRuntime({
   renderer,
   timing,
