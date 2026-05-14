@@ -32,7 +32,7 @@ interface LayerGroup {
 interface Finding {
   file: string;
   tier: Tier;
-  group: string;
+  layer: number;
   signals: Array<{
     kind: "HEADER" | "NAME" | "IMPORTS";
     expects: Set<Tier>;
@@ -60,7 +60,6 @@ const layerGroups: LayerGroup[] = JSON.parse(
   readFileSync(path.join(ROOT, ".import-layers.json"), "utf-8"),
 );
 const fileToLayer = new Map<string, number>();
-const fileToGroup = new Map<string, string>();
 const fileToTier = new Map<string, Tier>();
 const project = new Project({
   tsConfigFilePath: path.join(ROOT, "tsconfig.json"),
@@ -72,7 +71,6 @@ const findings: Finding[] = [];
 for (let i = 0; i < layerGroups.length; i++) {
   for (const file of layerGroups[i]!.files) {
     fileToLayer.set(file, i);
-    fileToGroup.set(file, layerGroups[i]!.name);
     fileToTier.set(file, tierOfLayer(i));
   }
 }
@@ -92,7 +90,7 @@ for (const sf of project.getSourceFiles()) {
   const file = path.relative(ROOT, sf.getFilePath());
   const tier = fileToTier.get(file);
   if (!tier) continue;
-  const group = fileToGroup.get(file)!;
+  const layer = fileToLayer.get(file)!;
 
   const text = sf.getFullText();
   const header = extractHeader(text);
@@ -131,7 +129,7 @@ for (const sf of project.getSourceFiles()) {
   }
 
   if (signals.length > 0) {
-    findings.push({ file, tier, group, signals });
+    findings.push({ file, tier, layer, signals });
   }
 }
 
@@ -158,7 +156,7 @@ for (const found of findings) {
     "|",
   );
   console.log(
-    `[${found.signals.length}] ${found.file}  (${found.tier} / "${found.group}")  -> expects ${expectsList}`,
+    `[${found.signals.length}] ${found.file}  (${found.tier} / L${found.layer})  -> expects ${expectsList}`,
   );
   for (const sig of found.signals) {
     console.log(`     ${sig.kind}: ${sig.why}`);

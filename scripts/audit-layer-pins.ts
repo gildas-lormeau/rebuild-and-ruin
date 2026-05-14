@@ -22,7 +22,6 @@ interface LayerGroup {
 interface ImportInfo {
   file: string;
   layer: number;
-  group: string;
   tier: string;
   typeOnly: boolean;
 }
@@ -32,7 +31,6 @@ const layerGroups: LayerGroup[] = JSON.parse(
   readFileSync(path.join(ROOT, ".import-layers.json"), "utf-8"),
 );
 const fileToLayer = new Map<string, number>();
-const fileToGroup = new Map<string, string>();
 const fileToTier = new Map<string, string>();
 const DEFAULTS = [
   "src/runtime/runtime-composition.ts",
@@ -49,7 +47,6 @@ const project = new Project({
 for (let i = 0; i < layerGroups.length; i++) {
   for (const file of layerGroups[i]!.files) {
     fileToLayer.set(file, i);
-    fileToGroup.set(file, layerGroups[i]!.name);
     fileToTier.set(file, tierOfLayer(i));
   }
 }
@@ -71,12 +68,9 @@ for (const target of targets) {
     continue;
   }
   const targetLayer = fileToLayer.get(target)!;
-  const targetGroup = fileToGroup.get(target)!;
   const targetTier = fileToTier.get(target)!;
 
-  console.log(
-    `\n=== ${target} (L${targetLayer} / ${targetTier} / "${targetGroup}") ===`,
-  );
+  console.log(`\n=== ${target} (L${targetLayer} / ${targetTier}) ===`);
 
   const imports: ImportInfo[] = [];
   for (const imp of sf.getImportDeclarations()) {
@@ -89,7 +83,6 @@ for (const target of targets) {
     imports.push({
       file: rel,
       layer,
-      group: fileToGroup.get(rel)!,
       tier: fileToTier.get(rel)!,
       typeOnly: imp.isTypeOnly(),
     });
@@ -106,7 +99,7 @@ for (const target of targets) {
   const rest = imports.filter((info) => info.layer < pinLayer);
 
   console.log(
-    `  PIN: layer ${pinLayer} ("${pins[0]!.group}" / ${pins[0]!.tier}) — ${pins.length} import(s) at this layer`,
+    `  PIN: L${pinLayer} (${pins[0]!.tier}) — ${pins.length} import(s) at this layer`,
   );
   for (const pin of pins) {
     console.log(`    ${pin.typeOnly ? "type " : "value"}  ${pin.file}`);
@@ -120,8 +113,7 @@ for (const target of targets) {
     }
     const layers = [...byLayer.keys()].sort((a, b) => b - a);
     for (const layer of layers) {
-      const group = byLayer.get(layer)![0]!.group;
-      console.log(`    L${layer} ("${group}"): ${byLayer.get(layer)!.length}`);
+      console.log(`    L${layer}: ${byLayer.get(layer)!.length}`);
     }
   }
 }
