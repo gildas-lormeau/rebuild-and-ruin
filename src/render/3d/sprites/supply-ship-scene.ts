@@ -27,6 +27,11 @@ interface HullParams {
   taperFrac: number;
   /** Length of the bow + stern chamfers along Z, cell-aligned. */
   taperLength: number;
+  /** Extra height applied to the bow/stern endcaps above the midship
+   *  hull `height`. The endcap bottom stays aligned with the midship
+   *  bottom (draft line preserved); only the top rises, producing a
+   *  raised-forecastle/poop-deck silhouette from the side. Cell-aligned. */
+  endcapHeightExtra: number;
   /** Plank-deck textured material (top face). */
   deckMaterial: TexturedSpec;
   /** Painted-wood hull-side material (untextured weathered planks). */
@@ -116,7 +121,7 @@ const MAST_WOOD: MaterialSpec = {
 };
 const SAIL_OFFWHITE: MaterialSpec = {
   kind: "standard",
-  color: 0xe5dcc0,
+  color: 0xf5ecd0,
   roughness: 0.85,
   metalness: 0.0,
   side: "double",
@@ -163,6 +168,11 @@ export const VARIANTS: SupplyShipVariant[] = [
         taperFrac: 0.25,
         // Endcap length 2 cells of the 14-cell total.
         taperLength: cells(2),
+        // Raised forecastle/poop deck: bow and stern stand cells(1.5)
+        // above the midship deck. Reads as a ship (vs. a flat barge)
+        // in the side view; from top-down it shows as two darker bands
+        // bracketing the open mid-deck.
+        endcapHeightExtra: cells(1.5),
         deckMaterial: HULL_PLANK_DECK,
         sideMaterial: HULL_SIDE_WOOD,
         trimMaterial: HULL_TRIM_DARK,
@@ -215,9 +225,9 @@ export const PALETTE: [number, number, number][] = [
   [0x9c, 0x7a, 0x3e],
   [0xb9, 0x8a, 0x4a],
   [0xc8, 0xa5, 0x77],
-  // sail (off-white)
-  [0xc8, 0xc0, 0xa5],
-  [0xe5, 0xdc, 0xc0],
+  // sail (bright cream)
+  [0xd9, 0xd0, 0xb4],
+  [0xf5, 0xec, 0xd0],
   // trim accents
   [0x4a, 0x32, 0x20],
 ];
@@ -262,18 +272,23 @@ function buildHull(
   // edge at the tip. ExtrudeGeometry could do this, but a custom
   // BufferGeometry from 8 vertices keeps the geometry budget low and
   // matches the cell-aligned silhouette exactly.
+  // Endcaps are taller than the midship by `endcapHeightExtra`; the
+  // extra height is applied above the midship deck (bottom stays
+  // aligned with the midship bottom to preserve the draft line).
   const tipWidth = params.width * (1 - params.taperFrac * 2);
+  const capHeight = params.height + params.endcapHeightExtra;
+  const capYCenter = params.yCenter + params.endcapHeightExtra / 2;
   for (const sign of [1, -1] as const) {
     const cap = makeTaperedCap(three, {
       baseWidth: params.width,
       tipWidth,
       length: params.taperLength,
-      height: params.height,
+      height: capHeight,
       material: sideMat,
     });
     cap.position.set(
       0,
-      params.yCenter,
+      capYCenter,
       sign * (midLength / 2 + params.taperLength / 2),
     );
     // The cap is authored with its taper pointing toward +Z; flip for
@@ -285,7 +300,10 @@ function buildHull(
 
   // Deck plane (top face) — separate textured slab sitting at the deck
   // top so the plank texture reads cleanly from the overhead view.
-  // Slightly inset on X/Z so the gunwale trim (next) stands proud of it.
+  // Constrained to the rectangular midship Z range: extending it into
+  // the tapered endcaps would push the box corners past the hull
+  // silhouette (the taper narrows along Z while a box stays full-width).
+  // Inset cells(0.5) on X so the gunwale trim stands proud of it.
   const deckMat = buildTexturedMaterial(three, params.deckMaterial);
   const deckThickness = 0.02;
   const deckTop = params.yCenter + params.height / 2;
@@ -293,7 +311,7 @@ function buildHull(
     new three.BoxGeometry(
       params.width - cells(0.5),
       deckThickness,
-      midLength + params.taperLength - cells(0.5),
+      midLength - cells(0.5),
     ),
     deckMat,
   );
@@ -301,16 +319,13 @@ function buildHull(
   scene.add(deck);
 
   // Gunwale trim — thin dark band along the top edge of the hull sides,
-  // running the full hull silhouette (mid + chamfered endcaps). Modeled
-  // as a slab matching the deck footprint at the deck top, slightly
-  // oversized so it reads as a raised edge.
+  // running the rectangular midship section only. Slightly oversized on
+  // X (cells(6) + 0.02) so it reads as a raised edge against the hull
+  // sides. Length matches the midship Z range so the box ends butt
+  // against the raised endcap walls without protruding past the taper.
   const trimH = 0.04;
   const trim = new three.Mesh(
-    new three.BoxGeometry(
-      params.width + 0.02,
-      trimH,
-      midLength + 2 * params.taperLength * 0.6 + 0.02,
-    ),
+    new three.BoxGeometry(params.width + 0.02, trimH, midLength + 0.02),
     trimMat,
   );
   trim.position.set(0, deckTop + trimH / 2, 0);
