@@ -65,7 +65,6 @@ import {
 import type { Phase } from "../src/shared/core/game-phase.ts";
 import type { GameMessage, ServerMessage } from "../src/protocol/protocol.ts";
 import type { ValidPlayerId } from "../src/shared/core/player-slot.ts";
-import type { BannerState } from "../src/runtime/runtime-contracts.ts";
 import type { GameState, TestHooks } from "../src/shared/core/types.ts";
 import type { Mode } from "../src/shared/ui/ui-mode.ts";
 import {
@@ -80,6 +79,7 @@ import {
 import type { CanvasRecorder } from "./recording-canvas.ts";
 import SEED_FIXTURES from "./seed-fixtures.json" with { type: "json" };
 import { SEED_CONDITIONS } from "./seed-conditions.ts";
+import type { BannerState } from "../src/runtime/runtime-banner-state.ts";
 
 export {
   DEFAULT_RUNGAME_TIMEOUT_MS,

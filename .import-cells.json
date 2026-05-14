@@ -255,7 +255,8 @@
       "src/shared/core/cannon-mode-defs.ts",
       "src/shared/core/modifier-defs.ts",
       "src/shared/core/phantom-types.ts",
-      "src/shared/core/player-types.ts"
+      "src/shared/core/player-types.ts",
+      "src/shared/ui/banner-content.ts"
     ]
   },
   {
@@ -272,6 +273,14 @@
     "role": "3D instance bucketing",
     "files": [
       "src/render/3d/entities/instance-bucket.ts"
+    ]
+  },
+  {
+    "layer": 5,
+    "domain": "runtime",
+    "role": "runtime banner state",
+    "files": [
+      "src/runtime/runtime-banner-state.ts"
     ]
   },
   {
@@ -466,7 +475,8 @@
     "role": "runtime contracts & battle anim",
     "files": [
       "src/runtime/runtime-battle-anim.ts",
-      "src/runtime/runtime-contracts.ts"
+      "src/runtime/runtime-contracts.ts",
+      "src/runtime/runtime-state.ts"
     ]
   },
   {
@@ -565,9 +575,21 @@
     "domain": "runtime",
     "role": "runtime state, castle-build & browser timing",
     "files": [
+      "src/runtime/dev-console.ts",
+      "src/runtime/modifier-reveal-time.ts",
+      "src/runtime/runtime-audio.ts",
+      "src/runtime/runtime-banner.ts",
       "src/runtime/runtime-browser-timing.ts",
+      "src/runtime/runtime-cannon-animator.ts",
       "src/runtime/runtime-castle-build.ts",
-      "src/runtime/runtime-state.ts"
+      "src/runtime/runtime-human.ts",
+      "src/runtime/runtime-lobby.ts",
+      "src/runtime/runtime-main-loop.ts",
+      "src/runtime/runtime-options.ts",
+      "src/runtime/runtime-phase-machine.ts",
+      "src/runtime/runtime-score-deltas.ts",
+      "src/runtime/runtime-types.ts",
+      "src/runtime/runtime-upgrade-pick.ts"
     ]
   },
   {
@@ -603,6 +625,7 @@
     "domain": "online",
     "role": "online runtime lobby",
     "files": [
+      "src/online/online-phase-transitions.ts",
       "src/online/online-runtime-lobby.ts"
     ]
   },
@@ -625,20 +648,16 @@
     "domain": "runtime",
     "role": "runtime types, main loop, phase machine & subsystems",
     "files": [
-      "src/runtime/dev-console.ts",
-      "src/runtime/modifier-reveal-time.ts",
-      "src/runtime/runtime-audio.ts",
-      "src/runtime/runtime-banner.ts",
       "src/runtime/runtime-bootstrap.ts",
-      "src/runtime/runtime-cannon-animator.ts",
-      "src/runtime/runtime-human.ts",
-      "src/runtime/runtime-lobby.ts",
-      "src/runtime/runtime-main-loop.ts",
-      "src/runtime/runtime-options.ts",
-      "src/runtime/runtime-phase-machine.ts",
-      "src/runtime/runtime-score-deltas.ts",
-      "src/runtime/runtime-types.ts",
-      "src/runtime/runtime-upgrade-pick.ts"
+      "src/runtime/runtime-camera.ts",
+      "src/runtime/runtime-e2e-bridge.ts",
+      "src/runtime/runtime-game-lifecycle.ts",
+      "src/runtime/runtime-input.ts",
+      "src/runtime/runtime-life-lost.ts",
+      "src/runtime/runtime-phase-ticks.ts",
+      "src/runtime/runtime-render.ts",
+      "src/runtime/runtime-selection.ts",
+      "src/runtime/runtime-tick-consumers.ts"
     ]
   },
   {
@@ -660,35 +679,11 @@
   },
   {
     "layer": 10,
-    "domain": "online",
-    "role": "online phase transitions",
-    "files": [
-      "src/online/online-phase-transitions.ts"
-    ]
-  },
-  {
-    "layer": 10,
     "domain": "render",
     "role": "modifier effect registry & map renderer",
     "files": [
       "src/render/3d/effects/modifier-effect-registry.ts",
       "src/render/render-map.ts"
-    ]
-  },
-  {
-    "layer": 10,
-    "domain": "runtime",
-    "role": "runtime tick consumers & lifecycle integration",
-    "files": [
-      "src/runtime/runtime-camera.ts",
-      "src/runtime/runtime-e2e-bridge.ts",
-      "src/runtime/runtime-game-lifecycle.ts",
-      "src/runtime/runtime-input.ts",
-      "src/runtime/runtime-life-lost.ts",
-      "src/runtime/runtime-phase-ticks.ts",
-      "src/runtime/runtime-render.ts",
-      "src/runtime/runtime-selection.ts",
-      "src/runtime/runtime-tick-consumers.ts"
     ]
   },
   {

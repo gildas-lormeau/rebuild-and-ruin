@@ -31,7 +31,7 @@ import {
   MAX_PLAYERS,
 } from "../shared/ui/player-config.ts";
 import { isGameplayMode, Mode } from "../shared/ui/ui-mode.ts";
-import { type BannerState, createBannerState } from "./runtime-contracts.ts";
+import { type BannerState, createBannerState } from "./runtime-banner-state.ts";
 import { createTimerAccums, type TimerAccums } from "./runtime-tick-context.ts";
 
 /** Discriminant for pause source. See `RuntimeState.pausedBy`. */

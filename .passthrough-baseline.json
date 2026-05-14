@@ -10,6 +10,6 @@
   "src/render/3d/perf-hud.ts:isPerfHudEnabled:ZERO_ARG_LITERAL",
   "src/render/3d/terrain.ts:terrainProgramCacheKey:ZERO_ARG_LITERAL",
   "src/runtime/camera-projection.ts:fitTileBounds:SINGLE_CALLER",
-  "src/runtime/runtime-contracts.ts:createBannerState:ZERO_ARG_LITERAL",
+  "src/runtime/runtime-banner-state.ts:createBannerState:ZERO_ARG_LITERAL",
   "src/runtime/runtime-tick-context.ts:createTimerAccums:ZERO_ARG_LITERAL"
 ]

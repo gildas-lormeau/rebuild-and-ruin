@@ -26,6 +26,7 @@ import { castleCenterPx } from "../shared/core/spatial.ts";
 import { type ComboEvent, type SelectionState } from "../shared/core/types.ts";
 import { UPGRADE_POOL } from "../shared/core/upgrade-defs.ts";
 import { IS_TOUCH_DEVICE } from "../shared/platform/platform.ts";
+import type { SceneCapture } from "../shared/ui/banner-content.ts";
 import {
   FOCUS_MENU,
   FOCUS_REMATCH,
@@ -45,7 +46,6 @@ import {
   type OverlaySupplyShip,
   type PlayerStats,
   type RenderOverlay,
-  type SceneCapture,
   type UIOverlay,
   type UpgradePickOverlay,
 } from "../shared/ui/overlay-types.ts";

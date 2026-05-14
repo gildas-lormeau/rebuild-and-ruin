@@ -112,7 +112,8 @@
       "src/shared/core/cannon-mode-defs.ts",
       "src/shared/core/modifier-defs.ts",
       "src/shared/core/phantom-types.ts",
-      "src/shared/core/player-types.ts"
+      "src/shared/core/player-types.ts",
+      "src/shared/ui/banner-content.ts"
     ]
   },
   {
@@ -120,6 +121,7 @@
     "files": [
       "src/protocol/protocol.ts",
       "src/render/3d/entities/instance-bucket.ts",
+      "src/runtime/runtime-banner-state.ts",
       "src/shared/core/player-interior.ts",
       "src/shared/core/player-walls.ts",
       "src/shared/core/spatial.ts",
@@ -228,6 +230,7 @@
       "src/render/ascii-renderer.ts",
       "src/runtime/runtime-battle-anim.ts",
       "src/runtime/runtime-contracts.ts",
+      "src/runtime/runtime-state.ts",
       "src/shared/core/board-occupancy.ts"
     ]
   },
@@ -260,9 +263,21 @@
       "src/render/render-ui-overlays.ts",
       "src/render/render-ui-screens.ts",
       "src/render/render-ui-settings.ts",
+      "src/runtime/dev-console.ts",
+      "src/runtime/modifier-reveal-time.ts",
+      "src/runtime/runtime-audio.ts",
+      "src/runtime/runtime-banner.ts",
       "src/runtime/runtime-browser-timing.ts",
+      "src/runtime/runtime-cannon-animator.ts",
       "src/runtime/runtime-castle-build.ts",
-      "src/runtime/runtime-state.ts"
+      "src/runtime/runtime-human.ts",
+      "src/runtime/runtime-lobby.ts",
+      "src/runtime/runtime-main-loop.ts",
+      "src/runtime/runtime-options.ts",
+      "src/runtime/runtime-phase-machine.ts",
+      "src/runtime/runtime-score-deltas.ts",
+      "src/runtime/runtime-types.ts",
+      "src/runtime/runtime-upgrade-pick.ts"
     ]
   },
   {
@@ -275,6 +290,7 @@
       "src/input/input-mouse.ts",
       "src/input/input-touch-canvas.ts",
       "src/input/input-touch-ui.ts",
+      "src/online/online-phase-transitions.ts",
       "src/online/online-runtime-lobby.ts",
       "src/render/3d/effects/grass-emergence.ts",
       "src/render/3d/effects/ground-collapse.ts",
@@ -283,31 +299,7 @@
       "src/render/3d/effects/water-surge.ts",
       "src/render/3d/effects/wildfire-burst.ts",
       "src/render/render-ui.ts",
-      "src/runtime/dev-console.ts",
-      "src/runtime/modifier-reveal-time.ts",
-      "src/runtime/runtime-audio.ts",
-      "src/runtime/runtime-banner.ts",
       "src/runtime/runtime-bootstrap.ts",
-      "src/runtime/runtime-cannon-animator.ts",
-      "src/runtime/runtime-human.ts",
-      "src/runtime/runtime-lobby.ts",
-      "src/runtime/runtime-main-loop.ts",
-      "src/runtime/runtime-options.ts",
-      "src/runtime/runtime-phase-machine.ts",
-      "src/runtime/runtime-score-deltas.ts",
-      "src/runtime/runtime-types.ts",
-      "src/runtime/runtime-upgrade-pick.ts"
-    ]
-  },
-  {
-    "name": "L10",
-    "files": [
-      "src/ai/ai-build-fallback.ts",
-      "src/game/cannon-system.ts",
-      "src/game/wall-impact.ts",
-      "src/online/online-phase-transitions.ts",
-      "src/render/3d/effects/modifier-effect-registry.ts",
-      "src/render/render-map.ts",
       "src/runtime/runtime-camera.ts",
       "src/runtime/runtime-e2e-bridge.ts",
       "src/runtime/runtime-game-lifecycle.ts",
@@ -317,6 +309,16 @@
       "src/runtime/runtime-render.ts",
       "src/runtime/runtime-selection.ts",
       "src/runtime/runtime-tick-consumers.ts"
+    ]
+  },
+  {
+    "name": "L10",
+    "files": [
+      "src/ai/ai-build-fallback.ts",
+      "src/game/cannon-system.ts",
+      "src/game/wall-impact.ts",
+      "src/render/3d/effects/modifier-effect-registry.ts",
+      "src/render/render-map.ts"
     ]
   },
   {

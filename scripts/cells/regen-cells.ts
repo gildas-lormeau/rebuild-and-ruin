@@ -92,6 +92,7 @@ const LABELS: Record<string, string> = {
   // L5 — first logic
   "5::protocol": "protocol message dispatch",
   "5::render": "3D instance bucketing",
+  "5::runtime": "runtime banner state",
   "5::shared": "first logic — spatial, walls, interior, contracts",
 
   // L6 — upgrades, modifiers & runtime contracts

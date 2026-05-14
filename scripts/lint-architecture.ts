@@ -32,6 +32,7 @@ const EXEMPT = new Set([
   "runtime-composition.ts",
   "runtime-types.ts",
   "runtime-state.ts",
+  "runtime-banner-state.ts", // BannerState type + null-init constructor, not a factory sub-system
   "runtime-contracts.ts", // UI deps-object contracts (formerly shared/ui/ui-contracts.ts)
   "runtime-tick-context.ts", // shared tick state primitives, not a factory sub-system
   "runtime-tick-consumers.ts", // ONLINE_PHASE_TICKS_CONSUMERS registry, not a factory sub-system
@@ -58,6 +59,7 @@ const ALLOWED_RUNTIME_IMPORTS = new Set([
   "./runtime-types.ts",
   "./runtime-state.ts",
   "./runtime-contracts.ts", // UI deps-object contracts
+  "./runtime-banner-state.ts", // BannerState type + null-init constructor
   "./runtime-tick-context.ts", // shared tick state primitives
   "./runtime-host-phase-ticks.ts", // consumed by runtime-phase-ticks
   "./runtime-host-battle-ticks.ts", // consumed by runtime-phase-ticks

@@ -31,6 +31,10 @@ import type {
   SelectionState,
 } from "../shared/core/types.ts";
 import type { ZoneId } from "../shared/core/zone-id.ts";
+import type {
+  BannerContent,
+  SceneCapture,
+} from "../shared/ui/banner-content.ts";
 import type { Action } from "../shared/ui/input-action.ts";
 import type {
   ControlsState,
@@ -39,13 +43,11 @@ import type {
   UpgradePickDialogState,
 } from "../shared/ui/interaction-types.ts";
 import type {
-  BannerContent,
   BannerUi,
   GameOverOverlay,
   LoupeHandle,
   RendererInterface,
   RenderOverlay,
-  SceneCapture,
 } from "../shared/ui/overlay-types.ts";
 import type {
   GameSettings,
@@ -217,31 +219,6 @@ export interface OnlineOverlayParams {
    *  plumbing does not live here. Spread into `overlay.battle`. */
   revealOverlayFields: RevealOverlayBattleFields;
 }
-
-/** Active banner — text/subtitle/kind from `BannerContent`, plus the
- *  sweep `progress` (0 → 1) and two scene snapshots composited on
- *  either side of the sweep line. `progress >= 1` means the sweep has
- *  ended; the banner remains visible (text/subtitle still readable)
- *  until a caller explicitly hides it. In practice `runDisplay` calls
- *  `hideBanner()` at the end of every display sequence. */
-export interface ActiveBannerState extends BannerContent {
-  progress: number;
-  /** Pixel snapshot of the scene composited below the sweep line —
-   *  the old scene, captured before the phase mutation that the
-   *  banner is announcing. Supplied by the caller (`showBanner` opts)
-   *  because the mutation has not yet run at banner-show time. */
-  prevScene?: SceneCapture;
-  /** Pixel snapshot of the scene revealed above the sweep line — the
-   *  new scene, captured by `showBanner` itself after the phase
-   *  mutation + `postMutate` + one forced `render()`. Both snapshots
-   *  are frozen for the duration of the sweep; the live renderer does
-   *  not repaint world contents during a banner. */
-  newScene?: SceneCapture;
-}
-
-/** Banner is either active or absent. `null` is the "no banner on
- *  screen" state; `ActiveBannerState` carries everything else. */
-export type BannerState = ActiveBannerState | null;
 
 export interface SeedField {
   focus: (currentValue: string) => void;
@@ -617,8 +594,4 @@ export interface TimingApi {
    *  timestamp. Tests pass a synchronous trampoline or no-op (since headless
    *  tests drive the main loop manually). */
   readonly requestFrame: (callback: (now: number) => void) => void;
-}
-
-export function createBannerState(): BannerState {
-  return null;
 }

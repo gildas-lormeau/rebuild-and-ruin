@@ -1,7 +1,7 @@
 {
   "overlaps": [
     {
-      "pair": "ActiveBannerState@src/runtime/runtime-contracts.ts ↔ BannerUi@src/shared/ui/overlay-types.ts"
+      "pair": "ActiveBannerState@src/runtime/runtime-banner-state.ts ↔ BannerUi@src/shared/ui/overlay-types.ts"
     },
     {
       "pair": "ArmParams@src/render/3d/sprites/grunt-scene.ts ↔ BarrelParams@src/render/3d/sprites/grunt-scene.ts"
@@ -160,7 +160,7 @@
   "inline": [],
   "sharedSubsets": [
     {
-      "pair": "ActiveBannerState@src/runtime/runtime-contracts.ts ↔ BannerUi@src/shared/ui/overlay-types.ts"
+      "pair": "ActiveBannerState@src/runtime/runtime-banner-state.ts ↔ BannerUi@src/shared/ui/overlay-types.ts"
     },
     {
       "pair": "AiPersonality@src/shared/core/ai-personality.ts ↔ AiStrategy@src/ai/ai-strategy.ts"
