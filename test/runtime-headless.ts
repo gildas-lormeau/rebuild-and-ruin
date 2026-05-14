@@ -51,7 +51,7 @@ import type {
   GameRuntime,
   OnlinePhaseTicks
 } from "../src/runtime/runtime-types.ts";
-import type { TimingApi } from "../src/runtime/runtime-contracts.ts";
+import type { TimingApi } from "../src/runtime/timing-api.ts";
 
 /** Test observer for the headless `network.send` seam. Receives every
  *  outbound message the runtime would broadcast through the production

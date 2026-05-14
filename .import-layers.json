@@ -23,6 +23,7 @@
       "src/runtime/music-assets.ts",
       "src/runtime/runtime-browser-dom.ts",
       "src/runtime/timer-accums.ts",
+      "src/runtime/timing-api.ts",
       "src/runtime/waved-ramp.ts",
       "src/shared/core/ai-personality.ts",
       "src/shared/core/game-constants.ts",
@@ -62,6 +63,7 @@
       "src/runtime/grunt-surge-reveal-overlay.ts",
       "src/runtime/music-synth-loader.ts",
       "src/runtime/rubble-clearing-overlay.ts",
+      "src/runtime/runtime-browser-timing.ts",
       "src/runtime/sapper-reveal-overlay.ts",
       "src/runtime/sound-modal.ts",
       "src/shared/core/action-schedule.ts",
@@ -236,7 +238,9 @@
       "src/runtime/runtime-battle-anim.ts",
       "src/runtime/runtime-cannon-animator.ts",
       "src/runtime/runtime-contracts.ts",
+      "src/runtime/runtime-main-loop.ts",
       "src/runtime/runtime-score-deltas.ts",
+      "src/runtime/runtime-types.ts",
       "src/runtime/runtime-upgrade-pick.ts",
       "src/shared/core/board-occupancy.ts"
     ]
@@ -258,6 +262,7 @@
       "src/input/input-dispatch.ts",
       "src/input/input-seed-field.ts",
       "src/input/input-touch-update.ts",
+      "src/online/online-phase-transitions.ts",
       "src/online/online-runtime-ws.ts",
       "src/render/3d/effects/cannon-burns.ts",
       "src/render/3d/effects/dust-storm.ts",
@@ -271,15 +276,18 @@
       "src/render/render-ui-screens.ts",
       "src/render/render-ui-settings.ts",
       "src/runtime/runtime-banner.ts",
-      "src/runtime/runtime-browser-timing.ts",
+      "src/runtime/runtime-camera.ts",
       "src/runtime/runtime-castle-build.ts",
+      "src/runtime/runtime-e2e-bridge.ts",
+      "src/runtime/runtime-game-lifecycle.ts",
       "src/runtime/runtime-human.ts",
+      "src/runtime/runtime-input.ts",
+      "src/runtime/runtime-life-lost.ts",
       "src/runtime/runtime-lobby.ts",
-      "src/runtime/runtime-main-loop.ts",
       "src/runtime/runtime-options.ts",
       "src/runtime/runtime-phase-machine.ts",
       "src/runtime/runtime-render.ts",
-      "src/runtime/runtime-types.ts"
+      "src/runtime/runtime-tick-consumers.ts"
     ]
   },
   {
@@ -292,7 +300,6 @@
       "src/input/input-mouse.ts",
       "src/input/input-touch-canvas.ts",
       "src/input/input-touch-ui.ts",
-      "src/online/online-phase-transitions.ts",
       "src/online/online-runtime-lobby.ts",
       "src/render/3d/effects/grass-emergence.ts",
       "src/render/3d/effects/ground-collapse.ts",
@@ -302,14 +309,8 @@
       "src/render/3d/effects/wildfire-burst.ts",
       "src/render/render-ui.ts",
       "src/runtime/runtime-bootstrap.ts",
-      "src/runtime/runtime-camera.ts",
-      "src/runtime/runtime-e2e-bridge.ts",
-      "src/runtime/runtime-game-lifecycle.ts",
-      "src/runtime/runtime-input.ts",
-      "src/runtime/runtime-life-lost.ts",
       "src/runtime/runtime-phase-ticks.ts",
-      "src/runtime/runtime-selection.ts",
-      "src/runtime/runtime-tick-consumers.ts"
+      "src/runtime/runtime-selection.ts"
     ]
   },
   {

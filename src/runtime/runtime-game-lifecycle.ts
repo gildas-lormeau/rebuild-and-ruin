@@ -20,7 +20,6 @@ import type {
 } from "../shared/ui/overlay-types.ts";
 import { MAX_PLAYERS } from "../shared/ui/player-config.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
-import type { TimingApi } from "./runtime-contracts.ts";
 import {
   type RuntimeState,
   resetTransientState,
@@ -34,6 +33,7 @@ import type {
   RuntimeSelection,
   RuntimeUpgradePick,
 } from "./runtime-types.ts";
+import type { TimingApi } from "./timing-api.ts";
 
 interface GameLifecycleDeps {
   readonly log: (msg: string) => void;

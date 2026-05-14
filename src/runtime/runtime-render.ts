@@ -31,7 +31,6 @@ import type {
   Dpad,
   FloatingActions,
   QuitButton,
-  TimingApi,
   TouchControlsDeps,
   ZoomButton,
 } from "./runtime-contracts.ts";
@@ -40,6 +39,7 @@ import {
   isStateInstalled,
   type RuntimeState,
 } from "./runtime-state.ts";
+import type { TimingApi } from "./timing-api.ts";
 
 interface RenderSystemDeps {
   readonly runtimeState: RuntimeState;

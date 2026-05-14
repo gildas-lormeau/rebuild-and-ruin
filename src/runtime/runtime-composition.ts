@@ -83,7 +83,7 @@ import {
 import { createBrowserTimingApi } from "./runtime-browser-timing.ts";
 import { createCameraSystem } from "./runtime-camera.ts";
 import { createCannonAnimator } from "./runtime-cannon-animator.ts";
-import type { TimingApi, UIContext } from "./runtime-contracts.ts";
+import type { UIContext } from "./runtime-contracts.ts";
 import { exposeE2EBridge } from "./runtime-e2e-bridge.ts";
 import {
   buildLifecycleDeps,
@@ -123,6 +123,7 @@ import {
   createUpgradePickSystem,
   type UpgradePickSystem,
 } from "./runtime-upgrade-pick.ts";
+import type { TimingApi } from "./timing-api.ts";
 
 /** Singleton empty set so repeated calls with no remotes return the same
  *  instance — runtime sub-systems read this through the `NetworkApi.remotePlayerSlots`

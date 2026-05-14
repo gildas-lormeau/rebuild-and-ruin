@@ -56,7 +56,7 @@ import {
   accumulateBattleStats,
   recordBattleVisualEvents,
 } from "./runtime-battle-anim.ts";
-import type { BannerShow, TimingApi } from "./runtime-contracts.ts";
+import type { BannerShow } from "./runtime-contracts.ts";
 import {
   type PhaseTransitionCtx,
   runTransition,
@@ -85,6 +85,7 @@ import {
   ACCUM_MODIFIER_REVEAL,
   resetAccum,
 } from "./timer-accums.ts";
+import type { TimingApi } from "./timing-api.ts";
 
 interface PhaseTicksDeps extends Pick<RuntimeConfig, "log"> {
   runtimeState: RuntimeState;

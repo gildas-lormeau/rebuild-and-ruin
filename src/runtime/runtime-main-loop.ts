@@ -18,8 +18,8 @@ import {
   isTransitionMode,
   Mode,
 } from "../shared/ui/ui-mode.ts";
-import type { TimingApi } from "./runtime-contracts.ts";
 import { isPaused, isSessionLive, type RuntimeState } from "./runtime-state.ts";
+import type { TimingApi } from "./timing-api.ts";
 
 /** Modes that have tick handlers. STOPPED is handled by early-return. */
 type TickableMode = Exclude<Mode, Mode.STOPPED>;

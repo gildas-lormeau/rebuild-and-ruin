@@ -45,7 +45,7 @@
         { "file": "src/runtime/runtime-contracts.ts", "interface": "GameActionDeps" },
         { "file": "src/runtime/runtime-contracts.ts", "interface": "PointerMoveDeps" },
         { "file": "src/runtime/runtime-contracts.ts", "interface": "TouchControlsDeps" },
-        { "file": "src/runtime/runtime-contracts.ts", "interface": "TimingApi" },
+        { "file": "src/runtime/timing-api.ts", "interface": "TimingApi" },
         { "file": "src/runtime/runtime-contracts.ts", "interface": "SeedField" },
         { "file": "src/render/render-map.ts", "interface": "RenderMapDeps" },
         { "file": "src/runtime/runtime-phase-machine.ts", "interface": "PhaseTransitionCtx" },

@@ -37,8 +37,8 @@ import type {
   UpgradePickDialogState,
 } from "../shared/ui/interaction-types.ts";
 import type { RendererInterface } from "../shared/ui/overlay-types.ts";
-import type { TimingApi } from "./runtime-contracts.ts";
 import type { RuntimeState } from "./runtime-state.ts";
+import type { TimingApi } from "./timing-api.ts";
 
 /** Online-only per-frame coordination consumed by runtime-phase-ticks.ts.
  *
