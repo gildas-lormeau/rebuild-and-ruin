@@ -2,8 +2,9 @@
  * Dev-only page driven by `scripts/sprite-view.ts`: builds one sprite
  * scene from URL params, frames it via the projected AABB so pitched
  * views fit exactly, renders one frame, exposes `__SPRITE_VIEWER_READY`.
- * Query params: sprite, variant, pitch (deg), scale (integer upscale of
- * the variant's canvasPx). See the CLI's --help for valid values.
+ * Query params: sprite, variant, pitch (deg), rotation (deg yaw applied
+ * to the subject before framing), scale (integer upscale of the
+ * variant's canvasPx). See the CLI's --help for valid values.
  */
 
 import * as THREE from "three";
@@ -77,6 +78,7 @@ const PARAMS = new URLSearchParams(globalThis.location.search);
 const KIND = (PARAMS.get("sprite") ?? "cannon") as SpriteKind;
 const VARIANT = PARAMS.get("variant") ?? defaultVariantFor(KIND);
 const PITCH_DEG = Number(PARAMS.get("pitch") ?? "30");
+const ROTATION_DEG = Number(PARAMS.get("rotation") ?? "0");
 const SCALE = Math.max(1, Math.floor(Number(PARAMS.get("scale") ?? "12")));
 
 main().catch((error: unknown) => {
@@ -87,6 +89,8 @@ main().catch((error: unknown) => {
 async function main(): Promise<void> {
   const subject = new THREE.Group();
   const size = buildSprite(KIND, VARIANT, subject);
+  subject.rotation.y = (ROTATION_DEG * Math.PI) / 180;
+  subject.updateMatrixWorld();
 
   const canvas = document.getElementById("sprite-canvas") as HTMLCanvasElement;
   const renderer = new THREE.WebGLRenderer({

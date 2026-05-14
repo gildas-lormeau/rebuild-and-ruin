@@ -24,6 +24,7 @@ interface Args {
   sprite: string | undefined;
   variant: string | undefined;
   pitch: number;
+  rotation: number;
   scale: number;
   host: string;
   outFile: string | undefined;
@@ -94,6 +95,7 @@ async function main(opts: Args): Promise<void> {
     url.searchParams.set("variant", opts.variant);
   }
   url.searchParams.set("pitch", String(opts.pitch));
+  url.searchParams.set("rotation", String(opts.rotation));
   url.searchParams.set("scale", String(opts.scale));
 
   const browser = await chromium.launch({ headless: true });
@@ -210,6 +212,7 @@ function parseArgs(argv: string[]): Args {
   let sprite: string | undefined;
   let variant: string | undefined;
   let pitch = 30;
+  let rotation = 0;
   let scale = 12;
   let host = "http://localhost:5173";
   let outFile: string | undefined;
@@ -237,6 +240,9 @@ function parseArgs(argv: string[]): Args {
       case "--top":
         pitch = 0;
         break;
+      case "--rotation":
+        rotation = Number(next());
+        break;
       case "--scale":
         scale = Math.max(1, Math.floor(Number(next())));
         break;
@@ -262,7 +268,7 @@ function parseArgs(argv: string[]): Args {
     }
   }
 
-  return { sprite, variant, pitch, scale, host, outFile, raw, list };
+  return { sprite, variant, pitch, rotation, scale, host, outFile, raw, list };
 }
 
 function printHelp(): void {
@@ -274,9 +280,12 @@ Options:
                       (default: cannon)
   --variant <name>    Variant within the sprite (e.g. tier_1, grunt_n).
                       Defaults to the first variant of the kind.
-  --pitch <deg>       Camera pitch in degrees. 0 = top-down, 30 = battle.
-                      (default: 30)
+  --pitch <deg>       Camera pitch in degrees. 0 = top-down, 30 = battle,
+                      90 = pure side view. (default: 30)
   --top               Shortcut for --pitch 0.
+  --rotation <deg>    Yaw the subject around its vertical axis before
+                      framing — combine with --pitch 90 to inspect side
+                      faces. (default: 0)
   --scale <N>         Integer upscale of the variant's native canvasPx.
                       (default: 12, so a 32px grunt renders at 384px and
                       a 64px tower at 768px — sweet spot for AI vision)
