@@ -22,12 +22,10 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import { Project } from "ts-morph";
-
-type Tier = "types" | "logic" | "systems" | "assembly" | "roots";
+import { type Tier, tierOfLayer } from "./cells/tier-of-layer.ts";
 
 interface LayerGroup {
   name: string;
-  tier: Tier;
   files: string[];
 }
 
@@ -75,7 +73,7 @@ for (let i = 0; i < layerGroups.length; i++) {
   for (const file of layerGroups[i]!.files) {
     fileToLayer.set(file, i);
     fileToGroup.set(file, layerGroups[i]!.name);
-    fileToTier.set(file, layerGroups[i]!.tier);
+    fileToTier.set(file, tierOfLayer(i));
   }
 }
 

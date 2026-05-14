@@ -2,7 +2,6 @@
   {
     "layer": 0,
     "domain": "ai",
-    "tier": "types",
     "role": "AI tuning constants",
     "files": [
       "src/ai/ai-constants.ts"
@@ -11,7 +10,6 @@
   {
     "layer": 0,
     "domain": "game",
-    "tier": "types",
     "role": "domain barrel",
     "files": [
       "src/game/index.ts"
@@ -20,7 +18,6 @@
   {
     "layer": 0,
     "domain": "input",
-    "tier": "types",
     "role": "input primitives & recorder",
     "files": [
       "src/input/input-recorder.ts",
@@ -30,7 +27,6 @@
   {
     "layer": 0,
     "domain": "online",
-    "tier": "types",
     "role": "DOM lookup helpers",
     "files": [
       "src/online/online-dom.ts"
@@ -39,7 +35,6 @@
   {
     "layer": 0,
     "domain": "protocol",
-    "tier": "types",
     "role": "wire route constants",
     "files": [
       "src/protocol/routes.ts"
@@ -48,7 +43,6 @@
   {
     "layer": 0,
     "domain": "render",
-    "tier": "types",
     "role": "render primitives & 3D helpers",
     "files": [
       "src/render/3d/effects/helpers.ts",
@@ -64,7 +58,6 @@
   {
     "layer": 0,
     "domain": "runtime",
-    "tier": "types",
     "role": "runtime leaf utilities & banner ramps",
     "files": [
       "src/runtime/banner-messages.ts",
@@ -78,7 +71,6 @@
   {
     "layer": 0,
     "domain": "server",
-    "tier": "types",
     "role": "wire send helpers",
     "files": [
       "server/send-utils.ts"
@@ -87,7 +79,6 @@
   {
     "layer": 0,
     "domain": "shared",
-    "tier": "types",
     "role": "shared constants, RNG & platform leaves",
     "files": [
       "src/shared/core/ai-personality.ts",
@@ -112,7 +103,6 @@
   {
     "layer": 1,
     "domain": "online",
-    "tier": "types",
     "role": "online config & route table",
     "files": [
       "src/online/online-config.ts",
@@ -122,7 +112,6 @@
   {
     "layer": 1,
     "domain": "render",
-    "tier": "types",
     "role": "3D sprite scene builders & lights",
     "files": [
       "src/render/3d/effects/terrain-pattern-textures.ts",
@@ -138,7 +127,6 @@
   {
     "layer": 1,
     "domain": "runtime",
-    "tier": "types",
     "role": "modifier reveal overlays & audio leaf infra",
     "files": [
       "src/runtime/dust-storm-reveal-overlay.ts",
@@ -154,7 +142,6 @@
   {
     "layer": 1,
     "domain": "shared",
-    "tier": "types",
     "role": "shared foundational types & defs",
     "files": [
       "src/shared/core/elevation-constants.ts",
@@ -169,7 +156,6 @@
   {
     "layer": 2,
     "domain": "entry",
-    "tier": "types",
     "role": "boot entry",
     "files": [
       "src/entry.ts"
@@ -178,7 +164,6 @@
   {
     "layer": 2,
     "domain": "online",
-    "tier": "types",
     "role": "online type definitions",
     "files": [
       "src/online/online-types.ts"
@@ -187,7 +172,6 @@
   {
     "layer": 2,
     "domain": "protocol",
-    "tier": "types",
     "role": "checkpoint payload types",
     "files": [
       "src/protocol/checkpoint-data.ts"
@@ -196,7 +180,6 @@
   {
     "layer": 2,
     "domain": "render",
-    "tier": "types",
     "role": "3D camera, debug & terrain primitives",
     "files": [
       "src/render/3d/camera.ts",
@@ -215,7 +198,6 @@
   {
     "layer": 2,
     "domain": "runtime",
-    "tier": "types",
     "role": "camera projection math",
     "files": [
       "src/runtime/camera-projection.ts"
@@ -224,7 +206,6 @@
   {
     "layer": 2,
     "domain": "shared",
-    "tier": "types",
     "role": "derived shared types & UI configs",
     "files": [
       "src/shared/core/battle-events.ts",
@@ -235,7 +216,6 @@
   {
     "layer": 3,
     "domain": "entry",
-    "tier": "types",
     "role": "dev sprite viewer page",
     "files": [
       "src/sprite-viewer-page.ts"
@@ -244,7 +224,6 @@
   {
     "layer": 3,
     "domain": "online",
-    "tier": "types",
     "role": "presence wire payload",
     "files": [
       "src/online/online-presence-state.ts"
@@ -253,7 +232,6 @@
   {
     "layer": 3,
     "domain": "shared",
-    "tier": "types",
     "role": "battle wire types & event bus",
     "files": [
       "src/shared/core/battle-types.ts",
@@ -264,7 +242,6 @@
   {
     "layer": 4,
     "domain": "render",
-    "tier": "types",
     "role": "3D entity helpers",
     "files": [
       "src/render/3d/entities/entity-helpers.ts"
@@ -273,7 +250,6 @@
   {
     "layer": 4,
     "domain": "shared",
-    "tier": "types",
     "role": "core state & adjacent types",
     "files": [
       "src/shared/core/cannon-mode-defs.ts",
@@ -285,7 +261,6 @@
   {
     "layer": 5,
     "domain": "protocol",
-    "tier": "logic",
     "role": "protocol message dispatch",
     "files": [
       "src/protocol/protocol.ts"
@@ -294,7 +269,6 @@
   {
     "layer": 5,
     "domain": "render",
-    "tier": "logic",
     "role": "3D instance bucketing",
     "files": [
       "src/render/3d/entities/instance-bucket.ts"
@@ -303,7 +277,6 @@
   {
     "layer": 5,
     "domain": "shared",
-    "tier": "logic",
     "role": "first logic — spatial, walls, interior, contracts",
     "files": [
       "src/shared/core/player-interior.ts",
@@ -317,7 +290,6 @@
   {
     "layer": 6,
     "domain": "ai",
-    "tier": "logic",
     "role": "AI decision intents & build types",
     "files": [
       "src/ai/ai-build-types.ts",
@@ -328,7 +300,6 @@
   {
     "layer": 6,
     "domain": "controllers",
-    "tier": "logic",
     "role": "BaseController abstraction",
     "files": [
       "src/controllers/controller-base.ts"
@@ -337,7 +308,6 @@
   {
     "layer": 6,
     "domain": "game",
-    "tier": "logic",
     "role": "modifier & upgrade implementations + core game systems",
     "files": [
       "src/game/combos.ts",
@@ -382,7 +352,6 @@
   {
     "layer": 6,
     "domain": "online",
-    "tier": "logic",
     "role": "online lobby UI & session state",
     "files": [
       "src/online/online-lobby-ui.ts",
@@ -392,7 +361,6 @@
   {
     "layer": 6,
     "domain": "render",
-    "tier": "logic",
     "role": "render contracts & overlay helpers",
     "files": [
       "src/render/3d/elevation.ts",
@@ -404,7 +372,6 @@
   {
     "layer": 6,
     "domain": "runtime",
-    "tier": "logic",
     "role": "runtime cores: anim, dialog, audio & overlay registry",
     "files": [
       "src/runtime/dev-console-grid.ts",
@@ -421,7 +388,6 @@
   {
     "layer": 6,
     "domain": "server",
-    "tier": "logic",
     "role": "server game-room",
     "files": [
       "server/game-room.ts"
@@ -430,7 +396,6 @@
   {
     "layer": 6,
     "domain": "shared",
-    "tier": "logic",
     "role": "shared action schedule & query helpers",
     "files": [
       "src/shared/core/action-schedule.ts",
@@ -442,7 +407,6 @@
   {
     "layer": 7,
     "domain": "controllers",
-    "tier": "systems",
     "role": "human controller",
     "files": [
       "src/controllers/controller-human.ts"
@@ -451,7 +415,6 @@
   {
     "layer": 7,
     "domain": "game",
-    "tier": "systems",
     "role": "game init, zone recompute & fire modifier",
     "files": [
       "src/game/game-init.ts",
@@ -462,7 +425,6 @@
   {
     "layer": 7,
     "domain": "online",
-    "tier": "systems",
     "role": "online action send, host crosshairs & stores",
     "files": [
       "src/online/online-host-crosshairs.ts",
@@ -474,7 +436,6 @@
   {
     "layer": 7,
     "domain": "render",
-    "tier": "systems",
     "role": "entity renderers, 3D effect factories & alternate renderers",
     "files": [
       "src/render/3d/effects/bonus-squares.ts",
@@ -502,7 +463,6 @@
   {
     "layer": 7,
     "domain": "runtime",
-    "tier": "systems",
     "role": "runtime contracts & battle anim",
     "files": [
       "src/runtime/runtime-battle-anim.ts",
@@ -512,7 +472,6 @@
   {
     "layer": 7,
     "domain": "server",
-    "tier": "systems",
     "role": "server room manager",
     "files": [
       "server/room-manager.ts"
@@ -521,7 +480,6 @@
   {
     "layer": 7,
     "domain": "shared",
-    "tier": "systems",
     "role": "shared board occupancy",
     "files": [
       "src/shared/core/board-occupancy.ts"
@@ -530,7 +488,6 @@
   {
     "layer": 8,
     "domain": "ai",
-    "tier": "systems",
     "role": "AI strategy primitives",
     "files": [
       "src/ai/ai-castle-rect.ts",
@@ -541,7 +498,6 @@
   {
     "layer": 8,
     "domain": "controllers",
-    "tier": "systems",
     "role": "controller factory",
     "files": [
       "src/controllers/controller-factory.ts"
@@ -550,7 +506,6 @@
   {
     "layer": 8,
     "domain": "entry",
-    "tier": "systems",
     "role": "server entry",
     "files": [
       "server/server.ts"
@@ -559,7 +514,6 @@
   {
     "layer": 8,
     "domain": "game",
-    "tier": "systems",
     "role": "game subsystems (castle gen, grunt move, modifier impls)",
     "files": [
       "src/game/castle-generation.ts",
@@ -573,7 +527,6 @@
   {
     "layer": 8,
     "domain": "input",
-    "tier": "systems",
     "role": "input dispatch & touch update",
     "files": [
       "src/input/input-dispatch.ts",
@@ -584,7 +537,6 @@
   {
     "layer": 8,
     "domain": "online",
-    "tier": "systems",
     "role": "online runtime websocket",
     "files": [
       "src/online/online-runtime-ws.ts"
@@ -593,7 +545,6 @@
   {
     "layer": 8,
     "domain": "render",
-    "tier": "systems",
     "role": "3D effect subsystems (cannon, dust, grunt, etc.)",
     "files": [
       "src/render/3d/effects/cannon-burns.ts",
@@ -612,7 +563,6 @@
   {
     "layer": 8,
     "domain": "runtime",
-    "tier": "systems",
     "role": "runtime state, castle-build & browser timing",
     "files": [
       "src/runtime/runtime-browser-timing.ts",
@@ -623,7 +573,6 @@
   {
     "layer": 9,
     "domain": "ai",
-    "tier": "systems",
     "role": "AI build scoring & targeting",
     "files": [
       "src/ai/ai-build-score.ts",
@@ -633,7 +582,6 @@
   {
     "layer": 9,
     "domain": "game",
-    "tier": "systems",
     "role": "upgrade system",
     "files": [
       "src/game/upgrade-system.ts"
@@ -642,7 +590,6 @@
   {
     "layer": 9,
     "domain": "input",
-    "tier": "systems",
     "role": "input device handlers (kb, mouse, touch)",
     "files": [
       "src/input/input-keyboard.ts",
@@ -654,7 +601,6 @@
   {
     "layer": 9,
     "domain": "online",
-    "tier": "systems",
     "role": "online runtime lobby",
     "files": [
       "src/online/online-runtime-lobby.ts"
@@ -663,7 +609,6 @@
   {
     "layer": 9,
     "domain": "render",
-    "tier": "systems",
     "role": "3D effect implementations (emergence, collapse, ice)",
     "files": [
       "src/render/3d/effects/grass-emergence.ts",
@@ -678,7 +623,6 @@
   {
     "layer": 9,
     "domain": "runtime",
-    "tier": "systems",
     "role": "runtime types, main loop, phase machine & subsystems",
     "files": [
       "src/runtime/dev-console.ts",
@@ -700,7 +644,6 @@
   {
     "layer": 10,
     "domain": "ai",
-    "tier": "assembly",
     "role": "AI build fallback",
     "files": [
       "src/ai/ai-build-fallback.ts"
@@ -709,7 +652,6 @@
   {
     "layer": 10,
     "domain": "game",
-    "tier": "assembly",
     "role": "cannon & wall impact systems",
     "files": [
       "src/game/cannon-system.ts",
@@ -719,7 +661,6 @@
   {
     "layer": 10,
     "domain": "online",
-    "tier": "assembly",
     "role": "online phase transitions",
     "files": [
       "src/online/online-phase-transitions.ts"
@@ -728,7 +669,6 @@
   {
     "layer": 10,
     "domain": "render",
-    "tier": "assembly",
     "role": "modifier effect registry & map renderer",
     "files": [
       "src/render/3d/effects/modifier-effect-registry.ts",
@@ -738,7 +678,6 @@
   {
     "layer": 10,
     "domain": "runtime",
-    "tier": "assembly",
     "role": "runtime tick consumers & lifecycle integration",
     "files": [
       "src/runtime/runtime-camera.ts",
@@ -755,7 +694,6 @@
   {
     "layer": 11,
     "domain": "ai",
-    "tier": "assembly",
     "role": "AI build strategy",
     "files": [
       "src/ai/ai-strategy-build.ts"
@@ -764,7 +702,6 @@
   {
     "layer": 11,
     "domain": "game",
-    "tier": "assembly",
     "role": "grunt system",
     "files": [
       "src/game/grunt-system.ts"
@@ -773,7 +710,6 @@
   {
     "layer": 11,
     "domain": "render",
-    "tier": "assembly",
     "role": "3D scene & canvas renderer",
     "files": [
       "src/render/3d/scene.ts",
@@ -783,7 +719,6 @@
   {
     "layer": 12,
     "domain": "ai",
-    "tier": "assembly",
     "role": "AI strategy orchestrator",
     "files": [
       "src/ai/ai-strategy.ts"
@@ -792,7 +727,6 @@
   {
     "layer": 12,
     "domain": "game",
-    "tier": "assembly",
     "role": "battle, build & modifier system orchestration",
     "files": [
       "src/game/battle-system.ts",
@@ -803,7 +737,6 @@
   {
     "layer": 12,
     "domain": "render",
-    "tier": "assembly",
     "role": "3D renderer entry",
     "files": [
       "src/render/3d/renderer.ts"
@@ -812,7 +745,6 @@
   {
     "layer": 13,
     "domain": "ai",
-    "tier": "assembly",
     "role": "AI per-phase strategies",
     "files": [
       "src/ai/ai-phase-battle.ts",
@@ -824,7 +756,6 @@
   {
     "layer": 13,
     "domain": "game",
-    "tier": "assembly",
     "role": "game actions, phase setup & scheduling",
     "files": [
       "src/game/game-actions.ts",
@@ -835,7 +766,6 @@
   {
     "layer": 13,
     "domain": "online",
-    "tier": "assembly",
     "role": "online host promotion & server events",
     "files": [
       "src/online/online-host-promotion.ts",
@@ -845,7 +775,6 @@
   {
     "layer": 13,
     "domain": "runtime",
-    "tier": "assembly",
     "role": "runtime composition",
     "files": [
       "src/runtime/runtime-composition.ts"
@@ -854,7 +783,6 @@
   {
     "layer": 14,
     "domain": "controllers",
-    "tier": "roots",
     "role": "AI controller wrapper",
     "files": [
       "src/controllers/controller-ai.ts"
@@ -863,7 +791,6 @@
   {
     "layer": 14,
     "domain": "entry",
-    "tier": "roots",
     "role": "local-game entry",
     "files": [
       "src/main.ts"
@@ -872,7 +799,6 @@
   {
     "layer": 14,
     "domain": "game",
-    "tier": "roots",
     "role": "phase entry helpers",
     "files": [
       "src/game/phase-entry.ts"
@@ -881,7 +807,6 @@
   {
     "layer": 14,
     "domain": "online",
-    "tier": "roots",
     "role": "online state serialization",
     "files": [
       "src/online/online-serialize.ts"
@@ -890,7 +815,6 @@
   {
     "layer": 15,
     "domain": "controllers",
-    "tier": "roots",
     "role": "AI-assisted human controller",
     "files": [
       "src/controllers/controller-ai-assisted-human.ts"
@@ -899,7 +823,6 @@
   {
     "layer": 15,
     "domain": "online",
-    "tier": "roots",
     "role": "online runtime promotion",
     "files": [
       "src/online/online-runtime-promote.ts"
@@ -908,7 +831,6 @@
   {
     "layer": 15,
     "domain": "runtime",
-    "tier": "roots",
     "role": "runtime rehydrate",
     "files": [
       "src/runtime/runtime-rehydrate.ts"
@@ -917,7 +839,6 @@
   {
     "layer": 16,
     "domain": "online",
-    "tier": "roots",
     "role": "online deps wiring",
     "files": [
       "src/online/online-runtime-deps.ts",
@@ -927,7 +848,6 @@
   {
     "layer": 17,
     "domain": "online",
-    "tier": "roots",
     "role": "online runtime composition",
     "files": [
       "src/online/online-runtime-game.ts"
@@ -936,7 +856,6 @@
   {
     "layer": 18,
     "domain": "entry",
-    "tier": "roots",
     "role": "online client entry",
     "files": [
       "src/online-client.ts"

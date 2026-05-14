@@ -10,71 +10,55 @@
  *   deno run -A scripts/lint-entry-placement.ts
  */
 
-import { Project } from "ts-morph";
 import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
-
-// ---------------------------------------------------------------------------
-// Config
-// ---------------------------------------------------------------------------
-
-/** Max allowed gap between a file's assigned layer and its computed minimum. */
-const MAX_GAP = 2;
-
-const LAYER_FILE = ".import-layers.json";
-
-/** Files that use dynamic imports for code splitting — static deps understate their true layer. */
-const DYNAMIC_ENTRY_POINTS = new Set(["src/entry.ts"]);
-
-// ---------------------------------------------------------------------------
-// Load layer definitions
-// ---------------------------------------------------------------------------
+import { Project } from "ts-morph";
+import { tierOfLayer } from "./cells/tier-of-layer.ts";
 
 interface LayerGroup {
   name: string;
-  tier?: string;
   files: string[];
 }
 
+interface Violation {
+  file: string;
+  fileLayer: number;
+  fileGroup: string;
+  maxDepLayer: number;
+  maxDepGroup: string;
+  gap: number;
+}
+
+/** Max allowed gap between a file's assigned layer and its computed minimum. */
+const MAX_GAP = 2;
+const LAYER_FILE = ".import-layers.json";
+/** Files that use dynamic imports for code splitting — static deps understate their true layer. */
+const DYNAMIC_ENTRY_POINTS = new Set(["src/entry.ts"]);
 const groups: LayerGroup[] = JSON.parse(fs.readFileSync(LAYER_FILE, "utf-8"));
 const rootLayerIndexes = groups
-  .map((group, idx) => ({ group, idx }))
-  .filter(({ group }) => group.tier === "roots")
-  .map(({ idx }) => idx);
+  .map((_group, idx) => idx)
+  .filter((idx) => tierOfLayer(idx) === "roots");
 const targetLayerIndexes =
   rootLayerIndexes.length > 0 ? rootLayerIndexes : [groups.length - 1];
-
 const fileToLayer = new Map<string, number>();
+const project = new Project({
+  tsConfigFilePath: "tsconfig.json",
+  skipAddingFilesFromTsConfig: true,
+});
+const allFiles = new Set<string>();
+const edgesByFile = new Map<string, Set<string>>();
+const violations: Violation[] = [];
+
 for (let i = 0; i < groups.length; i++) {
   for (const file of groups[i]!.files) {
     fileToLayer.set(file, i);
   }
 }
 
-// ---------------------------------------------------------------------------
-// Parse imports
-// ---------------------------------------------------------------------------
-
-const project = new Project({
-  tsConfigFilePath: "tsconfig.json",
-  skipAddingFilesFromTsConfig: true,
-});
-
 project.addSourceFilesAtPaths("src/**/*.ts");
+
 project.addSourceFilesAtPaths("server/**/*.ts");
-
-const allFiles = new Set<string>();
-const edgesByFile = new Map<string, Set<string>>();
-
-function fileKey(absPath: string): string {
-  return path.relative(process.cwd(), absPath).replace(/\\/g, "/");
-}
-
-function resolveImport(fromFile: string, specifier: string): string | null {
-  const dir = path.dirname(fromFile);
-  return fileKey(path.resolve(dir, specifier));
-}
 
 for (const sf of project.getSourceFiles()) {
   allFiles.add(fileKey(sf.getFilePath()));
@@ -99,20 +83,14 @@ for (const sf of project.getSourceFiles()) {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Check each file in the top layer
-// ---------------------------------------------------------------------------
-
-interface Violation {
-  file: string;
-  fileLayer: number;
-  fileGroup: string;
-  maxDepLayer: number;
-  maxDepGroup: string;
-  gap: number;
+function resolveImport(fromFile: string, specifier: string): string | null {
+  const dir = path.dirname(fromFile);
+  return fileKey(path.resolve(dir, specifier));
 }
 
-const violations: Violation[] = [];
+function fileKey(absPath: string): string {
+  return path.relative(process.cwd(), absPath).replace(/\\/g, "/");
+}
 
 for (const layerIdx of targetLayerIndexes) {
   const group = groups[layerIdx]!;
@@ -151,10 +129,6 @@ for (const layerIdx of targetLayerIndexes) {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Report
-// ---------------------------------------------------------------------------
-
 if (violations.length === 0) {
   const checkedFiles = targetLayerIndexes.reduce(
     (sum, idx) => sum + groups[idx]!.files.length,
@@ -169,13 +143,14 @@ if (violations.length === 0) {
 console.log(
   `\n\u2718 ${violations.length} entry-point placement issue(s) found:\n`,
 );
+
 for (const v of violations) {
   console.log(
     `  ${v.file} [${v.fileGroup} (L${v.fileLayer})] — max dep is ${v.maxDepGroup} (L${v.maxDepLayer}), gap of ${v.gap} layers`,
   );
-  console.log(
-    `    → consider reclassifying to L${v.maxDepLayer + 1} or lower`,
-  );
+  console.log(`    → consider reclassifying to L${v.maxDepLayer + 1} or lower`);
 }
+
 console.log("");
+
 process.exit(1);

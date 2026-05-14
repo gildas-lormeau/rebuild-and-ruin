@@ -16,7 +16,7 @@ This codebase has been written and repeatedly refactored by LLM-based agents rat
 
 Implications for this workflow:
 - Prefer **executable rules** over inferred style. If a convention matters, encode it in scripts, types, or comments rather than assuming future agents will rediscover it.
-- Treat `.import-layers.json` (layer groups with `tier` field), `.domain-boundaries.json`, and the audit scripts as the canonical source of architectural intent.
+- Treat `.import-layers.json` (layer index + group names), `.import-cells.json` (role labels per (domain, layer)), `.domain-boundaries.json` (edge policy + exceptions), and the audit scripts as the canonical source of architectural intent.
 - When you find a real pattern that agents must follow, update the relevant skill or in-code documentation in the same session when practical.
 - Be skeptical of "organic" clustering alone: in an agent-maintained repo, some structure exists because the tooling taught it, not because humans would naturally name it that way.
 
@@ -153,7 +153,7 @@ Layer names in `.import-layers.json` are pure indices `L0`..`L18` — no semanti
 
 - A file moved across a domain or layer boundary may land in a different cell. Run `deno run -A scripts/cells/regen-cells.ts` and inspect the diff.
 - If a new `(layer, domain)` cell appeared, the regen will fail with the cell key; add a `LABELS` entry in `scripts/cells/regen-cells.ts`.
-- Tier crossings still matter — if a layer's contents moved across a tier boundary (e.g., from logic to systems), update its `tier` field in `.import-layers.json`.
+- Tier is a function of layer index (`scripts/cells/tier-of-layer.ts`), not stored data. If a layer's contents conceptually crossed a tier boundary, update the `tierOfLayer` function — it's a code change, not a config change.
 
 **Naming is the analysis** — a cell label that lies is a bug, not cosmetic. Read the cell's files (`cell-lookup` shows them) and rename if the label drifted. Legitimate min-depth outliers (entry points, server stubs, dev pages, alternate renderers) are accommodated by broader cell labels (e.g., "entity renderers, 3D effect factories & alternate renderers"), not hidden behind a narrower label. See `docs/cell-system.md` for the full workflow.
 

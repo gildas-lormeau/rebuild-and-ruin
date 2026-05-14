@@ -1,7 +1,6 @@
 [
   {
     "name": "L0",
-    "tier": "types",
     "files": [
       "server/send-utils.ts",
       "src/ai/ai-constants.ts",
@@ -45,7 +44,6 @@
   },
   {
     "name": "L1",
-    "tier": "types",
     "files": [
       "src/online/online-config.ts",
       "src/online/online-router.ts",
@@ -76,7 +74,6 @@
   },
   {
     "name": "L2",
-    "tier": "types",
     "files": [
       "src/entry.ts",
       "src/online/online-types.ts",
@@ -100,7 +97,6 @@
   },
   {
     "name": "L3",
-    "tier": "types",
     "files": [
       "src/online/online-presence-state.ts",
       "src/shared/core/battle-types.ts",
@@ -111,7 +107,6 @@
   },
   {
     "name": "L4",
-    "tier": "types",
     "files": [
       "src/render/3d/entities/entity-helpers.ts",
       "src/shared/core/cannon-mode-defs.ts",
@@ -122,7 +117,6 @@
   },
   {
     "name": "L5",
-    "tier": "logic",
     "files": [
       "src/protocol/protocol.ts",
       "src/render/3d/entities/instance-bucket.ts",
@@ -136,7 +130,6 @@
   },
   {
     "name": "L6",
-    "tier": "logic",
     "files": [
       "server/game-room.ts",
       "src/ai/ai-build-types.ts",
@@ -203,7 +196,6 @@
   },
   {
     "name": "L7",
-    "tier": "systems",
     "files": [
       "server/room-manager.ts",
       "src/controllers/controller-human.ts",
@@ -241,7 +233,6 @@
   },
   {
     "name": "L8",
-    "tier": "systems",
     "files": [
       "server/server.ts",
       "src/ai/ai-castle-rect.ts",
@@ -276,7 +267,6 @@
   },
   {
     "name": "L9",
-    "tier": "systems",
     "files": [
       "src/ai/ai-build-score.ts",
       "src/ai/ai-build-target.ts",
@@ -311,7 +301,6 @@
   },
   {
     "name": "L10",
-    "tier": "assembly",
     "files": [
       "src/ai/ai-build-fallback.ts",
       "src/game/cannon-system.ts",
@@ -332,7 +321,6 @@
   },
   {
     "name": "L11",
-    "tier": "assembly",
     "files": [
       "src/ai/ai-strategy-build.ts",
       "src/game/grunt-system.ts",
@@ -342,7 +330,6 @@
   },
   {
     "name": "L12",
-    "tier": "assembly",
     "files": [
       "src/ai/ai-strategy.ts",
       "src/game/battle-system.ts",
@@ -353,7 +340,6 @@
   },
   {
     "name": "L13",
-    "tier": "assembly",
     "files": [
       "src/ai/ai-phase-battle.ts",
       "src/ai/ai-phase-build.ts",
@@ -369,7 +355,6 @@
   },
   {
     "name": "L14",
-    "tier": "roots",
     "files": [
       "src/controllers/controller-ai.ts",
       "src/game/phase-entry.ts",
@@ -379,7 +364,6 @@
   },
   {
     "name": "L15",
-    "tier": "roots",
     "files": [
       "src/controllers/controller-ai-assisted-human.ts",
       "src/online/online-runtime-promote.ts",
@@ -388,7 +372,6 @@
   },
   {
     "name": "L16",
-    "tier": "roots",
     "files": [
       "src/online/online-runtime-deps.ts",
       "src/online/online-runtime-session.ts"
@@ -396,14 +379,12 @@
   },
   {
     "name": "L17",
-    "tier": "roots",
     "files": [
       "src/online/online-runtime-game.ts"
     ]
   },
   {
     "name": "L18",
-    "tier": "roots",
     "files": [
       "src/online-client.ts"
     ]

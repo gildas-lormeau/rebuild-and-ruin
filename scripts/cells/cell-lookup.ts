@@ -20,11 +20,11 @@
 
 import { readFileSync } from "node:fs";
 import path from "node:path";
+import { tierOfLayer } from "./tier-of-layer.ts";
 
 interface Cell {
   layer: number;
   domain: string;
-  tier?: string;
   role: string;
   files: string[];
 }
@@ -64,7 +64,7 @@ function main(): void {
     console.log(`No cells matched "${query}".`);
     console.log(`\nClosest by tier — try one of these and refine:`);
     for (const tier of ["types", "logic", "systems", "assembly", "roots"]) {
-      const sample = cells.find((cell) => cell.tier === tier);
+      const sample = cells.find((cell) => tierOfLayer(cell.layer) === tier);
       if (sample)
         console.log(`  [${tier}] e.g. L${sample.layer} · ${sample.domain}`);
     }
@@ -76,7 +76,7 @@ function main(): void {
     const { cell, matchedTokens } = scored;
     const fileCount = cell.files.length;
     console.log(
-      `→ L${cell.layer} · ${cell.domain}${cell.tier ? ` [${cell.tier}]` : ""} — ${cell.role}  (${fileCount} file${fileCount === 1 ? "" : "s"}, matched: ${matchedTokens.join(", ")})`,
+      `→ L${cell.layer} · ${cell.domain} [${tierOfLayer(cell.layer)}] — ${cell.role}  (${fileCount} file${fileCount === 1 ? "" : "s"}, matched: ${matchedTokens.join(", ")})`,
     );
     const shown = cell.files.slice(0, SHOW_FILES_LIMIT);
     for (const file of shown) console.log(`    ${file}`);

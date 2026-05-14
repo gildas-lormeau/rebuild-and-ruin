@@ -13,6 +13,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import { Project, type SourceFile, SyntaxKind } from "ts-morph";
+import { tierOfLayer } from "./cells/tier-of-layer.ts";
 
 interface Config {
   allowed: Record<string, string[]>;
@@ -28,7 +29,6 @@ interface Cell {
 
 interface LayerGroup {
   name: string;
-  tier?: string;
   files: string[];
 }
 
@@ -99,9 +99,9 @@ let checkedImports = 0;
 
 try {
   const layers: LayerGroup[] = JSON.parse(readFileSync(LAYER_FILE, "utf-8"));
-  for (const group of layers) {
-    if (group.tier === "roots") {
-      for (const file of group.files) rootsTierFiles.add(file);
+  for (let i = 0; i < layers.length; i++) {
+    if (tierOfLayer(i) === "roots") {
+      for (const file of layers[i]!.files) rootsTierFiles.add(file);
     }
   }
 } catch {

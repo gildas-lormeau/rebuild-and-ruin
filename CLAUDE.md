@@ -49,7 +49,7 @@ Modern mode is the explicit exception channel: features with a `FeatureId`, pool
 Entry points (`entry.ts`, `main.ts`, `online-client.ts`) stay at `src/` root. `server/` is separate (Deno Deploy target).
 
 ### Module layers (19 groups in 5 tiers, `.import-layers.json`)
-Each layer group has a `tier` for quick orientation: **types** (L0–L4) → **logic** (L5–L6) → **systems** (L7–L9) → **assembly** (L10–L13) → **roots** (L14–L18).
+Each layer falls within one of 5 tiers (`tierOfLayer(n)` in `scripts/cells/tier-of-layer.ts`): **types** (L0–L4) → **logic** (L5–L6) → **systems** (L7–L9) → **assembly** (L10–L13) → **roots** (L14–L18). Tier is a function of layer index, not a stored field — lint scripts (`lint-domain-boundaries.ts`, `lint-entry-placement.ts`) call the helper.
 Layer index = import depth: `layer(f) = 1 + max(layer(dep))`, or 0 for files with no intra-project imports. Imports must flow downward (higher layer imports lower).
 Layer names in `.import-layers.json` are just `"L0"`, `"L1"`, …, `"L18"` — pure mechanical indices, no semantic content. Role labeling lives in `.import-cells.json` (see "Module cells" below). Entry points sit at their minimum import-depth layer (`entry.ts` at L2, `main.ts` at L14, `online-client.ts` at L18).
 

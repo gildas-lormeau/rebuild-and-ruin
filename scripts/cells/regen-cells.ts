@@ -24,7 +24,6 @@ import path from "node:path";
 
 interface LayerGroup {
   name: string;
-  tier?: string;
   files: string[];
 }
 
@@ -43,7 +42,6 @@ interface DomainBoundaries {
 interface Cell {
   layer: number;
   domain: string;
-  tier?: string;
   role: string;
   files: string[];
 }
@@ -256,7 +254,6 @@ function buildCells(
       cellMap.set(key, {
         layer,
         domain,
-        tier: layerGroups[layer]!.tier,
         role: "",
         files: [],
       });

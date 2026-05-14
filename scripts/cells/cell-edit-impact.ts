@@ -24,7 +24,6 @@ import { Project } from "ts-morph";
 interface Cell {
   layer: number;
   domain: string;
-  tier?: string;
   role: string;
   files: string[];
 }

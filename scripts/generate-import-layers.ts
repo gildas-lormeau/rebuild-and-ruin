@@ -33,10 +33,10 @@ import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import { Project } from "ts-morph";
+import { tierOfLayer } from "./cells/tier-of-layer.ts";
 
 interface LayerGroup {
   name: string;
-  tier?: string;
   files: string[];
 }
 
@@ -63,10 +63,10 @@ const layers = new Map<string, number>();
 const visiting = new Set<string>();
 // Build groups sorted by layer then alphabetically
 const groupMap = new Map<number, string[]>();
-// If a layer file already exists, preserve group names and tiers for layers
-// that still exist at the same index
+// If a layer file already exists, preserve group names for layers that
+// still exist at the same index. Tier is no longer stored — it's a
+// function of layer index, see scripts/cells/tier-of-layer.ts.
 const existingNames = new Map<number, string>();
-const existingTiers = new Map<number, string>();
 const existingFiles = new Map<number, Set<string>>();
 const outputGroups: LayerGroup[] = [];
 // Membership-diff warnings — the layer linter only catches *upward* edges, so
@@ -142,11 +142,10 @@ if (checkMode) {
     process.exit(1);
   }
 
-  const { fileToLayer, layerNames, layerTiers } = readLayerFile();
+  const { fileToLayer, layerNames } = readLayerFile();
 
   function tierTag(layer: number): string {
-    const tier = layerTiers.get(layer);
-    return tier ? ` (${tier})` : "";
+    return ` (${tierOfLayer(layer)})`;
   }
 
   // Files missing from the layer map — fail so new files can't ship unlayered.
@@ -222,25 +221,22 @@ function readLayerFile(): {
   groups: LayerGroup[];
   fileToLayer: Map<string, number>;
   layerNames: Map<number, string>;
-  layerTiers: Map<number, string>;
 } {
   const raw = fs.readFileSync(LAYER_FILE, "utf-8");
   const groups: LayerGroup[] = JSON.parse(raw);
 
   const fileToLayer = new Map<string, number>();
   const layerNames = new Map<number, string>();
-  const layerTiers = new Map<number, string>();
 
   for (let i = 0; i < groups.length; i++) {
     const g = groups[i]!;
     layerNames.set(i, g.name);
-    if (g.tier) layerTiers.set(i, g.tier);
     for (const file of g.files) {
       fileToLayer.set(file, i);
     }
   }
 
-  return { groups, fileToLayer, layerNames, layerTiers };
+  return { groups, fileToLayer, layerNames };
 }
 
 for (const file of allFiles) {
@@ -288,7 +284,6 @@ if (fs.existsSync(LAYER_FILE)) {
     );
     for (let i = 0; i < existing.length; i++) {
       existingNames.set(i, existing[i]!.name);
-      if (existing[i]!.tier) existingTiers.set(i, existing[i]!.tier!);
       existingFiles.set(i, new Set(existing[i]!.files));
     }
   } catch {
@@ -299,8 +294,7 @@ if (fs.existsSync(LAYER_FILE)) {
 for (let l = 0; l <= maxLayer; l++) {
   const files = groupMap.get(l) ?? [];
   const name = existingNames.get(l) ?? `L${l}`;
-  const tier = existingTiers.get(l);
-  outputGroups.push(tier ? { name, tier, files } : { name, files });
+  outputGroups.push({ name, files });
 }
 
 // Print
@@ -310,7 +304,7 @@ console.log(
 
 for (let l = 0; l <= maxLayer; l++) {
   const g = outputGroups[l]!;
-  const tierLabel = g.tier ? ` [${g.tier}]` : "";
+  const tierLabel = ` [${tierOfLayer(l)}]`;
   console.log(
     `  ${String(l).padStart(pad)}: ${g.name}${tierLabel}  (${g.files.length} files)`,
   );
