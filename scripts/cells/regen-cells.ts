@@ -110,7 +110,7 @@ const LABELS: Record<string, string> = {
   "7::controllers": "human controller",
   "7::game": "game init, zone recompute & fire modifier",
   "7::online": "online action send, host crosshairs & stores",
-  "7::render": "entity renderers & 3D effect factories",
+  "7::render": "entity renderers, 3D effect factories & alternate renderers",
   "7::runtime": "runtime contracts & battle anim",
   "7::server": "server room manager",
   "7::shared": "shared board occupancy",

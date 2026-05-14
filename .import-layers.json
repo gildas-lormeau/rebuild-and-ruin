@@ -233,6 +233,7 @@
       "src/render/3d/entities/towers.ts",
       "src/render/3d/entities/walls.ts",
       "src/render/3d/terrain.ts",
+      "src/render/ascii-renderer.ts",
       "src/runtime/runtime-battle-anim.ts",
       "src/runtime/runtime-contracts.ts",
       "src/shared/core/board-occupancy.ts"

@@ -11,6 +11,10 @@ import {
   GAME_EXIT_EVENT,
 } from "./online/online-router.ts";
 import {
+  type AsciiRendererInternal,
+  createAsciiRenderer,
+} from "./render/ascii-renderer.ts";
+import {
   createBrowserRuntimeBindings,
   createGameRuntime,
   createLocalNetworkApi,
@@ -25,10 +29,18 @@ const canvas = document.getElementById("canvas") as HTMLCanvasElement;
 const worldCanvas = document.getElementById(
   "world-canvas",
 ) as HTMLCanvasElement;
-const { renderer, timing, keyboardEventSource } = createBrowserRuntimeBindings(
-  canvas,
-  worldCanvas,
-);
+// `?renderer=ascii` swaps the 3D renderer for a text-based one that
+// paints into a <pre> sibling of the canvas stack. Dev-only — no
+// input wiring, no overlays, no audio sync; reads game state via the
+// late-bind getter installed after the runtime is constructed.
+const useAsciiRenderer =
+  new URL(location.href).searchParams.get("renderer") === "ascii";
+const asciiRenderer: AsciiRendererInternal | null = useAsciiRenderer
+  ? mountAsciiRenderer()
+  : null;
+const browserBindings = createBrowserRuntimeBindings(canvas, worldCanvas);
+const renderer = asciiRenderer ?? browserBindings.renderer;
+const { timing, keyboardEventSource } = browserBindings;
 const runtime = createGameRuntime({
   renderer,
   timing,
@@ -86,6 +98,11 @@ export async function activateMusic(): Promise<void> {
   await Promise.all([runtime.music.activate(), runtime.sfx.activate()]);
 }
 
+// Late-bind the ASCII renderer's state getter. The renderer was
+// constructed before `createGameRuntime` (it's passed into it), so
+// the state getter has to be installed after.
+asciiRenderer?.setStateGetter(() => runtime.runtimeState.state);
+
 // Back-button / hash navigation away from /play: stop the active bg
 // track + any in-flight SFX, set mode to STOPPED. Shared with the
 // online entry — see runtime.shutdown in runtime-composition.ts.
@@ -100,4 +117,18 @@ function showLobby(): void {
   // else restarts it when the player hits "Menu" on the game-over
   // screen or the all-AI demo timer auto-returns.
   void runtime.music.startTitle();
+}
+
+/**
+ * Hide the canvas stack, inject a `<pre>` next to it, and return an
+ * ASCII renderer painting into it. Dev-only — caller branches on the
+ * `?renderer=ascii` URL param.
+ */
+function mountAsciiRenderer(): AsciiRendererInternal {
+  const stack = canvas.parentElement;
+  if (stack) stack.style.display = "none";
+  const pre = document.createElement("pre");
+  pre.id = "ascii-renderer";
+  stack?.parentElement?.insertBefore(pre, stack);
+  return createAsciiRenderer(pre);
 }
