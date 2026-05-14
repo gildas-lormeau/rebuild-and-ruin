@@ -190,7 +190,7 @@ const CATAPULT_ARM_WOOD: MaterialSpec = {
 // looks concave from any camera angle, not like a solid paddle face).
 const CATAPULT_BOWL_WOOD: MaterialSpec = {
   kind: "standard",
-  color: 0x8b5a2b,
+  color: 0x4a2f17,
   roughness: 0.95,
   metalness: 0.05,
   side: "double",
@@ -424,10 +424,10 @@ function buildLauncherTop(
 
   // Uprights — two posts standing on the base plate, raising the pivot
   // above the chassis so the see-saw arm has visible structural support.
-  // Authored centered on the pivot Z (front edge of the base plate); the
-  // arm swings between them.
+  // Centered on the base plate (both axes) so the plate frames the
+  // uprights with visible margin.
   const plateTopY = hullTopY(params) + top.basePlate.height;
-  const pivotZ = -top.basePlate.forwardOffset - top.basePlate.depth / 2;
+  const pivotZ = -top.basePlate.forwardOffset;
   const uprightY = plateTopY + top.uprights.height / 2;
   const uprightMat = createMaterial(top.uprights.material);
   for (const sign of [-1, +1] as const) {
@@ -496,12 +496,12 @@ function buildLauncherTop(
       top.bucket.length,
       20,
       1,
-      true,
+      false,
     ),
     createMaterial(top.bucket.material),
   );
   bucket.rotation.x = -Math.PI / 2;
-  bucket.position.set(0, top.arm.length, top.bucket.length / 2);
+  bucket.position.set(0, top.arm.length, top.bucket.length / 2 - cells(1.0));
   armPivot.add(bucket);
 }
 
@@ -613,7 +613,7 @@ function catapultParams(yawDegrees: number): GruntParams {
     hull: {
       width: cells(10),
       depth: cells(13),
-      height: cells(5),
+      height: cells(3),
       yBase: cells(1),
       material: CATAPULT_HULL,
     },
@@ -648,7 +648,7 @@ function catapultParams(yawDegrees: number): GruntParams {
         depth: cells(1.2),
         height: cells(2),
         xOffset: cells(2),
-        material: CATAPULT_ARM_WOOD,
+        material: CATAPULT_BOWL_WOOD,
       },
       // Inclined wooden beam — pitched 40° above horizontal. `length` is
       // the long throwing side (pivot → bucket); `rearLength` is the
@@ -658,15 +658,15 @@ function catapultParams(yawDegrees: number): GruntParams {
         length: cells(7),
         rearLength: cells(2.5),
         radius: cells(0.6),
-        pitchDegrees: 40,
+        pitchDegrees: 55,
         material: CATAPULT_ARM_WOOD,
       },
       // Stone counterweight at the rear arm tip. Rigid-mounted (rotates
       // with the arm); visually balances the throwing side.
       counterweight: {
-        width: cells(2.5),
-        height: cells(2),
-        depth: cells(2.5),
+        width: cells(2.2),
+        height: cells(1.8),
+        depth: cells(2.2),
         material: CATAPULT_STONE,
       },
       // Wooden spoon-bowl at the throwing tip. Same wood as the arm so
@@ -677,8 +677,8 @@ function catapultParams(yawDegrees: number): GruntParams {
       // Open-ended + double-sided wood so the inside cone wall renders
       // (reads as a concave bowl from any angle, not a solid paddle).
       bucket: {
-        radiusInner: cells(1.0),
-        radiusOuter: cells(2.0),
+        radiusInner: cells(2.0),
+        radiusOuter: cells(4.0),
         length: cells(3),
         material: CATAPULT_BOWL_WOOD,
       },
