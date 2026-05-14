@@ -485,13 +485,10 @@ function buildLauncherTop(
 
   // Bucket / spoon-bowl at the forward tip. Open-ended flared cylinder
   // — narrow end attaches to the arm tip, wide opening is the bowl
-  // mouth. Counter-rotated by −armPitchRad so the opening points
-  // straight up in world space regardless of arm pitch (a payload would
-  // rest in it by gravity, which a real wooden spoon's bowl does too).
-  // Position offset along the arm's local axes so the narrow end stays
-  // glued to the arm tip while the body rises vertically.
-  const cosP = Math.cos(armPitchRad);
-  const sinP = Math.sin(armPitchRad);
+  // mouth. Rotated −90° around X within armPivot so the bowl's axis is
+  // perpendicular to the arm (i.e. the flat bottom of the bowl is
+  // parallel to the arm beam). Bowl opens "up-and-back" relative to the
+  // arm tip, tilted at the same angle as the arm (rigid wooden spoon).
   const bucket = new three.Mesh(
     new three.CylinderGeometry(
       top.bucket.radiusOuter,
@@ -503,12 +500,8 @@ function buildLauncherTop(
     ),
     createMaterial(top.bucket.material),
   );
-  bucket.rotation.x = -armPitchRad;
-  bucket.position.set(
-    0,
-    top.arm.length + (top.bucket.length / 2) * cosP,
-    (top.bucket.length / 2) * sinP,
-  );
+  bucket.rotation.x = -Math.PI / 2;
+  bucket.position.set(0, top.arm.length, top.bucket.length / 2);
   armPivot.add(bucket);
 }
 
