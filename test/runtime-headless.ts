@@ -34,6 +34,7 @@ import type {
   ControllerFactory,
   HapticsObserver,
 } from "../src/shared/core/system-interfaces.ts";
+import type { GameState } from "../src/shared/core/types.ts";
 import { SEED_CUSTOM } from "../src/shared/ui/player-config.ts";
 import { Mode } from "../src/shared/ui/ui-mode.ts";
 import {
@@ -534,7 +535,7 @@ export async function createHeadlessRuntime(
 function buildAssistedControllerFactory(
   assistedSlots: readonly ValidPlayerId[],
   send: (msg: GameMessage) => void,
-  getSchedule: () => (action: ScheduledAction) => void,
+  getSchedule: () => (action: ScheduledAction<GameState>) => void,
   safetyTicks: number,
 ): ControllerFactory {
   const assistedSet = new Set<ValidPlayerId>(assistedSlots);

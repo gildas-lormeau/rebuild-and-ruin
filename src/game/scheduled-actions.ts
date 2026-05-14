@@ -50,7 +50,7 @@ interface ScheduledPiecePlacement {
  *  return the stamped fields. Returns null when the placement is rejected
  *  (caller should treat as a no-op — no enqueue, no broadcast). */
 export function schedulePiecePlacement(args: {
-  schedule: (action: ScheduledAction) => void;
+  schedule: (action: ScheduledAction<GameState>) => void;
   /** Read-only at schedule time — the apply closure receives the mutable
    *  `GameState` separately at drain time.  `BuildViewState` covers
    *  `canPlacePiece` and inherits `simTick` from `GameViewState` for the
@@ -116,7 +116,7 @@ export function schedulePiecePlacement(args: {
  *  Returns the stamped wire message + new rotation index, or null when no
  *  cannon is ready (caller treats as a no-op — no enqueue, no broadcast). */
 export function scheduleCannonFire(args: {
-  schedule: (action: ScheduledAction) => void;
+  schedule: (action: ScheduledAction<GameState>) => void;
   state: GameState;
   intent: FireIntent;
   ctrl: BattleController;
@@ -153,7 +153,7 @@ export function scheduleCannonFire(args: {
  *
  *  Returns the stamped wire payload, or null when validation fails. */
 export function scheduleCannonPlacement(args: {
-  schedule: (action: ScheduledAction) => void;
+  schedule: (action: ScheduledAction<GameState>) => void;
   state: GameState;
   intent: PlaceCannonIntent;
   maxSlots: number;

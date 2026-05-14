@@ -61,7 +61,7 @@ export interface HandleServerIncrementalDeps {
   /** Lockstep queue. State-mutating wire messages enqueue with the
    *  originator-stamped `applyAt`; the action fires at the same logical
    *  tick on every peer (originator and receivers). */
-  schedule: (action: ScheduledAction) => void;
+  schedule: (action: ScheduledAction<GameState>) => void;
   /** Per-slot controllers — phantom messages for remote-controlled slots
    *  write directly into `controllers[msg.playerId].current{Build,Cannon}Phantom(s)`. */
   getControllers: () => readonly PlayerController[];

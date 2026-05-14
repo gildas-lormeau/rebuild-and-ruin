@@ -24,7 +24,7 @@ interface OnlineSendActionsDeps {
   getState: () => GameState;
   /** Lockstep queue. The originator enqueues with the same applyAt it
    *  broadcasts, so it applies in lockstep with receivers. */
-  schedule: (action: ScheduledAction) => void;
+  schedule: (action: ScheduledAction<GameState>) => void;
   /** Buffer depth in sim ticks. `applyAt = state.simTick + safetyTicks`. */
   safetyTicks: number;
 }

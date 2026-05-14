@@ -7,9 +7,8 @@
  */
 
 import type { ValidPlayerId } from "./player-slot.ts";
-import type { GameState } from "./types.ts";
 
-export interface ScheduledAction {
+export interface ScheduledAction<S> {
   /** Logical sim tick at which this action fires. Both originator and
    *  receiver schedule with the same `applyAt` so they fire in lockstep. */
   applyAt: number;
@@ -18,16 +17,16 @@ export interface ScheduledAction {
    *  peers regardless of wire arrival order. */
   playerId: ValidPlayerId;
   /** Mutates state. Called exactly once when the action fires. */
-  apply: (state: GameState) => void;
+  apply: (state: S) => void;
 }
 
-export interface ActionSchedule {
+export interface ActionSchedule<S> {
   /** Enqueue an action. Order of enqueue is irrelevant — the drain sort
    *  ensures deterministic apply order. */
-  schedule: (action: ScheduledAction) => void;
+  schedule: (action: ScheduledAction<S>) => void;
   /** Apply every queued action whose `applyAt <= simTick`, in
    *  `(applyAt, playerId)` order. */
-  drainUpTo: (simTick: number, state: GameState) => void;
+  drainUpTo: (simTick: number, state: S) => void;
   /** Pending count. Test-only; production code should not branch on this. */
   size: () => number;
   /** Drop all queued actions (e.g. on rematch / returnToLobby). */
@@ -40,8 +39,8 @@ export interface ActionSchedule {
  *  override via `RuntimeConfig.actionScheduleSafetyTicks`. */
 export const DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS = 8;
 
-export function createActionSchedule(): ActionSchedule {
-  const queue: ScheduledAction[] = [];
+export function createActionSchedule<S>(): ActionSchedule<S> {
+  const queue: ScheduledAction<S>[] = [];
 
   return {
     schedule(action) {

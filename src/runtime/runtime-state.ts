@@ -118,7 +118,7 @@ export interface RuntimeState {
    *  mutates GameState is enqueued (on both originator and receiver) and
    *  drained once per sim tick at the top of `runOneSubStep`. See
    *  `runtime-action-schedule.ts`. */
-  actionSchedule: ActionSchedule;
+  actionSchedule: ActionSchedule<GameState>;
 
   // Timers / accumulators
   accum: TimerAccums;

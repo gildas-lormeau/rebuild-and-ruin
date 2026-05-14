@@ -145,6 +145,7 @@
     "domain": "shared",
     "role": "shared foundational types & defs",
     "files": [
+      "src/shared/core/action-schedule.ts",
       "src/shared/core/elevation-constants.ts",
       "src/shared/core/feature-defs.ts",
       "src/shared/core/geometry-types.ts",
@@ -365,6 +366,7 @@
     "role": "online lobby UI & session state",
     "files": [
       "src/online/online-lobby-ui.ts",
+      "src/online/online-send-actions.ts",
       "src/online/online-session.ts"
     ]
   },
@@ -390,6 +392,7 @@
       "src/runtime/runtime-crosshair-anim.ts",
       "src/runtime/runtime-haptics.ts",
       "src/runtime/runtime-life-lost-core.ts",
+      "src/runtime/runtime-state.ts",
       "src/runtime/runtime-tick-context.ts",
       "src/runtime/runtime-upgrade-pick-core.ts",
       "src/runtime/sfx-player.ts"
@@ -408,7 +411,6 @@
     "domain": "shared",
     "role": "shared action schedule & query helpers",
     "files": [
-      "src/shared/core/action-schedule.ts",
       "src/shared/core/controller-guards.ts",
       "src/shared/core/occupancy-queries.ts",
       "src/shared/core/render-view.ts"
@@ -438,7 +440,6 @@
     "role": "online action send, host crosshairs & stores",
     "files": [
       "src/online/online-host-crosshairs.ts",
-      "src/online/online-send-actions.ts",
       "src/online/online-server-lifecycle.ts",
       "src/online/online-stores.ts"
     ]
@@ -475,9 +476,14 @@
     "domain": "runtime",
     "role": "runtime contracts & battle anim",
     "files": [
+      "src/runtime/dev-console.ts",
+      "src/runtime/modifier-reveal-time.ts",
+      "src/runtime/runtime-audio.ts",
       "src/runtime/runtime-battle-anim.ts",
+      "src/runtime/runtime-cannon-animator.ts",
       "src/runtime/runtime-contracts.ts",
-      "src/runtime/runtime-state.ts"
+      "src/runtime/runtime-score-deltas.ts",
+      "src/runtime/runtime-upgrade-pick.ts"
     ]
   },
   {
@@ -576,21 +582,16 @@
     "domain": "runtime",
     "role": "runtime state, castle-build & browser timing",
     "files": [
-      "src/runtime/dev-console.ts",
-      "src/runtime/modifier-reveal-time.ts",
-      "src/runtime/runtime-audio.ts",
       "src/runtime/runtime-banner.ts",
       "src/runtime/runtime-browser-timing.ts",
-      "src/runtime/runtime-cannon-animator.ts",
       "src/runtime/runtime-castle-build.ts",
       "src/runtime/runtime-human.ts",
       "src/runtime/runtime-lobby.ts",
       "src/runtime/runtime-main-loop.ts",
       "src/runtime/runtime-options.ts",
       "src/runtime/runtime-phase-machine.ts",
-      "src/runtime/runtime-score-deltas.ts",
-      "src/runtime/runtime-types.ts",
-      "src/runtime/runtime-upgrade-pick.ts"
+      "src/runtime/runtime-render.ts",
+      "src/runtime/runtime-types.ts"
     ]
   },
   {
@@ -656,7 +657,6 @@
       "src/runtime/runtime-input.ts",
       "src/runtime/runtime-life-lost.ts",
       "src/runtime/runtime-phase-ticks.ts",
-      "src/runtime/runtime-render.ts",
       "src/runtime/runtime-selection.ts",
       "src/runtime/runtime-tick-consumers.ts"
     ]

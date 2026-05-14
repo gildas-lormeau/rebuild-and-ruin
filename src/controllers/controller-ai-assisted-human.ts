@@ -65,7 +65,7 @@ interface AssistedControllerOptions {
    *  via recheckTerritory) are scheduled with `applyAt = state.simTick +
    *  safetyTicks` so receivers' wire-receipt enqueue lands at the same
    *  logical tick on every peer. */
-  schedule: (action: ScheduledAction) => void;
+  schedule: (action: ScheduledAction<GameState>) => void;
   /** Buffer depth in sim ticks. See `shared/core/action-schedule.ts`. */
   safetyTicks: number;
 }
@@ -76,7 +76,7 @@ export class AiAssistedHumanController
 {
   override readonly kind = "human" as const;
   private readonly senders: AssistedSenders;
-  private readonly schedule: (action: ScheduledAction) => void;
+  private readonly schedule: (action: ScheduledAction<GameState>) => void;
   private readonly safetyTicks: number;
 
   constructor(playerId: ValidPlayerId, opts: AssistedControllerOptions) {
