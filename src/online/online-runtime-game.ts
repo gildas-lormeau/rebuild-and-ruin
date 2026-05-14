@@ -1,3 +1,4 @@
+import { nextReadyCannon } from "../game/index.ts";
 import {
   type InitMessage,
   MESSAGE,
@@ -7,6 +8,7 @@ import {
   createBrowserRuntimeBindings,
   createGameRuntime,
 } from "../runtime/runtime-composition.ts";
+import { tickRemoteCrosshair } from "../runtime/runtime-crosshair-anim.ts";
 import { setMode } from "../runtime/runtime-state.ts";
 import {
   isHostInContext,
@@ -181,13 +183,23 @@ const runtime: GameRuntime = createGameRuntime({
     },
 
     // ── Cross-machine merging ─────────────────────────────────────────
-    extendCrosshairs: (crosshairs, dt) =>
-      extendWithRemoteCrosshairs(crosshairs, runtime.runtimeState.state, dt, {
+    extendCrosshairs: (crosshairs, dt) => {
+      const state = runtime.runtimeState.state;
+      return extendWithRemoteCrosshairs(crosshairs, dt, {
         remoteCrosshairs: ctx.presence.remoteCrosshairs,
-        smoothedCrosshairPos: ctx.presence.smoothedCrosshairPos,
         remotePlayerSlots: ctx.session.remotePlayerSlots,
         logThrottled: devLogThrottled,
-      }),
+        resolveRemoteTarget: (pid, target, dtMs) =>
+          tickRemoteCrosshair(
+            pid,
+            target,
+            state,
+            dtMs,
+            ctx.presence.smoothedCrosshairPos,
+          ),
+        hasReadyCannon: (pid) => !!nextReadyCannon(state, pid),
+      });
+    },
     tickMigrationAnnouncement: (dt) =>
       tickPersistentAnnouncement(
         ctx.presence.migrationBanner,

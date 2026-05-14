@@ -5,19 +5,13 @@
  * comes from the controller's getCrosshair() and is not on the wire.
  */
 
-import { nextReadyCannon } from "../game/index.ts";
 import { type GameMessage, MESSAGE } from "../protocol/protocol.ts";
-import { tickRemoteCrosshair } from "../runtime/runtime-crosshair-anim.ts";
-import { isRemotePlayer } from "../runtime/runtime-tick-context.ts";
 import type { Crosshair } from "../shared/core/battle-types.ts";
 import { isAiAnimatable } from "../shared/core/controller-guards.ts";
 import type { PixelPos } from "../shared/core/geometry-types.ts";
 import type { DedupChannel } from "../shared/core/phantom-types.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
-import type {
-  BattleViewState,
-  ControllerIdentity,
-} from "../shared/core/system-interfaces.ts";
+import type { ControllerIdentity } from "../shared/core/system-interfaces.ts";
 import { formatAimDedupKey } from "./online-session.ts";
 
 interface BroadcastDeps {
@@ -27,9 +21,19 @@ interface BroadcastDeps {
 
 interface ExtendDeps {
   remoteCrosshairs: Map<number, PixelPos>;
-  smoothedCrosshairPos: Map<number, PixelPos>;
   remotePlayerSlots: ReadonlySet<ValidPlayerId>;
   logThrottled: (key: string, msg: string) => void;
+  /** Visual position for the remote crosshair this frame (interpolation +
+   *  can-fire gate). Null = skip rendering for this slot. Caller binds
+   *  the underlying tickRemoteCrosshair + state + cache here. */
+  resolveRemoteTarget: (
+    pid: ValidPlayerId,
+    target: PixelPos,
+    dt: number,
+  ) => PixelPos | null;
+  /** True when the remote player has a cannon ready to fire. Caller binds
+   *  nextReadyCannon + state here. */
+  hasReadyCannon: (pid: ValidPlayerId) => boolean;
 }
 
 /** Send aim_update for a local controller's crosshair (host only, deduped). */
@@ -53,31 +57,24 @@ export function broadcastLocalCrosshair(
 /** Collect interpolated remote-human crosshairs and return them merged with local ones. */
 export function extendWithRemoteCrosshairs(
   crosshairs: readonly Crosshair[],
-  state: BattleViewState,
   dt: number,
   deps: ExtendDeps,
 ): Crosshair[] {
   deps.logThrottled(
     "host-ch-remote",
-    `collectCrosshairs: localCh=${crosshairs.length} remoteCrosshairs keys=[${[...deps.remoteCrosshairs.keys()]}] cannons=[${state.players.map((player, i) => `P${i}:${player.cannons.length}`).join(",")}]`,
+    `collectCrosshairs: localCh=${crosshairs.length} remoteCrosshairs keys=[${[...deps.remoteCrosshairs.keys()]}]`,
   );
   const remote: Crosshair[] = [];
   for (const [rawPid, target] of deps.remoteCrosshairs) {
     const pid = rawPid as ValidPlayerId;
-    if (!isRemotePlayer(pid, deps.remotePlayerSlots)) continue;
-    const visualPos = tickRemoteCrosshair(
-      pid,
-      target,
-      state,
-      dt,
-      deps.smoothedCrosshairPos,
-    );
+    if (!deps.remotePlayerSlots.has(pid)) continue;
+    const visualPos = deps.resolveRemoteTarget(pid, target, dt);
     if (!visualPos) continue;
     remote.push({
       x: visualPos.x,
       y: visualPos.y,
       playerId: pid,
-      cannonReady: !!nextReadyCannon(state, pid),
+      cannonReady: deps.hasReadyCannon(pid),
     });
   }
   return [...crosshairs, ...remote];
