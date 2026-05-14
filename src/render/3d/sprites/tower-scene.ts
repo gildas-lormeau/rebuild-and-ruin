@@ -378,8 +378,8 @@ export const VARIANTS: Variant[] = [
               material: WOOD_DARK,
               flag: {
                 width: cells(2),
-                height: 0.0625,
-                yOffset: -0.03125,
+                height: yCells(1),
+                yOffset: -yCells(0.5),
                 side: "+x",
                 material: FLAG_NEUTRAL,
               },
@@ -488,8 +488,8 @@ export const VARIANTS: Variant[] = [
               material: WOOD_DARK,
               flag: {
                 width: cells(3),
-                height: yCells(3),
-                yOffset: -yCells(1.5),
+                height: yCells(1.5),
+                yOffset: -yCells(0.75),
                 side: "+x",
                 material: FLAG_BASE,
               },
@@ -580,8 +580,8 @@ export const VARIANTS: Variant[] = [
                 material: WOOD_DARK,
                 flag: {
                   width: cells(3),
-                  height: yCells(3),
-                  yOffset: -yCells(1.5),
+                  height: yCells(1.5),
+                  yOffset: -yCells(0.75),
                   side: "+x",
                   material: FLAG_BASE,
                 },
@@ -595,8 +595,8 @@ export const VARIANTS: Variant[] = [
                 material: WOOD_DARK,
                 flag: {
                   width: cells(3),
-                  height: yCells(3),
-                  yOffset: -yCells(1.5),
+                  height: yCells(1.5),
+                  yOffset: -yCells(0.75),
                   side: "+x",
                   material: FLAG_BASE,
                 },
