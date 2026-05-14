@@ -123,14 +123,17 @@ async function main(): Promise<void> {
   ground.receiveShadow = true;
   scene.add(ground);
 
-  const camera = frameSprite(subject, PITCH_DEG, size);
+  const camera = frameSprite(subject, PITCH_DEG, ROTATION_DEG, size);
   const frustumW = camera.right - camera.left;
   const frustumH = camera.top - camera.bottom;
   // Square pixels: same world-units-per-pixel horizontally and
-  // vertically. Anchor width to canvasPx*scale (the game's atlas
-  // width), derive height to match the frustum aspect.
-  const canvasW = Math.round(size.canvasPx * SCALE);
-  const canvasH = Math.round(canvasW * (frustumH / frustumW));
+  // vertically. Atlas convention is canvasPx*scale pixels per 2 world
+  // units (frustum-X spanning [-1, 1]) — preserve that pixel scale even
+  // when rotation widens the frustum past 2, so the sprite stays the
+  // same apparent size across rotations.
+  const pxPerWorldUnit = (size.canvasPx * SCALE) / 2;
+  const canvasW = Math.round(frustumW * pxPerWorldUnit);
+  const canvasH = Math.round(frustumH * pxPerWorldUnit);
   canvas.width = canvasW;
   canvas.height = canvasH;
   renderer.setSize(canvasW, canvasH, false);
@@ -144,16 +147,17 @@ async function main(): Promise<void> {
 
 /**
  * Frame the camera so the subject's projected silhouette fills the
- * frustum. Horizontal extent is anchored to the game's atlas convention
- * (frustum-X spans [-1, 1] — the build* factories author sprites to fit
- * exactly in this range). Vertical extent is computed by projecting the
- * subject's AABB into camera-local space, so pitched views grow vertically
- * by exactly as much as the tilted silhouette demands — no magic padding,
- * no cropping.
+ * frustum. Vertical extent is always fit from the projected AABB so
+ * pitched views grow by exactly as much as the tilted silhouette demands.
+ * Horizontal extent: when rotation=0 we anchor to [-1, 1] (the game's
+ * atlas convention — build* factories author sprites to fit exactly in
+ * this range), but when the subject is yawed the rotated silhouette
+ * extends past [-1, 1], so we fit horizontally from the AABB too.
  */
 function frameSprite(
   subject: THREE.Object3D,
   pitchDeg: number,
+  rotationDeg: number,
   size: VariantSize,
 ): THREE.OrthographicCamera {
   const pitch = (pitchDeg * Math.PI) / 180;
@@ -179,14 +183,17 @@ function frameSprite(
   const bbox = new THREE.Box3().setFromObject(subject);
   const localBox = bbox.clone().applyMatrix4(camera.matrixWorldInverse);
 
-  // Horizontal: anchor to [-1, 1] (game atlas convention). This trusts
-  // the sprite factories' authored extent — they're designed to fit
-  // exactly. Vertical: fit the projected silhouette with a small margin
-  // (1 game-2x pixel = 2/canvasPx world units, so a 1-pixel margin =
-  // 1/canvasPx world units).
+  // 1 game-2x pixel = 2/canvasPx world units, so a 1-pixel margin
+  // = 1/canvasPx world units. Vertical always fits the projected
+  // silhouette; horizontal fits the AABB when yawed, else atlas-aligned.
   const margin = 1 / size.canvasPx;
-  camera.left = -1;
-  camera.right = 1;
+  if (rotationDeg === 0) {
+    camera.left = -1;
+    camera.right = 1;
+  } else {
+    camera.left = localBox.min.x - margin;
+    camera.right = localBox.max.x + margin;
+  }
   camera.top = localBox.max.y + margin;
   camera.bottom = localBox.min.y - margin;
   camera.updateProjectionMatrix();
