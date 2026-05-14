@@ -55,9 +55,12 @@ interface BasePlateParams {
 }
 
 interface ArmParams {
-  /** Arm length from the pivot at the base plate's top to the bucket
-   *  center (cylinder length along its local +Y before rotation). */
+  /** Forward arm length from the pivot to the bucket end. */
   length: number;
+  /** Rear arm length past the pivot (the short side of the see-saw).
+   *  Renders the trebuchet/mangonel silhouette where the arm extends on
+   *  both sides of the pivot, with the counterweight at the rear tip. */
+  rearLength: number;
   radius: number;
   /** Pitch above the horizontal plane, in degrees. The arm rotates
    *  around its base pivot on the X axis so the tip lifts toward −Z; 0
@@ -76,11 +79,40 @@ interface TurretTop {
 interface LauncherTop {
   kind: "launcher";
   basePlate: BasePlateParams;
+  /** A-frame uprights — two posts on the base plate. Inlined (not
+   *  extracted) because the {width, height, depth, material} subset
+   *  collides with several generic box-shaped helpers in the sprite
+   *  library; keeping it local avoids forcing a cross-cell type
+   *  dependency the shape-duplicates lint would flag. */
+  uprights: {
+    width: number;
+    depth: number;
+    height: number;
+    /** Distance from the arm centerline (each post is mirrored on ±X). */
+    xOffset: number;
+    material: MaterialSpec;
+  };
   arm: ArmParams;
-  bucket: {
+  /** Stone weight at the rear arm tip. Inlined (not extracted) because
+   *  its `{width, height, depth, material}` shape collides with several
+   *  generic box-shaped helpers across the sprite library; keeping it
+   *  local avoids forcing a cross-cell type dependency. */
+  counterweight: {
     width: number;
     height: number;
     depth: number;
+    material: MaterialSpec;
+  };
+  /** Wooden spoon-bowl at the throwing tip. Flared cone — narrow end
+   *  attaches to the arm, wide end is the bowl opening that holds the
+   *  payload. Axis is along the arm's local +Y (rotates with the arm). */
+  bucket: {
+    /** Radius at the arm-tip end (narrow). */
+    radiusInner: number;
+    /** Radius at the far end (the bowl opening). */
+    radiusOuter: number;
+    /** Length along the arm axis. */
+    length: number;
     material: MaterialSpec;
   };
 }
@@ -153,14 +185,24 @@ const CATAPULT_ARM_WOOD: MaterialSpec = {
   roughness: 0.95,
   metalness: 0.05,
 };
-// Darker iron-brown for the payload bucket — reads as a hammered metal
-// cradle. One step darker than the arm so the bucket pops as a separate
-// part rather than blending into the beam.
-const CATAPULT_BUCKET_IRON: MaterialSpec = {
+// Same wood as the arm, but double-sided so the open spoon-bowl's inner
+// wall renders correctly (the bucket cylinder is openEnded so the bowl
+// looks concave from any camera angle, not like a solid paddle face).
+const CATAPULT_BOWL_WOOD: MaterialSpec = {
   kind: "standard",
-  color: 0x4a3018,
-  roughness: 0.85,
-  metalness: 0.25,
+  color: 0x8b5a2b,
+  roughness: 0.95,
+  metalness: 0.05,
+  side: "double",
+};
+// Weathered stone-gray for the counterweight — visually heavy and a
+// different hue from the wood (arm + bowl), so the rear weight reads as
+// a distinct mass balancing the throwing arm.
+const CATAPULT_STONE: MaterialSpec = {
+  kind: "standard",
+  color: 0x6b6358,
+  roughness: 0.95,
+  metalness: 0.0,
 };
 // Matte dark material painted on the hull top under the turret / base
 // plate — fakes the AO contact shadow where the upper rig meets the hull.
@@ -213,6 +255,8 @@ export const PALETTE: [number, number, number][] = [
   [0x2a, 0x2a, 0x2a],
   [0x3a, 0x3a, 0x3a],
   [0x4a, 0x4a, 0x4a],
+  // catapult stone (counterweight)
+  [0x6b, 0x63, 0x58],
   // dark accent
   [0x0a, 0x0a, 0x0a],
 ];
@@ -378,45 +422,93 @@ function buildLauncherTop(
   plate.position.set(0, plateY, -top.basePlate.forwardOffset);
   group.add(plate);
 
-  // Arm — cylinder. Authored along its local +Y, then rotated around X
-  // so the tip lifts forward-and-up by `pitchDegrees` past horizontal.
-  // Pivot sits at the top-front edge of the base plate.
-  const pivotY = hullTopY(params) + top.basePlate.height;
+  // Uprights — two posts standing on the base plate, raising the pivot
+  // above the chassis so the see-saw arm has visible structural support.
+  // Authored centered on the pivot Z (front edge of the base plate); the
+  // arm swings between them.
+  const plateTopY = hullTopY(params) + top.basePlate.height;
   const pivotZ = -top.basePlate.forwardOffset - top.basePlate.depth / 2;
+  const uprightY = plateTopY + top.uprights.height / 2;
+  const uprightMat = createMaterial(top.uprights.material);
+  for (const sign of [-1, +1] as const) {
+    const post = new three.Mesh(
+      new three.BoxGeometry(
+        top.uprights.width,
+        top.uprights.height,
+        top.uprights.depth,
+      ),
+      uprightMat,
+    );
+    post.position.set(sign * top.uprights.xOffset, uprightY, pivotZ);
+    group.add(post);
+  }
+
+  // Arm pivot — sits at the top of the uprights, on the front edge of
+  // the base plate. The arm group is rotated around X so the throwing
+  // tip lifts forward-and-up by `pitchDegrees` past horizontal.
+  const pivotY = plateTopY + top.uprights.height;
   const armPitchRad = three.MathUtils.degToRad(top.arm.pitchDegrees);
-  // Rotate the cylinder so its axis points along (−sin(p)·−Z, cos(p)·+Y)
-  // — i.e. up-and-forward when p > 0. Three.js rotates a Y-axis cylinder
-  // by `rotation.x = +p` to tilt the +Y end toward −Z.
   const armPivot = new three.Group();
   armPivot.position.set(0, pivotY, pivotZ);
   armPivot.rotation.x = armPitchRad;
   group.add(armPivot);
 
+  // See-saw arm — a single cylinder spanning the rear (counterweight)
+  // side and the forward (throwing) side of the pivot. Center the
+  // cylinder so its rear end is at local y=−rearLength and its forward
+  // tip is at local y=+length.
+  const totalArmLength = top.arm.length + top.arm.rearLength;
   const arm = new three.Mesh(
     new three.CylinderGeometry(
       top.arm.radius,
       top.arm.radius,
-      top.arm.length,
+      totalArmLength,
       12,
     ),
     createMaterial(top.arm.material),
   );
-  // Cylinder authored centered on its origin; shift so the base sits at
-  // the pivot and the tip is at +length along the rotated +Y axis.
-  arm.position.set(0, top.arm.length / 2, 0);
+  arm.position.set(0, (top.arm.length - top.arm.rearLength) / 2, 0);
   armPivot.add(arm);
 
-  // Bucket / payload cradle at the tip. A small box mounted just past
-  // the tip in the arm's local frame; rotated with the arm group.
-  const bucket = new three.Mesh(
+  // Counterweight — stone block at the rear arm tip. Rigid-mounted in
+  // the arm's local frame so it rotates with the arm.
+  const cw = new three.Mesh(
     new three.BoxGeometry(
-      top.bucket.width,
-      top.bucket.height,
-      top.bucket.depth,
+      top.counterweight.width,
+      top.counterweight.height,
+      top.counterweight.depth,
+    ),
+    createMaterial(top.counterweight.material),
+  );
+  cw.position.set(0, -top.arm.rearLength - top.counterweight.height / 2, 0);
+  armPivot.add(cw);
+
+  // Bucket / spoon-bowl at the forward tip. Open-ended flared cylinder
+  // — narrow end attaches to the arm tip, wide opening is the bowl
+  // mouth. Counter-rotated by −armPitchRad so the opening points
+  // straight up in world space regardless of arm pitch (a payload would
+  // rest in it by gravity, which a real wooden spoon's bowl does too).
+  // Position offset along the arm's local axes so the narrow end stays
+  // glued to the arm tip while the body rises vertically.
+  const cosP = Math.cos(armPitchRad);
+  const sinP = Math.sin(armPitchRad);
+  const bucket = new three.Mesh(
+    new three.CylinderGeometry(
+      top.bucket.radiusOuter,
+      top.bucket.radiusInner,
+      top.bucket.length,
+      20,
+      1,
+      true,
     ),
     createMaterial(top.bucket.material),
   );
-  bucket.position.set(0, top.arm.length + top.bucket.height / 2, 0);
+  bucket.rotation.x = -armPitchRad;
+  bucket.position.set(
+    0,
+    top.arm.length + (top.bucket.length / 2) * cosP,
+    (top.bucket.length / 2) * sinP,
+  );
   armPivot.add(bucket);
 }
 
@@ -554,24 +646,48 @@ function catapultParams(yawDegrees: number): GruntParams {
         forwardOffset: cells(1.5),
         material: CATAPULT_ARM_WOOD,
       },
-      // Inclined wooden beam — 7 cells long, pitched 40° above horizontal
-      // so the tip lifts well clear of the hull but well short of
-      // vertical. Warm saddle-brown timber so the silhouette reads as
-      // colour-distinct against the olive chassis from top-down too.
+      // A-frame uprights — two wooden posts on left/right of the arm,
+      // raising the pivot above the base plate so the see-saw arm has
+      // visible structural support. xOffset cells(2) keeps the cells(0.6)
+      // -radius arm well clear of both posts.
+      uprights: {
+        width: cells(0.7),
+        depth: cells(1.2),
+        height: cells(2),
+        xOffset: cells(2),
+        material: CATAPULT_ARM_WOOD,
+      },
+      // Inclined wooden beam — pitched 40° above horizontal. `length` is
+      // the long throwing side (pivot → bucket); `rearLength` is the
+      // short counterweight side. Together they form a see-saw whose
+      // rear tip sits low and behind the pivot.
       arm: {
         length: cells(7),
+        rearLength: cells(2.5),
         radius: cells(0.6),
         pitchDegrees: 40,
         material: CATAPULT_ARM_WOOD,
       },
-      // Iron-cradled payload bucket at the tip — one step darker than the
-      // arm so it reads as a separate hammered-metal part, not an
-      // extension of the wooden beam.
-      bucket: {
+      // Stone counterweight at the rear arm tip. Rigid-mounted (rotates
+      // with the arm); visually balances the throwing side.
+      counterweight: {
         width: cells(2.5),
-        height: cells(1.5),
+        height: cells(2),
         depth: cells(2.5),
-        material: CATAPULT_BUCKET_IRON,
+        material: CATAPULT_STONE,
+      },
+      // Wooden spoon-bowl at the throwing tip. Same wood as the arm so
+      // it reads as a continuous mangonel ladle (the bowl is the carved
+      // end of the beam, not a separate part). Flared cone — narrow end
+      // (cells(1.0)) attaches to the arm, wide end (cells(2.0)) is the
+      // bowl opening that faces up-and-forward when the arm is loaded.
+      // Open-ended + double-sided wood so the inside cone wall renders
+      // (reads as a concave bowl from any angle, not a solid paddle).
+      bucket: {
+        radiusInner: cells(1.0),
+        radiusOuter: cells(2.0),
+        length: cells(3),
+        material: CATAPULT_BOWL_WOOD,
       },
     },
     yawDegrees,
