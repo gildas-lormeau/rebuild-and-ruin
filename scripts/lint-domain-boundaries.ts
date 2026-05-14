@@ -9,19 +9,21 @@
  *   deno run -A scripts/lint-domain-boundaries.ts --verbose # show all imports, not just violations
  */
 
-import { readFileSync, readdirSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
-import { Project, SyntaxKind, type SourceFile } from "ts-morph";
 import process from "node:process";
-
-const ROOT = path.resolve(import.meta.dirname!, "..");
-const CONFIG_PATH = path.join(ROOT, ".domain-boundaries.json");
+import { Project, type SourceFile, SyntaxKind } from "ts-morph";
 
 interface Config {
-  domains: Record<string, string[]>;
   allowed: Record<string, string[]>;
   /** Domain pairs where only type-only imports are permitted. */
   typeOnlyFrom?: Record<string, string[]>;
+}
+
+interface Cell {
+  layer: number;
+  domain: string;
+  files: string[];
 }
 
 interface LayerGroup {
@@ -30,86 +32,10 @@ interface LayerGroup {
   files: string[];
 }
 
-const config: Config = JSON.parse(readFileSync(CONFIG_PATH, "utf-8"));
-
-// Build set of files in the "roots" tier — these are composition roots,
-// automatically exempt from typeOnlyFrom restrictions.
-const LAYER_FILE = path.join(ROOT, ".import-layers.json");
-const rootsTierFiles = new Set<string>();
-try {
-  const layers: LayerGroup[] = JSON.parse(readFileSync(LAYER_FILE, "utf-8"));
-  for (const group of layers) {
-    if (group.tier === "roots") {
-      for (const file of group.files) rootsTierFiles.add(file);
-    }
-  }
-} catch {
-  // layer file missing — no tier-based exemptions
-}
-
-// Build reverse map: file → domain
-const fileToDomain = new Map<string, string>();
-for (const [domain, files] of Object.entries(config.domains)) {
-  for (const file of files) {
-    fileToDomain.set(file, domain);
-  }
-}
-
-// Build allowed set per domain
-const allowedDeps = new Map<string, Set<string>>();
-for (const [domain, deps] of Object.entries(config.allowed)) {
-  allowedDeps.set(domain, new Set(deps));
-}
-
-// Parse imports using ts-morph
-const project = new Project({
-  tsConfigFilePath: path.join(ROOT, "tsconfig.json"),
-  skipAddingFilesFromTsConfig: true,
-});
-
-// Add all files from the config
-for (const files of Object.values(config.domains)) {
-  for (const file of files) {
-    const absPath = path.join(ROOT, file);
-    try {
-      project.addSourceFileAtPath(absPath);
-    } catch {
-      // file might not exist (e.g. .d.ts)
-    }
-  }
-}
-
 interface ModuleRef {
   specifier: string;
   resolved: SourceFile | undefined;
   typeOnly: boolean;
-}
-
-/** Collect cross-module references from both imports and re-exports. */
-function getModuleRefs(sf: SourceFile): ModuleRef[] {
-  const refs: ModuleRef[] = [];
-  for (const imp of sf.getImportDeclarations()) {
-    refs.push({
-      specifier: imp.getModuleSpecifierValue(),
-      resolved: imp.getModuleSpecifierSourceFile(),
-      typeOnly:
-        imp.isTypeOnly() ||
-        imp.getNamedImports().every((ni) => ni.isTypeOnly()),
-    });
-  }
-  for (const exp of sf.getExportDeclarations()) {
-    const specifier = exp.getModuleSpecifierValue();
-    if (!specifier) continue; // not a re-export
-    refs.push({
-      specifier,
-      resolved: exp.getModuleSpecifierSourceFile(),
-      typeOnly:
-        exp.isTypeOnly() ||
-        (!exp.isNamespaceExport() &&
-          exp.getNamedExports().every((ne) => ne.isTypeOnly())),
-    });
-  }
-  return refs;
 }
 
 interface Violation {
@@ -121,9 +47,88 @@ interface Violation {
   typeOnly: boolean;
 }
 
+interface TypeOnlyViolation {
+  file: string;
+  fileDomain: string;
+  dep: string;
+  depDomain: string;
+  specifier: string;
+}
+
+interface DynamicImportViolation {
+  file: string;
+  fileDomain: string;
+  specifier: string;
+  depDomain: string;
+}
+
+const ROOT = path.resolve(import.meta.dirname!, "..");
+const CONFIG_PATH = path.join(ROOT, ".domain-boundaries.json");
+const CELLS_PATH = path.join(ROOT, ".import-cells.json");
+const config: Config = JSON.parse(readFileSync(CONFIG_PATH, "utf-8"));
+const cells: Cell[] = JSON.parse(readFileSync(CELLS_PATH, "utf-8"));
+// Build set of files in the "roots" tier — these are composition roots,
+// automatically exempt from typeOnlyFrom restrictions.
+const LAYER_FILE = path.join(ROOT, ".import-layers.json");
+const rootsTierFiles = new Set<string>();
+// Build reverse map: file → domain
+const fileToDomain = new Map<string, string>();
+// Build allowed set per domain
+const allowedDeps = new Map<string, Set<string>>();
+// Parse imports using ts-morph
+const project = new Project({
+  tsConfigFilePath: path.join(ROOT, "tsconfig.json"),
+  skipAddingFilesFromTsConfig: true,
+});
 const violations: Violation[] = [];
+const typeOnlyFrom = new Map<string, Set<string>>();
+// Composition roots (files in the "roots" tier) are exempt from typeOnlyFrom.
+const typeOnlyExempt = rootsTierFiles;
+const typeOnlyViolations: TypeOnlyViolation[] = [];
+const dynamicImportViolations: DynamicImportViolation[] = [];
+const diskFiles: string[] = [];
+const unassigned = diskFiles.filter((f) => !fileToDomain.has(f));
+// Report
+const totalViolations =
+  violations.length +
+  typeOnlyViolations.length +
+  dynamicImportViolations.length;
+
 let checkedFiles = 0;
 let checkedImports = 0;
+
+try {
+  const layers: LayerGroup[] = JSON.parse(readFileSync(LAYER_FILE, "utf-8"));
+  for (const group of layers) {
+    if (group.tier === "roots") {
+      for (const file of group.files) rootsTierFiles.add(file);
+    }
+  }
+} catch {
+  // layer file missing — no tier-based exemptions
+}
+
+for (const cell of cells) {
+  for (const file of cell.files) {
+    fileToDomain.set(file, cell.domain);
+  }
+}
+
+for (const [domain, deps] of Object.entries(config.allowed)) {
+  allowedDeps.set(domain, new Set(deps));
+}
+
+// Add all files from the cell map
+for (const cell of cells) {
+  for (const file of cell.files) {
+    const absPath = path.join(ROOT, file);
+    try {
+      project.addSourceFileAtPath(absPath);
+    } catch {
+      // file might not exist (e.g. .d.ts)
+    }
+  }
+}
 
 for (const sf of project.getSourceFiles()) {
   const absFile = sf.getFilePath();
@@ -162,28 +167,11 @@ for (const sf of project.getSourceFiles()) {
   }
 }
 
-// ---------------------------------------------------------------------------
-// typeOnlyFrom check: flag value imports across type-only domain boundaries
-// ---------------------------------------------------------------------------
-
-const typeOnlyFrom = new Map<string, Set<string>>();
 if (config.typeOnlyFrom) {
   for (const [domain, deps] of Object.entries(config.typeOnlyFrom)) {
     typeOnlyFrom.set(domain, new Set(deps));
   }
 }
-// Composition roots (files in the "roots" tier) are exempt from typeOnlyFrom.
-const typeOnlyExempt = rootsTierFiles;
-
-interface TypeOnlyViolation {
-  file: string;
-  fileDomain: string;
-  dep: string;
-  depDomain: string;
-  specifier: string;
-}
-
-const typeOnlyViolations: TypeOnlyViolation[] = [];
 
 for (const sf of project.getSourceFiles()) {
   const absFile = sf.getFilePath();
@@ -215,18 +203,32 @@ for (const sf of project.getSourceFiles()) {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Dynamic import() check: catch boundary violations via import() expressions
-// ---------------------------------------------------------------------------
-
-interface DynamicImportViolation {
-  file: string;
-  fileDomain: string;
-  specifier: string;
-  depDomain: string;
+/** Collect cross-module references from both imports and re-exports. */
+function getModuleRefs(sf: SourceFile): ModuleRef[] {
+  const refs: ModuleRef[] = [];
+  for (const imp of sf.getImportDeclarations()) {
+    refs.push({
+      specifier: imp.getModuleSpecifierValue(),
+      resolved: imp.getModuleSpecifierSourceFile(),
+      typeOnly:
+        imp.isTypeOnly() ||
+        imp.getNamedImports().every((ni) => ni.isTypeOnly()),
+    });
+  }
+  for (const exp of sf.getExportDeclarations()) {
+    const specifier = exp.getModuleSpecifierValue();
+    if (!specifier) continue; // not a re-export
+    refs.push({
+      specifier,
+      resolved: exp.getModuleSpecifierSourceFile(),
+      typeOnly:
+        exp.isTypeOnly() ||
+        (!exp.isNamespaceExport() &&
+          exp.getNamedExports().every((ne) => ne.isTypeOnly())),
+    });
+  }
+  return refs;
 }
-
-const dynamicImportViolations: DynamicImportViolation[] = [];
 
 for (const sf of project.getSourceFiles()) {
   const absFile = sf.getFilePath();
@@ -243,7 +245,9 @@ for (const sf of project.getSourceFiles()) {
 
     const args = call.getArguments();
     if (args.length === 0) continue;
-    const specifier = args[0].asKind(SyntaxKind.StringLiteral)?.getLiteralValue();
+    const specifier = args[0]
+      .asKind(SyntaxKind.StringLiteral)
+      ?.getLiteralValue();
     if (!specifier || !specifier.startsWith(".")) continue;
 
     const resolved = path.normalize(
@@ -266,11 +270,6 @@ for (const sf of project.getSourceFiles()) {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Unassigned files: fail if any src/ or server/ .ts file is not in a domain
-// ---------------------------------------------------------------------------
-
-const diskFiles: string[] = [];
 for (const dir of ["src", "server"]) {
   const dirPath = path.join(ROOT, dir);
   try {
@@ -284,11 +283,6 @@ for (const dir of ["src", "server"]) {
     // directory may not exist
   }
 }
-const unassigned = diskFiles.filter((f) => !fileToDomain.has(f));
-
-// Report
-const totalViolations =
-  violations.length + typeOnlyViolations.length + dynamicImportViolations.length;
 
 if (totalViolations === 0 && unassigned.length === 0) {
   console.log(
@@ -367,8 +361,6 @@ if (totalViolations === 0 && unassigned.length === 0) {
     console.log();
   }
 
-  console.log(
-    `(${checkedFiles} files, ${checkedImports} imports checked)\n`,
-  );
+  console.log(`(${checkedFiles} files, ${checkedImports} imports checked)\n`);
   process.exit(1);
 }

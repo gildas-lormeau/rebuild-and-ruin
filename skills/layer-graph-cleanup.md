@@ -58,7 +58,7 @@ deno run -A scripts/layer-graph.ts
 
 This emits a dot graph where each **node = one layer group**, and each **edge = at least one file in group A imports a file in group B**. Paste the output at https://dreampuf.github.io/GraphvizOnline/ or render with `dot`.
 
-The graph is far more readable than a file-level graph: ~18 nodes instead of ~190. Nodes cluster into 5 tiers: **types** (L0–L4) → **logic** (L5–L6) → **systems** (L7–L9) → **assembly** (L10–L13) → **roots** (L14–L17).
+The graph is far more readable than a file-level graph: ~19 nodes instead of ~290. Nodes cluster into 5 tiers: **types** (L0–L4) → **logic** (L5–L6) → **systems** (L7–L9) → **assembly** (L10–L13) → **roots** (L14–L18).
 
 ## Step 2 — Read the graph for smells
 

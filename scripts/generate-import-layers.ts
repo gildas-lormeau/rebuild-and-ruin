@@ -91,7 +91,13 @@ for (const glob of globs) {
 }
 
 for (const sf of project.getSourceFiles()) {
-  allFiles.add(fileKey(sf.getFilePath()));
+  const key = fileKey(sf.getFilePath());
+  // Skip ambient `.d.ts` declaration files — they don't participate in
+  // the runtime import graph (no intra-project imports, only type
+  // declarations consumed implicitly by tsc). Including them just adds
+  // dead L0 entries to .import-layers.json.
+  if (key.endsWith(".d.ts")) continue;
+  allFiles.add(key);
 }
 
 for (const sf of project.getSourceFiles()) {
@@ -292,7 +298,7 @@ if (fs.existsSync(LAYER_FILE)) {
 
 for (let l = 0; l <= maxLayer; l++) {
   const files = groupMap.get(l) ?? [];
-  const name = existingNames.get(l) ?? `layer ${l}`;
+  const name = existingNames.get(l) ?? `L${l}`;
   const tier = existingTiers.get(l);
   outputGroups.push(tier ? { name, tier, files } : { name, files });
 }

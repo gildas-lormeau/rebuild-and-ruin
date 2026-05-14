@@ -88,7 +88,7 @@ const VALUE_EDGE_WEIGHT = 1.0;
 const TYPE_EDGE_WEIGHT = 0.1;
 const ROOT = path.resolve(import.meta.dirname!, "..");
 const LAYERS_PATH = path.join(ROOT, ".import-layers.json");
-const DOMAINS_PATH = path.join(ROOT, ".domain-boundaries.json");
+const CELLS_PATH = path.join(ROOT, ".import-cells.json");
 const args = new Set(process.argv.slice(2));
 const showDsm = args.has("--dsm") || args.size === 0 || args.has("--json");
 const showCoupling =
@@ -124,11 +124,14 @@ for (let li = 0; li < layerGroups.length; li++) {
   }
 }
 
-if (existsSync(DOMAINS_PATH)) {
-  const domainConfig = JSON.parse(readFileSync(DOMAINS_PATH, "utf-8"));
-  for (const [domain, files] of Object.entries(domainConfig.domains)) {
-    for (const file of files as string[]) {
-      fileToDomain.set(file, domain);
+if (existsSync(CELLS_PATH)) {
+  const cells = JSON.parse(readFileSync(CELLS_PATH, "utf-8")) as Array<{
+    domain: string;
+    files: string[];
+  }>;
+  for (const cell of cells) {
+    for (const file of cell.files) {
+      fileToDomain.set(file, cell.domain);
     }
   }
 }

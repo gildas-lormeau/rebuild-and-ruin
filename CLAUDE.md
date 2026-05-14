@@ -48,10 +48,18 @@ Modern mode is the explicit exception channel: features with a `FeatureId`, pool
 `shared/` (types, constants, config) · `protocol/` (wire format: messages, routes, checkpoints) · `game/` (systems, phase logic) · `ai/` (AI strategy / decision logic only — no controllers) · `controllers/` (BaseController + Human + AI controller wrappers + factory) · `input/` (keyboard, mouse, touch handlers — true input only) · `render/` (canvas, sprites, layout, render UI) · `online/` (multiplayer, checkpoints, online runtime) · `runtime/` (game loop, state, lifecycle, UI deps-object contracts, sound/haptics observer sub-systems).
 Entry points (`entry.ts`, `main.ts`, `online-client.ts`) stay at `src/` root. `server/` is separate (Deno Deploy target).
 
-### Module layers (18 groups in 5 tiers, `.import-layers.json`)
-Each layer group has a `tier` for quick orientation: **types** (L0–L4) → **logic** (L5–L6) → **systems** (L7–L9) → **assembly** (L10–L13) → **roots** (L14–L17).
-L0 leaf modules → L1 foundational types → L2 derived types & local entry → L3 wire payloads & shared definitions → L4 core state & adjacent types → L5 first logic → L6 upgrades, modifiers & runtime contracts → L7 entity renderers & cross-domain handlers → L8 subsystems → L9 system implementations → L10 mid-depth assembly → L11 system composition → L12 phase orchestration → L13 wiring & local entry → L14 composition roots → L15 online deps wiring → L16 online runtime composition → L17 online client entry. Imports must flow downward (higher layer imports lower).
-Groups are named by abstraction level, not by domain — files from any domain land at the layer dictated by their deepest import. Entry points sit at their minimum import-depth layer (`entry.ts` at L2, `main.ts` at L13, `online-client.ts` at L17).
+### Module layers (19 groups in 5 tiers, `.import-layers.json`)
+Each layer group has a `tier` for quick orientation: **types** (L0–L4) → **logic** (L5–L6) → **systems** (L7–L9) → **assembly** (L10–L13) → **roots** (L14–L18).
+Layer index = import depth: `layer(f) = 1 + max(layer(dep))`, or 0 for files with no intra-project imports. Imports must flow downward (higher layer imports lower).
+Layer names in `.import-layers.json` are just `"L0"`, `"L1"`, …, `"L18"` — pure mechanical indices, no semantic content. Role labeling lives in `.import-cells.json` (see "Module cells" below). Entry points sit at their minimum import-depth layer (`entry.ts` at L2, `main.ts` at L14, `online-client.ts` at L18).
+
+### Module cells (`.import-cells.json`, 81 cells)
+Each cell is a `(domain × layer)` intersection with a hand-curated `role` label. Cells are where naming actually happens — the layer-only view forced unrelated roles to share a label whenever they landed at the same import depth (e.g. an online wire payload and a shared event bus both at L3). Cells separate them by domain.
+Workflow tools at `scripts/cells/`:
+- `cell-lookup.ts "<role>"` — find which cell a new file should land in. Use this before grepping for similar files.
+- `cell-edit-impact.ts <file>` — show same-cell peers, cross-cell consumers, and test consumers before editing a contract or wiring file.
+- `regen-cells.ts` — regenerate the cell map after `generate-import-layers.ts`. `--check` mode fails if stale. The `LABELS` map inside the script is the source of truth for role names.
+File → domain is derived from path (`src/X/...` → `X`, `src/<root>.ts` → `entry`, `server/...` → `server`), with the `exceptions` block in `.domain-boundaries.json` for role-overrides like `server/server.ts → entry`.
 
 ### Type file organization (L1–L4)
 - `interaction-types.ts` (L1) — LifeLostDialogState, UpgradePickDialogState, ControlsState, CastleBuildState, CastleWallPlan, GameOverFocus
@@ -132,7 +140,7 @@ The single `lint-registries.ts` pre-commit check iterates all 4 `*_CONSUMERS` ma
 ### Conventions
 - ESLint enforces min 2-char identifiers. When fixing a 1-letter name, choose an expressive name (e.g. `player`, `tower`), never a 2-letter abbreviation (`pl`, `tw`).
 - File order: imports → types → constants → exported functions → private functions (enforced by pre-commit)
-- Always check `.import-layers.json` before placing new code in a file. Array index = layer number (L0 leaves → L17 entry points). Imports flow downward by number.
+- Use `deno run -A scripts/cells/cell-lookup.ts "<role>"` to find where new code should go (e.g. "modifier effect", "wire payload", "AI strategy"). The cell map at `.import-cells.json` is the role → location index; `.import-layers.json` is the mechanical layer-index view.
 - After adding a **new file**, run `deno run -A scripts/generate-import-layers.ts` to assign it a layer, then review the diff. The pre-commit `--check` fails if any file is missing from the map — the fix is always to regenerate, never to hand-assign (the generator computes the layer from imports).
 - Use `npx biome check --write <files>` for import sorting, never reorder manually
 - Prefer spatial helpers (`isWater`, `isGrass`, `waterKeys`) over importing Tile enum directly
