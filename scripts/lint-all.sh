@@ -27,15 +27,15 @@ echo "lint:all: parallel checks..."
 
 # Lane 2 — biome + knip + madge + jscpd (short node checks)
 (
-  run format-check npx @biomejs/biome format src/ server/
-  run biome        npx @biomejs/biome check src/ server/
+  run format-check npx @biomejs/biome format src/ dev/ server/
+  run biome        npx @biomejs/biome check src/ dev/ server/
   run knip         npx knip
-  run madge        npx madge --circular --extensions ts src/ server/
-  run jscpd        npx jscpd src/ --min-lines 10
+  run madge        npx madge --circular --extensions ts src/ dev/ server/
+  run jscpd        npx jscpd src/ dev/ --min-lines 10
 ) &
 
 # Lane 3 — eslint (isolated)
-( run eslint npx eslint src/ ) &
+( run eslint npx eslint src/ dev/ ) &
 
 # Lane 4 — deno lint scripts
 (
@@ -77,7 +77,7 @@ echo "lint:all: parallel checks..."
 # Lane 5 — deno type-check + lint
 (
   run deno-check deno check --quiet src server/ test/
-  run deno-lint  deno lint src test/ server/
+  run deno-lint  deno lint src dev test/ server/
 ) &
 
 wait

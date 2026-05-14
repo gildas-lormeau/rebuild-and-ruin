@@ -14,7 +14,7 @@ export default [
     ignores: ["src/render/3d/sprites/**"],
   },
   {
-    files: ["src/**/*.ts"],
+    files: ["src/**/*.ts", "dev/**/*.ts"],
     languageOptions: {
       parser: tsParser,
       parserOptions: {
