@@ -86,7 +86,10 @@ async function main(opts: Args): Promise<void> {
   const viewportH = Math.max(canvasW * 2, canvasW);
 
   const url = new URL(`${opts.host}/sprite-viewer.html`);
-  url.searchParams.set("sprite", opts.sprite);
+  // The registry keys SPRITE_SCENES uses underscores (JS-friendly), but
+  // the viewer page's SpriteKind union uses hyphens. Normalize before
+  // forwarding so either spelling works on the command line.
+  url.searchParams.set("sprite", opts.sprite.replace(/_/g, "-"));
   if (opts.variant !== undefined) {
     url.searchParams.set("variant", opts.variant);
   }
