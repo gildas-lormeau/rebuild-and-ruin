@@ -213,7 +213,15 @@ export function createRender3d(
     pitchMax: number,
   ): void {
     ctx.terrain.ensureBuilt(map);
-    ctx.terrainSdfTexture.ensureBuilt(map);
+    // Modifier-aware SDF projection: high_tide flooded grass tiles paint
+    // as water, low_water exposed water tiles paint as grass. The bank
+    // gradient regenerates against the new effective shoreline so the
+    // river visibly widens / narrows, without the modifier needing to
+    // mutate `state.map.tiles`.
+    ctx.terrainSdfTexture.ensureBuilt(map, {
+      phantomWater: overlay?.entities?.floodedTiles,
+      phantomGrass: overlay?.entities?.exposedRiverbedTiles,
+    });
     const frame: FrameCtx = { overlay, map, now, pitch, sunT };
     ctx.terrainTileData.update(frame);
     ctx.terrain.update(frame);

@@ -427,8 +427,6 @@ const float BANK_WATER_DIST = ${GLSL_BANK_TO_WATER_DIST};
 const float BANK_TRANSITION = ${GLSL_TRANSITION_WIDTH};
 const float ICE_BLEND_WIDTH = ${GLSL_ICE_BLEND_WIDTH};
 const int FLAG_FROZEN = 2;
-const int FLAG_FLOODED = 4;
-const int FLAG_EXPOSED = 8;
 
 bool isFlagSet(int flags, int mask) {
   return (flags / mask - (flags / (mask * 2)) * 2) == 1;
@@ -593,8 +591,6 @@ vec4 applyWaveOverlay(vec4 base, ivec2 tileRC, vec2 worldPx) {
     int ownerId = int(tileData.r * 255.0 + 0.5) - 1;
     int flags = int(tileData.g * 255.0 + 0.5);
     bool isFrozen = isFlagSet(flags, FLAG_FROZEN);
-    bool isFlooded = isFlagSet(flags, FLAG_FLOODED);
-    bool isExposed = isFlagSet(flags, FLAG_EXPOSED);
     float d = texture2D(sdfTex, vTerrainUv).r;
 
     vec3 grass;
@@ -623,17 +619,7 @@ vec4 applyWaveOverlay(vec4 base, ivec2 tileRC, vec2 worldPx) {
         ? applyPatternOffset(grass, worldPx, cobblestonePatternTex)
         : applyPatternOffset(grass, worldPx, grassPatternTex);
     }
-    // High Tide: tile is still grass (SDF reports grass distance) but
-    // the modifier paints the bank ring as water.
-    // Low Water: tile is still water but the modifier paints the
-    // exposed bank ring as the bank/grass terminus.
-    // Both bypass selectBankColor and force the opposite variant —
-    // sharp boundaries with adjacent natural terrain are acceptable for
-    // 1-round visuals that lift at the next CANNON_PLACE.
-    vec3 terrainColor;
-    if (isFlooded) terrainColor = water;
-    else if (isExposed) terrainColor = grass;
-    else terrainColor = selectBankColor(d, grass, water);
+    vec3 terrainColor = selectBankColor(d, grass, water);
     diffuseColor = vec4(terrainColor, 1.0);
 
     // Open-water wave overlay (was effects/water-waves.ts) — the SDF gate
@@ -642,10 +628,8 @@ vec4 applyWaveOverlay(vec4 base, ivec2 tileRC, vec2 worldPx) {
     // their interior pixels for a more continuous open-water look.
     // Suppressed on owned-water tiles (the small enclosed pool look —
     // sinkholes, enclosed high-tide, bays — doesn't suit the drifting
-    // wave effect, which was tuned for the open river), on flooded
-    // tiles (no SDF water gradient), and on exposed riverbed (painted
-    // as land).
-    if (inBattle && !ownedWater && !isFrozen && !isFlooded && !isExposed
+    // wave effect, which was tuned for the open river).
+    if (inBattle && !ownedWater && !isFrozen
         && d > BANK_WATER_DIST + BANK_TRANSITION) {
       diffuseColor = applyWaveOverlay(diffuseColor, tileRC, worldPx);
     }

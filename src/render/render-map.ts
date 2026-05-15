@@ -16,8 +16,14 @@ import {
   SCALE,
   TOP_MARGIN_CANVAS_PX,
 } from "../shared/core/grid.ts";
-import { isGrass, isWater, pxToTile } from "../shared/core/spatial.ts";
+import {
+  isGrass,
+  isWater,
+  packTile,
+  pxToTile,
+} from "../shared/core/spatial.ts";
 import type { RenderOverlay } from "../shared/ui/overlay-types.ts";
+import type { SdfOpts } from "./3d/effects/terrain-sdf-texture.ts";
 import {
   drawAnnouncement,
   drawBanner,
@@ -108,8 +114,16 @@ interface RenderMap {
   /** Blurred signed-distance field for `map` — positive in water, negative in
    *  grass, magnitude = pixel distance from the water/grass boundary. Used by
    *  the 3D terrain shader to compute the grass→bank→water gradient
-   *  per-fragment. `mapVersion`-keyed; populated lazily on first call. */
-  getBlurredSdf: (map: GameMap) => Float32Array | undefined;
+   *  per-fragment. `mapVersion`-keyed; populated lazily on first call.
+   *
+   *  `opts.phantomWater` / `opts.phantomGrass` project modifier-affected
+   *  tiles into the SDF: high_tide flooded grass tiles → treated as
+   *  water, low_water exposed water tiles → treated as grass. Bank
+   *  gradient regenerates against the new effective shoreline so the
+   *  river visibly widens / narrows without the modifier needing to
+   *  mutate `state.map.tiles`. The modifier impls bump `mapVersion` on
+   *  apply / clear, so the cache invalidates on the same frame. */
+  getBlurredSdf: (map: GameMap, opts?: SdfOpts) => Float32Array | undefined;
   sceneCanvas: () => HTMLCanvasElement;
   /** Capture the current display's game area into a banner-owned bridge
    *  canvas and return it (banner prev-scene A-snapshot). Returns
@@ -216,16 +230,17 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
   }
 
   /** Compute + cache the blurred SDF and the nearest-water-tile array.
-   *  The SDF shape depends only on the map's tile geometry, so it's keyed
-   *  purely by `mapVersion` — freeze/thaw bumps mapVersion and invalidates
-   *  the cache. */
-  function ensureTerrainSdfCache(map: GameMap): void {
+   *  The SDF shape depends on the map's tile geometry plus the optional
+   *  modifier projection (`opts.phantomWater` / `opts.phantomGrass`),
+   *  so it's keyed by `mapVersion` — freeze/thaw and modifier
+   *  apply/clear all bump mapVersion to invalidate this cache. */
+  function ensureTerrainSdfCache(map: GameMap, opts?: SdfOpts): void {
     const cache = getTerrainCache(map, MAP_PX_W, MAP_PX_H);
     if (cache.blurredSdf && cache.nearestWaterTile) return;
     const W = MAP_PX_W;
     const H = MAP_PX_H;
     const nearestWater = cache.nearestWaterTile ?? new Uint16Array(W * H);
-    const sdf = computeSignedDistanceField(W, H, map, nearestWater);
+    const sdf = computeSignedDistanceField(W, H, map, nearestWater, opts);
     blurSignedDistanceField(sdf, W, H);
     cache.nearestWaterTile = nearestWater;
     cache.blurredSdf = sdf;
@@ -236,8 +251,11 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
     return getTerrainCache(map, MAP_PX_W, MAP_PX_H).nearestWaterTile;
   }
 
-  function getBlurredSdf(map: GameMap): Float32Array | undefined {
-    ensureTerrainSdfCache(map);
+  function getBlurredSdf(
+    map: GameMap,
+    opts?: SdfOpts,
+  ): Float32Array | undefined {
+    ensureTerrainSdfCache(map, opts);
     return getTerrainCache(map, MAP_PX_W, MAP_PX_H).blurredSdf;
   }
 
@@ -567,13 +585,39 @@ function computeSignedDistanceField(
   H: number,
   map: GameMap,
   nearestWaterOut?: Uint16Array,
+  opts?: SdfOpts,
 ): Float32Array {
-  const distFromWater = initDistanceField(W, H, map, isWater);
+  // Modifier-aware tile predicates: high_tide flooded grass tiles count
+  // as water for the SDF; low_water exposed water tiles count as grass.
+  // The `state.map.tiles` array is unchanged — both predicates fall back
+  // to the natural `isWater` / `isGrass` for unaffected tiles.
+  const phantomWater = opts?.phantomWater;
+  const phantomGrass = opts?.phantomGrass;
+  const isWaterEff =
+    phantomWater || phantomGrass
+      ? (tiles: GameMap["tiles"], r: number, c: number): boolean => {
+          const key = packTile(r, c);
+          if (phantomGrass?.has(key)) return false;
+          if (phantomWater?.has(key)) return true;
+          return isWater(tiles, r, c);
+        }
+      : isWater;
+  const isGrassEff =
+    phantomWater || phantomGrass
+      ? (tiles: GameMap["tiles"], r: number, c: number): boolean => {
+          const key = packTile(r, c);
+          if (phantomGrass?.has(key)) return true;
+          if (phantomWater?.has(key)) return false;
+          return isGrass(tiles, r, c);
+        }
+      : isGrass;
+
+  const distFromWater = initDistanceField(W, H, map, isWaterEff);
   propagateDistances(distFromWater, W, H);
 
-  const distFromGrass = initDistanceField(W, H, map, isGrass);
+  const distFromGrass = initDistanceField(W, H, map, isGrassEff);
   if (nearestWaterOut) {
-    initSourceField(nearestWaterOut, W, H, map);
+    initSourceField(nearestWaterOut, W, H, map, isWaterEff);
   }
   propagateDistances(distFromGrass, W, H, nearestWaterOut);
 
@@ -611,19 +655,21 @@ function initDistanceField(
  *  — the grass-side propagation pass where water tiles are the seeds. Each
  *  water-tile pixel gets its own tile coords as source; grass-tile pixels
  *  start at the sentinel and inherit a source from their nearest seed during
- *  `propagateDistances`. */
+ *  `propagateDistances`. The water predicate is passed in so the SDF caller
+ *  can swap in a modifier-aware version (high_tide / low_water). */
 function initSourceField(
   out: Uint16Array,
   W: number,
   H: number,
   map: GameMap,
+  isWaterEff: (tiles: GameMap["tiles"], row: number, col: number) => boolean,
 ): void {
   out.fill(NEAREST_WATER_NONE);
   for (let py = 0; py < H; py++) {
     for (let px = 0; px < W; px++) {
       const tr = pxToTile(py);
       const tc = pxToTile(px);
-      if (isWater(map.tiles, tr, tc)) {
+      if (isWaterEff(map.tiles, tr, tc)) {
         out[py * W + px] = (tr << 8) | tc;
       }
     }

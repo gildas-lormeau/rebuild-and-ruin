@@ -11,14 +11,33 @@ import * as THREE from "three";
 import type { GameMap } from "../../../shared/core/geometry-types.ts";
 import { MAP_PX_H, MAP_PX_W } from "../../../shared/core/grid.ts";
 
-export type GetBlurredSdf = (map: GameMap) => Float32Array | undefined;
+/** Modifier projection for SDF generation. Tiles in `phantomWater` are
+ *  treated as water (high_tide flooded grass) and tiles in `phantomGrass`
+ *  as grass (low_water exposed riverbed) when computing the SDF. The
+ *  underlying `state.map.tiles` is unchanged; this is purely a render-
+ *  side projection so the bank gradient appears at the modifier-effective
+ *  shoreline without mutating game state. */
+export interface SdfOpts {
+  phantomWater?: ReadonlySet<number>;
+  phantomGrass?: ReadonlySet<number>;
+}
+
+export type GetBlurredSdf = (
+  map: GameMap,
+  opts?: SdfOpts,
+) => Float32Array | undefined;
 
 export interface TerrainSdfTextureManager {
   readonly texture: THREE.DataTexture;
   /** Upload the blurred SDF for `map` if the cached `mapVersion` doesn't
    *  match. Call from the terrain mesh's `ensureBuilt` before the first
-   *  frame of each `mapVersion` so the shader samples a populated texture. */
-  ensureBuilt(map: GameMap): void;
+   *  frame of each `mapVersion` so the shader samples a populated texture.
+   *
+   *  `opts` projects modifier-affected tiles into the SDF (high_tide
+   *  flooded grass → water, low_water exposed water → grass). The
+   *  modifier impls bump `mapVersion` on apply / clear so the cache
+   *  invalidates on the same frame the projection becomes (in)active. */
+  ensureBuilt(map: GameMap, opts?: SdfOpts): void;
   /** Free GPU resources when the renderer is torn down. */
   dispose(): void;
 }
@@ -44,9 +63,9 @@ export function createTerrainSdfTextureManager(
 
   let uploadedVersion: number | undefined;
 
-  function ensureBuilt(map: GameMap): void {
+  function ensureBuilt(map: GameMap, opts?: SdfOpts): void {
     if (uploadedVersion === map.mapVersion) return;
-    const sdf = getBlurredSdf(map);
+    const sdf = getBlurredSdf(map, opts);
     if (!sdf) return;
     // three.js infers `image.data` as Uint8ClampedArray from the
     // constructor's first arg; the runtime accepts any typed array matching
