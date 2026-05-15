@@ -16,10 +16,7 @@ import { HumanController } from "./controller-human.ts";
 
 /** Ensure AI chunks are cached. Awaited by bootstrapGame before creating controllers. */
 export function ensureAiModulesLoaded(): Promise<unknown> {
-  return Promise.all([
-    import("./controller-ai.ts"),
-    import("../ai/ai-defaults.ts"),
-  ]);
+  return loadAiModules();
 }
 
 export async function createController(
@@ -38,13 +35,17 @@ export async function createController(
   if (isAi) {
     if (!sharedRng) throw new Error("sharedRng required for AI controller");
     if (!personality) throw new Error("personality required for AI controller");
-    const [{ AiController }, { createDefaultAiDeps }] = await Promise.all([
-      import("./controller-ai.ts"),
-      import("../ai/ai-defaults.ts"),
-    ]);
+    const [{ AiController }, { createDefaultAiDeps }] = await loadAiModules();
     const { strategy, brain } = createDefaultAiDeps(sharedRng, personality);
     return new AiController(playerId, strategy, brain);
   }
   if (!keys) throw new Error("KeyBindings required for human controller");
   return new HumanController(playerId, keys);
+}
+
+function loadAiModules() {
+  return Promise.all([
+    import("./controller-ai.ts"),
+    import("../ai/ai-defaults.ts"),
+  ]);
 }
