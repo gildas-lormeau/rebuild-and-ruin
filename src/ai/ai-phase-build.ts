@@ -18,28 +18,7 @@ import type {
   PlacePieceIntent,
 } from "../shared/core/system-interfaces.ts";
 import { STEP, secondsToTicks } from "./ai-constants.ts";
-import type { AiStrategy } from "./ai-strategy.ts";
-
-/** Subset of AiController accessed by build-phase logic.
- *  Exported so controller-ai.ts can statically assert AiController implements
- *  every phase's Host (see the `satisfies` check at the bottom of that file). */
-export interface BuildHost {
-  readonly playerId: ValidPlayerId;
-  readonly strategy: AiStrategy;
-  buildCursor: TilePos;
-  readonly buildCursorSpeed: number;
-  readonly boostThreshold: number;
-  /** Returns `(base + rng * spread) * delayScale` — humanizes AI timing per difficulty. */
-  scaledDelay(base: number, spread: number): number;
-  clampBuildCursor(piece: PieceShape | undefined): void;
-  stepTileCursorToward(
-    cursor: TilePos,
-    targetRow: number,
-    targetCol: number,
-    baseSpeed: number,
-    boostThreshold: number,
-  ): boolean;
-}
+import type { BuildHost } from "./ai-strategy-types.ts";
 
 type BuildTarget = { piece: PieceShape } & TilePos;
 

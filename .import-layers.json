@@ -204,6 +204,7 @@
     "name": "L7",
     "files": [
       "server/room-manager.ts",
+      "src/ai/ai-strategy-types.ts",
       "src/controllers/controller-human.ts",
       "src/game/game-init.ts",
       "src/game/modifiers/fire.ts",
@@ -250,7 +251,12 @@
     "name": "L8",
     "files": [
       "server/server.ts",
+      "src/ai/ai-brain-types.ts",
       "src/ai/ai-castle-rect.ts",
+      "src/ai/ai-phase-battle.ts",
+      "src/ai/ai-phase-build.ts",
+      "src/ai/ai-phase-cannon.ts",
+      "src/ai/ai-phase-select.ts",
       "src/ai/ai-strategy-battle.ts",
       "src/ai/ai-strategy-cannon.ts",
       "src/controllers/controller-factory.ts",
@@ -295,8 +301,10 @@
   {
     "name": "L9",
     "files": [
+      "src/ai/ai-brain.ts",
       "src/ai/ai-build-score.ts",
       "src/ai/ai-build-target.ts",
+      "src/controllers/controller-ai.ts",
       "src/game/upgrade-system.ts",
       "src/online/online-runtime-lobby.ts",
       "src/render/3d/effects/grass-emergence.ts",
@@ -315,6 +323,7 @@
     "name": "L10",
     "files": [
       "src/ai/ai-build-fallback.ts",
+      "src/controllers/controller-ai-assisted-human.ts",
       "src/game/cannon-system.ts",
       "src/game/wall-impact.ts",
       "src/render/3d/effects/modifier-effect-registry.ts",
@@ -343,10 +352,6 @@
   {
     "name": "L13",
     "files": [
-      "src/ai/ai-phase-battle.ts",
-      "src/ai/ai-phase-build.ts",
-      "src/ai/ai-phase-cannon.ts",
-      "src/ai/ai-phase-select.ts",
       "src/game/game-actions.ts",
       "src/game/phase-setup.ts",
       "src/game/scheduled-actions.ts",
@@ -358,7 +363,6 @@
   {
     "name": "L14",
     "files": [
-      "src/controllers/controller-ai.ts",
       "src/game/phase-entry.ts",
       "src/main.ts",
       "src/online/online-serialize.ts"
@@ -367,7 +371,6 @@
   {
     "name": "L15",
     "files": [
-      "src/controllers/controller-ai-assisted-human.ts",
       "src/online/online-runtime-promote.ts",
       "src/runtime/runtime-rehydrate.ts"
     ]

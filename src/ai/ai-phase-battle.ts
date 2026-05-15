@@ -9,7 +9,6 @@
 import { aimCannons, nextReadyCannon } from "../game/index.ts";
 import { SIM_TICK_DT } from "../shared/core/game-constants.ts";
 import type { TilePos } from "../shared/core/geometry-types.ts";
-import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import { packTile, tileCenterPx } from "../shared/core/spatial.ts";
 import type {
   BattleViewState,
@@ -17,26 +16,11 @@ import type {
 } from "../shared/core/system-interfaces.ts";
 import type { StrategicPixelPos } from "./ai-build-types.ts";
 import { STEP, secondsToTicks } from "./ai-constants.ts";
-import { type AiStrategy, CHAIN, type ChainType } from "./ai-strategy.ts";
+import { type BattleHost, CHAIN, type ChainType } from "./ai-strategy-types.ts";
 
 /** Callback that executes a fire intent against mutable game state.
  *  Returns true if a cannon actually fired. */
 type ExecuteFireFn = (intent: FireIntent) => boolean;
-
-/** Subset of AiController accessed by battle-phase logic.
- *  Exported so controller-ai.ts can statically assert AiController implements
- *  every phase's Host (see the `satisfies` check at the bottom of that file). */
-export interface BattleHost {
-  readonly playerId: ValidPlayerId;
-  readonly strategy: AiStrategy;
-  crosshair: { x: number; y: number };
-  readonly cannonRotationIdx: number | undefined;
-  readonly anticipatesTarget: boolean;
-  /** Returns `(base + rng * spread) * delayScale` — humanizes AI timing per difficulty. */
-  scaledDelay(base: number, spread: number): number;
-  stepCrosshairToward(tx: number, ty: number): boolean;
-  fire(state: BattleViewState): FireIntent | null;
-}
 
 /** Pre-battle countdown orbit parameters (randomized once per countdown). */
 type CountdownOrbit = { rx: number; ry: number; speed: number };

@@ -39,32 +39,12 @@ import type { CannonViewState } from "../shared/core/system-interfaces.ts";
 import type { ZoneId } from "../shared/core/zone-id.ts";
 import type { Rng } from "../shared/platform/rng.ts";
 import { traitLookup } from "./ai-constants.ts";
+import type {
+  CannonPlacement,
+  CannonPlacementContext,
+} from "./ai-strategy-types.ts";
 
 type CannonCandidate = { row: number; col: number; score: number };
-
-/** A single cannon placement decision returned by the AI strategy. */
-export interface CannonPlacement {
-  row: number;
-  col: number;
-  mode: CannonMode;
-}
-
-/** Per-phase placement context — computed once at phase init. Tracks
- *  pre-rolled "try a super / rampart / balloon" decisions so the AI asks
- *  for one placement at a time (on the fly) during the cannon phase's
- *  animation loop, instead of planning the whole batch up-front. */
-export interface CannonPlacementContext {
-  readonly noiseScale: number;
-  readonly towerCenters: readonly TilePos[];
-  readonly defensiveness: number;
-  /** Each flag is consumed (flipped to false) the first time we attempt
-   *  that special placement, success or skip. "Pending" means we still
-   *  owe the attempt — `nextCannonPlacement` handles one attempt per call
-   *  in priority order: super → rampart → balloon → normal fill. */
-  pendingSuperGun: boolean;
-  pendingRampart: boolean;
-  pendingBalloon: boolean;
-}
 
 /** Chance to pick the tower closest to zone centroid vs random. */
 const CENTROID_TOWER_PROBABILITY = 2 / 3;

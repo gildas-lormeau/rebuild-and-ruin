@@ -106,6 +106,7 @@ const LABELS: Record<string, string> = {
   "6::shared": "shared action schedule & query helpers",
 
   // L7 — entity renderers & cross-domain handlers
+  "7::ai": "AI strategy + Host interface contracts",
   "7::controllers": "human controller",
   "7::game": "game init, zone recompute & fire modifier",
   "7::input": "pointer-event dispatch",
@@ -127,6 +128,7 @@ const LABELS: Record<string, string> = {
 
   // L9 — system implementations
   "9::ai": "AI build scoring & targeting",
+  "9::controllers": "AI controller (host wrapper around injected brain)",
   "9::game": "upgrade system",
   "9::input": "input device handlers (kb, mouse, touch)",
   "9::online": "online runtime lobby",
@@ -135,6 +137,7 @@ const LABELS: Record<string, string> = {
 
   // L10 — mid-depth assembly
   "10::ai": "AI build fallback",
+  "10::controllers": "AI assisted-human controller variant",
   "10::game": "cannon & wall impact systems",
   "10::online": "online phase transitions",
   "10::render": "modifier effect registry & map renderer",

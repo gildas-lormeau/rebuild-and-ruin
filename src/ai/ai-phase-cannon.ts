@@ -8,7 +8,6 @@
 
 import { canPlaceCannon } from "../game/index.ts";
 import { CannonMode } from "../shared/core/battle-types.ts";
-import type { TilePos } from "../shared/core/geometry-types.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import { type Player } from "../shared/core/player-types.ts";
 import type {
@@ -18,30 +17,10 @@ import type {
 } from "../shared/core/system-interfaces.ts";
 import { STEP } from "./ai-constants.ts";
 import type {
-  AiStrategy,
+  CannonHost,
   CannonPlacement,
   CannonPlacementContext,
-} from "./ai-strategy.ts";
-
-/** Subset of AiController accessed by cannon-phase logic.
- *  Exported so controller-ai.ts can statically assert AiController implements
- *  every phase's Host (see the `satisfies` check at the bottom of that file). */
-export interface CannonHost {
-  readonly playerId: ValidPlayerId;
-  readonly strategy: AiStrategy;
-  cannonCursor: TilePos;
-  readonly cannonCursorSpeed: number;
-  readonly boostThreshold: number;
-  /** Returns `(base + rng * spread) * delayScale` — humanizes AI timing per difficulty. */
-  scaledDelay(base: number, spread: number): number;
-  stepTileCursorToward(
-    cursor: TilePos,
-    targetRow: number,
-    targetCol: number,
-    baseSpeed: number,
-    boostThreshold: number,
-  ): boolean;
-}
+} from "./ai-strategy-types.ts";
 
 type CannonState =
   | { step: "idle" }

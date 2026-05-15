@@ -569,14 +569,17 @@ function buildAssistedControllerFactory(
     const [
       { AiAssistedHumanController },
       { DefaultStrategy },
+      { createDefaultAiBrain },
       { MESSAGE },
     ] = await Promise.all([
       import("../src/controllers/controller-ai-assisted-human.ts"),
       import("../src/ai/ai-strategy.ts"),
+      import("../src/ai/ai-brain.ts"),
       import("../src/protocol/protocol.ts"),
     ]);
     return new AiAssistedHumanController(slot, {
       strategy: new DefaultStrategy(privateRng, personality),
+      brain: createDefaultAiBrain(),
       senders: {
         sendPiecePlaced: (payload) =>
           send({ type: MESSAGE.OPPONENT_PIECE_PLACED, ...payload }),

@@ -7,10 +7,8 @@
  * are no-ops — v1 doesn't interleave real human input.
  */
 
-import { tickBattle } from "../ai/ai-phase-battle.ts";
-import { tickBuild } from "../ai/ai-phase-build.ts";
-import { flushCannon, tickCannon } from "../ai/ai-phase-cannon.ts";
-import type { AiStrategy } from "../ai/ai-strategy.ts";
+import type { AiBrain } from "../ai/ai-brain-types.ts";
+import type { AiStrategy } from "../ai/ai-strategy-types.ts";
 import {
   scheduleCannonFire,
   scheduleCannonPlacement,
@@ -60,6 +58,7 @@ interface AssistedSenders {
 
 interface AssistedControllerOptions {
   strategy: AiStrategy;
+  brain: AiBrain;
   senders: AssistedSenders;
   /** Lockstep apply queue. Piece placements (state-mutating, RNG-consuming
    *  via recheckTerritory) are scheduled with `applyAt = state.simTick +
@@ -80,7 +79,7 @@ export class AiAssistedHumanController
   private readonly safetyTicks: number;
 
   constructor(playerId: ValidPlayerId, opts: AssistedControllerOptions) {
-    super(playerId, opts.strategy);
+    super(playerId, opts.strategy, opts.brain);
     this.senders = opts.senders;
     this.schedule = opts.schedule;
     this.safetyTicks = opts.safetyTicks;
@@ -104,7 +103,7 @@ export class AiAssistedHumanController
       this.senders.sendPiecePlaced(stamped);
       return true;
     };
-    const result = tickBuild(this, this._buildPhase, state, executePlace);
+    const result = this.brain.build.tick(this, state, executePlace);
     this.currentBuildPhantoms = result;
     return result;
   }
@@ -120,16 +119,16 @@ export class AiAssistedHumanController
         schedule: this.schedule,
         state: state as GameState,
         intent,
-        maxSlots: this._cannonPhase.maxSlots,
+        maxSlots: this.brain.cannon.maxSlots,
         safetyTicks: this.safetyTicks,
       });
       if (!stamped) return false;
       this.senders.sendCannonPlaced(stamped);
       return true;
     };
-    const result = tickCannon(this, this._cannonPhase, state, executePlace);
-    this.currentCannonPhantom = result ?? undefined;
-    return result ?? undefined;
+    const result = this.brain.cannon.tick(this, state, executePlace);
+    this.currentCannonPhantom = result;
+    return result;
   }
 
   override flushCannons(state: CannonViewState, maxSlots: number): void {
@@ -145,7 +144,7 @@ export class AiAssistedHumanController
       this.senders.sendCannonPlaced(stamped);
       return true;
     };
-    flushCannon(this, this._cannonPhase, state, executePlace);
+    this.brain.cannon.flush(this, state, executePlace);
   }
 
   // ── Battle phase: AI ticks; fires broadcast via senders.sendCannonFired ──
@@ -164,7 +163,7 @@ export class AiAssistedHumanController
       this.senders.sendCannonFired(fired.msg);
       return true;
     };
-    tickBattle(this, this._battlePhase, state, executeFire);
+    this.brain.battle.tick(this, state, executeFire);
   }
 
   // ── Upgrade pick: AI animates + commits; pick broadcast via senders.sendUpgradePick ──

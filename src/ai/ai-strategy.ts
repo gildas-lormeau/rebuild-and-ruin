@@ -1,10 +1,7 @@
 /**
- * Pluggable AiStrategy interface — separates decisions (what to do) from
- * mechanics (timers/cursors/animation, owned by AiController). Phase logic:
- *
- * - ai-strategy-build.ts — piece placement scoring
- * - ai-strategy-cannon.ts — cannon placement + tower selection
- * - ai-strategy-battle.ts — battle planning + target picking
+ * DefaultStrategy class + rollPersonality — the production implementation
+ * of `AiStrategy`. The interface lives in ai-strategy-types.ts so phase
+ * modules can import it without pulling in this file's dep tree.
  */
 
 import type {
@@ -57,97 +54,17 @@ import {
 import { pickPlacement } from "./ai-strategy-build.ts";
 import {
   autoSelectTower,
-  type CannonPlacement,
-  type CannonPlacementContext,
   createCannonPlacementContext,
   nextCannonPlacement,
 } from "./ai-strategy-cannon.ts";
-
-export type { CannonPlacement, CannonPlacementContext };
-
-export type ChainType = (typeof CHAIN)[keyof typeof CHAIN];
-
-/** Result of planBattle — tells the controller what chain attack to execute. */
-export interface BattlePlan {
-  chainTargets: TilePos[] | undefined;
-  chainType: ChainType;
-}
-
-export interface AiStrategy {
-  /** Seeded PRNG for reproducible AI behavior. */
-  readonly rng: Rng;
-
-  /** Pick a home tower for the AI player. Returns the chosen tower or null. */
-  chooseBestTower(map: GameMap, zone: ZoneId): Tower | null;
-
-  /** Pick the best placement for the current piece. */
-  pickPlacement(
-    state: BuildViewState,
-    playerId: ValidPlayerId,
-    piece: PieceShape,
-    cursorPos?: TilePos,
-  ): AiPlacement | null;
-
-  /** Called at the end of the build phase — assess home tower status. */
-  assessBuildEnd(state: GameViewState, playerId: ValidPlayerId): void;
-
-  /** Initialize per-phase cannon-placement context — pre-rolls the
-   *  probabilistic super/rampart/balloon decisions so subsequent
-   *  per-cannon queries are deterministic. Called once at phase start. */
-  initCannonPhase(
-    player: Player,
-    count: number,
-    state: CannonViewState,
-  ): CannonPlacementContext;
-
-  /** Decide the next single cannon placement. Returns `undefined` when
-   *  the AI has run out of slots or legal positions. Called each time
-   *  the animation loop is ready for the next placement. */
-  nextCannonPlacement(
-    player: Player,
-    count: number,
-    state: CannonViewState,
-    ctx: CannonPlacementContext,
-  ): CannonPlacement | undefined;
-
-  /** Plan the battle: pick focus target, decide chain attacks. */
-  planBattle(state: BattleViewState, playerId: ValidPlayerId): BattlePlan;
-
-  /** Pick a target to fire at. strategic = wall between obstacles. wallsOnly = skip cannon targets. */
-  pickTarget(
-    state: BattleViewState,
-    playerId: ValidPlayerId,
-    crosshair: PixelPos,
-    wallsOnly?: boolean,
-  ): StrategicPixelPos | null;
-
-  /** Record a shot at whatever cannon is at the crosshair position. */
-  trackShot(
-    state: BattleViewState,
-    playerId: ValidPlayerId,
-    crosshair: PixelPos,
-  ): void;
-
-  /** Reset stale state after losing a life. */
-  onLifeLost(): void;
-
-  /** Reset all state for a new game. */
-  reset(): void;
-
-  /** When true, castle rects hug the river bank and seal diagonal leaks with
-   *  interior plug walls.  When false (default), rects shrink away from bank
-   *  corners for a tighter ring with fewer gaps to fill. */
-  bankHugging: boolean;
-
-  /** Thinking speed 1–3.  Multiplier on dwell/think delays.
-   *  1 = slow and deliberate, 3 = snappy reactions. */
-  thinkingSpeed: 1 | 2 | 3;
-
-  /** Cursor control skill 1–3.  Affects 2× speed-boost threshold
-   *  and ability to pre-pick the next target while firing.
-   *  1 = clumsy cursor, 3 = fluid aim. */
-  cursorSkill: 1 | 2 | 3;
-}
+import {
+  type AiStrategy,
+  type BattlePlan,
+  type CannonPlacement,
+  type CannonPlacementContext,
+  CHAIN,
+  type ChainType,
+} from "./ai-strategy-types.ts";
 
 interface ArchetypeProfile {
   buildSkill: [number, number]; // [lo, hi] for 1–5
@@ -268,14 +185,6 @@ const ARCHETYPE_PROFILES: Record<ArchetypeId, ArchetypeProfile> = {
   },
 };
 const ARCHETYPE_LIST = Object.values(Archetype);
-/** The kind of chain attack the AI executes during battle. */
-export const CHAIN = {
-  WALL: "wall",
-  GRUNT: "grunt",
-  POCKET: "pocket",
-  STRUCTURAL: "structural",
-  ICE_TRENCH: "ice_trench",
-} as const;
 
 /** Roll an `AiPersonality` from `rng`, honoring difficulty bias.
  *  Difficulty biases trait rolls within archetype ranges:

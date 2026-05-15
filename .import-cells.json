@@ -412,6 +412,14 @@
   },
   {
     "layer": 7,
+    "domain": "ai",
+    "role": "AI strategy + Host interface contracts",
+    "files": [
+      "src/ai/ai-strategy-types.ts"
+    ]
+  },
+  {
+    "layer": 7,
     "domain": "controllers",
     "role": "human controller",
     "files": [
@@ -512,7 +520,12 @@
     "domain": "ai",
     "role": "AI strategy primitives",
     "files": [
+      "src/ai/ai-brain-types.ts",
       "src/ai/ai-castle-rect.ts",
+      "src/ai/ai-phase-battle.ts",
+      "src/ai/ai-phase-build.ts",
+      "src/ai/ai-phase-cannon.ts",
+      "src/ai/ai-phase-select.ts",
       "src/ai/ai-strategy-battle.ts",
       "src/ai/ai-strategy-cannon.ts"
     ]
@@ -609,8 +622,17 @@
     "domain": "ai",
     "role": "AI build scoring & targeting",
     "files": [
+      "src/ai/ai-brain.ts",
       "src/ai/ai-build-score.ts",
       "src/ai/ai-build-target.ts"
+    ]
+  },
+  {
+    "layer": 9,
+    "domain": "controllers",
+    "role": "AI controller (host wrapper around injected brain)",
+    "files": [
+      "src/controllers/controller-ai.ts"
     ]
   },
   {
@@ -659,6 +681,14 @@
     "role": "AI build fallback",
     "files": [
       "src/ai/ai-build-fallback.ts"
+    ]
+  },
+  {
+    "layer": 10,
+    "domain": "controllers",
+    "role": "AI assisted-human controller variant",
+    "files": [
+      "src/controllers/controller-ai-assisted-human.ts"
     ]
   },
   {
@@ -732,17 +762,6 @@
   },
   {
     "layer": 13,
-    "domain": "ai",
-    "role": "AI per-phase strategies",
-    "files": [
-      "src/ai/ai-phase-battle.ts",
-      "src/ai/ai-phase-build.ts",
-      "src/ai/ai-phase-cannon.ts",
-      "src/ai/ai-phase-select.ts"
-    ]
-  },
-  {
-    "layer": 13,
     "domain": "game",
     "role": "game actions, phase setup & scheduling",
     "files": [
@@ -770,14 +789,6 @@
   },
   {
     "layer": 14,
-    "domain": "controllers",
-    "role": "AI controller wrapper",
-    "files": [
-      "src/controllers/controller-ai.ts"
-    ]
-  },
-  {
-    "layer": 14,
     "domain": "entry",
     "role": "local-game entry",
     "files": [
@@ -798,14 +809,6 @@
     "role": "online state serialization",
     "files": [
       "src/online/online-serialize.ts"
-    ]
-  },
-  {
-    "layer": 15,
-    "domain": "controllers",
-    "role": "AI-assisted human controller",
-    "files": [
-      "src/controllers/controller-ai-assisted-human.ts"
     ]
   },
   {

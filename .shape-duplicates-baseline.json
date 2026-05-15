@@ -34,7 +34,7 @@
       "pair": "BasketParams@src/render/3d/sprites/balloon-scene.ts ↔ TopParams@src/render/3d/sprites/rampart-scene.ts"
     },
     {
-      "pair": "BattleHost@src/ai/ai-phase-battle.ts ↔ SelectionHost@src/ai/ai-phase-select.ts"
+      "pair": "BattleHost@src/ai/ai-strategy-types.ts ↔ SelectionHost@src/ai/ai-strategy-types.ts"
     },
     {
       "pair": "BoltParams@src/render/3d/sprites/balloon-scene.ts ↔ CargoCrateParams@src/render/3d/sprites/supply-ship-scene.ts"
@@ -55,7 +55,7 @@
       "pair": "BoltParams@src/render/3d/sprites/balloon-scene.ts ↔ TracksParams@src/render/3d/sprites/grunt-scene.ts"
     },
     {
-      "pair": "BuildHost@src/ai/ai-phase-build.ts ↔ SelectionHost@src/ai/ai-phase-select.ts"
+      "pair": "BuildHost@src/ai/ai-strategy-types.ts ↔ SelectionHost@src/ai/ai-strategy-types.ts"
     },
     {
       "pair": "BuildViewState@src/shared/core/system-interfaces.ts ↔ RenderViewShared@src/shared/core/render-view.ts"
@@ -64,22 +64,22 @@
       "pair": "BuildViewState@src/shared/core/system-interfaces.ts ↔ UpgradePickViewState@src/shared/core/system-interfaces.ts"
     },
     {
-      "pair": "Cannon@src/render/3d/entities/cannons.ts ↔ CannonPlacement@src/ai/ai-strategy-cannon.ts"
+      "pair": "Cannon@src/render/3d/entities/cannons.ts ↔ CannonPlacement@src/ai/ai-strategy-types.ts"
     },
     {
       "pair": "Cannon@src/shared/core/battle-types.ts ↔ SerializedCannon@src/protocol/checkpoint-data.ts"
     },
     {
-      "pair": "CannonHost@src/ai/ai-phase-cannon.ts ↔ SelectionHost@src/ai/ai-phase-select.ts"
+      "pair": "CannonHost@src/ai/ai-strategy-types.ts ↔ SelectionHost@src/ai/ai-strategy-types.ts"
     },
     {
       "pair": "CannonOverride@test/phase-tests/types.ts ↔ WallOverride@test/phase-tests/types.ts"
     },
     {
-      "pair": "CannonPlacement@src/ai/ai-strategy-cannon.ts ↔ CannonShapePayload@src/shared/core/phantom-types.ts"
+      "pair": "CannonPlacement@src/ai/ai-strategy-types.ts ↔ CannonShapePayload@src/shared/core/phantom-types.ts"
     },
     {
-      "pair": "CannonPlacement@src/ai/ai-strategy-cannon.ts ↔ PlaceCannonIntent@src/shared/core/system-interfaces.ts"
+      "pair": "CannonPlacement@src/ai/ai-strategy-types.ts ↔ PlaceCannonIntent@src/shared/core/system-interfaces.ts"
     },
     {
       "pair": "CargoCrateParams@src/render/3d/sprites/supply-ship-scene.ts ↔ TopParams@src/render/3d/sprites/rampart-scene.ts"
@@ -163,7 +163,7 @@
       "pair": "ActiveBannerState@src/runtime/runtime-banner-state.ts ↔ BannerUi@src/shared/ui/overlay-types.ts"
     },
     {
-      "pair": "AiPersonality@src/shared/core/ai-personality.ts ↔ AiStrategy@src/ai/ai-strategy.ts"
+      "pair": "AiPersonality@src/shared/core/ai-personality.ts ↔ AiStrategy@src/ai/ai-strategy-types.ts"
     },
     {
       "pair": "AiPersonality@src/shared/core/ai-personality.ts ↔ PlacementOptions@src/ai/ai-build-types.ts"
@@ -292,15 +292,6 @@
       "pair": "BattleAnimState@src/shared/core/battle-types.ts ↔ BattleOverlay@src/shared/ui/overlay-types.ts"
     },
     {
-      "pair": "BattleHost@src/ai/ai-phase-battle.ts ↔ BuildHost@src/ai/ai-phase-build.ts"
-    },
-    {
-      "pair": "BattleHost@src/ai/ai-phase-battle.ts ↔ CannonHost@src/ai/ai-phase-cannon.ts"
-    },
-    {
-      "pair": "BattleHost@src/ai/ai-phase-battle.ts ↔ SelectionHost@src/ai/ai-phase-select.ts"
-    },
-    {
       "pair": "BattleViewState@src/shared/core/system-interfaces.ts ↔ GameState@src/shared/core/types.ts"
     },
     {
@@ -361,12 +352,6 @@
       "pair": "BubbleSprite@src/render/3d/effects/supply-ship.ts ↔ FlameDescriptor@src/render/3d/effects/fire-burst.ts"
     },
     {
-      "pair": "BuildHost@src/ai/ai-phase-build.ts ↔ CannonHost@src/ai/ai-phase-cannon.ts"
-    },
-    {
-      "pair": "BuildHost@src/ai/ai-phase-build.ts ↔ SelectionHost@src/ai/ai-phase-select.ts"
-    },
-    {
       "pair": "BuildViewState@src/shared/core/system-interfaces.ts ↔ EntityOverlay@src/shared/ui/overlay-types.ts"
     },
     {
@@ -397,7 +382,7 @@
       "pair": "Cannon@src/render/3d/entities/cannons.ts ↔ CannonOverride@test/phase-tests/types.ts"
     },
     {
-      "pair": "Cannon@src/render/3d/entities/cannons.ts ↔ CannonPlacement@src/ai/ai-strategy-cannon.ts"
+      "pair": "Cannon@src/render/3d/entities/cannons.ts ↔ CannonPlacement@src/ai/ai-strategy-types.ts"
     },
     {
       "pair": "Cannon@src/render/3d/entities/cannons.ts ↔ CannonShapePayload@src/shared/core/phantom-types.ts"
@@ -439,19 +424,16 @@
       "pair": "CannonballVariant@src/render/3d/sprites/cannonball-scene.ts ↔ VariantDescriptor@src/render/3d/sprites/wall-scene.ts"
     },
     {
-      "pair": "CannonHost@src/ai/ai-phase-cannon.ts ↔ SelectionHost@src/ai/ai-phase-select.ts"
-    },
-    {
       "pair": "CannonOverride@test/phase-tests/types.ts ↔ SerializedCannon@src/protocol/checkpoint-data.ts"
     },
     {
       "pair": "CannonOverride@test/phase-tests/types.ts ↔ SerializedGrunt@src/protocol/checkpoint-data.ts"
     },
     {
-      "pair": "CannonPlacement@src/ai/ai-strategy-cannon.ts ↔ CannonShapePayload@src/shared/core/phantom-types.ts"
+      "pair": "CannonPlacement@src/ai/ai-strategy-types.ts ↔ CannonShapePayload@src/shared/core/phantom-types.ts"
     },
     {
-      "pair": "CannonPlacement@src/ai/ai-strategy-cannon.ts ↔ PlaceCannonIntent@src/shared/core/system-interfaces.ts"
+      "pair": "CannonPlacement@src/ai/ai-strategy-types.ts ↔ PlaceCannonIntent@src/shared/core/system-interfaces.ts"
     },
     {
       "pair": "CannonShapePayload@src/shared/core/phantom-types.ts ↔ PlacePieceIntent@src/shared/core/system-interfaces.ts"

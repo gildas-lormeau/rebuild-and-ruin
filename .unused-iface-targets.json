@@ -87,7 +87,7 @@
     {
       "label": "AI strategy — extension contract, multiple implementations",
       "targets": [
-        { "file": "src/ai/ai-strategy.ts", "interface": "AiStrategy" }
+        { "file": "src/ai/ai-strategy-types.ts", "interface": "AiStrategy" }
       ]
     },
     {

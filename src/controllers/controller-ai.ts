@@ -1,46 +1,21 @@
 /**
- * Thin dispatcher delegating each phase to its `ai-phase-*` module
- * (select / build / cannon / battle). Owns movement helpers, trait-derived
- * getters, and lifecycle hooks.
+ * Thin host wrapper around a pluggable `AiBrain`. Controller owns cursor
+ * state, movement helpers, trait-derived getters, and lifecycle hooks;
+ * brain owns phase state machines + decision dispatch. The brain is
+ * injected via the constructor (see `controller-factory.ts`) so alternate
+ * AI implementations can be tried without modifying this file. Default
+ * brain comes from `ai/ai-brain.ts`.
  */
 
+import type { AiBrain } from "../ai/ai-brain-types.ts";
 import { secondsToTicks } from "../ai/ai-constants.ts";
-import { aiChooseLifeLost } from "../ai/ai-life-lost.ts";
-import {
-  type BattleHost,
-  createBattlePhase,
-  initBattle,
-  resetBattlePhaseKeepOrbit,
-  tickBattle,
-} from "../ai/ai-phase-battle.ts";
-import {
-  BUILD_CURSOR_SPEEDS,
-  type BuildHost,
-  createBuildPhase,
-  finalizeBuild,
-  initBuild,
-  resetBuildPhase,
-  tickBuild,
-} from "../ai/ai-phase-build.ts";
-import {
-  CANNON_CURSOR_SPEEDS,
-  type CannonHost,
-  createCannonPhase,
-  flushCannon,
-  initCannon,
-  isCannonDone,
-  resetCannonPhase,
-  tickCannon,
-} from "../ai/ai-phase-cannon.ts";
-import {
-  createSelectionPhase,
-  initSelection,
-  resetSelectionPhase,
-  type SelectionHost,
-  tickSelection,
-} from "../ai/ai-phase-select.ts";
-import type { AiStrategy } from "../ai/ai-strategy.ts";
-import { tickAiUpgradePickEntry } from "../ai/ai-upgrade-pick.ts";
+import type {
+  AiStrategy,
+  BattleHost,
+  BuildHost,
+  CannonHost,
+  SelectionHost,
+} from "../ai/ai-strategy-types.ts";
 import {
   executePlaceCannon,
   executePlacePiece,
@@ -71,11 +46,11 @@ import {
 } from "../shared/ui/interaction-types.ts";
 import { BaseController } from "./controller-base.ts";
 
-// Compile-time guarantee: AiController structurally satisfies every phase
-// module's Host interface. Adding a required field/method to any Host without
-// implementing it on AiController — or renaming a field that a Host depends on
-// — breaks this assertion at the class declaration site, not at downstream
-// tick() call sites. See each ai-phase-*.ts file for the Host definitions.
+// Compile-time guarantee: AiController structurally satisfies every Host
+// interface the brain's phase ops expect. Adding a required field to any
+// Host without implementing it here — or renaming a field a Host depends
+// on — breaks this assertion at the class declaration site, not at
+// downstream brain.X.tick() call sites.
 type AllAiPhaseHosts = SelectionHost & BuildHost & CannonHost & BattleHost;
 
 // ── Tile-cursor movement tuning ──
@@ -93,12 +68,8 @@ export class AiController extends BaseController implements AiAnimatable {
   override readonly kind: "ai" | "human" = "ai";
   /** Pluggable AI strategy (decision-making). */
   readonly strategy: AiStrategy;
-
-  // --- Phase state holders ---
-  protected readonly selectionPhase = createSelectionPhase();
-  protected readonly _buildPhase = createBuildPhase();
-  protected readonly _cannonPhase = createCannonPhase();
-  protected readonly _battlePhase = createBattlePhase();
+  /** Pluggable AI brain (phase state machines + decision dispatch). */
+  protected readonly brain: AiBrain;
 
   // --- Movement state (used by stepTileCursorToward) ---
   /** Which axis to move first — randomized when a new target is set. */
@@ -106,9 +77,10 @@ export class AiController extends BaseController implements AiAnimatable {
   /** Fixed perpendicular jitter offset (tiles), set once per movement. */
   private tileJitterOffset = 0;
 
-  constructor(playerId: ValidPlayerId, strategy: AiStrategy) {
+  constructor(playerId: ValidPlayerId, strategy: AiStrategy, brain: AiBrain) {
     super(playerId);
     this.strategy = strategy;
+    this.brain = brain;
   }
 
   // -----------------------------------------------------------------------
@@ -116,7 +88,7 @@ export class AiController extends BaseController implements AiAnimatable {
   // -----------------------------------------------------------------------
 
   getCrosshairTarget(): PixelPos | null {
-    return this._battlePhase.crosshairTarget;
+    return this.brain.battle.getCrosshairTarget();
   }
 
   /** When true, castle rects hug the river bank (plug approach).
@@ -139,12 +111,12 @@ export class AiController extends BaseController implements AiAnimatable {
 
   /** Build cursor speed scaled by cursorSkill. */
   get buildCursorSpeed(): number {
-    return BUILD_CURSOR_SPEEDS[this.strategy.cursorSkill - 1]!;
+    return this.brain.build.cursorSpeedFor(this.strategy.cursorSkill);
   }
 
   /** Cannon cursor speed scaled by cursorSkill. */
   get cannonCursorSpeed(): number {
-    return CANNON_CURSOR_SPEEDS[this.strategy.cursorSkill - 1]!;
+    return this.brain.cannon.cursorSpeedFor(this.strategy.cursorSkill);
   }
 
   /** Distance threshold (tiles) below which the cursor uses 1× instead of 2× speed.
@@ -182,11 +154,11 @@ export class AiController extends BaseController implements AiAnimatable {
   // -----------------------------------------------------------------------
 
   override selectTower(state: GameViewState, zone: ZoneId): void {
-    initSelection(this, this.selectionPhase, state, zone);
+    this.brain.selection.init(this, state, zone);
   }
 
   override selectionTick(_dt: number, state?: GameViewState): boolean {
-    return tickSelection(this, this.selectionPhase, state);
+    return this.brain.selection.tick(this, state);
   }
 
   // -----------------------------------------------------------------------
@@ -194,24 +166,24 @@ export class AiController extends BaseController implements AiAnimatable {
   // -----------------------------------------------------------------------
 
   protected override onStartBuildPhase(state: BuildViewState): void {
-    initBuild(this, this._buildPhase, state);
+    this.brain.build.init(this, state);
     // Leave currentBuildPhantoms at the base-class empty default here.
-    // tickBuild() decrements timers, advances rotation frames, steps the
-    // cursor, and draws from strategy.rng — calling it with dt=0 would
-    // mutate AI state before the first real frame. The first buildTick()
-    // call will populate currentBuildPhantoms.
+    // The brain's build tick decrements timers, advances rotation frames,
+    // steps the cursor, and draws from strategy.rng — calling it with dt=0
+    // would mutate AI state before the first real frame. The first
+    // buildTick() call populates currentBuildPhantoms.
   }
 
   buildTick(state: BuildViewState, _dt: number): PiecePlacementPreview[] {
     const executePlace = (intent: PlacePieceIntent): boolean =>
       executePlacePiece(state as GameState, intent, this);
-    const result = tickBuild(this, this._buildPhase, state, executePlace);
+    const result = this.brain.build.tick(this, state, executePlace);
     this.currentBuildPhantoms = result;
     return result;
   }
 
   protected override onFinalizeBuildPhase(state: BuildViewState): void {
-    finalizeBuild(this, this._buildPhase, state);
+    this.brain.build.finalize(this, state);
   }
 
   // -----------------------------------------------------------------------
@@ -219,14 +191,14 @@ export class AiController extends BaseController implements AiAnimatable {
   // -----------------------------------------------------------------------
 
   override placeCannons(state: CannonViewState, maxSlots: number): void {
-    initCannon(this, this._cannonPhase, state, maxSlots);
+    this.brain.cannon.init(this, state, maxSlots);
   }
 
   override isCannonPhaseDone(
     _state: CannonViewState,
     _maxSlots: number,
   ): boolean {
-    return isCannonDone(this._cannonPhase);
+    return this.brain.cannon.isDone();
   }
 
   cannonTick(
@@ -237,21 +209,21 @@ export class AiController extends BaseController implements AiAnimatable {
       executePlaceCannon(
         state as GameState,
         intent,
-        this._cannonPhase.maxSlots,
+        this.brain.cannon.maxSlots,
       );
-    const result = tickCannon(this, this._cannonPhase, state, executePlace);
+    const result = this.brain.cannon.tick(this, state, executePlace);
     // Leave currentCannonPhantom populated by the startCannonPhase hook
-    // empty on init (see note there): AI's tickCannon decrements timers
+    // empty on init (see note there): AI's cannon tick decrements timers
     // and draws from strategy.rng, so seeding at dt=0 would mutate state
     // before the first real frame. Assign from tick result here.
-    this.currentCannonPhantom = result ?? undefined;
-    return result ?? undefined;
+    this.currentCannonPhantom = result;
+    return result;
   }
 
   flushCannons(state: CannonViewState, maxSlots: number): void {
     const executePlace = (intent: PlaceCannonIntent): boolean =>
       executePlaceCannon(state as GameState, intent, maxSlots);
-    flushCannon(this, this._cannonPhase, state, executePlace);
+    this.brain.cannon.flush(this, state, executePlace);
   }
 
   // -----------------------------------------------------------------------
@@ -263,8 +235,8 @@ export class AiController extends BaseController implements AiAnimatable {
     // template runs on `localControllers(...)` per phase-ticks), so remote
     // placeholders never draw — host/watcher stay in lockstep regardless
     // of which controller variant landed at the slot.
-    this._battlePhase.orbitAngle = this.strategy.rng.next() * Math.PI * 2;
-    initBattle(this, this._battlePhase, state);
+    this.brain.battle.setOrbitAngle(this.strategy.rng.next() * Math.PI * 2);
+    this.brain.battle.init(this, state);
   }
 
   battleTick(state: BattleViewState, _dt: number): void {
@@ -280,7 +252,7 @@ export class AiController extends BaseController implements AiAnimatable {
       this.cannonRotationIdx = fired.rotationIdx;
       return true;
     };
-    tickBattle(this, this._battlePhase, state, executeFire);
+    this.brain.battle.tick(this, state, executeFire);
   }
 
   // -----------------------------------------------------------------------
@@ -298,7 +270,7 @@ export class AiController extends BaseController implements AiAnimatable {
     dialogTimer: number,
     state: UpgradePickViewState,
   ): void {
-    tickAiUpgradePickEntry(
+    this.brain.tickUpgradePick(
       entry,
       entryIdx,
       secondsToTicks(autoDelaySeconds),
@@ -308,7 +280,7 @@ export class AiController extends BaseController implements AiAnimatable {
   }
 
   // -----------------------------------------------------------------------
-  // Life-lost dialog (auto-resolve via aiChooseLifeLost)
+  // Life-lost dialog (auto-resolve via brain.chooseLifeLost)
   // -----------------------------------------------------------------------
 
   override autoResolvesLifeLost(): boolean {
@@ -326,7 +298,7 @@ export class AiController extends BaseController implements AiAnimatable {
       entry.choice === LifeLostChoice.PENDING &&
       entry.autoTimer >= autoDelaySeconds
     ) {
-      entry.choice = aiChooseLifeLost(entry, state);
+      entry.choice = this.brain.chooseLifeLost(entry, state);
     }
   }
 
@@ -336,19 +308,19 @@ export class AiController extends BaseController implements AiAnimatable {
 
   override onLifeLost(): void {
     super.onLifeLost();
-    resetSelectionPhase(this.selectionPhase);
-    resetBuildPhase(this._buildPhase);
-    resetCannonPhase(this._cannonPhase);
-    resetBattlePhaseKeepOrbit(this._battlePhase);
+    this.brain.selection.reset();
+    this.brain.build.reset();
+    this.brain.cannon.reset();
+    this.brain.battle.resetKeepOrbit();
     this.strategy.onLifeLost();
   }
 
   override reset(): void {
     super.reset();
-    resetSelectionPhase(this.selectionPhase);
-    resetBuildPhase(this._buildPhase);
-    resetCannonPhase(this._cannonPhase);
-    resetBattlePhaseKeepOrbit(this._battlePhase);
+    this.brain.selection.reset();
+    this.brain.build.reset();
+    this.brain.cannon.reset();
+    this.brain.battle.resetKeepOrbit();
     this.strategy.onLifeLost();
   }
 

@@ -1,0 +1,111 @@
+/**
+ * AiBrain interface — the seam between AiController and a concrete AI
+ * implementation. The controller owns animation timing, cursor state, and
+ * lifecycle hooks; the brain owns phase state machines and decision
+ * dispatch. Swapping in an alternate brain lets new AI experiments coexist
+ * with the default one without touching the controller.
+ */
+
+import type { PixelPos } from "../shared/core/geometry-types.ts";
+import type {
+  BattleViewState,
+  BuildViewState,
+  CannonPlacementPreview,
+  CannonViewState,
+  FireIntent,
+  GameViewState,
+  PiecePlacementPreview,
+  PlaceCannonIntent,
+  PlacePieceIntent,
+  UpgradePickViewState,
+} from "../shared/core/system-interfaces.ts";
+import type { ZoneId } from "../shared/core/zone-id.ts";
+import {
+  LifeLostChoice,
+  type LifeLostEntry,
+  type UpgradePickEntry,
+} from "../shared/ui/interaction-types.ts";
+import type {
+  BattleHost,
+  BuildHost,
+  CannonHost,
+  SelectionHost,
+} from "./ai-strategy-types.ts";
+
+/** Re-export for the matched-choice constant — convenience for brain consumers. */
+export { LifeLostChoice };
+
+export interface AiBrainSelection {
+  init(host: SelectionHost, state: GameViewState, zone: ZoneId): void;
+  tick(host: SelectionHost, state?: GameViewState): boolean;
+  reset(): void;
+}
+
+export interface AiBrainBuild {
+  init(host: BuildHost, state: BuildViewState): void;
+  tick(
+    host: BuildHost,
+    state: BuildViewState,
+    executePlace: (intent: PlacePieceIntent) => boolean,
+  ): PiecePlacementPreview[];
+  finalize(host: BuildHost, state: BuildViewState): void;
+  reset(): void;
+  /** Cursor speed (tiles/sec) for a given strategy cursorSkill (1..3). */
+  cursorSpeedFor(cursorSkill: 1 | 2 | 3): number;
+}
+
+export interface AiBrainCannon {
+  init(host: CannonHost, state: CannonViewState, maxSlots: number): void;
+  tick(
+    host: CannonHost,
+    state: CannonViewState,
+    executePlace: (intent: PlaceCannonIntent) => boolean,
+  ): CannonPlacementPreview | undefined;
+  flush(
+    host: CannonHost,
+    state: CannonViewState,
+    executePlace: (intent: PlaceCannonIntent) => boolean,
+  ): void;
+  isDone(): boolean;
+  reset(): void;
+  /** maxSlots captured at init — assisted-human reads this when scheduling
+   *  cannon placements through the wire path. */
+  readonly maxSlots: number;
+  /** Cursor speed (tiles/sec) for a given strategy cursorSkill (1..3). */
+  cursorSpeedFor(cursorSkill: 1 | 2 | 3): number;
+}
+
+export interface AiBrainBattle {
+  init(host: BattleHost, state?: BattleViewState): void;
+  tick(
+    host: BattleHost,
+    state: BattleViewState,
+    executeFire: (intent: FireIntent) => boolean,
+  ): void;
+  /** Reset all battle state except orbit angle (preserved across countdown). */
+  resetKeepOrbit(): void;
+  /** Seed the pre-battle orbit angle — called by the controller from
+   *  `onResetBattle` so each battle re-rolls a fresh orbit from `strategy.rng`. */
+  setOrbitAngle(angle: number): void;
+  /** Latest crosshair target for `AiAnimatable.getCrosshairTarget()`. */
+  getCrosshairTarget(): PixelPos | null;
+}
+
+export interface AiBrain {
+  readonly selection: AiBrainSelection;
+  readonly build: AiBrainBuild;
+  readonly cannon: AiBrainCannon;
+  readonly battle: AiBrainBattle;
+
+  /** Auto-resolve the AI's life-lost dialog choice given the entry + state. */
+  chooseLifeLost(entry: LifeLostEntry, state: GameViewState): LifeLostChoice;
+
+  /** Advance the AI's upgrade-pick animation + commit when ready. */
+  tickUpgradePick(
+    entry: UpgradePickEntry,
+    entryIdx: number,
+    autoDelayTicks: number,
+    dialogTimer: number,
+    state: UpgradePickViewState,
+  ): void;
+}

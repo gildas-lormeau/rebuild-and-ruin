@@ -19,6 +19,7 @@ export function ensureAiModulesLoaded(): Promise<unknown> {
   return Promise.all([
     import("./controller-ai.ts"),
     import("../ai/ai-strategy.ts"),
+    import("../ai/ai-brain.ts"),
   ]);
 }
 
@@ -38,13 +39,16 @@ export async function createController(
   if (isAi) {
     if (!sharedRng) throw new Error("sharedRng required for AI controller");
     if (!personality) throw new Error("personality required for AI controller");
-    const [{ AiController }, { DefaultStrategy }] = await Promise.all([
-      import("./controller-ai.ts"),
-      import("../ai/ai-strategy.ts"),
-    ]);
+    const [{ AiController }, { DefaultStrategy }, { createDefaultAiBrain }] =
+      await Promise.all([
+        import("./controller-ai.ts"),
+        import("../ai/ai-strategy.ts"),
+        import("../ai/ai-brain.ts"),
+      ]);
     return new AiController(
       playerId,
       new DefaultStrategy(sharedRng, personality),
+      createDefaultAiBrain(),
     );
   }
   if (!keys) throw new Error("KeyBindings required for human controller");
