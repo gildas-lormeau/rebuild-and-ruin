@@ -566,20 +566,16 @@ function buildAssistedControllerFactory(
     // strategy.rng-side draws would land on state.rng while the host's
     // assisted-human draws would land on this private RNG.
     const privateRng = new Rng(privateSeed);
-    const [
-      { AiAssistedHumanController },
-      { DefaultStrategy },
-      { createDefaultAiBrain },
-      { MESSAGE },
-    ] = await Promise.all([
-      import("../src/controllers/controller-ai-assisted-human.ts"),
-      import("../src/ai/ai-strategy.ts"),
-      import("../src/ai/ai-brain.ts"),
-      import("../src/protocol/protocol.ts"),
-    ]);
+    const [{ AiAssistedHumanController }, { createDefaultAiDeps }, { MESSAGE }] =
+      await Promise.all([
+        import("../src/controllers/controller-ai-assisted-human.ts"),
+        import("../src/ai/ai-defaults.ts"),
+        import("../src/protocol/protocol.ts"),
+      ]);
+    const { strategy, brain } = createDefaultAiDeps(privateRng, personality);
     return new AiAssistedHumanController(slot, {
-      strategy: new DefaultStrategy(privateRng, personality),
-      brain: createDefaultAiBrain(),
+      strategy,
+      brain,
       senders: {
         sendPiecePlaced: (payload) =>
           send({ type: MESSAGE.OPPONENT_PIECE_PLACED, ...payload }),

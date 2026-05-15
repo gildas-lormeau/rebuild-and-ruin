@@ -762,6 +762,14 @@
   },
   {
     "layer": 13,
+    "domain": "ai",
+    "role": "default AI bundle (strategy + brain assembly entrypoint)",
+    "files": [
+      "src/ai/ai-defaults.ts"
+    ]
+  },
+  {
+    "layer": 13,
     "domain": "game",
     "role": "game actions, phase setup & scheduling",
     "files": [

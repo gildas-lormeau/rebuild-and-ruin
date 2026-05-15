@@ -352,6 +352,7 @@
   {
     "name": "L13",
     "files": [
+      "src/ai/ai-defaults.ts",
       "src/game/game-actions.ts",
       "src/game/phase-setup.ts",
       "src/game/scheduled-actions.ts",

@@ -1,4 +1,5 @@
 [
+  "src/ai/ai-defaults.ts:createDefaultAiDeps:SINGLE_CALLER",
   "src/game/upgrades/mortar.ts:mortarSpeedMult:ZERO_ARG_LITERAL",
   "src/input/input-touch-canvas.ts:createGestureState:ZERO_ARG_LITERAL",
   "src/main.ts:activateMusic:SINGLE_CALLER",
