@@ -2,5 +2,8 @@
   "js/ts.tsdk.path": "node_modules/typescript/lib",
   "editor.codeActionsOnSave": {
     "source.organizeImports.biome": "explicit"
-  }
+  },
+  "deno.enable": true,
+  "deno.enablePaths": ["scripts", "server", "test"],
+  "deno.unstable": ["sloppy-imports"]
 }
