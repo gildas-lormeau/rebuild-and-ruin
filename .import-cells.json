@@ -4,6 +4,7 @@
     "domain": "ai",
     "role": "AI tuning constants",
     "files": [
+      "src/ai/ai-chain.ts",
       "src/ai/ai-constants.ts"
     ]
   },

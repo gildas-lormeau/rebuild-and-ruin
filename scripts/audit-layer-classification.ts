@@ -237,13 +237,16 @@ function nameSignal(
     }
     // Pure-type files genuinely sit one tier above the types they compose
     // (e.g. a Pick<> of an L4 type lands at L5 — mechanically unavoidable).
-    // Logic tier is accepted as "structural types-of-types". Runtime-domain
-    // types files climb further — `RuntimeState` references `GameState` (L5)
-    // plus other L5-pinned shapes, so a pure-type `runtime-types.ts` floors
-    // at L7 systems without parameterizing every consumer's state type.
-    // Accept systems tier for `src/runtime/` types files; for other domains,
-    // systems+ still signals a non-type dep is leaking in.
-    const allowSystems = file.startsWith("src/runtime/");
+    // Logic tier is accepted as "structural types-of-types". Some domains'
+    // types files climb further: `runtime-types.ts` (RuntimeState references
+    // GameState at L5) and the AI types chain (`ai-build-types` L6 →
+    // `ai-strategy-types` L7 → `ai-brain-types` L8, each composing the
+    // previous) both floor at systems tier without parameterizing every
+    // consumer's state type. Accept systems tier for `src/runtime/` and
+    // `src/ai/` types files; for other domains, systems+ still signals a
+    // non-type dep is leaking in.
+    const allowSystems =
+      file.startsWith("src/runtime/") || file.startsWith("src/ai/");
     const acceptedTiers: Tier[] = allowSystems
       ? ["types", "logic", "systems"]
       : ["types", "logic"];

@@ -4,7 +4,7 @@
  * interface without pulling in DefaultStrategy or its implementation tree.
  */
 
-import { CannonMode } from "../shared/core/battle-types.ts";
+import type { CannonMode } from "../shared/core/battle-types.ts";
 import type {
   GameMap,
   PixelPos,
@@ -24,6 +24,7 @@ import type {
 import type { ZoneId } from "../shared/core/zone-id.ts";
 import type { Rng } from "../shared/platform/rng.ts";
 import type { AiPlacement, StrategicPixelPos } from "./ai-build-types.ts";
+import type { ChainType } from "./ai-chain.ts";
 
 /** A single cannon placement decision returned by the AI strategy. */
 export interface CannonPlacement {
@@ -48,8 +49,6 @@ export interface CannonPlacementContext {
   pendingRampart: boolean;
   pendingBalloon: boolean;
 }
-
-export type ChainType = (typeof CHAIN)[keyof typeof CHAIN];
 
 /** Result of planBattle — tells the controller what chain attack to execute. */
 export interface BattlePlan {
@@ -187,12 +186,3 @@ export interface AiStrategy {
    *  1 = clumsy cursor, 3 = fluid aim. */
   cursorSkill: 1 | 2 | 3;
 }
-
-/** The kind of chain attack the AI executes during battle. */
-export const CHAIN = {
-  WALL: "wall",
-  GRUNT: "grunt",
-  POCKET: "pocket",
-  STRUCTURAL: "structural",
-  ICE_TRENCH: "ice_trench",
-} as const;

@@ -15,8 +15,9 @@ import type {
   FireIntent,
 } from "../shared/core/system-interfaces.ts";
 import type { StrategicPixelPos } from "./ai-build-types.ts";
+import { CHAIN, type ChainType } from "./ai-chain.ts";
 import { STEP, secondsToTicks } from "./ai-constants.ts";
-import { type BattleHost, CHAIN, type ChainType } from "./ai-strategy-types.ts";
+import type { BattleHost } from "./ai-strategy-types.ts";
 
 /** Callback that executes a fire intent against mutable game state.
  *  Returns true if a cannon actually fired. */

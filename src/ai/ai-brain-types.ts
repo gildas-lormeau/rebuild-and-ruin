@@ -20,10 +20,10 @@ import type {
   UpgradePickViewState,
 } from "../shared/core/system-interfaces.ts";
 import type { ZoneId } from "../shared/core/zone-id.ts";
-import {
+import type {
   LifeLostChoice,
-  type LifeLostEntry,
-  type UpgradePickEntry,
+  LifeLostEntry,
+  UpgradePickEntry,
 } from "../shared/ui/interaction-types.ts";
 import type {
   BattleHost,
@@ -31,9 +31,6 @@ import type {
   CannonHost,
   SelectionHost,
 } from "./ai-strategy-types.ts";
-
-/** Re-export for the matched-choice constant — convenience for brain consumers. */
-export { LifeLostChoice };
 
 export interface AiBrainSelection {
   init(host: SelectionHost, state: GameViewState, zone: ZoneId): void;

@@ -37,6 +37,7 @@ import type {
 import type { ZoneId } from "../shared/core/zone-id.ts";
 import { Rng } from "../shared/platform/rng.ts";
 import type { AiPlacement, StrategicPixelPos } from "./ai-build-types.ts";
+import { CHAIN, type ChainType } from "./ai-chain.ts";
 import { traitLookup } from "./ai-constants.ts";
 import {
   type BattleTargetMemory,
@@ -57,13 +58,11 @@ import {
   createCannonPlacementContext,
   nextCannonPlacement,
 } from "./ai-strategy-cannon.ts";
-import {
-  type AiStrategy,
-  type BattlePlan,
-  type CannonPlacement,
-  type CannonPlacementContext,
-  CHAIN,
-  type ChainType,
+import type {
+  AiStrategy,
+  BattlePlan,
+  CannonPlacement,
+  CannonPlacementContext,
 } from "./ai-strategy-types.ts";
 
 interface ArchetypeProfile {
