@@ -68,7 +68,7 @@ export interface Rect {
 export interface TileInspection {
   row: number;
   col: number;
-  terrain: "grass" | "water" | "frozenWater" | "lowWater";
+  terrain: "grass" | "water" | "frozenWater" | "exposedRiverbed";
   wall: { playerId: ValidPlayerId } | null;
   tower: { index: number; alive: boolean } | null;
   cannon: { playerId: ValidPlayerId; hp: number; mode: CannonMode } | null;
@@ -267,13 +267,12 @@ export function inspectTile(
   const key = packTile(row, col);
   const tiles = state.map.tiles;
   const frozen = state.modern?.frozenTiles;
-  const lowWater = state.modern?.lowWaterTiles;
+  const exposed = state.modern?.exposedRiverbedTiles;
   const terrainTile = tiles[row]?.[col];
   let terrain: TileInspection["terrain"];
   if (terrainTile !== undefined && isWater(tiles, row, col)) {
-    terrain = frozen?.has(key) ? "frozenWater" : "water";
-  } else if (lowWater?.has(key)) {
-    terrain = "lowWater";
+    if (exposed?.has(key)) terrain = "exposedRiverbed";
+    else terrain = frozen?.has(key) ? "frozenWater" : "water";
   } else {
     terrain = "grass";
   }

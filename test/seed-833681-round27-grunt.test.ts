@@ -57,7 +57,12 @@ import type { Grunt } from "../src/shared/core/battle-types.ts";
 interface GruntFingerprint {
   readonly row: number;
   readonly col: number;
-  readonly tile: "grass" | "water" | "frozenWater" | "lowWater" | "unknown";
+  readonly tile:
+    | "grass"
+    | "water"
+    | "frozenWater"
+    | "exposedRiverbed"
+    | "unknown";
   readonly zone: number | null;
   readonly inInteriorOf: readonly number[]; // player ids whose interior contains the tile
   readonly inWallsOf: readonly number[]; // player ids whose walls contain the tile

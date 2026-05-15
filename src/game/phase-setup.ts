@@ -588,9 +588,9 @@ function evictEntitiesInZone(
  *
  *  high_tide does not appear here: it no longer mutates tiles (the
  *  flooded set is derived from the static map; see `computeFloodedTiles`).
- *  Low-water tiles are river state per the user's principle — they stay
- *  grass and remain in the lowWaterTiles tracker so clearLowWater
- *  reverts them at the next round's prepareBattleState. */
+ *  Low-water no longer mutates tiles either (the exposed riverbed set
+ *  on `state.modern.exposedRiverbedTiles` is the source of truth; tiles
+ *  stay water), so it doesn't appear here. */
 function restoreZoneGrass(state: GameState, zone: ZoneId): void {
   const anchor = state.map.towers.find((tower) => tower.zone === zone);
   if (!anchor) return;

@@ -137,7 +137,13 @@ function lockGruntTarget(
   }
 
   const gruntZone = zoneAt(state.map, grunt.row, grunt.col);
-  const frozenActive = state.modern?.frozenTiles != null;
+  // Cross-zone targeting opens whenever the river is traversable —
+  // either fully (frozen_river) or via the partial bank (low_water).
+  // Pathfinding decides whether the grunt can actually reach the target;
+  // unreachable cross-zone targets just fall back to same-zone below.
+  const crossZoneOpen =
+    state.modern?.frozenTiles != null ||
+    state.modern?.exposedRiverbedTiles != null;
 
   let bestDist = Infinity;
   let bestIdx: TowerIdx | undefined;
@@ -146,9 +152,9 @@ function lockGruntTarget(
     const tower = state.map.towers[i]!;
     if (!state.towerAlive[i]) continue;
     if (deadZones.has(tower.zone)) continue;
-    // Frozen river: flee to enemy territory (skip own zone)
+    // River traversable: flee to enemy territory (skip own zone)
     // Normal: stay in own zone
-    if (frozenActive ? tower.zone === gruntZone : tower.zone !== gruntZone)
+    if (crossZoneOpen ? tower.zone === gruntZone : tower.zone !== gruntZone)
       continue;
     const dist = distanceToTower(tower, grunt.row, grunt.col);
     if (dist < bestDist) {
@@ -157,8 +163,8 @@ function lockGruntTarget(
     }
   }
 
-  // Fallback: if frozen but no cross-zone tower alive, target same-zone
-  if (frozenActive && bestIdx === undefined) {
+  // Fallback: if cross-zone but no enemy tower alive, target same-zone
+  if (crossZoneOpen && bestIdx === undefined) {
     for (let i = 0; i < state.map.towers.length; i++) {
       const tower = state.map.towers[i]!;
       if (!state.towerAlive[i]) continue;
@@ -425,9 +431,13 @@ export function isGruntPassableTile(
 /** Check if a tile is blocked for grunt movement (impassable obstacle). */
 function isGruntBlocked(state: GameState, r: number, c: number): boolean {
   if (!inBounds(r, c)) return true;
-  // Water tiles are passable when frozen
+  // Water tiles are passable when frozen or exposed by low_water.
   if (!isGrass(state.map.tiles, r, c)) {
-    if (!state.modern?.frozenTiles?.has(packTile(r, c))) return true;
+    const key = packTile(r, c);
+    const passable =
+      state.modern?.frozenTiles?.has(key) === true ||
+      state.modern?.exposedRiverbedTiles?.has(key) === true;
+    if (!passable) return true;
   }
   // High Tide: tile reads as grass but the visible water blocks movement
   // (the grunt would drown). Per-tile check so each pathfinding step pays

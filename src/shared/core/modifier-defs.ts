@@ -18,7 +18,7 @@ import type { PoolDef } from "./pool-def.ts";
 export interface SerializedModifierTiles {
   frozenTiles: number[] | null;
   sinkholeTiles: number[] | null;
-  lowWaterTiles: number[] | null;
+  exposedRiverbedTiles: number[] | null;
 }
 
 /** Pre-removal snapshot for the rubble_clearing modifier — the entities
@@ -211,12 +211,14 @@ const MODIFIER_POOL = [
     id: "low_water",
     label: "Low Water",
     description:
-      "Shallow river-edge tiles become grass for one round, expanding buildable land",
+      "Shallow river-edge tiles dry up for one round, letting grunts walk across",
     weight: WEIGHT_COMMON,
     implemented: true,
+    // Tile types stay water — exposed set lives on
+    // `state.modern.exposedRiverbedTiles` and the renderer paints those
+    // via FLAG_EXPOSED.
     needsCheckpoint: true,
-    // River bank tiles were water before — banner snapshot reverts to water.
-    tileMutationPrev: 1, // Tile.Water — value import of Tile is restricted
+    tileMutationPrev: null,
   },
   {
     id: "dry_lightning",
@@ -337,7 +339,9 @@ export const MODIFIER_CONSUMERS = {
   low_water: {
     impl: "src/game/modifiers/low-water.ts",
     serialize: "src/online/online-serialize.ts",
+    behavior_movement: "src/game/grunt-movement.ts",
     render_burst: "src/render/3d/effects/grass-emergence.ts",
+    render_flag: "src/render/3d/effects/terrain-tile-data.ts",
   },
   dry_lightning: {
     impl: "src/game/modifiers/fire.ts",

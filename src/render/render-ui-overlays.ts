@@ -339,6 +339,7 @@ export function createOnlineOverlay(
         view.modern?.activeModifier === MODIFIER_ID.HIGH_TIDE
           ? computeFloodedTiles(view.map)
           : undefined,
+      exposedRiverbedTiles: view.modern?.exposedRiverbedTiles ?? undefined,
     },
     battle: {
       battleTerritory,

@@ -157,6 +157,10 @@ export interface EntityOverlay {
    *  active (see `computeFloodedTiles`); not stored on state.modern,
    *  not serialized. */
   floodedTiles?: ReadonlySet<number>;
+  /** Low-water exposed riverbed tiles for rendering bank/grass over
+   *  water. Read from `state.modern.exposedRiverbedTiles` (RNG-shuffled
+   *  per draw, so it is stored, not derived). */
+  exposedRiverbedTiles?: ReadonlySet<number>;
 }
 
 /** Build/cannon phase — piece and cannon placement previews.

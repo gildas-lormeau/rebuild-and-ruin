@@ -440,8 +440,8 @@ function serializeModifierTileSets(state: GameState): SerializedModifierTiles {
     sinkholeTiles: state.modern?.sinkholeTiles
       ? [...state.modern.sinkholeTiles]
       : null,
-    lowWaterTiles: state.modern?.lowWaterTiles
-      ? [...state.modern.lowWaterTiles]
+    exposedRiverbedTiles: state.modern?.exposedRiverbedTiles
+      ? [...state.modern.exposedRiverbedTiles]
       : null,
   };
 }

@@ -143,12 +143,12 @@ const EFFECT_PROBES: Partial<Record<ModifierId, EffectProbe>> = {
   },
 
   low_water: {
-    description: "state.modern.lowWaterTiles non-null + non-empty",
+    description: "state.modern.exposedRiverbedTiles non-null + non-empty",
     install: (sc) => {
       let observed = false;
       sc.bus.on(GAME_EVENT.MODIFIER_APPLIED, (ev) => {
         if (ev.modifierId !== "low_water") return;
-        const tiles = sc.state.modern?.lowWaterTiles;
+        const tiles = sc.state.modern?.exposedRiverbedTiles;
         if (tiles && tiles.size > 0) observed = true;
       });
       return () => observed;

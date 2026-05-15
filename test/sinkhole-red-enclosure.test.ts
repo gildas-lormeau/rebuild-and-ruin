@@ -63,8 +63,8 @@ Deno.test("seed 546418: red encloses its sinkhole during the next build phase", 
     `expected frozenTiles=null in WALL_BUILD, got size=${modern.frozenTiles?.size}`,
   );
   assert(
-    modern.lowWaterTiles === null,
-    `expected lowWaterTiles=null in WALL_BUILD, got size=${modern.lowWaterTiles?.size}`,
+    modern.exposedRiverbedTiles === null,
+    `expected exposedRiverbedTiles=null in WALL_BUILD, got size=${modern.exposedRiverbedTiles?.size}`,
   );
 });
 
@@ -88,7 +88,7 @@ function dumpSinkholeState(
   console.log(`activeModifierChangedTiles=${modern.activeModifierChangedTiles.length} tile(s)`);
   console.log(`sinkholeTiles=${modern.sinkholeTiles?.size ?? 0} tile(s) cumulative`);
   console.log(`frozenTiles=${modern.frozenTiles?.size ?? 0}`);
-  console.log(`lowWaterTiles=${modern.lowWaterTiles?.size ?? 0}`);
+  console.log(`exposedRiverbedTiles=${modern.exposedRiverbedTiles?.size ?? 0}`);
 
   console.log("=== Sinkhole tiles (per-tile inspection) ===");
   for (const key of sinkholeTiles) {

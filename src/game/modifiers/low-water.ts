@@ -1,71 +1,58 @@
 /**
- * Low Water modifier — converts all shallow river-edge tiles to grass
- * (river banks narrow by 1 tile). Mirror of high tide.
+ * Low Water — exposes a thinned river bank for one round. Tiles stay
+ * water; exposed set is RNG-shuffled per draw (varies which segments
+ * win the 2×2-preservation contest), stored on
+ * `state.modern.exposedRiverbedTiles`, painted via FLAG_EXPOSED. No
+ * eviction at apply (water tiles carry no entities) or at clear.
  */
 
-import { FID } from "../../shared/core/feature-defs.ts";
-import {
-  GRID_COLS,
-  GRID_ROWS,
-  type Tile,
-  type TileKey,
-} from "../../shared/core/grid.ts";
+import type { GameMap } from "../../shared/core/geometry-types.ts";
+import { GRID_COLS, GRID_ROWS, type TileKey } from "../../shared/core/grid.ts";
 import type { SerializedModifierTiles } from "../../shared/core/modifier-defs.ts";
-// jscpd:ignore-start
 import {
   DIRS_4,
   isGrass,
   isWater,
   packTile,
-  setGrass,
-  setWater,
   unpackTile,
 } from "../../shared/core/spatial.ts";
-import {
-  type GameState,
-  hasFeature,
-  type ModifierImpl,
-} from "../../shared/core/types.ts";
-import { recomputeMapZones } from "../zone-recompute.ts";
-import { evictEntitiesOnTiles } from "./evict-tiles.ts";
+import { type GameState, type ModifierImpl } from "../../shared/core/types.ts";
+import type { Rng } from "../../shared/platform/rng.ts";
 
 export const lowWaterImpl: ModifierImpl = {
   lifecycle: "round-scoped",
-  apply: (state: GameState) => ({
-    changedTiles: [...applyLowWater(state)],
-    gruntsSpawned: 0,
-  }),
-  clear: clearLowWater,
+  // Tiles stay water — the visual "exposed bank" is a renderer overlay
+  // (FLAG_EXPOSED), not a tile-type change. No territory geometry change
+  // at apply or clear, so skip the post-apply recheck.
+  skipsRecheck: true,
+  apply: (state: GameState) => {
+    const exposed = computeExposedRiverbedTiles(state.map, state.rng);
+    if (exposed.size === 0) {
+      return { changedTiles: [], gruntsSpawned: 0 };
+    }
+    state.modern!.exposedRiverbedTiles = exposed;
+    state.map.mapVersion++;
+    return { changedTiles: [...exposed], gruntsSpawned: 0 };
+  },
+  clear: (state: GameState) => {
+    if (!state.modern) return;
+    if (state.modern.exposedRiverbedTiles === null) return;
+    state.modern.exposedRiverbedTiles = null;
+    state.map.mapVersion++;
+  },
   restore: (state: GameState, data: SerializedModifierTiles) => {
-    state.modern!.lowWaterTiles = data.lowWaterTiles
-      ? new Set(data.lowWaterTiles as TileKey[])
+    state.modern!.exposedRiverbedTiles = data.exposedRiverbedTiles
+      ? new Set(data.exposedRiverbedTiles as TileKey[])
       : null;
-    reapplyLowWaterTiles(state);
-    recomputeMapZones(state);
   },
 };
 
-/** Re-apply low water tile mutations on a map regenerated from seed.
- *  Called from `restore` during checkpoint hydration. Idempotent.
- *  `mapVersion` is bumped by the caller's `recomputeMapZones`. */
-function reapplyLowWaterTiles(state: GameState): void {
-  const lowWater = state.modern?.lowWaterTiles;
-  if (!lowWater || lowWater.size === 0) return;
-  const tiles = state.map.tiles;
-  for (const key of lowWater) {
-    const { r, c } = unpackTile(key as TileKey);
-    setGrass(tiles, r, c);
-  }
-}
-
-/** Apply low water: erode one layer of bank tiles, preserving 2×2 water
- *  blocks so the river never thins to a 1-wide channel. */
-function applyLowWater(state: GameState): ReadonlySet<number> {
-  const modern = state.modern;
-  if (!modern) return new Set();
-  const tiles = state.map.tiles;
-  const converted = new Set<TileKey>();
-  // Snapshot bank tiles before any mutations.
+/** Greedy 2×2-preserving erosion over RNG-shuffled bank tiles. Each draw
+ *  picks a different set of bank tiles to expose because the iteration
+ *  order changes — running this multiple times in a game produces
+ *  varied exposed strips instead of the same-every-time row-major slice. */
+function computeExposedRiverbedTiles(map: GameMap, rng: Rng): Set<TileKey> {
+  const tiles = map.tiles;
   const banks: number[] = [];
   for (let r = 0; r < GRID_ROWS; r++) {
     for (let c = 0; c < GRID_COLS; c++) {
@@ -78,77 +65,50 @@ function applyLowWater(state: GameState): ReadonlySet<number> {
       }
     }
   }
-  // Greedy erosion: convert each bank tile only if every remaining water
-  // neighbor still belongs to at least one 2×2 water block afterwards.
+  rng.shuffle(banks);
+
+  const exposed = new Set<TileKey>();
   for (const key of banks) {
     const { r, c } = unpackTile(key as TileKey);
-    if (!isWater(tiles, r, c)) continue;
-    // Tentatively convert
-    setGrass(tiles, r, c);
-    // Check all water neighbors still have a 2×2
+    // Tentatively expose this tile; revert if it would leave a water
+    // neighbor without a 2×2-water anchor (river thinning to 1-wide).
+    exposed.add(key as TileKey);
     let safe = true;
     for (const [dr, dc] of DIRS_4) {
       const nr = r + dr;
       const nc = c + dc;
       if (!isWater(tiles, nr, nc)) continue;
-      if (!inWater2x2(tiles, nr, nc)) {
+      if (exposed.has(packTile(nr, nc) as TileKey)) continue;
+      if (!inWater2x2(tiles, exposed, nr, nc)) {
         safe = false;
         break;
       }
     }
-    if (safe) {
-      converted.add(key as TileKey);
-    } else {
-      // Revert
-      setWater(tiles, r, c);
-    }
+    if (!safe) exposed.delete(key as TileKey);
   }
-  if (converted.size === 0) return converted;
-  modern.lowWaterTiles = converted;
-  recomputeMapZones(state);
-  return converted;
+  return exposed;
 }
 
-/** True when (r,c) belongs to at least one 2×2 all-water square. */
+/** True when (r, c) belongs to at least one 2×2 all-still-water square,
+ *  where "still water" = water tile not yet in `exposed`. */
 function inWater2x2(
-  tiles: readonly (readonly Tile[])[],
+  tiles: ReadonlyArray<ReadonlyArray<number>>,
+  exposed: ReadonlySet<TileKey>,
   r: number,
   c: number,
 ): boolean {
+  const stillWater = (rr: number, cc: number): boolean =>
+    isWater(tiles, rr, cc) && !exposed.has(packTile(rr, cc) as TileKey);
   return (
-    (isWater(tiles, r, c + 1) &&
-      isWater(tiles, r + 1, c) &&
-      isWater(tiles, r + 1, c + 1)) ||
-    (isWater(tiles, r, c - 1) &&
-      isWater(tiles, r + 1, c) &&
-      isWater(tiles, r + 1, c - 1)) ||
-    (isWater(tiles, r, c + 1) &&
-      isWater(tiles, r - 1, c) &&
-      isWater(tiles, r - 1, c + 1)) ||
-    (isWater(tiles, r, c - 1) &&
-      isWater(tiles, r - 1, c) &&
-      isWater(tiles, r - 1, c - 1))
+    (stillWater(r, c + 1) &&
+      stillWater(r + 1, c) &&
+      stillWater(r + 1, c + 1)) ||
+    (stillWater(r, c - 1) &&
+      stillWater(r + 1, c) &&
+      stillWater(r + 1, c - 1)) ||
+    (stillWater(r, c + 1) &&
+      stillWater(r - 1, c) &&
+      stillWater(r - 1, c + 1)) ||
+    (stillWater(r, c - 1) && stillWater(r - 1, c) && stillWater(r - 1, c - 1))
   );
-}
-
-/** Revert low water: restore converted tiles back to water. */
-function clearLowWater(state: GameState): void {
-  const modern = state.modern;
-  if (!modern || !hasFeature(state, FID.MODIFIERS)) return;
-  if (!modern.lowWaterTiles) return;
-  const tiles = state.map.tiles;
-  for (const key of modern.lowWaterTiles) {
-    const { r, c } = unpackTile(key as TileKey);
-    setWater(tiles, r, c);
-  }
-  // Houses and bonus squares never spawned on these tiles (they were
-  // water at map-gen time), so no need to evict them.
-  evictEntitiesOnTiles(state, modern.lowWaterTiles, {
-    walls: true,
-    grunts: true,
-    burningPits: true,
-    cannons: true,
-  });
-  modern.lowWaterTiles = null;
-  recomputeMapZones(state);
 }

@@ -276,9 +276,12 @@ export interface ModernState {
   /** Sinkhole tiles (packed tile keys) — grass tiles permanently converted to water.
    *  Cumulative across rounds. null = no sinkholes yet. */
   sinkholeTiles: Set<TileKey> | null;
-  /** Low water tiles (packed tile keys) — water tiles temporarily converted to grass.
-   *  Set when low_water modifier fires, cleared at next battle start. null otherwise. */
-  lowWaterTiles: Set<TileKey> | null;
+  /** Exposed riverbed tiles (packed tile keys) — water tiles the
+   *  low_water modifier marks as walkable + visually exposed for one
+   *  round. Tile types stay water; the set is the source of truth.
+   *  Stored (not derived) because the RNG-shuffled erosion produces
+   *  different sets per draw. null when low_water is not active. */
+  exposedRiverbedTiles: Set<TileKey> | null;
   /** Precomputed dust-storm jitter angles (radians) drawn from `state.rng` at
    *  `prepareBattleState` when the rolled modifier is dust-storm. Indexed by
    *  `state.shotsFired` at fire time so both peers compute identical jitter
@@ -603,7 +606,7 @@ function createModernState(): ModernState {
     precomputedUpgradePicks: null,
     frozenTiles: null,
     sinkholeTiles: null,
-    lowWaterTiles: null,
+    exposedRiverbedTiles: null,
     precomputedDustStormJitters: [],
     rubbleClearingHeld: null,
     supplyShips: null,

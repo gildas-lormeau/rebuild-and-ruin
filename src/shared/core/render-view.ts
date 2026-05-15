@@ -25,6 +25,9 @@ interface RenderModernSlice {
    *  (e.g. grunt-surge spawn tiles). */
   readonly activeModifierChangedTiles: readonly number[];
   readonly frozenTiles: ReadonlySet<number> | null;
+  /** Low-water exposed riverbed tiles. Renderer paints these as bank
+   *  via FLAG_EXPOSED in the tile-data texture. */
+  readonly exposedRiverbedTiles: ReadonlySet<number> | null;
   readonly masterBuilderLockout: number;
   readonly comboTracker: {
     readonly events: readonly ComboEvent[];
