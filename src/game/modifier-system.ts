@@ -9,6 +9,7 @@
 import { FID } from "../shared/core/feature-defs.ts";
 import {
   MODIFIER_FIRST_ROUND,
+  MODIFIER_ID,
   MODIFIER_ROLL_CHANCE,
   type ModifierId,
 } from "../shared/core/game-constants.ts";
@@ -75,9 +76,16 @@ export function rollModifier(state: GameState): ModifierId | null {
   if (!state.rng.bool(MODIFIER_ROLL_CHANCE)) return null;
 
   const disabled = state.testHooks?.disabledModifiers;
+  // High Tide floods river-adjacent grass and evicts walls/houses/bonus, but
+  // unlike wildfire/sinkhole it doesn't honor `getProtectedCastleTiles`. Skip
+  // the roll entirely while any seated player is in the post-reselect grace
+  // period so a freshly auto-built castle ring near water can't be wiped.
+  const inGrace = state.players.some((player) => player.inGracePeriod);
   const candidates = IMPLEMENTED_MODIFIERS.filter(
     (mod) =>
-      mod.id !== state.modern?.lastModifierId && !disabled?.includes(mod.id),
+      mod.id !== state.modern?.lastModifierId &&
+      !disabled?.includes(mod.id) &&
+      !(inGrace && mod.id === MODIFIER_ID.HIGH_TIDE),
   );
   if (candidates.length === 0) return null;
 
