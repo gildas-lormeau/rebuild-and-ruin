@@ -293,7 +293,8 @@ function handleCannonFired(
     !Number.isFinite(msg.targetY)
   )
     return DROPPED;
-  if (!isRemoteHumanAction(msg.playerId, deps)) return DROPPED;
+  if (!isRemoteHumanAction(msg.scoringPlayerId ?? msg.playerId, deps))
+    return DROPPED;
   const player = state.players[msg.playerId];
   if (!player || !player.cannons[msg.cannonIdx]) {
     deps.log(
