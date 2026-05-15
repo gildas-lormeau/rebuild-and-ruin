@@ -507,7 +507,18 @@ export function pickTarget(
       2 * SUPPLY_SHIP_TARGET_PROBABILITY,
     ] as const);
     if (rand() < shipProb) {
-      const shipTarget = pickSupplyShipTarget(supplyShips, rng);
+      const cannons = state.players[playerId]!.cannons;
+      let sumRow = 0;
+      let sumCol = 0;
+      for (const cannon of cannons) {
+        sumRow += cannon.row;
+        sumCol += cannon.col;
+      }
+      const shooterTile = {
+        row: sumRow / cannons.length,
+        col: sumCol / cannons.length,
+      };
+      const shipTarget = pickSupplyShipTarget(supplyShips, shooterTile, rng);
       if (shipTarget) {
         return { x: shipTarget.x, y: shipTarget.y };
       }

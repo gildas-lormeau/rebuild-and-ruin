@@ -6,6 +6,7 @@
  */
 
 import { BATTLE_MESSAGE } from "../../shared/core/battle-events.ts";
+import { BALL_SPEED } from "../../shared/core/game-constants.ts";
 import type {
   PixelPos,
   TileGridPos,
@@ -49,6 +50,10 @@ const AUTO_SINK_AT_TIMER = 1.5;
  *  hit. Generous (~1 tile) so leading a moving target feels rewarding
  *  rather than punishing. Tuned with playtest. */
 const HIT_RADIUS = 1.0;
+/** Symmetric aim jitter (tiles) added to the AI's lead-predicted target
+ *  so it doesn't snipe every ship — humans with manual lead still come
+ *  out ahead, but the AI lands a meaningful fraction of its shots. */
+const SUPPLY_SHIP_AIM_NOISE = 0.5;
 /** Seconds added to WALL_BUILD timer per consumed `extra_build_time`
  *  bonus. Matches Master Builder's `MASTER_BUILDER_BONUS_SECONDS` so
  *  the player intuition of "+5s build" is consistent across sources. */
@@ -202,25 +207,41 @@ export function supplyShipBuildTimerBonus(state: GameState): number {
   return totalSeconds;
 }
 
-/** Pick a non-sinking supply ship as a shot target for AI cannons.
- *  Returns the ship's current pixel position with no lead prediction —
- *  cannonball flight time + ship motion provide natural miss-chance, so
- *  AIs occasionally land a hit without reliably sniping the bonuses
- *  away from human players. Returns null when no targetable ship exists
- *  (modifier inactive, ships cleared, or all sinking). Takes the ships
- *  array directly so the AI's read-only `BattleViewState` slice fits
- *  without exposing the full GameState surface. */
+/** Pick a non-sinking supply ship as a shot target for AI cannons and
+ *  return a lead-predicted pixel position so a ball fired from
+ *  `shooterTile` actually lands near the ship by the time it arrives.
+ *  Without lead, ship drift during the cannonball's flight (~0.1 tile
+ *  per tile of shooter→ship distance) exceeds HIT_RADIUS at every
+ *  non-point-blank range, so the AI was essentially never hitting.
+ *  Symmetric noise (±SUPPLY_SHIP_AIM_NOISE) keeps the AI from sniping
+ *  bonuses away from human players. Returns null when no targetable
+ *  ship exists (modifier inactive, ships cleared, or all sinking). */
 export function pickSupplyShipTarget(
   ships: readonly SupplyShip[] | null | undefined,
+  shooterTile: TilePos,
   rng: Rng,
 ): PixelPos | null {
   if (!ships || ships.length === 0) return null;
   const targetable = ships.filter((ship) => !ship.sinking && ship.hp > 0);
   if (targetable.length === 0) return null;
   const ship = rng.pick(targetable);
+
+  const ballSpeedTiles = BALL_SPEED / TILE_SIZE;
+  const deltaCol = ship.position.col - shooterTile.col;
+  const deltaRow = ship.position.row - shooterTile.row;
+  const flightTime =
+    Math.sqrt(deltaCol * deltaCol + deltaRow * deltaRow) / ballSpeedTiles;
+  const leadCol =
+    ship.position.col +
+    Math.cos(ship.headingRad) * SUPPLY_SHIP_SPEED * flightTime;
+  const leadRow =
+    ship.position.row +
+    Math.sin(ship.headingRad) * SUPPLY_SHIP_SPEED * flightTime;
+  const noiseCol = (rng.next() - 0.5) * 2 * SUPPLY_SHIP_AIM_NOISE;
+  const noiseRow = (rng.next() - 0.5) * 2 * SUPPLY_SHIP_AIM_NOISE;
   return {
-    x: ship.position.col * TILE_SIZE,
-    y: ship.position.row * TILE_SIZE,
+    x: (leadCol + noiseCol) * TILE_SIZE,
+    y: (leadRow + noiseRow) * TILE_SIZE,
   };
 }
 
