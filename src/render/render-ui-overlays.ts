@@ -22,7 +22,7 @@ import { modifierDef, type SupplyShip } from "../shared/core/modifier-defs.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import { cannonTier } from "../shared/core/player-types.ts";
 import type { RenderView } from "../shared/core/render-view.ts";
-import { castleCenterPx } from "../shared/core/spatial.ts";
+import { castleCenterPx, computeFloodedTiles } from "../shared/core/spatial.ts";
 import { type ComboEvent, type SelectionState } from "../shared/core/types.ts";
 import { UPGRADE_POOL } from "../shared/core/upgrade-defs.ts";
 import { IS_TOUCH_DEVICE } from "../shared/platform/platform.ts";
@@ -335,6 +335,10 @@ export function createOnlineOverlay(
       frozenTiles: view.modern?.frozenTiles ?? undefined,
       thawingTiles:
         battleAnim.thawing.length > 0 ? battleAnim.thawing : undefined,
+      floodedTiles:
+        view.modern?.activeModifier === MODIFIER_ID.HIGH_TIDE
+          ? computeFloodedTiles(view.map)
+          : undefined,
     },
     battle: {
       battleTerritory,

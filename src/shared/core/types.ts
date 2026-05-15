@@ -276,9 +276,6 @@ export interface ModernState {
   /** Sinkhole tiles (packed tile keys) — grass tiles permanently converted to water.
    *  Cumulative across rounds. null = no sinkholes yet. */
   sinkholeTiles: Set<TileKey> | null;
-  /** High tide tiles (packed tile keys) — grass tiles temporarily flooded.
-   *  Set when high_tide modifier fires, cleared at next battle start. null otherwise. */
-  highTideTiles: Set<TileKey> | null;
   /** Low water tiles (packed tile keys) — water tiles temporarily converted to grass.
    *  Set when low_water modifier fires, cleared at next battle start. null otherwise. */
   lowWaterTiles: Set<TileKey> | null;
@@ -606,7 +603,6 @@ function createModernState(): ModernState {
     precomputedUpgradePicks: null,
     frozenTiles: null,
     sinkholeTiles: null,
-    highTideTiles: null,
     lowWaterTiles: null,
     precomputedDustStormJitters: [],
     rubbleClearingHeld: null,

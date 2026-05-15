@@ -30,6 +30,7 @@ import {
   distanceToTower,
   hasPitAt,
   inBounds,
+  isFloodedTile,
   isGrass,
   isTowerTile,
   manhattanDistance,
@@ -427,6 +428,15 @@ function isGruntBlocked(state: GameState, r: number, c: number): boolean {
   // Water tiles are passable when frozen
   if (!isGrass(state.map.tiles, r, c)) {
     if (!state.modern?.frozenTiles?.has(packTile(r, c))) return true;
+  }
+  // High Tide: tile reads as grass but the visible water blocks movement
+  // (the grunt would drown). Per-tile check so each pathfinding step pays
+  // O(4 + |towers|) instead of materializing the whole flood set.
+  if (
+    state.modern?.activeModifier === MODIFIER_ID.HIGH_TIDE &&
+    isFloodedTile(state.map, r, c)
+  ) {
+    return true;
   }
   if (hasCannonAt(state, r, c)) return true;
   if (hasAliveHouseAt(state, r, c)) return true;

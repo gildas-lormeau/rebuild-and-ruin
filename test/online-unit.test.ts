@@ -147,7 +147,6 @@ function makeFullState(migrationSeq: number): FullStateMessage {
     activeModifierChangedTiles: [],
     lastModifierId: null,
     frozenTiles: null,
-    highTideTiles: null,
     sinkholeTiles: null,
     lowWaterTiles: null,
   };

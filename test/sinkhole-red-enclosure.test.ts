@@ -52,17 +52,15 @@ Deno.test("seed 546418: red encloses its sinkhole during the next build phase", 
 
   // Round-scoped modifier state for OTHER modifiers must be null in this
   // WALL_BUILD: this round rolled sinkhole (permanent), and any previous
-  // round's round-scoped state (frozen tiles, high tide, low water,
-  // frostbite chip) was cleared by `prepareBattleState`'s `clearActiveModifiers`
-  // call before sinkhole was applied. Permanent sinkhole tiles persist.
+  // round's round-scoped state (frozen tiles, low water, frostbite chip)
+  // was cleared by `prepareBattleState`'s `clearActiveModifiers` call
+  // before sinkhole was applied. Permanent sinkhole tiles persist.
+  // (high_tide no longer carries serialized state — its flooded set is
+  // computed from the static map; see `computeFloodedTiles`.)
   const modern = sc.state.modern!;
   assert(
     modern.frozenTiles === null,
     `expected frozenTiles=null in WALL_BUILD, got size=${modern.frozenTiles?.size}`,
-  );
-  assert(
-    modern.highTideTiles === null,
-    `expected highTideTiles=null in WALL_BUILD, got size=${modern.highTideTiles?.size}`,
   );
   assert(
     modern.lowWaterTiles === null,
@@ -89,7 +87,6 @@ function dumpSinkholeState(
   console.log(`lastModifierId=${modern.lastModifierId}`);
   console.log(`activeModifierChangedTiles=${modern.activeModifierChangedTiles.length} tile(s)`);
   console.log(`sinkholeTiles=${modern.sinkholeTiles?.size ?? 0} tile(s) cumulative`);
-  console.log(`highTideTiles=${modern.highTideTiles?.size ?? 0}`);
   console.log(`frozenTiles=${modern.frozenTiles?.size ?? 0}`);
   console.log(`lowWaterTiles=${modern.lowWaterTiles?.size ?? 0}`);
 

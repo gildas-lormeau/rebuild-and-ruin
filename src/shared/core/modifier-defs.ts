@@ -17,7 +17,6 @@ import type { PoolDef } from "./pool-def.ts";
  *  tile-mutating modifier trips the compiler on both sides at once. */
 export interface SerializedModifierTiles {
   frozenTiles: number[] | null;
-  highTideTiles: number[] | null;
   sinkholeTiles: number[] | null;
   lowWaterTiles: number[] | null;
 }
@@ -182,9 +181,10 @@ const MODIFIER_POOL = [
       "River widens 1 tile, flooding banks and destroying structures. Recedes next round",
     weight: WEIGHT_UNCOMMON,
     implemented: true,
-    needsCheckpoint: true,
-    // Same as sinkhole — flooded river banks were grass before.
-    tileMutationPrev: 0, // Tile.Grass — value import of Tile is restricted
+    // Tile types stay grass — flooded set is derived from the static map
+    // (see `computeFloodedTiles`); render goes through FLAG_FLOODED.
+    needsCheckpoint: false,
+    tileMutationPrev: null,
   },
   {
     id: "dust_storm",
@@ -318,8 +318,11 @@ export const MODIFIER_CONSUMERS = {
   },
   high_tide: {
     impl: "src/game/modifiers/high-tide.ts",
-    serialize: "src/online/online-serialize.ts",
+    behavior_movement: "src/game/grunt-movement.ts",
+    behavior_build: "src/game/build-system.ts",
+    behavior_castle_gen: "src/game/castle-generation.ts",
     render_burst: "src/render/3d/effects/water-surge.ts",
+    render_flag: "src/render/3d/effects/terrain-tile-data.ts",
   },
   dust_storm: {
     impl: "src/game/modifiers/dust-storm.ts",

@@ -21,6 +21,8 @@ import {
   CASTLE_BONUS_TABLE,
   DESTROY_GRUNT_POINTS,
   ENCLOSED_GRUNT_RESPAWN_CHANCE,
+  MODIFIER_ID,
+  type ModifierId,
   TERRITORY_POINT_TIERS,
   TOWER_SIZE,
 } from "../shared/core/game-constants.ts";
@@ -48,6 +50,7 @@ import {
   hasEnclosableMargin,
   hasPitAt,
   inBounds,
+  isFloodedTile,
   isGrass,
   manhattanDistance,
   packTile,
@@ -109,6 +112,7 @@ export function canPlacePiece(
   state: GameViewState & {
     readonly grunts: readonly Grunt[];
     readonly burningPits: readonly BurningPit[];
+    readonly modern?: { readonly activeModifier: ModifierId | null } | null;
   },
   playerId: ValidPlayerId,
   offsets: readonly [number, number][],
@@ -122,12 +126,18 @@ export function canPlacePiece(
   if (!placementCtx) return false;
   const { player, zone, overlapAllowance, allowPitOverlap, allowGruntOverlap } =
     placementCtx;
+  // High Tide: tiles stay grass mechanically but the visible water rules
+  // them out for placement. Per-tile lookup (not full-set construction)
+  // so the AI's hot inner loop doesn't pay O(map_size) on every call —
+  // each offset costs O(4 + |towers|) only when the modifier is active.
+  const highTideActive = state.modern?.activeModifier === MODIFIER_ID.HIGH_TIDE;
   let wallOverlaps = 0;
   for (const [dr, dc] of offsets) {
     const r = row + dr;
     const c = col + dc;
     if (!inBounds(r, c)) return false;
     if (!isGrass(state.map.tiles, r, c)) return false;
+    if (highTideActive && isFloodedTile(state.map, r, c)) return false;
     // Must be within the player's zone
     if (zone !== undefined && zoneAt(state.map, r, c) !== zone) return false;
     const key = packTile(r, c);

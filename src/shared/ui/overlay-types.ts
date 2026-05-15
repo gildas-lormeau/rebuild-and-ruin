@@ -152,6 +152,11 @@ export interface EntityOverlay {
   frozenTiles?: ReadonlySet<number>;
   /** Recently thawed tiles — drives the crack-and-fade break animation. */
   thawingTiles?: readonly ThawingTile[];
+  /** High-tide flooded tiles for rendering water over grass. Computed
+   *  by the overlay builder from the static map when the modifier is
+   *  active (see `computeFloodedTiles`); not stored on state.modern,
+   *  not serialized. */
+  floodedTiles?: ReadonlySet<number>;
 }
 
 /** Build/cannon phase — piece and cannon placement previews.

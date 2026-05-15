@@ -256,8 +256,9 @@ export interface FullStateMessage extends SerializedModifierTiles {
         wallsDestroyedThisRound: number;
       }[]
     | null;
-  // Modifier tile sets (frozenTiles, highTideTiles, sinkholeTiles,
-  // lowWaterTiles) come from `extends SerializedModifierTiles` above.
+  // Modifier tile sets (frozenTiles, sinkholeTiles, lowWaterTiles) come
+  // from `extends SerializedModifierTiles` above. high_tide is computed
+  // (see `computeFloodedTiles`), not serialized.
   /** Pre-removal entity snapshot from `rubble_clearing` modifier — drives
    *  the post-reveal fade animation. Cleared at BATTLE_END so most
    *  checkpoints carry null; only present on a host migration during the

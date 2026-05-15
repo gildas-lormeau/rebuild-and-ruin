@@ -437,9 +437,6 @@ function serializeModifierTileSets(state: GameState): SerializedModifierTiles {
     frozenTiles: state.modern?.frozenTiles
       ? [...state.modern.frozenTiles]
       : null,
-    highTideTiles: state.modern?.highTideTiles
-      ? [...state.modern.highTideTiles]
-      : null,
     sinkholeTiles: state.modern?.sinkholeTiles
       ? [...state.modern.sinkholeTiles]
       : null,

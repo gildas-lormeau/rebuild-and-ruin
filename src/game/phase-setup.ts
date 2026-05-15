@@ -15,10 +15,18 @@ import {
   sweepIsolatedWalls,
 } from "../shared/core/board-occupancy.ts";
 import { FID } from "../shared/core/feature-defs.ts";
-import { type ModifierDiff } from "../shared/core/game-constants.ts";
+import {
+  MODIFIER_ID,
+  type ModifierDiff,
+} from "../shared/core/game-constants.ts";
 import { emitGameEvent, GAME_EVENT } from "../shared/core/game-event-bus.ts";
 import { Phase } from "../shared/core/game-phase.ts";
-import { GRID_COLS, GRID_ROWS, type TileKey } from "../shared/core/grid.ts";
+import {
+  GRID_COLS,
+  GRID_ROWS,
+  type Tile,
+  type TileKey,
+} from "../shared/core/grid.ts";
 import { markInteriorFresh } from "../shared/core/player-interior.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import {
@@ -30,10 +38,12 @@ import {
   type Player,
 } from "../shared/core/player-types.ts";
 import {
+  computeFloodedTiles,
   DIRS_4,
   isGrass,
   packTile,
   setGrass,
+  setWater,
   unpackTile,
   zoneAt,
 } from "../shared/core/spatial.ts";
@@ -328,28 +338,30 @@ export function computeScoreDeltas(
 }
 
 /** Prepare castle walls for all players, returning ordered wall tiles per player
- *  for animated construction. Sets castle but does NOT add walls or interior. */
+ *  for animated construction. Sets castle but does NOT add walls or interior.
+ *
+ *  When high_tide is active during a reselect cycle, project the flooded
+ *  ring back to water for the planner so the auto-built ring naturally
+ *  avoids tiles that are visually-water (preserves the
+ *  walls-cannot-be-built-on-flood invariant for new castles). */
 export function prepareCastleWallsForPlayer(
   state: GameState,
   playerId: ValidPlayerId,
 ): { playerId: ValidPlayerId; tiles: number[] } | null {
   const player = state.players[playerId];
   if (!player?.homeTower) return null;
-  const castle = createCastle(
-    player.homeTower,
-    state.map.tiles,
-    state.map.towers,
-  );
+  const planTiles = effectivePlanTiles(state);
+  const castle = createCastle(player.homeTower, planTiles, state.map.towers);
   player.castle = castle;
 
   // Get wall tiles and apply clumsy builders to a temp set
-  const wallTiles = computeCastleWallTiles(castle, state.map.tiles);
+  const wallTiles = computeCastleWallTiles(castle, planTiles);
   const tempWalls = new Set<number>();
   for (const [r, c] of wallTiles) tempWalls.add(packTile(r, c));
   applyClumsyBuilders(
     tempWalls,
     castle,
-    state.map.tiles,
+    planTiles,
     state.rng,
     state.map.towers,
   );
@@ -404,6 +416,25 @@ export function finalizeRoundCleanup(state: GameState): void {
   recomputeAllTerritory(state);
   sweepGruntsInDeadZones(state);
   recomputeGruntTargetedWalls(state);
+}
+
+/** Tile grid as the castle planner should see it: when high_tide is
+ *  active, flooded grass is projected back to water so the auto-built
+ *  ring + interior don't land on tiles the renderer paints as water and
+ *  the player can't build over. Returns the live tiles array unchanged
+ *  when no projection is needed (zero allocation). */
+function effectivePlanTiles(state: GameState): readonly Tile[][] {
+  if (state.modern?.activeModifier !== MODIFIER_ID.HIGH_TIDE) {
+    return state.map.tiles;
+  }
+  const flooded = computeFloodedTiles(state.map);
+  if (flooded.size === 0) return state.map.tiles;
+  const cloned: Tile[][] = state.map.tiles.map((row) => [...row]);
+  for (const key of flooded) {
+    const { r, c } = unpackTile(key);
+    setWater(cloned, r, c);
+  }
+  return cloned;
 }
 
 /** Shared pre-battle housekeeping run from both the real battle path
@@ -488,11 +519,10 @@ function applyLifePenalties(state: GameState): {
  *  the player can rebuild on neutral ground:
  *    - clears grunts, houses, burning pits, bonus squares inside the zone
  *    - revives the zone's towers
- *    - forces every non-grass tile in the zone back to grass (sinkholes,
- *      modifier-flooded tiles), drops those tiles from any modifier-owned
- *      tracker (sinkholeTiles / highTideTiles / lowWaterTiles), then
- *      recomputes `state.map.zones` so the restored grass folds back into
- *      the player's zone topology
+ *    - forces every non-grass tile in the zone back to grass (sinkholes),
+ *      drops those tiles from the sinkholeTiles tracker, then recomputes
+ *      `state.map.zones` so the restored grass folds back into the
+ *      player's zone topology
  *
  *  River-state outside the zone (frozen river, river-edge effects whose
  *  tiles aren't owned by this zone) is untouched — modifiers are global
@@ -549,13 +579,15 @@ function evictEntitiesInZone(
 }
 
 /** Force every non-grass tile inside `zone`'s territory back to grass and
- *  drop those tile keys from sinkhole / high-tide trackers.
+ *  drop those tile keys from the sinkhole tracker.
  *
  *  Walks tower-anchored: BFS from one of the zone's towers, treating
- *  grass AND modifier-flooded water (sinkhole, high-tide) as walkable,
- *  stopping at original river. This catches sinkhole/high-tide tiles
- *  even after a recompute dropped them out of the live zones array.
+ *  grass AND sinkhole-mutated water as walkable, stopping at original
+ *  river. This catches sinkhole tiles even after a recompute dropped
+ *  them out of the live zones array.
  *
+ *  high_tide does not appear here: it no longer mutates tiles (the
+ *  flooded set is derived from the static map; see `computeFloodedTiles`).
  *  Low-water tiles are river state per the user's principle — they stay
  *  grass and remain in the lowWaterTiles tracker so clearLowWater
  *  reverts them at the next round's prepareBattleState. */
@@ -564,7 +596,6 @@ function restoreZoneGrass(state: GameState, zone: ZoneId): void {
   if (!anchor) return;
   const tiles = state.map.tiles;
   const sinkholeTiles = state.modern?.sinkholeTiles;
-  const highTideTiles = state.modern?.highTideTiles;
   const visited = new Set<number>();
   const queue: number[] = [packTile(anchor.row, anchor.col)];
   visited.add(queue[0]!);
@@ -574,7 +605,6 @@ function restoreZoneGrass(state: GameState, zone: ZoneId): void {
     if (!isGrass(tiles, r, c)) {
       setGrass(tiles, r, c);
       sinkholeTiles?.delete(key as TileKey);
-      highTideTiles?.delete(key as TileKey);
     }
     for (const [dr, dc] of DIRS_4) {
       const nr = r + dr;
@@ -583,9 +613,7 @@ function restoreZoneGrass(state: GameState, zone: ZoneId): void {
       const neighborKey = packTile(nr, nc);
       if (visited.has(neighborKey)) continue;
       const isWalkable =
-        isGrass(tiles, nr, nc) ||
-        sinkholeTiles?.has(neighborKey) === true ||
-        highTideTiles?.has(neighborKey) === true;
+        isGrass(tiles, nr, nc) || sinkholeTiles?.has(neighborKey) === true;
       if (!isWalkable) continue;
       visited.add(neighborKey);
       queue.push(neighborKey);
@@ -594,8 +622,6 @@ function restoreZoneGrass(state: GameState, zone: ZoneId): void {
   if (state.modern) {
     if (sinkholeTiles && sinkholeTiles.size === 0)
       state.modern.sinkholeTiles = null;
-    if (highTideTiles && highTideTiles.size === 0)
-      state.modern.highTideTiles = null;
   }
 }
 

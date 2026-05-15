@@ -99,7 +99,7 @@ export function rollModifier(state: GameState): ModifierId | null {
 }
 
 /** Restore tile-mutating modifier state from checkpoint data (watcher +
- *  host-promotion path). Sets frozenTiles / highTideTiles / sinkholeTiles on
+ *  host-promotion path). Sets frozenTiles / sinkholeTiles / lowWaterTiles on
  *  state.modern from the checkpoint, then re-mutates the map tiles (which
  *  are regenerated from seed and thus need the modifier tiles reapplied).
  *

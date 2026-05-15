@@ -22,6 +22,7 @@ import { assert } from "@std/assert";
 import { GAME_EVENT } from "../src/shared/core/game-event-bus.ts";
 import { Phase } from "../src/shared/core/game-phase.ts";
 import type { ModifierId } from "../src/shared/core/game-constants.ts";
+import { computeFloodedTiles } from "../src/shared/core/spatial.ts";
 import { createScenario, type Scenario } from "./scenario.ts";
 
 /** Per-modifier effect probe. `install` subscribes to bus events and/or
@@ -124,13 +125,18 @@ const EFFECT_PROBES: Partial<Record<ModifierId, EffectProbe>> = {
   },
 
   high_tide: {
-    description: "state.modern.highTideTiles non-null + non-empty",
+    description: "computeFloodedTiles(map) non-empty + flooded ring is wall-free",
     install: (sc) => {
       let observed = false;
       sc.bus.on(GAME_EVENT.MODIFIER_APPLIED, (ev) => {
         if (ev.modifierId !== "high_tide") return;
-        const tiles = sc.state.modern?.highTideTiles;
-        if (tiles && tiles.size > 0) observed = true;
+        const flooded = computeFloodedTiles(sc.state.map);
+        if (flooded.size === 0) return;
+        // Apply mass-evicts walls on flooded tiles — verify none remain.
+        const remainingWall = sc.state.players.some((player) =>
+          [...flooded].some((key) => player.walls.has(key)),
+        );
+        if (!remainingWall) observed = true;
       });
       return () => observed;
     },

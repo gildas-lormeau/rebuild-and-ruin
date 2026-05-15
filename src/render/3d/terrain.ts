@@ -427,6 +427,7 @@ const float BANK_WATER_DIST = ${GLSL_BANK_TO_WATER_DIST};
 const float BANK_TRANSITION = ${GLSL_TRANSITION_WIDTH};
 const float ICE_BLEND_WIDTH = ${GLSL_ICE_BLEND_WIDTH};
 const int FLAG_FROZEN = 2;
+const int FLAG_FLOODED = 4;
 
 bool isFlagSet(int flags, int mask) {
   return (flags / mask - (flags / (mask * 2)) * 2) == 1;
@@ -591,6 +592,7 @@ vec4 applyWaveOverlay(vec4 base, ivec2 tileRC, vec2 worldPx) {
     int ownerId = int(tileData.r * 255.0 + 0.5) - 1;
     int flags = int(tileData.g * 255.0 + 0.5);
     bool isFrozen = isFlagSet(flags, FLAG_FROZEN);
+    bool isFlooded = isFlagSet(flags, FLAG_FLOODED);
     float d = texture2D(sdfTex, vTerrainUv).r;
 
     vec3 grass;
@@ -619,7 +621,12 @@ vec4 applyWaveOverlay(vec4 base, ivec2 tileRC, vec2 worldPx) {
         ? applyPatternOffset(grass, worldPx, cobblestonePatternTex)
         : applyPatternOffset(grass, worldPx, grassPatternTex);
     }
-    vec3 terrainColor = selectBankColor(d, grass, water);
+    // High Tide: the underlying tile is still grass (so the SDF reports
+    // a grass distance), but the modifier paints the bank ring as water.
+    // Bypass selectBankColor and force the water variant — the resulting
+    // sharp boundary with adjacent natural grass is acceptable for a
+    // 1-round visual that lifts at the next CANNON_PLACE.
+    vec3 terrainColor = isFlooded ? water : selectBankColor(d, grass, water);
     diffuseColor = vec4(terrainColor, 1.0);
 
     // Open-water wave overlay (was effects/water-waves.ts) — the SDF gate
@@ -628,8 +635,9 @@ vec4 applyWaveOverlay(vec4 base, ivec2 tileRC, vec2 worldPx) {
     // their interior pixels for a more continuous open-water look.
     // Suppressed on owned-water tiles (the small enclosed pool look —
     // sinkholes, enclosed high-tide, bays — doesn't suit the drifting
-    // wave effect, which was tuned for the open river).
-    if (inBattle && !ownedWater && !isFrozen
+    // wave effect, which was tuned for the open river) and on flooded
+    // tiles (1-tile bank ring with no SDF water gradient).
+    if (inBattle && !ownedWater && !isFrozen && !isFlooded
         && d > BANK_WATER_DIST + BANK_TRANSITION) {
       diffuseColor = applyWaveOverlay(diffuseColor, tileRC, worldPx);
     }

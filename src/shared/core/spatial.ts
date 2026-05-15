@@ -49,19 +49,6 @@ export const CORNERS_2X2 = [
 /** Offset to convert a tile index to the center of that tile (0.5). */
 export const TILE_CENTER_OFFSET = 0.5;
 
-/** Call `fn` for each tile of a 2×2 tower footprint. */
-export function forEachTowerTile(
-  tilePos: TilePos,
-  callback: (r: number, c: number, key: TileKey) => void,
-): void {
-  forEachSquareTile(tilePos.row, tilePos.col, TOWER_SIZE, callback);
-}
-
-/** True if (r,c) is within a 2×2 tower footprint. */
-export function isTowerTile(tilePos: TilePos, r: number, c: number): boolean {
-  return isTileInRect(tilePos.row, tilePos.col, TOWER_SIZE, r, c);
-}
-
 /** Return the set of packed tile keys covered by a cannon footprint. */
 export function computeCannonTileSet(
   cannon: Pick<Cannon, "row" | "col" | "mode">,
@@ -295,15 +282,6 @@ export function orderByNearest<T extends TilePos>(
   return ordered;
 }
 
-/** True if tile at (r,c) is grass. Returns false for out-of-bounds. */
-export function isGrass(
-  tiles: readonly (readonly Tile[])[],
-  r: number,
-  c: number,
-): boolean {
-  return tiles[r]?.[c] === Tile.Grass;
-}
-
 /** True if all 8 neighbors of (r,c) are in-bounds and non-water — i.e. a
  *  player can build a wall ring around the tile to enclose it. Used by
  *  placement predicates for houses, bonus squares, and modifier pits. */
@@ -321,15 +299,6 @@ export function hasEnclosableMargin(
   return true;
 }
 
-/** True if tile at (r,c) is water. Returns false for out-of-bounds. */
-export function isWater(
-  tiles: readonly (readonly Tile[])[],
-  r: number,
-  c: number,
-): boolean {
-  return tiles[r]?.[c] === Tile.Water;
-}
-
 /** Mutate a tile to water. Used by sinkhole modifier for permanent terrain changes. */
 export function setWater(tiles: Tile[][], r: number, c: number): void {
   tiles[r]![c] = Tile.Water;
@@ -338,6 +307,85 @@ export function setWater(tiles: Tile[][], r: number, c: number): void {
 /** Mutate a tile to grass. Used to revert sinkholes on dead player zones. */
 export function setGrass(tiles: Tile[][], r: number, c: number): void {
   tiles[r]![c] = Tile.Grass;
+}
+
+/** Per-tile membership test for the high_tide flooded ring — the
+ *  point-wise version of `computeFloodedTiles`. Use this in hot loops
+ *  (grunt pathfinding) to avoid building the whole set; callers that
+ *  iterate every flooded tile (renderer, eviction) should still build
+ *  the set once via `computeFloodedTiles`. */
+export function isFloodedTile(map: GameMap, r: number, c: number): boolean {
+  if (!isGrass(map.tiles, r, c)) return false;
+  for (const [dr, dc] of DIRS_4) {
+    if (isWater(map.tiles, r + dr, c + dc)) {
+      // Towers occupy grass tiles; the flood ring excludes them.
+      for (const tower of map.towers) {
+        if (isTowerTile(tower, r, c)) return false;
+      }
+      return true;
+    }
+  }
+  return false;
+}
+
+/** True if (r,c) is within a 2×2 tower footprint. */
+export function isTowerTile(tilePos: TilePos, r: number, c: number): boolean {
+  return isTileInRect(tilePos.row, tilePos.col, TOWER_SIZE, r, c);
+}
+
+/** Pure function of the static map: every grass tile 4-dir adjacent to
+ *  water, minus tiles occupied by a 2×2 tower footprint. This is exactly
+ *  the set high_tide marks as flooded — derivable instead of stored, so
+ *  no checkpoint/wire round-trip and no host/watcher serialization gap.
+ *  O(GRID_ROWS·GRID_COLS); call from each consumer that needs the whole
+ *  set (renderer tile-data, apply-time eviction). Per-tile callers
+ *  (grunt-movement) should use `isFloodedTile` instead. */
+export function computeFloodedTiles(map: GameMap): Set<TileKey> {
+  const towerTiles = new Set<number>();
+  for (const tower of map.towers) {
+    forEachTowerTile(tower, (_r, _c, key) => towerTiles.add(key));
+  }
+  const flooded = new Set<TileKey>();
+  for (let r = 0; r < GRID_ROWS; r++) {
+    for (let c = 0; c < GRID_COLS; c++) {
+      if (!isGrass(map.tiles, r, c)) continue;
+      const key = packTile(r, c);
+      if (towerTiles.has(key)) continue;
+      for (const [dr, dc] of DIRS_4) {
+        if (isWater(map.tiles, r + dr, c + dc)) {
+          flooded.add(key as TileKey);
+          break;
+        }
+      }
+    }
+  }
+  return flooded;
+}
+
+/** Call `fn` for each tile of a 2×2 tower footprint. */
+export function forEachTowerTile(
+  tilePos: TilePos,
+  callback: (r: number, c: number, key: TileKey) => void,
+): void {
+  forEachSquareTile(tilePos.row, tilePos.col, TOWER_SIZE, callback);
+}
+
+/** True if tile at (r,c) is grass. Returns false for out-of-bounds. */
+export function isGrass(
+  tiles: readonly (readonly Tile[])[],
+  r: number,
+  c: number,
+): boolean {
+  return tiles[r]?.[c] === Tile.Grass;
+}
+
+/** True if tile at (r,c) is water. Returns false for out-of-bounds. */
+export function isWater(
+  tiles: readonly (readonly Tile[])[],
+  r: number,
+  c: number,
+): boolean {
+  return tiles[r]?.[c] === Tile.Water;
 }
 
 /** Build a set of all water tile keys — use as extra barriers for computeOutside. */
