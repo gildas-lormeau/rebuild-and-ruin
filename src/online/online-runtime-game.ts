@@ -1,4 +1,3 @@
-import { nextReadyCannon } from "../game/index.ts";
 import {
   type InitMessage,
   MESSAGE,
@@ -8,7 +7,6 @@ import {
   createBrowserRuntimeBindings,
   createGameRuntime,
 } from "../runtime/runtime-composition.ts";
-import { tickRemoteCrosshair } from "../runtime/runtime-crosshair-anim.ts";
 import { setMode } from "../runtime/runtime-state.ts";
 import {
   isHostInContext,
@@ -30,7 +28,7 @@ import { canvas, worldCanvas } from "./online-dom.ts";
 import {
   broadcastLocalCrosshair as broadcastLocalCrosshairImpl,
   extendWithRemoteCrosshairs,
-} from "./online-host-crosshairs.ts";
+} from "./online-remote-crosshairs.ts";
 import { GAME_EXIT_EVENT } from "./online-router.ts";
 import { handleServerMessage, initDeps } from "./online-runtime-deps.ts";
 import { initPromote } from "./online-runtime-promote.ts";
@@ -183,23 +181,13 @@ const runtime: GameRuntime = createGameRuntime({
     },
 
     // ── Cross-machine merging ─────────────────────────────────────────
-    extendCrosshairs: (crosshairs, dt) => {
-      const state = runtime.runtimeState.state;
-      return extendWithRemoteCrosshairs(crosshairs, dt, {
-        remoteCrosshairs: ctx.presence.remoteCrosshairs,
+    extendCrosshairs: (crosshairs, dt) =>
+      extendWithRemoteCrosshairs(crosshairs, dt, {
+        state: runtime.runtimeState.state,
+        presence: ctx.presence,
         remotePlayerSlots: ctx.session.remotePlayerSlots,
         logThrottled: devLogThrottled,
-        resolveRemoteTarget: (pid, target, dtMs) =>
-          tickRemoteCrosshair(
-            pid,
-            target,
-            state,
-            dtMs,
-            ctx.presence.smoothedCrosshairPos,
-          ),
-        hasReadyCannon: (pid) => !!nextReadyCannon(state, pid),
-      });
-    },
+      }),
     tickMigrationAnnouncement: (dt) =>
       tickPersistentAnnouncement(
         ctx.presence.migrationBanner,

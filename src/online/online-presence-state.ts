@@ -5,12 +5,13 @@
  */
 
 import type { PixelPos } from "../shared/core/geometry-types.ts";
+import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import type { RemoteCrosshairTargets } from "./online-types.ts";
 
 export interface OnlinePresenceState extends RemoteCrosshairTargets {
   /** Interpolated visual positions, smoothed each frame toward the
    *  latest `remoteCrosshairs` target — what the renderer displays. */
-  smoothedCrosshairPos: Map<number, PixelPos>;
+  smoothedCrosshairPos: Map<ValidPlayerId, PixelPos>;
   /** Host-migration announcement: survives frame clears for the duration, then self-clears.
    *  Driven through `tickPersistentAnnouncement` from runtime-tick-context. */
   migrationBanner: { timer: number; text: string };

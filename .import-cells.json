@@ -383,7 +383,6 @@
       "src/runtime/dev-console-grid.ts",
       "src/runtime/modifier-reveal-overlay-registry.ts",
       "src/runtime/music-player.ts",
-      "src/runtime/runtime-crosshair-anim.ts",
       "src/runtime/runtime-haptics.ts",
       "src/runtime/runtime-life-lost-core.ts",
       "src/runtime/runtime-state.ts",
@@ -431,9 +430,9 @@
   {
     "layer": 7,
     "domain": "online",
-    "role": "online action send, host crosshairs & stores",
+    "role": "online action send, remote crosshairs & stores",
     "files": [
-      "src/online/online-host-crosshairs.ts",
+      "src/online/online-remote-crosshairs.ts",
       "src/online/online-server-lifecycle.ts",
       "src/online/online-stores.ts"
     ]

@@ -1,6 +1,7 @@
 /** Shared types and utilities for online multiplayer sub-modules. */
 
 import type { PixelPos } from "../shared/core/geometry-types.ts";
+import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 
 /** Latest aim-update target per remote-human player (raw, not smoothed).
  *  Phantoms are written directly onto each remote-controlled slot's
@@ -10,5 +11,5 @@ import type { PixelPos } from "../shared/core/geometry-types.ts";
  *  logic" consumers can reference it without importing the higher-layer
  *  presence module. */
 export interface RemoteCrosshairTargets {
-  remoteCrosshairs: Map<number, PixelPos>;
+  remoteCrosshairs: Map<ValidPlayerId, PixelPos>;
 }

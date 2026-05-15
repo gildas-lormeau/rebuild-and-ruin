@@ -107,7 +107,7 @@ const LABELS: Record<string, string> = {
   // L7 — entity renderers & cross-domain handlers
   "7::controllers": "human controller",
   "7::game": "game init, zone recompute & fire modifier",
-  "7::online": "online action send, host crosshairs & stores",
+  "7::online": "online action send, remote crosshairs & stores",
   "7::render": "entity renderers & 3D effect factories",
   "7::runtime": "runtime contracts & battle anim",
   "7::server": "server room manager",
