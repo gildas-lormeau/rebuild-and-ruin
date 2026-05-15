@@ -13,7 +13,7 @@ import {
   type InputReceiver,
   type PlayerController,
 } from "../shared/core/system-interfaces.ts";
-import type { WithPointerPlayer } from "./runtime-contracts.ts";
+import type { WithPointerPlayer } from "../shared/ui/input-deps.ts";
 import { isSessionLive, type RuntimeState } from "./runtime-state.ts";
 
 interface PointerPlayerLookup {

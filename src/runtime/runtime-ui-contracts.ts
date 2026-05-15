@@ -1,3 +1,11 @@
+/**
+ * UI contracts — overlay/screen factories, hit-test types, touch component
+ * handle interfaces, and input-handler registration signatures. The
+ * cross-cutting types that runtime/, render/, and input/ all need to agree
+ * on. Per-component deps live in shared/ui/input-deps.ts; banner callback
+ * types live in runtime-banner-state.ts.
+ */
+
 import type {
   BalloonFlight,
   CannonDestroy,
@@ -10,32 +18,26 @@ import type {
 } from "../shared/core/battle-types.ts";
 import type { BannerKind } from "../shared/core/game-event-bus.ts";
 import { Phase } from "../shared/core/game-phase.ts";
-import type {
-  GameMap,
-  TowerIdx,
-  WorldPos,
-} from "../shared/core/geometry-types.ts";
+import type { GameMap, WorldPos } from "../shared/core/geometry-types.ts";
 import type { TileKey } from "../shared/core/grid.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import type { RenderView } from "../shared/core/render-view.ts";
 import type {
-  BattleViewState,
-  BuildViewState,
-  CannonViewState,
   InputReceiver,
   PlayerController,
 } from "../shared/core/system-interfaces.ts";
-import type {
-  GameState,
-  LobbyState,
-  SelectionState,
-} from "../shared/core/types.ts";
-import type { ZoneId } from "../shared/core/zone-id.ts";
-import type {
-  BannerContent,
-  SceneCapture,
-} from "../shared/ui/banner-content.ts";
+import type { GameState, LobbyState } from "../shared/core/types.ts";
+import type { SceneCapture } from "../shared/ui/banner-content.ts";
 import type { Action } from "../shared/ui/input-action.ts";
+import type {
+  DpadDeps,
+  FloatingActionsDeps,
+  GameActionDeps,
+  PointerMoveDeps,
+  QuitButtonDeps,
+  WithPointerPlayer,
+  ZoomButtonDeps,
+} from "../shared/ui/input-deps.ts";
 import type {
   ControlsState,
   GameOverFocus,
@@ -80,14 +82,6 @@ export interface UIContext {
    *  "Sound" row in the options screen can render status at a glance. */
   getSoundReady: () => boolean;
 }
-
-/** Run `action` with the pointer (local human) controller. Returns `true`
- *  if it actually ran, `false` when there is no human to receive the input
- *  (all-AI, demo, online-watcher). Ignore the return value to preserve the
- *  legacy silent-no-op behavior; inspect it to surface a diagnostic. */
-export type WithPointerPlayer = (
-  action: (human: PlayerController & InputReceiver) => void,
-) => boolean;
 
 export type CreateOptionsOverlayFn = (ctx: UIContext) => {
   map: GameMap;
@@ -267,87 +261,6 @@ export type RegisterMouseHandlersFn = (deps: RegisterOnlineInputDeps) => void;
 // Function type export — consumed as type-only import by runtime/
 export type RegisterTouchHandlersFn = (deps: RegisterOnlineInputDeps) => void;
 
-export interface OverlayActionDeps {
-  options?: {
-    isActive: () => boolean;
-    moveCursor: (dir: -1 | 1) => void;
-    changeValue: (dir: -1 | 1) => void;
-    confirm: () => void;
-  };
-  /** Centralized per-player dialog action (life-lost, upgrade pick).
-   *  The caller resolves the playerId upstream (pointer player for touch,
-   *  matched controller for keyboard). Returns true if consumed. */
-  dialogAction?: (action: Action) => boolean;
-  gameOver?: {
-    isActive: () => boolean;
-    toggleFocus: () => void;
-    confirm: () => void;
-  };
-}
-
-export interface DpadDeps {
-  getState: () => GameState | undefined;
-  getMode: () => Mode;
-  withPointerPlayer: WithPointerPlayer;
-  /** Emit a `uiTap` bus event so the haptics subsystem (and any future
-   *  feedback subsystem) can react to the user tapping a d-pad button
-   *  without the d-pad importing those subsystems directly. No-op when
-   *  game state isn't ready (lobby pre-state). */
-  emitUiTap?: () => void;
-  isHost: () => boolean;
-  /** Join P1 in lobby (or skip if already joined). */
-  lobbyAction: () => void;
-  getLeftHanded: () => boolean;
-  /** Shared game action deps (selection, placement, battle). */
-  gameAction: GameActionDeps;
-  /** Shared overlay action deps (options, life-lost, game-over). */
-  overlay: OverlayActionDeps;
-}
-
-export interface QuitButtonDeps {
-  getQuitPending: () => boolean;
-  setQuitPending: (quitPending: boolean) => void;
-  setQuitTimer: (quitTimer: number) => void;
-  setQuitMessage: (msg: string) => void;
-  showLobby: () => void;
-  getControllers: () => PlayerController[];
-  isHuman: (ctrl: PlayerController) => boolean;
-}
-
-export interface ZoomButtonDeps {
-  getState: () => GameState | undefined;
-  /** The zone the user is visually looking at right now — explicit zone
-   *  target, or the zone at a pinch viewport center, or undefined when
-   *  the camera is on full map / over a river. Used to base the cycle's
-   *  "next zone" preview on the actually-visible zone. */
-  getViewedZone: () => ZoneId | undefined;
-  setCameraZone: (zone: ZoneId) => void;
-  povPlayerId: () => number;
-  getEnemyZones: () => ZoneId[];
-  /** Move the human crosshair to a zone's home tower (battle auto-zoom). */
-  aimAtZone?: (zone: ZoneId) => void;
-}
-
-export interface FloatingActionsDeps {
-  getState: () => GameState | undefined;
-  getMode: () => Mode;
-  withPointerPlayer: WithPointerPlayer;
-  tryPlacePiece: (
-    human: PlayerController & InputReceiver,
-    state: BuildViewState,
-  ) => boolean;
-  tryPlaceCannon: (
-    human: PlayerController & InputReceiver,
-    state: CannonViewState,
-    max: number,
-  ) => boolean;
-  onPieceRotated?: () => void;
-  /** Emit a `uiTap` bus event — see `DpadDeps.emitUiTap`. */
-  emitUiTap?: () => void;
-  /** Forward a drag touch to the canvas pointer-move logic. */
-  onDrag?: (clientX: number, clientY: number) => void;
-}
-
 export type CreateDpadFn = (
   deps: DpadDeps,
   container: HTMLElement,
@@ -505,43 +418,6 @@ export interface RegisterOnlineInputDeps {
   };
 }
 
-export interface GameActionDeps {
-  getSelectionStates: () => Map<number, SelectionState>;
-  highlightTowerForPlayer: (
-    idx: TowerIdx,
-    zone: ZoneId,
-    pid: ValidPlayerId,
-  ) => void;
-  confirmSelectionAndStartBuild: (pid: ValidPlayerId) => boolean;
-  tryPlacePiece: (
-    ctrl: PlayerController & InputReceiver,
-    state: BuildViewState,
-  ) => boolean;
-  tryPlaceCannon: (
-    ctrl: PlayerController & InputReceiver,
-    state: CannonViewState,
-    max: number,
-  ) => boolean;
-  onPieceRotated?: () => void;
-  onPiecePlaced?: () => void;
-  onCannonPlaced?: () => void;
-  fire: (ctrl: PlayerController, state: BattleViewState) => void;
-}
-
-export interface PointerMoveDeps {
-  withPointerPlayer: WithPointerPlayer;
-  coords: {
-    screenToWorld: (x: number, y: number) => WorldPos;
-    pickHitWorld: (x: number, y: number) => WorldPos;
-    pixelToTile: (x: number, y: number) => { row: number; col: number };
-  };
-  gameAction: Pick<
-    GameActionDeps,
-    "getSelectionStates" | "highlightTowerForPlayer"
-  >;
-  maybeSendAimUpdate: (x: number, y: number) => void;
-}
-
 /** Deps for the per-frame touch controls update (loupe, d-pad, zoom, quit, floating actions). */
 export interface TouchControlsDeps {
   mode: Mode;
@@ -565,11 +441,4 @@ export interface TouchControlsDeps {
   worldToScreen: (wx: number, wy: number) => { sx: number; sy: number };
   screenToContainerCSS: (sx: number, sy: number) => { x: number; y: number };
   containerHeight: number;
-}
-
-/** Callback signature for showing phase-transition banners. */
-export type BannerShow = (opts: BannerShowOpts) => void;
-
-export interface BannerShowOpts extends BannerContent {
-  readonly onDone: () => void;
 }

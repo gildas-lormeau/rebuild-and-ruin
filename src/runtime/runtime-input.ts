@@ -13,6 +13,7 @@ import {
 import type { ZoneId } from "../shared/core/zone-id.ts";
 import { IS_TOUCH_DEVICE } from "../shared/platform/platform.ts";
 import { Action } from "../shared/ui/input-action.ts";
+import type { WithPointerPlayer } from "../shared/ui/input-deps.ts";
 import {
   FOCUS_MENU,
   FOCUS_REMATCH,
@@ -25,6 +26,8 @@ import type {
 } from "../shared/ui/overlay-types.ts";
 import { OPT_CONTROLS, OPT_SOUND } from "../shared/ui/settings-defs.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
+import { type RuntimeState, safeState, setMode } from "./runtime-state.ts";
+import type { CameraSystem, NetworkApi } from "./runtime-types.ts";
 import type {
   CreateDpadFn,
   CreateFloatingActionsFn,
@@ -36,10 +39,7 @@ import type {
   RegisterMouseHandlersFn,
   RegisterOnlineInputDeps,
   RegisterTouchHandlersFn,
-  WithPointerPlayer,
-} from "./runtime-contracts.ts";
-import { type RuntimeState, safeState, setMode } from "./runtime-state.ts";
-import type { CameraSystem, NetworkApi } from "./runtime-types.ts";
+} from "./runtime-ui-contracts.ts";
 
 type DpadHandle = ReturnType<CreateDpadFn>;
 

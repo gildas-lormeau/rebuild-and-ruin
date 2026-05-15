@@ -4,7 +4,7 @@
  * Extracted from runtime-composition.ts render() to keep it high-level.
  */
 
-import type { TouchControlsDeps } from "../runtime/runtime-contracts.ts";
+import type { TouchControlsDeps } from "../runtime/runtime-ui-contracts.ts";
 import {
   isPlacementPhase,
   isTimedPhase,

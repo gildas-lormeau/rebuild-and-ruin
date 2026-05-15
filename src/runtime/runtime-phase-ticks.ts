@@ -52,11 +52,11 @@ import type { GameState } from "../shared/core/types.ts";
 import { WALL_DESTROY_ANIM_DURATION } from "../shared/core/wall-destroy-anim.ts";
 import type { UpgradePickDialogState } from "../shared/ui/interaction-types.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
+import type { BannerShow } from "./runtime-banner-state.ts";
 import {
   accumulateBattleStats,
   recordBattleVisualEvents,
 } from "./runtime-battle-anim.ts";
-import type { BannerShow } from "./runtime-contracts.ts";
 import {
   type PhaseTransitionCtx,
   runTransition,

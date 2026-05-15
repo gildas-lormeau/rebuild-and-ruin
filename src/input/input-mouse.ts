@@ -1,4 +1,4 @@
-import type { RegisterOnlineInputDeps } from "../runtime/runtime-contracts.ts";
+import type { RegisterOnlineInputDeps } from "../runtime/runtime-ui-contracts.ts";
 import {
   isPlacementPhase,
   isSelectionPhase,

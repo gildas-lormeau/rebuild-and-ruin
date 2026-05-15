@@ -83,7 +83,6 @@ import {
 import { createBrowserTimingApi } from "./runtime-browser-timing.ts";
 import { createCameraSystem } from "./runtime-camera.ts";
 import { createCannonAnimator } from "./runtime-cannon-animator.ts";
-import type { UIContext } from "./runtime-contracts.ts";
 import { exposeE2EBridge } from "./runtime-e2e-bridge.ts";
 import {
   buildLifecycleDeps,
@@ -119,6 +118,7 @@ import type {
   NetworkApi,
   RuntimeConfig,
 } from "./runtime-types.ts";
+import type { UIContext } from "./runtime-ui-contracts.ts";
 import {
   createUpgradePickSystem,
   type UpgradePickSystem,

@@ -3926,7 +3926,7 @@ Examples:
   deno run -A scripts/refactor.ts add-reexport src/game/index.ts src/game/build-system.ts canPlacePiece
   deno run -A scripts/refactor.ts list-callsites src/render/render-map.ts drawTerrain
   deno run -A scripts/refactor.ts remove-export src/render/render-map.ts drawTerrain --dry-run
-  deno run -A scripts/refactor.ts drop-optional src/runtime/runtime-contracts.ts ActiveBannerState prevScene --dry-run
+  deno run -A scripts/refactor.ts drop-optional src/runtime/runtime-ui-contracts.ts ActiveBannerState prevScene --dry-run
   deno run -A scripts/refactor.ts remove-property src/render/3d/entities/cannons.ts Cannon hp --dry-run
   deno run -A scripts/refactor.ts fold-constant src/render/renderer.ts terrainLayerEnabled false --dry-run
   deno run -A scripts/refactor.ts inline-param src/render/render-map.ts drawCastles drawWalls false --drop-param --dry-run`);

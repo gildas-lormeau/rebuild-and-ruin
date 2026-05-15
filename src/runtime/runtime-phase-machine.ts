@@ -56,7 +56,7 @@ import {
   BANNER_UPGRADE_PICK,
   BANNER_UPGRADE_PICK_SUB,
 } from "./banner-messages.ts";
-import type { BannerShow } from "./runtime-contracts.ts";
+import type { BannerShow } from "./runtime-banner-state.ts";
 import { resolveAfterLifeLost } from "./runtime-life-lost-core.ts";
 import type { RuntimeState } from "./runtime-state.ts";
 import type { TimingApi } from "./timing-api.ts";

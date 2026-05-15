@@ -19,14 +19,14 @@ import {
   MAX_PLAYERS,
 } from "../shared/ui/player-config.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
+import { type RuntimeState, setMode } from "./runtime-state.ts";
 import type {
   ComputeLobbyLayoutFn,
   CreateLobbyOverlayFn,
   LobbyClickHitTestFn,
   LobbyHit,
   UIContext,
-} from "./runtime-contracts.ts";
-import { type RuntimeState, setMode } from "./runtime-state.ts";
+} from "./runtime-ui-contracts.ts";
 
 interface LobbySystemDeps {
   runtimeState: RuntimeState;

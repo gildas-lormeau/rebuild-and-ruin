@@ -12,9 +12,9 @@ import { emitGameEvent, GAME_EVENT } from "../shared/core/game-event-bus.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
 import {
   type ActiveBannerState,
+  type BannerShowOpts,
   createBannerState,
 } from "./runtime-banner-state.ts";
-import { type BannerShowOpts } from "./runtime-contracts.ts";
 import {
   assertStateInstalled,
   type RuntimeState,

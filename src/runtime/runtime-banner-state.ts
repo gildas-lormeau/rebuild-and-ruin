@@ -28,6 +28,13 @@ export interface ActiveBannerState extends BannerContent {
   newScene?: SceneCapture;
 }
 
+/** Callback signature for showing phase-transition banners. */
+export type BannerShow = (opts: BannerShowOpts) => void;
+
+export interface BannerShowOpts extends BannerContent {
+  readonly onDone: () => void;
+}
+
 export function createBannerState(): BannerState {
   return null;
 }

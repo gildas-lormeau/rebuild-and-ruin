@@ -98,6 +98,7 @@ const LABELS: Record<string, string> = {
   "6::ai": "AI decision intents & build types",
   "6::controllers": "BaseController abstraction",
   "6::game": "modifier & upgrade implementations + core game systems",
+  "6::input": "input-handler deps shapes",
   "6::online": "online lobby UI & session state",
   "6::render": "render contracts & overlay helpers",
   "6::runtime": "runtime cores: anim, dialog, audio & overlay registry",
@@ -107,6 +108,7 @@ const LABELS: Record<string, string> = {
   // L7 — entity renderers & cross-domain handlers
   "7::controllers": "human controller",
   "7::game": "game init, zone recompute & fire modifier",
+  "7::input": "pointer-event dispatch",
   "7::online": "online action send, remote crosshairs & stores",
   "7::render": "entity renderers & 3D effect factories",
   "7::runtime": "runtime contracts & battle anim",

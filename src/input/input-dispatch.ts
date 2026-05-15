@@ -8,11 +8,6 @@
  */
 
 import { canPlayerBuild } from "../game/index.ts";
-import type {
-  GameActionDeps,
-  OverlayActionDeps,
-  PointerMoveDeps,
-} from "../runtime/runtime-contracts.ts";
 import {
   isPlacementPhase,
   isSelectionPhase,
@@ -33,6 +28,11 @@ import {
 import type { GameState } from "../shared/core/types.ts";
 import type { ZoneId } from "../shared/core/zone-id.ts";
 import { Action, isMovementAction } from "../shared/ui/input-action.ts";
+import type {
+  GameActionDeps,
+  OverlayActionDeps,
+  PointerMoveDeps,
+} from "../shared/ui/input-deps.ts";
 import type {
   ControlsState,
   LifeLostDialogState,

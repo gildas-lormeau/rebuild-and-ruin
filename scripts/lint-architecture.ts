@@ -33,7 +33,7 @@ const EXEMPT = new Set([
   "runtime-types.ts",
   "runtime-state.ts",
   "runtime-banner-state.ts", // BannerState type + null-init constructor, not a factory sub-system
-  "runtime-contracts.ts", // UI deps-object contracts (formerly shared/ui/ui-contracts.ts)
+  "runtime-ui-contracts.ts", // UI contracts: overlay/screen factories, hit tests, touch component handles, input-handler registration
   "runtime-tick-context.ts", // shared tick state primitives, not a factory sub-system
   "runtime-tick-consumers.ts", // ONLINE_PHASE_TICKS_CONSUMERS registry, not a factory sub-system
 
@@ -57,7 +57,7 @@ const EXEMPT_PREFIXES = ["online-runtime-"];
 const ALLOWED_RUNTIME_IMPORTS = new Set([
   "./runtime-types.ts",
   "./runtime-state.ts",
-  "./runtime-contracts.ts", // UI deps-object contracts
+  "./runtime-ui-contracts.ts", // UI contracts (overlay/screen factories, hit tests, touch handles, input-handler registration)
   "./runtime-banner-state.ts", // BannerState type + null-init constructor
   "./runtime-tick-context.ts", // shared tick state primitives
   "./runtime-host-phase-ticks.ts", // consumed by runtime-phase-ticks

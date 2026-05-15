@@ -25,6 +25,11 @@ import {
   revealTimeFor,
   tickModifierRevealClock,
 } from "./modifier-reveal-time.ts";
+import {
+  isPaused,
+  isStateInstalled,
+  type RuntimeState,
+} from "./runtime-state.ts";
 import type {
   CreateBannerUiFn,
   CreateOnlineOverlayFn,
@@ -33,12 +38,7 @@ import type {
   QuitButton,
   TouchControlsDeps,
   ZoomButton,
-} from "./runtime-contracts.ts";
-import {
-  isPaused,
-  isStateInstalled,
-  type RuntimeState,
-} from "./runtime-state.ts";
+} from "./runtime-ui-contracts.ts";
 import type { TimingApi } from "./timing-api.ts";
 
 interface RenderSystemDeps {
