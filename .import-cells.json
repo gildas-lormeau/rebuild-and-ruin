@@ -324,6 +324,7 @@
       "src/game/modifiers/frostbite.ts",
       "src/game/modifiers/frozen-river.ts",
       "src/game/modifiers/grunt-surge.ts",
+      "src/game/modifiers/low-water.ts",
       "src/game/modifiers/modifier-eligibility.ts",
       "src/game/modifiers/rubble-clearing.ts",
       "src/game/modifiers/sapper.ts",
@@ -433,6 +434,7 @@
     "files": [
       "src/game/game-init.ts",
       "src/game/modifiers/fire.ts",
+      "src/game/modifiers/high-tide.ts",
       "src/game/zone-recompute.ts"
     ]
   },
@@ -553,8 +555,6 @@
     "files": [
       "src/game/castle-generation.ts",
       "src/game/grunt-movement.ts",
-      "src/game/modifiers/high-tide.ts",
-      "src/game/modifiers/low-water.ts",
       "src/game/modifiers/sinkhole.ts",
       "src/game/upgrades/erosion.ts"
     ]
@@ -824,15 +824,8 @@
     "domain": "online",
     "role": "online runtime promotion",
     "files": [
+      "src/online/online-rehydrate.ts",
       "src/online/online-runtime-promote.ts"
-    ]
-  },
-  {
-    "layer": 15,
-    "domain": "runtime",
-    "role": "runtime rehydrate",
-    "files": [
-      "src/runtime/runtime-rehydrate.ts"
     ]
   },
   {

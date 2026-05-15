@@ -150,6 +150,7 @@
       "src/game/modifiers/frostbite.ts",
       "src/game/modifiers/frozen-river.ts",
       "src/game/modifiers/grunt-surge.ts",
+      "src/game/modifiers/low-water.ts",
       "src/game/modifiers/modifier-eligibility.ts",
       "src/game/modifiers/rubble-clearing.ts",
       "src/game/modifiers/sapper.ts",
@@ -208,6 +209,7 @@
       "src/controllers/controller-human.ts",
       "src/game/game-init.ts",
       "src/game/modifiers/fire.ts",
+      "src/game/modifiers/high-tide.ts",
       "src/game/zone-recompute.ts",
       "src/input/input-dispatch.ts",
       "src/online/online-remote-crosshairs.ts",
@@ -262,8 +264,6 @@
       "src/controllers/controller-factory.ts",
       "src/game/castle-generation.ts",
       "src/game/grunt-movement.ts",
-      "src/game/modifiers/high-tide.ts",
-      "src/game/modifiers/low-water.ts",
       "src/game/modifiers/sinkhole.ts",
       "src/game/upgrades/erosion.ts",
       "src/input/input-keyboard.ts",
@@ -372,8 +372,8 @@
   {
     "name": "L15",
     "files": [
-      "src/online/online-runtime-promote.ts",
-      "src/runtime/runtime-rehydrate.ts"
+      "src/online/online-rehydrate.ts",
+      "src/online/online-runtime-promote.ts"
     ]
   },
   {

@@ -6,18 +6,18 @@
  */
 
 import { createController } from "../controllers/controller-factory.ts";
-import {
-  rebuildControllersForPhase,
-  syncAccumulatorsFromTimer,
-} from "../online/online-host-promotion.ts";
-import { restoreFullStateSnapshot } from "../online/online-serialize.ts";
 import type { FullStateMessage } from "../protocol/protocol.ts";
+import { setMode } from "../runtime/runtime-state.ts";
+import type { GameRuntime } from "../runtime/runtime-types.ts";
 import type { BalloonFlight } from "../shared/core/battle-types.ts";
 import { Phase } from "../shared/core/game-phase.ts";
 import type { PlayerId } from "../shared/core/player-slot.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
-import { setMode } from "./runtime-state.ts";
-import type { GameRuntime } from "./runtime-types.ts";
+import {
+  rebuildControllersForPhase,
+  syncAccumulatorsFromTimer,
+} from "./online-host-promotion.ts";
+import { restoreFullStateSnapshot } from "./online-serialize.ts";
 
 interface MidGameApplyResult {
   balloonFlights: { flight: BalloonFlight; progress: number }[];

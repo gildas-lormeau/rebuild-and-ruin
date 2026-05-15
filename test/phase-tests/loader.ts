@@ -30,7 +30,7 @@ import { packTile } from "../../src/shared/core/spatial.ts";
 import type { GameState } from "../../src/shared/core/types.ts";
 import type { ZoneId } from "../../src/shared/core/zone-id.ts";
 import { recheckTerritory } from "../../src/game/build-system.ts";
-import { applyMidGameCheckpoint } from "../../src/runtime/runtime-rehydrate.ts";
+import { applyMidGameCheckpoint } from "../../src/online/online-rehydrate.ts";
 import { createHeadlessRuntime } from "../runtime-headless.ts";
 import {
   buildHeadlessOptions,

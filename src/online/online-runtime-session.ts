@@ -10,7 +10,6 @@ import { generateMap } from "../game/index.ts";
 import type { FullStateMessage, InitMessage } from "../protocol/protocol.ts";
 import { ROUTE_ONLINE } from "../protocol/routes.ts";
 import { bootstrapGame } from "../runtime/runtime-bootstrap.ts";
-import { resolveModeAfterFullState } from "../runtime/runtime-rehydrate.ts";
 import { setMode, setRuntimeGameState } from "../runtime/runtime-state.ts";
 import type { GameRuntime } from "../runtime/runtime-types.ts";
 import type { TimingApi } from "../runtime/timing-api.ts";
@@ -24,6 +23,7 @@ import {
   buildRoomCodeOverlay,
   hideRoomCodeOverlay,
 } from "./online-lobby-ui.ts";
+import { resolveModeAfterFullState } from "./online-rehydrate.ts";
 import { GAME_CONTAINER_ACTIVE, navigateTo } from "./online-router.ts";
 import { restoreFullStateSnapshot } from "./online-serialize.ts";
 import type { OnlineSession } from "./online-session.ts";

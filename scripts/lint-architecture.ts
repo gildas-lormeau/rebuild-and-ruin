@@ -48,7 +48,6 @@ const EXEMPT = new Set([
   "runtime-castle-build.ts", // pure animation primitives, not a factory sub-system
   "runtime-life-lost-core.ts", // pure dialog primitives, not a factory sub-system
   "runtime-upgrade-pick-core.ts", // pure dialog primitives, not a factory sub-system
-  "runtime-rehydrate.ts", // one-shot mid-game checkpoint facade, not a factory sub-system
   "dev-console-grid.ts", // pure debug primitives, not a factory sub-system
 ]);
 /** Prefixes for runtime-layer file families that are not sub-systems. */
