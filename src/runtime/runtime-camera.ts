@@ -371,19 +371,24 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     );
   }
 
-  /** Frame the precomputed ideal castle ring (one tile outside the castle's
-   *  interior bounds), not the actual wall plan — clumsy-builder variations
-   *  are intentionally ignored so the viewport is deterministic and the
-   *  camera doesn't tightly hug the noisy wall layout during auto-build. */
+  /** Frame the ideal castle ring around the player's home tower —
+   *  homeTower edges ± (ideal gap + wall) tiles. Independent of the
+   *  actual wall plan: clumsy-builder variations and modifier-driven
+   *  ring shrink (high_tide) are intentionally ignored so the viewport
+   *  is deterministic and doesn't tightly hug the noisy wall layout
+   *  during auto-build. */
   function computeCastleBuildViewport(playerId: ValidPlayerId): Viewport {
     const state = deps.getState();
-    const castle = state?.players[playerId]?.castle;
-    if (!castle) return fullMapVp;
+    const homeTower = state?.players[playerId]?.homeTower;
+    if (!homeTower) return fullMapVp;
+    // Ideal interior gap (2) + wall ring (1) = 3 tiles outside the tower's
+    // 2×2 footprint on each side.
+    const RING_PAD = 3;
     const tileBounds: TileBounds = {
-      minR: castle.top - 1,
-      maxR: castle.bottom + 1,
-      minC: castle.left - 1,
-      maxC: castle.right + 1,
+      minR: homeTower.row - RING_PAD,
+      maxR: homeTower.row + 1 + RING_PAD,
+      minC: homeTower.col - RING_PAD,
+      maxC: homeTower.col + 1 + RING_PAD,
     };
     return fitTileBoundsToViewport(tileBounds, ZONE_PAD_WITH_WALLS);
   }

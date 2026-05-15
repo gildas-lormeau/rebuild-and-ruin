@@ -405,10 +405,11 @@ export function createSelectionSystem(
 
   /** Derive a player's castle-wall plan and queue the build animation.
    *  Run on both host and watcher: `prepareCastleWallsForPlayer` consumes
-   *  state.rng (clumsy builders + wall ordering) and sets player.castle —
-   *  identical RNG sequence on both sides keeps state in sync. No wire
-   *  broadcast: every confirmation path (local AI, local human, network
-   *  remote-human) runs this locally on every peer. */
+   *  state.rng (clumsy builders + wall ordering) and seeds
+   *  `player.castleWallTiles` with the planned ring — identical RNG
+   *  sequence on both sides keeps state in sync. No wire broadcast:
+   *  every confirmation path (local AI, local human, network remote-human)
+   *  runs this locally on every peer. */
   function startPlayerCastleBuild(playerId: ValidPlayerId): void {
     const plan = prepareCastleWallsForPlayer(runtimeState.state, playerId);
     if (!plan) return;

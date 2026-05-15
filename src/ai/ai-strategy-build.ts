@@ -4,7 +4,12 @@
  * Castle rectangle + gap analysis live in ai-castle-rect.
  */
 
-import { buildPlacementContext, canPlacePiece } from "../game/index.ts";
+import {
+  buildPlacementContext,
+  canPlacePiece,
+  createCastle,
+  effectivePlanTiles,
+} from "../game/index.ts";
 import {
   buildOccupancyCache,
   hasAliveHouseAt,
@@ -142,9 +147,20 @@ export function pickPlacement(
     buildSkill = 3,
   } = options ?? {};
   const maybePlayer = state.players[playerId];
-  if (!maybePlayer || !maybePlayer.castle) return null;
+  if (!maybePlayer || maybePlayer.castleWallTiles.size === 0) return null;
   const player = maybePlayer;
-  const castle = maybePlayer.castle;
+  // Recompute the home castle rect on demand. Selection used the same
+  // algorithm against the modifier-projected tiles; passing
+  // `effectivePlanTiles(state)` here keeps AI scoring aligned with the
+  // actual walls while the same modifier is active. After a modifier
+  // clears between selection and now, the recomputed rect drifts to the
+  // natural-shoreline shape — bounded suboptimality, never desync.
+  if (!player.homeTower) return null;
+  const castle = createCastle(
+    player.homeTower,
+    effectivePlanTiles(state),
+    state.map.towers,
+  );
 
   // Skill-derived parameters (level 1 = clumsy, 5 = clean builder)
   //   topCandidates:    how many placements get full territory-gain evaluation
@@ -249,6 +265,7 @@ export function pickPlacement(
 
   return selectBestPlacement(scored, allCandidates, scoringCtx, {
     player,
+    castle,
     castleMargin,
     unenclosedTowers,
     noBuildTargets,
@@ -264,6 +281,7 @@ function selectBestPlacement(
   scoringCtx: ScoringContext,
   extras: {
     player: Player;
+    castle: Castle;
     castleMargin: number;
     unenclosedTowers: readonly Tower[];
     noBuildTargets: boolean;
@@ -278,7 +296,7 @@ function selectBestPlacement(
     caresAboutHouses,
     caresAboutBonuses,
   } = scoringCtx;
-  const { player, noBuildTargets, hasManageableGaps } = extras;
+  const { player, castle, noBuildTargets, hasManageableGaps } = extras;
 
   const fatBlockCountFor = memoize((candidate: Candidate) =>
     countFatBlocks(walls, candidate),
@@ -396,7 +414,7 @@ function selectBestPlacement(
       walls: player.walls,
       outside,
       playerInterior: getInterior(player),
-      castle: player.castle!,
+      castle,
       castleMargin: extras.castleMargin,
       homeWasBroken: !!scoringCtx.homeWasBroken,
       unenclosedTowers: extras.unenclosedTowers,
@@ -554,8 +572,12 @@ function tryRepairHomeCastle(ctx: TargetContext): TargetResult {
   if (castle.top > castle.bottom || castle.left > castle.right)
     return NO_TARGET;
 
-  // Home castle: always use original bounds from buildCastle — existing walls
-  // match this ring, so repair targets the actual gaps instead of upgrading
+  // Home castle: use the rect recomputed in pickPlacement (via createCastle
+  // against effectivePlanTiles). It matches the actual walls while the
+  // selection-time modifier projection still holds; after a tile-projecting
+  // modifier (e.g. high_tide) clears, the recomputed rect drifts to the
+  // natural-shoreline shape — repair scoring may chase phantom gaps on the
+  // wider side. Bounded suboptimality, never cross-peer desync.
   const homeRect = castle;
   let { top, bottom, left, right } = homeRect;
 

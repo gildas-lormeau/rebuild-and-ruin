@@ -597,7 +597,7 @@ function upgradePickEntryH(): number {
 
 function buildCastleOverlay(view: RenderView): CastleData[] {
   return view.players
-    .filter((player) => player.castle)
+    .filter((player) => player.castleWallTiles.size > 0)
     .map((player) => ({
       walls: player.walls,
       interior: player.interior,

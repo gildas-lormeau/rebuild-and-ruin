@@ -337,7 +337,7 @@ export function dispatchGameAction(
   // Guard: CANNON_PLACE requires a built castle — can't place cannons without one.
   if (
     state.phase === Phase.CANNON_PLACE &&
-    !state.players[ctrl.playerId]?.castle
+    !state.players[ctrl.playerId]?.castleWallTiles.size
   )
     return false;
 

@@ -48,7 +48,7 @@ export function createCannonAnimator(deps: CannonAnimatorDeps): CannonAnimator {
       // tracked cannons matches what the renderer will paint.
       seen.clear();
       for (const player of runtimeState.state.players) {
-        if (!player.castle) continue;
+        if (player.castleWallTiles.size === 0) continue;
         for (const cannon of player.cannons) {
           if (!isCannonAlive(cannon)) continue;
           if (isBalloonCannon(cannon)) continue;

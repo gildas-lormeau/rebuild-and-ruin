@@ -31,7 +31,7 @@ Deno.test("phase-test: cannon-place round-1 fixture lands at CANNON_PLACE with c
   assertGreater(sc.state.players.length, 0);
   for (const player of sc.state.players) {
     assert(
-      player.castle !== null,
+      player.castleWallTiles.size > 0,
       `Player ${player.id} should have a castle after the AI-driven CASTLE_SELECT`,
     );
   }

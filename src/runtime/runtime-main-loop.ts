@@ -386,7 +386,9 @@ function computeHumanCastleConfirmed(
   // `confirmTowerSelection`, cleared in `finalizeBattle`), covering both the
   // round-1 initial selection and the mid-game reselect cycle.
   const player = state.players[humanId];
-  return player != null && player.inGracePeriod && player.castle !== null;
+  return (
+    player != null && player.inGracePeriod && player.castleWallTiles.size > 0
+  );
 }
 
 /** True when this client's human has filled their cannon-slot quota. Used to

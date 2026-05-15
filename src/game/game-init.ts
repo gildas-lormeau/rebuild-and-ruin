@@ -81,7 +81,6 @@ function createGameState(
     players.push({
       id: i as ValidPlayerId,
       homeTower: null,
-      castle: null,
       ownedTowers: [],
       walls: new Set(),
       interior: emptyFreshInterior(),

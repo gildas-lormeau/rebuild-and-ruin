@@ -9,8 +9,17 @@ import {
   collectOccupiedTiles,
   HOUSE_SPAWN_BLOCKED,
 } from "../shared/core/board-occupancy.ts";
-import { HOUSE_MIN_DISTANCE } from "../shared/core/game-constants.ts";
-import type { Castle, House, Tower } from "../shared/core/geometry-types.ts";
+import {
+  HOUSE_MIN_DISTANCE,
+  MODIFIER_ID,
+  type ModifierId,
+} from "../shared/core/game-constants.ts";
+import type {
+  Castle,
+  GameMap,
+  House,
+  Tower,
+} from "../shared/core/geometry-types.ts";
 import {
   GRID_COLS,
   GRID_ROWS,
@@ -19,6 +28,7 @@ import {
 } from "../shared/core/grid.ts";
 import { isPlayerSeated } from "../shared/core/player-types.ts";
 import {
+  computeFloodedTiles,
   DIRS_4,
   forEachTowerTile,
   inBounds,
@@ -26,6 +36,7 @@ import {
   isWater,
   manhattanDistance,
   packTile,
+  setWater,
   unpackTile,
 } from "../shared/core/spatial.ts";
 import type { GameState } from "../shared/core/types.ts";
@@ -52,6 +63,29 @@ const CLUMSY_WALL_CHANCE = 1 / 10;
 const CASTLE_SHRINK_MAX_ITER = 20;
 /** 50% chance to reverse castle-wall build animation direction (visual variety). */
 const CASTLE_RING_REVERSE_CHANCE = 0.5;
+
+/** Tile grid as the castle planner should see it: when high_tide is
+ *  active, flooded grass is projected back to water so the auto-built
+ *  ring + interior don't land on tiles the renderer paints as water and
+ *  the player can't build over. Returns the live tiles array unchanged
+ *  when no projection is needed (zero allocation). The parameter is a
+ *  structural slice satisfied by both `GameState` and `BuildViewState`. */
+export function effectivePlanTiles(state: {
+  readonly modern: { readonly activeModifier: ModifierId | null } | null;
+  readonly map: GameMap;
+}): readonly Tile[][] {
+  if (state.modern?.activeModifier !== MODIFIER_ID.HIGH_TIDE) {
+    return state.map.tiles;
+  }
+  const flooded = computeFloodedTiles(state.map);
+  if (flooded.size === 0) return state.map.tiles;
+  const cloned: Tile[][] = state.map.tiles.map((row) => [...row]);
+  for (const key of flooded) {
+    const { r, c } = unpackTile(key);
+    setWater(cloned, r, c);
+  }
+  return cloned;
+}
 
 /**
  * Build the initial castle walls around a selected tower.

@@ -61,7 +61,11 @@ export interface GameViewState {
   readonly bus: GameEventBus;
 }
 
-/** Build-phase state slice.  9 fields (vs 25 on GameState). */
+/** Build-phase state slice.  10 fields (vs 25 on GameState).
+ *  `modern` is an inline structural subset — only `activeModifier`, read by
+ *  `effectivePlanTiles` when the AI recomputes the home castle rect.
+ *  Mirrors the BattleViewState pattern; keeps BuildViewState free of a
+ *  ModernState import. */
 export interface BuildViewState extends GameViewState {
   readonly round: number;
   readonly rng: Rng;
@@ -70,6 +74,9 @@ export interface BuildViewState extends GameViewState {
   readonly burningPits: readonly BurningPit[];
   readonly bonusSquares: readonly BonusSquare[];
   readonly grunts: readonly Grunt[];
+  readonly modern: {
+    readonly activeModifier: ModifierId | null;
+  } | null;
 }
 
 /** Cannon-phase state slice.  8 fields. */

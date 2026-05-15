@@ -15,18 +15,10 @@ import {
   sweepIsolatedWalls,
 } from "../shared/core/board-occupancy.ts";
 import { FID } from "../shared/core/feature-defs.ts";
-import {
-  MODIFIER_ID,
-  type ModifierDiff,
-} from "../shared/core/game-constants.ts";
+import type { ModifierDiff } from "../shared/core/game-constants.ts";
 import { emitGameEvent, GAME_EVENT } from "../shared/core/game-event-bus.ts";
 import { Phase } from "../shared/core/game-phase.ts";
-import {
-  GRID_COLS,
-  GRID_ROWS,
-  type Tile,
-  type TileKey,
-} from "../shared/core/grid.ts";
+import { GRID_COLS, GRID_ROWS, type TileKey } from "../shared/core/grid.ts";
 import { markInteriorFresh } from "../shared/core/player-interior.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import {
@@ -38,12 +30,10 @@ import {
   type Player,
 } from "../shared/core/player-types.ts";
 import {
-  computeFloodedTiles,
   DIRS_4,
   isGrass,
   packTile,
   setGrass,
-  setWater,
   unpackTile,
   zoneAt,
 } from "../shared/core/spatial.ts";
@@ -66,6 +56,7 @@ import {
   applyClumsyBuilders,
   computeCastleWallTiles,
   createCastle,
+  effectivePlanTiles,
   orderCastleWallsForAnimation,
   startOfBuildPhaseHousekeeping,
 } from "./castle-generation.ts";
@@ -338,7 +329,13 @@ export function computeScoreDeltas(
 }
 
 /** Prepare castle walls for all players, returning ordered wall tiles per player
- *  for animated construction. Sets castle but does NOT add walls or interior.
+ *  for animated construction. Seeds `player.castleWallTiles` with the planned
+ *  ring so renderers, mobile auto-unzoom, and presence-check sites see the
+ *  player as "has a castle" the moment the plan commits — not at finalize
+ *  time when the animation completes. `finalizeFreshCastles` reconciles
+ *  against the actual `player.walls` (in case the animation was interrupted).
+ *  Does NOT add walls or interior; those are added tile-by-tile by the
+ *  build animation via `addPlayerWall`.
  *
  *  When high_tide is active during a reselect cycle, project the flooded
  *  ring back to water for the planner so the auto-built ring naturally
@@ -352,7 +349,6 @@ export function prepareCastleWallsForPlayer(
   if (!player?.homeTower) return null;
   const planTiles = effectivePlanTiles(state);
   const castle = createCastle(player.homeTower, planTiles, state.map.towers);
-  player.castle = castle;
 
   // Get wall tiles and apply clumsy builders to a temp set
   const wallTiles = computeCastleWallTiles(castle, planTiles);
@@ -372,6 +368,7 @@ export function prepareCastleWallsForPlayer(
     tempWalls,
     state.rng,
   );
+  player.castleWallTiles = new Set(ordered as TileKey[]);
   return { playerId: player.id, tiles: ordered };
 }
 
@@ -416,25 +413,6 @@ export function finalizeRoundCleanup(state: GameState): void {
   recomputeAllTerritory(state);
   sweepGruntsInDeadZones(state);
   recomputeGruntTargetedWalls(state);
-}
-
-/** Tile grid as the castle planner should see it: when high_tide is
- *  active, flooded grass is projected back to water so the auto-built
- *  ring + interior don't land on tiles the renderer paints as water and
- *  the player can't build over. Returns the live tiles array unchanged
- *  when no projection is needed (zero allocation). */
-function effectivePlanTiles(state: GameState): readonly Tile[][] {
-  if (state.modern?.activeModifier !== MODIFIER_ID.HIGH_TIDE) {
-    return state.map.tiles;
-  }
-  const flooded = computeFloodedTiles(state.map);
-  if (flooded.size === 0) return state.map.tiles;
-  const cloned: Tile[][] = state.map.tiles.map((row) => [...row]);
-  for (const key of flooded) {
-    const { r, c } = unpackTile(key);
-    setWater(cloned, r, c);
-  }
-  return cloned;
 }
 
 /** Shared pre-battle housekeeping run from both the real battle path
@@ -637,7 +615,7 @@ function resetPlayerBoardState(player: Player): void {
   markInteriorFresh(player, new Set());
   player.cannons = [];
   player.ownedTowers = [];
-  player.castle = null;
+  player.castleWallTiles = new Set();
   player.homeTower = null;
 }
 

@@ -1,6 +1,5 @@
 import {
   applyCheckpointModifierTiles,
-  createCastle,
   recomputeAllTerritory,
 } from "../game/index.ts";
 // Deep import: setPhase is a network-state-conformance primitive used to
@@ -293,7 +292,9 @@ function applyPlayersCheckpoint(
         ? [...c.balloonCapturerIds]
         : undefined,
     }));
-    // homeTowerIdx and castleWallTiles are immutable after castle selection.
+    // homeTowerIdx and castleWallTiles are stable across one castle's lifetime;
+    // they reset only on life-loss reselect, which every peer runs
+    // deterministically via `resetPlayerBoardState` + `prepareCastleWallsForPlayer`.
     // Checkpoint messages omit them; only full-state (join/reconnect) sends them.
     const homeTowerIdx = entry.homeTowerIdx;
     if (homeTowerIdx !== undefined) {
@@ -303,11 +304,6 @@ function applyPlayersCheckpoint(
         homeTowerIdx < state.map.towers.length
           ? state.map.towers[homeTowerIdx]!
           : null;
-      // Castle geometry depends on the original map tiles at selection time.
-      // Rebuild only on full-state restore (join/reconnect), never on checkpoints.
-      player.castle = player.homeTower
-        ? createCastle(player.homeTower, state.map.tiles, state.map.towers)
-        : null;
     }
     if (entry.castleWallTiles !== undefined) {
       player.castleWallTiles = new Set(entry.castleWallTiles as TileKey[]);

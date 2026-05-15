@@ -33,7 +33,10 @@ export {
   prepareControllerCannonPhase,
   resetCannonFacings,
 } from "./cannon-system.ts";
-export { createCastle } from "./castle-generation.ts";
+export {
+  createCastle,
+  effectivePlanTiles,
+} from "./castle-generation.ts";
 export {
   executeCannonFire,
   executePlaceCannon,

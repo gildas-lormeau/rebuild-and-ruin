@@ -9,7 +9,7 @@
 import type { Rng } from "../platform/rng.ts";
 import type { Cannon } from "./battle-types.ts";
 import { STARTING_LIVES } from "./game-constants.ts";
-import type { Castle, Tower, TowerIdx } from "./geometry-types.ts";
+import type { Tower, TowerIdx } from "./geometry-types.ts";
 import type { TileKey } from "./grid.ts";
 import {
   type BagState,
@@ -36,8 +36,6 @@ export interface Player {
   id: ValidPlayerId;
   /** The tower this player selected as home castle. */
   homeTower: Tower | null;
-  /** The castle built around the home tower. */
-  castle: Castle | null;
   /** All towers currently enclosed by this player's walls.
    *  Dual role: (1) hot-path cache for SFX, scoring, and grunt-spawn
    *  eligibility; (2) snapshot source for `TOWER_ENCLOSED` event diffing
