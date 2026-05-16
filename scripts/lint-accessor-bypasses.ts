@@ -41,7 +41,11 @@ interface Violation {
   text: string;
 }
 
-const SCAN_DIR = join(process.cwd(), "src");
+/** Directories to scan for accessor-bypass violations. `dev/` is included
+ *  because dev-only browser tools (ascii-renderer, dev-console, e2e-bridge,
+ *  dev-console-grid) read the same GameState shape and would otherwise
+ *  bypass the lint silently. */
+const SCAN_DIRS = [join(process.cwd(), "src"), join(process.cwd(), "dev")];
 const RULES: Rule[] = [
   {
     pattern: /state\.map\.towers\[\w+\.targetTowerIdx\]/,
@@ -61,13 +65,14 @@ const RULES: Rule[] = [
   {
     // Catches both `map.zones[r][c]` reads and `const zones = state.map.zones`
     // aliases. Allow-list:
-    //   - spatial.ts        — defines `zoneAt`; the in-allow-list raw access
-    //   - zone-id.ts        — docstring reference
-    //   - map-generation.ts — fresh flood-fill allocates raw ids
-    //   - zone-recompute.ts — re-flood-fill writes raw cells (trust boundary)
+    //   - spatial.ts             — defines `zoneAt`; the in-allow-list raw access
+    //   - zone-id.ts             — docstring reference
+    //   - map-generation.ts      — fresh flood-fill allocates raw ids
+    //   - zone-recompute.ts      — re-flood-fill writes raw cells (trust boundary)
     //   - runtime-camera.ts, render-ui-overlays.ts — pass the raw 2D array
     //     into `castleCenterPx` (a spatial helper that takes the array shape).
     //     If `castleCenterPx` is ever refactored to take `GameMap`, drop these.
+    //   - dev/dev-console-grid.ts — debug surface for raw cells
     pattern: /\bmap\.zones\b/,
     helper: "zoneAt(map, row, col)",
     allow: new Set([
@@ -77,12 +82,13 @@ const RULES: Rule[] = [
       "src/game/zone-recompute.ts",
       "src/runtime/runtime-camera.ts",
       "src/render/render-ui-overlays.ts",
+      "dev/dev-console-grid.ts",
     ]),
   },
 ];
 const violations: Violation[] = [];
 
-scanDir(SCAN_DIR);
+for (const dir of SCAN_DIRS) scanDir(dir);
 
 function scanDir(dir: string) {
   for (const entry of readdirSync(dir)) {
