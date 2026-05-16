@@ -25,11 +25,16 @@ import {
 } from "../../src/shared/core/game-constants.ts";
 import { Phase } from "../../src/shared/core/game-phase.ts";
 import { GRID_COLS, GRID_ROWS, Tile } from "../../src/shared/core/grid.ts";
+import {
+  initPlayerBag,
+  isPlayerSeated,
+} from "../../src/shared/core/player-types.ts";
 import type { ValidPlayerId } from "../../src/shared/core/player-slot.ts";
 import { packTile } from "../../src/shared/core/spatial.ts";
 import type { GameState } from "../../src/shared/core/types.ts";
 import type { ZoneId } from "../../src/shared/core/zone-id.ts";
 import { recheckTerritory } from "../../src/game/build-system.ts";
+import { useSmallPieces } from "../../src/game/upgrade-system.ts";
 import { applyMidGameCheckpoint } from "../../src/online/online-rehydrate.ts";
 import { createHeadlessRuntime } from "../runtime-headless.ts";
 import {
@@ -495,7 +500,26 @@ async function createCheckpointScenario(
         "(structural validation failed — see [checkpoint] error above)",
     );
   }
+  ensurePieceBagsForBuildPhase(headless.runtime.runtimeState.state);
   return wrapHeadless(headless, sentMessages);
+}
+
+/** Piece bags are *not* serialized in checkpoints — they're regenerated on
+ *  each peer at build-phase entry via `prepareNextRound → initPlayerBag`,
+ *  which only runs during the natural BATTLE → WALL_BUILD transition. A
+ *  checkpoint that drops the runtime directly into WALL_BUILD skips that
+ *  setup, leaving `player.currentPiece` undefined — and the AI's
+ *  `tickBuild` early-returns on the missing piece, so the AI stands idle
+ *  while everything else (grunts, timer) keeps ticking. Fill the gap here
+ *  so the loader-restored state matches what a host would have at this
+ *  point in the round. */
+function ensurePieceBagsForBuildPhase(state: GameState): void {
+  if (state.phase !== Phase.WALL_BUILD) return;
+  for (const player of state.players) {
+    if (!isPlayerSeated(player)) continue;
+    if (player.bag) continue;
+    initPlayerBag(player, state.round, state.rng, useSmallPieces(player));
+  }
 }
 
 /** Grunt-specific validation. Grunts share house/bonus-square's grass +
