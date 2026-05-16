@@ -218,6 +218,14 @@ export function createTerrain(deps: TerrainDeps): TerrainContext {
     shaderUniforms.wavesTimeSec.value = now / 1000;
 
     const interiorOwners = interiorOwnersFromOverlay(overlay);
+    // Render-only phantom flips: high_tide phantom-waters owned grass
+    // tiles, low_water phantom-grasses owned water tiles. The vertex
+    // baker's alpha=1 fast-path bypasses the SDF, so any tile whose
+    // RENDERED type diverges from its mechanical type must drop to
+    // alpha=0 (SDF branch) — otherwise the interior tint wins and the
+    // phantom override never reaches the fragment.
+    const flooded = overlay.entities?.floodedTiles;
+    const exposed = overlay.entities?.exposedRiverbedTiles;
 
     for (let r = 0; r < GRID_ROWS; r++) {
       for (let c = 0; c < GRID_COLS; c++) {
@@ -234,7 +242,11 @@ export function createTerrain(deps: TerrainDeps): TerrainContext {
         // gradient itself.
         let alpha: number;
 
-        if (interiorOwner !== undefined && tile !== Tile.Water) {
+        const effectiveGrass =
+          tile !== Tile.Water &&
+          flooded?.has(key) !== true &&
+          exposed?.has(key) !== true;
+        if (interiorOwner !== undefined && effectiveGrass) {
           const baseColor = interiorTileColor(interiorOwner, r, c, inBattle);
           red = baseColor[0];
           green = baseColor[1];
