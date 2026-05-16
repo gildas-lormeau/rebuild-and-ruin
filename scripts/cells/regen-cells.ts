@@ -171,7 +171,7 @@ const LABELS: Record<string, string> = {
     "runtime subsystems (camera, input, render, lobby, life-lost, options) + lifecycle, castle-build, phase-machine, tick-consumers",
 
   // L9 — system implementations
-  "9::ai": "AI build decision logic",
+  "9::ai": "AI brain assembly + build decision helpers",
   "9::controllers": "AI controller (host wrapper around injected brain)",
   "9::game": "upgrade system",
   "9::input": "input device handlers (kb, mouse, touch)",

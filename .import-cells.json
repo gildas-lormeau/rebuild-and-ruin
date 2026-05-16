@@ -730,7 +730,7 @@
   {
     "layer": 9,
     "domain": "ai",
-    "role": "AI build decision logic",
+    "role": "AI brain assembly + build decision helpers",
     "files": [
       "src/ai/ai-brain.ts",
       "src/ai/ai-build-score.ts",
