@@ -26,7 +26,7 @@ import { buildTimerBonus } from "../src/game/index.ts";
 import { GAME_EVENT } from "../src/shared/core/game-event-bus.ts";
 import { Phase } from "../src/shared/core/game-phase.ts";
 import type { UpgradeId } from "../src/shared/core/upgrade-defs.ts";
-import { loadSeed, type Scenario } from "./scenario.ts";
+import { createScenario, type Scenario } from "./scenario.ts";
 import SEED_FIXTURES from "./seed-fixtures.json" with { type: "json" };
 
 interface Pick {
@@ -201,17 +201,26 @@ const EFFECT_PROBES: Partial<Record<UpgradeId, EffectProbe>> = {
   },
 
   clear_the_field: {
-    description: "grunts.length === 0 at BATTLE end after pick",
+    description: "grunts.length === 0 on the first event after pick",
     install: (sc) => {
-      let awaiting = false;
+      let pendingCheck = false;
       let observed = false;
+      // UPGRADE_PICKED fires BEFORE onPick (which sets grunts.length = 0)
+      // runs. Snapshot intent here; observe state on the very next bus
+      // event — same skip-self pattern as second_wind.
       sc.bus.on(GAME_EVENT.UPGRADE_PICKED, (ev) => {
-        if (ev.upgradeId === "clear_the_field") awaiting = true;
+        if (ev.upgradeId === "clear_the_field") pendingCheck = true;
       });
-      sc.bus.on(GAME_EVENT.PHASE_END, (ev) => {
-        if (!awaiting || ev.phase !== Phase.BATTLE) return;
+      sc.bus.onAny((type, ev) => {
+        if (!pendingCheck) return;
+        if (
+          type === "upgradePicked" &&
+          (ev as { upgradeId: string }).upgradeId === "clear_the_field"
+        ) {
+          return;
+        }
         if (sc.state.grunts.length === 0) observed = true;
-        awaiting = false;
+        pendingCheck = false;
       });
       return () => observed;
     },
@@ -284,12 +293,23 @@ const EFFECT_PROBES: Partial<Record<UpgradeId, EffectProbe>> = {
     },
   },
 };
+/** Override seeds for upgrades whose effect-observable condition is not
+ *  satisfied by the registry seed. The seed registry only checks "was the
+ *  upgrade picked?" — downstream observability (cannons inside home region
+ *  for shield_battery, enemy ball landing on picker's wall for
+ *  reinforced_walls) depends on AI gameplay and isn't covered. Same shape
+ *  as `PER_MODIFIER_SEED` in test/modifiers.test.ts. Refresh by writing a
+ *  throwaway probe that scans seeds and checks both `picked` and the
+ *  effect-fires predicate for the first picker. */
+const PER_UPGRADE_SEED: Partial<Record<UpgradeId, number>> = {
+  shield_battery: 3,
+  reinforced_walls: 1,
+};
 const seedGroups = new Map<number, UpgradeId[]>();
 
 for (const upgradeId of UPGRADE_IDS) {
-  const seed = (SEED_FIXTURES as Record<string, number>)[
-    `upgrade:${upgradeId}`
-  ];
+  const seed = PER_UPGRADE_SEED[upgradeId] ??
+    (SEED_FIXTURES as Record<string, number>)[`upgrade:${upgradeId}`];
   if (seed === undefined) {
     throw new Error(
       `upgrades.test.ts: no seed for "upgrade:${upgradeId}" in test/seed-fixtures.json — run \`npm run record-seeds\``,
@@ -302,9 +322,7 @@ for (const upgradeId of UPGRADE_IDS) {
 
 for (const [seed, upgradeIds] of [...seedGroups].sort(([a], [b]) => a - b)) {
   Deno.test(`upgrades: seed=${seed} modern picks + effects`, async (t) => {
-    // Any upgrade in the group has the same seed; pick the first as the
-    // loadSeed key so we share the registry's mode/rounds declaration.
-    const sc = await loadSeed(`upgrade:${upgradeIds[0]!}`, { rounds: ROUNDS });
+    const sc = await createScenario({ seed, mode: "modern", rounds: ROUNDS });
 
     // Install effect probes BEFORE driving the game so nothing is missed.
     const finalizers = new Map<UpgradeId, (picker: number) => boolean>();
