@@ -41,15 +41,15 @@
  * needing interactive state.
  */
 
-import { generateMap, topZonesBySize } from "../src/game/map-generation.ts";
-import type { FullStateMessage } from "../src/protocol/protocol.ts";
 import {
   buildGrid,
   buildLegend,
   type Cell,
   CellKind,
   formatGrid,
-} from "../src/runtime/dev-console-grid.ts";
+} from "../dev/dev-console-grid.ts";
+import { generateMap, topZonesBySize } from "../src/game/map-generation.ts";
+import type { FullStateMessage } from "../src/protocol/protocol.ts";
 import {
   CANNON_PLACE_TIMER,
   type ModifierId,

@@ -2,7 +2,7 @@ import { assertEquals } from "@std/assert";
 import { createScenario } from "./scenario.ts";
 import { GAME_EVENT } from "../src/shared/core/game-event-bus.ts";
 import { BANNER_PLACE_CANNONS } from "../src/runtime/banner-messages.ts";
-import { diffAsciiSnapshots } from "../src/runtime/dev-console-grid.ts";
+import { diffAsciiSnapshots } from "../dev/dev-console-grid.ts";
 
 /** Round-1 "Place Cannons" banner invariant: the rendered scene at the
  *  last frame before the banner fires must match the scene captured for

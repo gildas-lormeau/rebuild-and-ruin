@@ -75,7 +75,7 @@ import {
 import {
   inspectTile,
   type TileInspection,
-} from "../src/runtime/dev-console-grid.ts";
+} from "../dev/dev-console-grid.ts";
 import type { CanvasRecorder } from "./recording-canvas.ts";
 import SEED_FIXTURES from "./seed-fixtures.json" with { type: "json" };
 import { SEED_CONDITIONS } from "./seed-conditions.ts";

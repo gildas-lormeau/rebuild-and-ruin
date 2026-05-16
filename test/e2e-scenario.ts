@@ -25,7 +25,7 @@ import type {
 import type {
   MapLayer,
   TileInspection,
-} from "../src/runtime/dev-console-grid.ts";
+} from "../dev/dev-console-grid.ts";
 import {
   GAME_EVENT,
   type GameEventMap,
@@ -45,7 +45,7 @@ export type {
 export type {
   MapLayer,
   TileInspection,
-} from "../src/runtime/dev-console-grid.ts";
+} from "../dev/dev-console-grid.ts";
 
 /** Stringified `Mode` enum key (e.g. "LOBBY", "GAME", "STOPPED"). The bridge
  *  emits names rather than numeric values so E2E tests compare against string

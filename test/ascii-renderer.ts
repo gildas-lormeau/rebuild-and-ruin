@@ -17,7 +17,7 @@ import {
   buildLegend,
   formatGrid,
   type MapLayer,
-} from "../src/runtime/dev-console-grid.ts";
+} from "../dev/dev-console-grid.ts";
 import { createStubElement } from "./stub-dom.ts";
 import type { GameMap, Viewport } from "../src/shared/core/geometry-types.ts";
 import type {

@@ -6,13 +6,9 @@
  * State getter is late-bound after `createGameRuntime` returns.
  */
 
-import {
-  buildGrid,
-  buildLegend,
-  formatGrid,
-} from "../src/runtime/dev-console-grid.ts";
 import type { GameState } from "../src/shared/core/types.ts";
 import type { RendererInterface } from "../src/shared/ui/overlay-types.ts";
+import { buildGrid, buildLegend, formatGrid } from "./dev-console-grid.ts";
 
 export interface AsciiRendererInternal extends RendererInterface {
   setStateGetter(getter: () => GameState): void;

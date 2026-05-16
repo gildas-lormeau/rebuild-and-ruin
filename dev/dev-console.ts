@@ -1,11 +1,19 @@
 import {
   isLightDebugEnabled,
   setLightDebugEnabled,
-} from "../render/3d/light-debug.ts";
-import { isPerfHudEnabled, setPerfHudEnabled } from "../render/3d/perf-hud.ts";
-import { GRID_COLS, GRID_ROWS } from "../shared/core/grid.ts";
-import type { GameState } from "../shared/core/types.ts";
-import type { ZoneId } from "../shared/core/zone-id.ts";
+} from "../src/render/3d/light-debug.ts";
+import {
+  isPerfHudEnabled,
+  setPerfHudEnabled,
+} from "../src/render/3d/perf-hud.ts";
+import type { MusicSubsystem } from "../src/runtime/music-player.ts";
+import {
+  isStateInstalled,
+  type RuntimeState,
+} from "../src/runtime/runtime-state.ts";
+import { GRID_COLS, GRID_ROWS } from "../src/shared/core/grid.ts";
+import type { GameState } from "../src/shared/core/types.ts";
+import type { ZoneId } from "../src/shared/core/zone-id.ts";
 import {
   buildGrid,
   buildLegend,
@@ -16,8 +24,6 @@ import {
   type Rect,
   zoneBounds,
 } from "./dev-console-grid.ts";
-import type { MusicSubsystem } from "./music-player.ts";
-import { isStateInstalled, type RuntimeState } from "./runtime-state.ts";
 
 type DebugBgTrackId =
   | "title"

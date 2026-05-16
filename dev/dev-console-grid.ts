@@ -6,17 +6,20 @@
  * to keep the game public surface free of debug concerns.
  */
 
-import type { CannonMode } from "../shared/core/battle-types.ts";
-import { cannonModeDef } from "../shared/core/cannon-mode-defs.ts";
-import { TOWER_SIZE } from "../shared/core/game-constants.ts";
+import type { CannonMode } from "../src/shared/core/battle-types.ts";
+import { cannonModeDef } from "../src/shared/core/cannon-mode-defs.ts";
+import { TOWER_SIZE } from "../src/shared/core/game-constants.ts";
 import {
   GRID_COLS,
   GRID_ROWS,
   TILE_SIZE,
   type TileKey,
-} from "../shared/core/grid.ts";
-import type { PlayerId, ValidPlayerId } from "../shared/core/player-slot.ts";
-import { isPlayerEliminated } from "../shared/core/player-types.ts";
+} from "../src/shared/core/grid.ts";
+import type {
+  PlayerId,
+  ValidPlayerId,
+} from "../src/shared/core/player-slot.ts";
+import { isPlayerEliminated } from "../src/shared/core/player-types.ts";
 import {
   hasPitAt,
   inBounds,
@@ -26,10 +29,10 @@ import {
   packTile,
   unpackTile,
   zoneOwnerIdAt,
-} from "../shared/core/spatial.ts";
-import type { GameState } from "../shared/core/types.ts";
-import type { ZoneId } from "../shared/core/zone-id.ts";
-import { PLAYER_NAMES } from "../shared/ui/player-config.ts";
+} from "../src/shared/core/spatial.ts";
+import type { GameState } from "../src/shared/core/types.ts";
+import type { ZoneId } from "../src/shared/core/zone-id.ts";
+import { PLAYER_NAMES } from "../src/shared/ui/player-config.ts";
 
 export type MapLayer = "all" | "terrain" | "walls";
 

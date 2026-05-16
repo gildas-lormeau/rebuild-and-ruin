@@ -7,6 +7,7 @@
  * that needs input/render/ai/online belongs here.
  */
 
+import { exposeDevConsole } from "../../dev/dev-console.ts";
 import { exposeE2EBridge } from "../../dev/e2e-bridge.ts";
 import { executeCannonFire, executePlacePiece } from "../game/index.ts";
 import { dispatchPointerMove } from "../input/input-dispatch.ts";
@@ -73,7 +74,6 @@ import type {
 import { MAX_SEED_LENGTH, SEED_CUSTOM } from "../shared/ui/player-config.ts";
 import { cycleOption } from "../shared/ui/settings-ui.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
-import { exposeDevConsole } from "./dev-console.ts";
 import { createAudioOrchestrator } from "./runtime-audio.ts";
 import { createBannerSystem } from "./runtime-banner.ts";
 import { bootstrapNewGameFromSettings } from "./runtime-bootstrap.ts";

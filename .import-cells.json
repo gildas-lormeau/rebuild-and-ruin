@@ -422,7 +422,6 @@
     "domain": "runtime",
     "role": "runtime cores: anim, dialog, audio & overlay registry",
     "files": [
-      "src/runtime/dev-console-grid.ts",
       "src/runtime/modifier-reveal-overlay-registry.ts",
       "src/runtime/music-player.ts",
       "src/runtime/runtime-haptics.ts",
@@ -544,7 +543,6 @@
     "domain": "runtime",
     "role": "runtime contracts & battle anim",
     "files": [
-      "src/runtime/dev-console.ts",
       "src/runtime/modifier-reveal-time.ts",
       "src/runtime/runtime-audio.ts",
       "src/runtime/runtime-banner.ts",

@@ -9,15 +9,6 @@
 
 import { computeLetterboxLayout } from "../src/render/render-layout.ts";
 import {
-  buildGrid,
-  buildLegend,
-  DEFAULT_MAP_LAYER,
-  formatGrid,
-  inspectTile,
-  type MapLayer,
-  type TileInspection,
-} from "../src/runtime/dev-console-grid.ts";
-import {
   isStateInstalled,
   type RuntimeState,
 } from "../src/runtime/runtime-state.ts";
@@ -39,6 +30,15 @@ import type { GameState } from "../src/shared/core/types.ts";
 import type { ZoneId } from "../src/shared/core/zone-id.ts";
 import { IS_DEV } from "../src/shared/platform/platform.ts";
 import { Mode } from "../src/shared/ui/ui-mode.ts";
+import {
+  buildGrid,
+  buildLegend,
+  DEFAULT_MAP_LAYER,
+  formatGrid,
+  inspectTile,
+  type MapLayer,
+  type TileInspection,
+} from "./dev-console-grid.ts";
 
 export interface E2EBannerSnapshot {
   text: string;

@@ -27,7 +27,7 @@ import {
   type Cell,
   CellKind,
   inspectTile,
-} from "../src/runtime/dev-console-grid.ts";
+} from "../dev/dev-console-grid.ts";
 import { CannonMode } from "../src/shared/core/battle-types.ts";
 import { cannonModeDef } from "../src/shared/core/cannon-mode-defs.ts";
 import { TOWER_SIZE } from "../src/shared/core/game-constants.ts";

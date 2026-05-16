@@ -65,7 +65,6 @@ const RULES: Rule[] = [
     //   - zone-id.ts        — docstring reference
     //   - map-generation.ts — fresh flood-fill allocates raw ids
     //   - zone-recompute.ts — re-flood-fill writes raw cells (trust boundary)
-    //   - dev-console-grid.ts — debug surface for raw cells
     //   - runtime-camera.ts, render-ui-overlays.ts — pass the raw 2D array
     //     into `castleCenterPx` (a spatial helper that takes the array shape).
     //     If `castleCenterPx` is ever refactored to take `GameMap`, drop these.
@@ -76,7 +75,6 @@ const RULES: Rule[] = [
       "src/shared/core/zone-id.ts",
       "src/game/map-generation.ts",
       "src/game/zone-recompute.ts",
-      "src/runtime/dev-console-grid.ts",
       "src/runtime/runtime-camera.ts",
       "src/render/render-ui-overlays.ts",
     ]),

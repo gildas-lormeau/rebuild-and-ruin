@@ -8,7 +8,7 @@ import {
 import { GAME_EVENT } from "../src/shared/core/game-event-bus.ts";
 import { Phase } from "../src/shared/core/game-phase.ts";
 import { unpackTile } from "../src/shared/core/spatial.ts";
-import { diffAsciiSnapshots } from "../src/runtime/dev-console-grid.ts";
+import { diffAsciiSnapshots } from "../dev/dev-console-grid.ts";
 import { MESSAGE } from "../src/protocol/protocol.ts";
 import type { ValidPlayerId } from "../src/shared/core/player-slot.ts";
 
