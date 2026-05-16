@@ -72,21 +72,23 @@ const TILE_VALUE_ALLOWLIST = new Set([
   "spatial.ts",
   "map-generation.ts",
 ]);
-/** Runtime subsystem files (architecture-linter list). */
+/** Runtime subsystem files (architecture-linter list). Matched by basename;
+ *  the cross-domain check applies regardless of whether the file lives at
+ *  `runtime/` root or under `runtime/subsystems/`. */
 const RUNTIME_SUBSYSTEMS = new Set([
-  "runtime-banner.ts",
+  "banner.ts",
+  "pointer-player.ts",
+  "score-deltas.ts",
+  "upgrade-pick.ts",
   "runtime-camera.ts",
   "runtime-game-lifecycle.ts",
-  "runtime-human.ts",
   "runtime-input.ts",
   "runtime-life-lost.ts",
   "runtime-lobby.ts",
   "runtime-options.ts",
   "runtime-phase-ticks.ts",
   "runtime-render.ts",
-  "runtime-score-deltas.ts",
   "runtime-selection.ts",
-  "runtime-upgrade-pick.ts",
 ]);
 /** Domains that runtime subsystems (L8) are allowed to import from. */
 const ALLOWED_SUBSYSTEM_DOMAINS = new Set(["shared", "runtime", "game"]);
@@ -223,7 +225,7 @@ function checkRuntimeSubsystemImports(
   const lines = content.split("\n");
   for (let idx = 0; idx < lines.length; idx++) {
     const ln = lines[idx]!;
-    const sourceMatch = ln.match(/from\s+"(\.\.\/(\w+)\/[^"]+)"/);
+    const sourceMatch = ln.match(/from\s+"((?:\.\.\/)+(\w+)\/[^"]+)"/);
     if (!sourceMatch) continue;
     const domain = sourceMatch[2]!;
     if (!ALLOWED_SUBSYSTEM_DOMAINS.has(domain)) {

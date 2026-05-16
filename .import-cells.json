@@ -480,7 +480,7 @@
     "layer": 7,
     "domain": "game",
     "subdomain": "modifiers",
-    "role": "modifier implementations (fire, high-tide)",
+    "role": "modifier implementations",
     "files": [
       "src/game/modifiers/fire.ts",
       "src/game/modifiers/high-tide.ts"
@@ -497,7 +497,7 @@
   {
     "layer": 7,
     "domain": "online",
-    "role": "online action send, remote crosshairs & stores",
+    "role": "online server lifecycle, remote crosshairs & stores",
     "files": [
       "src/online/online-remote-crosshairs.ts",
       "src/online/online-server-lifecycle.ts",
@@ -507,7 +507,7 @@
   {
     "layer": 7,
     "domain": "render",
-    "role": "entity renderers (balloons, cannons, grunts, towers, walls, terrain)",
+    "role": "entity renderers",
     "files": [
       "src/render/3d/entities/balloons.ts",
       "src/render/3d/entities/cannonballs.ts",
@@ -527,7 +527,7 @@
     "layer": 7,
     "domain": "render",
     "subdomain": "3d/effects",
-    "role": "effect builders (fire-burst, fog, crosshairs, bonus, impacts, thawing, terrain-tile)",
+    "role": "effect builders",
     "files": [
       "src/render/3d/effects/bonus-squares.ts",
       "src/render/3d/effects/crosshairs.ts",
@@ -541,19 +541,27 @@
   {
     "layer": 7,
     "domain": "runtime",
-    "role": "runtime contracts & battle anim",
+    "role": "main loop + runtime contracts + battle-anim & timing translators",
     "files": [
       "src/runtime/modifier-reveal-time.ts",
-      "src/runtime/runtime-audio.ts",
-      "src/runtime/runtime-banner.ts",
       "src/runtime/runtime-battle-anim.ts",
-      "src/runtime/runtime-cannon-animator.ts",
-      "src/runtime/runtime-human.ts",
       "src/runtime/runtime-main-loop.ts",
-      "src/runtime/runtime-score-deltas.ts",
       "src/runtime/runtime-types.ts",
-      "src/runtime/runtime-ui-contracts.ts",
-      "src/runtime/runtime-upgrade-pick.ts"
+      "src/runtime/runtime-ui-contracts.ts"
+    ]
+  },
+  {
+    "layer": 7,
+    "domain": "runtime",
+    "subdomain": "subsystems",
+    "role": "subsystem factories",
+    "files": [
+      "src/runtime/subsystems/audio.ts",
+      "src/runtime/subsystems/banner.ts",
+      "src/runtime/subsystems/cannon-animator.ts",
+      "src/runtime/subsystems/pointer-player.ts",
+      "src/runtime/subsystems/score-deltas.ts",
+      "src/runtime/subsystems/upgrade-pick.ts"
     ]
   },
   {
@@ -616,7 +624,7 @@
     "layer": 8,
     "domain": "game",
     "subdomain": "modifiers",
-    "role": "modifier implementation (sinkhole)",
+    "role": "modifier implementations",
     "files": [
       "src/game/modifiers/sinkhole.ts"
     ]

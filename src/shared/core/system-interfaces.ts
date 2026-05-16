@@ -330,7 +330,7 @@ export interface BattleController {
  *
  *  The dialog state (focus, timers, offers) lives on `UpgradePickEntry`;
  *  the controller decides when to commit a pick and which one. The
- *  orchestrator (`runtime-upgrade-pick.ts`) iterates entries each tick
+ *  orchestrator (`runtime/subsystems/upgrade-pick.ts`) iterates entries each tick
  *  and calls `tickUpgradePick` on auto-resolving controllers, falling
  *  back to `forceUpgradePick` at max-timer expiry.
  *

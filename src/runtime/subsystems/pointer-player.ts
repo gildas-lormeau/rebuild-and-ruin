@@ -7,14 +7,14 @@
  * (mouseJoinedSlot), falling back to the first human controller.
  */
 
-import { isHuman } from "../shared/core/controller-guards.ts";
-import { isPlayerAlive } from "../shared/core/player-types.ts";
+import { isHuman } from "../../shared/core/controller-guards.ts";
+import { isPlayerAlive } from "../../shared/core/player-types.ts";
 import {
   type InputReceiver,
   type PlayerController,
-} from "../shared/core/system-interfaces.ts";
-import type { WithPointerPlayer } from "../shared/ui/input-deps.ts";
-import { isSessionLive, type RuntimeState } from "./runtime-state.ts";
+} from "../../shared/core/system-interfaces.ts";
+import type { WithPointerPlayer } from "../../shared/ui/input-deps.ts";
+import { isSessionLive, type RuntimeState } from "../runtime-state.ts";
 
 interface PointerPlayerLookup {
   /** Return the human controller that owns mouse/touch input, or null in demo mode. */

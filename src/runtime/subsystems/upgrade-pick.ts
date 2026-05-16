@@ -11,25 +11,25 @@ import {
   UPGRADE_PICK_AUTO_DELAY,
   UPGRADE_PICK_MAX_TIMER,
   UPGRADE_PICK_PULSE_DURATION,
-} from "../shared/core/game-constants.ts";
-import { type ValidPlayerId } from "../shared/core/player-slot.ts";
-import type { UpgradeId } from "../shared/core/upgrade-defs.ts";
+} from "../../shared/core/game-constants.ts";
+import { type ValidPlayerId } from "../../shared/core/player-slot.ts";
+import type { UpgradeId } from "../../shared/core/upgrade-defs.ts";
 import type {
   UpgradePickDialogState,
   UpgradePickEntry,
-} from "../shared/ui/interaction-types.ts";
-import { Mode } from "../shared/ui/ui-mode.ts";
+} from "../../shared/ui/interaction-types.ts";
+import { Mode } from "../../shared/ui/ui-mode.ts";
 import {
   assertStateInstalled,
   type RuntimeState,
   setMode,
-} from "./runtime-state.ts";
+} from "../runtime-state.ts";
 import {
   createUpgradePickDialog,
   moveUpgradePickFocus,
   resolveUpgradePickEntry,
   tickUpgradePickDialog,
-} from "./runtime-upgrade-pick-core.ts";
+} from "../runtime-upgrade-pick-core.ts";
 
 interface UpgradePickSystemDeps {
   readonly runtimeState: RuntimeState;

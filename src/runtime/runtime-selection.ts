@@ -95,7 +95,7 @@ export function createSelectionSystem(
    *  round (initial selection or reselection). Resets selectionStates map and
    *  overlay selection display. Banner prev-scene snapshots no longer need
    *  explicit clearing here: they live on `runtimeState.banner` which is
-   *  reset to a fresh struct when the banner ends (`runtime-banner.ts`), so
+   *  reset to a fresh struct when the banner ends (`subsystems/banner.ts`), so
    *  by the time a selection reset runs the prevScene field is already
    *  undefined. */
   function resetSelectionState(): void {

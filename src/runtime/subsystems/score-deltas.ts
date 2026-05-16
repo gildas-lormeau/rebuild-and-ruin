@@ -5,12 +5,12 @@
  * build animations.
  */
 
-import { computeScoreDeltas } from "../game/index.ts";
-import { SCORE_DELTA_DISPLAY_TIME } from "../shared/core/game-constants.ts";
-import { emitGameEvent, GAME_EVENT } from "../shared/core/game-event-bus.ts";
-import { TILE_SIZE } from "../shared/core/grid.ts";
-import { towerCenterPx } from "../shared/core/spatial.ts";
-import type { RuntimeState } from "./runtime-state.ts";
+import { computeScoreDeltas } from "../../game/index.ts";
+import { SCORE_DELTA_DISPLAY_TIME } from "../../shared/core/game-constants.ts";
+import { emitGameEvent, GAME_EVENT } from "../../shared/core/game-event-bus.ts";
+import { TILE_SIZE } from "../../shared/core/grid.ts";
+import { towerCenterPx } from "../../shared/core/spatial.ts";
+import type { RuntimeState } from "../runtime-state.ts";
 
 interface ScoreDeltaDeps {
   readonly runtimeState: RuntimeState;

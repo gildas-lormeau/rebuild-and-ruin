@@ -72,20 +72,20 @@ deps object and returns a handle with methods. They are wired by
 
 | File | System | What it owns |
 |---|---|---|
-| `runtime-banner.ts` | Banner | Phase transition banner show/tick |
+| `subsystems/banner.ts` | Banner | Phase transition banner show/tick |
 | `runtime-camera.ts` | Camera | Viewport, zoom, auto-zoom, lerp |
 | `runtime-game-lifecycle.ts` | Lifecycle | startGame, rematch, endGame, returnToLobby |
 | `runtime-haptics.ts` | Haptics | Vibration observer — gated by haptics setting, write-only test observer |
-| `runtime-human.ts` | PointerPlayer | Cached pointer-player lookup (touch vs. desktop) |
+| `subsystems/pointer-player.ts` | PointerPlayer | Cached pointer-player lookup (touch vs. desktop) |
 | `runtime-input.ts` | Input | Keyboard/mouse/touch event registration + dispatch |
 | `runtime-life-lost.ts` | LifeLost | Life-lost dialog lifecycle (show/tick/resolve) |
 | `runtime-lobby.ts` | Lobby | Lobby UI state + render + slot joining |
 | `runtime-options.ts` | Options | Options/controls screens, keybinding UI, seed input |
 | `runtime-phase-ticks.ts` | PhaseTicks | Per-frame dispatch for cannon/build/battle phases |
 | `runtime-render.ts` | Render | Per-frame overlay build + drawFrame + touch controls update |
-| `runtime-score-deltas.ts` | ScoreDelta | Animated score delta display after build phase |
+| `subsystems/score-deltas.ts` | ScoreDelta | Animated score delta display after build phase |
 | `runtime-selection.ts` | Selection | Castle selection phase (initial + reselect) |
-| `runtime-upgrade-pick.ts` | UpgradePick | Upgrade-pick dialog lifecycle (show/tick/resolve) |
+| `subsystems/upgrade-pick.ts` | UpgradePick | Upgrade-pick dialog lifecycle (show/tick/resolve) |
 
 ### Audio cluster (primitives + two sub-system factories)
 The audio files form a cohesive primitive cluster rather than independent
@@ -211,7 +211,7 @@ Key points that confuse first-time readers:
 5. Run `deno run -A scripts/lint-architecture.ts` — it enforces the factory shape.
 
 ### Add a new dialog lifecycle (modal UI)
-Look at `runtime-life-lost.ts` or `runtime-upgrade-pick.ts` for the
+Look at `runtime-life-lost.ts` or `subsystems/upgrade-pick.ts` for the
 pattern: dialog state lives in `runtimeState`, the `core.ts` file has
 pure state helpers, the factory wires tick/show/resolve + sound/haptics.
 The modal dialog contract is documented in `runtime-types.ts`.

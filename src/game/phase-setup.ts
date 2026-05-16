@@ -312,7 +312,7 @@ export function finalizeFreshCastles(state: GameState): void {
 
 /** Compute per-player score deltas from the build phase.
  *  Returns only positive deltas for non-eliminated players.
- *  Callers add pixel positions for rendering (see runtime-score-deltas.ts). */
+ *  Callers add pixel positions for rendering (see runtime/subsystems/score-deltas.ts). */
 export function computeScoreDeltas(
   players: GameState["players"],
   preScores: readonly number[],

@@ -84,7 +84,7 @@ split into focused modules:
   AI players. Consumed by `runtime-life-lost.ts` via a callback in
   the deps bag.
 - **`ai-upgrade-pick.ts`** — Auto-resolves upgrade-pick dialog
-  entries. Consumed by `runtime-upgrade-pick.ts` the same way.
+  entries. Consumed by `runtime/subsystems/upgrade-pick.ts` the same way.
 
 ### Shared helpers
 - **`ai-constants.ts`** — Step sizes, eval intervals, animation

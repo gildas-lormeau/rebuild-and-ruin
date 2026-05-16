@@ -187,13 +187,13 @@
       "pair": "BallParams@src/render/3d/sprites/cannonball-scene.ts ↔ PieceDims@src/render/3d/sprites/debris-scene.ts"
     },
     {
-      "pair": "BannerSystemDeps@src/runtime/runtime-banner.ts ↔ LifeLostSystemDeps@src/runtime/runtime-life-lost.ts"
+      "pair": "BannerSystemDeps@src/runtime/subsystems/banner.ts ↔ LifeLostSystemDeps@src/runtime/runtime-life-lost.ts"
     },
     {
-      "pair": "BannerSystemDeps@src/runtime/runtime-banner.ts ↔ SelectionSystemDeps@src/runtime/runtime-selection.ts"
+      "pair": "BannerSystemDeps@src/runtime/subsystems/banner.ts ↔ SelectionSystemDeps@src/runtime/runtime-selection.ts"
     },
     {
-      "pair": "BannerSystemDeps@src/runtime/runtime-banner.ts ↔ UpgradePickSystemDeps@src/runtime/runtime-upgrade-pick.ts"
+      "pair": "BannerSystemDeps@src/runtime/subsystems/banner.ts ↔ UpgradePickSystemDeps@src/runtime/subsystems/upgrade-pick.ts"
     },
     {
       "pair": "BarrelParams@src/render/3d/sprites/cannon-scene.ts ↔ BarrelParams@src/render/3d/sprites/grunt-scene.ts"
@@ -679,7 +679,7 @@
       "pair": "LifeLostSystemDeps@src/runtime/runtime-life-lost.ts ↔ SelectionSystemDeps@src/runtime/runtime-selection.ts"
     },
     {
-      "pair": "LifeLostSystemDeps@src/runtime/runtime-life-lost.ts ↔ UpgradePickSystemDeps@src/runtime/runtime-upgrade-pick.ts"
+      "pair": "LifeLostSystemDeps@src/runtime/runtime-life-lost.ts ↔ UpgradePickSystemDeps@src/runtime/subsystems/upgrade-pick.ts"
     },
     {
       "pair": "LobbySystem@src/runtime/runtime-lobby.ts ↔ RuntimeLobby@src/runtime/runtime-types.ts"
@@ -868,7 +868,7 @@
       "pair": "ScheduledPiecePlacement@src/game/scheduled-actions.ts ↔ WallDestroyedMessage@src/shared/core/battle-events.ts"
     },
     {
-      "pair": "SelectionSystemDeps@src/runtime/runtime-selection.ts ↔ UpgradePickSystemDeps@src/runtime/runtime-upgrade-pick.ts"
+      "pair": "SelectionSystemDeps@src/runtime/runtime-selection.ts ↔ UpgradePickSystemDeps@src/runtime/subsystems/upgrade-pick.ts"
     },
     {
       "pair": "SlabParams@src/render/3d/sprites/cannon-scene.ts ↔ TopParams@src/render/3d/sprites/rampart-scene.ts"

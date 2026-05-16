@@ -1,12 +1,18 @@
 /**
  * Architecture lint — verify runtime sub-system conventions.
  *
+ * A sub-system is either a top-level `runtime-*.ts` file (not in EXEMPT) or
+ * any `.ts` file under `runtime/subsystems/`.
+ *
  * Checks:
- * 1. Every runtime-*.ts sub-system file (excluding exempt files) must export
- *    exactly one factory function (create*) or entry function (update*).
- * 2. That factory/entry must accept a single deps/config parameter (not loose args).
+ * 1. Every sub-system file must export at least one factory function
+ *    (create*) or entry function (update*).
+ * 2. That factory/entry must accept a single deps/config parameter
+ *    (not loose args).
  * 3. Sub-system files must not import from other sub-system files
- *    (only from runtime-types.ts and runtime-state.ts).
+ *    (the import is detected by target basename, regardless of location).
+ *    Allowed runtime/ imports are the non-subsystem runtime files
+ *    listed in ALLOWED_RUNTIME_BASENAMES.
  * 4. Only runtime-composition.ts may import from sub-system files.
  *
  * Usage:
@@ -27,6 +33,7 @@ interface Violation {
 
 const SRC = join(process.cwd(), "src");
 const RUNTIME_DIR = join(SRC, "runtime");
+const SUBSYSTEMS_DIR = join(RUNTIME_DIR, "subsystems");
 /** Files that are part of the runtime layer but are NOT sub-systems. */
 const EXEMPT = new Set([
   "runtime-composition.ts",
@@ -50,22 +57,24 @@ const EXEMPT = new Set([
 ]);
 /** Prefixes for runtime-layer file families that are not sub-systems. */
 const EXEMPT_PREFIXES = ["online-runtime-"];
-/** Sub-system files may import from these runtime-layer files. */
-const ALLOWED_RUNTIME_IMPORTS = new Set([
-  "./runtime-types.ts",
-  "./runtime-state.ts",
-  "./runtime-ui-contracts.ts", // UI contracts (overlay/screen factories, hit tests, touch handles, input-handler registration)
-  "./runtime-banner-state.ts", // BannerState type + null-init constructor
-  "./runtime-tick-context.ts", // shared tick state primitives
-  "./runtime-host-phase-ticks.ts", // consumed by runtime-phase-ticks
-  "./runtime-host-battle-ticks.ts", // consumed by runtime-phase-ticks
-  "./runtime-bootstrap.ts", // consumed by runtime-selection
-  "./runtime-transition-steps.ts", // shared transition recipes
-  "./runtime-phase-machine.ts", // pure data-driven state machine, consumed by runtime-phase-ticks
-  "./runtime-castle-build.ts", // pure animation primitives, consumed by runtime-selection
-  "./runtime-battle-anim.ts", // pure battle-event-to-render-anim translation, consumed by runtime-phase-ticks
-  "./runtime-life-lost-core.ts", // pure dialog primitives, consumed by runtime-life-lost
-  "./runtime-upgrade-pick-core.ts", // pure dialog primitives, consumed by runtime-upgrade-pick
+/** Non-subsystem `runtime-*` files that sub-systems may import.
+ *  Other imports (`shared/`, `game/`, or non-`runtime-` files inside `runtime/`)
+ *  are not gated here — `lint-restricted-imports.ts` handles cross-domain rules. */
+const ALLOWED_RUNTIME_BASENAMES = new Set([
+  "runtime-types.ts",
+  "runtime-state.ts",
+  "runtime-ui-contracts.ts", // UI contracts (overlay/screen factories, hit tests, touch handles, input-handler registration)
+  "runtime-banner-state.ts", // BannerState type + null-init constructor
+  "runtime-tick-context.ts", // shared tick state primitives
+  "runtime-host-phase-ticks.ts", // consumed by runtime-phase-ticks
+  "runtime-host-battle-ticks.ts", // consumed by runtime-phase-ticks
+  "runtime-bootstrap.ts", // consumed by runtime-selection
+  "runtime-transition-steps.ts", // shared transition recipes
+  "runtime-phase-machine.ts", // pure data-driven state machine, consumed by runtime-phase-ticks
+  "runtime-castle-build.ts", // pure animation primitives, consumed by runtime-selection
+  "runtime-battle-anim.ts", // pure battle-event-to-render-anim translation, consumed by runtime-phase-ticks
+  "runtime-life-lost-core.ts", // pure dialog primitives, consumed by runtime-life-lost
+  "runtime-upgrade-pick-core.ts", // pure dialog primitives, consumed by runtime-upgrade-pick
 ]);
 
 main();
@@ -105,7 +114,11 @@ function main(): void {
 
 function checkSubSystem(file: string, violations: Violation[]): void {
   const content = readFileSync(join(RUNTIME_DIR, file), "utf-8");
+  const fileBase = basename(file);
   const fns = getExportedFunctions(content);
+  const subSystemBaseNames = new Set(
+    getSubSystemFiles().map((f) => basename(f)),
+  );
 
   // Check 1: Must export at least one factory/entry function
   const factories = fns.filter((f) => /^(create|update)\w+/.test(f.name));
@@ -152,14 +165,26 @@ function checkSubSystem(file: string, violations: Violation[]): void {
     }
   }
 
-  // Check 3: Must not import from other sub-system files
+  // Check 3: Must not import from other sub-system files.
+  //   Match by basename so the rule works for both root-level sub-systems
+  //   (`./runtime-foo.ts`) and `subsystems/` peers (`./bar.ts`, `../runtime-foo.ts`).
   const imports = getImports(content);
   for (const imp of imports) {
-    if (imp.startsWith("./runtime-") && !ALLOWED_RUNTIME_IMPORTS.has(imp)) {
-      const target = imp.replace("./", "");
+    const importBase = basename(imp);
+    if (subSystemBaseNames.has(importBase) && importBase !== fileBase) {
       violations.push({
         file,
-        message: `Imports from sub-system ${target} — sub-systems must not depend on each other`,
+        message: `Imports from sub-system ${importBase} — sub-systems must not depend on each other`,
+      });
+      continue;
+    }
+    if (
+      importBase.startsWith("runtime-") &&
+      !ALLOWED_RUNTIME_BASENAMES.has(importBase)
+    ) {
+      violations.push({
+        file,
+        message: `Imports from runtime/ file ${importBase} — not in the non-subsystem allowlist (ALLOWED_RUNTIME_BASENAMES in lint-architecture.ts)`,
       });
     }
   }
@@ -188,7 +213,9 @@ function getExportedFunctions(
 }
 
 function checkConsumers(violations: Violation[]): void {
-  const subSystemBaseNames = new Set(getSubSystemFiles());
+  const subSystemBaseNames = new Set(
+    getSubSystemFiles().map((f) => basename(f)),
+  );
 
   // Check 4: Only runtime-composition.ts may import from sub-system files
   const allTs = collectAllTsFiles(SRC);
@@ -198,6 +225,7 @@ function checkConsumers(violations: Violation[]): void {
     if (base === "runtime-composition.ts") continue;
     // Sub-systems themselves are checked above (allowed to import runtime-types/state)
     if (base.startsWith("runtime-")) continue;
+    if (filePath.startsWith(SUBSYSTEMS_DIR)) continue;
 
     const content = readFileSync(filePath, "utf-8");
     const imports = getImports(content);
@@ -216,17 +244,25 @@ function checkConsumers(violations: Violation[]): void {
 }
 
 function getSubSystemFiles(): string[] {
-  if (!statSync(RUNTIME_DIR, { throwIfNoEntry: false })?.isDirectory())
-    return [];
-  return readdirSync(RUNTIME_DIR)
-    .filter(
-      (f) =>
+  const result: string[] = [];
+  if (statSync(RUNTIME_DIR, { throwIfNoEntry: false })?.isDirectory()) {
+    for (const f of readdirSync(RUNTIME_DIR)) {
+      if (
         f.startsWith("runtime-") &&
         f.endsWith(".ts") &&
         !EXEMPT.has(f) &&
-        !EXEMPT_PREFIXES.some((p) => f.startsWith(p)),
-    )
-    .sort();
+        !EXEMPT_PREFIXES.some((p) => f.startsWith(p))
+      ) {
+        result.push(f);
+      }
+    }
+  }
+  if (statSync(SUBSYSTEMS_DIR, { throwIfNoEntry: false })?.isDirectory()) {
+    for (const f of readdirSync(SUBSYSTEMS_DIR)) {
+      if (f.endsWith(".ts")) result.push(`subsystems/${f}`);
+    }
+  }
+  return result.sort();
 }
 
 function getImports(content: string): string[] {

@@ -74,8 +74,6 @@ import type {
 import { MAX_SEED_LENGTH, SEED_CUSTOM } from "../shared/ui/player-config.ts";
 import { cycleOption } from "../shared/ui/settings-ui.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
-import { createAudioOrchestrator } from "./runtime-audio.ts";
-import { createBannerSystem } from "./runtime-banner.ts";
 import { bootstrapNewGameFromSettings } from "./runtime-bootstrap.ts";
 import {
   createCachedContainerHeight,
@@ -83,13 +81,11 @@ import {
 } from "./runtime-browser-dom.ts";
 import { createBrowserTimingApi } from "./runtime-browser-timing.ts";
 import { createCameraSystem } from "./runtime-camera.ts";
-import { createCannonAnimator } from "./runtime-cannon-animator.ts";
 import {
   buildLifecycleDeps,
   createGameLifecycle,
 } from "./runtime-game-lifecycle.ts";
 import { createHapticsSubsystem } from "./runtime-haptics.ts";
-import { createPointerPlayerLookup } from "./runtime-human.ts";
 import { createInputSystem, type TouchHandles } from "./runtime-input.ts";
 import {
   createLifeLostSystem,
@@ -103,7 +99,6 @@ import {
   type PhaseTicksSystem,
 } from "./runtime-phase-ticks.ts";
 import { createRenderSystem } from "./runtime-render.ts";
-import { createScoreDeltaSystem } from "./runtime-score-deltas.ts";
 import { createSelectionSystem } from "./runtime-selection.ts";
 import {
   createRuntimeState,
@@ -119,10 +114,15 @@ import type {
   RuntimeConfig,
 } from "./runtime-types.ts";
 import type { UIContext } from "./runtime-ui-contracts.ts";
+import { createAudioOrchestrator } from "./subsystems/audio.ts";
+import { createBannerSystem } from "./subsystems/banner.ts";
+import { createCannonAnimator } from "./subsystems/cannon-animator.ts";
+import { createPointerPlayerLookup } from "./subsystems/pointer-player.ts";
+import { createScoreDeltaSystem } from "./subsystems/score-deltas.ts";
 import {
   createUpgradePickSystem,
   type UpgradePickSystem,
-} from "./runtime-upgrade-pick.ts";
+} from "./subsystems/upgrade-pick.ts";
 import type { TimingApi } from "./timing-api.ts";
 
 /** Singleton empty set so repeated calls with no remotes return the same
@@ -379,7 +379,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   }
 
   // -------------------------------------------------------------------------
-  // Human-player lookup (delegated to runtime-human.ts)
+  // Human-player lookup (delegated to subsystems/pointer-player.ts)
   // -------------------------------------------------------------------------
 
   const {
@@ -423,7 +423,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   const { tickCamera, updateViewport } = camera;
 
   // -------------------------------------------------------------------------
-  // Score delta sub-system (delegated to runtime-score-deltas.ts)
+  // Score delta sub-system (delegated to subsystems/score-deltas.ts)
   // -------------------------------------------------------------------------
 
   const scoreDelta = createScoreDeltaSystem({
@@ -441,7 +441,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   renderer.setCannonFacingProvider?.(cannonAnimator.getDisplayed);
 
   // -------------------------------------------------------------------------
-  // Banner sub-system (delegated to runtime-banner.ts)
+  // Banner sub-system (delegated to subsystems/banner.ts)
   // -------------------------------------------------------------------------
 
   const { showBanner, hideBanner, resetBannerState, tickBanner } =
@@ -609,7 +609,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   });
 
   // -------------------------------------------------------------------------
-  // Upgrade pick sub-system (delegated to runtime-upgrade-pick.ts)
+  // Upgrade pick sub-system (delegated to subsystems/upgrade-pick.ts)
   // -------------------------------------------------------------------------
 
   const upgradePick: UpgradePickSystem = createUpgradePickSystem({

@@ -197,7 +197,7 @@ interface PhaseTicksDeps extends Pick<RuntimeConfig, "log"> {
    *  its target. Gates battle-end so the post-battle `resetCannonFacings`
    *  rotation completes before the camera untilt begins — frame-synced
    *  instead of wall-clock timed. Sourced from
-   *  `runtime-cannon-animator.ts`'s `allSettled`. */
+   *  `subsystems/cannon-animator.ts`'s `allSettled`. */
   cannonRotationSettled: () => boolean;
   /** Start the build→battle tilt. Called from `proceedToBattle` at
    *  battle-banner end. */

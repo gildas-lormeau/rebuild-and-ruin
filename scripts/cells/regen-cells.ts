@@ -70,6 +70,7 @@ const DOMINANT_THRESHOLD = 0.7;
 const SUBPATH_PARTITIONS: Record<string, readonly string[]> = {
   game: ["modifiers", "upgrades"],
   render: ["3d/effects"],
+  runtime: ["subsystems"],
 };
 // Role labels keyed by `${layer}::${domain}` (or
 // `${layer}::${domain}/${subdomain}` for subpath-partitioned cells, see
@@ -139,14 +140,14 @@ const LABELS: Record<string, string> = {
   "7::ai": "AI strategy + Host interface contracts",
   "7::controllers": "human controller",
   "7::game": "game init & zone recompute",
-  "7::game/modifiers": "modifier implementations (fire, high-tide)",
+  "7::game/modifiers": "modifier implementations",
   "7::input": "pointer-event dispatch",
-  "7::online": "online action send, remote crosshairs & stores",
-  "7::render":
-    "entity renderers (balloons, cannons, grunts, towers, walls, terrain)",
-  "7::render/3d/effects":
-    "effect builders (fire-burst, fog, crosshairs, bonus, impacts, thawing, terrain-tile)",
-  "7::runtime": "runtime contracts & battle anim",
+  "7::online": "online server lifecycle, remote crosshairs & stores",
+  "7::render": "entity renderers",
+  "7::render/3d/effects": "effect builders",
+  "7::runtime":
+    "main loop + runtime contracts + battle-anim & timing translators",
+  "7::runtime/subsystems": "subsystem factories",
   "7::server": "server room manager",
   "7::shared": "shared board occupancy",
 
@@ -155,7 +156,7 @@ const LABELS: Record<string, string> = {
   "8::controllers": "controller factory",
   "8::entry": "server entry",
   "8::game": "core subsystems (castle gen, grunt movement)",
-  "8::game/modifiers": "modifier implementation (sinkhole)",
+  "8::game/modifiers": "modifier implementations",
   "8::game/upgrades": "upgrade implementation (erosion)",
   "8::input": "input dispatch & touch update",
   "8::online": "online runtime websocket",

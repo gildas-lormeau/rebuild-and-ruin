@@ -1,5 +1,8 @@
-import { isBalloonCannon, isCannonAlive } from "../shared/core/battle-types.ts";
-import { isSessionLive, type RuntimeState } from "./runtime-state.ts";
+import {
+  isBalloonCannon,
+  isCannonAlive,
+} from "../../shared/core/battle-types.ts";
+import { isSessionLive, type RuntimeState } from "../runtime-state.ts";
 
 interface FacingState {
   displayed: number;

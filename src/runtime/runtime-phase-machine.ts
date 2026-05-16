@@ -1055,7 +1055,7 @@ function executeTransition(
   seedResult?: Partial<TransitionResult>,
 ): void {
   // `showBanner` owns the A/B capture per banner (see
-  // `runtime-banner.ts`). The transition runner doesn't snapshot
+  // `subsystems/banner.ts`). The transition runner doesn't snapshot
   // anything — each banner reads the current display pixels as its
   // own prev-scene (A), forces a render to flush any queued mutation,
   // and captures the resulting pixels as its new-scene (B).

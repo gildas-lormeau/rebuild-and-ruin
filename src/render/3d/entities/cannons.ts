@@ -49,7 +49,7 @@ export interface CannonsManager {
 
 /** Eased displayed facing for the cannon at (col, row), or `undefined`
  *  if no eased value is available yet. Supplied by the runtime's
- *  cannon-animator (see `runtime-cannon-animator.ts`); the renderer
+ *  cannon-animator (see `runtime/subsystems/cannon-animator.ts`); the renderer
  *  observes the eased value but doesn't own it — the runtime needs
  *  to gate the battle-end transition on the ease completing, and
  *  layering means runtime can't depend on renderer state. */
@@ -186,7 +186,7 @@ export function createCannonsManager(
     applyFiringTargets(overlay);
     easeBarrelStates(easeDt);
 
-    // Cannon facing easing lives in `runtime-cannon-animator.ts`; we just
+    // Cannon facing easing lives in `runtime/subsystems/cannon-animator.ts`; we just
     // read displayed values through `getCannonFacing` when painting. The
     // signature includes the displayed facing so the early-out still
     // re-renders during the ease (signature changes each frame as
@@ -252,7 +252,7 @@ export function createCannonsManager(
           // Rampart has no barrel and never rotates; every other variant
           // rotates by `-facing` on Y (game's CW convention vs three.js's
           // CCW-from-+Y). Non-rampart cannons use the eased displayed
-          // facing (owned by `runtime-cannon-animator.ts`) so abrupt
+          // facing (owned by `runtime/subsystems/cannon-animator.ts`) so abrupt
           // state changes (battle-end reset, post-fire aim shifts) render
           // as a rotation rather than a snap. Falls back to authoritative
           // `cannon.facing` if the animator hasn't seeded an entry yet
