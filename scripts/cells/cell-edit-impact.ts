@@ -24,6 +24,10 @@ import { Project } from "ts-morph";
 interface Cell {
   layer: number;
   domain: string;
+  /** Optional subpath partition — see `SUBPATH_PARTITIONS` in
+   *  `scripts/cells/regen-cells.ts`. When set, the cell only holds
+   *  files under `src/<domain>/<subdomain>/`. */
+  subdomain?: string;
   role: string;
   files: string[];
 }
@@ -205,7 +209,7 @@ function buildReport(
   );
 
   // Filter own-cell out of deps/consumers (already covered by peers).
-  const ownCellId = cell ? `${cell.layer}::${cell.domain}` : "";
+  const ownCellId = cell ? formatCellId(cell) : "";
   const depsFiltered = depsByCell.filter((group) => group.cellId !== ownCellId);
   const consumersFiltered = consumersByCell.filter(
     (group) => group.cellId !== ownCellId,
@@ -232,11 +236,11 @@ function groupByCell(
   for (const file of files) {
     const cell = fileToCell.get(file);
     if (!cell) continue;
-    const cellId = `${cell.layer}::${cell.domain}`;
+    const cellId = formatCellId(cell);
     if (!groups.has(cellId)) {
       groups.set(cellId, {
         cellId,
-        role: `L${cell.layer} · ${cell.domain} — ${cell.role}`,
+        role: `L${cell.layer} · ${formatDisplayDomain(cell)} — ${cell.role}`,
         files: [],
       });
     }
@@ -250,6 +254,14 @@ function groupByCell(
   });
 }
 
+function formatCellId(
+  cell: Pick<Cell, "layer" | "domain" | "subdomain">,
+): string {
+  return cell.subdomain !== undefined
+    ? `${cell.layer}::${cell.domain}/${cell.subdomain}`
+    : `${cell.layer}::${cell.domain}`;
+}
+
 function printReport(report: ImpactReport): void {
   console.log(`\n=== ${report.target} ===`);
   if (!report.cell) {
@@ -259,7 +271,7 @@ function printReport(report: ImpactReport): void {
     return;
   }
   console.log(
-    `  Cell: L${report.cell.layer} · ${report.cell.domain} — ${report.cell.role}`,
+    `  Cell: L${report.cell.layer} · ${formatDisplayDomain(report.cell)} — ${report.cell.role}`,
   );
 
   if (report.sameCellPeers.length > 0) {
@@ -305,4 +317,10 @@ function printReport(report: ImpactReport): void {
     console.log(`\n  Test consumers (${report.testConsumers.length}):`);
     for (const test of report.testConsumers) console.log(`    ${test}`);
   }
+}
+
+function formatDisplayDomain(cell: Pick<Cell, "domain" | "subdomain">): string {
+  return cell.subdomain !== undefined
+    ? `${cell.domain}/${cell.subdomain}`
+    : cell.domain;
 }

@@ -42,6 +42,11 @@ interface DomainBoundaries {
 interface Cell {
   layer: number;
   domain: string;
+  /** When set, files in this cell live under `src/<domain>/<subdomain>/`
+   *  and form their own role cluster separate from the rest of the domain
+   *  at the same layer. See `SUBPATH_PARTITIONS` for which subpaths are
+   *  promoted to subdomains. */
+  subdomain?: string;
   role: string;
   files: string[];
 }
@@ -49,11 +54,29 @@ interface Cell {
 const ROOT = path.resolve(import.meta.dirname!, "..", "..");
 const CELLS_PATH = path.join(ROOT, ".import-cells.json");
 const DOMINANT_THRESHOLD = 0.7;
-// Role labels keyed by `${layer}::${domain}`. Cells without an entry
-// here either (a) inherit their layer name when the cell monopolizes
-// the layer or dominates it (≥70% of files), or (b) hard-error in
-// strict mode to force a human decision. See Phase 2 commit for the
-// original labeling rationale.
+/**
+ * Per-domain subdirectory names that should be split out into their own
+ * cells instead of being lumped into the parent domain at each layer.
+ * Useful when one `(domain, layer)` intersection mixes structurally
+ * distinct role clusters that share an import depth by coincidence (e.g.
+ * `game/modifiers/*` and `game/upgrades/*` both compose the same core
+ * types and land together at L6).
+ *
+ * A file under `src/<domain>/<subpath>/...` where `<subpath>` is in this
+ * list gets `subdomain = <subpath>` and a cell key of
+ * `<layer>::<domain>/<subpath>`. All other files in the domain stay in
+ * the unpartitioned cell with key `<layer>::<domain>`.
+ */
+const SUBPATH_PARTITIONS: Record<string, readonly string[]> = {
+  game: ["modifiers", "upgrades"],
+};
+// Role labels keyed by `${layer}::${domain}` (or
+// `${layer}::${domain}/${subdomain}` for subpath-partitioned cells, see
+// SUBPATH_PARTITIONS above). Cells without an entry here either (a)
+// inherit their layer name when the cell monopolizes the layer or
+// dominates it (≥70% of files), or (b) hard-error in strict mode to
+// force a human decision. See Phase 2 commit for the original labeling
+// rationale.
 const LABELS: Record<string, string> = {
   // L0 — leaf modules (no intra-project imports)
   "0::ai": "AI tuning constants & chain defs",
@@ -97,7 +120,10 @@ const LABELS: Record<string, string> = {
   // L6 — upgrades, modifiers & runtime contracts
   "6::ai": "AI decision intents & build types",
   "6::controllers": "BaseController abstraction",
-  "6::game": "modifier & upgrade implementations + core game systems",
+  "6::game":
+    "core game systems (combos, game-over, selection, map gen, elevation)",
+  "6::game/modifiers": "modifier implementations",
+  "6::game/upgrades": "upgrade implementations",
   "6::input": "input-handler deps shapes",
   "6::online": "online lobby UI & session state",
   "6::render": "render contracts & overlay helpers",
@@ -108,7 +134,8 @@ const LABELS: Record<string, string> = {
   // L7 — entity renderers & cross-domain handlers
   "7::ai": "AI strategy + Host interface contracts",
   "7::controllers": "human controller",
-  "7::game": "game init, zone recompute & fire/high-tide modifiers",
+  "7::game": "game init & zone recompute",
+  "7::game/modifiers": "modifier implementations (fire, high-tide)",
   "7::input": "pointer-event dispatch",
   "7::online": "online action send, remote crosshairs & stores",
   "7::render": "entity renderers & 3D effect factories",
@@ -120,7 +147,9 @@ const LABELS: Record<string, string> = {
   "8::ai": "AI strategy primitives",
   "8::controllers": "controller factory",
   "8::entry": "server entry",
-  "8::game": "game subsystems (castle gen, grunt move, modifier impls)",
+  "8::game": "core subsystems (castle gen, grunt movement)",
+  "8::game/modifiers": "modifier implementation (sinkhole)",
+  "8::game/upgrades": "upgrade implementation (erosion)",
   "8::input": "input dispatch & touch update",
   "8::online": "online runtime websocket",
   "8::render": "3D effect subsystems (cannon, dust, grunt, etc.)",
@@ -253,14 +282,18 @@ function buildCells(
         `${file} is in .import-layers.json but its domain can't be inferred from the path. Add an entry to "exceptions" in .domain-boundaries.json.`,
       );
     }
-    const key = `${layer}::${domain}`;
+    const subdomain = exceptions[file]
+      ? undefined
+      : inferSubdomain(file, domain);
+    const key = cellKey(layer, domain, subdomain);
     if (!cellMap.has(key)) {
-      cellMap.set(key, {
-        layer,
-        domain,
-        role: "",
-        files: [],
-      });
+      // Insertion order is preserved by JSON.stringify; subdomain
+      // appears between domain and role when present.
+      const cell: Cell =
+        subdomain !== undefined
+          ? { layer, domain, subdomain, role: "", files: [] }
+          : { layer, domain, role: "", files: [] };
+      cellMap.set(key, cell);
     }
     cellMap.get(key)!.files.push(file);
   }
@@ -270,21 +303,53 @@ function buildCells(
   return [...cellMap.values()].sort((leftCell, rightCell) => {
     if (leftCell.layer !== rightCell.layer)
       return leftCell.layer - rightCell.layer;
-    return leftCell.domain.localeCompare(rightCell.domain);
+    if (leftCell.domain !== rightCell.domain)
+      return leftCell.domain.localeCompare(rightCell.domain);
+    // Unpartitioned (core) cell sorts before its subpath siblings.
+    return (leftCell.subdomain ?? "").localeCompare(rightCell.subdomain ?? "");
   });
 }
 
 function applyLabels(cells: Cell[], newCells: string[]): void {
   for (const cell of cells) {
-    const key = `${cell.layer}::${cell.domain}`;
+    const key = cellKey(cell.layer, cell.domain, cell.subdomain);
     const override = LABELS[key];
     if (override !== undefined) {
       cell.role = override;
       continue;
     }
-    cell.role = `TODO: L${cell.layer} · ${cell.domain}`;
+    const displayDomain =
+      cell.subdomain !== undefined
+        ? `${cell.domain}/${cell.subdomain}`
+        : cell.domain;
+    cell.role = `TODO: L${cell.layer} · ${displayDomain}`;
     newCells.push(key);
   }
+}
+
+function cellKey(
+  layer: number,
+  domain: string,
+  subdomain: string | undefined,
+): string {
+  return subdomain !== undefined
+    ? `${layer}::${domain}/${subdomain}`
+    : `${layer}::${domain}`;
+}
+
+/**
+ * Promote a file's directory to a subdomain when its parent domain
+ * declares the directory in `SUBPATH_PARTITIONS`. Returns `undefined`
+ * for files that stay in the unpartitioned domain cell.
+ */
+function inferSubdomain(file: string, domain: string): string | undefined {
+  const partitions = SUBPATH_PARTITIONS[domain];
+  if (!partitions) return undefined;
+  const prefix = `src/${domain}/`;
+  if (!file.startsWith(prefix)) return undefined;
+  const segment = file.slice(prefix.length).split("/")[0];
+  if (segment && partitions.includes(segment)) return segment;
+  return undefined;
 }
 
 /**

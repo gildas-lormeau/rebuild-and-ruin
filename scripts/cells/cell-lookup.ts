@@ -25,6 +25,9 @@ import { tierOfLayer } from "./tier-of-layer.ts";
 interface Cell {
   layer: number;
   domain: string;
+  /** Optional subpath partition — see `SUBPATH_PARTITIONS` in
+   *  `scripts/cells/regen-cells.ts`. */
+  subdomain?: string;
   role: string;
   files: string[];
 }
@@ -66,7 +69,9 @@ function main(): void {
     for (const tier of ["types", "logic", "systems", "assembly", "roots"]) {
       const sample = cells.find((cell) => tierOfLayer(cell.layer) === tier);
       if (sample)
-        console.log(`  [${tier}] e.g. L${sample.layer} · ${sample.domain}`);
+        console.log(
+          `  [${tier}] e.g. L${sample.layer} · ${formatDisplayDomain(sample)}`,
+        );
     }
     return;
   }
@@ -76,7 +81,7 @@ function main(): void {
     const { cell, matchedTokens } = scored;
     const fileCount = cell.files.length;
     console.log(
-      `→ L${cell.layer} · ${cell.domain} [${tierOfLayer(cell.layer)}] — ${cell.role}  (${fileCount} file${fileCount === 1 ? "" : "s"}, matched: ${matchedTokens.join(", ")})`,
+      `→ L${cell.layer} · ${formatDisplayDomain(cell)} [${tierOfLayer(cell.layer)}] — ${cell.role}  (${fileCount} file${fileCount === 1 ? "" : "s"}, matched: ${matchedTokens.join(", ")})`,
     );
     const shown = cell.files.slice(0, SHOW_FILES_LIMIT);
     for (const file of shown) console.log(`    ${file}`);
@@ -89,6 +94,12 @@ function main(): void {
   console.log(
     `Extension hint: read 1–2 existing files in the top cell to learn the pattern, then either extend an existing file or create a new one in the same directory.`,
   );
+}
+
+function formatDisplayDomain(cell: Pick<Cell, "domain" | "subdomain">): string {
+  return cell.subdomain !== undefined
+    ? `${cell.domain}/${cell.subdomain}`
+    : cell.domain;
 }
 
 function parseArgs(argv: string[]): {

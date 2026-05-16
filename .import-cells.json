@@ -314,11 +314,21 @@
   {
     "layer": 6,
     "domain": "game",
-    "role": "modifier & upgrade implementations + core game systems",
+    "role": "core game systems (combos, game-over, selection, map gen, elevation)",
     "files": [
       "src/game/combos.ts",
       "src/game/game-over.ts",
       "src/game/map-generation.ts",
+      "src/game/selection.ts",
+      "src/game/surface-elevation.ts"
+    ]
+  },
+  {
+    "layer": 6,
+    "domain": "game",
+    "subdomain": "modifiers",
+    "role": "modifier implementations",
+    "files": [
       "src/game/modifiers/dust-storm.ts",
       "src/game/modifiers/evict-tiles.ts",
       "src/game/modifiers/fog-of-war.ts",
@@ -329,9 +339,15 @@
       "src/game/modifiers/modifier-eligibility.ts",
       "src/game/modifiers/rubble-clearing.ts",
       "src/game/modifiers/sapper.ts",
-      "src/game/modifiers/supply-ship.ts",
-      "src/game/selection.ts",
-      "src/game/surface-elevation.ts",
+      "src/game/modifiers/supply-ship.ts"
+    ]
+  },
+  {
+    "layer": 6,
+    "domain": "game",
+    "subdomain": "upgrades",
+    "role": "upgrade implementations",
+    "files": [
       "src/game/upgrades/architect.ts",
       "src/game/upgrades/ceasefire.ts",
       "src/game/upgrades/clear-the-field.ts",
@@ -431,12 +447,20 @@
   {
     "layer": 7,
     "domain": "game",
-    "role": "game init, zone recompute & fire/high-tide modifiers",
+    "role": "game init & zone recompute",
     "files": [
       "src/game/game-init.ts",
-      "src/game/modifiers/fire.ts",
-      "src/game/modifiers/high-tide.ts",
       "src/game/zone-recompute.ts"
+    ]
+  },
+  {
+    "layer": 7,
+    "domain": "game",
+    "subdomain": "modifiers",
+    "role": "modifier implementations (fire, high-tide)",
+    "files": [
+      "src/game/modifiers/fire.ts",
+      "src/game/modifiers/high-tide.ts"
     ]
   },
   {
@@ -552,11 +576,27 @@
   {
     "layer": 8,
     "domain": "game",
-    "role": "game subsystems (castle gen, grunt move, modifier impls)",
+    "role": "core subsystems (castle gen, grunt movement)",
     "files": [
       "src/game/castle-generation.ts",
-      "src/game/grunt-movement.ts",
-      "src/game/modifiers/sinkhole.ts",
+      "src/game/grunt-movement.ts"
+    ]
+  },
+  {
+    "layer": 8,
+    "domain": "game",
+    "subdomain": "modifiers",
+    "role": "modifier implementation (sinkhole)",
+    "files": [
+      "src/game/modifiers/sinkhole.ts"
+    ]
+  },
+  {
+    "layer": 8,
+    "domain": "game",
+    "subdomain": "upgrades",
+    "role": "upgrade implementation (erosion)",
+    "files": [
       "src/game/upgrades/erosion.ts"
     ]
   },
