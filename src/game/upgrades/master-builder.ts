@@ -16,10 +16,10 @@ import {
 } from "../../shared/core/types.ts";
 import { UID } from "../../shared/core/upgrade-defs.ts";
 
-/** Extra build seconds granted by Master Builder. With 1 owner, that owner
- *  gets these seconds as an exclusive head-start (others locked out). With
- *  2+ owners, the bonus is added to everyone's timer (cancels out
- *  competitively, no lockout). Internal: callers go through the dispatcher. */
+/** Extra build seconds granted by Master Builder. Owners get this window
+ *  as an exclusive head-start; non-owners are locked out. With multiple
+ *  owners they race each other during the head-start.
+ *  Internal: callers go through the dispatcher. */
 const MASTER_BUILDER_BONUS_SECONDS = 5;
 export const masterBuilderImpl: UpgradeImpl = {
   onBuildPhaseStart,
@@ -29,8 +29,7 @@ export const masterBuilderImpl: UpgradeImpl = {
 };
 
 /** Configure Master Builder state at the start of a build phase.
- *  - 1 owner  → that player gets an exclusive head-start; others are locked out
- *  - 2+ owners → everyone's timer gets the bonus (cancels out competitively), no lockout
+ *  - 1+ owners → owners get a 5s exclusive head-start; non-owners locked out
  *  - 0 owners → no-op */
 function onBuildPhaseStart(state: GameState): void {
   if (!hasFeature(state, FID.UPGRADES)) return;
@@ -41,7 +40,7 @@ function onBuildPhaseStart(state: GameState): void {
   state.modern!.masterBuilderOwners =
     mbPlayers.length > 0 ? new Set(mbPlayers.map((player) => player.id)) : null;
   state.modern!.masterBuilderLockout =
-    mbPlayers.length === 1 ? MASTER_BUILDER_BONUS_SECONDS : 0;
+    mbPlayers.length > 0 ? MASTER_BUILDER_BONUS_SECONDS : 0;
 }
 
 /** Decrement the Master Builder lockout timer each build frame.

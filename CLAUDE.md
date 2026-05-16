@@ -91,7 +91,7 @@ Modern mode adds two conditional phases: **MODIFIER_REVEAL** between CANNON_PLAC
   - **upgrades** — draft/pick system. Offer generation in prepareNextRound, pick UI in upgrade-pick.ts. State: pendingUpgradeOffers, masterBuilderLockout, masterBuilderOwners.
   - **combos** — scoring streaks during battle. Init/clear in phase-setup.ts, tracker logic in combos.ts (scored from battle-system.ts impact handlers). State: comboTracker.
 - Upgrade offer generation happens in `prepareNextRound()` (battle-done) using synced RNG before the BUILD_START checkpoint; modifier roll happens in `prepareBattleState()` (cannon-place-done) before BATTLE_START.
-- Upgrade effects (all reset in `prepareNextRound` at the next battle-done — i.e. active through one closing WALL_BUILD plus one CANNON_PLACE + BATTLE): Master Builder (+5s exclusive build time — locks opponents when 1 owner, no lockout when 2+), Rapid Fire (2x ball speed), Reinforced Walls (2-hit walls via damagedWalls set)
+- Upgrade effects (all reset in `prepareNextRound` at the next battle-done — i.e. active through one closing WALL_BUILD plus one CANNON_PLACE + BATTLE): Master Builder (+5s exclusive build time — non-owners locked out for 5s; multiple owners race each other), Rapid Fire (2x ball speed), Reinforced Walls (2-hit walls via damagedWalls set)
 - Future features (tech tree, commanders) add new FeatureId values without forking existing if chains
 
 ### Extension point registries (pool pattern)
