@@ -61,6 +61,16 @@ const ROUNDS = 5;
  *  end-to-end; the 10-minute cap is well above the worst case observed
  *  in `npm run record-seeds` scans. */
 const MAX_TIMEOUT_MS = 600_000;
+/** Per-modifier seed overrides for effects that depend on incidental
+ *  collisions (e.g. frostbite needs a cannonball to actually hit a grunt
+ *  during the forced-modifier battle). The default seed doesn't always
+ *  produce those collisions — and which seed does depends on AI build/
+ *  placement behavior, so this map can drift when the AI is retuned.
+ *  Refresh by running the in-test seed-search probe and picking the first
+ *  seed where the effect fires. */
+const PER_MODIFIER_SEED: Partial<Record<ModifierId, number>> = {
+  frostbite: 5,
+};
 /** Effect probes — see file header. Modifiers without an entry fall
  *  back to a pick-only assertion (the MODIFIER_APPLIED event itself is
  *  the evidence the impl ran).
@@ -256,6 +266,7 @@ const EFFECT_PROBES: Partial<Record<ModifierId, EffectProbe>> = {
 for (const modifierId of MODIFIER_IDS) {
   Deno.test(`modifiers: ${modifierId} fires + effect observed`, async () => {
     using sc = await createScenario({
+      seed: PER_MODIFIER_SEED[modifierId],
       mode: "modern",
       rounds: ROUNDS,
       testHooks: { forceModifier: modifierId },

@@ -128,6 +128,12 @@ const BUILD_SKILL_TABLE = [
   },
 ] as const;
 const NO_TARGET: TargetResult = { targetGaps: new Set(), targetRect: null };
+/** Identify the real breach points in the player's wall ring by scanning
+ *  for short non-wall runs between paired walls — works regardless of
+ *  whether the ring is rectangular or stair-stepped, and catches holes
+ *  inside the bounding box that the perimeter-only findGapTiles can't see.
+ *  K_HOLE = max width of a closeable gap (1-tile, 2-tile, or 3-tile holes). */
+const HOLE_MAX_WIDTH = 3;
 
 export function pickPlacement(
   state: BuildViewState,
@@ -145,6 +151,7 @@ export function pickPlacement(
     caresAboutHouses = true,
     caresAboutBonuses = true,
     buildSkill = 3,
+    outerRingHolesSnapshot,
   } = options ?? {};
   const maybePlayer = state.players[playerId];
   if (!maybePlayer || maybePlayer.castleWallTiles.size === 0) return null;
@@ -205,6 +212,7 @@ export function pickPlacement(
     allCastlesEnclosed,
     unenclosedTowers,
     otherUnenclosed,
+    outerRingHolesSnapshot,
   });
   // Step 2: score candidates
   const baselineOutside = outside.size;
@@ -565,10 +573,17 @@ function prescoreCandidates(
   return scored;
 }
 
-/** Phase 1: repair the home castle ring, expanding around temporary blockers. */
+/** Phase 1: repair the home castle ring, expanding around temporary blockers.
+ *  Tries the player's existing outer wall ring first (preserves territory),
+ *  then falls back to the ideal small castle ring. */
 function tryRepairHomeCastle(ctx: TargetContext): TargetResult {
   const { state, player, castle, effectiveSkipHome, homeHasRingGaps } = ctx;
   if (effectiveSkipHome || !homeHasRingGaps) return NO_TARGET;
+  // Prefer the player's existing outer perimeter when it's salvageable —
+  // the ideal castle rect collapses to ~36 interior tiles and the territory
+  // sweep destroys every outer wall that no longer bounds an enclosed region.
+  const outer = tryRepairOuterRing(ctx);
+  if (outer.targetGaps.size > 0) return outer;
   if (castle.top > castle.bottom || castle.left > castle.right)
     return NO_TARGET;
 
@@ -656,6 +671,152 @@ function tryRepairHomeCastle(ctx: TargetContext): TargetResult {
     return NO_TARGET;
   }
   return { targetGaps, targetRect };
+}
+
+/** Try repairing the player's existing outer wall ring (the bounding box
+ *  of player.walls) when it's larger than the ideal castle and the breach
+ *  is closeable this turn. Falls through (returns NO_TARGET) when the
+ *  outer ring is too far gone to be worth chasing — caller then falls
+ *  back to the ideal-castle repair logic. */
+function tryRepairOuterRing(ctx: TargetContext): TargetResult {
+  const { state, player, castle } = ctx;
+  if (player.walls.size === 0) return NO_TARGET;
+  const outerRect = computeWallsInteriorBox(player.walls);
+  if (!outerRect) return NO_TARGET;
+  // Must contain the home tower — otherwise we're not looking at this
+  // player's castle at all (stray walls from elsewhere).
+  if (
+    castle.tower.row < outerRect.top ||
+    castle.tower.row + 1 > outerRect.bottom ||
+    castle.tower.col < outerRect.left ||
+    castle.tower.col + 1 > outerRect.right
+  )
+    return NO_TARGET;
+  // Must be meaningfully bigger than the ideal castle — when the existing
+  // ring IS the ideal castle, the existing logic below handles it correctly
+  // (including grunt/pit expansion). Outer-ring repair only earns its keep
+  // when the player has expanded beyond the ideal shape.
+  const outerArea =
+    (outerRect.bottom - outerRect.top + 1) *
+    (outerRect.right - outerRect.left + 1);
+  const idealArea =
+    (castle.bottom - castle.top + 1) * (castle.right - castle.left + 1);
+  if (outerArea <= idealArea) return NO_TARGET;
+  // Detect breach tiles by scanning for short non-wall runs between paired
+  // walls. This works for any ring shape (rectangular, stair-stepped,
+  // water-bounded) and catches holes anywhere along the ring, not just on
+  // the bbox perimeter. When the strategy has snapshotted the initial gap
+  // set for this phase, prefer that — recomputing each tick picks up
+  // "phantom" gaps where AI-placed walls happen to pair with original walls.
+  const gaps = ctx.outerRingHolesSnapshot
+    ? snapshotMinusFilled(ctx.outerRingHolesSnapshot, player.walls)
+    : findOuterRingHoles(player.walls, state, getInterior(player));
+  // Already closed (gaps=0) means the outer ring isn't actually breached;
+  // homeTowerEnclosed would also be true and we wouldn't reach this path.
+  // Many gaps means the outer ring is too shelled to be a realistic target
+  // this turn — fall through to the ideal-castle retreat.
+  if (gaps.size === 0 || gaps.size > MANAGEABLE_GAP_LIMIT) return NO_TARGET;
+  // Note: no canFillAfterPlugging() guard here. Outer-ring repair is the
+  // strategic goal for the whole phase, not just this tick — if the current
+  // piece can't fill any of the remaining gaps, we still want to KEEP the
+  // outer ring as the target (so scoring rewards wall-adjacent placements
+  // along the existing perimeter) instead of falling through to the inner
+  // castle. Inner-castle construction would break the outer ring and the
+  // end-of-build wall sweep would then destroy the player's investment.
+  return { targetGaps: gaps, targetRect: outerRect };
+}
+
+/** Identify real breach points by scanning for short non-wall runs between
+ *  paired *ring* walls. A "ring wall" is a wall whose outer face touches the
+ *  exterior — i.e. has at least one 4-dir neighbor in computeOutside. The
+ *  ring-wall filter prevents the pair-scan from inventing pseudo-gaps
+ *  between newly-placed walls inside the enclosure as the AI fills holes. */
+export function findOuterRingHoles(
+  walls: ReadonlySet<number>,
+  state: BuildViewState,
+  interior: ReadonlySet<number>,
+): Set<number> {
+  const outside = computeOutside(walls);
+  const isRingWall = (key: number): boolean => {
+    const { r, c } = unpackTile(key as TileKey);
+    for (const [dr, dc] of DIRS_4) {
+      if (outside.has(packTile(r + dr, c + dc))) return true;
+    }
+    return false;
+  };
+  const holes = new Set<number>();
+  for (const wallKey of walls) {
+    if (!isRingWall(wallKey)) continue;
+    const { r: wr, c: wc } = unpackTile(wallKey as TileKey);
+    for (const [dr, dc] of DIRS_4) {
+      for (let step = 2; step <= HOLE_MAX_WIDTH + 1; step++) {
+        const nr = wr + dr * step;
+        const nc = wc + dc * step;
+        if (nr < 0 || nr >= GRID_ROWS || nc < 0 || nc >= GRID_COLS) break;
+        let allFillable = true;
+        for (let inner = 1; inner < step; inner++) {
+          const ir = wr + dr * inner;
+          const ic = wc + dc * inner;
+          if (walls.has(packTile(ir, ic))) {
+            allFillable = false;
+            break;
+          }
+          if (
+            !isGrass(state.map.tiles, ir, ic) ||
+            hasPitAt(state.burningPits, ir, ic) ||
+            interior.has(packTile(ir, ic))
+          ) {
+            allFillable = false;
+            break;
+          }
+        }
+        if (!allFillable) continue;
+        const farKey = packTile(nr, nc);
+        if (walls.has(farKey) && isRingWall(farKey)) {
+          for (let inner = 1; inner < step; inner++) {
+            holes.add(packTile(wr + dr * inner, wc + dc * inner));
+          }
+          break;
+        }
+      }
+    }
+  }
+  return holes;
+}
+
+/** Filter a snapshot gap set to tiles still un-walled. */
+function snapshotMinusFilled(
+  snapshot: ReadonlySet<number>,
+  walls: ReadonlySet<number>,
+): Set<number> {
+  const remaining = new Set<number>();
+  for (const key of snapshot) if (!walls.has(key)) remaining.add(key);
+  return remaining;
+}
+
+/** Compute the interior rect for the bounding box of a wall set, in the
+ *  shape findGapTiles expects (interior tiles, with the wall ring one tile
+ *  outside). Returns null when the walls don't span at least a 3×3 area. */
+function computeWallsInteriorBox(walls: ReadonlySet<number>): TileRect | null {
+  let minR = Infinity,
+    maxR = -Infinity,
+    minC = Infinity,
+    maxC = -Infinity;
+  for (const key of walls) {
+    const { r, c } = unpackTile(key as TileKey);
+    if (r < minR) minR = r;
+    if (r > maxR) maxR = r;
+    if (c < minC) minC = c;
+    if (c > maxC) maxC = c;
+  }
+  if (!Number.isFinite(minR)) return null;
+  if (maxR - minR < 2 || maxC - minC < 2) return null;
+  return {
+    top: minR + 1,
+    bottom: maxR - 1,
+    left: minC + 1,
+    right: maxC - 1,
+  };
 }
 
 /** Fraction of interior tiles that are unoccupied (no wall, tower, cannon, or water). */

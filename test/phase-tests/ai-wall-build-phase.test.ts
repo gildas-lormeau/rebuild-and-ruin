@@ -1,12 +1,19 @@
-import { assertEquals, assertGreater } from "@std/assert";
+import { assert, assertEquals, assertGreater } from "@std/assert";
 import roundTwoDefault from "./fixtures/wall-build/round2-default.json" with {
   type: "json",
 };
 import roundTwoWithEdgeGrunts from "./fixtures/wall-build/round2-with-edge-grunts.json" with {
   type: "json",
 };
+import roundTwoWholeZoneWithHoles from "./fixtures/wall-build/round2-whole-zone-with-holes-castles.json" with {
+  type: "json",
+};
 import { Phase } from "../../src/shared/core/game-phase.ts";
-import { packTile } from "../../src/shared/core/spatial.ts";
+import {
+  computeOutside,
+  isTowerEnclosed,
+  packTile,
+} from "../../src/shared/core/spatial.ts";
 import { createPhaseScenario } from "./loader.ts";
 import type { FixtureFile } from "./types.ts";
 import { waitForPhase } from "../scenario.ts";
@@ -57,4 +64,62 @@ Deno.test("phase-test: 10 fixture-authored edge grunts move during WALL_BUILD", 
   // Sanity: at least one authored tile got vacated. Otherwise "0 stuck"
   // could mask a regression where authoring stops working.
   assertGreater(vacatedAuthoredTiles, 0, "no authored tile was vacated");
+});
+
+Deno.test("phase-test: AI repairs the existing outer ring instead of retreating to an inner castle", async () => {
+  // Fixture: each of 3 players has a whole-zone wall ring with 1-2 hand-punched
+  // holes (see scripts/fixture-tui.ts `x` key). Repairing the outer ring is
+  // worth ~150+ interior tiles; retreating to the ideal small castle around
+  // the home tower only encloses ~35 tiles AND triggers the end-of-build
+  // territory sweep, which destroys every outer wall tile that no longer
+  // bounds an enclosed region. The current AI does the inner-retreat for two
+  // of three players, losing ~60% of their existing wall investment.
+  const sc = await createPhaseScenario(
+    roundTwoWholeZoneWithHoles as unknown as FixtureFile,
+  );
+
+  // Snapshot wall counts before WALL_BUILD so we can verify the AI didn't
+  // demolish the outer ring by abandoning it.
+  const wallsBefore = sc.state.players.map((player) => player.walls.size);
+
+  // Drive to the next CANNON_PLACE — territory finalization + wall sweep
+  // both run during the transition out of WALL_BUILD.
+  waitForPhase(sc, Phase.CANNON_PLACE, { timeoutMs: 60_000 });
+  assertEquals(sc.state.round, 3);
+
+  for (const player of sc.state.players) {
+    if (player.eliminated) continue;
+    const homeTower = player.homeTower;
+    if (!homeTower) {
+      throw new Error(`player ${player.id} should have a home tower`);
+    }
+    const outside = computeOutside(player.walls);
+    assert(
+      isTowerEnclosed(homeTower, outside),
+      `player ${player.id} home tower should be re-enclosed after WALL_BUILD`,
+    );
+    // Whole-zone fixture: real repair preserves an interior of >100 tiles.
+    // Inner-castle retreat collapses to ~36 (the ideal createCastle() rect).
+    // Pick 80 as the threshold — well above the inner-castle interior, well
+    // below the typical whole-zone interior (150-200).
+    assertGreater(
+      player.interior.size,
+      80,
+      `player ${player.id} interior=${player.interior.size} — AI retreated ` +
+        `to an inner castle instead of repairing the outer ring`,
+    );
+    // Repairing the outer ring should ADD walls (filling holes). Inner-retreat
+    // strands the outer walls and the territory sweep deletes them. A ≥80%
+    // retention threshold catches the catastrophic loss while leaving room
+    // for the few outer-ring tiles that may genuinely get pruned (e.g.
+    // dead-end spurs).
+    const before = wallsBefore[player.id]!;
+    const retained = player.walls.size / before;
+    assertGreater(
+      retained,
+      0.8,
+      `player ${player.id} retained ${player.walls.size}/${before} walls — ` +
+        `AI abandoned the outer ring and the sweep destroyed it`,
+    );
+  }
 });

@@ -21,6 +21,7 @@ import type {
   Tower,
 } from "../shared/core/geometry-types.ts";
 import type { PieceShape } from "../shared/core/pieces.ts";
+import { getInterior } from "../shared/core/player-interior.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import type { Player } from "../shared/core/player-types.ts";
 import {
@@ -52,7 +53,7 @@ import {
   planWallDemolition,
   trackShot,
 } from "./ai-strategy-battle.ts";
-import { pickPlacement } from "./ai-strategy-build.ts";
+import { findOuterRingHoles, pickPlacement } from "./ai-strategy-build.ts";
 import {
   autoSelectTower,
   createCannonPlacementContext,
@@ -233,6 +234,14 @@ export class DefaultStrategy implements AiStrategy {
   };
   /** Whether home tower was not enclosed at the end of last build phase. */
   private _homeWasBroken = false;
+  /** Phase-stable snapshot of outer-ring hole tiles for repair targeting.
+   *  Captured on the first pickPlacement() call of each build phase and
+   *  reused for every subsequent call until `state.round` ticks over,
+   *  preventing pseudo-gaps formed by newly-placed walls from polluting
+   *  the target set and dispersing the AI's focus. */
+  private _outerRingHolesSnapshot:
+    | { round: number; holes: ReadonlySet<number> }
+    | undefined = undefined;
 
   /** Seeded PRNG — log rng.seed to reproduce this AI's behavior. */
   readonly rng: Rng;
@@ -300,6 +309,7 @@ export class DefaultStrategy implements AiStrategy {
     piece: PieceShape,
     cursorPos?: TilePos,
   ): AiPlacement | null {
+    const snapshot = this.ensureOuterRingHolesSnapshot(state, playerId);
     return pickPlacement(state, playerId, piece, {
       cursorPos,
       homeWasBroken: this._homeWasBroken,
@@ -308,7 +318,25 @@ export class DefaultStrategy implements AiStrategy {
       caresAboutHouses: this.caresAboutHouses,
       caresAboutBonuses: this.caresAboutBonuses,
       buildSkill: this.buildSkill,
+      outerRingHolesSnapshot: snapshot,
     });
+  }
+
+  /** Lazily snapshot outer-ring breach tiles on the first build-phase tick
+   *  of each round. Invalidates when state.round changes. Returns undefined
+   *  when the player has no castle yet (round 1 pre-CASTLE_SELECT path). */
+  private ensureOuterRingHolesSnapshot(
+    state: BuildViewState,
+    playerId: ValidPlayerId,
+  ): ReadonlySet<number> | undefined {
+    const player = state.players[playerId];
+    if (!player || player.castleWallTiles.size === 0) return undefined;
+    if (this._outerRingHolesSnapshot?.round === state.round) {
+      return this._outerRingHolesSnapshot.holes;
+    }
+    const holes = findOuterRingHoles(player.walls, state, getInterior(player));
+    this._outerRingHolesSnapshot = { round: state.round, holes };
+    return holes;
   }
 
   /** Assess home tower enclosure at END of build phase. The result is stale
