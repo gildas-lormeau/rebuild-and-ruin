@@ -39,7 +39,6 @@ export const FONT_ICON = "28px monospace";
 export const FONT_FLOAT_LG = "bold 14px sans-serif";
 export const FONT_FLOAT_MD = "bold 12px sans-serif";
 export const FONT_FLOAT_SM = "bold 11px sans-serif";
-export const FONT_FLOAT_XS = "bold 7px sans-serif";
 // Layout constants shared across render modules
 export const BANNER_HEIGHT_RATIO = 0.15;
 export const STATUSBAR_HEIGHT = 32;

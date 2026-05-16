@@ -53,10 +53,7 @@ import { WALL_DESTROY_ANIM_DURATION } from "../shared/core/wall-destroy-anim.ts"
 import type { UpgradePickDialogState } from "../shared/ui/interaction-types.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
 import type { BannerShow } from "./runtime-banner-state.ts";
-import {
-  accumulateBattleStats,
-  recordBattleVisualEvents,
-} from "./runtime-battle-anim.ts";
+import { recordBattleVisualEvents } from "./runtime-battle-anim.ts";
 import {
   type PhaseTransitionCtx,
   runTransition,
@@ -651,14 +648,10 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     if (weaponsActive) tickLocalBattleControllers(local, state, dt);
     const result = engineTickBattlePhase(state, dt);
 
-    // Record visuals + stats from the same combat result, on every peer.
-    // The bus must not drive runtime-affecting state — battleAnim.*
-    // gates the battle-end transition, gameStats feeds the end-game UI.
+    // Record visuals from the same combat result, on every peer. The bus
+    // must not drive runtime-affecting state — battleAnim.* gates the
+    // battle-end transition.
     recordBattleVisualEvents(result, battleAnim, state);
-    accumulateBattleStats(
-      result.impactEvents,
-      runtimeState.scoreDisplay.gameStats,
-    );
 
     // Haptics is handled by the haptics observer subsystem (bus subscriber).
 

@@ -14,11 +14,7 @@ import {
   FOCUS_REMATCH,
   type GameOverFocus,
 } from "../shared/ui/interaction-types.ts";
-import type {
-  GameOverOverlay,
-  PlayerStats,
-} from "../shared/ui/overlay-types.ts";
-import { MAX_PLAYERS } from "../shared/ui/player-config.ts";
+import type { GameOverOverlay } from "../shared/ui/overlay-types.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
 import {
   type RuntimeState,
@@ -54,7 +50,6 @@ interface GameLifecycleDeps {
   // Subsystem resets
   readonly resetAll: () => void;
   readonly resetScoreDeltas: () => void;
-  readonly resetGameStats: () => void;
   readonly resetLifeLostDialog: () => void;
   readonly clearAllZoomState: () => void;
   readonly clearLobbyMap: () => void;
@@ -121,9 +116,7 @@ interface LifecycleWiringDeps {
       id: ValidPlayerId;
       score: number;
       eliminated: boolean;
-      interior: ReadonlySet<number>;
     }[],
-    gameStats: readonly PlayerStats[],
   ) => GameOverOverlay;
 }
 
@@ -144,16 +137,14 @@ export function createGameLifecycle(
     deps.resetScoreDeltas();
     deps.clearAllZoomState();
     deps.resetLifeLostDialog();
-    deps.resetGameStats();
   }
 
   /** Shared terminal sequence for game-over: snapshot the game-over frame
    *  (host builds from live state, watcher copies authoritative scores from
    *  MESSAGE.GAME_OVER, watcher's local detection passes a no-op and waits
    *  for the message), then clean up display caches, then render + stop the
-   *  loop. The frame is built first so it captures live `gameStats` before
-   *  `teardownSession` zeros them. Idempotent — safe to call twice if the
-   *  watcher's local path fires before MESSAGE.GAME_OVER arrives. */
+   *  loop. Idempotent — safe to call twice if the watcher's local path
+   *  fires before MESSAGE.GAME_OVER arrives. */
   function finalizeGameOver(setFrame: () => void): void {
     setFrame();
     teardownSession();
@@ -250,7 +241,6 @@ export function buildLifecycleDeps(
       runtimeState.frame.gameOver = wiringDeps.buildGameOverOverlay(
         winner.id,
         runtimeState.state.players,
-        runtimeState.scoreDisplay.gameStats,
       );
     },
     onEndGame: config.onEndGame
@@ -273,13 +263,9 @@ export function buildLifecycleDeps(
       wiringDeps.getLifeLost().set(null);
       wiringDeps.getUpgradePick().set(null);
       wiringDeps.scoreDelta.reset();
-      runtimeState.scoreDisplay.gameStats = createEmptyGameStats();
       wiringDeps.camera.resetCamera();
     },
     resetScoreDeltas: wiringDeps.scoreDelta.reset,
-    resetGameStats: () => {
-      runtimeState.scoreDisplay.gameStats = createEmptyGameStats();
-    },
     resetLifeLostDialog: () => wiringDeps.getLifeLost().set(null),
     clearAllZoomState: wiringDeps.camera.clearAllZoomState,
     clearLobbyMap: () => {
@@ -310,12 +296,4 @@ export function buildLifecycleDeps(
       runtimeState.frame.gameOver?.focused ?? FOCUS_REMATCH,
     isTouchDevice: wiringDeps.isTouchDevice,
   };
-}
-
-/** Create zeroed per-player game stats array for a new match. */
-function createEmptyGameStats(): PlayerStats[] {
-  return Array.from({ length: MAX_PLAYERS }, () => ({
-    wallsDestroyed: 0,
-    cannonsKilled: 0,
-  }));
 }

@@ -20,11 +20,7 @@ import {
   type LifeLostDialogState,
   type UpgradePickDialogState,
 } from "../shared/ui/interaction-types.ts";
-import type {
-  FrameData,
-  PlayerStats,
-  RenderOverlay,
-} from "../shared/ui/overlay-types.ts";
+import type { FrameData, RenderOverlay } from "../shared/ui/overlay-types.ts";
 import {
   type GameSettings,
   loadSettings,
@@ -47,7 +43,6 @@ export interface ScoreDisplayState {
   }[];
   deltaTimer: number;
   preScores: readonly number[];
-  gameStats: PlayerStats[];
 }
 
 export interface QuitState {
@@ -288,7 +283,6 @@ export function createRuntimeState(): RuntimeState {
       deltas: [],
       deltaTimer: 0,
       preScores: [],
-      gameStats: [],
     },
 
     inputTracking: { mouseJoinedSlot: null },

@@ -33,7 +33,6 @@ import {
   FONT_FLOAT_LG,
   FONT_FLOAT_MD,
   FONT_FLOAT_SM,
-  FONT_FLOAT_XS,
   FONT_HEADING,
   FONT_HINT,
   FONT_ICON,
@@ -73,7 +72,6 @@ import {
   GAMEOVER_ROW_H,
   gameOverLayout,
   lifeLostButtonLayout,
-  SCOREBOARD_COL_RATIOS,
   UPGRADE_CARD_GAP,
   UPGRADE_CARD_H,
   UPGRADE_CARD_W,
@@ -98,7 +96,6 @@ import {
   OP_FOCUS,
   OP_GHOST,
   OP_IDLE,
-  OP_SECONDARY,
   OP_SUBTLE,
   OP_VIVID,
   PAD,
@@ -423,12 +420,11 @@ export function drawGameOver(
   overlayCtx.save();
   const gameOverData = overlay.ui.gameOver;
   const sorted = [...gameOverData.scores].sort((a, b) => b.score - a.score);
-  const hasStats = sorted.some((e) => e.stats);
   const layout = gameOverLayout(W, H, gameOverData.scores);
   const { panelW, panelH, px, py, btnW, btnY, rematchX, menuX } = layout;
 
   drawGameOverPanel(overlayCtx, W, px, py, panelW, panelH, gameOverData.winner);
-  drawGameOverScores(overlayCtx, sorted, hasStats, px, py, panelW);
+  drawGameOverScores(overlayCtx, sorted, px, py, panelW);
   drawGameOverButtons(
     overlayCtx,
     btnW,
@@ -810,46 +806,24 @@ function drawGameOverPanel(
 function drawGameOverScores(
   overlayCtx: CanvasRenderingContext2D,
   sorted: readonly ScoreEntry[],
-  hasStats: boolean,
   px: number,
   py: number,
   panelW: number,
 ): void {
-  const statsH = hasStats ? GAMEOVER_ROW_H : 0;
   const tableTop = py + GAMEOVER_HEADER_H;
   const colNameX = px + INSET;
-  const colScoreX = px + panelW * SCOREBOARD_COL_RATIOS[0];
-  const colWallsX = px + panelW * SCOREBOARD_COL_RATIOS[1];
-  const colCannonsX = px + panelW * SCOREBOARD_COL_RATIOS[2];
-  const colTerritoryX = px + panelW * SCOREBOARD_COL_RATIOS[3];
-
-  if (hasStats) {
-    overlayCtx.font = FONT_FLOAT_XS;
-    overlayCtx.fillStyle = TEXT_MUTED;
-    overlayCtx.textAlign = TEXT_ALIGN_RIGHT;
-    overlayCtx.fillText("Score", colScoreX, tableTop + PAD);
-    overlayCtx.fillText("Walls", colWallsX, tableTop + PAD);
-    overlayCtx.fillText("Cannons", colCannonsX, tableTop + PAD);
-    overlayCtx.fillText("Land", colTerritoryX, tableTop + PAD);
-  }
+  const colScoreX = px + panelW - INSET;
 
   overlayCtx.font = FONT_LABEL;
   for (let i = 0; i < sorted.length; i++) {
     const entry = sorted[i]!;
-    const y = tableTop + statsH + INSET + i * GAMEOVER_ROW_H;
-    const c = entry.color;
+    const y = tableTop + INSET + i * GAMEOVER_ROW_H;
     const alpha = isPlayerEliminated(entry) ? OP_ACCENT : 1;
-    overlayCtx.fillStyle = rgb(c, alpha);
+    overlayCtx.fillStyle = rgb(entry.color, alpha);
     overlayCtx.textAlign = TEXT_ALIGN_LEFT;
     overlayCtx.fillText(entry.name, colNameX, y);
     overlayCtx.textAlign = TEXT_ALIGN_RIGHT;
     overlayCtx.fillText(`${entry.score}`, colScoreX, y);
-    if (entry.stats) {
-      overlayCtx.fillStyle = rgb(c, alpha * OP_SECONDARY);
-      overlayCtx.fillText(`${entry.stats.wallsDestroyed}`, colWallsX, y);
-      overlayCtx.fillText(`${entry.stats.cannonsKilled}`, colCannonsX, y);
-      overlayCtx.fillText(`${entry.territory ?? 0}`, colTerritoryX, y);
-    }
   }
 }
 

@@ -44,7 +44,6 @@ import {
   type OverlayBalloon,
   type OverlayCannonball,
   type OverlaySupplyShip,
-  type PlayerStats,
   type RenderOverlay,
   type UIOverlay,
   type UpgradePickOverlay,
@@ -94,12 +93,9 @@ const PHASE_STATUS_LABELS: Record<Phase, string> = {
 };
 export const UPGRADE_NAME_H = 18;
 export const UPGRADE_ROW_GAP = 8;
-/** Per-player snapshot of previous interior, used to detect newly enclosed tiles. */
 export const GAMEOVER_ROW_H = 14;
 export const GAMEOVER_HEADER_H = 36;
 export const GAMEOVER_BTN_H = 20;
-/** Scoreboard column X positions as ratios of panel width: Score, Walls, Cannons, Territory. */
-export const SCOREBOARD_COL_RATIOS = [0.38, 0.56, 0.74, 0.92] as const;
 /** Card layout constants — canonical source; render-ui.ts imports these. */
 export const UPGRADE_CARD_W = 120;
 export const UPGRADE_CARD_H = 100;
@@ -442,9 +438,7 @@ export function buildGameOverOverlay(
     id: ValidPlayerId;
     score: number;
     eliminated: boolean;
-    interior: ReadonlySet<number>;
   }[],
-  gameStats: readonly PlayerStats[],
 ): GameOverOverlay {
   return {
     winner: PLAYER_NAMES[winnerId] ?? `Player ${winnerId + 1}`,
@@ -453,8 +447,6 @@ export function buildGameOverOverlay(
       score: player.score,
       color: getPlayerColor(player.id).wall,
       eliminated: player.eliminated,
-      territory: player.interior.size,
-      stats: gameStats[player.id],
     })),
     focused: FOCUS_REMATCH,
   };
@@ -500,9 +492,7 @@ export function gameOverLayout(
   scores: GameOverOverlay["scores"],
 ): GameOverLayout {
   const sorted = [...scores].sort((a, b) => b.score - a.score);
-  const hasStats = sorted.some((e) => e.stats);
-  const statsH = hasStats ? GAMEOVER_ROW_H : 0;
-  const tableH = sorted.length * GAMEOVER_ROW_H + statsH;
+  const tableH = sorted.length * GAMEOVER_ROW_H;
   const panelW = Math.round(W * GAMEOVER_PANEL_W_RATIO);
   const panelH = GAMEOVER_HEADER_H + tableH + 16 + GAMEOVER_BTN_H + 12;
   const px = Math.round((W - panelW) / 2);

@@ -8,15 +8,11 @@
  *  engine's return value, not from `BATTLE_MESSAGE.*` events. */
 
 import type { BattleCombatResult } from "../game/index.ts";
-import {
-  BATTLE_MESSAGE,
-  type ImpactEvent,
-} from "../shared/core/battle-events.ts";
+import { BATTLE_MESSAGE } from "../shared/core/battle-events.ts";
 import type { BattleAnimState } from "../shared/core/battle-types.ts";
 import { getCannon } from "../shared/core/occupancy-queries.ts";
 import { cannonSize, packTile } from "../shared/core/spatial.ts";
 import type { GameState } from "../shared/core/types.ts";
-import type { PlayerStats } from "../shared/ui/overlay-types.ts";
 
 /** Push impact-position + ice-thaw + destruction-burst entries from a
  *  combat result into the render-anim buffers. All entries push with
@@ -74,27 +70,6 @@ export function recordBattleVisualEvents(
       // gruntSpawned, pitCreated) have no visual-burst representation here —
       // their rendering is driven by the underlying state changes (chipped
       // grunts, shielded walls, burning pits) instead.
-    }
-  }
-}
-
-/** Accumulate per-player battle stats (walls destroyed, cannons killed) from
- *  the engine's impact-event list. Driven from `result.impactEvents` on every
- *  tick — never from a bus subscription, since `gameStats` is in `runtimeState`
- *  and runtime state must not depend on the bus. */
-export function accumulateBattleStats(
-  events: ReadonlyArray<ImpactEvent>,
-  gameStats: readonly PlayerStats[],
-): void {
-  for (const evt of events) {
-    if (evt.type === BATTLE_MESSAGE.WALL_DESTROYED) {
-      const stats =
-        evt.shooterId !== undefined ? gameStats[evt.shooterId] : undefined;
-      if (stats) stats.wallsDestroyed++;
-    } else if (evt.type === BATTLE_MESSAGE.CANNON_DAMAGED && evt.newHp === 0) {
-      const stats =
-        evt.shooterId !== undefined ? gameStats[evt.shooterId] : undefined;
-      if (stats) stats.cannonsKilled++;
     }
   }
 }

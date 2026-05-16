@@ -55,8 +55,6 @@ export interface GameOverOverlay {
     score: number;
     color: RGB;
     eliminated: boolean;
-    territory?: number;
-    stats?: PlayerStats;
   }[];
   focused: GameOverFocus;
 }
@@ -576,9 +574,4 @@ export interface CastleData {
    *  swaps regular cannons to the matching `tier_N` sprite; the 2D path
    *  uses a single sprite and ignores this field. */
   cannonTier: 1 | 2 | 3;
-}
-
-export interface PlayerStats {
-  wallsDestroyed: number;
-  cannonsKilled: number;
 }
