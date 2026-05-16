@@ -7,24 +7,7 @@
  * and network for Playwright tests. Replaces the old runtime-test-globals.ts.
  */
 
-import { computeLetterboxLayout } from "../render/render-layout.ts";
-import type { Crosshair } from "../shared/core/battle-types.ts";
-import { isHuman } from "../shared/core/controller-guards.ts";
-import type {
-  GameEventBus,
-  GameEventMap,
-} from "../shared/core/game-event-bus.ts";
-import { Phase } from "../shared/core/game-phase.ts";
-import type { Viewport } from "../shared/core/geometry-types.ts";
-import { TILE_SIZE } from "../shared/core/grid.ts";
-import type { ValidPlayerId } from "../shared/core/player-slot.ts";
-import { isPlayerEliminated } from "../shared/core/player-types.ts";
-import { tileCenterPx, unpackTile } from "../shared/core/spatial.ts";
-import { type GameViewState } from "../shared/core/system-interfaces.ts";
-import type { GameState } from "../shared/core/types.ts";
-import type { ZoneId } from "../shared/core/zone-id.ts";
-import { IS_DEV } from "../shared/platform/platform.ts";
-import { Mode } from "../shared/ui/ui-mode.ts";
+import { computeLetterboxLayout } from "../src/render/render-layout.ts";
 import {
   buildGrid,
   buildLegend,
@@ -33,9 +16,29 @@ import {
   inspectTile,
   type MapLayer,
   type TileInspection,
-} from "./dev-console-grid.ts";
-import { isStateInstalled, type RuntimeState } from "./runtime-state.ts";
-import type { RuntimeConfig } from "./runtime-types.ts";
+} from "../src/runtime/dev-console-grid.ts";
+import {
+  isStateInstalled,
+  type RuntimeState,
+} from "../src/runtime/runtime-state.ts";
+import type { RuntimeConfig } from "../src/runtime/runtime-types.ts";
+import type { Crosshair } from "../src/shared/core/battle-types.ts";
+import { isHuman } from "../src/shared/core/controller-guards.ts";
+import type {
+  GameEventBus,
+  GameEventMap,
+} from "../src/shared/core/game-event-bus.ts";
+import { Phase } from "../src/shared/core/game-phase.ts";
+import type { Viewport } from "../src/shared/core/geometry-types.ts";
+import { TILE_SIZE } from "../src/shared/core/grid.ts";
+import type { ValidPlayerId } from "../src/shared/core/player-slot.ts";
+import { isPlayerEliminated } from "../src/shared/core/player-types.ts";
+import { tileCenterPx, unpackTile } from "../src/shared/core/spatial.ts";
+import { type GameViewState } from "../src/shared/core/system-interfaces.ts";
+import type { GameState } from "../src/shared/core/types.ts";
+import type { ZoneId } from "../src/shared/core/zone-id.ts";
+import { IS_DEV } from "../src/shared/platform/platform.ts";
+import { Mode } from "../src/shared/ui/ui-mode.ts";
 
 export interface E2EBannerSnapshot {
   text: string;

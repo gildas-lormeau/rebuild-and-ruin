@@ -21,7 +21,7 @@ import type {
   E2EBusEntry,
   E2EBusEntryOf,
   SerializedGameState,
-} from "../src/runtime/runtime-e2e-bridge.ts";
+} from "../dev/e2e-bridge.ts";
 import type {
   MapLayer,
   TileInspection,
@@ -41,7 +41,7 @@ export type {
   E2EBusEntry,
   E2EBusEntryOf,
   SerializedGameState,
-} from "../src/runtime/runtime-e2e-bridge.ts";
+} from "../dev/e2e-bridge.ts";
 export type {
   MapLayer,
   TileInspection,

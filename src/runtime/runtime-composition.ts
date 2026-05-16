@@ -7,6 +7,7 @@
  * that needs input/render/ai/online belongs here.
  */
 
+import { exposeE2EBridge } from "../../dev/e2e-bridge.ts";
 import { executeCannonFire, executePlacePiece } from "../game/index.ts";
 import { dispatchPointerMove } from "../input/input-dispatch.ts";
 import { registerKeyboardHandlers } from "../input/input-keyboard.ts";
@@ -83,7 +84,6 @@ import {
 import { createBrowserTimingApi } from "./runtime-browser-timing.ts";
 import { createCameraSystem } from "./runtime-camera.ts";
 import { createCannonAnimator } from "./runtime-cannon-animator.ts";
-import { exposeE2EBridge } from "./runtime-e2e-bridge.ts";
 import {
   buildLifecycleDeps,
   createGameLifecycle,

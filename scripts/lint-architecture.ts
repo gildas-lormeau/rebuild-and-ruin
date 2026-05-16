@@ -41,7 +41,6 @@ const EXEMPT = new Set([
   "runtime-browser-timing.ts", // entry-level TimingApi factory, not a sub-system
   "runtime-host-phase-ticks.ts", // pure tick functions, not a factory sub-system
   "runtime-host-battle-ticks.ts", // pure tick functions, not a factory sub-system
-  "runtime-e2e-bridge.ts", // e2e test bridge, not a factory sub-system
   "runtime-transition-steps.ts", // shared transition recipes, not a factory sub-system
   "runtime-phase-machine.ts", // pure data-driven state machine, not a factory sub-system
   "runtime-battle-anim.ts", // pure battle-event-to-render-anim translation, not a factory sub-system
