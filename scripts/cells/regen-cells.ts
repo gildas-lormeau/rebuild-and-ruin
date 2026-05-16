@@ -162,7 +162,8 @@ const LABELS: Record<string, string> = {
   "8::render": "render UI (overlays, screens, settings)",
   "8::render/3d/effects":
     "effect subsystems (burns, dust, supply-ship, modifier-reveal)",
-  "8::runtime": "runtime state, castle-build & browser timing",
+  "8::runtime":
+    "runtime subsystems (camera, input, render, lobby, life-lost, options) + lifecycle, castle-build, phase-machine, tick-consumers",
 
   // L9 — system implementations
   "9::ai": "AI build scoring & targeting",

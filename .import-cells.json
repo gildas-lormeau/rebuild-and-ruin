@@ -683,7 +683,7 @@
   {
     "layer": 8,
     "domain": "runtime",
-    "role": "runtime state, castle-build & browser timing",
+    "role": "runtime subsystems (camera, input, render, lobby, life-lost, options) + lifecycle, castle-build, phase-machine, tick-consumers",
     "files": [
       "src/runtime/runtime-camera.ts",
       "src/runtime/runtime-castle-build.ts",
