@@ -2,7 +2,7 @@
   {
     "layer": 0,
     "domain": "ai",
-    "role": "AI tuning constants",
+    "role": "AI tuning constants & chain defs",
     "files": [
       "src/ai/ai-chain.ts",
       "src/ai/ai-constants.ts"
@@ -431,7 +431,7 @@
   {
     "layer": 7,
     "domain": "game",
-    "role": "game init, zone recompute & fire modifier",
+    "role": "game init, zone recompute & fire/high-tide modifiers",
     "files": [
       "src/game/game-init.ts",
       "src/game/modifiers/fire.ts",
@@ -655,7 +655,7 @@
   {
     "layer": 9,
     "domain": "render",
-    "role": "3D effect implementations (emergence, collapse, ice)",
+    "role": "3D effect implementations + render UI",
     "files": [
       "src/render/3d/effects/grass-emergence.ts",
       "src/render/3d/effects/ground-collapse.ts",
@@ -823,7 +823,7 @@
   {
     "layer": 15,
     "domain": "online",
-    "role": "online runtime promotion",
+    "role": "online rehydrate & runtime promotion",
     "files": [
       "src/online/online-rehydrate.ts",
       "src/online/online-runtime-promote.ts"

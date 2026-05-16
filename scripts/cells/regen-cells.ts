@@ -56,7 +56,7 @@ const DOMINANT_THRESHOLD = 0.7;
 // original labeling rationale.
 const LABELS: Record<string, string> = {
   // L0 — leaf modules (no intra-project imports)
-  "0::ai": "AI tuning constants",
+  "0::ai": "AI tuning constants & chain defs",
   "0::game": "domain barrel",
   "0::input": "input primitives & recorder",
   "0::online": "DOM lookup helpers",
@@ -108,7 +108,7 @@ const LABELS: Record<string, string> = {
   // L7 — entity renderers & cross-domain handlers
   "7::ai": "AI strategy + Host interface contracts",
   "7::controllers": "human controller",
-  "7::game": "game init, zone recompute & fire modifier",
+  "7::game": "game init, zone recompute & fire/high-tide modifiers",
   "7::input": "pointer-event dispatch",
   "7::online": "online action send, remote crosshairs & stores",
   "7::render": "entity renderers & 3D effect factories",
@@ -132,7 +132,7 @@ const LABELS: Record<string, string> = {
   "9::game": "upgrade system",
   "9::input": "input device handlers (kb, mouse, touch)",
   "9::online": "online runtime lobby",
-  "9::render": "3D effect implementations (emergence, collapse, ice)",
+  "9::render": "3D effect implementations + render UI",
   "9::runtime": "runtime types, main loop, phase machine & subsystems",
 
   // L10 — mid-depth assembly
@@ -167,8 +167,7 @@ const LABELS: Record<string, string> = {
 
   // L15 — online session lifecycle
   "15::controllers": "AI-assisted human controller",
-  "15::online": "online runtime promotion",
-  "15::runtime": "runtime rehydrate",
+  "15::online": "online rehydrate & runtime promotion",
 
   // L16 — online deps wiring
   "16::online": "online deps wiring",
