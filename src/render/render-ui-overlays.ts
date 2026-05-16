@@ -73,7 +73,7 @@ interface GameOverLayout {
   menuX: number;
 }
 
-const GAMEOVER_PANEL_W_RATIO = 0.65;
+const GAMEOVER_PANEL_W_RATIO = 0.325;
 const SETTINGS_GEAR_X = MAP_PX_W - 32;
 const SETTINGS_GEAR_Y = 4;
 const SETTINGS_GEAR_SIZE = 28;
