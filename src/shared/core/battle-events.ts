@@ -299,11 +299,11 @@ export const BATTLE_EVENT_CONSUMERS = {
   // tryHitSupplyShip and observed by sound/haptics consumers only.
   shipHit: {
     emit: "src/game/modifiers/supply-ship.ts",
-    sfx: "src/runtime/sfx-player.ts",
+    sfx: "src/runtime/audio/sfx-player.ts",
   },
   shipSunk: {
     emit: "src/game/modifiers/supply-ship.ts",
-    sfx: "src/runtime/sfx-player.ts",
+    sfx: "src/runtime/audio/sfx-player.ts",
   },
 } as const satisfies Record<
   BattleEvent["type"],

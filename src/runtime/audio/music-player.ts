@@ -12,14 +12,14 @@ import {
   type GameEventBus,
   type GameEventHandler,
   type GameEventMap,
-} from "../shared/core/game-event-bus.ts";
-import { Phase } from "../shared/core/game-phase.ts";
-import type { ValidPlayerId } from "../shared/core/player-slot.ts";
-import type { GameState } from "../shared/core/types.ts";
+} from "../../shared/core/game-event-bus.ts";
+import { Phase } from "../../shared/core/game-phase.ts";
+import type { ValidPlayerId } from "../../shared/core/player-slot.ts";
+import type { GameState } from "../../shared/core/types.ts";
 import {
   AUDIO_CONTEXT_RUNNING,
   AUDIO_CONTEXT_SUSPENDED,
-} from "../shared/platform/platform.ts";
+} from "../../shared/platform/platform.ts";
 import {
   type CachedPcm,
   fanfareCacheId,

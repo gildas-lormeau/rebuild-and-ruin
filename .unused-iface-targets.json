@@ -73,8 +73,8 @@
     {
       "label": "Audio sub-systems",
       "targets": [
-        { "file": "src/runtime/music-player.ts", "interface": "MusicSubsystem" },
-        { "file": "src/runtime/sfx-player.ts", "interface": "SfxSubsystem" }
+        { "file": "src/runtime/audio/music-player.ts", "interface": "MusicSubsystem" },
+        { "file": "src/runtime/audio/sfx-player.ts", "interface": "SfxSubsystem" }
       ]
     },
     {

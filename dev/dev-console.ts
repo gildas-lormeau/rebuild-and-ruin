@@ -6,7 +6,7 @@ import {
   isPerfHudEnabled,
   setPerfHudEnabled,
 } from "../src/render/3d/perf-hud.ts";
-import type { MusicSubsystem } from "../src/runtime/music-player.ts";
+import type { MusicSubsystem } from "../src/runtime/audio/music-player.ts";
 import {
   isStateInstalled,
   type RuntimeState,

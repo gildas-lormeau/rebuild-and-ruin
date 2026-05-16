@@ -70,7 +70,7 @@ const DOMINANT_THRESHOLD = 0.7;
 const SUBPATH_PARTITIONS: Record<string, readonly string[]> = {
   game: ["modifiers", "upgrades"],
   render: ["3d/effects"],
-  runtime: ["subsystems"],
+  runtime: ["audio", "subsystems"],
 };
 // Role labels keyed by `${layer}::${domain}` (or
 // `${layer}::${domain}/${subdomain}` for subpath-partitioned cells, see
@@ -89,6 +89,7 @@ const LABELS: Record<string, string> = {
   "0::render": "render primitives & 3D helpers",
   "0::render/3d/effects": "effect helpers & reconciler",
   "0::runtime": "runtime leaf utilities & banner ramps",
+  "0::runtime/audio": "audio asset storage",
   "0::server": "wire send helpers",
   "0::shared": "shared constants, RNG & platform leaves",
 
@@ -96,7 +97,8 @@ const LABELS: Record<string, string> = {
   "1::online": "online config & route table",
   "1::render": "3D sprite scene builders & lights",
   "1::render/3d/effects": "effect terrain pattern textures",
-  "1::runtime": "modifier reveal overlays & audio leaf infra",
+  "1::runtime": "modifier reveal overlays & browser timing",
+  "1::runtime/audio": "audio leaf infra (synth loader, sound modal)",
   "1::shared": "shared foundational types & defs",
 
   // L2 — derived types & local entry
@@ -132,7 +134,9 @@ const LABELS: Record<string, string> = {
   "6::input": "input-handler deps shapes",
   "6::online": "online lobby UI & session state",
   "6::render": "render contracts & overlay helpers",
-  "6::runtime": "runtime cores: anim, dialog, audio & overlay registry",
+  "6::runtime":
+    "runtime cores: state, tick context, dialog cores, haptics & overlay registry",
+  "6::runtime/audio": "audio players (music + sfx)",
   "6::server": "server game-room",
   "6::shared": "shared action schedule & query helpers",
 

@@ -703,7 +703,7 @@
       "pair": "MastParams@src/render/3d/sprites/supply-ship-scene.ts ↔ TurretParams@src/render/3d/sprites/grunt-scene.ts"
     },
     {
-      "pair": "MusicSubsystem@src/runtime/music-player.ts ↔ SfxSubsystem@src/runtime/sfx-player.ts"
+      "pair": "MusicSubsystem@src/runtime/audio/music-player.ts ↔ SfxSubsystem@src/runtime/audio/sfx-player.ts"
     },
     {
       "pair": "NetworkApi@src/runtime/runtime-types.ts ↔ RuntimeLoopDeps@src/runtime/runtime-main-loop.ts"

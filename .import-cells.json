@@ -72,11 +72,19 @@
       "src/runtime/banner-messages.ts",
       "src/runtime/dialog-tick.ts",
       "src/runtime/modifier-reveal-ramp.ts",
-      "src/runtime/music-assets.ts",
       "src/runtime/runtime-browser-dom.ts",
       "src/runtime/timer-accums.ts",
       "src/runtime/timing-api.ts",
       "src/runtime/waved-ramp.ts"
+    ]
+  },
+  {
+    "layer": 0,
+    "domain": "runtime",
+    "subdomain": "audio",
+    "role": "audio asset storage",
+    "files": [
+      "src/runtime/audio/music-assets.ts"
     ]
   },
   {
@@ -146,17 +154,25 @@
   {
     "layer": 1,
     "domain": "runtime",
-    "role": "modifier reveal overlays & audio leaf infra",
+    "role": "modifier reveal overlays & browser timing",
     "files": [
       "src/runtime/dust-storm-reveal-overlay.ts",
       "src/runtime/fog-reveal-overlay.ts",
       "src/runtime/frostbite-reveal-overlay.ts",
       "src/runtime/grunt-surge-reveal-overlay.ts",
-      "src/runtime/music-synth-loader.ts",
       "src/runtime/rubble-clearing-overlay.ts",
       "src/runtime/runtime-browser-timing.ts",
-      "src/runtime/sapper-reveal-overlay.ts",
-      "src/runtime/sound-modal.ts"
+      "src/runtime/sapper-reveal-overlay.ts"
+    ]
+  },
+  {
+    "layer": 1,
+    "domain": "runtime",
+    "subdomain": "audio",
+    "role": "audio leaf infra (synth loader, sound modal)",
+    "files": [
+      "src/runtime/audio/music-synth-loader.ts",
+      "src/runtime/audio/sound-modal.ts"
     ]
   },
   {
@@ -420,16 +436,24 @@
   {
     "layer": 6,
     "domain": "runtime",
-    "role": "runtime cores: anim, dialog, audio & overlay registry",
+    "role": "runtime cores: state, tick context, dialog cores, haptics & overlay registry",
     "files": [
       "src/runtime/modifier-reveal-overlay-registry.ts",
-      "src/runtime/music-player.ts",
       "src/runtime/runtime-haptics.ts",
       "src/runtime/runtime-life-lost-core.ts",
       "src/runtime/runtime-state.ts",
       "src/runtime/runtime-tick-context.ts",
-      "src/runtime/runtime-upgrade-pick-core.ts",
-      "src/runtime/sfx-player.ts"
+      "src/runtime/runtime-upgrade-pick-core.ts"
+    ]
+  },
+  {
+    "layer": 6,
+    "domain": "runtime",
+    "subdomain": "audio",
+    "role": "audio players (music + sfx)",
+    "files": [
+      "src/runtime/audio/music-player.ts",
+      "src/runtime/audio/sfx-player.ts"
     ]
   },
   {

@@ -99,11 +99,11 @@ composition root's deps object.
 
 | File | Purpose |
 |---|---|
-| `music-player.ts` | XMI MIDI playback, bg tracks, fanfares |
-| `sfx-player.ts` | VOC sample playback, event-map dispatcher, snare crescendo |
-| `music-assets.ts` | IndexedDB asset storage + RSC/XMI extraction |
-| `music-synth-loader.ts` | WOPL synth worklet loader + gain envelope |
-| `sound-modal.ts` | HTML modal for asset import (DOM UI) — standalone factory, not a sub-system; exposed to the options screen via a `showSoundModal` callback rather than the deps bag |
+| `audio/music-player.ts` | XMI MIDI playback, bg tracks, fanfares |
+| `audio/sfx-player.ts` | VOC sample playback, event-map dispatcher, snare crescendo |
+| `audio/music-assets.ts` | IndexedDB asset storage + RSC/XMI extraction |
+| `audio/music-synth-loader.ts` | WOPL synth worklet loader + gain envelope |
+| `audio/sound-modal.ts` | HTML modal for asset import (DOM UI) — standalone factory, not a sub-system; exposed to the options screen via a `showSoundModal` callback rather than the deps bag |
 
 ### Primitives / helpers (NOT sub-systems)
 These are pure functions or small factories consumed by the sub-systems

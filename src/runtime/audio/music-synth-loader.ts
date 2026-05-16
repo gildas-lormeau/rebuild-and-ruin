@@ -9,11 +9,11 @@
 
 import coreUrl from "libadlmidi-js/dist/libadlmidi.dosbox.slim.core.js?url";
 import wasmUrl from "libadlmidi-js/dist/libadlmidi.dosbox.slim.core.wasm?url";
-import { ailToWopl } from "../shared/platform/ail-to-wopl.ts";
+import { ailToWopl } from "../../shared/platform/ail-to-wopl.ts";
 import {
   xmiContainerBlocks,
   xmidToSmf,
-} from "../shared/platform/xmi-to-smf.ts";
+} from "../../shared/platform/xmi-to-smf.ts";
 import {
   type CachedPcm,
   fanfareCacheId,

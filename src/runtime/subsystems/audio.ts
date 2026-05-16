@@ -8,11 +8,14 @@
  */
 
 import { Mode } from "../../shared/ui/ui-mode.ts";
-import { loadStoredAssets, type MusicAssets } from "../music-assets.ts";
-import { createMusicSubsystem, type MusicSubsystem } from "../music-player.ts";
+import { loadStoredAssets, type MusicAssets } from "../audio/music-assets.ts";
+import {
+  createMusicSubsystem,
+  type MusicSubsystem,
+} from "../audio/music-player.ts";
+import { createSfxSubsystem, type SfxSubsystem } from "../audio/sfx-player.ts";
+import { createSoundModal } from "../audio/sound-modal.ts";
 import { type RuntimeState, safeState } from "../runtime-state.ts";
-import { createSfxSubsystem, type SfxSubsystem } from "../sfx-player.ts";
-import { createSoundModal } from "../sound-modal.ts";
 
 interface AudioOrchestratorDeps {
   runtimeState: RuntimeState;
