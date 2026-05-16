@@ -41,11 +41,15 @@ interface Violation {
   text: string;
 }
 
-/** Directories to scan for accessor-bypass violations. `dev/` is included
- *  because dev-only browser tools (ascii-renderer, dev-console, e2e-bridge,
- *  dev-console-grid) read the same GameState shape and would otherwise
- *  bypass the lint silently. */
-const SCAN_DIRS = [join(process.cwd(), "src"), join(process.cwd(), "dev")];
+/** Directories to scan for accessor-bypass violations. `dev/` and
+ *  `scripts/` are included because dev-only browser tools and CLI
+ *  fixture/debug scripts read the same GameState shape and would
+ *  otherwise bypass the lint silently. */
+const SCAN_DIRS = [
+  join(process.cwd(), "src"),
+  join(process.cwd(), "dev"),
+  join(process.cwd(), "scripts"),
+];
 const RULES: Rule[] = [
   {
     pattern: /state\.map\.towers\[\w+\.targetTowerIdx\]/,
@@ -73,6 +77,8 @@ const RULES: Rule[] = [
     //     into `castleCenterPx` (a spatial helper that takes the array shape).
     //     If `castleCenterPx` is ever refactored to take `GameMap`, drop these.
     //   - dev/dev-console-grid.ts — debug surface for raw cells
+    //   - scripts/fixture-cli.ts   — fixture/debug CLI does its own
+    //     zone-boundary flood-fill validation
     pattern: /\bmap\.zones\b/,
     helper: "zoneAt(map, row, col)",
     allow: new Set([
@@ -83,6 +89,7 @@ const RULES: Rule[] = [
       "src/runtime/runtime-camera.ts",
       "src/render/render-ui-overlays.ts",
       "dev/dev-console-grid.ts",
+      "scripts/fixture-cli.ts",
     ]),
   },
 ];
