@@ -9,7 +9,10 @@
  *   h/b/w/g/c/p — place house / bonus / wall / grunt / cannon / pit at
  *                 cursor (cannons occupy a 2×2 footprint anchored at the
  *                 cursor; pits are single-tile burning hazards)
- *   x       — remove any override at cursor
+ *   x       — remove any override at cursor; falls through to punching a
+ *                 hole in the fixture's checkpoint walls when no override
+ *                 sits at the cursor (modifies checkpoint.players[N].walls
+ *                 + castleWallTiles directly, so the change persists on save)
  *   0..N    — switch active wall owner
  *   u       — undo last edit
  *   s       — save (validates by re-running the loader end-to-end)
@@ -59,6 +62,14 @@ type Tool = "house" | "bonus" | "wall" | "grunt" | "cannon" | "pit";
 
 type Mode = "author" | "replay";
 
+/** Captured before each mutating edit. Baseline is bundled in because
+ *  checkpoint-wall removal mutates the cached baseline cells, and undo
+ *  must restore them in lock-step with the fixture. */
+interface UndoSnapshot {
+  fixture: FixtureFile;
+  baseline?: Cell[][];
+}
+
 /** A human-readable label for what the editor is currently playing. */
 interface ScenarioSourceLabel {
   /** Single-line description, e.g. `fixture: path/to.json`, `seed=42 mode=classic`. */
@@ -87,7 +98,7 @@ interface EditorState {
   dirty: boolean;
   message: string;
   messageKind: "info" | "ok" | "error";
-  undoStack: FixtureFile[];
+  undoStack: UndoSnapshot[];
   /** Live replay scenario — non-null only when `mode === "replay"`. The
    *  scenario is booted from the current in-memory fixture (saved or not)
    *  on `enterReplay` and disposed on `exitReplay`. */
@@ -740,6 +751,7 @@ function removeAtCursor(state: EditorState): void {
     return true;
   });
   if (removed.length === 0) {
+    if (removeCheckpointWallAtCursor(state, row, col)) return;
     state.message = `nothing to remove at (${row},${col})`;
     state.messageKind = "error";
     return;
@@ -759,6 +771,42 @@ function removeAtCursor(state: EditorState): void {
   state.messageKind = "ok";
 }
 
+/** Punch a hole in a checkpoint wall at (row, col): find which player's
+ *  checkpoint walls contain the key, drop it from both `walls` and
+ *  `castleWallTiles`, and patch the cached baseline cell to grass so the
+ *  TUI redraws without the wall. Returns false (and leaves state alone)
+ *  if no checkpoint wall is at the cursor. */
+function removeCheckpointWallAtCursor(
+  state: EditorState,
+  row: number,
+  col: number,
+): boolean {
+  const fixture = state.fixture;
+  if (!fixture?.checkpoint) return false;
+  const key = row * GRID_COLS + col;
+  const owner = fixture.checkpoint.players.findIndex((player) =>
+    player.walls.includes(key),
+  );
+  if (owner === -1) return false;
+  snapshotForUndo(state);
+  const player = fixture.checkpoint.players[owner]!;
+  player.walls = player.walls.filter((k) => k !== key);
+  if (player.castleWallTiles) {
+    player.castleWallTiles = player.castleWallTiles.filter((k) => k !== key);
+  }
+  if (state.baseline) {
+    state.baseline[row]![col] = {
+      kind: CellKind.Grass,
+      char: ".",
+      playerId: -1 as Cell["playerId"],
+    };
+  }
+  state.dirty = true;
+  state.message = `removed checkpoint wall(owner=${owner}) at (${row},${col})`;
+  state.messageKind = "ok";
+  return true;
+}
+
 function undo(state: EditorState): void {
   if (!state.fixture) return;
   const previous = state.undoStack.pop();
@@ -767,10 +815,9 @@ function undo(state: EditorState): void {
     state.messageKind = "info";
     return;
   }
-  state.fixture = previous;
-  state.dirty =
-    state.undoStack.length > 0 ||
-    hasOverrides(previous) !== hasOverrides(state.fixture);
+  state.fixture = previous.fixture;
+  if (previous.baseline) state.baseline = previous.baseline;
+  state.dirty = state.undoStack.length > 0;
   state.message = "undid last edit";
   state.messageKind = "info";
 }
@@ -935,7 +982,10 @@ function validatePlacement(
 
 function snapshotForUndo(state: EditorState): void {
   if (!state.fixture) return;
-  state.undoStack.push(cloneFixture(state.fixture));
+  state.undoStack.push({
+    fixture: cloneFixture(state.fixture),
+    baseline: state.baseline ? cloneBaseline(state.baseline) : undefined,
+  });
   if (state.undoStack.length > 100) state.undoStack.shift();
 }
 
@@ -943,16 +993,8 @@ function cloneFixture(fixture: FixtureFile): FixtureFile {
   return JSON.parse(JSON.stringify(fixture)) as FixtureFile;
 }
 
-function hasOverrides(fixture: FixtureFile): boolean {
-  return (
-    (fixture.houses?.length ?? 0) +
-      (fixture.bonusSquares?.length ?? 0) +
-      (fixture.walls?.length ?? 0) +
-      (fixture.grunts?.length ?? 0) +
-      (fixture.cannons?.length ?? 0) +
-      (fixture.pits?.length ?? 0) >
-    0
-  );
+function cloneBaseline(baseline: Cell[][]): Cell[][] {
+  return baseline.map((row) => row.map((cell) => ({ ...cell })));
 }
 
 function draw(state: EditorState): void {
