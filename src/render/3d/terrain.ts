@@ -1,27 +1,24 @@
 /**
- * 3D terrain mesh — vertex-colored quads at `ELEVATION_STACK.TERRAIN_MESH`
- * with a `MeshBasicMaterial` fragment patch painting raw terrain
- * (grass/water/bank/ice via SDF + `FLAG_FROZEN`), owned-water (sinkhole),
- * and open-water waves during battle. Battle grass uses a 16×16 R32F
- * pattern. Vertex colors carry castle-interior tints; other tiles set
- * alpha=0 so the shader owns them. Palette = 2D tiles for byte parity.
+ * 3D terrain mesh — flat quads at `ELEVATION_STACK.TERRAIN_MESH` with a
+ * `MeshBasicMaterial` fragment patch painting every fragment from scratch:
+ * grass / water / bank / ice via the SDF + `FLAG_FROZEN`, owner-tinted
+ * interior + bank gradient inside owned territory, and open-water waves
+ * during battle. Battle grass uses a 16×16 R32F pattern. Palette = 2D
+ * tiles for byte parity.
  */
 
 import * as THREE from "three";
 import { Phase } from "../../shared/core/game-phase.ts";
-import type { GameMap } from "../../shared/core/geometry-types.ts";
 import {
   GRID_COLS,
   GRID_ROWS,
   MAP_PX_H,
   MAP_PX_W,
   TILE_SIZE,
-  Tile,
 } from "../../shared/core/grid.ts";
 import type { ValidPlayerId } from "../../shared/core/player-slot.ts";
 import { getPlayerColor, MAX_PLAYERS } from "../../shared/ui/player-config.ts";
 import type { RGB } from "../../shared/ui/theme.ts";
-import { interiorOwnersFromOverlay } from "../overlay-helpers.ts";
 import { ELEVATION_STACK } from "./elevation.ts";
 import type { FrameCtx } from "./frame-ctx.ts";
 
@@ -39,11 +36,9 @@ interface TerrainDeps {
 
 export interface TerrainContext {
   readonly mesh: THREE.Mesh;
-  /** Rebuild geometry if `map.mapVersion` has changed since last build.
-   *  Cheap no-op when the version matches. */
-  ensureBuilt(map: GameMap): void;
-  /** Per-frame update: recomputes vertex colors from `ctx.map` + `ctx.overlay`.
-   *  Must be called after `ensureBuilt`. */
+  /** Per-frame uniform refresh (battle flag, wave clock). The geometry
+   *  is static; everything else flows through the SDF + tile-data textures
+   *  the shader samples. */
   update(ctx: FrameCtx): void;
   /** Free GPU resources when the renderer is torn down. */
   dispose(): void;
@@ -84,7 +79,7 @@ const GLSL_ICE_BLEND_WIDTH = "4.0";
 // Bumped on every shader-source change — three.js dedupes programs by this
 // key and reuses the cached one if it matches, so a stale key would silently
 // keep the previous shader running after edits (HMR or otherwise).
-const TERRAIN_PROGRAM_KEY = "terrain-full-paint-shader-v6";
+const TERRAIN_PROGRAM_KEY = "terrain-full-paint-shader-v7";
 
 export function createTerrain(deps: TerrainDeps): TerrainContext {
   const tileCount = GRID_ROWS * GRID_COLS;
@@ -93,10 +88,6 @@ export function createTerrain(deps: TerrainDeps): TerrainContext {
 
   const positions = new Float32Array(tileCount * vertsPerTile * 3);
   const indices = new Uint32Array(tileCount * trisPerTile * 3);
-  // RGBA vertex colors: castle interiors get alpha=1 (opaque tint); raw
-  // grass / water / bank / ice tiles get alpha=0 and are painted entirely
-  // by the fragment-shader patch.
-  const colors = new Float32Array(tileCount * vertsPerTile * 4);
 
   // Build static position + index buffers — these never change at runtime.
   for (let r = 0; r < GRID_ROWS; r++) {
@@ -126,17 +117,14 @@ export function createTerrain(deps: TerrainDeps): TerrainContext {
 
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-  geometry.setAttribute("color", new THREE.BufferAttribute(colors, 4));
   geometry.setIndex(new THREE.BufferAttribute(indices, 1));
   geometry.computeVertexNormals();
   geometry.attributes["position"]!.needsUpdate = false;
 
   const material = new THREE.MeshBasicMaterial({
-    vertexColors: true,
     side: THREE.FrontSide,
-    // The shader patch paints every fragment, so the mesh is fully opaque.
-    // Vertex-color alpha is repurposed as an "is interior" mask the shader
-    // branches on; nothing is composited through to a layer below.
+    // The shader patch paints every fragment from scratch (no map texture,
+    // no vertex colors), so the mesh is fully opaque.
     transparent: false,
     depthWrite: true,
   });
@@ -194,84 +182,13 @@ export function createTerrain(deps: TerrainDeps): TerrainContext {
   const mesh = new THREE.Mesh(geometry, material);
   mesh.renderOrder = 0;
 
-  let builtForVersion: number | undefined;
-
-  function ensureBuilt(map: GameMap): void {
-    if (builtForVersion === map.mapVersion) return;
-    // Tile positions are fixed; only `mapVersion` changes (e.g. sinkhole
-    // modifier mutates tiles in place) — tracked so `update` knows when
-    // the underlying tile types might have shifted.
-    builtForVersion = map.mapVersion;
-  }
-
   function update(ctx: FrameCtx): void {
-    const { overlay, map, now } = ctx;
-    // Bail when overlay is undefined so this mesh and the tile-data
-    // texture (which has the same guard) stay in sync — otherwise the
-    // mesh would repaint to "no interiors" while the tile-data texture
-    // kept flagging them owned, briefly turning interiors into raw
-    // terrain. Overlay is always defined during gameplay; this guards
-    // against pre-first-frame / teardown ticks.
-    if (!map || !overlay) return;
-    const inBattle = overlay.phase === Phase.BATTLE;
-    shaderUniforms.inBattle.value = inBattle;
+    const { overlay, now } = ctx;
+    // Overlay is always defined during gameplay; this guards against
+    // pre-first-frame / teardown ticks.
+    if (!overlay) return;
+    shaderUniforms.inBattle.value = overlay.phase === Phase.BATTLE;
     shaderUniforms.wavesTimeSec.value = now / 1000;
-
-    const interiorOwners = interiorOwnersFromOverlay(overlay);
-    // Render-only phantom flips: high_tide phantom-waters owned grass
-    // tiles, low_water phantom-grasses owned water tiles. The vertex
-    // baker's alpha=1 fast-path bypasses the SDF, so any tile whose
-    // RENDERED type diverges from its mechanical type must drop to
-    // alpha=0 (SDF branch) — otherwise the interior tint wins and the
-    // phantom override never reaches the fragment.
-    const flooded = overlay.entities?.floodedTiles;
-    const exposed = overlay.entities?.exposedRiverbedTiles;
-
-    for (let r = 0; r < GRID_ROWS; r++) {
-      for (let c = 0; c < GRID_COLS; c++) {
-        const tileIdx = r * GRID_COLS + c;
-        const key = r * GRID_COLS + c;
-        const tile = map.tiles[r]?.[c] ?? Tile.Grass;
-        const interiorOwner = interiorOwners.get(key);
-
-        let red: number;
-        let green: number;
-        let blue: number;
-        // alpha=1: shader keeps vertex color (interior tint).
-        // alpha=0: shader paints grass / water / bank / ice / sinkhole
-        // gradient itself.
-        let alpha: number;
-
-        const effectiveGrass =
-          tile !== Tile.Water &&
-          flooded?.has(key) !== true &&
-          exposed?.has(key) !== true;
-        if (interiorOwner !== undefined && effectiveGrass) {
-          const baseColor = interiorTileColor(interiorOwner, r, c, inBattle);
-          red = baseColor[0];
-          green = baseColor[1];
-          blue = baseColor[2];
-          alpha = 1;
-        } else {
-          red = 0;
-          green = 0;
-          blue = 0;
-          alpha = 0;
-        }
-
-        const vertBase = tileIdx * 4;
-        writeTileColor(
-          colors,
-          vertBase,
-          sRGBToLinear(red / 255),
-          sRGBToLinear(green / 255),
-          sRGBToLinear(blue / 255),
-          alpha,
-        );
-      }
-    }
-
-    (geometry.attributes["color"] as THREE.BufferAttribute).needsUpdate = true;
   }
 
   function dispose(): void {
@@ -279,7 +196,7 @@ export function createTerrain(deps: TerrainDeps): TerrainContext {
     material.dispose();
   }
 
-  return { mesh, ensureBuilt, update, dispose };
+  return { mesh, update, dispose };
 }
 
 function setVertex(
@@ -295,42 +212,9 @@ function setVertex(
   target[offset + 2] = worldZ;
 }
 
-function writeTileColor(
-  target: Float32Array,
-  vertBase: number,
-  red: number,
-  green: number,
-  blue: number,
-  alpha: number,
-): void {
-  for (let i = 0; i < 4; i++) {
-    const offset = (vertBase + i) * 4;
-    target[offset] = red;
-    target[offset + 1] = green;
-    target[offset + 2] = blue;
-    target[offset + 3] = alpha;
-  }
-}
-
-/** Return the color for an owned interior tile at (row, col). Mirrors the
- *  original `ownerGrassBase`: peacetime uses the 2-shade checkered interior
- *  (light on even parity, dark on odd); battle uses a uniform
- *  cobblestone-tinted-gray per player. */
-function interiorTileColor(
-  ownerId: ValidPlayerId,
-  row: number,
-  col: number,
-  inBattle: boolean,
-): RGB {
-  const colors = getPlayerColor(ownerId);
-  if (inBattle) return cobblestoneBaseColor(colors.interiorLight);
-  const isLight = (row + col) % 2 === 0;
-  return isLight ? colors.interiorLight : colors.interiorDark;
-}
-
 /** Cobblestone base color for a player. The 2D sprite added textured stone
- *  detail on top; the 3D mesh paints just the base since every tile is a
- *  single vertex-colored quad. */
+ *  detail on top; the 3D mesh's fragment shader stamps a pattern texture
+ *  on top of this base to match. */
 function cobblestoneBaseColor(interiorLight: RGB): RGB {
   return [
     Math.floor(
@@ -588,70 +472,59 @@ vec4 applyWaveOverlay(vec4 base, ivec2 tileRC, vec2 worldPx) {
       "#include <alphamap_fragment>",
       `#include <alphamap_fragment>
 {
+  // Full-paint terrain: every fragment derives its color from the SDF
+  // (grass / bank / water gradient) and the tile-data texture (owner +
+  // flags). No vertex-color shortcut — phantom overrides like high_tide
+  // flooded grass and low_water exposed riverbed flow through the SDF,
+  // so they MUST hit this branch unconditionally to render correctly.
   vec2 worldPx = vTerrainUv * mapPxSize;
-  // Branch on the vertex-color alpha: alpha=1 means an interior tile,
-  // diffuseColor already has the player tint baked in by <color_fragment>
-  // (cobblestone-tinted-gray during battle); alpha=0 means a raw terrain
-  // tile, this patch paints it from scratch.
-  if (vColor.a < 0.5) {
-    ivec2 tileRC = ivec2(
-      int(floor(vTerrainUv.y * gridSize.y)),
-      int(floor(vTerrainUv.x * gridSize.x))
-    );
-    vec2 tileUv = (vec2(tileRC.y, tileRC.x) + 0.5) / gridSize;
-    vec4 tileData = texture2D(tileDataTex, tileUv);
-    int ownerId = int(tileData.r * 255.0 + 0.5) - 1;
-    int flags = int(tileData.g * 255.0 + 0.5);
-    bool isFrozen = isFlagSet(flags, FLAG_FROZEN);
-    float d = texture2D(sdfTex, vTerrainUv).r;
+  ivec2 tileRC = ivec2(
+    int(floor(vTerrainUv.y * gridSize.y)),
+    int(floor(vTerrainUv.x * gridSize.x))
+  );
+  vec2 tileUv = (vec2(tileRC.y, tileRC.x) + 0.5) / gridSize;
+  vec4 tileData = texture2D(tileDataTex, tileUv);
+  int ownerId = int(tileData.r * 255.0 + 0.5) - 1;
+  int flags = int(tileData.g * 255.0 + 0.5);
+  bool isFrozen = isFlagSet(flags, FLAG_FROZEN);
+  float d = texture2D(sdfTex, vTerrainUv).r;
 
-    vec3 grass;
-    vec3 water;
-    bool ownedWater = ownerId >= 0;
-    if (ownedWater) {
-      // Owned-water bank gradient (was effects/sinkhole-overlay.ts, and
-      // formerly gated on a per-tile sinkhole flag). Now any water tile
-      // inside an owned interior — sinkhole, high-tide flooded, or a
-      // naturally enclosed bay — paints with the player's grass terminus
-      // so the SDF bank transition matches the surrounding territory.
-      // ownerGrassLinear returns the cobblestone color in battle.
-      grass = ownerGrassLinear(ownerId, tileRC);
-      water = isFrozen ? iceColorLinear : waterColorLinear;
-    } else {
-      grass = defaultGrassLinear(tileRC);
-      water = isFrozen
-        ? mix(waterColorLinear, iceColorLinear, iceEdgeBlend(tileRC, worldPx))
-        : waterColorLinear;
-    }
-    if (inBattle) {
-      // Owned-water bank gets the cobblestone pattern (matching the
-      // interior-tile branch below); everything else gets the grass-blade
-      // pattern.
-      grass = ownedWater
-        ? applyPatternOffset(grass, worldPx, cobblestonePatternTex)
-        : applyPatternOffset(grass, worldPx, grassPatternTex);
-    }
-    vec3 terrainColor = selectBankColor(d, grass, water);
-    diffuseColor = vec4(terrainColor, 1.0);
+  vec3 grass;
+  vec3 water;
+  bool inOwnedInterior = ownerId >= 0;
+  if (inOwnedInterior) {
+    // Any tile inside an owned interior (grass, sinkhole, high-tide
+    // flooded, or a naturally enclosed bay) paints with the player's
+    // grass terminus so the SDF bank transition matches the surrounding
+    // territory. ownerGrassLinear returns the cobblestone base in battle.
+    grass = ownerGrassLinear(ownerId, tileRC);
+    water = isFrozen ? iceColorLinear : waterColorLinear;
+  } else {
+    grass = defaultGrassLinear(tileRC);
+    water = isFrozen
+      ? mix(waterColorLinear, iceColorLinear, iceEdgeBlend(tileRC, worldPx))
+      : waterColorLinear;
+  }
+  if (inBattle) {
+    // Owned tiles get the cobblestone pattern (both flat interior and
+    // bank gradient); unowned grass gets the grass-blade pattern.
+    grass = inOwnedInterior
+      ? applyPatternOffset(grass, worldPx, cobblestonePatternTex)
+      : applyPatternOffset(grass, worldPx, grassPatternTex);
+  }
+  vec3 terrainColor = selectBankColor(d, grass, water);
+  diffuseColor = vec4(terrainColor, 1.0);
 
-    // Open-water wave overlay (was effects/water-waves.ts) — the SDF gate
-    // is the per-pixel equivalent of the 2D code's per-tile "all 4
-    // neighbors are water" check, so bank-edge water tiles get waves on
-    // their interior pixels for a more continuous open-water look.
-    // Suppressed on owned-water tiles (the small enclosed pool look —
-    // sinkholes, enclosed high-tide, bays — doesn't suit the drifting
-    // wave effect, which was tuned for the open river).
-    if (inBattle && !ownedWater && !isFrozen
-        && d > BANK_WATER_DIST + BANK_TRANSITION) {
-      diffuseColor = applyWaveOverlay(diffuseColor, tileRC, worldPx);
-    }
-  } else if (inBattle) {
-    // Interior tile in battle — vertex color is the cobblestone-tinted-gray
-    // base. Stamp the mortar / highlights / shadows / specks pattern on
-    // top to reproduce the 2D drawCobblestone() look.
-    diffuseColor.rgb = applyPatternOffset(
-      diffuseColor.rgb, worldPx, cobblestonePatternTex
-    );
+  // Open-water wave overlay (was effects/water-waves.ts) — the SDF gate
+  // is the per-pixel equivalent of the 2D code's per-tile "all 4
+  // neighbors are water" check, so bank-edge water tiles get waves on
+  // their interior pixels for a more continuous open-water look.
+  // Suppressed on owned-interior tiles (the small enclosed pool look —
+  // sinkholes, enclosed high-tide, bays — doesn't suit the drifting
+  // wave effect, which was tuned for the open river).
+  if (inBattle && !inOwnedInterior && !isFrozen
+      && d > BANK_WATER_DIST + BANK_TRANSITION) {
+    diffuseColor = applyWaveOverlay(diffuseColor, tileRC, worldPx);
   }
 }`,
     );

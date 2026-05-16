@@ -212,7 +212,6 @@ export function createRender3d(
     sunT: number | undefined,
     pitchMax: number,
   ): void {
-    ctx.terrain.ensureBuilt(map);
     // Modifier-aware SDF projection: high_tide flooded grass tiles paint
     // as water, low_water exposed water tiles paint as grass. The bank
     // gradient regenerates against the new effective shoreline so the
@@ -284,11 +283,10 @@ export function createRender3d(
   return {
     warmMapCache: (map) => {
       canvas2d.warmMapCache(map);
-      // Ensure the terrain mesh is ready before the first frame. The
-      // geometry is fixed-size so the "build" step is cheap; `update` fills
-      // in colors each frame. The SDF texture is uploaded here too so the
-      // first frame's shader sample doesn't read the placeholder.
-      ctx.terrain.ensureBuilt(map);
+      // Upload the SDF for the first frame so the shader's first sample
+      // doesn't read the placeholder. The terrain mesh has no per-map
+      // state — geometry is fixed-size, everything else flows through
+      // shader uniforms + the SDF / tile-data textures.
       ctx.terrainSdfTexture.ensureBuilt(map);
     },
     drawFrame: (
