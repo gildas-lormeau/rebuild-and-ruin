@@ -93,20 +93,6 @@ interface ModifierDef extends PoolDef<ModifierId> {
    *  online-checkpoints.ts (restore), online-serialize.ts (serialize),
    *  phase-setup.ts resetZoneState (cleanup). */
   readonly needsCheckpoint: boolean;
-  /** Tile value the renderer should use for the banner snapshot map at
-   *  every position in `ModifierDiff.changedTiles`. Set to the modifier's
-   *  pre-mutation tile (e.g. `Tile.Grass` for sinkhole/high_tide which
-   *  flood grass into water) so the banner sweep reveals the OLD terrain.
-   *  Set to `null` for modifiers that DON'T mutate `state.map.tiles` —
-   *  the snapshot map is then skipped entirely (the visual change comes
-   *  from a separate overlay layer like `drawFrozenTiles`).
-   *
-   *  This is the single source of truth for the snapshot revert tile,
-   *  consumed by `buildModifierSnapshotMap` via the renderer in
-   *  `drawBannerSnapshot`. Adding a new modifier that mutates terrain to
-   *  a non-Grass tile (e.g. Grass→Road, Water→Grass) only requires
-   *  setting the right value here — no renderer changes. */
-  readonly tileMutationPrev: number | null;
 }
 
 /** Compile-time exhaustiveness: every ModifierId must appear in the pool.
@@ -139,9 +125,6 @@ const MODIFIER_POOL = [
     weight: WEIGHT_COMMON,
     implemented: true,
     needsCheckpoint: false,
-    // Burn scars don't change the underlying tile (it's still grass, just
-    // covered in burning pits drawn as an overlay). No snapshot needed.
-    tileMutationPrev: null,
   },
   {
     id: "grunt_surge",
@@ -150,7 +133,6 @@ const MODIFIER_POOL = [
     weight: WEIGHT_UNCOMMON,
     implemented: true,
     needsCheckpoint: false,
-    tileMutationPrev: null,
   },
   {
     id: "frozen_river",
@@ -160,8 +142,6 @@ const MODIFIER_POOL = [
     weight: WEIGHT_RARE,
     implemented: true,
     needsCheckpoint: true,
-    // Tiles stay Water — the freeze is drawn as an overlay by drawFrozenTiles.
-    tileMutationPrev: null,
   },
   {
     id: "sinkhole",
@@ -171,8 +151,6 @@ const MODIFIER_POOL = [
     weight: WEIGHT_RARE,
     implemented: true,
     needsCheckpoint: true,
-    // Sinkhole tiles flood from grass to water — banner snapshot reverts.
-    tileMutationPrev: 0, // Tile.Grass — value import of Tile is restricted
   },
   {
     id: "high_tide",
@@ -181,10 +159,7 @@ const MODIFIER_POOL = [
       "River widens 1 tile, flooding banks and destroying structures. Recedes next round",
     weight: WEIGHT_UNCOMMON,
     implemented: true,
-    // Tile types stay grass — flooded set is derived from the static map
-    // (see `computeFloodedTiles`); render goes through FLAG_FLOODED.
     needsCheckpoint: false,
-    tileMutationPrev: null,
   },
   {
     id: "dust_storm",
@@ -194,7 +169,6 @@ const MODIFIER_POOL = [
     weight: WEIGHT_UNCOMMON,
     implemented: true,
     needsCheckpoint: false,
-    tileMutationPrev: null,
   },
   {
     id: "rubble_clearing",
@@ -204,8 +178,6 @@ const MODIFIER_POOL = [
     weight: WEIGHT_COMMON,
     implemented: true,
     needsCheckpoint: false,
-    // Dead cannons + burning pits are entity-layer. No tile mutation.
-    tileMutationPrev: null,
   },
   {
     id: "low_water",
@@ -214,11 +186,7 @@ const MODIFIER_POOL = [
       "Shallow river-edge tiles dry up for one round, letting grunts walk across",
     weight: WEIGHT_COMMON,
     implemented: true,
-    // Tile types stay water — exposed set lives on
-    // `state.modern.exposedRiverbedTiles` and the renderer paints those
-    // via FLAG_EXPOSED.
     needsCheckpoint: true,
-    tileMutationPrev: null,
   },
   {
     id: "dry_lightning",
@@ -228,8 +196,6 @@ const MODIFIER_POOL = [
     weight: WEIGHT_UNCOMMON,
     implemented: true,
     needsCheckpoint: false,
-    // Burning pits are entity-layer overlays, not tile mutations.
-    tileMutationPrev: null,
   },
   {
     id: "fog_of_war",
@@ -239,8 +205,6 @@ const MODIFIER_POOL = [
     weight: WEIGHT_RARE,
     implemented: true,
     needsCheckpoint: false,
-    // Visual-only overlay drawn over castle walls + interior. No tile mutation.
-    tileMutationPrev: null,
   },
   {
     id: "frostbite",
@@ -249,10 +213,9 @@ const MODIFIER_POOL = [
       "Grunts spawn as ice cubes — fully immobile and require two hits to break",
     weight: WEIGHT_RARE,
     implemented: true,
-    // Chip state rides on `grunt.chipped`, which is already serialized as part
-    // of each grunt's wire fields — no separate modifier-owned checkpoint.
+    // Chip state rides on `grunt.chipped`, already serialized per-grunt —
+    // no separate modifier-owned checkpoint.
     needsCheckpoint: false,
-    tileMutationPrev: null,
   },
   {
     id: "sapper",
@@ -262,7 +225,6 @@ const MODIFIER_POOL = [
     weight: WEIGHT_RARE,
     implemented: true,
     needsCheckpoint: false,
-    tileMutationPrev: null,
   },
   {
     id: "supply_ship",
@@ -272,8 +234,6 @@ const MODIFIER_POOL = [
     weight: WEIGHT_COMMON,
     implemented: true,
     needsCheckpoint: false,
-    // Ships are entity-layer; no tile mutation to revert in the banner snapshot.
-    tileMutationPrev: null,
   },
 ] as const satisfies readonly ModifierDef[];
 /** Modifiers with gameplay code — used for random selection. */

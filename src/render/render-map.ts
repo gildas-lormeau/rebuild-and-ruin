@@ -233,7 +233,16 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
    *  The SDF shape depends on the map's tile geometry plus the optional
    *  modifier projection (`opts.phantomWater` / `opts.phantomGrass`),
    *  so it's keyed by `mapVersion` — freeze/thaw and modifier
-   *  apply/clear all bump mapVersion to invalidate this cache. */
+   *  apply/clear all bump mapVersion to invalidate this cache.
+   *
+   *  INVARIANT: `opts` is NOT part of the cache key. The cache hit path
+   *  returns the previously-computed SDF regardless of what `opts` is
+   *  passed on subsequent calls. This is safe only because every code
+   *  path that can change the effective `opts` (modifier apply/clear)
+   *  ALSO bumps `mapVersion`, invalidating the cache. A future modifier
+   *  that flips phantom tiles without bumping `mapVersion` would
+   *  silently return a stale SDF — bump `mapVersion` in its apply/clear
+   *  or extend the cache key. */
   function ensureTerrainSdfCache(map: GameMap, opts?: SdfOpts): void {
     const cache = getTerrainCache(map, MAP_PX_W, MAP_PX_H);
     if (cache.blurredSdf && cache.nearestWaterTile) return;
