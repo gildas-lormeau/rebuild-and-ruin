@@ -22,7 +22,11 @@ import { assert } from "@std/assert";
 import { GAME_EVENT } from "../src/shared/core/game-event-bus.ts";
 import { Phase } from "../src/shared/core/game-phase.ts";
 import type { ModifierId } from "../src/shared/core/game-constants.ts";
-import { computeFloodedTiles } from "../src/shared/core/spatial.ts";
+import {
+  computeFloodedTiles,
+  isWater,
+  packTile,
+} from "../src/shared/core/spatial.ts";
 import { createScenario, type Scenario } from "./scenario.ts";
 
 /** Per-modifier effect probe. `install` subscribes to bus events and/or
@@ -280,3 +284,42 @@ for (const modifierId of MODIFIER_IDS) {
     }
   });
 }
+
+/** Regression: low_water's clear must evict grunts that walked onto the
+ *  exposed riverbed during the prior battle. Pre-fix, those grunts
+ *  remained on water tiles after clear (frozenTiles + exposedRiverbedTiles
+ *  both null) and were stuck for the rest of the match. The invariant
+ *  asserted here — "a grunt on a water tile is on a passable-water tile"
+ *  — holds for both frozen_river and low_water and would catch a
+ *  recurrence of the same eviction gap in either. */
+Deno.test("regression: no grunt is stranded on impassable water", async () => {
+  // Seed 459757 modern rolls low_water at round 4 and reliably produces
+  // 7 stranded grunts at round 5 WALL_BUILD pre-fix. Confirmed via
+  // git-blame trace to commit 2707c7cb (the exposedRiverbedTiles
+  // refactor that dropped clear-side eviction).
+  using sc = await createScenario({ seed: 459757, mode: "modern", rounds: 6 });
+  const violations: { round: number; phase: string; row: number; col: number }[] = [];
+  sc.bus.on(GAME_EVENT.PHASE_START, (ev) => {
+    if (ev.phase !== Phase.BATTLE && ev.phase !== Phase.WALL_BUILD) return;
+    const tiles = sc.state.map.tiles;
+    const exposed = sc.state.modern?.exposedRiverbedTiles;
+    const frozen = sc.state.modern?.frozenTiles;
+    for (const grunt of sc.state.grunts) {
+      if (!isWater(tiles, grunt.row, grunt.col)) continue;
+      const key = packTile(grunt.row, grunt.col);
+      if (exposed?.has(key)) continue;
+      if (frozen?.has(key)) continue;
+      violations.push({
+        round: sc.state.round,
+        phase: ev.phase,
+        row: grunt.row,
+        col: grunt.col,
+      });
+    }
+  });
+  sc.runGame({ timeoutMs: MAX_TIMEOUT_MS });
+  assert(
+    violations.length === 0,
+    `grunts stranded on impassable water: ${JSON.stringify(violations)}`,
+  );
+});

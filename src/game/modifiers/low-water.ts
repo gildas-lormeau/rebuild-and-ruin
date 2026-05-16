@@ -1,9 +1,10 @@
 /**
- * Low Water — exposes a thinned river bank for one round. Tiles stay
- * water; exposed set is RNG-shuffled per draw (varies which segments
- * win the 2×2-preservation contest), stored on
- * `state.modern.exposedRiverbedTiles`, painted via FLAG_EXPOSED. No
- * eviction at apply (water tiles carry no entities) or at clear.
+ * Low Water — opposite of high_tide. RNG-shuffled, 2×2-water-preserving
+ * riverbed strip behaves as grass for one round: walls placeable, grunts
+ * walkable, in-zone via `extraFillable`. Tiles stay water in the array;
+ * `state.modern.exposedRiverbedTiles` is the side-set zone-recompute /
+ * placement / renderer read. River still blocks cross-zone, and house /
+ * bonus / castle-prebuild see water. Clear evicts walls + grunts on it.
  */
 
 import type { GameMap } from "../../shared/core/geometry-types.ts";
@@ -18,27 +19,40 @@ import {
 } from "../../shared/core/spatial.ts";
 import { type GameState, type ModifierImpl } from "../../shared/core/types.ts";
 import type { Rng } from "../../shared/platform/rng.ts";
+import { recomputeMapZones } from "../zone-recompute.ts";
+import { evictEntitiesOnTiles } from "./evict-tiles.ts";
 
 export const lowWaterImpl: ModifierImpl = {
   lifecycle: "round-scoped",
-  // Tiles stay water — the visual "exposed bank" is a renderer overlay
-  // (FLAG_EXPOSED), not a tile-type change. No territory geometry change
-  // at apply or clear, so skip the post-apply recheck.
-  skipsRecheck: true,
+  // apply / clear extend / retract zone membership via recomputeMapZones,
+  // which is the territory-geometry change. The post-apply
+  // `recheckTerritory` runs anyway because no `skipsRecheck` is set.
   apply: (state: GameState) => {
     const exposed = computeExposedRiverbedTiles(state.map, state.rng);
     if (exposed.size === 0) {
       return { changedTiles: [], gruntsSpawned: 0 };
     }
     state.modern!.exposedRiverbedTiles = exposed;
-    state.map.mapVersion++;
+    // Zones extend onto exposed tiles so wall-placement zone checks pass
+    // and grunts staying within an extended zone aren't classed cross-zone.
+    recomputeMapZones(state);
     return { changedTiles: [...exposed], gruntsSpawned: 0 };
   },
   clear: (state: GameState) => {
-    if (!state.modern) return;
-    if (state.modern.exposedRiverbedTiles === null) return;
-    state.modern.exposedRiverbedTiles = null;
-    state.map.mapVersion++;
+    const modern = state.modern;
+    if (!modern || modern.exposedRiverbedTiles === null) return;
+    // River closes — anything that landed on exposed bank during the
+    // modifier's life now sits on water. Cannons are impossible here
+    // (interior never reaches the river bank), houses/bonus never spawn
+    // on exposed tiles, so the only categories to drop are walls and
+    // grunts.
+    evictEntitiesOnTiles(state, modern.exposedRiverbedTiles, {
+      walls: true,
+      grunts: true,
+    });
+    modern.exposedRiverbedTiles = null;
+    // Zones retract back to grass-only; mapVersion bumps with it.
+    recomputeMapZones(state);
   },
   restore: (state: GameState, data: SerializedModifierTiles) => {
     state.modern!.exposedRiverbedTiles = data.exposedRiverbedTiles

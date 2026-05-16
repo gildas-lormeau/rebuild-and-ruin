@@ -375,7 +375,6 @@
       "src/game/modifiers/frostbite.ts",
       "src/game/modifiers/frozen-river.ts",
       "src/game/modifiers/grunt-surge.ts",
-      "src/game/modifiers/low-water.ts",
       "src/game/modifiers/modifier-eligibility.ts",
       "src/game/modifiers/rubble-clearing.ts",
       "src/game/modifiers/sapper.ts",
@@ -650,6 +649,7 @@
     "subdomain": "modifiers",
     "role": "modifier implementations",
     "files": [
+      "src/game/modifiers/low-water.ts",
       "src/game/modifiers/sinkhole.ts"
     ]
   },

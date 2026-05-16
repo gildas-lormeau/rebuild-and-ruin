@@ -137,13 +137,10 @@ function lockGruntTarget(
   }
 
   const gruntZone = zoneAt(state.map, grunt.row, grunt.col);
-  // Cross-zone targeting opens whenever the river is traversable —
-  // either fully (frozen_river) or via the partial bank (low_water).
-  // Pathfinding decides whether the grunt can actually reach the target;
-  // unreachable cross-zone targets just fall back to same-zone below.
-  const crossZoneOpen =
-    state.modern?.frozenTiles != null ||
-    state.modern?.exposedRiverbedTiles != null;
+  // Cross-zone targeting only opens when the river is fully traversable
+  // (frozen_river). low_water exposes a thinned bank — the river is
+  // still present, so grunts stay zone-locked.
+  const crossZoneOpen = state.modern?.frozenTiles != null;
 
   let bestDist = Infinity;
   let bestIdx: TowerIdx | undefined;

@@ -559,8 +559,16 @@ function generateRiverAndZones(
 
 /** Flood-fill grass tiles into connected-region IDs starting at 1 (water
  *  stays at 0). Exported so post-modifier code can recompute zones after
- *  tile mutations — see `recomputeMapZones` in `zone-recompute.ts`. */
-export function floodFillZones(tiles: readonly Tile[][]): {
+ *  tile mutations — see `recomputeMapZones` in `zone-recompute.ts`.
+ *
+ *  `extraFillable`: tiles that count as grass-like for the flood (used by
+ *  low_water to extend a zone onto the temporarily-exposed riverbed). Floods
+ *  start from real grass only; extra tiles can be reached but never seed a
+ *  new region, so they always inherit the zone of their grass-side. */
+export function floodFillZones(
+  tiles: readonly Tile[][],
+  extraFillable?: ReadonlySet<TileKey>,
+): {
   zones: ZoneCell[][];
   regionSizes: Map<ZoneId, number>;
 } {
@@ -571,9 +579,12 @@ export function floodFillZones(tiles: readonly Tile[][]): {
   const regionSizes = new Map<ZoneId, number>();
   // Reusable flat-index queue across all fills (cleared per region)
   const queue: number[] = [];
+  const isFillable = (r: number, c: number): boolean =>
+    isGrass(tiles, r, c) ||
+    extraFillable?.has(packTile(r, c) as TileKey) === true;
 
   const tryEnqueue = (r: number, c: number, rid: ZoneId): void => {
-    if (inBounds(r, c) && zones[r]![c] === 0 && isGrass(tiles, r, c)) {
+    if (inBounds(r, c) && zones[r]![c] === 0 && isFillable(r, c)) {
       zones[r]![c] = rid;
       queue.push(packTile(r, c));
     }
@@ -581,6 +592,8 @@ export function floodFillZones(tiles: readonly Tile[][]): {
 
   for (let r = 0; r < GRID_ROWS; r++) {
     for (let c = 0; c < GRID_COLS; c++) {
+      // Only real grass seeds new regions — extraFillable tiles join an
+      // adjacent region but never start one of their own.
       if (zones[r]![c] !== 0 || !isGrass(tiles, r, c)) continue;
 
       regionId = (regionId + 1) as ZoneId;

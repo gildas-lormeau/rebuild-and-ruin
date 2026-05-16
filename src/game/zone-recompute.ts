@@ -13,7 +13,14 @@ import type { ZoneId } from "../shared/core/zone-id.ts";
 import { floodFillZones } from "./map-generation.ts";
 
 export function recomputeMapZones(state: GameState): void {
-  const { zones: rawZones } = floodFillZones(state.map.tiles);
+  // low_water exposes a thinned riverbed strip — those tiles count as
+  // grass-like for zoning so the player's territory extends onto them
+  // (walls placed there satisfy the in-zone check, grunts walking on
+  // them stay zone-anchored).
+  const { zones: rawZones } = floodFillZones(
+    state.map.tiles,
+    state.modern?.exposedRiverbedTiles ?? undefined,
+  );
 
   // Anchor each raw region back to the tower's prior zone ID so cached
   // `tower.zone` and `state.playerZones[pid]` stay valid.

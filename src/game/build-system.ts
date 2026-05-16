@@ -112,7 +112,10 @@ export function canPlacePiece(
   state: GameViewState & {
     readonly grunts: readonly Grunt[];
     readonly burningPits: readonly BurningPit[];
-    readonly modern?: { readonly activeModifier: ModifierId | null } | null;
+    readonly modern?: {
+      readonly activeModifier: ModifierId | null;
+      readonly exposedRiverbedTiles?: ReadonlySet<number> | null;
+    } | null;
   },
   playerId: ValidPlayerId,
   offsets: readonly [number, number][],
@@ -131,16 +134,20 @@ export function canPlacePiece(
   // so the AI's hot inner loop doesn't pay O(map_size) on every call —
   // each offset costs O(4 + |towers|) only when the modifier is active.
   const highTideActive = state.modern?.activeModifier === MODIFIER_ID.HIGH_TIDE;
+  // low_water: the exposed riverbed counts as grass for wall placement.
+  // Zone recompute already maps each exposed tile to its grass-side zone,
+  // so the zone check below passes naturally.
+  const exposed = state.modern?.exposedRiverbedTiles ?? null;
   let wallOverlaps = 0;
   for (const [dr, dc] of offsets) {
     const r = row + dr;
     const c = col + dc;
     if (!inBounds(r, c)) return false;
-    if (!isGrass(state.map.tiles, r, c)) return false;
+    const key = packTile(r, c);
+    if (!isGrass(state.map.tiles, r, c) && !exposed?.has(key)) return false;
     if (highTideActive && isFloodedTile(state.map, r, c)) return false;
     // Must be within the player's zone
     if (zone !== undefined && zoneAt(state.map, r, c) !== zone) return false;
-    const key = packTile(r, c);
 
     // AI callers pass excludeInterior to prevent placing inside enclosed zones
     if (excludeInterior && excludeInterior.has(key)) return false;
