@@ -69,6 +69,7 @@ const DOMINANT_THRESHOLD = 0.7;
  */
 const SUBPATH_PARTITIONS: Record<string, readonly string[]> = {
   game: ["modifiers", "upgrades"],
+  render: ["3d/effects"],
 };
 // Role labels keyed by `${layer}::${domain}` (or
 // `${layer}::${domain}/${subdomain}` for subpath-partitioned cells, see
@@ -85,6 +86,7 @@ const LABELS: Record<string, string> = {
   "0::online": "DOM lookup helpers",
   "0::protocol": "wire route constants",
   "0::render": "render primitives & 3D helpers",
+  "0::render/3d/effects": "effect helpers & reconciler",
   "0::runtime": "runtime leaf utilities & banner ramps",
   "0::server": "wire send helpers",
   "0::shared": "shared constants, RNG & platform leaves",
@@ -92,6 +94,7 @@ const LABELS: Record<string, string> = {
   // L1 — foundational types
   "1::online": "online config & route table",
   "1::render": "3D sprite scene builders & lights",
+  "1::render/3d/effects": "effect terrain pattern textures",
   "1::runtime": "modifier reveal overlays & audio leaf infra",
   "1::shared": "shared foundational types & defs",
 
@@ -99,7 +102,8 @@ const LABELS: Record<string, string> = {
   "2::entry": "boot entry",
   "2::online": "online type definitions",
   "2::protocol": "checkpoint payload types",
-  "2::render": "3D camera, debug & terrain primitives",
+  "2::render": "3D camera, debug, sprite scenes & UI theme",
+  "2::render/3d/effects": "effect terrain SDF texture",
   "2::runtime": "camera projection math",
   "2::shared": "derived shared types & UI configs",
 
@@ -138,7 +142,10 @@ const LABELS: Record<string, string> = {
   "7::game/modifiers": "modifier implementations (fire, high-tide)",
   "7::input": "pointer-event dispatch",
   "7::online": "online action send, remote crosshairs & stores",
-  "7::render": "entity renderers & 3D effect factories",
+  "7::render":
+    "entity renderers (balloons, cannons, grunts, towers, walls, terrain)",
+  "7::render/3d/effects":
+    "effect builders (fire-burst, fog, crosshairs, bonus, impacts, thawing, terrain-tile)",
   "7::runtime": "runtime contracts & battle anim",
   "7::server": "server room manager",
   "7::shared": "shared board occupancy",
@@ -152,7 +159,9 @@ const LABELS: Record<string, string> = {
   "8::game/upgrades": "upgrade implementation (erosion)",
   "8::input": "input dispatch & touch update",
   "8::online": "online runtime websocket",
-  "8::render": "3D effect subsystems (cannon, dust, grunt, etc.)",
+  "8::render": "render UI (overlays, screens, settings)",
+  "8::render/3d/effects":
+    "effect subsystems (burns, dust, supply-ship, modifier-reveal)",
   "8::runtime": "runtime state, castle-build & browser timing",
 
   // L9 — system implementations
@@ -161,7 +170,9 @@ const LABELS: Record<string, string> = {
   "9::game": "upgrade system",
   "9::input": "input device handlers (kb, mouse, touch)",
   "9::online": "online runtime lobby",
-  "9::render": "3D effect implementations + render UI",
+  "9::render": "render UI entry",
+  "9::render/3d/effects":
+    "effect implementations (emergence, collapse, ice, lightning, water surge, wildfire)",
   "9::runtime": "runtime types, main loop, phase machine & subsystems",
 
   // L10 — mid-depth assembly
@@ -169,7 +180,8 @@ const LABELS: Record<string, string> = {
   "10::controllers": "AI assisted-human controller variant",
   "10::game": "cannon & wall impact systems",
   "10::online": "online phase transitions",
-  "10::render": "modifier effect registry & map renderer",
+  "10::render": "map renderer",
+  "10::render/3d/effects": "modifier-effect registry",
   "10::runtime": "runtime tick consumers & lifecycle integration",
 
   // L11 — system composition
@@ -339,16 +351,24 @@ function cellKey(
 
 /**
  * Promote a file's directory to a subdomain when its parent domain
- * declares the directory in `SUBPATH_PARTITIONS`. Returns `undefined`
- * for files that stay in the unpartitioned domain cell.
+ * declares the directory in `SUBPATH_PARTITIONS`. Partition keys may
+ * span multiple path segments (e.g. `"3d/effects"`); longest match
+ * wins so a deeper partition shadows a shallower one if both are
+ * declared. Returns `undefined` for files that stay in the
+ * unpartitioned domain cell.
  */
 function inferSubdomain(file: string, domain: string): string | undefined {
   const partitions = SUBPATH_PARTITIONS[domain];
   if (!partitions) return undefined;
   const prefix = `src/${domain}/`;
   if (!file.startsWith(prefix)) return undefined;
-  const segment = file.slice(prefix.length).split("/")[0];
-  if (segment && partitions.includes(segment)) return segment;
+  const remainder = file.slice(prefix.length);
+  const sorted = [...partitions].sort(
+    (leftSubpath, rightSubpath) => rightSubpath.length - leftSubpath.length,
+  );
+  for (const partition of sorted) {
+    if (remainder.startsWith(`${partition}/`)) return partition;
+  }
   return undefined;
 }
 

@@ -46,14 +46,22 @@
     "domain": "render",
     "role": "render primitives & 3D helpers",
     "files": [
-      "src/render/3d/effects/helpers.ts",
-      "src/render/3d/effects/reconciler.ts",
       "src/render/3d/entities/instance-modulation.ts",
       "src/render/3d/perf-hud.ts",
       "src/render/3d/pixel-snap.ts",
       "src/render/3d/sprites/procedural-texture.ts",
       "src/render/3d/sprites/sprite-kit.ts",
       "src/render/render-layout.ts"
+    ]
+  },
+  {
+    "layer": 0,
+    "domain": "render",
+    "subdomain": "3d/effects",
+    "role": "effect helpers & reconciler",
+    "files": [
+      "src/render/3d/effects/helpers.ts",
+      "src/render/3d/effects/reconciler.ts"
     ]
   },
   {
@@ -117,7 +125,6 @@
     "domain": "render",
     "role": "3D sprite scene builders & lights",
     "files": [
-      "src/render/3d/effects/terrain-pattern-textures.ts",
       "src/render/3d/lights.ts",
       "src/render/3d/sprites/balloon-scene.ts",
       "src/render/3d/sprites/cannonball-scene.ts",
@@ -125,6 +132,15 @@
       "src/render/3d/sprites/pit-scene.ts",
       "src/render/3d/sprites/sprite-materials.ts",
       "src/render/3d/sprites/sprite-textures.ts"
+    ]
+  },
+  {
+    "layer": 1,
+    "domain": "render",
+    "subdomain": "3d/effects",
+    "role": "effect terrain pattern textures",
+    "files": [
+      "src/render/3d/effects/terrain-pattern-textures.ts"
     ]
   },
   {
@@ -185,10 +201,9 @@
   {
     "layer": 2,
     "domain": "render",
-    "role": "3D camera, debug & terrain primitives",
+    "role": "3D camera, debug, sprite scenes & UI theme",
     "files": [
       "src/render/3d/camera.ts",
-      "src/render/3d/effects/terrain-sdf-texture.ts",
       "src/render/3d/light-debug.ts",
       "src/render/3d/sprites/cannon-scene.ts",
       "src/render/3d/sprites/debris-scene.ts",
@@ -198,6 +213,15 @@
       "src/render/3d/sprites/tower-scene.ts",
       "src/render/3d/sprites/wall-scene.ts",
       "src/render/render-ui-theme.ts"
+    ]
+  },
+  {
+    "layer": 2,
+    "domain": "render",
+    "subdomain": "3d/effects",
+    "role": "effect terrain SDF texture",
+    "files": [
+      "src/render/3d/effects/terrain-sdf-texture.ts"
     ]
   },
   {
@@ -484,15 +508,8 @@
   {
     "layer": 7,
     "domain": "render",
-    "role": "entity renderers & 3D effect factories",
+    "role": "entity renderers (balloons, cannons, grunts, towers, walls, terrain)",
     "files": [
-      "src/render/3d/effects/bonus-squares.ts",
-      "src/render/3d/effects/crosshairs.ts",
-      "src/render/3d/effects/fire-burst.ts",
-      "src/render/3d/effects/fog.ts",
-      "src/render/3d/effects/impacts.ts",
-      "src/render/3d/effects/terrain-tile-data.ts",
-      "src/render/3d/effects/thawing.ts",
       "src/render/3d/entities/balloons.ts",
       "src/render/3d/entities/cannonballs.ts",
       "src/render/3d/entities/cannons.ts",
@@ -505,6 +522,21 @@
       "src/render/3d/entities/towers.ts",
       "src/render/3d/entities/walls.ts",
       "src/render/3d/terrain.ts"
+    ]
+  },
+  {
+    "layer": 7,
+    "domain": "render",
+    "subdomain": "3d/effects",
+    "role": "effect builders (fire-burst, fog, crosshairs, bonus, impacts, thawing, terrain-tile)",
+    "files": [
+      "src/render/3d/effects/bonus-squares.ts",
+      "src/render/3d/effects/crosshairs.ts",
+      "src/render/3d/effects/fire-burst.ts",
+      "src/render/3d/effects/fog.ts",
+      "src/render/3d/effects/impacts.ts",
+      "src/render/3d/effects/terrain-tile-data.ts",
+      "src/render/3d/effects/thawing.ts"
     ]
   },
   {
@@ -625,7 +657,18 @@
   {
     "layer": 8,
     "domain": "render",
-    "role": "3D effect subsystems (cannon, dust, grunt, etc.)",
+    "role": "render UI (overlays, screens, settings)",
+    "files": [
+      "src/render/render-ui-overlays.ts",
+      "src/render/render-ui-screens.ts",
+      "src/render/render-ui-settings.ts"
+    ]
+  },
+  {
+    "layer": 8,
+    "domain": "render",
+    "subdomain": "3d/effects",
+    "role": "effect subsystems (burns, dust, supply-ship, modifier-reveal)",
     "files": [
       "src/render/3d/effects/cannon-burns.ts",
       "src/render/3d/effects/dust-storm.ts",
@@ -634,10 +677,7 @@
       "src/render/3d/effects/modifier-reveal-burst.ts",
       "src/render/3d/effects/supply-ship.ts",
       "src/render/3d/effects/wall-burns.ts",
-      "src/render/3d/effects/wall-dust.ts",
-      "src/render/render-ui-overlays.ts",
-      "src/render/render-ui-screens.ts",
-      "src/render/render-ui-settings.ts"
+      "src/render/3d/effects/wall-dust.ts"
     ]
   },
   {
@@ -695,15 +735,23 @@
   {
     "layer": 9,
     "domain": "render",
-    "role": "3D effect implementations + render UI",
+    "role": "render UI entry",
+    "files": [
+      "src/render/render-ui.ts"
+    ]
+  },
+  {
+    "layer": 9,
+    "domain": "render",
+    "subdomain": "3d/effects",
+    "role": "effect implementations (emergence, collapse, ice, lightning, water surge, wildfire)",
     "files": [
       "src/render/3d/effects/grass-emergence.ts",
       "src/render/3d/effects/ground-collapse.ts",
       "src/render/3d/effects/ice-formation.ts",
       "src/render/3d/effects/lightning-burst.ts",
       "src/render/3d/effects/water-surge.ts",
-      "src/render/3d/effects/wildfire-burst.ts",
-      "src/render/render-ui.ts"
+      "src/render/3d/effects/wildfire-burst.ts"
     ]
   },
   {
@@ -744,10 +792,18 @@
   {
     "layer": 10,
     "domain": "render",
-    "role": "modifier effect registry & map renderer",
+    "role": "map renderer",
     "files": [
-      "src/render/3d/effects/modifier-effect-registry.ts",
       "src/render/render-map.ts"
+    ]
+  },
+  {
+    "layer": 10,
+    "domain": "render",
+    "subdomain": "3d/effects",
+    "role": "modifier-effect registry",
+    "files": [
+      "src/render/3d/effects/modifier-effect-registry.ts"
     ]
   },
   {
