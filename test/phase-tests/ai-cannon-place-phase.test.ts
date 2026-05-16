@@ -11,6 +11,9 @@ import roundOneWithExtraBonuses from "./fixtures/cannon-place/round1-with-extra-
 import roundOneWithWalls from "./fixtures/cannon-place/round1-with-walls.json" with {
   type: "json",
 };
+import roundTwoThree10x10Castles from "./fixtures/cannon-place/round2-three-10x10-castles.json" with {
+  type: "json",
+};
 import {
   applyBonusSquareOverrides,
   applyHouseOverrides,
@@ -18,7 +21,8 @@ import {
   createPhaseScenario,
   recomputeFixtureDerivedState,
 } from "./loader.ts";
-import { packTile } from "../../src/shared/core/spatial.ts";
+import { packTile, unpackTile } from "../../src/shared/core/spatial.ts";
+import type { TileKey } from "../../src/shared/core/grid.ts";
 import { cannonModeDef } from "../../src/shared/core/cannon-mode-defs.ts";
 import type { FixtureFile } from "./types.ts";
 import { waitForPhase } from "../scenario.ts";
@@ -233,4 +237,77 @@ Deno.test("phase-test: recomputeFixtureDerivedState lets the runtime tick after 
   // the first time a battle handler reads any player's interior.
   const ev = waitForPhase(sc, Phase.BATTLE);
   assertEquals(ev.phase, Phase.BATTLE);
+});
+
+Deno.test("phase-test: AI cannon placement prefers tower side over wall side in 3-tile-gap castles", async () => {
+  // Double-cast: the checkpoint's `homeTowerIdx` field is a branded TowerIdx
+  // in the type but lands as a bare number from JSON.
+  const sc = await createPhaseScenario(
+    roundTwoThree10x10Castles as unknown as FixtureFile,
+  );
+  waitForPhase(sc, Phase.BATTLE);
+
+  let wallSide = 0;
+  let towerSide = 0;
+  let neutral = 0;
+  const perPlayer: { id: number; wall: number; tower: number; eq: number }[] =
+    [];
+
+  for (const player of sc.state.players) {
+    if (player.eliminated) continue;
+    const towerTiles = new Set<TileKey>();
+    for (const tower of player.ownedTowers) {
+      for (let dr = 0; dr < 2; dr++) {
+        for (let dc = 0; dc < 2; dc++) {
+          towerTiles.add(packTile(tower.row + dr, tower.col + dc));
+        }
+      }
+    }
+
+    let pWall = 0;
+    let pTower = 0;
+    let pEq = 0;
+    for (const cannon of player.cannons) {
+      const size = cannonModeDef(cannon.mode).size;
+      let minWall = Infinity;
+      let minTower = Infinity;
+      for (let dr = 0; dr < size; dr++) {
+        for (let dc = 0; dc < size; dc++) {
+          const cr = cannon.row + dr;
+          const cc = cannon.col + dc;
+          for (const wallKey of player.walls) {
+            const { r, c } = unpackTile(wallKey);
+            const distance = Math.abs(cr - r) + Math.abs(cc - c);
+            if (distance < minWall) minWall = distance;
+          }
+          for (const towerKey of towerTiles) {
+            const { r, c } = unpackTile(towerKey);
+            const distance = Math.abs(cr - r) + Math.abs(cc - c);
+            if (distance < minTower) minTower = distance;
+          }
+        }
+      }
+      if (minWall < minTower) {
+        wallSide++;
+        pWall++;
+      } else if (minTower < minWall) {
+        towerSide++;
+        pTower++;
+      } else {
+        neutral++;
+        pEq++;
+      }
+    }
+    perPlayer.push({ id: player.id, wall: pWall, tower: pTower, eq: pEq });
+  }
+
+  // The AI should not systematically prefer wall-adjacent placements when
+  // an equally legal tower-adjacent placement exists. A balanced or
+  // tower-leaning distribution is the desired behavior.
+  assert(
+    towerSide >= wallSide,
+    `AI prefers wall side: ${wallSide} cannons closer to wall, ` +
+      `${towerSide} closer to tower, ${neutral} equidistant. ` +
+      `Per-player: ${JSON.stringify(perPlayer)}`,
+  );
 });

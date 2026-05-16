@@ -307,6 +307,7 @@
     "highTideTiles": null,
     "sinkholeTiles": null,
     "lowWaterTiles": null,
+    "exposedRiverbedTiles": null,
     "towerPendingRevive": [],
     "capturedCannons": [],
     "cannonballs": []

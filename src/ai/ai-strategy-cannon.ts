@@ -19,7 +19,6 @@ import {
 import { filterActiveEnemies } from "../shared/core/board-occupancy.ts";
 import type { GameMap, TilePos, Tower } from "../shared/core/geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, type TileKey } from "../shared/core/grid.ts";
-import { hasTowerAt } from "../shared/core/occupancy-queries.ts";
 import { getInterior } from "../shared/core/player-interior.ts";
 import type { Player } from "../shared/core/player-types.ts";
 import {
@@ -60,8 +59,10 @@ const WATER_ADJACENT_PENALTY = 15;
 const WATER_NEAR_PENALTY = 8;
 /** Score cost per tile of distance to the nearest owned tower. */
 const TOWER_DISTANCE_MULTIPLIER = 2;
-/** Penalty when a cannon tile is adjacent to a tower tile (enemy fire splashes into wall). */
-const TOWER_ADJACENT_PENALTY = 8;
+/** Penalty per cannon tile that is 4-adjacent to one of the player's own
+ *  walls. Wall-hugging cannons take enemy-fire splash on their own walls,
+ *  exposing the castle. */
+const WALL_ADJACENT_PENALTY = 8;
 /** Penalty for each interior tile left with only 0–1 free neighbors (dead space). */
 const WASTED_TILE_PENALTY = 10;
 /** Random noise added to each score to break ties unpredictably. */
@@ -306,7 +307,7 @@ function scoreCannonPosition(
   const size = cannonSize(mode);
   let score = 0;
   forEachCannonTile({ row, col, mode }, (r, c) => {
-    score += scoreCannonTileLocalPenalty(state, r, c);
+    score += scoreCannonTileLocalPenalty(state, player, r, c);
   });
 
   if (towerCenters.length > 0) {
@@ -359,6 +360,7 @@ function scoreCannonPosition(
 
 function scoreCannonTileLocalPenalty(
   state: CannonViewState,
+  player: Player,
   row: number,
   col: number,
 ): number {
@@ -400,12 +402,13 @@ function scoreCannonTileLocalPenalty(
     }
   }
 
-  // Penalize placement adjacent to towers — enemy fire aimed at cannon splashes into wall
+  // Penalize placement adjacent to own walls — enemy fire aimed at the cannon
+  // splashes into the wall, breaching the castle.
   for (const [ddr, ddc] of DIRS_4) {
     const ar = row + ddr;
     const ac = col + ddc;
-    if (hasTowerAt(state, ar, ac)) {
-      penalty += TOWER_ADJACENT_PENALTY;
+    if (player.walls.has(packTile(ar, ac))) {
+      penalty += WALL_ADJACENT_PENALTY;
     }
   }
 
