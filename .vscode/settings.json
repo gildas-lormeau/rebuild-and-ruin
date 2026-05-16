@@ -4,6 +4,7 @@
     "source.organizeImports.biome": "explicit"
   },
   "deno.enable": true,
+  "deno.config": "./deno.json",
   "deno.enablePaths": ["scripts", "server", "test"],
   "deno.unstable": ["sloppy-imports"]
 }
