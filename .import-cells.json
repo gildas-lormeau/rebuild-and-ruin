@@ -2,7 +2,7 @@
   {
     "layer": 0,
     "domain": "ai",
-    "role": "AI tuning constants & chain defs",
+    "role": "AI tuning data",
     "files": [
       "src/ai/ai-chain.ts",
       "src/ai/ai-constants.ts"
@@ -58,7 +58,7 @@
     "layer": 0,
     "domain": "render",
     "subdomain": "3d/effects",
-    "role": "effect helpers & reconciler",
+    "role": "3D effect infrastructure",
     "files": [
       "src/render/3d/effects/helpers.ts",
       "src/render/3d/effects/reconciler.ts"
@@ -122,7 +122,7 @@
   {
     "layer": 1,
     "domain": "online",
-    "role": "online config & route table",
+    "role": "online wiring config",
     "files": [
       "src/online/online-config.ts",
       "src/online/online-router.ts"
@@ -494,7 +494,7 @@
   {
     "layer": 7,
     "domain": "game",
-    "role": "game init & zone recompute",
+    "role": "game state setup",
     "files": [
       "src/game/game-init.ts",
       "src/game/zone-recompute.ts"
@@ -730,7 +730,7 @@
   {
     "layer": 9,
     "domain": "ai",
-    "role": "AI build scoring & targeting",
+    "role": "AI build decision logic",
     "files": [
       "src/ai/ai-brain.ts",
       "src/ai/ai-build-score.ts",
@@ -812,7 +812,7 @@
   {
     "layer": 10,
     "domain": "game",
-    "role": "cannon & wall impact systems",
+    "role": "battle impact systems",
     "files": [
       "src/game/cannon-system.ts",
       "src/game/wall-impact.ts"
@@ -854,7 +854,7 @@
   {
     "layer": 11,
     "domain": "render",
-    "role": "3D scene & canvas renderer",
+    "role": "frame renderers",
     "files": [
       "src/render/3d/scene.ts",
       "src/render/render-canvas.ts"
@@ -907,7 +907,7 @@
   {
     "layer": 13,
     "domain": "online",
-    "role": "online host promotion & server events",
+    "role": "online server-event handlers",
     "files": [
       "src/online/online-host-promotion.ts",
       "src/online/online-server-events.ts"
@@ -948,7 +948,7 @@
   {
     "layer": 15,
     "domain": "online",
-    "role": "online rehydrate & runtime promotion",
+    "role": "online runtime transitions",
     "files": [
       "src/online/online-rehydrate.ts",
       "src/online/online-runtime-promote.ts"

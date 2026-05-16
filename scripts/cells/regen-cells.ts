@@ -81,20 +81,20 @@ const SUBPATH_PARTITIONS: Record<string, readonly string[]> = {
 // rationale.
 const LABELS: Record<string, string> = {
   // L0 — leaf modules (no intra-project imports)
-  "0::ai": "AI tuning constants & chain defs",
+  "0::ai": "AI tuning data",
   "0::game": "domain barrel",
   "0::input": "input primitives & recorder",
   "0::online": "DOM lookup helpers",
   "0::protocol": "wire route constants",
   "0::render": "render primitives & 3D helpers",
-  "0::render/3d/effects": "effect helpers & reconciler",
+  "0::render/3d/effects": "3D effect infrastructure",
   "0::runtime": "runtime leaf utilities & banner ramps",
   "0::runtime/audio": "audio asset storage",
   "0::server": "wire send helpers",
   "0::shared": "shared constants, RNG & platform leaves",
 
   // L1 — foundational types
-  "1::online": "online config & route table",
+  "1::online": "online wiring config",
   "1::render": "3D sprite scene builders & lights",
   "1::render/3d/effects": "effect terrain pattern textures",
   "1::runtime": "modifier reveal overlays & browser timing",
@@ -143,7 +143,7 @@ const LABELS: Record<string, string> = {
   // L7 — entity renderers & cross-domain handlers
   "7::ai": "AI strategy + Host interface contracts",
   "7::controllers": "human controller",
-  "7::game": "game init & zone recompute",
+  "7::game": "game state setup",
   "7::game/modifiers": "modifier implementations",
   "7::input": "pointer-event dispatch",
   "7::online": "online server lifecycle, remote crosshairs & stores",
@@ -171,7 +171,7 @@ const LABELS: Record<string, string> = {
     "runtime subsystems (camera, input, render, lobby, life-lost, options) + lifecycle, castle-build, phase-machine, tick-consumers",
 
   // L9 — system implementations
-  "9::ai": "AI build scoring & targeting",
+  "9::ai": "AI build decision logic",
   "9::controllers": "AI controller (host wrapper around injected brain)",
   "9::game": "upgrade system",
   "9::input": "input device handlers (kb, mouse, touch)",
@@ -184,7 +184,7 @@ const LABELS: Record<string, string> = {
   // L10 — mid-depth assembly
   "10::ai": "AI build fallback",
   "10::controllers": "AI assisted-human controller variant",
-  "10::game": "cannon & wall impact systems",
+  "10::game": "battle impact systems",
   "10::online": "online phase transitions",
   "10::render": "map renderer",
   "10::render/3d/effects": "modifier-effect registry",
@@ -193,7 +193,7 @@ const LABELS: Record<string, string> = {
   // L11 — system composition
   "11::ai": "AI build strategy",
   "11::game": "grunt system",
-  "11::render": "3D scene & canvas renderer",
+  "11::render": "frame renderers",
 
   // L12 — phase orchestration
   "12::ai": "AI strategy orchestrator",
@@ -203,7 +203,7 @@ const LABELS: Record<string, string> = {
   // L13 — wiring
   "13::ai": "default AI bundle (strategy + brain assembly entrypoint)",
   "13::game": "game actions, phase setup & scheduling",
-  "13::online": "online host promotion & server events",
+  "13::online": "online server-event handlers",
   "13::runtime": "runtime composition",
 
   // L14 — composition roots
@@ -214,7 +214,7 @@ const LABELS: Record<string, string> = {
 
   // L15 — online session lifecycle
   "15::controllers": "AI-assisted human controller",
-  "15::online": "online rehydrate & runtime promotion",
+  "15::online": "online runtime transitions",
 
   // L16 — online deps wiring
   "16::online": "online deps wiring",
