@@ -57,6 +57,47 @@ interface Args {
   filter: string | undefined;
 }
 
+interface SeedRun {
+  seed: number;
+  profilePath: string;
+  framesPath: string;
+}
+
+interface FrameRecord {
+  tick: number;
+  phase: string;
+  round: number;
+  phaseBefore: string;
+  roundBefore: number;
+  wallMicros: number;
+}
+
+interface FrameRun {
+  seed: number;
+  mode: "classic" | "modern";
+  rounds: number;
+  ticks: number;
+  wallMs: number;
+  records: FrameRecord[];
+}
+
+interface PerSeedPhaseStats {
+  totalMicros: number;
+  maxTickMicros: number;
+  count: number;
+}
+
+interface AcrossSeedPhaseAgg {
+  /** Mean across seeds of (sum of per-tick wallMicros within this bucket). */
+  meanTotalMicros: number;
+  /** Worst-of-worst: max across seeds of (max single tick within bucket). */
+  maxTickMicros: number;
+  /** Mean across seeds of (count of ticks within bucket). */
+  meanCount: number;
+  /** Number of seeds that had any ticks in this bucket. */
+  seedsWithBucket: number;
+}
+
 const OUT_DIR = "tmp/perf";
 
 await main();
@@ -64,19 +105,27 @@ await main();
 async function main(): Promise<void> {
   const args = parseArgs(Deno.args);
   await Deno.mkdir(OUT_DIR, { recursive: true });
-  const profilePaths = await runAllSeeds(args);
+  const runs = await runAllSeeds(args);
   console.log();
   console.log(
-    `Aggregating ${profilePaths.length} profiles (seeds ${args.startSeed}..${args.startSeed + args.seeds - 1}, ${args.rounds} rounds, ${args.mode})`,
+    `Aggregating ${runs.length} profiles (seeds ${args.startSeed}..${args.startSeed + args.seeds - 1}, ${args.rounds} rounds, ${args.mode})`,
   );
   const profiles = await Promise.all(
-    profilePaths.map(async (path) => {
-      const raw = await Deno.readTextFile(path);
+    runs.map(async ({ profilePath }) => {
+      const raw = await Deno.readTextFile(profilePath);
       return JSON.parse(raw) as CpuProfile;
+    }),
+  );
+  const frameRuns = await Promise.all(
+    runs.map(async ({ seed, framesPath }) => {
+      const raw = await Deno.readTextFile(framesPath);
+      const parsed = JSON.parse(raw) as FrameRun;
+      return { seed, run: parsed };
     }),
   );
   const stats = aggregate(profiles);
   report(stats, profiles, args.filter);
+  reportFrames(frameRuns);
 }
 
 function parseArgs(raw: readonly string[]): Args {
@@ -108,16 +157,19 @@ function parseArgs(raw: readonly string[]): Args {
   return { seeds, startSeed, rounds, mode, filter };
 }
 
-async function runAllSeeds(args: Args): Promise<string[]> {
-  const paths: string[] = [];
+async function runAllSeeds(args: Args): Promise<SeedRun[]> {
+  const runs: SeedRun[] = [];
   for (let offset = 0; offset < args.seeds; offset++) {
     const seed = args.startSeed + offset;
-    const name = `ai-cpu-seed-${seed}.cpuprofile`;
-    const path = `${OUT_DIR}/${name}`;
-    try {
-      await Deno.remove(path);
-    } catch {
-      // ok if missing
+    const profileName = `ai-cpu-seed-${seed}.cpuprofile`;
+    const profilePath = `${OUT_DIR}/${profileName}`;
+    const framesPath = `${OUT_DIR}/ai-frames-seed-${seed}.json`;
+    for (const path of [profilePath, framesPath]) {
+      try {
+        await Deno.remove(path);
+      } catch {
+        // ok if missing
+      }
     }
     const t0 = performance.now();
     const cmd = new Deno.Command("deno", {
@@ -127,7 +179,7 @@ async function runAllSeeds(args: Args): Promise<string[]> {
         "--cpu-prof-dir",
         OUT_DIR,
         "--cpu-prof-name",
-        name,
+        profileName,
         "-A",
         "scripts/perf-ai-headless.ts",
         "--seed",
@@ -136,6 +188,8 @@ async function runAllSeeds(args: Args): Promise<string[]> {
         String(args.rounds),
         "--mode",
         args.mode,
+        "--out",
+        framesPath,
       ],
       stdout: "piped",
       stderr: "inherit",
@@ -145,10 +199,12 @@ async function runAllSeeds(args: Args): Promise<string[]> {
     if (code !== 0) {
       throw new Error(`subprocess failed for seed=${seed} (exit ${code})`);
     }
-    console.log(`  seed=${seed} done in ${wall.toFixed(0)} ms wall → ${name}`);
-    paths.push(path);
+    console.log(
+      `  seed=${seed} done in ${wall.toFixed(0)} ms wall → ${profileName}`,
+    );
+    runs.push({ seed, profilePath, framesPath });
   }
-  return paths;
+  return runs;
 }
 
 function aggregate(profiles: readonly CpuProfile[]): Map<string, FrameStats> {
@@ -343,14 +399,166 @@ function summarize(micros: readonly number[]): {
   return { mean, min, max, stddev };
 }
 
-function fmtMs(micros: number): string {
-  return (micros / 1000).toFixed(2);
-}
-
 function shortLabel(entry: FrameStats): string {
   const file = entry.url
     .replace(/^https?:\/\/[^/]+\//, "/")
     .replace(/^file:\/\//, "")
     .split("?")[0];
   return `${entry.functionName}  [${file}:${entry.line}]`;
+}
+
+function reportFrames(
+  frameRuns: readonly { seed: number; run: FrameRun }[],
+): void {
+  if (frameRuns.length === 0) return;
+
+  // Per (round, phase) bucketed by seed, then aggregated across seeds.
+  const perSeedByKey = new Map<string, Map<number, PerSeedPhaseStats>>();
+  for (const { seed, run } of frameRuns) {
+    for (const rec of run.records) {
+      const key = `${rec.round}|${rec.phase}`;
+      let seedMap = perSeedByKey.get(key);
+      if (seedMap === undefined) {
+        seedMap = new Map();
+        perSeedByKey.set(key, seedMap);
+      }
+      let bucket = seedMap.get(seed);
+      if (bucket === undefined) {
+        bucket = { totalMicros: 0, maxTickMicros: 0, count: 0 };
+        seedMap.set(seed, bucket);
+      }
+      bucket.totalMicros += rec.wallMicros;
+      if (rec.wallMicros > bucket.maxTickMicros)
+        bucket.maxTickMicros = rec.wallMicros;
+      bucket.count++;
+    }
+  }
+
+  const aggregated = new Map<string, AcrossSeedPhaseAgg>();
+  for (const [key, seedMap] of perSeedByKey) {
+    let totalSum = 0;
+    let countSum = 0;
+    let maxTick = 0;
+    for (const bucket of seedMap.values()) {
+      totalSum += bucket.totalMicros;
+      countSum += bucket.count;
+      if (bucket.maxTickMicros > maxTick) maxTick = bucket.maxTickMicros;
+    }
+    aggregated.set(key, {
+      meanTotalMicros: totalSum / seedMap.size,
+      maxTickMicros: maxTick,
+      meanCount: countSum / seedMap.size,
+      seedsWithBucket: seedMap.size,
+    });
+  }
+
+  const phaseOrder = [
+    "CASTLE_SELECT",
+    "WALL_BUILD",
+    "CANNON_PLACE",
+    "MODIFIER_REVEAL",
+    "BATTLE",
+    "UPGRADE_PICK",
+  ];
+  const rows = [...aggregated.entries()];
+  rows.sort(([keyA], [keyB]) => {
+    const [roundA, phaseA] = keyA.split("|");
+    const [roundB, phaseB] = keyB.split("|");
+    const roundCmp = Number(roundA) - Number(roundB);
+    if (roundCmp !== 0) return roundCmp;
+    return phaseOrder.indexOf(phaseA!) - phaseOrder.indexOf(phaseB!);
+  });
+
+  console.log();
+  console.log(
+    `Per (round, phase) across ${frameRuns.length} seeds — total/mean per game; max-tick is worst-of-worst:`,
+  );
+  console.log(
+    `  ${"round".padStart(5)} ${"phase".padEnd(14)} ${"seeds".padStart(5)} ${"mean count".padStart(10)} ${"mean total(ms)".padStart(15)} ${"max-tick(ms)".padStart(13)}`,
+  );
+  for (const [key, agg] of rows) {
+    const [round, phase] = key.split("|");
+    console.log(
+      `  ${String(round).padStart(5)} ${(phase ?? "?").padEnd(14)} ${String(agg.seedsWithBucket).padStart(5)} ${agg.meanCount.toFixed(1).padStart(10)} ${fmtMs(agg.meanTotalMicros).padStart(15)} ${fmtMs(agg.maxTickMicros).padStart(13)}`,
+    );
+  }
+
+  // Top hitches across all seeds — pull (seed, tick) records from every run,
+  // sort by wallMicros, take the top N.
+  type WorstTick = {
+    seed: number;
+    tick: number;
+    round: number;
+    phase: string;
+    phaseBefore: string;
+    roundBefore: number;
+    wallMicros: number;
+  };
+  const allTicks: WorstTick[] = [];
+  for (const { seed, run } of frameRuns) {
+    for (const rec of run.records) {
+      allTicks.push({
+        seed,
+        tick: rec.tick,
+        round: rec.round,
+        phase: rec.phase,
+        phaseBefore: rec.phaseBefore,
+        roundBefore: rec.roundBefore,
+        wallMicros: rec.wallMicros,
+      });
+    }
+  }
+  allTicks.sort((a, b) => b.wallMicros - a.wallMicros);
+  const topN = Math.min(30, allTicks.length);
+  console.log();
+  console.log(`Top ${topN} hitches across all seeds:`);
+  console.log(
+    `  ${"seed".padStart(4)} ${"tick".padStart(6)} ${"r".padStart(2)} ${"phase".padEnd(14)} ${"wall(ms)".padStart(9)}  transition`,
+  );
+  for (let i = 0; i < topN; i++) {
+    const item = allTicks[i]!;
+    const transition =
+      item.phaseBefore !== item.phase || item.roundBefore !== item.round
+        ? `${item.roundBefore}/${item.phaseBefore} → ${item.round}/${item.phase}`
+        : "";
+    console.log(
+      `  ${String(item.seed).padStart(4)} ${String(item.tick).padStart(6)} ${String(item.round).padStart(2)} ${item.phase.padEnd(14)} ${fmtMs(item.wallMicros).padStart(9)}  ${transition}`,
+    );
+  }
+
+  // Per-seed "worst tick" highlight — easy to see which seed has the
+  // single-frame pathology vs the slow-but-steady ones.
+  console.log();
+  console.log(`Worst tick per seed (sorted desc):`);
+  const worstPerSeed: WorstTick[] = [];
+  for (const { seed, run } of frameRuns) {
+    let worst: WorstTick | null = null;
+    for (const rec of run.records) {
+      if (worst === null || rec.wallMicros > worst.wallMicros) {
+        worst = {
+          seed,
+          tick: rec.tick,
+          round: rec.round,
+          phase: rec.phase,
+          phaseBefore: rec.phaseBefore,
+          roundBefore: rec.roundBefore,
+          wallMicros: rec.wallMicros,
+        };
+      }
+    }
+    if (worst !== null) worstPerSeed.push(worst);
+  }
+  worstPerSeed.sort((a, b) => b.wallMicros - a.wallMicros);
+  console.log(
+    `  ${"seed".padStart(4)} ${"tick".padStart(6)} ${"r".padStart(2)} ${"phase".padEnd(14)} ${"wall(ms)".padStart(9)}`,
+  );
+  for (const item of worstPerSeed) {
+    console.log(
+      `  ${String(item.seed).padStart(4)} ${String(item.tick).padStart(6)} ${String(item.round).padStart(2)} ${item.phase.padEnd(14)} ${fmtMs(item.wallMicros).padStart(9)}`,
+    );
+  }
+}
+
+function fmtMs(micros: number): string {
+  return (micros / 1000).toFixed(2);
 }

@@ -18,17 +18,20 @@
 import { assert, assertGreater } from "@std/assert";
 import { createE2EScenario } from "./e2e-scenario.ts";
 
-const OUT_DIR = "tmp/perf";
+const OUT_DIR = Deno.env.get("PERF_OUT_DIR") ?? "tmp/perf";
+const SEED = Number(Deno.env.get("PERF_SEED") ?? "42");
+const ROUNDS = Number(Deno.env.get("PERF_ROUNDS") ?? "1");
+const FAST_MODE = Deno.env.get("PERF_FAST") === "1";
 
 Deno.test("e2e perf: single round produces DevTools artifacts", async () => {
   await Deno.mkdir(OUT_DIR, { recursive: true });
 
   await using sc = await createE2EScenario({
-    seed: 42,
+    seed: SEED,
     humans: 0,
     headless: false,
-    fastMode: false,
-    rounds: 1,
+    fastMode: FAST_MODE,
+    rounds: ROUNDS,
   });
 
   // Baseline counters before anything interesting has happened.
