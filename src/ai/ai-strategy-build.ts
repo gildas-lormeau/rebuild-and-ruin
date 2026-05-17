@@ -578,13 +578,41 @@ function prescoreCandidates(
  *  Tries the player's existing outer wall ring first (preserves territory),
  *  then falls back to the ideal small castle ring. */
 function tryRepairHomeCastle(ctx: TargetContext): TargetResult {
-  const { state, player, castle, effectiveSkipHome, homeHasRingGaps } = ctx;
+  const {
+    state,
+    playerId,
+    player,
+    piece,
+    castle,
+    effectiveSkipHome,
+    homeHasRingGaps,
+  } = ctx;
   if (effectiveSkipHome || !homeHasRingGaps) return NO_TARGET;
   // Prefer the player's existing outer perimeter when it's salvageable —
   // the ideal castle rect collapses to ~36 interior tiles and the territory
   // sweep destroys every outer wall that no longer bounds an enclosed region.
+  // BUT only commit to the outer ring when the *current* piece can fill at
+  // least one of its gaps. Otherwise scoring produces score≤0 (no piece
+  // overlaps the 1–8 ring-hole tiles, so no enclosure is closed), and the
+  // selector falls through to pickFallbackPlacement which runs
+  // createsSmallEnclosure on hundreds of candidates per tick. The outer
+  // ring is a recommendation; falling through to the ideal-castle target
+  // for one tick still pursues "enclose the tower" — next piece may help
+  // the outer ring instead.
   const outer = tryRepairOuterRing(ctx);
-  if (outer.targetGaps.size > 0) return outer;
+  if (
+    outer.targetGaps.size > 0 &&
+    canPieceFillAnyGap(
+      state,
+      playerId,
+      piece,
+      getInterior(player),
+      outer.targetGaps,
+      null,
+    )
+  ) {
+    return outer;
+  }
   if (castle.top > castle.bottom || castle.left > castle.right)
     return NO_TARGET;
 
