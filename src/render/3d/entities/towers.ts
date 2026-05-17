@@ -47,6 +47,12 @@ export function createTowersManager(scene: THREE.Scene): TowersManager {
   // tower disposal lets a single ownership flip rebuild one tower
   // instead of all of them.
   const entries = new Map<number, TowerEntry>();
+  // Last seen map reference — a new GameMap (rematch / fresh game) means
+  // tower positions may have changed under stable indices, so we must
+  // clear before re-syncing. Without this the per-tower signature
+  // (ownerId + isHome) would happily match across games and leave
+  // geometry at the previous match's coordinates.
+  let lastMap: FrameCtx["map"] | undefined;
 
   function buildEntry(
     tower: Tower,
@@ -115,6 +121,10 @@ export function createTowersManager(scene: THREE.Scene): TowersManager {
 
   function update(ctx: FrameCtx): void {
     const { overlay } = ctx;
+    if (ctx.map !== lastMap) {
+      clearAll();
+      lastMap = ctx.map;
+    }
     const towers = ctx.map?.towers;
     if (!towers || towers.length === 0) {
       clearAll();
