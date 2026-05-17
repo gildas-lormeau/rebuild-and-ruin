@@ -36,6 +36,13 @@ interface ZoneStats {
   centroidRow: number;
 }
 
+interface FloodFillCtx {
+  readonly tiles: readonly Tile[][];
+  readonly extraFillable: ReadonlySet<TileKey> | undefined;
+  readonly zones: ZoneCell[][];
+  readonly queue: number[];
+}
+
 // Tower placement validation — multi-layer checks (isValidTowerPos):
 //   1. Edge gap: tower footprint stays MIN_GAP_EDGE tiles from map boundary
 //   2. Safe zone: SAFE_ZONE_PAD-tile orthogonal clearance around tower (corners
@@ -96,12 +103,6 @@ export function generateMap(rng: Rng): GameMap {
   let regionSizes!: Map<ZoneId, number>;
   let riverMidpoints!: TileGridPos[];
 
-  // Both retry paths return the same buildMapResult shape from the same
-  // locals — factored to one closure so jscpd doesn't see the call as
-  // a clone pair.
-  const buildResult = (towers: Tower[]): GameMap =>
-    buildMapResult(tiles, towers, zones, junction, exits, riverMidpoints);
-
   // Retry until we get 3 large zones (min 80 tiles each)
   let attempts = 0;
   do {
@@ -150,11 +151,15 @@ export function generateMap(rng: Rng): GameMap {
     }
 
     // Check tower placement is possible — require exactly 12 towers (4 per zone)
-    const riverDist = buildRiverDistanceGrid(tiles);
-    const towers = placeTowers(zones, regionSizes, riverDist);
-    if (towers.length < TOWERS_PER_ZONE * 3) continue;
-
-    return buildResult(towers);
+    const built = tryPlaceTowersAndBuild(
+      tiles,
+      zones,
+      regionSizes,
+      junction,
+      exits,
+      riverMidpoints,
+    );
+    if (built !== null) return built;
   } while (true);
 
   // Fallback: retry with relaxed ratio (1.35) but still require 12 towers
@@ -171,11 +176,15 @@ export function generateMap(rng: Rng): GameMap {
     if (!hasThreeBalancedZones(regionSizes, ZONE_BALANCE_RATIO_FALLBACK))
       continue;
 
-    const riverDist = buildRiverDistanceGrid(tiles);
-    const towers = placeTowers(zones, regionSizes, riverDist);
-    if (towers.length < TOWERS_PER_ZONE * 3) continue;
-
-    return buildResult(towers);
+    const built = tryPlaceTowersAndBuild(
+      tiles,
+      zones,
+      regionSizes,
+      junction,
+      exits,
+      riverMidpoints,
+    );
+    if (built !== null) return built;
   }
 
   throw new Error(
@@ -208,9 +217,26 @@ export function topZonesBySize(
     .map(([zone, count]) => ({ zone, count }));
 }
 
-/** Pack a freshly generated map into a `GameMap`. Extracted so the
- *  main-path and fallback-path loops share the struct shape without
- *  duplicating the literal — the dupe tripped jscpd. */
+/** Try to place towers in the freshly generated zone layout and pack
+ *  everything into a GameMap. Returns null when the layout can't fit
+ *  the required 12 towers (4 per zone × 3 zones), signaling that the
+ *  caller should reroll. Shared by the main retry loop and the relaxed
+ *  fallback loop — both used to duplicate this prelude. */
+function tryPlaceTowersAndBuild(
+  tiles: Tile[][],
+  zones: ZoneCell[][],
+  regionSizes: Map<ZoneId, number>,
+  junction: TileGridPos,
+  exits: TileGridPos[],
+  riverMidpoints: TileGridPos[],
+): GameMap | null {
+  const riverDist = buildRiverDistanceGrid(tiles);
+  const towers = placeTowers(zones, regionSizes, riverDist);
+  if (towers.length < TOWERS_PER_ZONE * 3) return null;
+  return buildMapResult(tiles, towers, zones, junction, exits, riverMidpoints);
+}
+
+/** Pack a freshly generated map into a `GameMap`. */
 function buildMapResult(
   tiles: Tile[][],
   towers: Tower[],
@@ -579,16 +605,7 @@ export function floodFillZones(
   const regionSizes = new Map<ZoneId, number>();
   // Reusable flat-index queue across all fills (cleared per region)
   const queue: number[] = [];
-  const isFillable = (r: number, c: number): boolean =>
-    isGrass(tiles, r, c) ||
-    extraFillable?.has(packTile(r, c) as TileKey) === true;
-
-  const tryEnqueue = (r: number, c: number, rid: ZoneId): void => {
-    if (inBounds(r, c) && zones[r]![c] === 0 && isFillable(r, c)) {
-      zones[r]![c] = rid;
-      queue.push(packTile(r, c));
-    }
-  };
+  const ctx: FloodFillCtx = { tiles, extraFillable, zones, queue };
 
   for (let r = 0; r < GRID_ROWS; r++) {
     for (let c = 0; c < GRID_COLS; c++) {
@@ -607,10 +624,10 @@ export function floodFillZones(
         const idx = queue[head++]!;
         const { r: cr, c: cc } = unpackTile(idx as TileKey);
         size++;
-        tryEnqueue(cr - 1, cc, regionId);
-        tryEnqueue(cr + 1, cc, regionId);
-        tryEnqueue(cr, cc - 1, regionId);
-        tryEnqueue(cr, cc + 1, regionId);
+        tryEnqueueFlood(ctx, cr - 1, cc, regionId);
+        tryEnqueueFlood(ctx, cr + 1, cc, regionId);
+        tryEnqueueFlood(ctx, cr, cc - 1, regionId);
+        tryEnqueueFlood(ctx, cr, cc + 1, regionId);
       }
 
       regionSizes.set(regionId, size);
@@ -618,6 +635,24 @@ export function floodFillZones(
   }
 
   return { zones, regionSizes };
+}
+
+/** BFS step: claim (r, c) for `rid` and push it onto the queue iff it's
+ *  in bounds, unclaimed, and either real grass or an extra-fillable tile. */
+function tryEnqueueFlood(
+  ctx: FloodFillCtx,
+  r: number,
+  c: number,
+  rid: ZoneId,
+): void {
+  if (!inBounds(r, c)) return;
+  if (ctx.zones[r]![c] !== 0) return;
+  const fillable =
+    isGrass(ctx.tiles, r, c) ||
+    ctx.extraFillable?.has(packTile(r, c) as TileKey) === true;
+  if (!fillable) return;
+  ctx.zones[r]![c] = rid;
+  ctx.queue.push(packTile(r, c));
 }
 
 function resetTilesToGrass(tiles: readonly Tile[][]): void {

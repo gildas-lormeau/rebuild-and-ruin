@@ -138,6 +138,14 @@ interface ParapetPlacement {
   pos: [number, number, number];
 }
 
+interface ParapetCtx {
+  readonly out: ParapetPlacement[];
+  readonly merlons: boolean;
+  readonly merlonHeight: number;
+  readonly merlonThickness: number;
+  readonly parapetYCenter: number;
+}
+
 interface WindowPlacement {
   width: number;
   height: number;
@@ -984,68 +992,18 @@ function parapetPlacements(turret: TurretParams): ParapetPlacement[] {
   const halfW = roof.width / 2;
   const halfD = roof.depth / 2;
   const out: ParapetPlacement[] = [];
-
-  const splitIntoMerlons = (
-    lo: number,
-    hi: number,
-  ): { center: number; length: number }[] => {
-    if (!p.merlons) return [{ center: (lo + hi) / 2, length: hi - lo }];
-    const eps = 1e-4;
-    const segs: { center: number; length: number }[] = [];
-    for (let i = 0; ; i++) {
-      const center = lo + MERLON_SIZE / 2 + i * MERLON_STEP;
-      if (center + MERLON_SIZE / 2 > hi + eps) break;
-      segs.push({ center, length: MERLON_SIZE });
-    }
-    return segs;
-  };
-
-  const inExclude = (
-    center: number,
-    exclude: { lo: number; hi: number }[] | undefined,
-  ): boolean => {
-    if (!exclude) return false;
-    for (const e of exclude) {
-      if (center > e.lo - 1e-4 && center < e.hi + 1e-4) return true;
-    }
-    return false;
-  };
-
-  const addAlongX = (
-    side: ParapetSide,
-    lo: number,
-    hi: number,
-    z: number,
-    exclude: { lo: number; hi: number }[] | undefined,
-  ): void => {
-    for (const seg of splitIntoMerlons(lo, hi)) {
-      if (inExclude(seg.center, exclude)) continue;
-      out.push({
-        side,
-        dims: { width: seg.length, height: p.height, depth: p.thickness },
-        pos: [seg.center, yCenter, z],
-      });
-    }
-  };
-  const addAlongZ = (
-    side: ParapetSide,
-    lo: number,
-    hi: number,
-    x: number,
-    exclude: { lo: number; hi: number }[] | undefined,
-  ): void => {
-    for (const seg of splitIntoMerlons(lo, hi)) {
-      if (inExclude(seg.center, exclude)) continue;
-      out.push({
-        side,
-        dims: { width: p.thickness, height: p.height, depth: seg.length },
-        pos: [x, yCenter, seg.center],
-      });
-    }
+  const ctx: ParapetCtx = {
+    out,
+    merlons: !!p.merlons,
+    merlonHeight: p.height,
+    merlonThickness: p.thickness,
+    parapetYCenter: yCenter,
   };
 
   if (!skip.has("N")) {
-    addAlongX(
+    addParapetSegments(
+      ctx,
+      "X",
       "N",
       turret.x - halfW,
       turret.x + halfW,
@@ -1054,7 +1012,9 @@ function parapetPlacements(turret: TurretParams): ParapetPlacement[] {
     );
   }
   if (!skip.has("S")) {
-    addAlongX(
+    addParapetSegments(
+      ctx,
+      "X",
       "S",
       turret.x - halfW,
       turret.x + halfW,
@@ -1063,7 +1023,9 @@ function parapetPlacements(turret: TurretParams): ParapetPlacement[] {
     );
   }
   if (!skip.has("W")) {
-    addAlongZ(
+    addParapetSegments(
+      ctx,
+      "Z",
       "W",
       turret.z - halfD,
       turret.z + halfD,
@@ -1072,7 +1034,9 @@ function parapetPlacements(turret: TurretParams): ParapetPlacement[] {
     );
   }
   if (!skip.has("E")) {
-    addAlongZ(
+    addParapetSegments(
+      ctx,
+      "Z",
       "E",
       turret.z - halfD,
       turret.z + halfD,
@@ -1081,6 +1045,64 @@ function parapetPlacements(turret: TurretParams): ParapetPlacement[] {
     );
   }
   return out;
+}
+
+function addParapetSegments(
+  ctx: ParapetCtx,
+  axis: "X" | "Z",
+  side: ParapetSide,
+  lo: number,
+  hi: number,
+  cross: number,
+  exclude: { lo: number; hi: number }[] | undefined,
+): void {
+  for (const seg of splitIntoMerlons(lo, hi, ctx.merlons)) {
+    if (inMerlonExcludeRange(seg.center, exclude)) continue;
+    const dims =
+      axis === "X"
+        ? {
+            width: seg.length,
+            height: ctx.merlonHeight,
+            depth: ctx.merlonThickness,
+          }
+        : {
+            width: ctx.merlonThickness,
+            height: ctx.merlonHeight,
+            depth: seg.length,
+          };
+    const pos: [number, number, number] =
+      axis === "X"
+        ? [seg.center, ctx.parapetYCenter, cross]
+        : [cross, ctx.parapetYCenter, seg.center];
+    ctx.out.push({ side, dims, pos });
+  }
+}
+
+function splitIntoMerlons(
+  lo: number,
+  hi: number,
+  merlons: boolean,
+): { center: number; length: number }[] {
+  if (!merlons) return [{ center: (lo + hi) / 2, length: hi - lo }];
+  const eps = 1e-4;
+  const segs: { center: number; length: number }[] = [];
+  for (let i = 0; ; i++) {
+    const center = lo + MERLON_SIZE / 2 + i * MERLON_STEP;
+    if (center + MERLON_SIZE / 2 > hi + eps) break;
+    segs.push({ center, length: MERLON_SIZE });
+  }
+  return segs;
+}
+
+function inMerlonExcludeRange(
+  center: number,
+  exclude: { lo: number; hi: number }[] | undefined,
+): boolean {
+  if (!exclude) return false;
+  for (const range of exclude) {
+    if (center > range.lo - 1e-4 && center < range.hi + 1e-4) return true;
+  }
+  return false;
 }
 
 function windowPlacement(turret: TurretParams): WindowPlacement | null {
