@@ -70,6 +70,7 @@
     "lint:phase-transitions": "deno run -A scripts/lint-phase-transitions.ts",
     "lint:domains": "deno run -A scripts/lint-domain-boundaries.ts",
     "lint:typeof": "deno run -A scripts/lint-typeof.ts",
+    "lint:repeated-ternary": "deno run -A scripts/lint-repeated-ternary.ts",
     "lint:null-init": "deno run -A scripts/lint-null-init.ts",
     "lint:eslint": "eslint src/",
     "lint:registries": "deno run -A scripts/lint-registries.ts",
