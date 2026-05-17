@@ -82,14 +82,14 @@ export function updateLightDebug(
   state.arrow.setDirection(new THREE.Vector3(dir.x, dir.y, dir.z).normalize());
   state.arrow.setLength(DEBUG_DOME_RADIUS * 0.9, 30, 18);
 
-  // Color = state. Active = warm yellow/orange (sun is shining);
-  // inactive = neutral grey.
-  const arcColor = active ? 0xffd866 : 0x666666;
-  const markerColor = active ? 0xff8c42 : 0xaaaaaa;
-  state.arcMaterial.color.setHex(arcColor);
-  state.markerMaterial.color.setHex(markerColor);
-  arrowLineMat(state.arrow).color.setHex(arcColor);
-  arrowConeMat(state.arrow).color.setHex(markerColor);
+  // Active = warm yellow/orange (sun is shining); inactive = neutral grey.
+  const palette = active
+    ? { arc: 0xffd866, marker: 0xff8c42, sunTLabel: t.toFixed(3) }
+    : { arc: 0x666666, marker: 0xaaaaaa, sunTLabel: "—" };
+  state.arcMaterial.color.setHex(palette.arc);
+  state.markerMaterial.color.setHex(palette.marker);
+  arrowLineMat(state.arrow).color.setHex(palette.arc);
+  arrowConeMat(state.arrow).color.setHex(palette.marker);
 
   // CameraHelper has to be told the underlying camera moved (the sun
   // moved its shadow camera attached to it).
@@ -97,7 +97,7 @@ export function updateLightDebug(
 
   hud.textContent =
     `light-debug\n` +
-    `sunT       ${active ? t.toFixed(3) : "—"}\n` +
+    `sunT       ${palette.sunTLabel}\n` +
     `blend      ${blend.toFixed(3)}\n` +
     `ambient    ${ambient.intensity.toFixed(2)}\n` +
     `directional${sun.intensity.toFixed(2)}\n` +

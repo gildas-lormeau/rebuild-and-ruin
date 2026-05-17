@@ -298,7 +298,10 @@ export function createCrosshairsManager(scene: THREE.Scene): CrosshairsManager {
   return { update, dispose };
 }
 
-/** Compute animated crosshair dimensions from ready state and time. */
+/** Compute animated crosshair dimensions from ready state and time.
+ *  lint:allow-repeated-ternary -- ready/idle use different pulse shapes
+ *  (sin-modulated vs constant), so a single config object would have to
+ *  fake an amp=0 in the idle case. Inline branches read clearer. */
 function crosshairGeometry(
   ready: boolean,
   time: number,

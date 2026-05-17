@@ -91,6 +91,15 @@ const PHASE_STATUS_LABELS: Record<Phase, string> = {
   [Phase.BATTLE]: "Battle",
   [Phase.UPGRADE_PICK]: "Upgrade",
 };
+/** Lobby panel geometry picked once from IS_TOUCH_DEVICE — touch needs a
+ *  bigger gap and a taller/higher panel for usable hit-targets. */
+const LOBBY_LAYOUT = IS_TOUCH_DEVICE
+  ? {
+      gap: 8,
+      rectHRatio: LOBBY_RECT_H_RATIO_TOUCH,
+      rectYRatio: LOBBY_RECT_Y_RATIO_TOUCH,
+    }
+  : { gap: 12, rectHRatio: LOBBY_RECT_H_RATIO, rectYRatio: LOBBY_RECT_Y_RATIO };
 export const UPGRADE_NAME_H = 18;
 export const UPGRADE_ROW_GAP = 8;
 export const GAMEOVER_ROW_H = 14;
@@ -313,8 +322,8 @@ export function createOnlineOverlay(
   const ownedTowers = buildOwnedTowersByIndex(view);
   const homeTowerIndices = buildHomeTowerIndices(view);
   const masterBuilderLockout = view.modern?.masterBuilderLockout ?? 0;
-  const battleTerritory = inBattle ? battleAnim.territory : undefined;
-  const battleWalls = inBattle ? battleAnim.walls : undefined;
+  const whenBattle = <T>(value: T): T | undefined =>
+    inBattle ? value : undefined;
 
   return {
     phase: view.phase,
@@ -338,16 +347,16 @@ export function createOnlineOverlay(
       exposedRiverbedTiles: view.modern?.exposedRiverbedTiles ?? undefined,
     },
     battle: {
-      battleTerritory,
-      battleWalls,
+      battleTerritory: whenBattle(battleAnim.territory),
+      battleWalls: whenBattle(battleAnim.walls),
       cannonballs: buildBattleCannonballsPayload(inBattle, view.cannonballs),
-      impacts: inBattle ? battleAnim.impacts : undefined,
-      destroyedWalls: inBattle ? battleAnim.destroyedWalls : undefined,
-      cannonDestroys: inBattle ? battleAnim.cannonDestroys : undefined,
-      gruntKills: inBattle ? battleAnim.gruntKills : undefined,
-      houseDestroys: inBattle ? battleAnim.houseDestroys : undefined,
-      shieldFlashes: inBattle ? battleAnim.shieldFlashes : undefined,
-      crosshairs: inBattle ? frame.crosshairs : undefined,
+      impacts: whenBattle(battleAnim.impacts),
+      destroyedWalls: whenBattle(battleAnim.destroyedWalls),
+      cannonDestroys: whenBattle(battleAnim.cannonDestroys),
+      gruntKills: whenBattle(battleAnim.gruntKills),
+      houseDestroys: whenBattle(battleAnim.houseDestroys),
+      shieldFlashes: whenBattle(battleAnim.shieldFlashes),
+      crosshairs: whenBattle(frame.crosshairs),
       balloons: buildBattleBalloonsPayload(battleAnim.flights),
       // Fog covers the reveal banner and the battle itself, then lifts the
       // moment battle ends — dwelling through the post-battle banner /
@@ -565,15 +574,10 @@ export function lobbyClickHitTest(params: {
 
 /** Compute lobby panel layout (shared by drawing and hit-testing). */
 export function computeLobbyLayout(W: number, H: number, count: number) {
-  const touch = IS_TOUCH_DEVICE;
-  const gap = touch ? 8 : 12;
+  const { gap, rectHRatio, rectYRatio } = LOBBY_LAYOUT;
   const rectW = Math.round((W - gap * (count + 1)) / count);
-  const rectH = Math.round(
-    H * (touch ? LOBBY_RECT_H_RATIO_TOUCH : LOBBY_RECT_H_RATIO),
-  );
-  const rectY = Math.round(
-    H * (touch ? LOBBY_RECT_Y_RATIO_TOUCH : LOBBY_RECT_Y_RATIO),
-  );
+  const rectH = Math.round(H * rectHRatio);
+  const rectY = Math.round(H * rectYRatio);
   return { gap, rectW, rectH, rectY };
 }
 

@@ -139,23 +139,23 @@ export function drawOptionsScreen(
       overlayCtx.fillText("\u25B6", px + panelW - PAD / 2, oy + optH / 2);
     }
 
+    const rowStyle = selected
+      ? {
+          font: FONT_BODY,
+          nameColor: opt.editable ? TEXT_WHITE : TEXT_DISABLED,
+          valueColor: opt.editable ? GOLD_LIGHT : TEXT_DISABLED,
+        }
+      : { font: FONT_LABEL, nameColor: TEXT_MUTED, valueColor: GOLD };
+
     // Option name (left-aligned)
     overlayCtx.textAlign = TEXT_ALIGN_LEFT;
-    overlayCtx.font = selected ? FONT_BODY : FONT_LABEL;
-    overlayCtx.fillStyle = selected
-      ? opt.editable
-        ? TEXT_WHITE
-        : TEXT_DISABLED
-      : TEXT_MUTED;
+    overlayCtx.font = rowStyle.font;
+    overlayCtx.fillStyle = rowStyle.nameColor;
     overlayCtx.fillText(opt.name, px + INSET_X2, oy + optH / 2);
 
     // Option value (right-aligned) — with blinking cursor for seed input
     overlayCtx.textAlign = TEXT_ALIGN_RIGHT;
-    overlayCtx.fillStyle = selected
-      ? opt.editable
-        ? GOLD_LIGHT
-        : TEXT_DISABLED
-      : GOLD;
+    overlayCtx.fillStyle = rowStyle.valueColor;
     const showCursor =
       selected &&
       opt.editable &&

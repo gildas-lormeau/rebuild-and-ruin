@@ -247,30 +247,51 @@ export function createWallsManager(scene: THREE.Scene): WallsManager {
       for (const key of heldKeys) unionSet.add(key);
 
       const byBucket = new Map<number, WallEntry[]>();
+      // Per-source config bundles the held/non-held differences up-front so
+      // the inner loop reads keys/mask-set/bit/data-lookup without
+      // re-branching on `held` each iteration.
       const sources: ReadonlyArray<{
         readonly keys: readonly TileKey[];
         readonly damagedSet: ReadonlySet<TileKey>;
         readonly held: boolean;
+        readonly maskSet: ReadonlySet<TileKey>;
+        readonly heldBit: number;
+        readonly heldData: (
+          key: TileKey,
+        ) => { sinkY: number; opacity: number; damaged: boolean } | undefined;
       }> = [
-        { keys: liveKeys, damagedSet: damagedKeys, held: false },
-        { keys: heldKeys, damagedSet: heldDamagedKeys, held: true },
+        {
+          keys: liveKeys,
+          damagedSet: damagedKeys,
+          held: false,
+          maskSet: liveSet,
+          heldBit: 0,
+          heldData: () => undefined,
+        },
+        {
+          keys: heldKeys,
+          damagedSet: heldDamagedKeys,
+          held: true,
+          maskSet: unionSet,
+          heldBit: HELD_BIT,
+          heldData: (key) => heldByKey.get(key),
+        },
       ];
       for (const source of sources) {
-        const maskSet = source.held ? unionSet : liveSet;
         for (const key of source.keys) {
           const { row, col } = unpackTileKey(key);
-          const mask = computeMask(maskSet, col, row);
+          const mask = computeMask(source.maskSet, col, row);
           const bucketKey =
             mask |
             (source.damagedSet.has(key) ? DAMAGED_BIT : 0) |
-            (source.held ? HELD_BIT : 0);
+            source.heldBit;
           let list = byBucket.get(bucketKey);
           if (!list) {
             list = [];
             byBucket.set(bucketKey, list);
           }
           const tint = sapperTargeted.has(key) ? sapperIntensity : 0;
-          const heldData = source.held ? heldByKey.get(key) : undefined;
+          const heldData = source.heldData(key);
           list.push({
             col,
             row,

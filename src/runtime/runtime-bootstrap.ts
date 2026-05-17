@@ -182,17 +182,25 @@ export async function bootstrapGame(deps: InitGameDeps): Promise<void> {
   const nextControllers = await Promise.all(
     Array.from({ length: playerCount }, (_, i) => {
       const isAi = !deps.humanSlots[i];
-      const privateSeed = isAi ? state.rng.int(0, MAX_UINT32) : undefined;
-      const personality = isAi
-        ? aiStrategy!.rollPersonality(state.rng, deps.difficulty)
-        : undefined;
+      // Object-literal evaluation order matters: privateSeed must draw before
+      // personality so the determinism fixtures stay byte-stable.
+      const aiFields = isAi
+        ? {
+            privateSeed: state.rng.int(0, MAX_UINT32),
+            personality: aiStrategy!.rollPersonality(
+              state.rng,
+              deps.difficulty,
+            ),
+            rng: state.rng,
+          }
+        : { privateSeed: undefined, personality: undefined, rng: undefined };
       return factory(
         i as ValidPlayerId,
         isAi,
         deps.keyBindings[i],
-        isAi ? state.rng : undefined,
-        privateSeed,
-        personality,
+        aiFields.rng,
+        aiFields.privateSeed,
+        aiFields.personality,
       );
     }),
   );
