@@ -14,9 +14,11 @@ import {
 import {
   CannonMode,
   isCannonAlive,
+  isRampartCannon,
   isSuperCannon,
 } from "../shared/core/battle-types.ts";
 import { filterActiveEnemies } from "../shared/core/board-occupancy.ts";
+import { RAMPART_SHIELD_RADIUS } from "../shared/core/game-constants.ts";
 import type { GameMap, TilePos, Tower } from "../shared/core/geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, type TileKey } from "../shared/core/grid.ts";
 import { getInterior } from "../shared/core/player-interior.ts";
@@ -79,6 +81,10 @@ const RAMPART_PROBABILITY: readonly [number, number, number] = [
 ];
 /** Minimum cannon slots before the AI considers a rampart. */
 const RAMPART_SLOT_THRESHOLD = 4;
+/** Score bonus per uniquely-protected wall tile inside a rampart candidate's
+ *  5×5 shield zone (wall tiles already covered by an existing rampart's
+ *  shield don't count). Pulls new ramparts toward unprotected perimeter. */
+const RAMPART_COVERAGE_BONUS = 5;
 
 /** Pick a home tower for the given zone. Returns the chosen tower, or null if none available. */
 export function autoSelectTower(
@@ -225,12 +231,22 @@ export function nextCannonPlacement(
       slotsLeft >= cannonSlotCost(CannonMode.RAMPART) &&
       normalCandidates.length >= 4
     ) {
-      const position = normalCandidates[0]!;
-      return {
-        row: position.row,
-        col: position.col,
-        mode: CannonMode.RAMPART,
-      };
+      const rampartCandidates = collectCannonCandidates(
+        player,
+        CannonMode.RAMPART,
+        state,
+        rng,
+        ctx.noiseScale,
+        ctx.towerCenters,
+      );
+      const position = rampartCandidates[0];
+      if (position) {
+        return {
+          row: position.row,
+          col: position.col,
+          mode: CannonMode.RAMPART,
+        };
+      }
     }
   }
 
@@ -307,8 +323,11 @@ function scoreCannonPosition(
   const size = cannonSize(mode);
   let score = 0;
   forEachCannonTile({ row, col, mode }, (r, c) => {
-    score += scoreCannonTileLocalPenalty(state, player, r, c);
+    score += scoreCannonTileLocalPenalty(state, player, r, c, mode);
   });
+  if (mode === CannonMode.RAMPART) {
+    score -= rampartNetWallCoverage(player, row, col) * RAMPART_COVERAGE_BONUS;
+  }
 
   if (towerCenters.length > 0) {
     const centerRow = row + size / 2;
@@ -363,6 +382,7 @@ function scoreCannonTileLocalPenalty(
   player: Player,
   row: number,
   col: number,
+  mode: CannonMode,
 ): number {
   let penalty = 0;
   const borderDistance = Math.min(
@@ -403,16 +423,59 @@ function scoreCannonTileLocalPenalty(
   }
 
   // Penalize placement adjacent to own walls — enemy fire aimed at the cannon
-  // splashes into the wall, breaching the castle.
-  for (const [ddr, ddc] of DIRS_4) {
-    const ar = row + ddr;
-    const ac = col + ddc;
-    if (player.walls.has(packTile(ar, ac))) {
-      penalty += WALL_ADJACENT_PENALTY;
+  // splashes into the wall, breaching the castle. Ramparts are exempt: their
+  // job is to shield nearby walls, so wall-adjacency is desirable.
+  if (mode !== CannonMode.RAMPART) {
+    for (const [ddr, ddc] of DIRS_4) {
+      const ar = row + ddr;
+      const ac = col + ddc;
+      if (player.walls.has(packTile(ar, ac))) {
+        penalty += WALL_ADJACENT_PENALTY;
+      }
     }
   }
 
   return penalty;
+}
+
+/** Count wall tiles in the candidate rampart's 5×5 shield zone that are NOT
+ *  already inside any existing alive+enclosed rampart's shield zone. Returns
+ *  the number of net-new walls the candidate would uniquely protect. */
+function rampartNetWallCoverage(
+  player: Player,
+  row: number,
+  col: number,
+): number {
+  const candCenterRow = row + 1;
+  const candCenterCol = col + 1;
+  const existingRampartCenters: TilePos[] = [];
+  for (const cannon of player.cannons) {
+    if (!isCannonAlive(cannon) || !isRampartCannon(cannon)) continue;
+    if (!isCannonEnclosed(cannon, player)) continue;
+    existingRampartCenters.push({ row: cannon.row + 1, col: cannon.col + 1 });
+  }
+  let netCovered = 0;
+  for (let dr = -RAMPART_SHIELD_RADIUS; dr <= RAMPART_SHIELD_RADIUS; dr++) {
+    for (let dc = -RAMPART_SHIELD_RADIUS; dc <= RAMPART_SHIELD_RADIUS; dc++) {
+      const r = candCenterRow + dr;
+      const c = candCenterCol + dc;
+      if (!inBounds(r, c)) continue;
+      if (!player.walls.has(packTile(r, c))) continue;
+      let alreadyShielded = false;
+      for (const center of existingRampartCenters) {
+        const cheby = Math.max(
+          Math.abs(r - center.row),
+          Math.abs(c - center.col),
+        );
+        if (cheby <= RAMPART_SHIELD_RADIUS) {
+          alreadyShielded = true;
+          break;
+        }
+      }
+      if (!alreadyShielded) netCovered++;
+    }
+  }
+  return netCovered;
 }
 
 function shouldPlaceBalloon(
