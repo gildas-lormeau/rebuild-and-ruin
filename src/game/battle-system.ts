@@ -4,10 +4,15 @@
 
 import {
   BATTLE_MESSAGE,
+  type CannonDamagedMessage,
   type CannonFiredMessage,
   createCannonFiredMsg,
+  type GruntChippedMessage,
+  type GruntKilledMessage,
+  type HouseDestroyedMessage,
   type ImpactEvent,
   type TowerKilledMessage,
+  type WallDestroyedMessage,
 } from "../shared/core/battle-events.ts";
 import type {
   BalloonFlight,
@@ -737,22 +742,6 @@ function tickCannonballs(state: GameState, dt: number): CannonballUpdateResult {
   return { impacts, events };
 }
 
-/**
- * Apply a single impact event to game state. Used by both host and watcher.
- *
- * **INTERIOR STALENESS CONTRACT — canonical source of truth.** Battle-phase
- * wall destruction MUST NOT trigger territory/interior recomputation here. The
- * interior stays stale for the entire battle phase and is rebuilt exactly once
- * at the next phase boundary via `recheckTerritory` /
- * `finalizeTerritoryWithScoring` in phase-setup.ts. Every other caller that
- * mutates walls during battle (grunt-system.ts:removeWallFromAllPlayers,
- * impact handlers below, network watcher replays) relies on this invariant —
- * do not add interior recomputation anywhere in the battle hot path, including
- * this function or its helpers.
- *
- * @param shooterId — fallback owner for scoring when event lacks embedded shooterId
- *   (host passes it from the firing loop; network events embed it in the payload).
- */
 function applyImpactEvent(
   state: GameState,
   event: ImpactEvent,
@@ -766,42 +755,12 @@ function applyImpactEvent(
       : shooterId
   ) as ValidPlayerId | undefined;
   switch (event.type) {
-    case BATTLE_MESSAGE.WALL_DESTROYED: {
-      const player = state.players[event.playerId];
-      if (player) {
-        // See applyImpactEvent JSDoc above for the interior-staleness contract.
-        const wallKey = packTile(event.row, event.col);
-        deletePlayerWallBattle(player, wallKey);
-        // Clear targetedWall on every grunt that was aiming at this wall —
-        // grunts don't move during battle, so no recompute (per design).
-        for (const grunt of state.grunts) {
-          if (grunt.targetedWall === wallKey) grunt.targetedWall = undefined;
-        }
-        const shooter = sid !== undefined ? state.players[sid] : undefined;
-        if (shooter && event.playerId !== sid) {
-          shooter.score +=
-            DESTROY_WALL_POINTS +
-            (suppressCombo ? 0 : scoreImpactCombo(state, COMBO_WALL, sid));
-        }
-      }
+    case BATTLE_MESSAGE.WALL_DESTROYED:
+      applyWallDestroyed(state, event, sid, suppressCombo);
       break;
-    }
-    case BATTLE_MESSAGE.CANNON_DAMAGED: {
-      const cannon = getCannon(state, event.playerId, event.cannonIdx);
-      if (cannon) {
-        cannon.hp = event.newHp;
-        if (!isCannonAlive(cannon)) {
-          const shooter = sid !== undefined ? state.players[sid] : undefined;
-          if (shooter && event.playerId !== sid) {
-            shooter.score +=
-              DESTROY_CANNON_POINTS +
-              (suppressCombo ? 0 : scoreImpactCombo(state, COMBO_CANNON, sid));
-            if (sid !== undefined) onCannonKilled(state, sid);
-          }
-        }
-      }
+    case BATTLE_MESSAGE.CANNON_DAMAGED:
+      applyCannonDamaged(state, event, sid, suppressCombo);
       break;
-    }
     case BATTLE_MESSAGE.PIT_CREATED:
       state.burningPits.push({
         row: event.row,
@@ -810,11 +769,7 @@ function applyImpactEvent(
       });
       break;
     case BATTLE_MESSAGE.HOUSE_DESTROYED:
-      for (const house of state.map.houses) {
-        if (house.alive && isAtTile(house, event.row, event.col)) {
-          house.alive = false;
-        }
-      }
+      applyHouseDestroyed(state, event);
       break;
     case BATTLE_MESSAGE.GRUNT_SPAWNED:
       state.grunts.push({
@@ -823,22 +778,11 @@ function applyImpactEvent(
         blockedRounds: 0,
       });
       break;
-    case BATTLE_MESSAGE.GRUNT_KILLED: {
-      const shooter = sid !== undefined ? state.players[sid] : undefined;
-      state.grunts = state.grunts.filter(
-        (grunt) => !isAtTile(grunt, event.row, event.col),
-      );
-      if (shooter) {
-        shooter.score +=
-          DESTROY_GRUNT_POINTS +
-          (suppressCombo ? 0 : scoreImpactCombo(state, COMBO_GRUNT, sid));
-      }
+    case BATTLE_MESSAGE.GRUNT_KILLED:
+      applyGruntKilled(state, event, sid, suppressCombo);
       break;
-    }
     case BATTLE_MESSAGE.GRUNT_CHIPPED:
-      for (const grunt of state.grunts) {
-        if (isAtTile(grunt, event.row, event.col)) grunt.chipped = true;
-      }
+      applyGruntChipped(state, event);
       break;
     case BATTLE_MESSAGE.ICE_THAWED:
       state.modern?.frozenTiles?.delete(packTile(event.row, event.col));
@@ -859,6 +803,96 @@ function applyImpactEvent(
     case BATTLE_MESSAGE.CANNON_SHIELDED:
       // Cosmetic-only: VFX/SFX consume this on the bus, no state change.
       break;
+  }
+}
+
+/**
+ * Apply a single impact event to game state. Used by both host and watcher.
+ *
+ * **INTERIOR STALENESS CONTRACT — canonical source of truth.** Battle-phase
+ * wall destruction MUST NOT trigger territory/interior recomputation here. The
+ * interior stays stale for the entire battle phase and is rebuilt exactly once
+ * at the next phase boundary via `recheckTerritory` /
+ * `finalizeTerritoryWithScoring` in phase-setup.ts. Every other caller that
+ * mutates walls during battle (grunt-system.ts:removeWallFromAllPlayers,
+ * impact handlers below, network watcher replays) relies on this invariant —
+ * do not add interior recomputation anywhere in the battle hot path, including
+ * this function or its helpers.
+ *
+ * @param shooterId — fallback owner for scoring when event lacks embedded shooterId
+ *   (host passes it from the firing loop; network events embed it in the payload).
+ */
+function applyWallDestroyed(
+  state: GameState,
+  event: WallDestroyedMessage,
+  sid: ValidPlayerId | undefined,
+  suppressCombo: boolean | undefined,
+): void {
+  const player = state.players[event.playerId];
+  if (!player) return;
+  const wallKey = packTile(event.row, event.col);
+  deletePlayerWallBattle(player, wallKey);
+  // Clear targetedWall on every grunt that was aiming at this wall —
+  // grunts don't move during battle, so no recompute (per design).
+  for (const grunt of state.grunts) {
+    if (grunt.targetedWall === wallKey) grunt.targetedWall = undefined;
+  }
+  const shooter = sid !== undefined ? state.players[sid] : undefined;
+  if (shooter && event.playerId !== sid) {
+    shooter.score +=
+      DESTROY_WALL_POINTS +
+      (suppressCombo ? 0 : scoreImpactCombo(state, COMBO_WALL, sid));
+  }
+}
+
+function applyCannonDamaged(
+  state: GameState,
+  event: CannonDamagedMessage,
+  sid: ValidPlayerId | undefined,
+  suppressCombo: boolean | undefined,
+): void {
+  const cannon = getCannon(state, event.playerId, event.cannonIdx);
+  if (!cannon) return;
+  cannon.hp = event.newHp;
+  if (isCannonAlive(cannon)) return;
+  const shooter = sid !== undefined ? state.players[sid] : undefined;
+  if (!shooter || event.playerId === sid) return;
+  shooter.score +=
+    DESTROY_CANNON_POINTS +
+    (suppressCombo ? 0 : scoreImpactCombo(state, COMBO_CANNON, sid));
+  if (sid !== undefined) onCannonKilled(state, sid);
+}
+
+function applyHouseDestroyed(
+  state: GameState,
+  event: HouseDestroyedMessage,
+): void {
+  for (const house of state.map.houses) {
+    if (house.alive && isAtTile(house, event.row, event.col)) {
+      house.alive = false;
+    }
+  }
+}
+
+function applyGruntKilled(
+  state: GameState,
+  event: GruntKilledMessage,
+  sid: ValidPlayerId | undefined,
+  suppressCombo: boolean | undefined,
+): void {
+  const shooter = sid !== undefined ? state.players[sid] : undefined;
+  state.grunts = state.grunts.filter(
+    (grunt) => !isAtTile(grunt, event.row, event.col),
+  );
+  if (!shooter) return;
+  shooter.score +=
+    DESTROY_GRUNT_POINTS +
+    (suppressCombo ? 0 : scoreImpactCombo(state, COMBO_GRUNT, sid));
+}
+
+function applyGruntChipped(state: GameState, event: GruntChippedMessage): void {
+  for (const grunt of state.grunts) {
+    if (isAtTile(grunt, event.row, event.col)) grunt.chipped = true;
   }
 }
 
