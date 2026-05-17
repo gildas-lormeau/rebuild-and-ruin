@@ -361,25 +361,25 @@ export class AiController extends BaseController implements AiAnimatable {
       ? ({
           primary: "row",
           secondary: "col",
-          d1: dr,
-          d2: dc,
-          t2: targetCol,
+          primaryDelta: dr,
+          secondaryDelta: dc,
+          secondaryTarget: targetCol,
         } as const)
       : ({
           primary: "col",
           secondary: "row",
-          d1: dc,
-          d2: dr,
-          t2: targetRow,
+          primaryDelta: dc,
+          secondaryDelta: dr,
+          secondaryTarget: targetRow,
         } as const);
 
-    if (Math.abs(axis.d1) > 0.01) {
-      const move = Math.min(remaining, Math.abs(axis.d1));
-      cursor[axis.primary] += Math.sign(axis.d1) * move;
+    if (Math.abs(axis.primaryDelta) > 0.01) {
+      const move = Math.min(remaining, Math.abs(axis.primaryDelta));
+      cursor[axis.primary] += Math.sign(axis.primaryDelta) * move;
       remaining -= move;
       // Nudge toward fixed jitter offset on perpendicular axis (decays near target)
-      if (Math.abs(axis.d2) > 1) {
-        const perpTarget = axis.t2 + this.tileJitterOffset;
+      if (Math.abs(axis.secondaryDelta) > 1) {
+        const perpTarget = axis.secondaryTarget + this.tileJitterOffset;
         const perpCurrent = cursor[axis.secondary];
         const nudge =
           (perpTarget - perpCurrent) *
@@ -388,9 +388,9 @@ export class AiController extends BaseController implements AiAnimatable {
       }
     }
     // Move secondary axis with leftover step
-    if (remaining > 0.01 && Math.abs(axis.d2) > 0.01) {
-      const move = Math.min(remaining, Math.abs(axis.d2));
-      cursor[axis.secondary] += Math.sign(axis.d2) * move;
+    if (remaining > 0.01 && Math.abs(axis.secondaryDelta) > 0.01) {
+      const move = Math.min(remaining, Math.abs(axis.secondaryDelta));
+      cursor[axis.secondary] += Math.sign(axis.secondaryDelta) * move;
     }
     return false;
   }
