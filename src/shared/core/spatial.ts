@@ -472,10 +472,33 @@ export function computeOutsideAfterAdd(
   baselineOutside: ReadonlySet<number>,
   newWallTiles: readonly number[],
 ): Set<number> {
+  const trapped = computeTrappedAfterAdd(baselineOutside, newWallTiles);
   const newOutside = new Set(baselineOutside);
   for (let i = 0; i < newWallTiles.length; i++) {
     newOutside.delete(newWallTiles[i]!);
   }
+  for (let i = 0; i < trapped.length; i++) {
+    newOutside.delete(trapped[i]!);
+  }
+  return newOutside;
+}
+
+/** Find tiles that lose boundary connectivity when `newWallTiles` are added.
+ *
+ *  Like `computeOutsideAfterAdd` but skips the O(baselineOutside.size) clone
+ *  of the outside set — useful when the caller only needs to know whether
+ *  any trap occurs (the common case is no trap, where the clone would be
+ *  pure waste). The returned array is empty when no traps occur.
+ *
+ *  Inlines the neighbor walk and barrier checks (rather than using the
+ *  `forEachNeighbor8` callback helper) — the closure-call overhead added
+ *  up to hundreds of ms across a single seed's run in profiling. */
+export function computeTrappedAfterAdd(
+  baselineOutside: ReadonlySet<number>,
+  newWallTiles: readonly number[],
+): number[] {
+  const trapped: number[] = [];
+  const newWallSet = new Set(newWallTiles);
   // Only baseline-outside neighbors of the new walls can lose their boundary
   // path — every other tile keeps its existing connection.
   const suspects: number[] = [];
@@ -483,19 +506,26 @@ export function computeOutsideAfterAdd(
     const tile = newWallTiles[i]!;
     const r = (tile / GRID_COLS) | 0;
     const c = tile - r * GRID_COLS;
-    forEachNeighbor8(r, c, (_neighborR, _neighborC, neighborKey) => {
-      if (newOutside.has(neighborKey)) suspects.push(neighborKey);
-    });
+    for (let dirIdx = 0; dirIdx < 8; dirIdx++) {
+      const dir = DIRS_8[dirIdx]!;
+      const nr = r + dir[0];
+      const nc = c + dir[1];
+      if (nr < 0 || nr >= GRID_ROWS || nc < 0 || nc >= GRID_COLS) continue;
+      const neighborKey = nr * GRID_COLS + nc;
+      if (newWallSet.has(neighborKey)) continue;
+      if (!baselineOutside.has(neighborKey)) continue;
+      suspects.push(neighborKey);
+    }
   }
-  // BFS each suspect's component through `newOutside`. If it touches the map
-  // edge, it stays outside; otherwise the whole component is now trapped.
+  if (suspects.length === 0) return trapped;
+  // BFS each suspect's component. If it touches the map edge, it stays
+  // outside; otherwise the whole component is now trapped.
   const visited = new Set<number>();
   const queueR: number[] = [];
   const queueC: number[] = [];
   for (let seedIdx = 0; seedIdx < suspects.length; seedIdx++) {
     const seed = suspects[seedIdx]!;
     if (visited.has(seed)) continue;
-    if (!newOutside.has(seed)) continue;
     const componentTiles: number[] = [seed];
     const seedR = (seed / GRID_COLS) | 0;
     const seedC = seed - seedR * GRID_COLS;
@@ -505,18 +535,21 @@ export function computeOutsideAfterAdd(
     while (queueR.length > 0) {
       const r = queueR.pop()!;
       const c = queueC.pop()!;
-      forEachNeighbor8(r, c, (neighborR, neighborC, neighborKey) => {
-        if (visited.has(neighborKey)) return;
-        if (!newOutside.has(neighborKey)) return;
+      for (let dirIdx = 0; dirIdx < 8; dirIdx++) {
+        const dir = DIRS_8[dirIdx]!;
+        const nr = r + dir[0];
+        const nc = c + dir[1];
+        if (nr < 0 || nr >= GRID_ROWS || nc < 0 || nc >= GRID_COLS) continue;
+        const neighborKey = nr * GRID_COLS + nc;
+        if (visited.has(neighborKey)) continue;
+        if (newWallSet.has(neighborKey)) continue;
+        if (!baselineOutside.has(neighborKey)) continue;
         visited.add(neighborKey);
         componentTiles.push(neighborKey);
-        queueR.push(neighborR);
-        queueC.push(neighborC);
-      });
+        queueR.push(nr);
+        queueC.push(nc);
+      }
     }
-    // Boundary check moved post-BFS: a component reaches the map edge iff any
-    // of its tiles is on the edge. Avoids closing the inner callback over a
-    // mutable `let` flag, which V8 can't optimize as well.
     let reachesBoundary = false;
     for (let t = 0; t < componentTiles.length; t++) {
       const tile = componentTiles[t]!;
@@ -534,11 +567,11 @@ export function computeOutsideAfterAdd(
     }
     if (!reachesBoundary) {
       for (let t = 0; t < componentTiles.length; t++) {
-        newOutside.delete(componentTiles[t]!);
+        trapped.push(componentTiles[t]!);
       }
     }
   }
-  return newOutside;
+  return trapped;
 }
 
 /** True if (r,c) is within bounds and both values are integers (for validating untrusted input). */

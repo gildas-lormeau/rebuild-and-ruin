@@ -10,7 +10,7 @@ import type { Tower } from "../shared/core/geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, type TileKey } from "../shared/core/grid.ts";
 import { getInterior } from "../shared/core/player-interior.ts";
 import {
-  computeOutsideAfterAdd,
+  computeTrappedAfterAdd,
   isCannonTile,
   isGrass,
   isTowerTile,
@@ -23,7 +23,6 @@ import {
   candidateObstacleHits,
   candidateToPlacement,
   countFatBlocks,
-  createSimulatedWalls,
 } from "./ai-build-score.ts";
 import type {
   AiPlacement,
@@ -36,6 +35,17 @@ import { SMALL_POCKET_MAX_SIZE } from "./ai-constants.ts";
 
 const MIN_FREE_INTERIOR = 6;
 
+/** Would placing this candidate create a new small (< SMALL_POCKET_MAX_SIZE)
+ *  pocket that has no tower, grunt, or terrain occupant? Used to reject
+ *  wasteful placements in both the primary discard path and the fallback
+ *  discard path.
+ *
+ *  Only walls that *newly trap* a previously-outside tile can create a
+ *  fresh enclosure — interior-only subdivisions ("subdivision pockets")
+ *  don't count. So we flood from each newly-trapped tile (outside before,
+ *  inside after) rather than scanning the whole grid. The `floodPocket`
+ *  `sizeLimit` short-circuits the BFS once we know a pocket is too large
+ *  to qualify. */
 export function pickFallbackPlacement(
   scored: readonly Scored[],
   state: BuildViewState,
@@ -62,35 +72,12 @@ export function pickFallbackPlacement(
     };
   };
 
-  // Count free interior tiles — if territory is full, stop building
-  let totalFree = 0;
-  for (let r = 0; r < GRID_ROWS; r++) {
-    for (let c = 0; c < GRID_COLS; c++) {
-      const key = packTile(r, c);
-      if (!playerInterior.has(key)) continue;
-      if (walls.has(key)) continue;
-      let blocked = false;
-      for (const tower of state.map.towers) {
-        if (isTowerTile(tower, r, c)) {
-          blocked = true;
-          break;
-        }
-      }
-      if (blocked) continue;
-      for (const player of state.players) {
-        for (const cannon of player.cannons) {
-          if (isCannonTile(cannon, r, c)) {
-            blocked = true;
-            break;
-          }
-        }
-        if (blocked) break;
-      }
-      if (!blocked) totalFree++;
-    }
-  }
-  if (totalFree < MIN_FREE_INTERIOR && unenclosedTowers.length === 0)
+  if (
+    unenclosedTowers.length === 0 &&
+    !hasMinFreeInterior(state, walls, playerInterior, MIN_FREE_INTERIOR)
+  ) {
     return { placement: null, reason: "interior-full" };
+  }
 
   const createsSmallEnclosureCached = memoize((candidate: Candidate) =>
     createsSmallEnclosure(candidate, walls, outside, state),
@@ -146,9 +133,6 @@ export function pickFallbackPlacement(
   }
 }
 
-/** Would placing this candidate create a new small (< 9 tile) pocket that
- *  has no tower, grunt, or terrain occupant? Used to reject wasteful placements
- *  in both the primary discard path and the fallback discard path. */
 export function createsSmallEnclosure(
   candidate: Candidate,
   walls: ReadonlySet<number>,
@@ -159,28 +143,36 @@ export function createsSmallEnclosure(
   for (const [dr, dc] of candidate.piece.offsets) {
     candidateWallTiles.push(packTile(candidate.row + dr, candidate.col + dc));
   }
-  const simulatedWalls = createSimulatedWalls(walls, candidate);
-  const simulatedOutside = computeOutsideAfterAdd(outside, candidateWallTiles);
-  const visited = new Set<number>();
-  for (let r = 0; r < GRID_ROWS; r++) {
-    for (let c = 0; c < GRID_COLS; c++) {
-      const key = packTile(r, c);
-      if (
-        visited.has(key) ||
-        simulatedOutside.has(key) ||
-        simulatedWalls.has(key)
-      )
-        continue;
-      const pocket = floodPocket(
-        key,
-        visited,
-        simulatedWalls,
-        simulatedOutside,
-      );
-      if (pocket.length >= SMALL_POCKET_MAX_SIZE) continue;
-      if (!isFreshEnclosure(pocket, outside)) continue;
-      if (!hasOccupantInPocket(pocket, state)) return true;
-    }
+  // Cheap path: detect traps without cloning the outside set. The bulk of
+  // calls during build phase (~99%) don't trap anything; this lets them
+  // bail before paying the O(outside.size) clone that dominated the prior
+  // implementation's cost.
+  const trapped = computeTrappedAfterAdd(outside, candidateWallTiles);
+  if (trapped.length === 0) return false;
+  // Rare path: traps exist. Build simulatedOutside so floodPocket can
+  // treat outside tiles as barriers.
+  const simulatedOutside = new Set(outside);
+  for (let i = 0; i < candidateWallTiles.length; i++) {
+    simulatedOutside.delete(candidateWallTiles[i]!);
+  }
+  for (let i = 0; i < trapped.length; i++) {
+    simulatedOutside.delete(trapped[i]!);
+  }
+  // Pre-seeding `visited` with the candidate's new wall tiles makes the
+  // flood-pocket BFS treat them as barriers (visited == skip), so we pass
+  // the original `walls` set instead of paying another clone here.
+  const visited = new Set<number>(candidateWallTiles);
+  for (const seed of trapped) {
+    if (visited.has(seed)) continue;
+    const pocket = floodPocket(
+      seed,
+      visited,
+      walls,
+      simulatedOutside,
+      SMALL_POCKET_MAX_SIZE,
+    );
+    if (pocket.length >= SMALL_POCKET_MAX_SIZE) continue;
+    if (!hasOccupantInPocket(pocket, state)) return true;
   }
   return false;
 }
@@ -194,20 +186,6 @@ export function memoize<K, V>(func: (key: K) => V): (key: K) => V {
     cache.set(key, computed);
     return computed;
   };
-}
-
-/** True if the candidate's walls actually created this pocket — i.e. at
- *  least one of its tiles used to be OUTSIDE before the placement. A
- *  pocket whose tiles were all already inside (subdivision of an existing
- *  zone) isn't a new small enclosure and shouldn't reject the candidate. */
-function isFreshEnclosure(
-  pocket: readonly number[],
-  outside: ReadonlySet<number>,
-): boolean {
-  for (const pocketKey of pocket) {
-    if (outside.has(pocketKey)) return true;
-  }
-  return false;
 }
 
 /** True if any tile in `pocket` is occupied (tower, non-grass terrain, or
@@ -225,6 +203,45 @@ function hasOccupantInPocket(
     if (!isGrass(state.map.tiles, pr, pc)) return true;
     for (const grunt of state.grunts) {
       if (grunt.row === pr && grunt.col === pc) return true;
+    }
+  }
+  return false;
+}
+
+/** True if the player has at least `limit` non-blocked interior tiles. Scans
+ *  the grid and returns early once the count is reached — the caller only
+ *  cares about the threshold, not the exact tally. */
+function hasMinFreeInterior(
+  state: BuildViewState,
+  walls: ReadonlySet<number>,
+  playerInterior: ReadonlySet<number>,
+  limit: number,
+): boolean {
+  let count = 0;
+  for (let r = 0; r < GRID_ROWS; r++) {
+    for (let c = 0; c < GRID_COLS; c++) {
+      const key = packTile(r, c);
+      if (!playerInterior.has(key)) continue;
+      if (walls.has(key)) continue;
+      if (isTileBlockedByEntities(state, r, c)) continue;
+      count++;
+      if (count >= limit) return true;
+    }
+  }
+  return false;
+}
+
+function isTileBlockedByEntities(
+  state: BuildViewState,
+  row: number,
+  col: number,
+): boolean {
+  for (const tower of state.map.towers) {
+    if (isTowerTile(tower, row, col)) return true;
+  }
+  for (const player of state.players) {
+    for (const cannon of player.cannons) {
+      if (isCannonTile(cannon, row, col)) return true;
     }
   }
   return false;

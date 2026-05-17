@@ -735,7 +735,7 @@ export function countSmallPocketTiles(
 }
 
 /** Build the simulated wall set for a candidate. */
-export function createSimulatedWalls(
+function createSimulatedWalls(
   walls: ReadonlySet<number>,
   candidate: Candidate,
 ): Set<number> {

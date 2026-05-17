@@ -161,16 +161,24 @@ export function filterUnfillableGaps(
 /**
  * BFS to find a connected pocket of interior tiles starting from `startKey`.
  * Returns the array of tile keys in the pocket.
+ *
+ * When `sizeLimit` is set, the BFS stops once the pocket grows past the
+ * limit. The returned array contains `sizeLimit + 1` tiles, signalling "at
+ * least one tile beyond the limit." Unvisited tiles of an oversized pocket
+ * remain unvisited — callers that need full grid coverage must not pass
+ * `sizeLimit`.
  */
 export function floodPocket(
   startKey: number,
   visited: Set<number>,
   walls: ReadonlySet<number>,
   outside: ReadonlySet<number>,
+  sizeLimit?: number,
 ): number[] {
   const pocket: number[] = [startKey];
   visited.add(startKey);
   for (let queueIndex = 0; queueIndex < pocket.length; queueIndex++) {
+    if (sizeLimit !== undefined && pocket.length > sizeLimit) break;
     const { r: pr, c: pc } = unpackTile(pocket[queueIndex]! as TileKey);
     for (const [dr, dc] of DIRS_4) {
       const nr = pr + dr,
