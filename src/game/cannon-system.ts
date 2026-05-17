@@ -56,15 +56,6 @@ export { isCannonEnclosed };
 /** Max search radius when snapping cannon placement to a valid tile. */
 const CANNON_SNAP_RADIUS = 2;
 
-/** Whether any valid placement exists for the given cannon mode in the player's territory. */
-export function hasAnyCannonPlacement(
-  player: Player,
-  mode: CannonMode,
-  state: GameViewState & { readonly burningPits: readonly BurningPit[] },
-): boolean {
-  return findFirstLegalCannonPlacement(player, mode, state) !== null;
-}
-
 /** Auto-place normal cannons for round-1 if none were placed.
  *  Safety net — ensures every player starts with cannons even if they
  *  skipped placement. Picks evenly spaced valid interior positions. */
@@ -348,23 +339,6 @@ function applyCannonPlacement(
     facing: player.defaultFacing,
     shieldHp: mode === CannonMode.RAMPART ? RAMPART_SHIELD_HP : undefined,
   });
-}
-
-/** Find the first legal cannon placement in interior-iteration order, or
- *  null if no valid position exists. Used internally by
- *  hasAnyCannonPlacement; promote to a barrel export when an external
- *  caller (test or AI) needs it. */
-function findFirstLegalCannonPlacement(
-  player: Player,
-  mode: CannonMode,
-  state: GameViewState & { readonly burningPits: readonly BurningPit[] },
-): TilePos | null {
-  const interior = getInterior(player);
-  for (const key of interior) {
-    const { r, c } = unpackTile(key as TileKey);
-    if (canPlaceCannon(player, r, c, mode, state)) return { row: r, col: c };
-  }
-  return null;
 }
 
 /** Collect every legal cannon placement in interior-iteration order.

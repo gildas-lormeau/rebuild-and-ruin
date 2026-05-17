@@ -27,7 +27,6 @@ export {
   canPlaceCannon,
   effectivePlacementCost,
   filterActiveFiringCannons,
-  hasAnyCannonPlacement,
   isCannonEnclosed,
   placeCannon,
   prepareControllerCannonPhase,

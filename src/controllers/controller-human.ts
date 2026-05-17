@@ -4,7 +4,6 @@ import {
   canPlaceCannon,
   canPlacePiece,
   effectivePlacementCost,
-  hasAnyCannonPlacement,
   placeCannon,
 } from "../game/index.ts";
 import { CannonMode } from "../shared/core/battle-types.ts";
@@ -78,23 +77,12 @@ export class HumanController extends BaseController implements InputReceiver {
     return cannonSlotsUsed(state.players[this.playerId]!) >= maxSlots;
   }
 
-  cannonTick(
-    state: CannonViewState,
-    _dt: number,
-  ): CannonPlacementPreview | undefined {
+  cannonTick(state: CannonViewState, _dt: number): CannonPlacementPreview {
     const player = state.players[this.playerId]!;
     const maxSlots = state.cannonLimits[this.playerId] ?? 0;
     const remaining = maxSlots - cannonSlotsUsed(player);
-    if (remaining <= 0) {
-      this.currentCannonPhantom = undefined;
-      return undefined;
-    }
-    if (!hasAnyCannonPlacement(player, this.cannonPlaceMode, state)) {
-      this.currentCannonPhantom = undefined;
-      return undefined;
-    }
-
-    const valid = this.resolveCannonPlacement(remaining, player, state);
+    const valid =
+      remaining > 0 && this.resolveCannonPlacement(remaining, player, state);
     const result: CannonPlacementPreview = {
       row: this.cannonCursor.row,
       col: this.cannonCursor.col,
@@ -112,7 +100,7 @@ export class HumanController extends BaseController implements InputReceiver {
   // the preview. Mirrors onStartBuildPhase below.
   override startCannonPhase(state: CannonViewState): void {
     super.startCannonPhase(state);
-    this.currentCannonPhantom = this.cannonTick(state, 0) ?? undefined;
+    this.currentCannonPhantom = this.cannonTick(state, 0);
   }
 
   // --- Cannon cursor state fixups ---
