@@ -9,7 +9,12 @@
 
 import * as THREE from "three";
 import { TILE_SIZE, type TileKey } from "../../../shared/core/grid.ts";
-import { DIRS_8, packTile, unpackTile } from "../../../shared/core/spatial.ts";
+import {
+  DIRS_8,
+  inBounds,
+  packTile,
+  unpackTile,
+} from "../../../shared/core/spatial.ts";
 import { ELEVATION_STACK, RENDER_ORDER, Z_FIGHT_MARGIN } from "../elevation.ts";
 import type { FrameCtx } from "../frame-ctx.ts";
 import { tileSeed } from "./helpers.ts";
@@ -232,7 +237,10 @@ function dilateKey(out: Set<number>, key: TileKey): void {
   out.add(key);
   const { r, c } = unpackTile(key);
   for (const [dr, dc] of DIRS_8) {
-    out.add(packTile(r + dr, c + dc));
+    const nr = r + dr;
+    const nc = c + dc;
+    if (!inBounds(nr, nc)) continue;
+    out.add(packTile(nr, nc));
   }
 }
 
