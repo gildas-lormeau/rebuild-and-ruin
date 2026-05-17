@@ -190,6 +190,9 @@
       "pair": "BannerSystemDeps@src/runtime/subsystems/banner.ts ↔ LifeLostSystemDeps@src/runtime/runtime-life-lost.ts"
     },
     {
+      "pair": "BannerSystemDeps@src/runtime/subsystems/banner.ts ↔ LobbySystemDeps@src/runtime/runtime-lobby.ts"
+    },
+    {
       "pair": "BannerSystemDeps@src/runtime/subsystems/banner.ts ↔ SelectionSystemDeps@src/runtime/runtime-selection.ts"
     },
     {
@@ -691,19 +694,25 @@
       "pair": "LifecycleWiringDeps@src/runtime/runtime-game-lifecycle.ts ↔ RuntimeLoopDeps@src/runtime/runtime-main-loop.ts"
     },
     {
+      "pair": "LifeLostSystemDeps@src/runtime/runtime-life-lost.ts ↔ LobbySystemDeps@src/runtime/runtime-lobby.ts"
+    },
+    {
       "pair": "LifeLostSystemDeps@src/runtime/runtime-life-lost.ts ↔ SelectionSystemDeps@src/runtime/runtime-selection.ts"
     },
     {
       "pair": "LifeLostSystemDeps@src/runtime/runtime-life-lost.ts ↔ UpgradePickSystemDeps@src/runtime/subsystems/upgrade-pick.ts"
     },
     {
-      "pair": "LobbySystem@src/runtime/runtime-lobby.ts ↔ RuntimeLobby@src/runtime/runtime-types.ts"
-    },
-    {
       "pair": "LobbySystemDeps@src/runtime/runtime-lobby.ts ↔ OptionsSystemDeps@src/runtime/runtime-options.ts"
     },
     {
       "pair": "LobbySystemDeps@src/runtime/runtime-lobby.ts ↔ RuntimeConfig@src/runtime/runtime-types.ts"
+    },
+    {
+      "pair": "LobbySystemDeps@src/runtime/runtime-lobby.ts ↔ SelectionSystemDeps@src/runtime/runtime-selection.ts"
+    },
+    {
+      "pair": "LobbySystemDeps@src/runtime/runtime-lobby.ts ↔ UpgradePickSystemDeps@src/runtime/subsystems/upgrade-pick.ts"
     },
     {
       "pair": "MaskBucket@src/render/3d/entities/walls.ts ↔ VariantBucket@src/render/3d/entities/debris.ts"

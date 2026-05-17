@@ -53,7 +53,6 @@ import {
 } from "../render/render-ui-settings.ts";
 import { GAME_EVENT } from "../shared/core/game-event-bus.ts";
 import { Phase } from "../shared/core/game-phase.ts";
-import type { GameMap, Viewport } from "../shared/core/geometry-types.ts";
 import {
   SPECTATOR_SLOT,
   type ValidPlayerId,
@@ -67,10 +66,7 @@ import type {
 } from "../shared/core/system-interfaces.ts";
 import { IS_DEV, IS_TOUCH_DEVICE } from "../shared/platform/platform.ts";
 import { assertNever } from "../shared/platform/utils.ts";
-import type {
-  RendererInterface,
-  RenderOverlay,
-} from "../shared/ui/overlay-types.ts";
+import type { RendererInterface } from "../shared/ui/overlay-types.ts";
 import { MAX_SEED_LENGTH, SEED_CUSTOM } from "../shared/ui/player-config.ts";
 import { cycleOption } from "../shared/ui/settings-ui.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
@@ -272,13 +268,13 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     switch (mode) {
       case Mode.LOBBY:
         lobby.tickLobby(dt);
-        lobby.renderLobby();
+        requestRender();
         return;
       case Mode.OPTIONS:
-        options.renderOptions();
+        requestRender();
         return;
       case Mode.CONTROLS:
-        options.renderControls();
+        requestRender();
         return;
       case Mode.SELECTION:
         selection.tick(dt);
@@ -356,27 +352,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       }
     },
   });
-
-  // -------------------------------------------------------------------------
-  // Rendering / frame helpers
-  // -------------------------------------------------------------------------
-
-  function renderFrame(
-    map: GameMap,
-    overlay: RenderOverlay | undefined,
-    viewport?: Viewport | null,
-  ): void {
-    renderer.drawFrame(
-      map,
-      overlay,
-      viewport,
-      timing.now(),
-      camera.getPitch(),
-      false,
-      sunTFromState(runtimeState.state),
-      camera.getPitchMax(),
-    );
-  }
 
   // -------------------------------------------------------------------------
   // Human-player lookup (delegated to subsystems/pointer-player.ts)
@@ -498,6 +473,11 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     timing,
     createBannerUi,
     createOnlineOverlay,
+    // Forward-references — `lobby` / `options` are constructed below.
+    // Safe because these thunks aren't invoked until a tick fires.
+    buildLobbyOverlay: () => lobby.buildOverlay(),
+    buildOptionsOverlay: () => options.buildOptionsOverlay(),
+    buildControlsOverlay: () => options.buildControlsOverlay(),
     drawFrame: (map, overlay, viewport, now, skip3DScene) =>
       renderer.drawFrame(
         map,
@@ -758,7 +738,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   const optionsDeps = {
     runtimeState,
     uiCtx,
-    renderFrame,
     updateDpad: (enabled: boolean) =>
       touchHandles.dpad?.update(enabled ? Phase.WALL_BUILD : null),
     setDpadLeftHanded: (left: boolean) =>
@@ -787,7 +766,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   const lobbyDeps = {
     runtimeState,
     uiCtx,
-    renderFrame,
+    requestRender,
     warmMapCache: renderer.warmMapCache,
     log: config.log,
     showOptions: options.showOptions,
@@ -900,7 +879,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     selection,
     lifeLost,
     lobby: {
-      renderLobby: lobby.renderLobby,
       show: lobby.show,
       markJoined: lobby.markJoined,
     },

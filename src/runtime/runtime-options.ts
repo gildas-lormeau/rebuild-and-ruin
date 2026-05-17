@@ -1,4 +1,4 @@
-import type { GameMap, Viewport } from "../shared/core/geometry-types.ts";
+import type { GameMap } from "../shared/core/geometry-types.ts";
 import { MAP_PX_H, MAP_PX_W, SCALE } from "../shared/core/grid.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import {
@@ -36,11 +36,6 @@ import type {
 interface OptionsSystemDeps {
   runtimeState: RuntimeState;
   uiCtx: UIContext;
-  renderFrame: (
-    map: GameMap,
-    overlay: RenderOverlay | undefined,
-    viewport?: Viewport | null,
-  ) => void;
   /** Enable/disable the d-pad (true = enabled with navigation, false = disabled). */
   updateDpad: (enabled: boolean) => void;
   setDpadLeftHanded: (left: boolean) => void;
@@ -75,10 +70,20 @@ interface OptionsSystem {
   cursorAt: (canvasX: number, canvasY: number) => string;
   /** Returns CSS cursor for controls screen (pointer over cells and close button). */
   controlsCursorAt: (canvasX: number, canvasY: number) => string;
-  renderOptions: () => void;
+  /** Build the options screen's `{map, overlay}` for the unified render
+   *  entry in `runtime-render.ts`. */
+  buildOptionsOverlay: () => {
+    map: GameMap;
+    overlay: RenderOverlay | undefined;
+  };
   showOptions: () => void;
   closeOptions: () => void;
-  renderControls: () => void;
+  /** Build the controls screen's `{map, overlay}` for the unified render
+   *  entry in `runtime-render.ts`. */
+  buildControlsOverlay: () => {
+    map: GameMap;
+    overlay: RenderOverlay | undefined;
+  };
   showControls: () => void;
   closeControls: () => void;
   /** Open the HTML Sound modal (player-supplied Rampart file loader). */
@@ -138,9 +143,11 @@ export function createOptionsSystem(deps: OptionsSystemDeps): OptionsSystem {
     deps.setDpadLeftHanded(runtimeState.settings.leftHanded);
   }
 
-  function renderOptions(): void {
-    const { map, overlay } = deps.createOptionsOverlay(uiCtx);
-    deps.renderFrame(map, overlay);
+  function buildOptionsOverlay(): {
+    map: GameMap;
+    overlay: RenderOverlay | undefined;
+  } {
+    return deps.createOptionsOverlay(uiCtx);
   }
 
   function showOptions(): void {
@@ -168,9 +175,11 @@ export function createOptionsSystem(deps: OptionsSystemDeps): OptionsSystem {
     deps.onCloseOptions?.();
   }
 
-  function renderControls(): void {
-    const { map, overlay } = deps.createControlsOverlay(uiCtx);
-    deps.renderFrame(map, overlay);
+  function buildControlsOverlay(): {
+    map: GameMap;
+    overlay: RenderOverlay | undefined;
+  } {
+    return deps.createControlsOverlay(uiCtx);
   }
 
   function showControls(): void {
@@ -292,10 +301,10 @@ export function createOptionsSystem(deps: OptionsSystemDeps): OptionsSystem {
     clickControls,
     cursorAt,
     controlsCursorAt,
-    renderOptions,
+    buildOptionsOverlay,
     showOptions,
     closeOptions,
-    renderControls,
+    buildControlsOverlay,
     showControls,
     closeControls,
     showSound: deps.showSoundModal,

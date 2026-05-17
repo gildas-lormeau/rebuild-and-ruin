@@ -20,6 +20,7 @@ import type {
 } from "../shared/core/system-interfaces.ts";
 import type { LoupeHandle, RenderOverlay } from "../shared/ui/overlay-types.ts";
 import { PLAYER_COLORS, PLAYER_NAMES } from "../shared/ui/player-config.ts";
+import { Mode } from "../shared/ui/ui-mode.ts";
 import { deriveRevealOverlayFields } from "./modifier-reveal-overlay-registry.ts";
 import {
   revealTimeFor,
@@ -49,6 +50,21 @@ interface RenderSystemDeps {
   // Render-domain functions (injected from composition root, not imported directly)
   readonly createBannerUi: CreateBannerUiFn;
   readonly createOnlineOverlay: CreateOnlineOverlayFn;
+  /** Pre-game screens own their own `{map, overlay}` builders. The
+   *  unified `render()` dispatches by mode and falls back to the
+   *  gameplay overlay pipeline below for everything else. */
+  readonly buildLobbyOverlay: () => {
+    map: GameMap;
+    overlay: RenderOverlay | undefined;
+  };
+  readonly buildOptionsOverlay: () => {
+    map: GameMap;
+    overlay: RenderOverlay | undefined;
+  };
+  readonly buildControlsOverlay: () => {
+    map: GameMap;
+    overlay: RenderOverlay | undefined;
+  };
 
   readonly drawFrame: (
     map: GameMap,
@@ -251,6 +267,22 @@ export function createRenderSystem(deps: RenderSystemDeps): RenderSystem {
   }
 
   function render(): void {
+    // Pre-game screens (lobby/options/controls) have their own
+    // `{map, overlay}` builders and skip the full gameplay overlay /
+    // touch-controls / camera pipeline. They route through the same
+    // `drawFrame` so the renderer-level draw path stays single-source.
+    const screen = pickScreenOverlay();
+    if (screen) {
+      deps.drawFrame(
+        screen.map,
+        screen.overlay,
+        undefined,
+        deps.timing.now(),
+        false,
+      );
+      return;
+    }
+
     if (!isStateInstalled(runtimeState)) return;
 
     // Refresh crosshairs from controller state when paused
@@ -289,6 +321,22 @@ export function createRenderSystem(deps: RenderSystemDeps): RenderSystem {
       screenToContainerCSS: deps.screenToContainerCSS,
       containerHeight: deps.getContainerHeight(),
     });
+  }
+
+  function pickScreenOverlay(): {
+    map: GameMap;
+    overlay: RenderOverlay | undefined;
+  } | null {
+    switch (runtimeState.mode) {
+      case Mode.LOBBY:
+        return deps.buildLobbyOverlay();
+      case Mode.OPTIONS:
+        return deps.buildOptionsOverlay();
+      case Mode.CONTROLS:
+        return deps.buildControlsOverlay();
+      default:
+        return null;
+    }
   }
 
   function captureSceneOffscreen(): HTMLCanvasElement | undefined {

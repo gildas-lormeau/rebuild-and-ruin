@@ -3,7 +3,7 @@ import {
   LOBBY_SKIP_LOCKOUT,
   LOBBY_SKIP_STEP,
 } from "../shared/core/game-constants.ts";
-import type { GameMap, Viewport } from "../shared/core/geometry-types.ts";
+import type { GameMap } from "../shared/core/geometry-types.ts";
 import { CANVAS_H, CANVAS_W, TILE_SIZE } from "../shared/core/grid.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import {
@@ -31,11 +31,7 @@ import type {
 interface LobbySystemDeps {
   runtimeState: RuntimeState;
   uiCtx: UIContext;
-  renderFrame: (
-    map: GameMap,
-    overlay: RenderOverlay | undefined,
-    viewport?: Viewport | null,
-  ) => void;
+  requestRender: () => void;
   warmMapCache: (map: GameMap) => void;
   log: (msg: string) => void;
   showOptions: () => void;
@@ -50,22 +46,25 @@ interface LobbySystemDeps {
 }
 
 interface LobbySystem {
-  renderLobby: () => void;
+  /** Build the lobby's `{map, overlay}` pair for the unified render entry
+   *  in `runtime-render.ts`. Lazy seed/map generation lives here so the
+   *  first frame after `show()` always has a preview to draw. */
+  buildOverlay: () => { map: GameMap; overlay: RenderOverlay | undefined };
   tickLobby: (dt: number) => void;
   lobbyKeyJoin: (key: string) => boolean;
   lobbyClick: (canvasX: number, canvasY: number) => boolean;
   cursorAt: (canvasX: number, canvasY: number) => string;
   /** Runtime-internal lobby reset: clear joined/active/timer/map, clear
-   *  quit + options state, render once, flip mode to LOBBY. The host's
+   *  quit + options state, mark frame dirty, flip mode to LOBBY. The host's
    *  `RuntimeConfig.showLobby` callback wraps this with platform extras
    *  (browser: title music). */
   show: () => void;
-  /** Mark a slot joined and re-render the lobby preview. */
+  /** Mark a slot joined and request a re-render of the lobby preview. */
   markJoined: (pid: ValidPlayerId) => void;
   /** Recompute `lobby.seed` from settings and regenerate the map preview
    *  when either the seed changed or no preview exists yet. Called from
    *  the options screen on close (settings may have changed) and from
-   *  `renderLobby` on first lobby entry (map slot still null). */
+   *  `buildOverlay` on first lobby entry (map slot still null). */
   refreshSeed: () => void;
 }
 
@@ -101,10 +100,12 @@ export function createLobbySystem(deps: LobbySystemDeps): LobbySystem {
     }
   }
 
-  function renderLobby(): void {
+  function buildOverlay(): {
+    map: GameMap;
+    overlay: RenderOverlay | undefined;
+  } {
     if (!runtimeState.lobby.map) refreshSeed();
-    const { map, overlay } = deps.createLobbyOverlay(uiCtx);
-    deps.renderFrame(map, overlay);
+    return deps.createLobbyOverlay(uiCtx);
   }
 
   function tickLobby(dt: number): void {
@@ -119,7 +120,7 @@ export function createLobbySystem(deps: LobbySystemDeps): LobbySystem {
 
   async function onLobbyJoin(pid: ValidPlayerId): Promise<void> {
     deps.onLobbySlotJoined(pid);
-    renderLobby();
+    deps.requestRender();
     // On touch devices in local mode, start immediately after joining
     if (IS_TOUCH_DEVICE && !deps.isOnline) {
       runtimeState.lobby.active = false;
@@ -200,17 +201,17 @@ export function createLobbySystem(deps: LobbySystemDeps): LobbySystem {
     runtimeState.lobby.map = null; // force fresh seed + map preview
     runtimeState.quit.pending = false;
     runtimeState.optionsUI.returnMode = null;
-    renderLobby();
+    deps.requestRender();
     setMode(runtimeState, Mode.LOBBY);
   }
 
   function markJoined(pid: ValidPlayerId): void {
     runtimeState.lobby.joined[pid] = true;
-    renderLobby();
+    deps.requestRender();
   }
 
   return {
-    renderLobby,
+    buildOverlay,
     tickLobby,
     lobbyKeyJoin,
     lobbyClick,
