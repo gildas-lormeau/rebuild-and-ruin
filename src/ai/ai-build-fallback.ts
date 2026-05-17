@@ -178,36 +178,8 @@ export function createsSmallEnclosure(
         simulatedOutside,
       );
       if (pocket.length >= SMALL_POCKET_MAX_SIZE) continue;
-      let preExisting = true;
-      for (const pocketKey of pocket) {
-        if (outside.has(pocketKey)) {
-          preExisting = false;
-          break;
-        }
-      }
-      if (preExisting) continue;
-      let hasOccupant = false;
-      for (const pocketKey of pocket) {
-        const { r: pr, c: pc } = unpackTile(pocketKey as TileKey);
-        for (const tower of state.map.towers) {
-          if (isTowerTile(tower, pr, pc)) {
-            hasOccupant = true;
-            break;
-          }
-        }
-        if (!hasOccupant && !isGrass(state.map.tiles, pr, pc))
-          hasOccupant = true;
-        if (!hasOccupant) {
-          for (const grunt of state.grunts) {
-            if (grunt.row === pr && grunt.col === pc) {
-              hasOccupant = true;
-              break;
-            }
-          }
-        }
-        if (hasOccupant) break;
-      }
-      if (!hasOccupant) return true;
+      if (!isFreshEnclosure(pocket, outside)) continue;
+      if (!hasOccupantInPocket(pocket, state)) return true;
     }
   }
   return false;
@@ -222,6 +194,40 @@ export function memoize<K, V>(func: (key: K) => V): (key: K) => V {
     cache.set(key, computed);
     return computed;
   };
+}
+
+/** True if the candidate's walls actually created this pocket — i.e. at
+ *  least one of its tiles used to be OUTSIDE before the placement. A
+ *  pocket whose tiles were all already inside (subdivision of an existing
+ *  zone) isn't a new small enclosure and shouldn't reject the candidate. */
+function isFreshEnclosure(
+  pocket: readonly number[],
+  outside: ReadonlySet<number>,
+): boolean {
+  for (const pocketKey of pocket) {
+    if (outside.has(pocketKey)) return true;
+  }
+  return false;
+}
+
+/** True if any tile in `pocket` is occupied (tower, non-grass terrain, or
+ *  grunt). A pocket with an occupant has a use, so it's not a "wasted"
+ *  small enclosure — only fully empty grass pockets reject the candidate. */
+function hasOccupantInPocket(
+  pocket: readonly number[],
+  state: BuildViewState,
+): boolean {
+  for (const pocketKey of pocket) {
+    const { r: pr, c: pc } = unpackTile(pocketKey as TileKey);
+    for (const tower of state.map.towers) {
+      if (isTowerTile(tower, pr, pc)) return true;
+    }
+    if (!isGrass(state.map.tiles, pr, pc)) return true;
+    for (const grunt of state.grunts) {
+      if (grunt.row === pr && grunt.col === pc) return true;
+    }
+  }
+  return false;
 }
 
 function pickTowerExtensionCandidate(

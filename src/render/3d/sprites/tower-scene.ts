@@ -218,6 +218,11 @@ interface UVGenerator {
   ): THREE.Vector2[];
 }
 
+interface TowerSharedMaterials {
+  readonly plain: THREE.Material;
+  readonly flagOutline: THREE.Material;
+}
+
 // ---------- scene-local materials ----------
 const STONE_BODY: TexturedSpec = {
   kind: "standard",
@@ -677,301 +682,456 @@ export function buildTower(
   group.scale.set(TOWER_XZ_SCALE, TOWER_Y_SCALE, TOWER_XZ_SCALE);
   scene.add(group);
 
-  const plainMat = mat(STONE_PLAIN);
-  const flagOutlineMat = mat(FLAG_OUTLINE);
+  const sharedMats: TowerSharedMaterials = {
+    plain: mat(STONE_PLAIN),
+    flagOutline: mat(FLAG_OUTLINE),
+  };
 
-  for (const t of params.turrets) {
-    const yBase = t.yBase ?? 0;
-    const cornerR = t.cornerR ?? 0;
-    const rounded = cornerR > 0;
+  for (const turret of params.turrets) {
+    addTurret(three, group, turret, mat, sharedMats);
+  }
+}
 
-    const sideMat = mat(t.material);
-    const roofTopMat = mat(t.roof.material);
-    let body: THREE.Mesh;
+/** Compose one turret: body + roof + optional deck + optional parapet +
+ *  optional window + optional pole-platform + optional corner flags. Each
+ *  sub-feature is independent and gated by its own param. */
+function addTurret(
+  three: typeof THREE,
+  group: THREE.Group,
+  turret: TurretParams,
+  mat: (spec: TexturedSpec | MaterialSpec) => THREE.Material,
+  sharedMats: TowerSharedMaterials,
+): void {
+  const cornerR = turret.cornerR ?? 0;
+  const rounded = cornerR > 0;
+  const sideMat = mat(turret.material);
+  const roofTopMat = mat(turret.roof.material);
+
+  addTurretBody(three, group, turret, rounded, sideMat, sharedMats.plain);
+  const roof = roofPlacement(turret);
+  addTurretRoof(
+    three,
+    group,
+    turret,
+    roof,
+    rounded,
+    roofTopMat,
+    sharedMats.plain,
+  );
+
+  const hasDeck =
+    rounded && !!turret.roof.parapet && !!turret.roof.parapet.merlons;
+  if (hasDeck) {
+    addParapetDeck(three, group, turret, roof, sharedMats.plain);
+  }
+
+  if (turret.roof.parapet) {
+    addTurretParapet(three, group, turret, roof, rounded, hasDeck, mat);
+  }
+
+  addTurretWindow(three, group, turret, mat);
+  addTurretPolePlatform(three, group, turret, mat, sharedMats.flagOutline);
+  addTurretCornerFlags(three, group, turret, mat, sharedMats.flagOutline);
+}
+
+function addTurretBody(
+  three: typeof THREE,
+  group: THREE.Group,
+  turret: TurretParams,
+  rounded: boolean,
+  sideMat: THREE.Material,
+  plainMat: THREE.Material,
+): void {
+  const yBase = turret.yBase ?? 0;
+  let body: THREE.Mesh;
+  if (rounded) {
+    const shape = roundedRectShape(
+      three,
+      turret.width / 2,
+      turret.depth / 2,
+      turret.cornerR ?? 0,
+    );
+    const geom = new three.ExtrudeGeometry(shape, {
+      depth: turret.height,
+      bevelEnabled: false,
+      UVGenerator: stoneWallUVGenerator(three),
+    } as THREE.ExtrudeGeometryOptions);
+    geom.rotateX(-Math.PI / 2);
+    geom.translate(0, -turret.height / 2, 0);
+    body = new three.Mesh(geom, [plainMat, sideMat]);
+  } else {
+    const geom = new three.BoxGeometry(
+      turret.width,
+      turret.height,
+      turret.depth,
+    );
+    applyBoxWallUV(
+      geom,
+      turret.width,
+      turret.height * TOWER_Y_SCALE,
+      turret.depth,
+      UV_DENSITY,
+    );
+    body = new three.Mesh(geom, [
+      sideMat,
+      sideMat,
+      plainMat,
+      plainMat,
+      sideMat,
+      sideMat,
+    ]);
+  }
+  body.position.set(turret.x, yBase + turret.height / 2, turret.z);
+  body.name = "body";
+  group.add(body);
+}
+
+function addTurretRoof(
+  three: typeof THREE,
+  group: THREE.Group,
+  turret: TurretParams,
+  roof: RoofPlacement,
+  rounded: boolean,
+  roofTopMat: THREE.Material,
+  plainMat: THREE.Material,
+): void {
+  const cornerR = turret.cornerR ?? 0;
+  let roofMesh: THREE.Mesh;
+  if (roof.thickness === 0) {
     if (rounded) {
-      const shape = roundedRectShape(three, t.width / 2, t.depth / 2, cornerR);
-      const geom = new three.ExtrudeGeometry(shape, {
-        depth: t.height,
-        bevelEnabled: false,
-        UVGenerator: stoneWallUVGenerator(three),
-      } as THREE.ExtrudeGeometryOptions);
-      geom.rotateX(-Math.PI / 2);
-      geom.translate(0, -t.height / 2, 0);
-      body = new three.Mesh(geom, [plainMat, sideMat]);
-    } else {
-      const geom = new three.BoxGeometry(t.width, t.height, t.depth);
-      applyBoxWallUV(
-        geom,
-        t.width,
-        t.height * TOWER_Y_SCALE,
-        t.depth,
-        UV_DENSITY,
-      );
-      body = new three.Mesh(geom, [
-        sideMat,
-        sideMat,
-        plainMat,
-        plainMat,
-        sideMat,
-        sideMat,
-      ]);
-    }
-    body.position.set(t.x, yBase + t.height / 2, t.z);
-    body.name = "body";
-    group.add(body);
-
-    // Roof.
-    const roof = roofPlacement(t);
-    let roofMesh: THREE.Mesh;
-    if (roof.thickness === 0) {
-      if (rounded) {
-        const shape = roundedRectShape(
-          three,
-          roof.width / 2,
-          roof.depth / 2,
-          cornerR,
-        );
-        const geom = new three.ShapeGeometry(shape);
-        geom.rotateX(-Math.PI / 2);
-        applyRoofUVShape(geom);
-        roofMesh = new three.Mesh(geom, roofTopMat);
-      } else {
-        const plane = new three.PlaneGeometry(roof.width, roof.depth);
-        plane.rotateX(-Math.PI / 2);
-        applyRoofUVPlane(plane, roof.width, roof.depth);
-        roofMesh = new three.Mesh(plane, roofTopMat);
-      }
-      roofMesh.position.set(t.x, roof.yCenter + 0.0005, t.z);
-    } else if (rounded) {
       const shape = roundedRectShape(
         three,
         roof.width / 2,
         roof.depth / 2,
         cornerR,
       );
-      const geom = new three.ExtrudeGeometry(shape, {
-        depth: roof.thickness,
-        bevelEnabled: false,
-      });
+      const geom = new three.ShapeGeometry(shape);
       geom.rotateX(-Math.PI / 2);
-      geom.translate(0, -roof.thickness / 2, 0);
-      roofMesh = new three.Mesh(geom, [roofTopMat, plainMat]);
-      roofMesh.position.set(t.x, roof.yCenter, t.z);
+      applyRoofUVShape(geom);
+      roofMesh = new three.Mesh(geom, roofTopMat);
     } else {
-      roofMesh = new three.Mesh(
-        new three.BoxGeometry(roof.width, roof.thickness, roof.depth),
-        [plainMat, plainMat, roofTopMat, plainMat, plainMat, plainMat],
-      );
-      roofMesh.position.set(t.x, roof.yCenter, t.z);
+      const plane = new three.PlaneGeometry(roof.width, roof.depth);
+      plane.rotateX(-Math.PI / 2);
+      applyRoofUVPlane(plane, roof.width, roof.depth);
+      roofMesh = new three.Mesh(plane, roofTopMat);
     }
-    roofMesh.name = "roof";
-    group.add(roofMesh);
+    roofMesh.position.set(turret.x, roof.yCenter + 0.0005, turret.z);
+  } else if (rounded) {
+    const shape = roundedRectShape(
+      three,
+      roof.width / 2,
+      roof.depth / 2,
+      cornerR,
+    );
+    const geom = new three.ExtrudeGeometry(shape, {
+      depth: roof.thickness,
+      bevelEnabled: false,
+    });
+    geom.rotateX(-Math.PI / 2);
+    geom.translate(0, -roof.thickness / 2, 0);
+    roofMesh = new three.Mesh(geom, [roofTopMat, plainMat]);
+    roofMesh.position.set(turret.x, roof.yCenter, turret.z);
+  } else {
+    roofMesh = new three.Mesh(
+      new three.BoxGeometry(roof.width, roof.thickness, roof.depth),
+      [plainMat, plainMat, roofTopMat, plainMat, plainMat, plainMat],
+    );
+    roofMesh.position.set(turret.x, roof.yCenter, turret.z);
+  }
+  roofMesh.name = "roof";
+  group.add(roofMesh);
+}
 
-    const hasDeck = rounded && !!t.roof.parapet && !!t.roof.parapet.merlons;
-    if (hasDeck) {
-      const roofTopY = roof.yCenter + roof.thickness / 2;
-      const deckMesh = new three.Mesh(
-        new three.BoxGeometry(t.width, MERLON_DECK_HEIGHT, t.depth),
-        plainMat,
-      );
-      deckMesh.position.set(t.x, roofTopY + MERLON_DECK_HEIGHT / 2, t.z);
-      deckMesh.name = "body";
-      group.add(deckMesh);
+/** Thin stone slab between a rounded roof and merlon parapet — gives the
+ *  merlon lattice the full bounding box (no cornerR-shrink). */
+function addParapetDeck(
+  three: typeof THREE,
+  group: THREE.Group,
+  turret: TurretParams,
+  roof: RoofPlacement,
+  plainMat: THREE.Material,
+): void {
+  const roofTopY = roof.yCenter + roof.thickness / 2;
+  const deckMesh = new three.Mesh(
+    new three.BoxGeometry(turret.width, MERLON_DECK_HEIGHT, turret.depth),
+    plainMat,
+  );
+  deckMesh.position.set(turret.x, roofTopY + MERLON_DECK_HEIGHT / 2, turret.z);
+  deckMesh.name = "body";
+  group.add(deckMesh);
+}
+
+function addTurretParapet(
+  three: typeof THREE,
+  group: THREE.Group,
+  turret: TurretParams,
+  roof: RoofPlacement,
+  rounded: boolean,
+  hasDeck: boolean,
+  mat: (spec: TexturedSpec | MaterialSpec) => THREE.Material,
+): void {
+  const parapet = turret.roof.parapet!;
+  const parapetPlainMat = mat(parapet.material);
+  const parapetSideMat = mat({ ...parapet.material, texture: "tower_stone" });
+  const parapetMatArray: THREE.Material[] = [
+    parapetSideMat,
+    parapetSideMat,
+    parapetPlainMat,
+    parapetPlainMat,
+    parapetSideMat,
+    parapetSideMat,
+  ];
+  const flat = !parapet.height;
+  const hasClip = !!parapet.skipSides || !!parapet.clip;
+  const roundedRing = rounded && !flat && !parapet.merlons && !hasClip;
+  if (roundedRing) {
+    addRoundedParapetRing(
+      three,
+      group,
+      turret,
+      parapetPlainMat,
+      parapetSideMat,
+    );
+    return;
+  }
+  const aoMat = parapet.merlons ? mat(MERLON_AO) : null;
+  const roofTopY = roof.yCenter + roof.thickness / 2;
+  const deckTopY = hasDeck ? roofTopY + MERLON_DECK_HEIGHT : roofTopY;
+  for (const placement of parapetPlacements(turret)) {
+    addParapetSegment(
+      three,
+      group,
+      placement,
+      flat,
+      parapetPlainMat,
+      parapetMatArray,
+    );
+    if (aoMat && !flat) {
+      addParapetAo(three, group, placement, deckTopY, aoMat);
     }
+  }
+}
 
-    if (t.roof.parapet) {
-      const parapet = t.roof.parapet;
-      const parapetPlainMat = mat(parapet.material);
-      const parapetSideMat = mat({
-        ...parapet.material,
-        texture: "tower_stone",
-      });
-      const parapetMatArray: THREE.Material[] = [
-        parapetSideMat,
-        parapetSideMat,
-        parapetPlainMat,
-        parapetPlainMat,
-        parapetSideMat,
-        parapetSideMat,
-      ];
-      const flat = !parapet.height;
-      const hasClip = !!parapet.skipSides || !!parapet.clip;
-      const roundedRing = rounded && !flat && !parapet.merlons && !hasClip;
-      if (roundedRing) {
-        const outerHW = t.width / 2;
-        const outerHD = t.depth / 2;
-        const outerR = cornerR;
-        const innerHW = outerHW - parapet.thickness;
-        const innerHD = outerHD - parapet.thickness;
-        const innerR = Math.max(CELL / 2, outerR - parapet.thickness);
-        const shape = roundedRectShape(three, outerHW, outerHD, outerR);
-        shape.holes.push(roundedRectPath(three, innerHW, innerHD, innerR));
-        const geom = new three.ExtrudeGeometry(shape, {
-          depth: parapet.height,
-          bevelEnabled: false,
-          UVGenerator: stoneWallUVGenerator(three),
-        } as THREE.ExtrudeGeometryOptions);
-        geom.rotateX(-Math.PI / 2);
-        const ring = new three.Mesh(geom, [parapetPlainMat, parapetSideMat]);
-        ring.position.set(t.x, wallTopY(t), t.z);
-        ring.name = "parapet";
-        group.add(ring);
-      } else {
-        const aoMat = parapet.merlons ? mat(MERLON_AO) : null;
-        const roofTopY = roof.yCenter + roof.thickness / 2;
-        const deckTopY = hasDeck ? roofTopY + MERLON_DECK_HEIGHT : roofTopY;
-        for (const w of parapetPlacements(t)) {
-          let wallMesh: THREE.Mesh;
-          if (flat) {
-            const plane = new three.PlaneGeometry(w.dims.width, w.dims.depth);
-            plane.rotateX(-Math.PI / 2);
-            wallMesh = new three.Mesh(plane, parapetPlainMat);
-            wallMesh.position.set(w.pos[0], w.pos[1] + 0.0005, w.pos[2]);
-          } else {
-            const geom = new three.BoxGeometry(
-              w.dims.width,
-              w.dims.height,
-              w.dims.depth,
-            );
-            applyBoxWallUV(
-              geom,
-              w.dims.width,
-              w.dims.height * TOWER_Y_SCALE,
-              w.dims.depth,
-              UV_DENSITY,
-            );
-            wallMesh = new three.Mesh(geom, parapetMatArray);
-            wallMesh.position.set(w.pos[0], w.pos[1], w.pos[2]);
-          }
-          wallMesh.name = "parapet";
-          group.add(wallMesh);
-          if (aoMat && !flat) {
-            const halo = CELL * 0.5;
-            const ao = new three.PlaneGeometry(
-              w.dims.width + halo,
-              w.dims.depth + halo,
-            );
-            ao.rotateX(-Math.PI / 2);
-            const aoMesh = new three.Mesh(ao, aoMat);
-            aoMesh.position.set(w.pos[0], deckTopY + 0.0005, w.pos[2]);
-            group.add(aoMesh);
-          }
-        }
-      }
-    }
+function addRoundedParapetRing(
+  three: typeof THREE,
+  group: THREE.Group,
+  turret: TurretParams,
+  parapetPlainMat: THREE.Material,
+  parapetSideMat: THREE.Material,
+): void {
+  const parapet = turret.roof.parapet!;
+  const cornerR = turret.cornerR ?? 0;
+  const outerHW = turret.width / 2;
+  const outerHD = turret.depth / 2;
+  const innerHW = outerHW - parapet.thickness;
+  const innerHD = outerHD - parapet.thickness;
+  const innerR = Math.max(CELL / 2, cornerR - parapet.thickness);
+  const shape = roundedRectShape(three, outerHW, outerHD, cornerR);
+  shape.holes.push(roundedRectPath(three, innerHW, innerHD, innerR));
+  const geom = new three.ExtrudeGeometry(shape, {
+    depth: parapet.height,
+    bevelEnabled: false,
+    UVGenerator: stoneWallUVGenerator(three),
+  } as THREE.ExtrudeGeometryOptions);
+  geom.rotateX(-Math.PI / 2);
+  const ring = new three.Mesh(geom, [parapetPlainMat, parapetSideMat]);
+  ring.position.set(turret.x, wallTopY(turret), turret.z);
+  ring.name = "parapet";
+  group.add(ring);
+}
 
-    const win = windowPlacement(t);
-    if (win && t.window) {
-      const windowMesh = new three.Mesh(
-        new three.BoxGeometry(win.width, win.height, 0.02),
-        mat(t.window.material),
+function addParapetSegment(
+  three: typeof THREE,
+  group: THREE.Group,
+  placement: ParapetPlacement,
+  flat: boolean,
+  parapetPlainMat: THREE.Material,
+  parapetMatArray: readonly THREE.Material[],
+): void {
+  let wallMesh: THREE.Mesh;
+  if (flat) {
+    const plane = new three.PlaneGeometry(
+      placement.dims.width,
+      placement.dims.depth,
+    );
+    plane.rotateX(-Math.PI / 2);
+    wallMesh = new three.Mesh(plane, parapetPlainMat);
+    wallMesh.position.set(
+      placement.pos[0],
+      placement.pos[1] + 0.0005,
+      placement.pos[2],
+    );
+  } else {
+    const geom = new three.BoxGeometry(
+      placement.dims.width,
+      placement.dims.height,
+      placement.dims.depth,
+    );
+    applyBoxWallUV(
+      geom,
+      placement.dims.width,
+      placement.dims.height * TOWER_Y_SCALE,
+      placement.dims.depth,
+      UV_DENSITY,
+    );
+    wallMesh = new three.Mesh(geom, parapetMatArray as THREE.Material[]);
+    wallMesh.position.set(placement.pos[0], placement.pos[1], placement.pos[2]);
+  }
+  wallMesh.name = "parapet";
+  group.add(wallMesh);
+}
+
+function addParapetAo(
+  three: typeof THREE,
+  group: THREE.Group,
+  placement: ParapetPlacement,
+  deckTopY: number,
+  aoMat: THREE.Material,
+): void {
+  const halo = CELL * 0.5;
+  const ao = new three.PlaneGeometry(
+    placement.dims.width + halo,
+    placement.dims.depth + halo,
+  );
+  ao.rotateX(-Math.PI / 2);
+  const aoMesh = new three.Mesh(ao, aoMat);
+  aoMesh.position.set(placement.pos[0], deckTopY + 0.0005, placement.pos[2]);
+  group.add(aoMesh);
+}
+
+function addTurretWindow(
+  three: typeof THREE,
+  group: THREE.Group,
+  turret: TurretParams,
+  mat: (spec: TexturedSpec | MaterialSpec) => THREE.Material,
+): void {
+  const win = windowPlacement(turret);
+  if (!win || !turret.window) return;
+  const windowMesh = new three.Mesh(
+    new three.BoxGeometry(win.width, win.height, 0.02),
+    mat(turret.window.material),
+  );
+  windowMesh.position.set(win.pos[0], win.pos[1], win.pos[2]);
+  group.add(windowMesh);
+}
+
+function addTurretPolePlatform(
+  three: typeof THREE,
+  group: THREE.Group,
+  turret: TurretParams,
+  mat: (spec: TexturedSpec | MaterialSpec) => THREE.Material,
+  flagOutlineMat: THREE.Material,
+): void {
+  const pp = polePlatformPlacement(turret);
+  if (!pp || !turret.polePlatform) return;
+  const plat = pp.platform;
+  const platR = Math.min(plat.width, plat.depth) / 2;
+  const platSideSpec: TexturedSpec = {
+    ...turret.polePlatform.material,
+    texture: "tower_stone",
+  };
+  const platSideMat = mat(platSideSpec);
+  const platPlainMat = mat(turret.polePlatform.material);
+
+  const platGeom = new three.CylinderGeometry(platR, platR, plat.height, 24);
+  applyCylinderWallUV(platGeom, platR, plat.height * TOWER_Y_SCALE);
+  const platMesh = new three.Mesh(platGeom, [
+    platSideMat,
+    platPlainMat,
+    platPlainMat,
+  ]);
+  platMesh.position.set(plat.pos[0], plat.pos[1], plat.pos[2]);
+  platMesh.name = "pole_base";
+  group.add(platMesh);
+
+  addPolePlatformLip(three, group, plat, platR, platPlainMat, platSideMat);
+
+  if (pp.pole && turret.polePlatform.pole) {
+    const p = pp.pole;
+    const poleMesh = new three.Mesh(
+      new three.CylinderGeometry(p.radius, p.radius, p.height, 12),
+      mat(turret.polePlatform.pole.material),
+    );
+    poleMesh.position.set(p.pos[0], p.pos[1], p.pos[2]);
+    group.add(poleMesh);
+  }
+
+  if (pp.flag && turret.polePlatform.pole?.flag) {
+    addFlagWithOutline(
+      three,
+      group,
+      pp.flag,
+      mat(turret.polePlatform.pole.flag.material),
+      flagOutlineMat,
+    );
+  }
+}
+
+function addPolePlatformLip(
+  three: typeof THREE,
+  group: THREE.Group,
+  plat: { pos: readonly [number, number, number]; height: number },
+  platR: number,
+  platPlainMat: THREE.Material,
+  platSideMat: THREE.Material,
+): void {
+  const lipThickness = CELL / 2;
+  const lipHeight = CELL / 2 / TOWER_Y_SCALE;
+  const lipShape = new three.Shape();
+  lipShape.absarc(0, 0, platR, 0, Math.PI * 2, false);
+  const lipHole = new three.Path();
+  lipHole.absarc(0, 0, platR - lipThickness, 0, Math.PI * 2, true);
+  lipShape.holes.push(lipHole);
+  const lipGeom = new three.ExtrudeGeometry(lipShape, {
+    depth: lipHeight,
+    bevelEnabled: false,
+    curveSegments: 24,
+    UVGenerator: stoneWallUVGenerator(three),
+  } as THREE.ExtrudeGeometryOptions);
+  lipGeom.rotateX(-Math.PI / 2);
+  const lipMesh = new three.Mesh(lipGeom, [platPlainMat, platSideMat]);
+  lipMesh.position.set(plat.pos[0], plat.pos[1] + plat.height / 2, plat.pos[2]);
+  lipMesh.name = "pole_base";
+  group.add(lipMesh);
+}
+
+function addTurretCornerFlags(
+  three: typeof THREE,
+  group: THREE.Group,
+  turret: TurretParams,
+  mat: (spec: TexturedSpec | MaterialSpec) => THREE.Material,
+  flagOutlineMat: THREE.Material,
+): void {
+  const corners = cornerFlagPlacements(turret);
+  for (let i = 0; i < corners.length; i++) {
+    const spec = turret.cornerFlags?.[i];
+    if (!spec) continue;
+    const place = corners[i];
+    if (!place) continue;
+    const poleMesh = new three.Mesh(
+      new three.CylinderGeometry(
+        place.pole.radius,
+        place.pole.radius,
+        place.pole.height,
+        12,
+      ),
+      mat(spec.pole.material),
+    );
+    poleMesh.position.set(
+      place.pole.pos[0],
+      place.pole.pos[1],
+      place.pole.pos[2],
+    );
+    group.add(poleMesh);
+
+    if (place.flag && spec.pole.flag) {
+      addFlagWithOutline(
+        three,
+        group,
+        place.flag,
+        mat(spec.pole.flag.material),
+        flagOutlineMat,
       );
-      windowMesh.position.set(win.pos[0], win.pos[1], win.pos[2]);
-      group.add(windowMesh);
-    }
-
-    const pp = polePlatformPlacement(t);
-    if (pp && t.polePlatform) {
-      const plat = pp.platform;
-      const platR = Math.min(plat.width, plat.depth) / 2;
-      const platSideSpec: TexturedSpec = {
-        ...t.polePlatform.material,
-        texture: "tower_stone",
-      };
-      const platSideMat = mat(platSideSpec);
-      const platPlainMat = mat(t.polePlatform.material);
-      const platGeom = new three.CylinderGeometry(
-        platR,
-        platR,
-        plat.height,
-        24,
-      );
-      applyCylinderWallUV(platGeom, platR, plat.height * TOWER_Y_SCALE);
-      const platMesh = new three.Mesh(platGeom, [
-        platSideMat,
-        platPlainMat,
-        platPlainMat,
-      ]);
-      platMesh.position.set(plat.pos[0], plat.pos[1], plat.pos[2]);
-      platMesh.name = "pole_base";
-      group.add(platMesh);
-
-      const lipThickness = CELL / 2;
-      const lipHeight = CELL / 2 / TOWER_Y_SCALE;
-      const lipShape = new three.Shape();
-      lipShape.absarc(0, 0, platR, 0, Math.PI * 2, false);
-      const lipHole = new three.Path();
-      lipHole.absarc(0, 0, platR - lipThickness, 0, Math.PI * 2, true);
-      lipShape.holes.push(lipHole);
-      const lipGeom = new three.ExtrudeGeometry(lipShape, {
-        depth: lipHeight,
-        bevelEnabled: false,
-        curveSegments: 24,
-        UVGenerator: stoneWallUVGenerator(three),
-      } as THREE.ExtrudeGeometryOptions);
-      lipGeom.rotateX(-Math.PI / 2);
-      const lipMesh = new three.Mesh(lipGeom, [platPlainMat, platSideMat]);
-      lipMesh.position.set(
-        plat.pos[0],
-        plat.pos[1] + plat.height / 2,
-        plat.pos[2],
-      );
-      lipMesh.name = "pole_base";
-      group.add(lipMesh);
-
-      if (pp.pole && t.polePlatform.pole) {
-        const p = pp.pole;
-        const poleMesh = new three.Mesh(
-          new three.CylinderGeometry(p.radius, p.radius, p.height, 12),
-          mat(t.polePlatform.pole.material),
-        );
-        poleMesh.position.set(p.pos[0], p.pos[1], p.pos[2]);
-        group.add(poleMesh);
-      }
-
-      if (pp.flag && t.polePlatform.pole?.flag) {
-        const f = pp.flag;
-        addFlagWithOutline(
-          three,
-          group,
-          f,
-          mat(t.polePlatform.pole.flag.material),
-          flagOutlineMat,
-        );
-      }
-    }
-
-    const corners = cornerFlagPlacements(t);
-    for (let i = 0; i < corners.length; i++) {
-      const spec = t.cornerFlags?.[i];
-      if (!spec) continue;
-      const place = corners[i];
-      if (!place) continue;
-      const poleMesh = new three.Mesh(
-        new three.CylinderGeometry(
-          place.pole.radius,
-          place.pole.radius,
-          place.pole.height,
-          12,
-        ),
-        mat(spec.pole.material),
-      );
-      poleMesh.position.set(
-        place.pole.pos[0],
-        place.pole.pos[1],
-        place.pole.pos[2],
-      );
-      group.add(poleMesh);
-
-      if (place.flag && spec.pole.flag) {
-        addFlagWithOutline(
-          three,
-          group,
-          place.flag,
-          mat(spec.pole.flag.material),
-          flagOutlineMat,
-        );
-      }
     }
   }
 }

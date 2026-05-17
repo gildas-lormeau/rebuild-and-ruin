@@ -1238,8 +1238,21 @@ export function buildCannon(
   const mat = (spec: MaterialSpec): THREE.Material =>
     buildTexturedMaterial(three, spec);
 
-  // Base — named so the entity manager can hide just the ground disc
-  // during battle (the rest of the cannon keeps rendering).
+  addCannonBase(three, scene, params, mat);
+  const { barrelGroup, barrel } = addCannonBarrel(three, scene, params, mat);
+  addCannonSupports(three, scene, params, mat);
+  addCannonDecorations(three, scene, barrel, params.decorations ?? [], mat);
+  tagBarrelSubtree(three, barrelGroup);
+}
+
+/** Base disc — named so the entity manager can hide just the ground disc
+ *  during battle (the rest of the cannon keeps rendering). */
+function addCannonBase(
+  three: typeof THREE,
+  scene: THREE.Scene | THREE.Group,
+  params: CannonParams,
+  mat: (spec: MaterialSpec) => THREE.Material,
+): void {
   const base = new three.Mesh(
     new three.CylinderGeometry(
       params.base.radius,
@@ -1253,9 +1266,18 @@ export function buildCannon(
   base.userData.tags = ["battle-hidden"];
   base.position.y = params.base.height / 2;
   scene.add(base);
+}
 
-  // Barrel (inside an elevation group). Optional taper: radiusBreech
-  // > radiusMuzzle gives the historic "wider at the back" silhouette.
+/** Barrel inside an elevation group: barrel body (optional taper), bore disc,
+ *  optional reinforcement bands hugging the local barrel radius at each
+ *  axial position. Returns the elevation group + barrel mesh so callers
+ *  can attach decorations and tag the subtree. */
+function addCannonBarrel(
+  three: typeof THREE,
+  scene: THREE.Scene | THREE.Group,
+  params: CannonParams,
+  mat: (spec: MaterialSpec) => THREE.Material,
+): { barrelGroup: THREE.Group; barrel: THREE.Mesh } {
   const barrelGroup = new three.Group();
   const radiusMuzzle = params.barrel.radiusMuzzle ?? params.barrel.radius;
   const radiusBreech = params.barrel.radiusBreech ?? params.barrel.radius;
@@ -1270,7 +1292,6 @@ export function buildCannon(
   );
   barrelGroup.add(barrel);
 
-  // Bore: flat dark disc on the muzzle face.
   const bore = new three.Mesh(
     new three.CircleGeometry(params.bore.radius, 24),
     mat(params.bore.material),
@@ -1279,93 +1300,142 @@ export function buildCannon(
   bore.position.y = params.barrel.length / 2 + 0.001;
   barrel.add(bore);
 
-  // Reinforcement bands. Each band hugs the LOCAL barrel radius at its
-  // axial position.
   if (params.bands && params.bands.positions.length > 0) {
-    const bandMat = mat(params.bands.material);
-    const len = params.barrel.length;
-    const rBreech = params.barrel.radiusBreech ?? params.barrel.radius;
-    const rMuzzle = params.barrel.radiusMuzzle ?? params.barrel.radius;
-    const flare = params.bands.flare;
-    const bandHeight = params.bands.height;
-    for (const localY of params.bands.positions) {
-      const yTop = localY + bandHeight / 2;
-      const yBottom = localY - bandHeight / 2;
-      const tTop = (yTop + len / 2) / len;
-      const tBottom = (yBottom + len / 2) / len;
-      const radiusTop = rBreech + (rMuzzle - rBreech) * tTop + flare;
-      const radiusBottom = rBreech + (rMuzzle - rBreech) * tBottom + flare;
-      const band = new three.Mesh(
-        new three.CylinderGeometry(radiusTop, radiusBottom, bandHeight, 32),
-        bandMat,
-      );
-      band.position.y = localY;
-      barrel.add(band);
-    }
+    addBarrelBands(three, barrel, params, mat);
   }
 
-  // Apply elevation + position.
   barrelGroup.rotation.x = three.MathUtils.degToRad(
     -90 + params.barrel.elevationDeg,
   );
   barrelGroup.position.set(0, params.barrel.yPos, params.barrel.zOffset);
   scene.add(barrelGroup);
 
-  // Support(s) underneath the barrel.
+  return { barrelGroup, barrel };
+}
+
+/** Reinforcement bands: each band's radius is interpolated linearly along
+ *  the barrel's taper at the band's `localY`, plus a configurable flare. */
+function addBarrelBands(
+  three: typeof THREE,
+  barrel: THREE.Mesh,
+  params: CannonParams,
+  mat: (spec: MaterialSpec) => THREE.Material,
+): void {
+  const bands = params.bands!;
+  const bandMat = mat(bands.material);
+  const len = params.barrel.length;
+  const rBreech = params.barrel.radiusBreech ?? params.barrel.radius;
+  const rMuzzle = params.barrel.radiusMuzzle ?? params.barrel.radius;
+  const { flare, height: bandHeight } = bands;
+  for (const localY of bands.positions) {
+    const yTop = localY + bandHeight / 2;
+    const yBottom = localY - bandHeight / 2;
+    const tTop = (yTop + len / 2) / len;
+    const tBottom = (yBottom + len / 2) / len;
+    const radiusTop = rBreech + (rMuzzle - rBreech) * tTop + flare;
+    const radiusBottom = rBreech + (rMuzzle - rBreech) * tBottom + flare;
+    const band = new three.Mesh(
+      new three.CylinderGeometry(radiusTop, radiusBottom, bandHeight, 32),
+      bandMat,
+    );
+    band.position.y = localY;
+    barrel.add(band);
+  }
+}
+
+/** Supports under the barrel — either a stack of slabs (with optional
+ *  top-taper) or a pair of mirrored cheek boxes. */
+function addCannonSupports(
+  three: typeof THREE,
+  scene: THREE.Scene | THREE.Group,
+  params: CannonParams,
+  mat: (spec: MaterialSpec) => THREE.Material,
+): void {
   const supportMat = mat(params.supports.material);
   if (params.supports.kind === "stack") {
-    const stack = params.supports;
-    let yCursor = 0;
-    for (const slab of stack.slabs) {
-      const slabMat = slab.material ? mat(slab.material) : supportMat;
-      const geom = new three.BoxGeometry(slab.width, slab.height, slab.depth);
-      if (slab.taperTop !== undefined) {
-        const [taperX, taperZ] = Array.isArray(slab.taperTop)
-          ? slab.taperTop
-          : ([slab.taperTop, slab.taperTop] as const);
-        const pos = geom.attributes.position as
-          | THREE.BufferAttribute
-          | undefined;
-        if (pos) {
-          for (let vertexIdx = 0; vertexIdx < pos.count; vertexIdx++) {
-            if (pos.getY(vertexIdx) > 0) {
-              pos.setX(vertexIdx, pos.getX(vertexIdx) * taperX);
-              pos.setZ(vertexIdx, pos.getZ(vertexIdx) * taperZ);
-            }
-          }
-          pos.needsUpdate = true;
-          geom.computeVertexNormals();
-        }
-      }
-      const slabMesh = new three.Mesh(geom, slabMat);
-      slabMesh.position.set(0, yCursor + slab.height / 2, stack.zOffset);
-      scene.add(slabMesh);
-      yCursor += slab.height;
-    }
+    addSlabStack(three, scene, params.supports, supportMat, mat);
   } else {
-    const cheeks = params.supports;
-    const cheekGeom =
-      cheeks.bevel !== undefined
-        ? createBeveledBox(
-            three,
-            cheeks.width,
-            cheeks.height,
-            cheeks.depth,
-            cheeks.bevel,
-          )
-        : new three.BoxGeometry(cheeks.width, cheeks.height, cheeks.depth);
-    const xSpread = cheeks.xSpread ?? 0;
-    for (const xCenter of [-xSpread, xSpread]) {
-      const support = new three.Mesh(cheekGeom, supportMat);
-      support.position.set(xCenter, cheeks.yPos, cheeks.zOffset);
-      scene.add(support);
+    addCheekSupports(three, scene, params.supports, supportMat);
+  }
+}
+
+/** Slab-stack support: each slab stacks on the previous, with optional
+ *  top-vertex taper (single value or [taperX, taperZ]) applied to the
+ *  box geometry's upper face. */
+function addSlabStack(
+  three: typeof THREE,
+  scene: THREE.Scene | THREE.Group,
+  stack: Extract<CannonParams["supports"], { kind: "stack" }>,
+  supportMat: THREE.Material,
+  mat: (spec: MaterialSpec) => THREE.Material,
+): void {
+  let yCursor = 0;
+  for (const slab of stack.slabs) {
+    const slabMat = slab.material ? mat(slab.material) : supportMat;
+    const geom = new three.BoxGeometry(slab.width, slab.height, slab.depth);
+    if (slab.taperTop !== undefined) {
+      applyTopTaper(geom, slab.taperTop);
+    }
+    const slabMesh = new three.Mesh(geom, slabMat);
+    slabMesh.position.set(0, yCursor + slab.height / 2, stack.zOffset);
+    scene.add(slabMesh);
+    yCursor += slab.height;
+  }
+}
+
+function applyTopTaper(
+  geom: THREE.BoxGeometry,
+  taperTop: number | readonly [number, number],
+): void {
+  const [taperX, taperZ] = Array.isArray(taperTop)
+    ? taperTop
+    : ([taperTop, taperTop] as const);
+  const pos = geom.attributes.position as THREE.BufferAttribute | undefined;
+  if (!pos) return;
+  for (let vertexIdx = 0; vertexIdx < pos.count; vertexIdx++) {
+    if (pos.getY(vertexIdx) > 0) {
+      pos.setX(vertexIdx, pos.getX(vertexIdx) * taperX);
+      pos.setZ(vertexIdx, pos.getZ(vertexIdx) * taperZ);
     }
   }
+  pos.needsUpdate = true;
+  geom.computeVertexNormals();
+}
 
-  // Decorations. The DecorationSpec's `name` propagates onto the mesh so
-  // the entity manager can find specific parts (e.g. ground-shadow discs)
-  // by name after extractSubParts.
-  const decorations = params.decorations ?? [];
+function addCheekSupports(
+  three: typeof THREE,
+  scene: THREE.Scene | THREE.Group,
+  cheeks: Exclude<CannonParams["supports"], { kind: "stack" }>,
+  supportMat: THREE.Material,
+): void {
+  const cheekGeom =
+    cheeks.bevel !== undefined
+      ? createBeveledBox(
+          three,
+          cheeks.width,
+          cheeks.height,
+          cheeks.depth,
+          cheeks.bevel,
+        )
+      : new three.BoxGeometry(cheeks.width, cheeks.height, cheeks.depth);
+  const xSpread = cheeks.xSpread ?? 0;
+  for (const xCenter of [-xSpread, xSpread]) {
+    const support = new three.Mesh(cheekGeom, supportMat);
+    support.position.set(xCenter, cheeks.yPos, cheeks.zOffset);
+    scene.add(support);
+  }
+}
+
+/** Decorations: each spec's `name` propagates onto the mesh so the entity
+ *  manager can find specific parts (e.g. ground-shadow discs) by name
+ *  after extractSubParts. */
+function addCannonDecorations(
+  three: typeof THREE,
+  scene: THREE.Scene | THREE.Group,
+  barrel: THREE.Mesh,
+  decorations: readonly DecorationSpec[],
+  mat: (spec: MaterialSpec) => THREE.Material,
+): void {
   for (const dec of decorations) {
     const mesh = new three.Mesh(
       createDecorationGeometry(three, dec),
@@ -1380,18 +1450,15 @@ export function buildCannon(
     const parent = dec.attachTo === "barrel" ? barrel : scene;
     parent.add(mesh);
   }
+}
 
-  // Tag every mesh in the barrel sub-tree (barrel body + bore + bands +
-  // all decorations attached to the barrel — muzzleSwell, cascabel,
-  // trunnions, vents, reinforce-rings) so the cannons entity manager's
-  // per-instance recoil rotation (see `entities/cannons.ts`) applies to
-  // them. Runs AFTER the decorations loop so late-added descendants are
-  // included, and appends to any existing `userData.tags` (e.g. some
-  // decorations already carry "battle-hidden") instead of overwriting.
-  // `extractSubParts` flattens the scene tree into independent
-  // InstancedMesh buckets, so the "barrel" tag is the ONLY runtime link
-  // between a sub-part and the barrel's recoil — untagged decorations
-  // stay at their authored pose while the barrel body swings up.
+/** Tag every mesh in the barrel sub-tree (body + bore + bands +
+ *  barrel-attached decorations — muzzleSwell, cascabel, trunnions, vents,
+ *  reinforce-rings) so the cannons entity manager's per-instance recoil
+ *  rotation applies to them. Runs after decorations so late-added
+ *  descendants are included, and appends to any existing `userData.tags`
+ *  instead of overwriting. */
+function tagBarrelSubtree(three: typeof THREE, barrelGroup: THREE.Group): void {
   barrelGroup.traverse((obj) => {
     if (!(obj instanceof three.Mesh)) return;
     const existing = obj.userData.tags;

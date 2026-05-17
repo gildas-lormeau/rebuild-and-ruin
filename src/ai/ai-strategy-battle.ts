@@ -45,6 +45,7 @@ import {
   zoneAt,
 } from "../shared/core/spatial.ts";
 import type { BattleViewState } from "../shared/core/system-interfaces.ts";
+import type { ZoneId } from "../shared/core/zone-id.ts";
 import type { Rng } from "../shared/platform/rng.ts";
 import type {
   PrioritizedTilePos,
@@ -325,131 +326,25 @@ export function planIceTrench(
   if (player.ownedTowers.length === 0) return null;
   const playerZone = state.playerZones[playerId];
 
-  // Precondition: collect grunts on the opposite bank (enemy zone, 4-dir
-  // adjacent to frozen water). Grunts are ownerless — partition by
-  // current zone, not by any stored "victim" field.
-  const bankGrunts: TilePos[] = [];
-  for (const grunt of state.grunts) {
-    const gruntZone = zoneAt(state.map, grunt.row, grunt.col);
-    if (gruntZone === undefined || gruntZone === playerZone) continue;
-    for (const [dr, dc] of DIRS_4) {
-      const nr = grunt.row + dr;
-      const nc = grunt.col + dc;
-      if (!inBounds(nr, nc)) continue;
-      if (frozenTiles.has(packTile(nr, nc))) {
-        bankGrunts.push({ row: grunt.row, col: grunt.col });
-        break;
-      }
-    }
-  }
+  const bankGrunts = collectBankGrunts(state, frozenTiles, playerZone);
   if (bankGrunts.length === 0) return null;
 
-  // 1. Find shoreline: frozen tiles 4-dir adjacent to AI-zone grass
-  const shoreline: number[] = [];
-  for (const key of frozenTiles) {
-    const { r, c } = unpackTile(key as TileKey);
-    for (const [dr, dc] of DIRS_4) {
-      const nr = r + dr;
-      const nc = c + dc;
-      if (!inBounds(nr, nc)) continue;
-      if (
-        isGrass(state.map.tiles, nr, nc) &&
-        zoneAt(state.map, nr, nc) === playerZone
-      ) {
-        shoreline.push(key);
-        break;
-      }
-    }
-  }
+  const shoreline = findIceShoreline(state, frozenTiles, playerZone);
   if (shoreline.length === 0) return null;
 
-  // 2. Score each shoreline tile by distance to the nearest bank grunt,
-  //    then pick randomly among the top candidates for variety.
-  const scored = shoreline.map((shoreKey) => {
-    const { r, c } = unpackTile(shoreKey as TileKey);
-    let minDist = Infinity;
-    for (const grunt of bankGrunts) {
-      const dist = manhattanDistance(grunt.row, grunt.col, r, c);
-      if (dist < minDist) minDist = dist;
-    }
-    return { key: shoreKey, dist: minDist };
-  });
-  scored.sort((a, b) => a.dist - b.dist);
-  const topCount = Math.min(scored.length, 5);
-  const bestAnchorKey = scored[rng.int(0, topCount - 1)]!.key;
-
-  // 3. Determine inward direction (from shore into frozen river).
-  //    The anchor is adjacent to AI-zone grass — inward is the opposite
-  //    of that adjacency (points across the river toward the enemy).
+  const bestAnchorKey = pickAnchor(shoreline, bankGrunts, rng);
   const anchor = unpackTile(bestAnchorKey as TileKey);
-  let inward: readonly [number, number] | undefined;
-  for (const [dr, dc] of DIRS_4) {
-    const nr = anchor.r + dr;
-    const nc = anchor.c + dc;
-    if (!inBounds(nr, nc)) continue;
-    if (zoneAt(state.map, nr, nc) === playerZone) {
-      inward = [-dr, -dc] as const;
-      break;
-    }
-  }
+
+  const inward = inwardFromShore(state, anchor, playerZone);
   if (!inward) return null;
 
-  // 4. Build U shape: base along shore, arms from ends toward enemy.
-  const lateral1: [number, number] = inward[0] === 0 ? [1, 0] : [0, 1];
-  const lateral2: [number, number] = inward[0] === 0 ? [-1, 0] : [0, -1];
+  const trenchKeys = buildUTrench(frozenTiles, anchor, bestAnchorKey, inward);
 
-  const trenchKeys = new Set<number>();
-  trenchKeys.add(bestAnchorKey);
-
-  // Base: walk laterally from anchor along the shoreline
-  const armStarts: [number, number][] = [];
-  for (const lateral of [lateral1, lateral2]) {
-    let cr = anchor.r;
-    let cc = anchor.c;
-    for (let step = 0; step < ICE_TRENCH_BASE_HALF; step++) {
-      const nr = cr + lateral[0];
-      const nc = cc + lateral[1];
-      if (!inBounds(nr, nc)) break;
-      const tileKey = packTile(nr, nc);
-      if (!frozenTiles.has(tileKey)) break;
-      trenchKeys.add(tileKey);
-      cr = nr;
-      cc = nc;
-    }
-    armStarts.push([cr, cc]);
-  }
-
-  // Arms: from each end of the base, extend diagonally toward the enemy
-  // (inward + lateral = smooth curve, no 90° corners)
-  for (let idx = 0; idx < armStarts.length; idx++) {
-    const [startR, startC] = armStarts[idx]!;
-    const lateral = idx === 0 ? lateral1 : lateral2;
-    let cr = startR;
-    let cc = startC;
-    for (let step = 0; step < ICE_TRENCH_ARM_LENGTH; step++) {
-      // Prefer diagonal, fall back to straight inward
-      let nr = cr + inward[0] + lateral[0];
-      let nc = cc + inward[1] + lateral[1];
-      if (!inBounds(nr, nc) || !frozenTiles.has(packTile(nr, nc))) {
-        nr = cr + inward[0];
-        nc = cc + inward[1];
-      }
-      if (!inBounds(nr, nc)) break;
-      const tileKey = packTile(nr, nc);
-      if (!frozenTiles.has(tileKey)) break;
-      trenchKeys.add(tileKey);
-      cr = nr;
-      cc = nc;
-    }
-  }
-
-  // Convert to TilePos
   const result: TilePos[] = [];
   for (const key of trenchKeys) {
     const { r, c } = unpackTile(key as TileKey);
     result.push({ row: r, col: c });
   }
-
   return result.length > 0 ? orderByNearest(result) : null;
 }
 
@@ -690,6 +585,173 @@ export function planGruntSweep(
     positions[0]!,
   ];
   return orderByNearest(positions, usableCannonCount);
+}
+
+/** Precondition: collect grunts on the opposite bank (enemy zone, 4-dir
+ *  adjacent to frozen water). Grunts are ownerless — partition by current
+ *  zone, not by any stored "victim" field. */
+function collectBankGrunts(
+  state: BattleViewState,
+  frozenTiles: ReadonlySet<number>,
+  playerZone: ZoneId | undefined,
+): TilePos[] {
+  const out: TilePos[] = [];
+  for (const grunt of state.grunts) {
+    const gruntZone = zoneAt(state.map, grunt.row, grunt.col);
+    if (gruntZone === undefined || gruntZone === playerZone) continue;
+    for (const [dr, dc] of DIRS_4) {
+      const nr = grunt.row + dr;
+      const nc = grunt.col + dc;
+      if (!inBounds(nr, nc)) continue;
+      if (frozenTiles.has(packTile(nr, nc))) {
+        out.push({ row: grunt.row, col: grunt.col });
+        break;
+      }
+    }
+  }
+  return out;
+}
+
+/** Frozen tiles 4-dir adjacent to AI-zone grass — the shore from which the
+ *  trench will extend across the river. */
+function findIceShoreline(
+  state: BattleViewState,
+  frozenTiles: ReadonlySet<number>,
+  playerZone: ZoneId | undefined,
+): number[] {
+  const out: number[] = [];
+  for (const key of frozenTiles) {
+    const { r, c } = unpackTile(key as TileKey);
+    for (const [dr, dc] of DIRS_4) {
+      const nr = r + dr;
+      const nc = c + dc;
+      if (!inBounds(nr, nc)) continue;
+      if (
+        isGrass(state.map.tiles, nr, nc) &&
+        zoneAt(state.map, nr, nc) === playerZone
+      ) {
+        out.push(key);
+        break;
+      }
+    }
+  }
+  return out;
+}
+
+/** Score each shoreline tile by distance to the nearest bank grunt, then
+ *  pick randomly among the top 5 for variety. */
+function pickAnchor(
+  shoreline: readonly number[],
+  bankGrunts: readonly TilePos[],
+  rng: Rng,
+): number {
+  const scored = shoreline.map((shoreKey) => {
+    const { r, c } = unpackTile(shoreKey as TileKey);
+    let minDist = Infinity;
+    for (const grunt of bankGrunts) {
+      const dist = manhattanDistance(grunt.row, grunt.col, r, c);
+      if (dist < minDist) minDist = dist;
+    }
+    return { key: shoreKey, dist: minDist };
+  });
+  scored.sort((a, b) => a.dist - b.dist);
+  const topCount = Math.min(scored.length, 5);
+  return scored[rng.int(0, topCount - 1)]!.key;
+}
+
+/** Direction from the anchor pointing across the river (opposite of the
+ *  cardinal that lands on AI-zone grass). null if the anchor is unexpectedly
+ *  not adjacent to AI-zone grass. */
+function inwardFromShore(
+  state: BattleViewState,
+  anchor: { r: number; c: number },
+  playerZone: ZoneId | undefined,
+): readonly [number, number] | null {
+  for (const [dr, dc] of DIRS_4) {
+    const nr = anchor.r + dr;
+    const nc = anchor.c + dc;
+    if (!inBounds(nr, nc)) continue;
+    if (zoneAt(state.map, nr, nc) === playerZone) {
+      return [-dr, -dc] as const;
+    }
+  }
+  return null;
+}
+
+/** U-shape trench: base walks laterally along the shore from the anchor,
+ *  arms then curve diagonally inward from each base end toward the enemy. */
+function buildUTrench(
+  frozenTiles: ReadonlySet<number>,
+  anchor: { r: number; c: number },
+  anchorKey: number,
+  inward: readonly [number, number],
+): Set<number> {
+  const lateral1: [number, number] = inward[0] === 0 ? [1, 0] : [0, 1];
+  const lateral2: [number, number] = inward[0] === 0 ? [-1, 0] : [0, -1];
+
+  const trenchKeys = new Set<number>();
+  trenchKeys.add(anchorKey);
+
+  const armStarts: [number, number][] = [];
+  for (const lateral of [lateral1, lateral2]) {
+    const end = walkAlongIce(
+      frozenTiles,
+      trenchKeys,
+      anchor.r,
+      anchor.c,
+      (cr, cc) => [cr + lateral[0], cc + lateral[1]],
+      ICE_TRENCH_BASE_HALF,
+    );
+    armStarts.push(end);
+  }
+
+  for (let idx = 0; idx < armStarts.length; idx++) {
+    const [startR, startC] = armStarts[idx]!;
+    const lateral = idx === 0 ? lateral1 : lateral2;
+    walkAlongIce(
+      frozenTiles,
+      trenchKeys,
+      startR,
+      startC,
+      (cr, cc) => {
+        // Prefer diagonal, fall back to straight inward.
+        const diagR = cr + inward[0] + lateral[0];
+        const diagC = cc + inward[1] + lateral[1];
+        if (inBounds(diagR, diagC) && frozenTiles.has(packTile(diagR, diagC))) {
+          return [diagR, diagC];
+        }
+        return [cr + inward[0], cc + inward[1]];
+      },
+      ICE_TRENCH_ARM_LENGTH,
+    );
+  }
+
+  return trenchKeys;
+}
+
+/** Walk up to `maxSteps` along frozen tiles, adding each to `trenchKeys`.
+ *  `nextStep` picks the next (row, col) from the current cursor. Stops on
+ *  out-of-bounds or non-frozen tile. Returns the final cursor position. */
+function walkAlongIce(
+  frozenTiles: ReadonlySet<number>,
+  trenchKeys: Set<number>,
+  startR: number,
+  startC: number,
+  nextStep: (cr: number, cc: number) => [number, number],
+  maxSteps: number,
+): [number, number] {
+  let cr = startR;
+  let cc = startC;
+  for (let step = 0; step < maxSteps; step++) {
+    const [nr, nc] = nextStep(cr, cc);
+    if (!inBounds(nr, nc)) break;
+    const tileKey = packTile(nr, nc);
+    if (!frozenTiles.has(tileKey)) break;
+    trenchKeys.add(tileKey);
+    cr = nr;
+    cc = nc;
+  }
+  return [cr, cc];
 }
 
 function collectStrategicWallTargets(

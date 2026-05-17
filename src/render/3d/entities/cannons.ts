@@ -7,7 +7,10 @@
  */
 
 import * as THREE from "three";
-import type { CannonMode } from "../../../shared/core/battle-types.ts";
+import type {
+  Cannon as BattleCannon,
+  CannonMode,
+} from "../../../shared/core/battle-types.ts";
 import {
   isBalloonCannon,
   isCannonAlive,
@@ -203,21 +206,7 @@ export function createCannonsManager(
       return;
     }
 
-    // Pre-bucket cannons by variant so we know capacity up front.
-    const byVariant = new Map<VariantName, Cannon[]>();
-    for (const castle of overlay.castles) {
-      for (const cannon of castle.cannons) {
-        if (!isCannonAlive(cannon)) continue;
-        if (isBalloonCannon(cannon)) continue;
-        const variant = selectVariant(cannon, castle.cannonTier);
-        let list = byVariant.get(variant);
-        if (!list) {
-          list = [];
-          byVariant.set(variant, list);
-        }
-        list.push(cannon);
-      }
-    }
+    const byVariant = bucketLiveCannonsByVariant(overlay.castles);
 
     // Variants that have a bucket but no live cannons this frame —
     // zero their count so stale instances don't ghost-render.
@@ -225,79 +214,90 @@ export function createCannonsManager(
       if (!byVariant.has(variant)) hideSubParts(bucket.subParts);
     }
 
-    const inBattle = overlay?.phase === Phase.BATTLE;
-
-    // Write matrices for each live variant.
+    const inBattle = overlay.phase === Phase.BATTLE;
     for (const [variant, list] of byVariant) {
-      const bucket = ensureBucket(variant, list.length);
-      if (!bucket) continue;
-      const isSuper = variant === "super_gun";
-      const isRampart = variant === "rampart_cannon";
-      const offset = isSuper ? TILE_3X3_CENTER_OFFSET : TILE_2X2_CENTER_OFFSET;
-      const size = cannonSize(list[0]!.mode);
-      const scale = cannonScaleForSize(size);
-      hostScale.set(scale, scale, scale);
-      const pivot = bucket.barrelPivot;
-      fillBucket(
-        bucket,
-        list,
-        hostMatrix,
-        instanceMatrix,
-        (cannon, matrix) => {
-          hostTranslation.set(
-            cannon.col * TILE_SIZE + offset,
-            0,
-            cannon.row * TILE_SIZE + offset,
-          );
-          // Rampart has no barrel and never rotates; every other variant
-          // rotates by `-facing` on Y (game's CW convention vs three.js's
-          // CCW-from-+Y). Non-rampart cannons use the eased displayed
-          // facing (owned by `runtime/subsystems/cannon-animator.ts`) so abrupt
-          // state changes (battle-end reset, post-fire aim shifts) render
-          // as a rotation rather than a snap. Falls back to authoritative
-          // `cannon.facing` if the animator hasn't seeded an entry yet
-          // (race-free first frame).
-          const facing = isRampart
-            ? 0
-            : (getCannonFacing(cannon.col, cannon.row) ?? cannon.facing ?? 0);
-          hostQuaternion.setFromAxisAngle(yAxis, -facing);
-          matrix.compose(hostTranslation, hostQuaternion, hostScale);
-        },
-        // Per-instance local-matrix override: barrel sub-parts of a
-        // recoiling cannon get a pivoted R_x(recoil) pre-multiplied onto
-        // their authored local matrix. Static parts (base, cheeks,
-        // decorations) return undefined and keep their authored local.
-        pivot === undefined
-          ? undefined
-          : (cannon, part) => {
-              if (!subPartHasTag(part, "barrel")) return undefined;
-              const pitch = getBarrelPitch(cannon);
-              if (pitch === 0) return undefined;
-              // T(pivot) · R_x(pitch) · T(-pivot) · localMatrix
-              barrelAdjust.makeTranslation(pivot.x, pivot.y, pivot.z);
-              barrelRotation.makeRotationX(pitch);
-              barrelAdjust.multiply(barrelRotation);
-              negPivot.set(-pivot.x, -pivot.y, -pivot.z);
-              barrelRotation.makeTranslation(
-                negPivot.x,
-                negPivot.y,
-                negPivot.z,
-              );
-              barrelAdjust.multiply(barrelRotation);
-              barrelAdjust.multiply(part.localMatrix);
-              return barrelAdjust;
-            },
-      );
-      // Ground discs (the swivel base + the authored shadow/AO halos)
-      // stay hidden during battle so the cannon reads as planted on the
-      // terrain itself. Authored-side tag drives the hide — no name
-      // coupling to "base" / "groundShadow" / "groundAO".
-      for (const subPart of bucket.subParts) {
-        if (subPartHasTag(subPart, "battle-hidden")) {
-          subPart.instanced.visible = !inBattle;
-        }
+      writeBucketForVariant(variant, list, inBattle);
+    }
+  }
+
+  function writeBucketForVariant(
+    variant: VariantName,
+    list: Cannon[],
+    inBattle: boolean,
+  ): void {
+    const bucket = ensureBucket(variant, list.length);
+    if (!bucket) return;
+    const isSuper = variant === "super_gun";
+    const isRampart = variant === "rampart_cannon";
+    const offset = isSuper ? TILE_3X3_CENTER_OFFSET : TILE_2X2_CENTER_OFFSET;
+    const size = cannonSize(list[0]!.mode);
+    hostScale.set(
+      cannonScaleForSize(size),
+      cannonScaleForSize(size),
+      cannonScaleForSize(size),
+    );
+    const pivot = bucket.barrelPivot;
+    fillBucket(
+      bucket,
+      list,
+      hostMatrix,
+      instanceMatrix,
+      (cannon, matrix) =>
+        composeCannonInstanceMatrix(cannon, matrix, offset, isRampart),
+      pivot === undefined ? undefined : buildBarrelMatrixOverride(pivot),
+    );
+    // Ground discs (the swivel base + the authored shadow/AO halos)
+    // stay hidden during battle so the cannon reads as planted on the
+    // terrain itself. Authored-side tag drives the hide — no name
+    // coupling to "base" / "groundShadow" / "groundAO".
+    for (const subPart of bucket.subParts) {
+      if (subPartHasTag(subPart, "battle-hidden")) {
+        subPart.instanced.visible = !inBattle;
       }
     }
+  }
+
+  function composeCannonInstanceMatrix(
+    cannon: Cannon,
+    matrix: THREE.Matrix4,
+    offset: number,
+    isRampart: boolean,
+  ): void {
+    hostTranslation.set(
+      cannon.col * TILE_SIZE + offset,
+      0,
+      cannon.row * TILE_SIZE + offset,
+    );
+    // Rampart has no barrel and never rotates; every other variant rotates
+    // by `-facing` on Y (game's CW convention vs three.js's CCW-from-+Y).
+    // Non-rampart cannons use the eased displayed facing so abrupt state
+    // changes (battle-end reset, post-fire aim shifts) render as a rotation
+    // rather than a snap. Falls back to authoritative `cannon.facing` if
+    // the animator hasn't seeded an entry yet (race-free first frame).
+    const facing = isRampart
+      ? 0
+      : (getCannonFacing(cannon.col, cannon.row) ?? cannon.facing ?? 0);
+    hostQuaternion.setFromAxisAngle(yAxis, -facing);
+    matrix.compose(hostTranslation, hostQuaternion, hostScale);
+  }
+
+  function buildBarrelMatrixOverride(
+    pivot: THREE.Vector3,
+  ): (cannon: Cannon, part: BucketSubPart) => THREE.Matrix4 | undefined {
+    return (cannon, part) => {
+      if (!subPartHasTag(part, "barrel")) return undefined;
+      const pitch = getBarrelPitch(cannon);
+      if (pitch === 0) return undefined;
+      // T(pivot) · R_x(pitch) · T(-pivot) · localMatrix
+      barrelAdjust.makeTranslation(pivot.x, pivot.y, pivot.z);
+      barrelRotation.makeRotationX(pitch);
+      barrelAdjust.multiply(barrelRotation);
+      negPivot.set(-pivot.x, -pivot.y, -pivot.z);
+      barrelRotation.makeTranslation(negPivot.x, negPivot.y, negPivot.z);
+      barrelAdjust.multiply(barrelRotation);
+      barrelAdjust.multiply(part.localMatrix);
+      return barrelAdjust;
+    };
   }
 
   /** Set `targetPitch = BARREL_RECOIL_PITCH` for every cannon that
@@ -363,6 +363,32 @@ export function createCannonsManager(
   }
 
   return { update, dispose };
+}
+
+/** Group live, non-balloon cannons across all castles by their rendered
+ *  variant so the per-variant matrix-write loop knows its bucket capacity
+ *  up front. */
+function bucketLiveCannonsByVariant(
+  castles: readonly {
+    cannons: readonly BattleCannon[];
+    cannonTier: 1 | 2 | 3;
+  }[],
+): Map<VariantName, Cannon[]> {
+  const byVariant = new Map<VariantName, Cannon[]>();
+  for (const castle of castles) {
+    for (const cannon of castle.cannons) {
+      if (!isCannonAlive(cannon)) continue;
+      if (isBalloonCannon(cannon)) continue;
+      const variant = selectVariant(cannon, castle.cannonTier);
+      let list = byVariant.get(variant);
+      if (!list) {
+        list = [];
+        byVariant.set(variant, list);
+      }
+      list.push(cannon);
+    }
+  }
+  return byVariant;
 }
 
 /** Pick a bucket key for the cannon. Mirrors the 2D path's switch. The

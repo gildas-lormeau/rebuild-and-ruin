@@ -131,124 +131,11 @@ export function createDebrisManager(scene: THREE.Scene): DebrisManager {
     towers: readonly Tower[] | undefined,
   ): DebrisEntry[] {
     const entries: DebrisEntry[] = [];
-    const rubbleClearingFade = overlay.battle?.rubbleClearingFade ?? 1;
-
-    // Per-tile debris-opacity overrides from active destroyedWalls
-    // entries (cross-fade-in matching the held mesh's sink). The
-    // battleWalls loop below picks up the override; tiles not in
-    // destroyedWalls render at full opacity (default rubble).
-    const destroyedWalls = overlay.battle?.destroyedWalls;
-    const debrisOpacityByTileKey = new Map<number, number>();
-    if (destroyedWalls) {
-      for (const wall of destroyedWalls) {
-        const opacity = wallDestroyAnimAt(wall.age * 1000).debrisOpacity;
-        debrisOpacityByTileKey.set(wall.row * GRID_COLS + wall.col, opacity);
-      }
-    }
-
-    // Wall debris: (playerId) × (tile in battleWalls but not in current walls).
-    const battleWalls = overlay.battle?.battleWalls;
-    if (battleWalls && overlay.castles) {
-      for (const castle of overlay.castles) {
-        const origWalls = battleWalls[castle.playerId];
-        if (!origWalls) continue;
-        for (const key of origWalls) {
-          if (castle.walls.has(key)) continue;
-          const { row, col } = unpackTileKey(key);
-          const variantName = wallDebrisVariantName(col, row);
-          entries.push({
-            key: variantName,
-            variantName,
-            centerPxX: (col + 0.5) * TILE_SIZE,
-            centerPxZ: (row + 0.5) * TILE_SIZE,
-            scale: DEBRIS_SCALE_1X1,
-            ownerId: undefined,
-            opacity: debrisOpacityByTileKey.get(key) ?? 1,
-          });
-        }
-      }
-    }
-
-    // Cannon debris: dead cannons across every castle.
-    if (overlay.castles) {
-      for (const castle of overlay.castles) {
-        for (const cannon of castle.cannons) {
-          if (isCannonAlive(cannon)) continue;
-          const variantName = cannonDebrisVariantName(
-            cannon,
-            castle.cannonTier,
-          );
-          const isSuper = isSuperCannon(cannon);
-          const offset = isSuper
-            ? TILE_3X3_CENTER_OFFSET
-            : TILE_2X2_CENTER_OFFSET;
-          entries.push({
-            key: variantName,
-            variantName,
-            centerPxX: cannon.col * TILE_SIZE + offset,
-            centerPxZ: cannon.row * TILE_SIZE + offset,
-            scale: DEBRIS_SCALE_2X2,
-            ownerId: undefined,
-            opacity: 1,
-          });
-        }
-      }
-    }
-
-    // Tower debris: dead towers. Home towers fork by ownerId so the
-    // flag chunk carries the right color.
-    const aliveMask = overlay.entities?.towerAlive;
-    const ownedTowers = overlay.entities?.ownedTowers;
-    if (aliveMask && towers) {
-      for (let i = 0; i < towers.length; i++) {
-        if (aliveMask[i] !== false) continue;
-        const tower = towers[i]!;
-        const ownerId = ownedTowers?.get(i) as ValidPlayerId | undefined;
-        const variantName =
-          ownerId !== undefined
-            ? "home_tower_debris"
-            : "secondary_tower_debris";
-        const bucketKey =
-          ownerId !== undefined ? `${variantName}:${ownerId}` : variantName;
-        entries.push({
-          key: bucketKey,
-          variantName,
-          centerPxX: tower.col * TILE_SIZE + TILE_2X2_CENTER_OFFSET,
-          centerPxZ: tower.row * TILE_SIZE + TILE_2X2_CENTER_OFFSET,
-          scale: DEBRIS_SCALE_2X2,
-          ownerId,
-          opacity: 1,
-        });
-      }
-    }
-
-    // Held dead-cannon footprints from the rubble_clearing fade. Live
-    // entries already left `player.cannons`, but the snapshot persists
-    // until the multiplier ramps to 0; rendered with the same variant
-    // pipeline as live ones, with per-instance opacity = fade.
-    const heldDeadCannons = overlay.battle?.heldDeadCannons;
-    if (heldDeadCannons) {
-      for (const held of heldDeadCannons) {
-        const variantName = cannonDebrisVariantName(
-          { mode: held.mode, mortar: held.mortar },
-          held.tier,
-        );
-        const isSuper = isSuperCannon({ mode: held.mode });
-        const offset = isSuper
-          ? TILE_3X3_CENTER_OFFSET
-          : TILE_2X2_CENTER_OFFSET;
-        entries.push({
-          key: variantName,
-          variantName,
-          centerPxX: held.col * TILE_SIZE + offset,
-          centerPxZ: held.row * TILE_SIZE + offset,
-          scale: DEBRIS_SCALE_2X2,
-          ownerId: undefined,
-          opacity: rubbleClearingFade,
-        });
-      }
-    }
-
+    const debrisOpacityByTileKey = buildDebrisOpacityMap(overlay);
+    collectWallDebris(entries, overlay, debrisOpacityByTileKey);
+    collectDeadCannonDebris(entries, overlay);
+    collectDeadTowerDebris(entries, overlay, towers);
+    collectHeldDeadCannonDebris(entries, overlay);
     return entries;
   }
 
@@ -334,6 +221,134 @@ export function createDebrisManager(scene: THREE.Scene): DebrisManager {
 
 /** Pick between the A/B wall-debris variant names from a stable hash of
  *  the tile position, so adjacent ruined walls don't render identically. */
+/** Per-tile debris-opacity overrides from active destroyedWalls entries
+ *  (cross-fade-in matching the held mesh's sink). The wall-debris loop
+ *  picks up the override; tiles not in destroyedWalls render at full
+ *  opacity (default rubble). */
+function buildDebrisOpacityMap(overlay: RenderOverlay): Map<number, number> {
+  const out = new Map<number, number>();
+  const destroyedWalls = overlay.battle?.destroyedWalls;
+  if (!destroyedWalls) return out;
+  for (const wall of destroyedWalls) {
+    const opacity = wallDestroyAnimAt(wall.age * 1000).debrisOpacity;
+    out.set(wall.row * GRID_COLS + wall.col, opacity);
+  }
+  return out;
+}
+
+/** Wall debris: tiles in battleWalls that aren't in the current walls set. */
+function collectWallDebris(
+  entries: DebrisEntry[],
+  overlay: RenderOverlay,
+  debrisOpacityByTileKey: ReadonlyMap<number, number>,
+): void {
+  const battleWalls = overlay.battle?.battleWalls;
+  if (!battleWalls || !overlay.castles) return;
+  for (const castle of overlay.castles) {
+    const origWalls = battleWalls[castle.playerId];
+    if (!origWalls) continue;
+    for (const key of origWalls) {
+      if (castle.walls.has(key)) continue;
+      const { row, col } = unpackTileKey(key);
+      const variantName = wallDebrisVariantName(col, row);
+      entries.push({
+        key: variantName,
+        variantName,
+        centerPxX: (col + 0.5) * TILE_SIZE,
+        centerPxZ: (row + 0.5) * TILE_SIZE,
+        scale: DEBRIS_SCALE_1X1,
+        ownerId: undefined,
+        opacity: debrisOpacityByTileKey.get(key) ?? 1,
+      });
+    }
+  }
+}
+
+function collectDeadCannonDebris(
+  entries: DebrisEntry[],
+  overlay: RenderOverlay,
+): void {
+  if (!overlay.castles) return;
+  for (const castle of overlay.castles) {
+    for (const cannon of castle.cannons) {
+      if (isCannonAlive(cannon)) continue;
+      const variantName = cannonDebrisVariantName(cannon, castle.cannonTier);
+      const offset = isSuperCannon(cannon)
+        ? TILE_3X3_CENTER_OFFSET
+        : TILE_2X2_CENTER_OFFSET;
+      entries.push({
+        key: variantName,
+        variantName,
+        centerPxX: cannon.col * TILE_SIZE + offset,
+        centerPxZ: cannon.row * TILE_SIZE + offset,
+        scale: DEBRIS_SCALE_2X2,
+        ownerId: undefined,
+        opacity: 1,
+      });
+    }
+  }
+}
+
+/** Dead towers. Home towers fork by ownerId so the flag chunk carries
+ *  the right color. */
+function collectDeadTowerDebris(
+  entries: DebrisEntry[],
+  overlay: RenderOverlay,
+  towers: readonly Tower[] | undefined,
+): void {
+  const aliveMask = overlay.entities?.towerAlive;
+  if (!aliveMask || !towers) return;
+  const ownedTowers = overlay.entities?.ownedTowers;
+  for (let i = 0; i < towers.length; i++) {
+    if (aliveMask[i] !== false) continue;
+    const tower = towers[i]!;
+    const ownerId = ownedTowers?.get(i) as ValidPlayerId | undefined;
+    const variantName =
+      ownerId !== undefined ? "home_tower_debris" : "secondary_tower_debris";
+    const bucketKey =
+      ownerId !== undefined ? `${variantName}:${ownerId}` : variantName;
+    entries.push({
+      key: bucketKey,
+      variantName,
+      centerPxX: tower.col * TILE_SIZE + TILE_2X2_CENTER_OFFSET,
+      centerPxZ: tower.row * TILE_SIZE + TILE_2X2_CENTER_OFFSET,
+      scale: DEBRIS_SCALE_2X2,
+      ownerId,
+      opacity: 1,
+    });
+  }
+}
+
+/** Held dead-cannon footprints from the rubble_clearing fade. Live entries
+ *  already left `player.cannons`, but the snapshot persists until the
+ *  multiplier ramps to 0; rendered with per-instance opacity = fade. */
+function collectHeldDeadCannonDebris(
+  entries: DebrisEntry[],
+  overlay: RenderOverlay,
+): void {
+  const heldDeadCannons = overlay.battle?.heldDeadCannons;
+  if (!heldDeadCannons) return;
+  const rubbleClearingFade = overlay.battle?.rubbleClearingFade ?? 1;
+  for (const held of heldDeadCannons) {
+    const variantName = cannonDebrisVariantName(
+      { mode: held.mode, mortar: held.mortar },
+      held.tier,
+    );
+    const offset = isSuperCannon({ mode: held.mode })
+      ? TILE_3X3_CENTER_OFFSET
+      : TILE_2X2_CENTER_OFFSET;
+    entries.push({
+      key: variantName,
+      variantName,
+      centerPxX: held.col * TILE_SIZE + offset,
+      centerPxZ: held.row * TILE_SIZE + offset,
+      scale: DEBRIS_SCALE_2X2,
+      ownerId: undefined,
+      opacity: rubbleClearingFade,
+    });
+  }
+}
+
 function wallDebrisVariantName(col: number, row: number): string {
   // Small integer hash — any bit spreader works; this one is commutative-
   // avoiding so swapping col/row picks a different bucket.
