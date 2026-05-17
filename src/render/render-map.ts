@@ -702,12 +702,10 @@ function propagateDistances(
   pixelPass(dist, W, H, source, H - 1, -1, -1, W - 1, -1, -1, 1, 1);
 }
 
-/** Single forward-or-backward chamfer pass over `dist`. Hoisted to module
- *  scope so the inner relax doesn't allocate any closures per pixel. The
- *  four already-visited neighbors are the previous-row's same-column
- *  cardinal and both diagonals (left + right) plus the same-row's
- *  previous-column cardinal — a fixed pattern derived from
- *  `(rowOffset, colOffset)`. */
+/** Single forward-or-backward chamfer pass over `dist`. The four
+ *  already-visited neighbors are the previous-row's same-column cardinal
+ *  and both diagonals (left + right) plus the same-row's previous-column
+ *  cardinal — a fixed pattern derived from `(rowOffset, colOffset)`. */
 function pixelPass(
   dist: Float32Array,
   W: number,
@@ -726,8 +724,6 @@ function pixelPass(
     for (let px = pxStart; px !== pxEnd; px += pxStep) {
       const i = py * W + px;
       if (dist[i] === 0) continue;
-      let distance = dist[i]!;
-      let bestSource = source !== undefined ? source[i]! : 0;
       const prevRow = py + rowOffset;
       const prevCol = px + colOffset;
       const oppCol = px - colOffset;
@@ -735,44 +731,36 @@ function pixelPass(
       const prevColInBounds = prevCol >= 0 && prevCol < W;
       const oppColInBounds = oppCol >= 0 && oppCol < W;
 
-      // Relax against the four already-visited neighbors. Inlined (rather
-      // than extracted into a closure) so the inner loop allocates nothing.
       if (prevRowInBounds) {
-        const neighborIdx = prevRow * W + px;
-        const cand = dist[neighborIdx]! + CHAMFER_ORTHO;
-        if (cand < distance) {
-          distance = cand;
-          if (source !== undefined) bestSource = source[neighborIdx]!;
-        }
+        relax(dist, source, i, prevRow * W + px, CHAMFER_ORTHO);
       }
       if (prevColInBounds) {
-        const neighborIdx = py * W + prevCol;
-        const cand = dist[neighborIdx]! + CHAMFER_ORTHO;
-        if (cand < distance) {
-          distance = cand;
-          if (source !== undefined) bestSource = source[neighborIdx]!;
-        }
+        relax(dist, source, i, py * W + prevCol, CHAMFER_ORTHO);
       }
       if (prevRowInBounds && prevColInBounds) {
-        const neighborIdx = prevRow * W + prevCol;
-        const cand = dist[neighborIdx]! + CHAMFER_DIAG;
-        if (cand < distance) {
-          distance = cand;
-          if (source !== undefined) bestSource = source[neighborIdx]!;
-        }
+        relax(dist, source, i, prevRow * W + prevCol, CHAMFER_DIAG);
       }
       if (prevRowInBounds && oppColInBounds) {
-        const neighborIdx = prevRow * W + oppCol;
-        const cand = dist[neighborIdx]! + CHAMFER_DIAG;
-        if (cand < distance) {
-          distance = cand;
-          if (source !== undefined) bestSource = source[neighborIdx]!;
-        }
+        relax(dist, source, i, prevRow * W + oppCol, CHAMFER_DIAG);
       }
-
-      dist[i] = distance;
-      if (source !== undefined) source[i] = bestSource;
     }
+  }
+}
+
+/** Relax `dist[i]` against a single already-visited neighbor. Module-scope
+ *  (not a closure) so no per-pixel allocation; writes through to `dist`/
+ *  `source` directly instead of accumulating locals in the caller. */
+function relax(
+  dist: Float32Array,
+  source: Uint16Array | undefined,
+  i: number,
+  neighborIdx: number,
+  cost: number,
+): void {
+  const cand = dist[neighborIdx]! + cost;
+  if (cand < dist[i]!) {
+    dist[i] = cand;
+    if (source !== undefined) source[i] = source[neighborIdx]!;
   }
 }
 

@@ -117,117 +117,18 @@ export function buildGrid(
   layer: MapLayer,
   playerFilter: number | undefined,
 ): Cell[][] {
-  const grid: Cell[][] = [];
-
-  for (let row = 0; row < GRID_ROWS; row++) {
-    const rowCells: Cell[] = [];
-    for (let col = 0; col < GRID_COLS; col++) {
-      if (isWater(state.map.tiles, row, col)) {
-        rowCells.push({ kind: CellKind.Water, char: "~", playerId: NO_OWNER });
-      } else {
-        rowCells.push({ kind: CellKind.Grass, char: ".", playerId: NO_OWNER });
-      }
-    }
-    grid.push(rowCells);
-  }
-
-  // Frozen tiles (overlay on water — must come before territory)
-  const frozenTiles = state.modern?.frozenTiles;
-  if (frozenTiles) {
-    for (const key of frozenTiles) {
-      const { r, c } = unpackTile(key);
-      setCell(grid, r, c, CellKind.FrozenWater, "f", NO_OWNER);
-    }
-  }
-
+  const grid = paintBase(state);
+  paintFrozenTiles(grid, state);
   if (layer === "terrain") return grid;
-
-  // Territory + walls
-  for (const player of state.players) {
-    if (isPlayerEliminated(player)) continue;
-    if (playerFilter !== undefined && player.id !== playerFilter) continue;
-    // Intentionally reads player.interior directly (no getInterior) —
-    // debug grid must work during battle when interior is stale by design.
-    for (const key of player.interior) {
-      const { r, c } = unpackTile(key as TileKey);
-      setCell(grid, r, c, CellKind.Interior, "░", player.id);
-    }
-    for (const key of player.walls) {
-      const { r, c } = unpackTile(key);
-      setCell(grid, r, c, CellKind.Wall, "#", player.id);
-    }
-  }
-
+  paintTerritoryAndWalls(grid, state, playerFilter);
   if (layer === "walls") return grid;
-
-  // Bonus squares
-  for (const bonus of state.bonusSquares) {
-    setCell(grid, bonus.row, bonus.col, CellKind.BonusSquare, "+", NO_OWNER);
-  }
-
-  // Burning pits
-  for (const pit of state.burningPits) {
-    setCell(grid, pit.row, pit.col, CellKind.BurningPit, "*", NO_OWNER);
-  }
-
-  // Houses (alive and dead)
-  for (const house of state.map.houses) {
-    const char = house.alive ? "H" : "h";
-    setCell(grid, house.row, house.col, CellKind.House, char, NO_OWNER);
-  }
-
-  // Towers (2×2)
-  for (let tIdx = 0; tIdx < state.map.towers.length; tIdx++) {
-    const tower = state.map.towers[tIdx]!;
-    const alive = state.towerAlive[tIdx]!;
-    const kind = alive ? CellKind.TowerAlive : CellKind.TowerDead;
-    const char = alive ? "T" : "t";
-    for (let dr = 0; dr < TOWER_SIZE; dr++) {
-      for (let dc = 0; dc < TOWER_SIZE; dc++) {
-        setCell(grid, tower.row + dr, tower.col + dc, kind, char, NO_OWNER);
-      }
-    }
-  }
-
-  // Cannons (paint the full size×size footprint, mirroring how towers
-  // render — previously only the top-left tile was painted, leaving the
-  // rest of the footprint reading as interior/grass which mismatched
-  // `inspectTile`'s `isCannonTile` view).
-  for (const player of state.players) {
-    if (isPlayerEliminated(player)) continue;
-    if (playerFilter !== undefined && player.id !== playerFilter) continue;
-    for (const cannon of player.cannons) {
-      const char = cannon.hp <= 0 ? "x" : "C";
-      const size = cannonModeDef(cannon.mode).size;
-      for (let dr = 0; dr < size; dr++) {
-        for (let dc = 0; dc < size; dc++) {
-          setCell(
-            grid,
-            cannon.row + dr,
-            cannon.col + dc,
-            CellKind.Cannon,
-            char,
-            player.id,
-          );
-        }
-      }
-    }
-  }
-
-  // Grunts
-  for (const grunt of state.grunts) {
-    setCell(grid, grunt.row, grunt.col, CellKind.Grunt, "!", NO_OWNER);
-  }
-
-  // Cannonballs (snap to nearest tile)
-  for (const ball of state.cannonballs) {
-    const row = Math.round(ball.y / TILE_SIZE);
-    const col = Math.round(ball.x / TILE_SIZE);
-    if (inBounds(row, col)) {
-      setCell(grid, row, col, CellKind.Cannonball, "o", NO_OWNER);
-    }
-  }
-
+  paintBonusSquares(grid, state);
+  paintBurningPits(grid, state);
+  paintHouses(grid, state);
+  paintTowers(grid, state);
+  paintCannons(grid, state, playerFilter);
+  paintGrunts(grid, state);
+  paintCannonballs(grid, state);
   return grid;
 }
 
@@ -405,6 +306,135 @@ export function buildLegend(state: GameState): string {
     "C cannon  x debris  ! grunt  * burning pit  + bonus  o cannonball",
     "Walls: r=Red  b=Blue  g=Gold  |  Cannons: R=Red  B=Blue  G=Gold",
   ].join("\n");
+}
+
+function paintBase(state: GameState): Cell[][] {
+  const grid: Cell[][] = [];
+  for (let row = 0; row < GRID_ROWS; row++) {
+    const rowCells: Cell[] = [];
+    for (let col = 0; col < GRID_COLS; col++) {
+      if (isWater(state.map.tiles, row, col)) {
+        rowCells.push({ kind: CellKind.Water, char: "~", playerId: NO_OWNER });
+      } else {
+        rowCells.push({ kind: CellKind.Grass, char: ".", playerId: NO_OWNER });
+      }
+    }
+    grid.push(rowCells);
+  }
+  return grid;
+}
+
+/** Frozen-water overlay — painted before territory so interior/walls can
+ *  still win the priority test on shoreline tiles. */
+function paintFrozenTiles(grid: Cell[][], state: GameState): void {
+  const frozenTiles = state.modern?.frozenTiles;
+  if (!frozenTiles) return;
+  for (const key of frozenTiles) {
+    const { r, c } = unpackTile(key);
+    setCell(grid, r, c, CellKind.FrozenWater, "f", NO_OWNER);
+  }
+}
+
+/** Interior + walls for every non-eliminated player (optionally filtered to
+ *  one player). Reads `player.interior` directly — debug grid must work
+ *  during battle when interior is stale by design. */
+function paintTerritoryAndWalls(
+  grid: Cell[][],
+  state: GameState,
+  playerFilter: number | undefined,
+): void {
+  for (const player of state.players) {
+    if (isPlayerEliminated(player)) continue;
+    if (playerFilter !== undefined && player.id !== playerFilter) continue;
+    for (const key of player.interior) {
+      const { r, c } = unpackTile(key as TileKey);
+      setCell(grid, r, c, CellKind.Interior, "░", player.id);
+    }
+    for (const key of player.walls) {
+      const { r, c } = unpackTile(key);
+      setCell(grid, r, c, CellKind.Wall, "#", player.id);
+    }
+  }
+}
+
+function paintBonusSquares(grid: Cell[][], state: GameState): void {
+  for (const bonus of state.bonusSquares) {
+    setCell(grid, bonus.row, bonus.col, CellKind.BonusSquare, "+", NO_OWNER);
+  }
+}
+
+function paintBurningPits(grid: Cell[][], state: GameState): void {
+  for (const pit of state.burningPits) {
+    setCell(grid, pit.row, pit.col, CellKind.BurningPit, "*", NO_OWNER);
+  }
+}
+
+function paintHouses(grid: Cell[][], state: GameState): void {
+  for (const house of state.map.houses) {
+    const char = house.alive ? "H" : "h";
+    setCell(grid, house.row, house.col, CellKind.House, char, NO_OWNER);
+  }
+}
+
+/** 2×2 tower footprints. */
+function paintTowers(grid: Cell[][], state: GameState): void {
+  for (let tIdx = 0; tIdx < state.map.towers.length; tIdx++) {
+    const tower = state.map.towers[tIdx]!;
+    const alive = state.towerAlive[tIdx]!;
+    const kind = alive ? CellKind.TowerAlive : CellKind.TowerDead;
+    const char = alive ? "T" : "t";
+    for (let dr = 0; dr < TOWER_SIZE; dr++) {
+      for (let dc = 0; dc < TOWER_SIZE; dc++) {
+        setCell(grid, tower.row + dr, tower.col + dc, kind, char, NO_OWNER);
+      }
+    }
+  }
+}
+
+/** Cannon footprints (size×size, matching `inspectTile`'s `isCannonTile`
+ *  view — earlier versions only painted the top-left tile). */
+function paintCannons(
+  grid: Cell[][],
+  state: GameState,
+  playerFilter: number | undefined,
+): void {
+  for (const player of state.players) {
+    if (isPlayerEliminated(player)) continue;
+    if (playerFilter !== undefined && player.id !== playerFilter) continue;
+    for (const cannon of player.cannons) {
+      const char = cannon.hp <= 0 ? "x" : "C";
+      const size = cannonModeDef(cannon.mode).size;
+      for (let dr = 0; dr < size; dr++) {
+        for (let dc = 0; dc < size; dc++) {
+          setCell(
+            grid,
+            cannon.row + dr,
+            cannon.col + dc,
+            CellKind.Cannon,
+            char,
+            player.id,
+          );
+        }
+      }
+    }
+  }
+}
+
+function paintGrunts(grid: Cell[][], state: GameState): void {
+  for (const grunt of state.grunts) {
+    setCell(grid, grunt.row, grunt.col, CellKind.Grunt, "!", NO_OWNER);
+  }
+}
+
+/** Cannonballs snap to the nearest tile by pixel-center rounding. */
+function paintCannonballs(grid: Cell[][], state: GameState): void {
+  for (const ball of state.cannonballs) {
+    const row = Math.round(ball.y / TILE_SIZE);
+    const col = Math.round(ball.x / TILE_SIZE);
+    if (inBounds(row, col)) {
+      setCell(grid, row, col, CellKind.Cannonball, "o", NO_OWNER);
+    }
+  }
 }
 
 /** Extract only the grid body from an ASCII snapshot. Handles both plain
