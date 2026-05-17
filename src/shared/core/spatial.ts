@@ -12,6 +12,7 @@ import { TOWER_SIZE } from "./game-constants.ts";
 import type {
   GameMap,
   PixelPos,
+  TileBounds,
   TilePos,
   Tower,
   TowerIdx,
@@ -608,61 +609,20 @@ export function castleCenterPx(
   const pid = playerByZone(playerZones, zoneId);
   const player = pid !== undefined ? players[pid] : undefined;
   if (player) {
-    let minR = Number.POSITIVE_INFINITY;
-    let maxR = Number.NEGATIVE_INFINITY;
-    let minC = Number.POSITIVE_INFINITY;
-    let maxC = Number.NEGATIVE_INFINITY;
-    let any = false;
-    if (player.walls.size > 0) {
-      for (const key of player.walls) {
-        const { r, c } = unpackTile(key);
-        if (r < minR) minR = r;
-        if (r > maxR) maxR = r;
-        if (c < minC) minC = c;
-        if (c > maxC) maxC = c;
-        any = true;
-      }
-    }
-    if (player.homeTower) {
-      const tower = player.homeTower;
-      // 2x2 tower footprint extends to (row+1, col+1) inclusive.
-      if (tower.row < minR) minR = tower.row;
-      if (tower.row + 1 > maxR) maxR = tower.row + 1;
-      if (tower.col < minC) minC = tower.col;
-      if (tower.col + 1 > maxC) maxC = tower.col + 1;
-      any = true;
-    }
-    if (any) {
-      return {
-        x: ((minC + maxC + 1) * TILE_SIZE) / 2,
-        y: ((minR + maxR + 1) * TILE_SIZE) / 2,
-      };
+    const bounds: TileBounds = {
+      minR: Number.POSITIVE_INFINITY,
+      maxR: Number.NEGATIVE_INFINITY,
+      minC: Number.POSITIVE_INFINITY,
+      maxC: Number.NEGATIVE_INFINITY,
+    };
+    extendBoundsFromWalls(bounds, player.walls);
+    extendBoundsFromTower(bounds, player.homeTower);
+    if (bounds.minR !== Number.POSITIVE_INFINITY) {
+      return boundsCenterPx(bounds);
     }
   }
-  let minR = GRID_ROWS;
-  let maxR = 0;
-  let minC = GRID_COLS;
-  let maxC = 0;
-  for (let r = 0; r < GRID_ROWS; r++) {
-    const row = mapZones[r]!;
-    for (let c = 0; c < GRID_COLS; c++) {
-      if (row[c] === zoneId) {
-        if (r < minR) minR = r;
-        if (r > maxR) maxR = r;
-        if (c < minC) minC = c;
-        if (c > maxC) maxC = c;
-      }
-    }
-  }
-  return {
-    x: ((minC + maxC + 1) * TILE_SIZE) / 2,
-    y: ((minR + maxR + 1) * TILE_SIZE) / 2,
-  };
-}
-
-/** Convert a packed tile key back to row/column coordinates. */
-export function unpackTile(key: TileKey): { r: number; c: number } {
-  return { r: Math.floor(key / GRID_COLS), c: key % GRID_COLS };
+  const fallback = boundsFromZoneCells(mapZones, zoneId);
+  return boundsCenterPx(fallback);
 }
 
 /** Pixel center of a tower footprint. */
@@ -677,6 +637,64 @@ export function towerCenterPx(tilePos: TilePos): PixelPos {
 /** Convert a world-pixel coordinate to a tile index (floor division by TILE_SIZE). */
 export function pxToTile(px: number): number {
   return Math.floor(px / TILE_SIZE);
+}
+
+function extendBoundsFromWalls(
+  bounds: TileBounds,
+  walls: ReadonlySet<TileKey>,
+): void {
+  for (const key of walls) {
+    const { r, c } = unpackTile(key);
+    extendBounds(bounds, r, c);
+  }
+}
+
+/** Convert a packed tile key back to row/column coordinates. */
+export function unpackTile(key: TileKey): { r: number; c: number } {
+  return { r: Math.floor(key / GRID_COLS), c: key % GRID_COLS };
+}
+
+function extendBoundsFromTower(
+  bounds: TileBounds,
+  tower: Tower | null | undefined,
+): void {
+  if (!tower) return;
+  // 2x2 tower footprint extends to (row+1, col+1) inclusive.
+  extendBounds(bounds, tower.row, tower.col);
+  extendBounds(bounds, tower.row + 1, tower.col + 1);
+}
+
+function boundsFromZoneCells(
+  mapZones: readonly (readonly ZoneCell[])[],
+  zoneId: ZoneId,
+): TileBounds {
+  const bounds: TileBounds = {
+    minR: Number.POSITIVE_INFINITY,
+    maxR: Number.NEGATIVE_INFINITY,
+    minC: Number.POSITIVE_INFINITY,
+    maxC: Number.NEGATIVE_INFINITY,
+  };
+  for (let r = 0; r < GRID_ROWS; r++) {
+    const row = mapZones[r]!;
+    for (let c = 0; c < GRID_COLS; c++) {
+      if (row[c] === zoneId) extendBounds(bounds, r, c);
+    }
+  }
+  return bounds;
+}
+
+function extendBounds(bounds: TileBounds, row: number, col: number): void {
+  if (row < bounds.minR) bounds.minR = row;
+  if (row > bounds.maxR) bounds.maxR = row;
+  if (col < bounds.minC) bounds.minC = col;
+  if (col > bounds.maxC) bounds.maxC = col;
+}
+
+function boundsCenterPx(bounds: TileBounds): PixelPos {
+  return {
+    x: ((bounds.minC + bounds.maxC + 1) * TILE_SIZE) / 2,
+    y: ((bounds.minR + bounds.maxR + 1) * TILE_SIZE) / 2,
+  };
 }
 
 /** Visit all 8 in-bounds neighbors of (r, c). Passes neighbor (row, col, key)
