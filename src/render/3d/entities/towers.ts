@@ -2,8 +2,8 @@
  * 3D tower meshes. Variant: `home_tower` vs `secondary_tower` from
  * `overlay.entities.homeTowerIndices`; ownership tints flag/body/parapet.
  * Roofs stay neutral so identity reads via flag + wall tone. Dead towers
- * skip — `./debris.ts` owns rubble. Teardown+rebuild on a
- * `(variant, ownerId, idx)` fingerprint; ≤6 towers per map.
+ * skip — `./debris.ts` owns rubble. Per-tower incremental update: each
+ * tower owns its own host Group + signature; only changed towers rebuild.
  */
 
 import * as THREE from "three";
@@ -22,6 +22,12 @@ export interface TowersManager {
   dispose(): void;
 }
 
+interface TowerEntry {
+  host: THREE.Group;
+  ownedMaterials: THREE.Material[];
+  signature: string;
+}
+
 /** Tower-scene authors each turret in a ±1 frustum (2 world units wide)
  *  covering a 2-tile span. We want 2 cells = 2 game tiles, so we scale
  *  by TILE_SIZE — each authored 1 world unit becomes TILE_SIZE pixels. */
@@ -35,116 +41,119 @@ export function createTowersManager(scene: THREE.Scene): TowersManager {
   root.name = "towers";
   scene.add(root);
 
-  // Materials we created (not shared with tower-scene's shared texture
-  // objects — only the player-tint flag materials we clone). Tracked so
-  // dispose() can free them.
-  const ownedMaterials: THREE.Material[] = [];
-  let lastSignature: string | undefined;
+  // Per-tower entries keyed by `towers[]` index. Each owns its host
+  // Group + the player-tint materials it cloned (shared texture/material
+  // objects from tower-scene are not tracked — those are cached). Per-
+  // tower disposal lets a single ownership flip rebuild one tower
+  // instead of all of them.
+  const entries = new Map<number, TowerEntry>();
 
-  function buildAllTowers(
-    towers: readonly Tower[],
-    ownedTowers: ReadonlyMap<number, number> | undefined,
-    homeTowerIndices: ReadonlySet<number> | undefined,
-    aliveMask: readonly boolean[] | undefined,
-  ): void {
-    for (let i = 0; i < towers.length; i++) {
-      const tower = towers[i]!;
-      // Skip dead towers — the 3D debris manager (entities/debris.ts)
-      // renders their rubble under the separate `debris` layer flag.
-      // `towerAlive === undefined` (no battle state yet) means "all alive".
-      if (aliveMask && aliveMask[i] === false) continue;
+  function buildEntry(
+    tower: Tower,
+    ownerId: number | undefined,
+    isHome: boolean,
+    signature: string,
+  ): TowerEntry | undefined {
+    const variantName = isHome ? "home_tower" : "secondary_tower";
+    const variant = getTowerVariant(variantName);
+    if (!variant) return undefined;
 
-      const ownerId = ownedTowers?.get(i);
-      const isHome = homeTowerIndices?.has(i) ?? false;
-      const variantName = isHome ? "home_tower" : "secondary_tower";
-      const variant = getTowerVariant(variantName);
-      if (!variant) continue;
+    const host = new THREE.Group();
+    buildTower(THREE, host, variant.params);
 
-      const host = new THREE.Group();
-      buildTower(THREE, host, variant.params);
+    // Position at tower centre: (col + 1, row + 1) * TILE_SIZE.
+    host.position.set(
+      tower.col * TILE_SIZE + TOWER_CENTER_OFFSET,
+      0,
+      tower.row * TILE_SIZE + TOWER_CENTER_OFFSET,
+    );
+    host.scale.setScalar(TOWER_SCALE);
 
-      // Position at tower centre: (col + 1, row + 1) * TILE_SIZE.
-      host.position.set(
-        tower.col * TILE_SIZE + TOWER_CENTER_OFFSET,
-        0,
-        tower.row * TILE_SIZE + TOWER_CENTER_OFFSET,
+    const ownedMaterials: THREE.Material[] = [];
+    if (ownerId !== undefined) {
+      // Flags use the vivid `interiorLight` tint for team readability at
+      // the gameplay camera; stone body + parapets use the muted `wall`
+      // tint so the silhouette feels player-coloured without washing out
+      // the stonework.
+      tintNamedMeshes(host, "flag", ownerId as ValidPlayerId, ownedMaterials);
+      tintNamedMeshes(
+        host,
+        "body",
+        ownerId as ValidPlayerId,
+        ownedMaterials,
+        "wall",
       );
-      host.scale.setScalar(TOWER_SCALE);
-
-      // Per-player tinting for home towers. Flags and roofs use the
-      // vivid `interiorLight` tint for instant team readability at the
-      // gameplay camera; stone body + parapets use the muted `wall`
-      // tint so the whole silhouette feels player-coloured without
-      // washing out the stonework.
-      if (ownerId !== undefined) {
-        tintNamedMeshes(host, "flag", ownerId as ValidPlayerId, ownedMaterials);
-        tintNamedMeshes(
-          host,
-          "body",
-          ownerId as ValidPlayerId,
-          ownedMaterials,
-          "wall",
-        );
-        tintNamedMeshes(
-          host,
-          "parapet",
-          ownerId as ValidPlayerId,
-          ownedMaterials,
-          "wall",
-        );
-        tintNamedMeshes(
-          host,
-          "pole_base",
-          ownerId as ValidPlayerId,
-          ownedMaterials,
-          "wall",
-        );
-      }
-
-      root.add(host);
+      tintNamedMeshes(
+        host,
+        "parapet",
+        ownerId as ValidPlayerId,
+        ownedMaterials,
+        "wall",
+      );
+      tintNamedMeshes(
+        host,
+        "pole_base",
+        ownerId as ValidPlayerId,
+        ownedMaterials,
+        "wall",
+      );
     }
+
+    root.add(host);
+    return { host, ownedMaterials, signature };
   }
 
-  function clear(): void {
-    // Dispose per-mesh geometry + owned tint materials. Shared
-    // texture/material objects owned by tower-scene are not touched —
-    // they're cached and re-used across rebuilds.
-    disposeGroupSubtree(root, ownedMaterials);
+  function disposeEntry(entry: TowerEntry): void {
+    disposeGroupSubtree(entry.host, entry.ownedMaterials);
+    root.remove(entry.host);
+  }
+
+  function clearAll(): void {
+    for (const entry of entries.values()) disposeEntry(entry);
+    entries.clear();
   }
 
   function update(ctx: FrameCtx): void {
     const { overlay } = ctx;
     const towers = ctx.map?.towers;
     if (!towers || towers.length === 0) {
-      if (lastSignature !== "") {
-        clear();
-        lastSignature = "";
-      }
+      clearAll();
       return;
     }
     const ownedTowers = overlay?.entities?.ownedTowers;
     const homeTowerIndices = overlay?.entities?.homeTowerIndices;
     const aliveMask = overlay?.entities?.towerAlive;
 
-    // Signature: tower index + variant + ownerId + alive bit. Rebuilds
-    // only when one of those changes.
-    const parts: string[] = [];
+    const live = new Set<number>();
     for (let i = 0; i < towers.length; i++) {
-      const alive = aliveMask ? aliveMask[i] !== false : true;
-      const ownerId = ownedTowers?.get(i);
-      const home = homeTowerIndices?.has(i) ? 1 : 0;
-      parts.push(`${i}:${ownerId ?? "-"}:${home}:${alive ? 1 : 0}`);
-    }
-    const signature = parts.join(",");
-    if (signature === lastSignature) return;
-    lastSignature = signature;
+      // Skip dead towers — the 3D debris manager (entities/debris.ts)
+      // renders their rubble under the separate `debris` layer flag.
+      // `towerAlive === undefined` (no battle state yet) means "all alive".
+      if (aliveMask && aliveMask[i] === false) continue;
+      live.add(i);
 
-    clear();
-    buildAllTowers(towers, ownedTowers, homeTowerIndices, aliveMask);
+      const ownerId = ownedTowers?.get(i);
+      const isHome = homeTowerIndices?.has(i) ? 1 : 0;
+      const signature = `${ownerId ?? "-"}:${isHome}`;
+
+      const existing = entries.get(i);
+      if (existing && existing.signature === signature) continue;
+      if (existing) disposeEntry(existing);
+      const fresh = buildEntry(towers[i]!, ownerId, isHome === 1, signature);
+      if (fresh) entries.set(i, fresh);
+      else entries.delete(i);
+    }
+
+    // Drop entries whose tower is no longer live (removed or just died).
+    for (const [idx, entry] of entries) {
+      if (live.has(idx)) continue;
+      disposeEntry(entry);
+      entries.delete(idx);
+    }
   }
 
   function dispose(): void {
-    clear();
+    clearAll();
     scene.remove(root);
   }
 
