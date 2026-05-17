@@ -132,6 +132,32 @@ const MODIFIER_COLORS: Record<ModifierId, { title: string; border: string }> = {
   sapper: { title: "#c89878", border: "#785838" },
   supply_ship: { title: "#d8c090", border: "#806840" },
 };
+/** Lobby panel style picked once from IS_TOUCH_DEVICE — touch needs bigger
+ *  hit-targets and a clearer name/CTA hierarchy. Module-scope so the
+ *  branch lives at module init, not in the per-frame draw loop. */
+const LOBBY_PANEL_STYLE = IS_TOUCH_DEVICE
+  ? ({
+      nameFont: FONT_HEADING,
+      nameY: 34,
+      btnMarginX: 6,
+      btnMarginBottom: 8,
+      btnH: 36,
+      waitingFont: FONT_BODY,
+      joinFont: FONT_LABEL,
+      joinText: "Tap to join",
+      showKeyHint: false,
+    } as const)
+  : ({
+      nameFont: FONT_BODY,
+      nameY: 30,
+      btnMarginX: 8,
+      btnMarginBottom: 12,
+      btnH: 24,
+      waitingFont: FONT_BUTTON,
+      joinFont: FONT_HINT,
+      joinText: "Press button to start",
+      showKeyHint: true,
+    } as const);
 /** Short reveal-label text per supply-ship bonus. Drawn floating above
  *  a sinking ship while its hull goes under. */
 const SUPPLY_BONUS_LABEL: Record<SupplyBonusId, string> = {
@@ -661,18 +687,13 @@ export function drawLobby(
     drawPanel(overlayCtx, rx, rectY, rectW, rectH, rgb(c, OP_SUBTLE), rgb(c));
 
     const cx = rx + rectW / 2;
-    const touch = IS_TOUCH_DEVICE;
-    const nameFont = touch ? FONT_HEADING : FONT_BODY;
-    const nameY = touch ? 34 : 30;
-    const btnMarginX = touch ? 6 : 8;
-    const btnMarginBottom = touch ? 8 : 12;
-    const btnW = rectW - btnMarginX * 2;
-    const btnH = touch ? 36 : 24;
-    const btnX = rx + btnMarginX;
-    const btnY = rectY + rectH - btnH - btnMarginBottom;
-    overlayCtx.font = nameFont;
+    const style = LOBBY_PANEL_STYLE;
+    const btnW = rectW - style.btnMarginX * 2;
+    const btnX = rx + style.btnMarginX;
+    const btnY = rectY + rectH - style.btnH - style.btnMarginBottom;
+    overlayCtx.font = style.nameFont;
     overlayCtx.fillStyle = rgb(c);
-    overlayCtx.fillText(player.name, cx, rectY + nameY);
+    overlayCtx.fillText(player.name, cx, rectY + style.nameY);
 
     if (player.joined) {
       drawButton(
@@ -680,12 +701,12 @@ export function drawLobby(
         btnX,
         btnY,
         btnW,
-        btnH,
+        style.btnH,
         {
           fill: rgb(c, OP_ACTIVE),
           stroke: rgb(c),
           lineWidth: 1,
-          font: touch ? FONT_BODY : FONT_BUTTON,
+          font: style.waitingFont,
           textColor: TEXT_WHITE,
         },
         "Please wait...",
@@ -697,19 +718,19 @@ export function drawLobby(
         btnX,
         btnY,
         btnW,
-        btnH,
+        style.btnH,
         {
           fill: rgb(c, flash ? OP_FOCUS : OP_IDLE),
           stroke: rgb(c),
           lineWidth: 1,
-          font: touch ? FONT_LABEL : FONT_HINT,
+          font: style.joinFont,
           textColor: flash ? TEXT_WHITE : TEXT_SOFT,
         },
-        touch ? "Tap to join" : "Press button to start",
+        style.joinText,
       );
     }
 
-    if (!touch) {
+    if (style.showKeyHint) {
       overlayCtx.font = FONT_HINT;
       overlayCtx.fillStyle = TEXT_DIM;
       overlayCtx.fillText(player.keyHint ?? "", cx, btnY - PAD);
