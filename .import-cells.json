@@ -705,6 +705,7 @@
       "src/render/3d/effects/grunt-burns.ts",
       "src/render/3d/effects/house-burns.ts",
       "src/render/3d/effects/modifier-reveal-burst.ts",
+      "src/render/3d/effects/shield-flash.ts",
       "src/render/3d/effects/supply-ship.ts",
       "src/render/3d/effects/wall-burns.ts",
       "src/render/3d/effects/wall-dust.ts"

@@ -346,6 +346,7 @@ export function createOnlineOverlay(
       cannonDestroys: inBattle ? battleAnim.cannonDestroys : undefined,
       gruntKills: inBattle ? battleAnim.gruntKills : undefined,
       houseDestroys: inBattle ? battleAnim.houseDestroys : undefined,
+      shieldFlashes: inBattle ? battleAnim.shieldFlashes : undefined,
       crosshairs: inBattle ? frame.crosshairs : undefined,
       balloons: buildBattleBalloonsPayload(battleAnim.flights),
       // Fog covers the reveal banner and the battle itself, then lifts the

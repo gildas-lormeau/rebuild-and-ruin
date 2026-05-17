@@ -58,9 +58,6 @@
       "pair": "BuildHost@src/ai/ai-strategy-types.ts ↔ SelectionHost@src/ai/ai-strategy-types.ts"
     },
     {
-      "pair": "BuildViewState@src/shared/core/system-interfaces.ts ↔ RenderViewShared@src/shared/core/render-view.ts"
-    },
-    {
       "pair": "BuildViewState@src/shared/core/system-interfaces.ts ↔ UpgradePickViewState@src/shared/core/system-interfaces.ts"
     },
     {
@@ -80,6 +77,9 @@
     },
     {
       "pair": "CannonPlacement@src/ai/ai-strategy-types.ts ↔ PlaceCannonIntent@src/shared/core/system-interfaces.ts"
+    },
+    {
+      "pair": "CannonShieldedMessage@src/shared/core/battle-events.ts ↔ WallDestroyedMessage@src/shared/core/battle-events.ts"
     },
     {
       "pair": "CargoCrateParams@src/render/3d/sprites/supply-ship-scene.ts ↔ TopParams@src/render/3d/sprites/rampart-scene.ts"
@@ -436,6 +436,9 @@
       "pair": "CannonPlacement@src/ai/ai-strategy-types.ts ↔ PlaceCannonIntent@src/shared/core/system-interfaces.ts"
     },
     {
+      "pair": "CannonShapePayload@src/shared/core/phantom-types.ts ↔ CannonShieldedMessage@src/shared/core/battle-events.ts"
+    },
+    {
       "pair": "CannonShapePayload@src/shared/core/phantom-types.ts ↔ PlacePieceIntent@src/shared/core/system-interfaces.ts"
     },
     {
@@ -443,6 +446,21 @@
     },
     {
       "pair": "CannonShapePayload@src/shared/core/phantom-types.ts ↔ WallDestroyedMessage@src/shared/core/battle-events.ts"
+    },
+    {
+      "pair": "CannonShapePayload@src/shared/core/phantom-types.ts ↔ WallShieldedMessage@src/shared/core/battle-events.ts"
+    },
+    {
+      "pair": "CannonShieldedMessage@src/shared/core/battle-events.ts ↔ PieceShapePayload@src/shared/core/phantom-types.ts"
+    },
+    {
+      "pair": "CannonShieldedMessage@src/shared/core/battle-events.ts ↔ PlaceCannonIntent@src/shared/core/system-interfaces.ts"
+    },
+    {
+      "pair": "CannonShieldedMessage@src/shared/core/battle-events.ts ↔ PlacePieceIntent@src/shared/core/system-interfaces.ts"
+    },
+    {
+      "pair": "CannonShieldedMessage@src/shared/core/battle-events.ts ↔ ScheduledPiecePlacement@src/game/scheduled-actions.ts"
     },
     {
       "pair": "CannonVariant@src/render/3d/sprites/cannon-scene.ts ↔ CannonballVariant@src/render/3d/sprites/cannonball-scene.ts"
@@ -640,9 +658,6 @@
       "pair": "Grunt@src/shared/core/battle-types.ts ↔ SerializedGrunt@src/protocol/checkpoint-data.ts"
     },
     {
-      "pair": "GruntFingerprint@test/seed-833681-round27-grunt.test.ts ↔ TileInspection@src/runtime/dev-console-grid.ts"
-    },
-    {
       "pair": "GruntOverride@test/phase-tests/types.ts ↔ SerializedGrunt@src/protocol/checkpoint-data.ts"
     },
     {
@@ -757,6 +772,9 @@
       "pair": "PieceShapePayload@src/shared/core/phantom-types.ts ↔ WallDestroyedMessage@src/shared/core/battle-events.ts"
     },
     {
+      "pair": "PieceShapePayload@src/shared/core/phantom-types.ts ↔ WallShieldedMessage@src/shared/core/battle-events.ts"
+    },
+    {
       "pair": "PitCreatedMessage@src/shared/core/battle-events.ts ↔ SerializedBurningPit@src/protocol/checkpoint-data.ts"
     },
     {
@@ -781,10 +799,16 @@
       "pair": "PlaceCannonIntent@src/shared/core/system-interfaces.ts ↔ WallDestroyedMessage@src/shared/core/battle-events.ts"
     },
     {
+      "pair": "PlaceCannonIntent@src/shared/core/system-interfaces.ts ↔ WallShieldedMessage@src/shared/core/battle-events.ts"
+    },
+    {
       "pair": "PlacePieceIntent@src/shared/core/system-interfaces.ts ↔ ScheduledPiecePlacement@src/game/scheduled-actions.ts"
     },
     {
       "pair": "PlacePieceIntent@src/shared/core/system-interfaces.ts ↔ WallDestroyedMessage@src/shared/core/battle-events.ts"
+    },
+    {
+      "pair": "PlacePieceIntent@src/shared/core/system-interfaces.ts ↔ WallShieldedMessage@src/shared/core/battle-events.ts"
     },
     {
       "pair": "PlayerSnapshot@test/network-bidirectional.test.ts ↔ PlayerSnapshot@test/network-vs-local.test.ts"
@@ -866,6 +890,9 @@
     },
     {
       "pair": "ScheduledPiecePlacement@src/game/scheduled-actions.ts ↔ WallDestroyedMessage@src/shared/core/battle-events.ts"
+    },
+    {
+      "pair": "ScheduledPiecePlacement@src/game/scheduled-actions.ts ↔ WallShieldedMessage@src/shared/core/battle-events.ts"
     },
     {
       "pair": "SelectionSystemDeps@src/runtime/runtime-selection.ts ↔ UpgradePickSystemDeps@src/runtime/subsystems/upgrade-pick.ts"

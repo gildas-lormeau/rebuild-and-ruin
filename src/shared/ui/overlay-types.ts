@@ -9,6 +9,7 @@ import type {
   GruntKill,
   HouseDestroy,
   Impact,
+  ShieldFlash,
   ThawingTile,
 } from "../core/battle-types.ts";
 import type { ModifierId } from "../core/game-constants.ts";
@@ -239,6 +240,9 @@ export interface BattleOverlay {
   cannonDestroys?: readonly CannonDestroy[];
   gruntKills?: readonly GruntKill[];
   houseDestroys?: readonly HouseDestroy[];
+  /** Tiles where a defensive shield (rampart radius or Shield Battery)
+   *  just absorbed an incoming hit — drives the cyan absorb-ring ping. */
+  shieldFlashes?: readonly ShieldFlash[];
   balloons?: readonly OverlayBalloon[];
   battleTerritory?: readonly Set<number>[];
   battleWalls?: readonly ReadonlySet<TileKey>[];

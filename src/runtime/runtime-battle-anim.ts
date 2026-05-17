@@ -66,10 +66,20 @@ export function recordBattleVisualEvents(
         });
         break;
       }
-      // Other ImpactEvent variants (wallAbsorbed, wallShielded, gruntChipped,
-      // gruntSpawned, pitCreated) have no visual-burst representation here —
-      // their rendering is driven by the underlying state changes (chipped
-      // grunts, shielded walls, burning pits) instead.
+      case BATTLE_MESSAGE.WALL_SHIELDED:
+        // Heavy-rampart-drain emit site (alongside wallDestroyed) omits
+        // row/col — wallDestroyed already paints that tile.
+        if (evt.row !== undefined && evt.col !== undefined) {
+          battleAnim.shieldFlashes.push({ row: evt.row, col: evt.col, age: 0 });
+        }
+        break;
+      case BATTLE_MESSAGE.CANNON_SHIELDED:
+        battleAnim.shieldFlashes.push({ row: evt.row, col: evt.col, age: 0 });
+        break;
+      // Other ImpactEvent variants (wallAbsorbed, gruntChipped, gruntSpawned,
+      // pitCreated) have no visual-burst representation here — their
+      // rendering is driven by the underlying state changes (damaged walls,
+      // chipped grunts, burning pits) instead.
     }
   }
 }

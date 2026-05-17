@@ -14,6 +14,7 @@ import type {
   GruntKill,
   HouseDestroy,
   Impact,
+  ShieldFlash,
   ThawingTile,
 } from "../shared/core/battle-types.ts";
 import type { BannerKind } from "../shared/core/game-event-bus.ts";
@@ -184,6 +185,7 @@ export interface OnlineOverlayParams {
     cannonDestroys: CannonDestroy[];
     gruntKills: GruntKill[];
     houseDestroys: HouseDestroy[];
+    shieldFlashes: ShieldFlash[];
   };
   frame: {
     crosshairs: Crosshair[];

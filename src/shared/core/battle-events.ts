@@ -139,6 +139,25 @@ export interface WallShieldedMessage {
   playerId: ValidPlayerId;
   cannonIdx: CannonIdx;
   newShieldHp: number;
+  /** Wall tile that absorbed the hit — drives VFX anchoring. Optional so
+   *  the heavy-hit-rampart-drain emit site (where the wall is destroyed
+   *  in the same beat — wallDestroyed already paints the tile) can omit
+   *  it. */
+  row?: number;
+  col?: number;
+}
+
+/** A Shield-Battery-protected cannon absorbed a direct cannonball impact
+ *  (cannon HP unchanged — purely cosmetic; the `cannon.shielded` flag is
+ *  set once at battle start and stays for the round). */
+export interface CannonShieldedMessage {
+  type: "cannonShielded";
+  playerId: ValidPlayerId;
+  cannonIdx: CannonIdx;
+  /** Impact tile for VFX anchoring. */
+  row: number;
+  col: number;
+  shooterId?: ValidPlayerId;
 }
 
 /** A tower was destroyed by a grunt. `playerId` is the slot that owned
@@ -180,6 +199,7 @@ export type ImpactEvent =
   | WallAbsorbedMessage
   | WallShieldedMessage
   | CannonDamagedMessage
+  | CannonShieldedMessage
   | HouseDestroyedMessage
   | GruntKilledMessage
   | GruntChippedMessage
@@ -212,6 +232,7 @@ export const BATTLE_MESSAGE = {
   TOWER_KILLED: "towerKilled",
   WALL_ABSORBED: "wallAbsorbed",
   WALL_SHIELDED: "wallShielded",
+  CANNON_SHIELDED: "cannonShielded",
   SHIP_HIT: "shipHit",
   SHIP_SUNK: "shipSunk",
 } as const;
@@ -285,6 +306,12 @@ export const BATTLE_EVENT_CONSUMERS = {
     stateApply: "src/game/battle-system.ts",
     networkHandle: "src/online/online-server-events.ts",
     networkRelay: "server/game-room.ts",
+  },
+  cannonShielded: {
+    stateApply: "src/game/battle-system.ts",
+    networkHandle: "src/online/online-server-events.ts",
+    networkRelay: "server/game-room.ts",
+    vfx: "src/runtime/runtime-battle-anim.ts",
   },
   towerKilled: {
     stateApply: "src/game/battle-system.ts",

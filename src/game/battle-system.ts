@@ -856,6 +856,9 @@ function applyImpactEvent(
         cannon.shieldHp = event.newShieldHp > 0 ? event.newShieldHp : undefined;
       break;
     }
+    case BATTLE_MESSAGE.CANNON_SHIELDED:
+      // Cosmetic-only: VFX/SFX consume this on the bus, no state change.
+      break;
   }
 }
 
@@ -1274,6 +1277,8 @@ function collectWallImpacts(
       playerId: result.playerId,
       cannonIdx: result.cannonIdx,
       newShieldHp: result.newShieldHp,
+      row,
+      col,
     });
     return { events, hitWall: false };
   }
@@ -1312,16 +1317,27 @@ function collectCannonImpacts(
     for (let cannonIdx = 0; cannonIdx < player.cannons.length; cannonIdx++) {
       const cannon = player.cannons[cannonIdx]!;
       if (!isCannonAlive(cannon) || isBalloonCannon(cannon)) continue;
-      if (cannon.shielded) continue;
-      if (isCannonTile(cannon, row, col)) {
+      if (!isCannonTile(cannon, row, col)) continue;
+      if (cannon.shielded) {
+        // Shield-Battery absorbs the hit — cosmetic-only event drives the
+        // absorb ping VFX/SFX; no HP mutation.
         events.push({
-          type: BATTLE_MESSAGE.CANNON_DAMAGED,
+          type: BATTLE_MESSAGE.CANNON_SHIELDED,
           playerId: player.id,
           cannonIdx: cannonIdx as CannonIdx,
-          newHp: Math.max(0, cannon.hp - damage),
+          row,
+          col,
           shooterId,
         });
+        continue;
       }
+      events.push({
+        type: BATTLE_MESSAGE.CANNON_DAMAGED,
+        playerId: player.id,
+        cannonIdx: cannonIdx as CannonIdx,
+        newHp: Math.max(0, cannon.hp - damage),
+        shooterId,
+      });
     }
   }
   return events;

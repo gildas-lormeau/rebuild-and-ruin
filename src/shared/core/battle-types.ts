@@ -203,6 +203,15 @@ export interface HouseDestroy extends TilePos {
   age: number;
 }
 
+/** A tile where a defensive shield absorbed an incoming hit — rampart-
+ *  protected wall (wallShielded event) or Shield-Battery-protected
+ *  cannon (cannonShielded event). Drives a brief cyan ring expand-and-
+ *  fade. Pure visual state. */
+export interface ShieldFlash extends TilePos {
+  /** Seconds since the absorb happened. */
+  age: number;
+}
+
 /** Battle animation state — territory/wall snapshots and in-flight effects. */
 export interface BattleAnimState {
   territory: Set<TileKey>[];
@@ -214,6 +223,7 @@ export interface BattleAnimState {
   cannonDestroys: CannonDestroy[];
   gruntKills: GruntKill[];
   houseDestroys: HouseDestroy[];
+  shieldFlashes: ShieldFlash[];
 }
 
 /** Duration of the ice-thaw crack-and-fade animation (seconds). */
@@ -241,6 +251,10 @@ export const GRUNT_KILL_DURATION = 0.55;
  *  cannon — a small building collapse reads longer than a single wall
  *  tile exploding. */
 export const HOUSE_DESTROY_DURATION = 0.75;
+/** Duration of the shield-absorb cyan ring expand-and-fade (seconds).
+ *  Short and clean — the absorb is a non-event for the protected entity,
+ *  the ping just communicates "your shield ate that hit". */
+export const SHIELD_FLASH_DURATION = 0.5;
 
 export function createBattleAnimState(): BattleAnimState {
   return {
@@ -253,6 +267,7 @@ export function createBattleAnimState(): BattleAnimState {
     cannonDestroys: [],
     gruntKills: [],
     houseDestroys: [],
+    shieldFlashes: [],
   };
 }
 
@@ -264,6 +279,7 @@ export function clearImpacts(battleAnim: {
   cannonDestroys: CannonDestroy[];
   gruntKills: GruntKill[];
   houseDestroys: HouseDestroy[];
+  shieldFlashes: ShieldFlash[];
 }): void {
   battleAnim.impacts = [];
   battleAnim.thawing = [];
@@ -271,6 +287,7 @@ export function clearImpacts(battleAnim: {
   battleAnim.cannonDestroys = [];
   battleAnim.gruntKills = [];
   battleAnim.houseDestroys = [];
+  battleAnim.shieldFlashes = [];
 }
 
 /** Age transient battle effect animations by `dt` seconds and remove expired ones. */
@@ -282,6 +299,7 @@ export function ageImpacts(
     cannonDestroys: CannonDestroy[];
     gruntKills: GruntKill[];
     houseDestroys: HouseDestroy[];
+    shieldFlashes: ShieldFlash[];
   },
   dt: number,
   flashDuration: number,
@@ -309,6 +327,10 @@ export function ageImpacts(
   for (const destroy of battleAnim.houseDestroys) destroy.age += dt;
   battleAnim.houseDestroys = battleAnim.houseDestroys.filter(
     (destroy) => destroy.age < HOUSE_DESTROY_DURATION,
+  );
+  for (const flash of battleAnim.shieldFlashes) flash.age += dt;
+  battleAnim.shieldFlashes = battleAnim.shieldFlashes.filter(
+    (flash) => flash.age < SHIELD_FLASH_DURATION,
   );
 }
 

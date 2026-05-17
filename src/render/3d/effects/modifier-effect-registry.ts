@@ -15,6 +15,7 @@ import { createGrassEmergenceManager } from "./grass-emergence.ts";
 import { createGroundCollapseManager } from "./ground-collapse.ts";
 import { createIceFormationManager } from "./ice-formation.ts";
 import { createLightningBurstManager } from "./lightning-burst.ts";
+import { createShieldFlashManager } from "./shield-flash.ts";
 import { createSupplyShipManager } from "./supply-ship.ts";
 import { createThawingManager } from "./thawing.ts";
 import { createWaterSurgeManager } from "./water-surge.ts";
@@ -44,6 +45,7 @@ export const MODIFIER_EFFECT_FACTORIES: readonly ModifierEffectFactory[] = [
   createFogManager,
   createDustStormManager,
   createSupplyShipManager,
-  // Event-driven bursts (per-entry in overlay.entities.X[]).
+  // Event-driven bursts (per-entry in overlay.entities.X[] / battle.X[]).
   createThawingManager,
+  createShieldFlashManager,
 ];
