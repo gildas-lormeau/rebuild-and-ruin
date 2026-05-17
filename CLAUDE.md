@@ -53,7 +53,7 @@ Each layer falls within one of 5 tiers (`tierOfLayer(n)` in `scripts/cells/tier-
 Layer index = import depth: `layer(f) = 1 + max(layer(dep))`, or 0 for files with no intra-project imports. Imports must flow downward (higher layer imports lower).
 Layer names in `.import-layers.json` are just `"L0"`, `"L1"`, …, `"L18"` — pure mechanical indices, no semantic content. Role labeling lives in `.import-cells.json` (see "Module cells" below). Entry points sit at their minimum import-depth layer (`entry.ts` at L2, `main.ts` at L14, `online-client.ts` at L18).
 
-### Module cells (`.import-cells.json`, 81 cells)
+### Module cells (`.import-cells.json`)
 Each cell is a `(domain × layer)` intersection with a hand-curated `role` label. Cells are where naming actually happens — the layer-only view forced unrelated roles to share a label whenever they landed at the same import depth (e.g. an online wire payload and a shared event bus both at L3). Cells separate them by domain.
 Workflow tools at `scripts/cells/`:
 - `cell-lookup.ts "<role>"` — find which cell a new file should land in. Use this before grepping for similar files.
