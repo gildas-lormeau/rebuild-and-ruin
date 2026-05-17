@@ -357,32 +357,40 @@ export class AiController extends BaseController implements AiAnimatable {
       this.tileJitterOffset =
         (this.strategy.rng.next() - 0.5) * JITTER_MAX_AMPLITUDE;
     }
-    const rowFirst = this.tileMoveRowFirst;
-    const d1 = rowFirst ? dr : dc;
-    const d2 = rowFirst ? dc : dr;
+    const axis = this.tileMoveRowFirst
+      ? ({
+          primary: "row",
+          secondary: "col",
+          d1: dr,
+          d2: dc,
+          t2: targetCol,
+        } as const)
+      : ({
+          primary: "col",
+          secondary: "row",
+          d1: dc,
+          d2: dr,
+          t2: targetRow,
+        } as const);
 
-    if (Math.abs(d1) > 0.01) {
-      const move = Math.min(remaining, Math.abs(d1));
-      if (rowFirst) cursor.row += Math.sign(d1) * move;
-      else cursor.col += Math.sign(d1) * move;
+    if (Math.abs(axis.d1) > 0.01) {
+      const move = Math.min(remaining, Math.abs(axis.d1));
+      cursor[axis.primary] += Math.sign(axis.d1) * move;
       remaining -= move;
       // Nudge toward fixed jitter offset on perpendicular axis (decays near target)
-      if (Math.abs(d2) > 1) {
-        const perpTarget =
-          (rowFirst ? targetCol : targetRow) + this.tileJitterOffset;
-        const perpCurrent = rowFirst ? cursor.col : cursor.row;
+      if (Math.abs(axis.d2) > 1) {
+        const perpTarget = axis.t2 + this.tileJitterOffset;
+        const perpCurrent = cursor[axis.secondary];
         const nudge =
           (perpTarget - perpCurrent) *
           Math.min(1, JITTER_DECAY_RATE * SIM_TICK_DT);
-        if (rowFirst) cursor.col += nudge;
-        else cursor.row += nudge;
+        cursor[axis.secondary] += nudge;
       }
     }
     // Move secondary axis with leftover step
-    if (remaining > 0.01 && Math.abs(d2) > 0.01) {
-      const move = Math.min(remaining, Math.abs(d2));
-      if (rowFirst) cursor.col += Math.sign(d2) * move;
-      else cursor.row += Math.sign(d2) * move;
+    if (remaining > 0.01 && Math.abs(axis.d2) > 0.01) {
+      const move = Math.min(remaining, Math.abs(axis.d2));
+      cursor[axis.secondary] += Math.sign(axis.d2) * move;
     }
     return false;
   }
