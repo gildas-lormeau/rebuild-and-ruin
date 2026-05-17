@@ -39,6 +39,8 @@
     "test:dt-divergence": "deno test --no-check test/dt-divergence.test.ts",
     "find-seed": "deno run -A scripts/find-seed.ts",
     "sprite-view": "deno run -A scripts/sprite-view.ts",
+    "perf:ai:cpu": "mkdir -p tmp/perf && deno run --cpu-prof --cpu-prof-dir tmp/perf --cpu-prof-name ai-cpu.cpuprofile -A scripts/perf-ai-headless.ts && deno run -A scripts/analyze-cpu.ts tmp/perf/ai-cpu.cpuprofile --filter src/ai/",
+    "perf:ai:cpu:multi": "deno run -A scripts/perf-ai-multi.ts",
     "record-seeds": "deno run -A scripts/record-seeds.ts --parallel 4",
     "test:all": "npm run test:scenario && npm run test:determinism && npm run test:speed && npm run test:input && npm run test:touch && npm run test:dpad && npm run test:haptics && npm run test:network && npm run test:network-vs-local && npm run test:online && npm run test:banner && npm run test:banner:high-tide && npm run test:modifiers && npm run test:upgrades && npm run test:cannon-tier && npm run test:e2e:local:quick",
     "format": "biome format --write src/ server/",
