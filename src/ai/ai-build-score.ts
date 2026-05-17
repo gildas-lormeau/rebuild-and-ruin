@@ -21,6 +21,7 @@ import {
   CORNERS_2X2,
   computeOutsideAfterAdd,
   DIRS_4,
+  inBounds,
   isWater,
   manhattanDistance,
   packTile,
@@ -473,17 +474,16 @@ function computeSweepSafeBonus(
 
   let sweepSafeBonus = 0;
   for (const [dr, dc] of candidate.piece.offsets) {
-    const key = packTile(candidate.row + dr, candidate.col + dc);
-    if (!targetGaps.has(key)) continue;
+    const pr = candidate.row + dr;
+    const pc = candidate.col + dc;
+    if (!inBounds(pr, pc)) continue;
+    if (!targetGaps.has(packTile(pr, pc))) continue;
     let cardinalCount = 0;
     for (const [ar, ac] of DIRS_4) {
-      if (
-        simulatedWalls.has(
-          packTile(candidate.row + dr + ar, candidate.col + dc + ac),
-        )
-      ) {
-        cardinalCount++;
-      }
+      const nr = pr + ar;
+      const nc = pc + ac;
+      if (!inBounds(nr, nc)) continue;
+      if (simulatedWalls.has(packTile(nr, nc))) cardinalCount++;
     }
     if (cardinalCount >= 2) sweepSafeBonus += SWEEP_SAFE_BONUS;
   }

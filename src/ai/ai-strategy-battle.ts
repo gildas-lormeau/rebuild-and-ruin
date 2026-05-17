@@ -180,6 +180,7 @@ export function planPocketDestruction(
       for (const [dr, dc] of DIRS_4) {
         const nr = r + dr;
         const nc = c + dc;
+        if (!inBounds(nr, nc)) continue;
         const neighborKey = packTile(nr, nc);
         if (!player.walls.has(neighborKey) || picked.has(neighborKey)) continue;
         // Check that this wall doesn't also border a large enclosure
@@ -187,6 +188,7 @@ export function planPocketDestruction(
         for (const [dr2, dc2] of DIRS_4) {
           const ar = nr + dr2;
           const ac = nc + dc2;
+          if (!inBounds(ar, ac)) continue;
           const adjacentKey = packTile(ar, ac);
           if (interior.has(adjacentKey) && !pocketTiles.has(adjacentKey)) {
             bordersLarge = true;
@@ -331,7 +333,10 @@ export function planIceTrench(
     const gruntZone = zoneAt(state.map, grunt.row, grunt.col);
     if (gruntZone === undefined || gruntZone === playerZone) continue;
     for (const [dr, dc] of DIRS_4) {
-      if (frozenTiles.has(packTile(grunt.row + dr, grunt.col + dc))) {
+      const nr = grunt.row + dr;
+      const nc = grunt.col + dc;
+      if (!inBounds(nr, nc)) continue;
+      if (frozenTiles.has(packTile(nr, nc))) {
         bankGrunts.push({ row: grunt.row, col: grunt.col });
         break;
       }

@@ -353,7 +353,10 @@ export function applyClumsyBuilders(
     const { r, c } = unpackTile(key as TileKey);
     let neighbors = 0;
     for (const [dr, dc] of DIRS_4) {
-      if (walls.has(packTile(r + dr, c + dc))) neighbors++;
+      const nr = r + dr;
+      const nc = c + dc;
+      if (!inBounds(nr, nc)) continue;
+      if (walls.has(packTile(nr, nc))) neighbors++;
     }
     if (neighbors === 0) {
       walls.delete(key);
@@ -638,7 +641,10 @@ function interleaveExtras(
     placed.add(k);
     const { r, c } = unpackTile(k as TileKey);
     for (const [dr, dc] of DIRS_4) {
-      const neighborKey = packTile(r + dr, c + dc);
+      const nr = r + dr;
+      const nc = c + dc;
+      if (!inBounds(nr, nc)) continue;
+      const neighborKey = packTile(nr, nc);
       if (extras.has(neighborKey) && !placed.has(neighborKey)) {
         ordered.push(neighborKey);
         placed.add(neighborKey);

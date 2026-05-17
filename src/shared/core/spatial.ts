@@ -217,10 +217,10 @@ export function countWallNeighbors(
   c: number,
 ): number {
   let neighbors = 0;
-  if (walls.has(packTile(r - 1, c))) neighbors++;
-  if (walls.has(packTile(r + 1, c))) neighbors++;
-  if (walls.has(packTile(r, c - 1))) neighbors++;
-  if (walls.has(packTile(r, c + 1))) neighbors++;
+  if (r - 1 >= 0 && walls.has(packTile(r - 1, c))) neighbors++;
+  if (r + 1 < GRID_ROWS && walls.has(packTile(r + 1, c))) neighbors++;
+  if (c - 1 >= 0 && walls.has(packTile(r, c - 1))) neighbors++;
+  if (c + 1 < GRID_COLS && walls.has(packTile(r, c + 1))) neighbors++;
   return neighbors;
 }
 
@@ -732,6 +732,16 @@ function forEachSquareTile(
  *  Use this instead of manual encoding.
  *  Used for all Set<TileKey> tile collections. See unpackTile() for reverse. */
 export function packTile(r: number, c: number): TileKey {
+  // Dev/test only: surface accidental wrap-around (packTile(r, -1) silently
+  // collides with packTile(r-1, GRID_COLS-1)). Vite DCE strips this in prod.
+  // @ts-ignore — import.meta.env is Vite-specific (not recognized by Deno LSP)
+  if (import.meta.env?.DEV !== false) {
+    if (r < 0 || r >= GRID_ROWS || c < 0 || c >= GRID_COLS) {
+      throw new Error(
+        `packTile out of bounds: r=${r}, c=${c} (GRID_ROWS=${GRID_ROWS}, GRID_COLS=${GRID_COLS})`,
+      );
+    }
+  }
   return (r * GRID_COLS + c) as TileKey;
 }
 

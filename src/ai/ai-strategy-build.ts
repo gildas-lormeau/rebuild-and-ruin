@@ -25,6 +25,7 @@ import {
   computeOutside,
   DIRS_4,
   hasPitAt,
+  inBounds,
   isCannonTile,
   isGrass,
   isTowerEnclosed,
@@ -740,7 +741,10 @@ export function findOuterRingHoles(
   const isRingWall = (key: number): boolean => {
     const { r, c } = unpackTile(key as TileKey);
     for (const [dr, dc] of DIRS_4) {
-      if (outside.has(packTile(r + dr, c + dc))) return true;
+      const nr = r + dr;
+      const nc = c + dc;
+      if (!inBounds(nr, nc)) continue;
+      if (outside.has(packTile(nr, nc))) return true;
     }
     return false;
   };
@@ -1094,6 +1098,7 @@ function scoreCandidateGapMetrics(
   for (const [dr, dc] of offsets) {
     const pr = row + dr;
     const pc = col + dc;
+    if (!inBounds(pr, pc)) continue;
     const key = packTile(pr, pc);
     if (targetGaps.has(key)) {
       gapsFilled++;
@@ -1102,7 +1107,10 @@ function scoreCandidateGapMetrics(
     let hasWallAdjacent = false;
     let hasGapAdjacent = false;
     for (const [ar, ac] of DIRS_4) {
-      const neighborKey = packTile(pr + ar, pc + ac);
+      const nr = pr + ar;
+      const nc = pc + ac;
+      if (!inBounds(nr, nc)) continue;
+      const neighborKey = packTile(nr, nc);
       if (walls.has(neighborKey)) {
         wallAdjacent++;
         hasWallAdjacent = true;
@@ -1117,10 +1125,14 @@ function scoreCandidateGapMetrics(
   for (const [dr, dc] of offsets) {
     const pr = row + dr;
     const pc = col + dc;
+    if (!inBounds(pr, pc)) continue;
     if (!targetGaps.has(packTile(pr, pc))) continue;
     let hasWallAdjacent = false;
     for (const [ar, ac] of DIRS_4) {
-      if (walls.has(packTile(pr + ar, pc + ac))) {
+      const nr = pr + ar;
+      const nc = pc + ac;
+      if (!inBounds(nr, nc)) continue;
+      if (walls.has(packTile(nr, nc))) {
         wallAdjacent++;
         hasWallAdjacent = true;
       }
