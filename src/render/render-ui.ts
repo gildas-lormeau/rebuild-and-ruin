@@ -848,7 +848,6 @@ function drawGameOverScores(
   }
 }
 
-/** Draw the rematch and menu buttons at the bottom of the game-over panel. */
 function drawGameOverButtons(
   overlayCtx: CanvasRenderingContext2D,
   btnW: number,
@@ -869,10 +868,8 @@ function drawGameOverButtons(
     GAMEOVER_BTN_H,
     {
       fill: BTN_CONTINUE.fill(rematchFocused ? OP_FOCUS : OP_IDLE),
-      stroke: rematchFocused ? BTN_CONTINUE.strokeFocused : BTN_CONTINUE.stroke,
-      lineWidth: rematchFocused ? 2 : 1,
+      ...focusedButtonStyle(BTN_CONTINUE, rematchFocused, TEXT_LIGHT),
       font: FONT_BUTTON,
-      textColor: rematchFocused ? TEXT_WHITE : TEXT_LIGHT,
     },
     "Rematch",
   );
@@ -886,10 +883,8 @@ function drawGameOverButtons(
     GAMEOVER_BTN_H,
     {
       fill: BTN_ABANDON.fill(menuFocused ? OP_FOCUS : OP_IDLE),
-      stroke: menuFocused ? BTN_MENU.strokeFocused : BTN_MENU.stroke,
-      lineWidth: menuFocused ? 2 : 1,
+      ...focusedButtonStyle(BTN_MENU, menuFocused, TEXT_LIGHT),
       font: FONT_BUTTON,
-      textColor: menuFocused ? TEXT_WHITE : TEXT_LIGHT,
     },
     "Menu",
   );
@@ -931,10 +926,8 @@ function drawLifeLostEntry(
         fill: BTN_CONTINUE.fill(
           contFocused ? (contFlash ? OP_VIVID : OP_ACCENT) : OP_SUBTLE,
         ),
-        stroke: contFocused ? BTN_CONTINUE.strokeFocused : BTN_CONTINUE.stroke,
-        lineWidth: contFocused ? 2 : 1,
+        ...focusedButtonStyle(BTN_CONTINUE, contFocused, TEXT_DISABLED),
         font: FONT_BUTTON,
-        textColor: contFocused ? TEXT_WHITE : TEXT_DISABLED,
       },
       "Continue",
     );
@@ -951,10 +944,8 @@ function drawLifeLostEntry(
         fill: BTN_ABANDON.fill(
           abFocused ? (abFlash ? OP_FOCUS : OP_ACTIVE) : OP_GHOST,
         ),
-        stroke: abFocused ? BTN_ABANDON.strokeFocused : BTN_ABANDON.stroke,
-        lineWidth: abFocused ? 2 : 1,
+        ...focusedButtonStyle(BTN_ABANDON, abFocused, TEXT_FAINT),
         font: FONT_BUTTON,
-        textColor: abFocused ? TEXT_WHITE : TEXT_FAINT,
       },
       "Abandon",
     );
@@ -964,6 +955,19 @@ function drawLifeLostEntry(
     ctx.fillStyle = BTN_CONTINUE.stroke;
     ctx.fillText("Continuing...", cx, py + PANEL_H - 18);
   }
+}
+
+/** Draw the rematch and menu buttons at the bottom of the game-over panel. */
+/** Pick the focus-dependent stroke/lineWidth/textColor triplet for a button
+ *  that toggles between focused and idle visual states. */
+function focusedButtonStyle(
+  btn: { stroke: string; strokeFocused: string },
+  focused: boolean,
+  unfocusedTextColor: string,
+): { stroke: string; lineWidth: number; textColor: string } {
+  return focused
+    ? { stroke: btn.strokeFocused, lineWidth: 2, textColor: TEXT_WHITE }
+    : { stroke: btn.stroke, lineWidth: 1, textColor: unfocusedTextColor };
 }
 
 /** Draw a single upgrade card: background, focus indicator, category, name,
