@@ -1,6 +1,9 @@
 /**
- * audit-closure-captures — flag inner closures that capture N+ stable
- * locals from their enclosing function.
+ * lint-closure-captures — flag inner closures that capture N+ stable
+ * locals from their enclosing function AND are called 2+ times from
+ * the parent body. The named-local-multi shape is hidden partial
+ * application and a strong signal that the closure should be a
+ * module-scope helper with an explicit params object.
  *
  * Pattern:
  *
@@ -17,9 +20,9 @@
  *     }
  *
  * Four captured parent locals (`margin`, `tiles`, `towers`, `tower`),
- * four invocations with identical captures. The closure is doing
- * hidden partial application — lifting it to module scope with an
- * explicit params object (`MarginCtx`) makes the data-flow visible.
+ * four invocations with identical captures. Lift to module scope
+ * with an explicit params object (`MarginCtx`) to make the data-flow
+ * visible.
  *
  * What counts as a capture:
  *   - Identifier in the closure body that resolves (via `getDefinitions`)
@@ -29,16 +32,25 @@
  *     declared inside the closure itself, property names in `a.b`,
  *     identifiers inside type annotations.
  *
- * Closure kinds scanned: ArrowFunction, FunctionExpression. Top-level
- * declarations and method bodies aren't closures.
+ * Classifier — only `named-local-multi` exits 1. These categories are
+ * surfaced for visibility but not enforced:
+ *   - factory-return: closure returned from createX() factory
+ *   - iterator-callback: `.map` / `.forEach` / `.filter` / etc.
+ *   - listener-arg: `addEventListener` / `bus.on` / `setTimeout` / etc.
+ *   - named-local-once: declared as const but called 0-1 times
+ *   - other: inline arg to a non-iterator call
+ *
+ * Allow-marker (`// lint:allow-closure-captures -- <reason>`) on the
+ * same line as the closure's `const X =` declaration, in the leading
+ * comment block above it, or on the parent fn's declaration line.
  *
  * Scope:
  *   src/**\/*.ts (excluding *.d.ts and *.test.ts)
  *
  * Usage:
- *   deno run -A scripts/audit-closure-captures.ts [--threshold N]
+ *   deno run -A scripts/lint-closure-captures.ts [--threshold N]
  *
- * Audit-only: exits 0 even if findings exist.
+ * Exits 1 if named-local-multi candidates exist.
  */
 
 import { readdirSync, statSync } from "node:fs";
@@ -127,6 +139,7 @@ const LISTENER_CALLEES = new Set([
 const REFACTOR_CANDIDATE_ROLES: ReadonlySet<ClosureRole> = new Set([
   "named-local-multi",
 ]);
+const ALLOW_MARKER = /lint:allow-closure-captures/;
 const ROOT = path.resolve(import.meta.dirname!, "..");
 const SRC_DIR = path.join(ROOT, "src");
 
@@ -178,7 +191,7 @@ function main(): void {
   }
 
   console.log(
-    `${candidates.length} refactor candidate(s) (named-local closures called 2+ times from parent body):\n`,
+    `✘ ${candidates.length} closure(s) capturing ${threshold}+ parent locals and called 2+ times from parent body:\n`,
   );
   for (const finding of candidates) {
     console.log(
@@ -187,8 +200,11 @@ function main(): void {
   }
   console.log("");
   console.log(
-    "Consider lifting these to module scope with an explicit params object.",
+    "Lift to module scope with an explicit params object — see header.",
   );
+  console.log("Or annotate intentional cases with");
+  console.log("  // lint:allow-closure-captures -- <reason>");
+  process.exit(1);
 }
 
 function scanFile(
@@ -197,6 +213,7 @@ function scanFile(
   out: Finding[],
 ): void {
   const relPath = path.relative(ROOT, sourceFile.getFilePath());
+  const rawLines = sourceFile.getFullText().split("\n");
 
   const closures: Array<ArrowFunction | FunctionExpression> = [
     ...sourceFile.getDescendantsOfKind(SyntaxKind.ArrowFunction),
@@ -212,6 +229,13 @@ function scanFile(
 
     const { role, callCount } = classifyClosure(closure, parentFn);
 
+    if (
+      role === "named-local-multi" &&
+      isAllowed(rawLines, closure, parentFn)
+    ) {
+      continue;
+    }
+
     out.push({
       file: relPath,
       closureLine: closure.getStartLineNumber(),
@@ -223,6 +247,46 @@ function scanFile(
       callCount,
     });
   }
+}
+
+/** Check for a `// lint:allow-closure-captures` marker on the closure's
+ *  own declaration line (where `const X = ...` lives), in the leading
+ *  comment block above it, or on the parent fn's declaration line.
+ *  The variable-declaration anchor is preferred over the closure body
+ *  start because the marker reads naturally next to the binding. */
+function isAllowed(
+  rawLines: readonly string[],
+  closure: ArrowFunction | FunctionExpression,
+  parentFn: FnLike,
+): boolean {
+  const closureLine = closure.getStartLineNumber();
+  const parentFnLine = parentFn.getStartLineNumber();
+  if (hasAllowMarker(rawLines, closureLine - 1)) return true;
+  if (hasAllowMarker(rawLines, parentFnLine - 1)) return true;
+  // Walk up to the variable declaration if the closure was bound as
+  // `const X = (...) => ...` — the binding line is where users will
+  // naturally place the marker.
+  let cursor: Node | undefined = closure.getParent();
+  while (cursor && cursor !== parentFn) {
+    if (Node.isVariableStatement(cursor)) {
+      if (hasAllowMarker(rawLines, cursor.getStartLineNumber() - 1))
+        return true;
+      break;
+    }
+    cursor = cursor.getParent();
+  }
+  return false;
+}
+
+function hasAllowMarker(rawLines: readonly string[], idx: number): boolean {
+  if (idx < 0 || idx >= rawLines.length) return false;
+  if (ALLOW_MARKER.test(rawLines[idx]!)) return true;
+  for (let i = idx - 1; i >= 0; i--) {
+    const trimmed = rawLines[i]!.trim();
+    if (!trimmed.startsWith("//") && !trimmed.startsWith("*")) return false;
+    if (ALLOW_MARKER.test(trimmed)) return true;
+  }
+  return false;
 }
 
 /** Classify a closure by how it's used in the source. Drives FP filtering:
