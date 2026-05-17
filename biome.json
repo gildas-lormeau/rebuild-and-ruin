@@ -17,6 +17,12 @@
     "enabled": true,
     "rules": {
       "recommended": false,
+      "complexity": {
+        "noExcessiveCognitiveComplexity": {
+          "level": "warn",
+          "options": { "maxAllowedComplexity": 50 }
+        }
+      },
       "correctness": {
         "noUnusedImports": "warn"
       },

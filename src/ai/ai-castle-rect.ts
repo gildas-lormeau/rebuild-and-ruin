@@ -33,6 +33,13 @@ import {
 } from "../shared/core/spatial.ts";
 import type { BuildViewState } from "../shared/core/system-interfaces.ts";
 
+interface MarginCtx {
+  readonly margin: number;
+  readonly tiles: readonly (readonly Tile[])[];
+  readonly towers: readonly Tower[];
+  readonly self: Tower;
+}
+
 // Scoring weights for scoreBuildTowerTarget — tower ranking during build targeting.
 /** Weight given to wall-ring completion progress when ranking towers to build. */
 const TOWER_PROGRESS_WEIGHT = 100;
@@ -252,51 +259,10 @@ export function castleRect(
   margin: number,
   shrinkCorners = true,
 ): TileRect {
-  // Max margin a side can expand to before hitting water, map edge, or another tower.
-  // The wall ring is 1 tile beyond interior, so the ring must stay on-map
-  // (border tiles are flood-fill start points — they can't be interior).
-  const maxMarginForSide = (
-    base: number,
-    direction: 1 | -1,
-    gridSize: number,
-    crossA: number,
-    crossB: number,
-    vertical: boolean,
-  ): number => {
-    for (let step = 1; step <= margin; step++) {
-      const interior = base + direction * step;
-      const ring = interior + direction;
-      if (ring < 0 || ring >= gridSize) return step - 1;
-      const crossLimit = vertical ? GRID_COLS : GRID_ROWS;
-      for (const cross of [crossA, crossB]) {
-        if (cross < 0 || cross >= crossLimit) continue;
-        const iRow = vertical ? interior : cross;
-        const iCol = vertical ? cross : interior;
-        if (isWater(tiles, iRow, iCol)) return step - 1;
-        // Also check the ring tile — walls are placed there
-        const rRow = vertical ? ring : cross;
-        const rCol = vertical ? cross : ring;
-        if (isWater(tiles, rRow, rCol)) return step - 1;
-      }
-      for (const other of towers) {
-        if (other === tower) continue;
-        // Check both interior and ring lines for tower collisions
-        for (const line of [interior, ring]) {
-          const hitA = vertical
-            ? isTowerTile(other, line, crossA)
-            : isTowerTile(other, crossA, line);
-          const hitB = vertical
-            ? isTowerTile(other, line, crossB)
-            : isTowerTile(other, crossB, line);
-          if (hitA || hitB) return step - 1;
-        }
-      }
-    }
-    return margin;
-  };
-
+  const ctx: MarginCtx = { margin, tiles, towers, self: tower };
   // Per-side max before obstacle
   const capTop = maxMarginForSide(
+    ctx,
     tower.row,
     -1,
     GRID_ROWS,
@@ -305,6 +271,7 @@ export function castleRect(
     true,
   );
   const capBottom = maxMarginForSide(
+    ctx,
     tower.row + 1,
     1,
     GRID_ROWS,
@@ -313,6 +280,7 @@ export function castleRect(
     true,
   );
   const capLeft = maxMarginForSide(
+    ctx,
     tower.col,
     -1,
     GRID_COLS,
@@ -321,6 +289,7 @@ export function castleRect(
     false,
   );
   const capRight = maxMarginForSide(
+    ctx,
     tower.col + 1,
     1,
     GRID_COLS,
@@ -366,6 +335,83 @@ export function castleRect(
     left: tower.col - growthLeft,
     right: tower.col + 1 + growthRight,
   };
+}
+
+/** Max margin a side can expand to before hitting water, map edge, or another
+ *  tower. The wall ring is 1 tile beyond interior, so the ring must stay
+ *  on-map (border tiles are flood-fill start points — they can't be interior). */
+function maxMarginForSide(
+  ctx: MarginCtx,
+  base: number,
+  direction: 1 | -1,
+  gridSize: number,
+  crossA: number,
+  crossB: number,
+  vertical: boolean,
+): number {
+  for (let step = 1; step <= ctx.margin; step++) {
+    if (
+      stepBlocksMargin(
+        ctx,
+        base,
+        direction,
+        step,
+        gridSize,
+        crossA,
+        crossB,
+        vertical,
+      )
+    ) {
+      return step - 1;
+    }
+  }
+  return ctx.margin;
+}
+
+/** True iff extending one more step would cross the map edge, hit water on
+ *  either the interior or wall-ring tile, or collide with another tower. */
+function stepBlocksMargin(
+  ctx: MarginCtx,
+  base: number,
+  direction: 1 | -1,
+  step: number,
+  gridSize: number,
+  crossA: number,
+  crossB: number,
+  vertical: boolean,
+): boolean {
+  const interior = base + direction * step;
+  const ring = interior + direction;
+  if (ring < 0 || ring >= gridSize) return true;
+  const crossLimit = vertical ? GRID_COLS : GRID_ROWS;
+  for (const cross of [crossA, crossB]) {
+    if (cross < 0 || cross >= crossLimit) continue;
+    const [iRow, iCol] = cellAt(interior, cross, vertical);
+    if (isWater(ctx.tiles, iRow, iCol)) return true;
+    const [rRow, rCol] = cellAt(ring, cross, vertical);
+    if (isWater(ctx.tiles, rRow, rCol)) return true;
+  }
+  for (const other of ctx.towers) {
+    if (other === ctx.self) continue;
+    for (const line of [interior, ring]) {
+      const [aRow, aCol] = cellAt(line, crossA, vertical);
+      const [bRow, bCol] = cellAt(line, crossB, vertical);
+      if (isTowerTile(other, aRow, aCol) || isTowerTile(other, bRow, bCol)) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+/** Project a (line, cross) pair onto (row, col) based on axis. With `vertical`,
+ *  the line varies along rows; otherwise along cols. */
+function cellAt(
+  line: number,
+  cross: number,
+  vertical: boolean,
+): readonly [number, number] {
+  return vertical ? [line, cross] : [cross, line];
 }
 
 /** Shrink growth values when ring corners land on water tiles.
