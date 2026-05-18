@@ -157,8 +157,12 @@ export abstract class BaseController implements PlayerController {
   /** Subclass hook called before bag/piece are cleared. Override for AI cleanup etc. */
   protected onFinalizeBuildPhase(_state: BuildViewState): void {}
 
-  /** Called each frame during battle. Subclasses call fire(state) to get intents;
-   *  the orchestrator executes mutations (AI: via executeFire closure, Human: via runtime). */
+  /** Called each frame during battle. Human subclass builds a FireIntent
+   *  from input and lets the runtime commit it; AI subclass pulls an
+   *  intent from `brain.battle.tick`, calls `fireNextReadyCannon` (or
+   *  `scheduleCannonFire` in the assisted-human variant), then routes
+   *  the outcome back through `brain.battle.onFireResult` so the brain
+   *  can hold its dwell on commit failure. */
   abstract battleTick(state: BattleViewState, dt: number): void;
 
   /** @final Template method — do NOT override. Override onResetBattle() instead.

@@ -1,19 +1,12 @@
 /**
  * Intent-commit return-value lint.
  *
- * Two related symbol classes return a falsy value (`false` / `null`) when
- * validation rejects an intent commit:
+ * The direct commit functions in `src/game/` return a falsy value
+ * (`false` / `null`) when validation rejects an intent commit:
+ * `executePlaceCannon`, `executePlacePiece`, `scheduleCannonPlacement`,
+ * `schedulePiecePlacement`.
  *
- *   1. Direct commit functions in `src/game/`:
- *      `executePlaceCannon`, `executePlacePiece`,
- *      `scheduleCannonPlacement`, `schedulePiecePlacement`.
- *   2. Commit-callback parameters inside `src/ai/ai-phase-*.ts`:
- *      `executePlace`, `executeFire` — the AI brain receives these as
- *      `(intent) => boolean` callbacks from the controller (which wires
- *      them to one of the direct functions in #1). Brain code must
- *      respect the bool just like the controller side does.
- *
- * Dropping the return value hides the failure: the brain advances its
+ * Dropping the return value hides the failure: the caller advances its
  * state machine as if the commit succeeded, downstream invariants drift,
  * and (in the worst case) a tight loop calls the failed intent forever.
  * One observed instance: AI cannon flush spinning 4000+ iterations per
@@ -24,7 +17,7 @@
  * expression statement (return value discarded) is a violation. Allowed:
  *   - assignment:                  `const ok = executePlaceCannon(...)`
  *   - returned:                    `return executePlaceCannon(...)`
- *   - logical:                     `if (!executeFire(...)) return;`
+ *   - logical:                     `if (!executePlaceCannon(...)) return;`
  *   - explicitly discarded:        `void placed; // see comment ...`
  *     (escape hatch for intentional fire-and-forget; rare — pair with
  *     a comment justifying why dropping the bool is safe.)
@@ -51,11 +44,6 @@ const WATCHED = new Set([
   "executePlacePiece",
   "scheduleCannonPlacement",
   "schedulePiecePlacement",
-  // Commit-callback parameter names inside AI brain phase functions
-  // (ai/ai-phase-*.ts). These bind to one of the direct functions above
-  // via the controller; same bool semantics apply.
-  "executePlace",
-  "executeFire",
 ]);
 
 main();
