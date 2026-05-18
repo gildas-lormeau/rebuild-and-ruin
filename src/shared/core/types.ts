@@ -482,17 +482,16 @@ export interface ConscriptionRespawnTarget {
   readonly anchorCol: number;
 }
 
-/** Dedup key set: identifies cannons already damaged in a ricochet chain. */
-export type RicochetHitSet = Set<string>;
-
-/** Callback supplied by battle-system to apply an impact at a bounce position.
- *  Receives the same hitCannons set on every call so the caller can skip
- *  cannon events for cannons already hit earlier in the chain. */
-export type RicochetApplyBounce = (
-  row: number,
-  col: number,
-  hitCannons: RicochetHitSet,
-) => void;
+/** A bounce position yielded by an `onImpactResolved` upgrade hook. The
+ *  battle-system orchestrator consumes these from the generator one at a
+ *  time, applying impact + dedup between yields so the upgrade's
+ *  per-bounce RNG draws remain interleaved with battle-system's
+ *  per-impact RNG draws (preserves determinism vs the old applyBounce
+ *  callback shape). */
+export interface BounceDescriptor {
+  readonly row: number;
+  readonly col: number;
+}
 
 /** Helpers from cannon-system that battle-start hooks need. Injected by
  *  phase-setup.ts so the dispatcher doesn't have to import from
@@ -531,15 +530,17 @@ export interface UpgradeImpl {
     player: Player,
     pieceKeys: ReadonlySet<number>,
   ) => void;
-  /** Post-impact follow-ups (e.g. ricochet bounces). */
+  /** Post-impact follow-ups (e.g. ricochet bounces). Generator yields each
+   *  bounce position; the orchestrator applies impact + emits between
+   *  yields so the upgrade's RNG draws stay interleaved with any
+   *  applyImpactEvent RNG draws (HOUSE_CRUSHED → grunt-spawn roll). */
   onImpactResolved?: (
     state: GameState,
     shooterId: ValidPlayerId,
     hitRow: number,
     hitCol: number,
     initialImpactEvents: readonly ImpactEvent[],
-    applyBounce: RicochetApplyBounce,
-  ) => void;
+  ) => Generator<BounceDescriptor, void> | undefined;
   /** Query for a grunt respawn target after a kill. First non-null wins. */
   onGruntKilled?: (
     state: GameState,

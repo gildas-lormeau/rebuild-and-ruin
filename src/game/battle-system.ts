@@ -697,33 +697,13 @@ function tickCannonballs(state: GameState, dt: number): CannonballUpdateResult {
           events.push(evt);
           state.bus.emit(evt.type, evt);
         }
-        onImpactResolved(
+        applyRicochetBounces(
           state,
           shooterId,
-          hit.row,
-          hit.col,
+          hit,
           impactEvents,
-          (bounceRow, bounceCol, hitCannons) => {
-            const bounceEvents = computeImpact(
-              state,
-              bounceRow,
-              bounceCol,
-              shooterId,
-              false,
-            );
-            for (const evt of bounceEvents) {
-              if (evt.type === BATTLE_MESSAGE.CANNON_DAMAGED) {
-                const key = `${evt.playerId}:${evt.cannonIdx}`;
-                if (hitCannons.has(key)) continue;
-                hitCannons.add(key);
-              }
-              // Ricochet bounces don't feed into combo tracker
-              applyImpactEvent(state, evt, shooterId, true);
-              events.push(evt);
-              state.bus.emit(evt.type, evt);
-            }
-            impacts.push({ row: bounceRow, col: bounceCol });
-          },
+          events,
+          impacts,
         );
       }
       // Supply-ship collision: any ship within HIT_RADIUS of the impact
@@ -740,6 +720,53 @@ function tickCannonballs(state: GameState, dt: number): CannonballUpdateResult {
   state.cannonballs = remaining;
   tickComboTracking(state, dt);
   return { impacts, events };
+}
+
+/** Drive ricochet (or other onImpactResolved) bounces for a resolved
+ *  initial impact: seed dedup with the initial hit's cannon-damages, then
+ *  pull each bounce position from the upgrade generator and apply impact
+ *  + emit between yields. Mutates `events` / `impacts` in place. */
+function applyRicochetBounces(
+  state: GameState,
+  shooterId: ValidPlayerId,
+  hit: TilePos,
+  impactEvents: readonly ImpactEvent[],
+  events: ImpactEvent[],
+  impacts: TilePos[],
+): void {
+  const hitCannons = new Set<string>();
+  for (const evt of impactEvents) {
+    if (evt.type === BATTLE_MESSAGE.CANNON_DAMAGED) {
+      hitCannons.add(`${evt.playerId}:${evt.cannonIdx}`);
+    }
+  }
+  for (const bounce of onImpactResolved(
+    state,
+    shooterId,
+    hit.row,
+    hit.col,
+    impactEvents,
+  )) {
+    const bounceEvents = computeImpact(
+      state,
+      bounce.row,
+      bounce.col,
+      shooterId,
+      false,
+    );
+    for (const evt of bounceEvents) {
+      if (evt.type === BATTLE_MESSAGE.CANNON_DAMAGED) {
+        const key = `${evt.playerId}:${evt.cannonIdx}`;
+        if (hitCannons.has(key)) continue;
+        hitCannons.add(key);
+      }
+      // Ricochet bounces don't feed into combo tracker
+      applyImpactEvent(state, evt, shooterId, true);
+      events.push(evt);
+      state.bus.emit(evt.type, evt);
+    }
+    impacts.push({ row: bounce.row, col: bounce.col });
+  }
 }
 
 function applyImpactEvent(
