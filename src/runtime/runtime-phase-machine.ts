@@ -678,6 +678,12 @@ const CANNON_PLACE_DONE: Transition = {
     ctx.log(`startBattle (round=${ctx.state.round})`);
     ctx.scoreDelta.reset();
     const entry = prepareBattle(ctx.state);
+    const modifierId = ctx.state.modern?.activeModifier;
+    if (modifierId) {
+      ctx.log(
+        `modifier applied: ${modifierDef(modifierId).label} (${modifierId})`,
+      );
+    }
     ctx.broadcast?.battleStart?.();
     return { modifierDiff: entry.modifierDiff, flights: entry.flights };
   },
