@@ -15,10 +15,9 @@ import { towerCenterTile } from "../shared/core/spatial.ts";
 import type {
   BuildViewState,
   PiecePlacementPreview,
-  PlacePieceIntent,
 } from "../shared/core/system-interfaces.ts";
 import { STEP, secondsToTicks } from "./ai-constants.ts";
-import type { BuildHost } from "./ai-strategy-types.ts";
+import type { BuildHost, BuildTickResult } from "./ai-strategy-types.ts";
 
 type BuildTarget = { piece: PieceShape } & TilePos;
 
@@ -103,10 +102,9 @@ export function tickBuild(
   host: BuildHost,
   phase: BuildPhase,
   state: BuildViewState,
-  executePlace: (intent: PlacePieceIntent) => boolean,
-): PiecePlacementPreview[] {
+): BuildTickResult {
   const currentPiece = state.players[host.playerId]?.currentPiece;
-  if (!currentPiece) return [];
+  if (!currentPiece) return { phantoms: [] };
 
   // Clamp cursor so phantom never extends beyond the grid
   const clampPiece =
@@ -117,13 +115,13 @@ export function tickBuild(
 
   switch (phase.state.step) {
     case STEP.IDLE:
-      return [];
+      return { phantoms: [] };
 
     case STEP.THINKING: {
       const phaseState = phase.state;
       if (phaseState.timer > 0) {
         phaseState.timer--;
-        return [phantomAtCursor(host, state)];
+        return { phantoms: [phantomAtCursor(host, state)] };
       }
       // Timer expired — compute next placement
       const target = computeNextPlacement(host, state);
@@ -133,14 +131,14 @@ export function tickBuild(
           target,
           rotation: buildRotationFor(host, state, target),
         };
-        return tickMoving(host, phase, state);
+        return { phantoms: tickMoving(host, phase, state) };
       }
       if (state.timer > 2) {
         phase.state = { step: STEP.THINKING, timer: secondsToTicks(1.0) };
       } else {
         phase.state = { step: STEP.GAVE_UP, retryTimer: secondsToTicks(1.0) };
       }
-      return [phantomAtCursor(host, state)];
+      return { phantoms: [phantomAtCursor(host, state)] };
     }
 
     case STEP.GAVE_UP: {
@@ -167,51 +165,67 @@ export function tickBuild(
           phaseState.retryTimer = secondsToTicks(1.0);
         }
       }
-      return [phantomAtCursor(host, state)];
+      return { phantoms: [phantomAtCursor(host, state)] };
     }
 
     case STEP.MOVING:
-      return tickMoving(host, phase, state);
+      return { phantoms: tickMoving(host, phase, state) };
 
     case STEP.DWELLING: {
       const phaseState = phase.state;
       phaseState.timer--;
       if (phaseState.timer <= 0) {
-        const placed = executePlace({
-          playerId: host.playerId,
-          piece: phaseState.target.piece,
-          row: phaseState.target.row,
-          col: phaseState.target.col,
-        });
-        if (placed) {
-          phase.state = {
-            step: STEP.THINKING,
-            timer: host.scaledDelay(
-              POST_PLACE_DELAY_SEC,
-              POST_PLACE_SPREAD_SEC,
-            ),
-          };
-          return [];
-        }
-        // Placement blocked (e.g. grunt moved onto target)
-        if (!phaseState.hasRetried) {
-          phaseState.hasRetried = true;
-          phaseState.timer = BLOCKED_RETRY_DELAY;
-        } else {
-          phase.state = { step: STEP.THINKING, timer: QUICK_RETHINK_DELAY };
-        }
-        return [];
+        return {
+          phantoms: [],
+          commit: {
+            playerId: host.playerId,
+            piece: phaseState.target.piece,
+            row: phaseState.target.row,
+            col: phaseState.target.col,
+          },
+        };
       }
-      return [
-        makePhantom(
-          host.playerId,
-          phaseState.target.piece,
-          phaseState.target.row,
-          phaseState.target.col,
-          true,
-        ),
-      ];
+      return {
+        phantoms: [
+          makePhantom(
+            host.playerId,
+            phaseState.target.piece,
+            phaseState.target.row,
+            phaseState.target.col,
+            true,
+          ),
+        ],
+      };
     }
+  }
+}
+
+/** Apply the controller's commit result to the brain's DWELLING state.
+ *  Success → THINKING with POST_PLACE delay. First failure → stay in
+ *  DWELLING with BLOCKED_RETRY_DELAY so a passing grunt has time to
+ *  clear before we retry the same target. Second failure → THINKING
+ *  with QUICK_RETHINK_DELAY so the strategy picks a different placement.
+ *  Called from the controller right after committing the intent
+ *  returned by `tickBuild`. */
+export function onBuildPlaceResult(
+  host: BuildHost,
+  phase: BuildPhase,
+  success: boolean,
+): void {
+  if (phase.state.step !== STEP.DWELLING) return;
+  const phaseState = phase.state;
+  if (success) {
+    phase.state = {
+      step: STEP.THINKING,
+      timer: host.scaledDelay(POST_PLACE_DELAY_SEC, POST_PLACE_SPREAD_SEC),
+    };
+    return;
+  }
+  if (!phaseState.hasRetried) {
+    phaseState.hasRetried = true;
+    phaseState.timer = BLOCKED_RETRY_DELAY;
+  } else {
+    phase.state = { step: STEP.THINKING, timer: QUICK_RETHINK_DELAY };
   }
 }
 

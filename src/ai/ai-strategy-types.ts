@@ -21,7 +21,9 @@ import type {
   CannonViewState,
   FireIntent,
   GameViewState,
+  PiecePlacementPreview,
   PlaceCannonIntent,
+  PlacePieceIntent,
 } from "../shared/core/system-interfaces.ts";
 import type { ZoneId } from "../shared/core/zone-id.ts";
 import type { Rng } from "../shared/platform/rng.ts";
@@ -44,6 +46,29 @@ export interface CannonPlacement {
 export interface CannonTickResult {
   readonly phantom: CannonPlacementPreview | null;
   readonly commit?: PlaceCannonIntent;
+}
+
+/** Per-frame build-phase tick result. `phantoms` drives the cursor
+ *  preview render; `commit`, when present, is the intent the controller
+ *  must hand to its commit transport (executePlacePiece /
+ *  schedulePiecePlacement). Brain holds DWELLING state across the commit
+ *  and resolves it through `onPlaceResult(success)` — that's how the
+ *  blocked-retry semantics (wait for grunt to clear, then retry same
+ *  target once before giving up) survive moving the commit out of the
+ *  brain. */
+export interface BuildTickResult {
+  readonly phantoms: PiecePlacementPreview[];
+  readonly commit?: PlacePieceIntent;
+}
+
+/** Per-frame battle-phase tick result. `commit`, when present, is the
+ *  fire intent the controller commits via fireNextReadyCannon /
+ *  scheduleCannonFire. Brain holds DWELLING or CHAIN_DWELLING state
+ *  across the commit and resolves it through `onFireResult(success)` —
+ *  preserves the CANNON_RETRY_WAIT semantics for "no cannon ready yet"
+ *  by re-aiming the same crosshair on the next pass. */
+export interface BattleTickResult {
+  readonly commit?: FireIntent;
 }
 
 /** Per-phase placement context — computed once at phase init. Tracks

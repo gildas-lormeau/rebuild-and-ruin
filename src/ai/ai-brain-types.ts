@@ -11,11 +11,8 @@ import type {
   BattleViewState,
   BuildViewState,
   CannonViewState,
-  FireIntent,
   GameViewState,
-  PiecePlacementPreview,
   PlaceCannonIntent,
-  PlacePieceIntent,
   UpgradePickViewState,
 } from "../shared/core/system-interfaces.ts";
 import type { ZoneId } from "../shared/core/zone-id.ts";
@@ -26,7 +23,9 @@ import type {
 } from "../shared/ui/interaction-types.ts";
 import type {
   BattleHost,
+  BattleTickResult,
   BuildHost,
+  BuildTickResult,
   CannonHost,
   CannonTickResult,
   SelectionHost,
@@ -40,11 +39,13 @@ export interface AiBrainSelection {
 
 export interface AiBrainBuild {
   init(host: BuildHost, state: BuildViewState): void;
-  tick(
-    host: BuildHost,
-    state: BuildViewState,
-    executePlace: (intent: PlacePieceIntent) => boolean,
-  ): PiecePlacementPreview[];
+  tick(host: BuildHost, state: BuildViewState): BuildTickResult;
+  /** Resolve the DWELLING state after the controller commits the intent
+   *  returned by `tick`. On success → THINKING with POST_PLACE delay.
+   *  On first failure → stay in DWELLING with BLOCKED_RETRY (lets a
+   *  passing grunt clear). On second failure → THINKING with
+   *  QUICK_RETHINK (pivot to a different placement). */
+  onPlaceResult(host: BuildHost, state: BuildViewState, success: boolean): void;
   finalize(host: BuildHost, state: BuildViewState): void;
   reset(): void;
   /** Cursor speed (tiles/sec) for a given strategy cursorSkill (1..3). */
@@ -75,10 +76,17 @@ export interface AiBrainCannon {
 
 export interface AiBrainBattle {
   init(host: BattleHost, state?: BattleViewState): void;
-  tick(
+  tick(host: BattleHost, state: BattleViewState): BattleTickResult;
+  /** Resolve the (CHAIN_)DWELLING state after the controller commits the
+   *  intent returned by `tick`. On success → trackShot + advance to the
+   *  next chain step / re-pick. On failure → hold the dwell with
+   *  CANNON_RETRY_WAIT so the same aim is retried once a cannon is
+   *  ready. Dispatches off `phase.state.step` (CHAIN_DWELLING vs
+   *  DWELLING) which is preserved across the commit. */
+  onFireResult(
     host: BattleHost,
     state: BattleViewState,
-    executeFire: (intent: FireIntent) => boolean,
+    success: boolean,
   ): void;
   /** Reset all battle state except orbit angle (preserved across countdown). */
   resetKeepOrbit(): void;

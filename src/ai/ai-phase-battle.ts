@@ -17,11 +17,7 @@ import type {
 import type { StrategicPixelPos } from "./ai-build-types.ts";
 import { CHAIN, type ChainType } from "./ai-chain.ts";
 import { STEP, secondsToTicks } from "./ai-constants.ts";
-import type { BattleHost } from "./ai-strategy-types.ts";
-
-/** Callback that executes a fire intent against mutable game state.
- *  Returns true if a cannon actually fired. */
-type ExecuteFireFn = (intent: FireIntent) => boolean;
+import type { BattleHost, BattleTickResult } from "./ai-strategy-types.ts";
 
 /** Pre-battle countdown orbit parameters (randomized once per countdown). */
 type CountdownOrbit = { rx: number; ry: number; speed: number };
@@ -117,9 +113,8 @@ export function tickBattle(
   host: BattleHost,
   phase: BattlePhase,
   state: BattleViewState,
-  executeFire: ExecuteFireFn,
-): void {
-  if (!nextReadyCannon(state, host.playerId)) return;
+): BattleTickResult {
+  if (!nextReadyCannon(state, host.playerId)) return {};
 
   const aimAt = phase.crosshairTarget ?? host.crosshair;
   aimCannons(state, host.playerId, aimAt.x, aimAt.y);
@@ -140,7 +135,7 @@ export function tickBattle(
       phase.crosshairTarget = tileCenterPx(first.row, first.col);
     }
     tickCountdown(host, phase, state);
-    return;
+    return {};
   }
 
   // Transition out of countdown on first active frame
@@ -158,16 +153,15 @@ export function tickBattle(
   switch (phase.state.step) {
     case STEP.CHAIN_MOVING:
       tickChainMoving(host, phase, state);
-      break;
+      return {};
     case STEP.CHAIN_DWELLING:
-      tickChainDwelling(host, phase, state, executeFire);
-      break;
+      return tickChainDwelling(host, phase);
     case STEP.THINKING:
       phase.state.timer--;
       if (phase.state.timer <= 0) {
         phase.state = { step: STEP.PICKING };
       }
-      break;
+      return {};
     case STEP.PICKING:
       phase.crosshairTarget = host.strategy.pickTarget(
         state,
@@ -175,7 +169,7 @@ export function tickBattle(
         host.crosshair,
       );
       phase.state = { step: STEP.MOVING };
-      break;
+      return {};
     case STEP.MOVING:
       if (phase.crosshairTarget) {
         if (
@@ -193,14 +187,35 @@ export function tickBattle(
         // No target available — keep picking
         phase.state = { step: STEP.PICKING };
       }
-      break;
+      return {};
     case STEP.DWELLING:
-      tickDwelling(host, phase, state, executeFire);
-      break;
+      return tickDwelling(host, phase, state);
     default:
       // IDLE and COUNTDOWN are handled by early returns above (lines 126–154).
       // If a new BattleState step is added, add its case here.
-      break;
+      return {};
+  }
+}
+
+/** Apply the controller's fire-commit result to the brain's
+ *  CHAIN_DWELLING or DWELLING state. On success: trackShot + advance
+ *  (chain → next target / end-of-chain pivot, standard → next pick /
+ *  pre-pick when `anticipatesTarget`). On failure: hold the dwell with
+ *  CANNON_RETRY_WAIT so the same aim is retried once a cannon is
+ *  ready. Phase.state.step (preserved across the commit) discriminates
+ *  the two paths. */
+export function onBattleFireResult(
+  host: BattleHost,
+  phase: BattlePhase,
+  state: BattleViewState,
+  success: boolean,
+): void {
+  if (phase.state.step === STEP.CHAIN_DWELLING) {
+    completeChainFire(phase, success);
+    return;
+  }
+  if (phase.state.step === STEP.DWELLING) {
+    completeStandardFire(host, phase, state, success);
   }
 }
 
@@ -321,23 +336,25 @@ function tickChainMoving(
   }
 }
 
-/** Chain attack: dwell then fire at chain target. */
+/** Chain attack: dwell then produce a fire intent at the chain target.
+ *  Brain holds CHAIN_DWELLING until the controller reports the commit
+ *  result via `onBattleFireResult` — that's how the
+ *  CANNON_RETRY_WAIT (cannon mid-reload) semantics survive moving the
+ *  commit out of the brain. */
 function tickChainDwelling(
   host: BattleHost,
   phase: BattlePhase,
-  _state: BattleViewState,
-  executeFire: ExecuteFireFn,
-): void {
+): BattleTickResult {
   const phaseState = phase.state as Extract<
     BattleState,
     { step: "chain_dwelling" }
   >;
   phaseState.timer--;
-  if (phaseState.timer > 0) return;
+  if (phaseState.timer > 0) return {};
 
   if (!phase.chainTargets || phase.chainIdx >= phase.chainTargets.length) {
     phase.state = { step: STEP.PICKING };
-    return;
+    return {};
   }
   const target = phase.chainTargets[phase.chainIdx]!;
   const intent: FireIntent = {
@@ -345,43 +362,62 @@ function tickChainDwelling(
     targetRow: target.row,
     targetCol: target.col,
   };
-  if (executeFire(intent)) {
-    phase.chainIdx++;
-    if (phase.chainIdx >= phase.chainTargets.length) {
-      phase.chainTargets = undefined;
-      phase.crosshairTarget = null;
-      phase.state = { step: STEP.PICKING };
-    } else {
-      phase.state = { step: STEP.CHAIN_MOVING };
-    }
-  } else {
-    // No cannon ready — wait a bit longer
+  return { commit: intent };
+}
+
+function completeChainFire(phase: BattlePhase, success: boolean): void {
+  if (phase.state.step !== STEP.CHAIN_DWELLING) return;
+  const phaseState = phase.state;
+  if (!success) {
     phaseState.timer = CANNON_RETRY_WAIT;
+    return;
+  }
+  if (!phase.chainTargets) {
+    phase.state = { step: STEP.PICKING };
+    return;
+  }
+  phase.chainIdx++;
+  if (phase.chainIdx >= phase.chainTargets.length) {
+    phase.chainTargets = undefined;
+    phase.crosshairTarget = null;
+    phase.state = { step: STEP.PICKING };
+  } else {
+    phase.state = { step: STEP.CHAIN_MOVING };
   }
 }
 
-/** Standard fire: dwell on target then fire.
- *  Commit failure (no cannon ready / wire validation reject) holds the
- *  DWELLING state with a CANNON_RETRY_WAIT timer so the brain doesn't
- *  invent a phantom shot — `trackShot` and the post-fire `pickTarget`
- *  only run after a successful commit. Mirrors `tickChainDwelling`'s
- *  retry semantics. */
+/** Standard fire: dwell on target then produce a fire intent at the
+ *  current crosshair. Brain holds DWELLING until the controller reports
+ *  the commit result via `onBattleFireResult` — `trackShot` and the
+ *  post-fire `pickTarget` only run after a successful commit.
+ *  CANNON_RETRY_WAIT semantics for "no cannon ready" survive moving the
+ *  commit out of the brain. */
 function tickDwelling(
   host: BattleHost,
   phase: BattlePhase,
   state: BattleViewState,
-  executeFire: ExecuteFireFn,
-): void {
+): BattleTickResult {
   const phaseState = phase.state as Extract<BattleState, { step: "dwelling" }>;
   phaseState.timer--;
-  if (phaseState.timer > 0) return;
+  if (phaseState.timer > 0) return {};
 
   const intent = host.fire(state);
   if (!intent) {
     phaseState.timer = CANNON_RETRY_WAIT;
-    return;
+    return {};
   }
-  if (!executeFire(intent)) {
+  return { commit: intent };
+}
+
+function completeStandardFire(
+  host: BattleHost,
+  phase: BattlePhase,
+  state: BattleViewState,
+  success: boolean,
+): void {
+  if (phase.state.step !== STEP.DWELLING) return;
+  const phaseState = phase.state;
+  if (!success) {
     phaseState.timer = CANNON_RETRY_WAIT;
     return;
   }
@@ -397,9 +433,8 @@ function tickDwelling(
       host.playerId,
       host.crosshair,
     );
-    phase.state = { step: STEP.THINKING, timer: thinkTime };
   } else {
     phase.crosshairTarget = null;
-    phase.state = { step: STEP.THINKING, timer: thinkTime };
   }
+  phase.state = { step: STEP.THINKING, timer: thinkTime };
 }

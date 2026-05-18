@@ -27,7 +27,6 @@ import type {
   BuildViewState,
   CannonPlacementPreview,
   CannonViewState,
-  FireIntent,
   GameViewState,
   InputReceiver,
   PiecePlacementPreview,
@@ -91,21 +90,29 @@ export class AiAssistedHumanController
     state: BuildViewState,
     _dt: number,
   ): PiecePlacementPreview[] {
-    const executePlace = (intent: PlacePieceIntent): boolean => {
-      const stamped = schedulePiecePlacement({
-        schedule: this.schedule,
-        state,
-        intent,
-        safetyTicks: this.safetyTicks,
-        clampBuildCursor: (piece) => this.clampBuildCursor(piece),
-      });
-      if (!stamped) return false;
-      this.senders.sendPiecePlaced(stamped);
-      return true;
-    };
-    const result = this.brain.build.tick(this, state, executePlace);
-    this.currentBuildPhantoms = result;
-    return result;
+    const result = this.brain.build.tick(this, state);
+    this.currentBuildPhantoms = result.phantoms;
+    if (result.commit) {
+      const placed = this.commitScheduledPiecePlacement(state, result.commit);
+      this.brain.build.onPlaceResult(this, state, placed);
+    }
+    return result.phantoms;
+  }
+
+  private commitScheduledPiecePlacement(
+    state: BuildViewState,
+    intent: PlacePieceIntent,
+  ): boolean {
+    const stamped = schedulePiecePlacement({
+      schedule: this.schedule,
+      state,
+      intent,
+      safetyTicks: this.safetyTicks,
+      clampBuildCursor: (piece) => this.clampBuildCursor(piece),
+    });
+    if (!stamped) return false;
+    this.senders.sendPiecePlaced(stamped);
+    return true;
   }
 
   // ── Cannon phase: AI ticks; placements broadcast via senders.sendCannonPlaced ──
@@ -157,20 +164,20 @@ export class AiAssistedHumanController
   // ── Battle phase: AI ticks; fires broadcast via senders.sendCannonFired ──
 
   override battleTick(state: BattleViewState, _dt: number): void {
-    const executeFire = (intent: FireIntent): boolean => {
-      const fired = scheduleCannonFire({
-        schedule: this.schedule,
-        state: state as GameState,
-        intent,
-        ctrl: this,
-        safetyTicks: this.safetyTicks,
-      });
-      if (!fired) return false;
+    const result = this.brain.battle.tick(this, state);
+    if (!result.commit) return;
+    const fired = scheduleCannonFire({
+      schedule: this.schedule,
+      state: state as GameState,
+      intent: result.commit,
+      ctrl: this,
+      safetyTicks: this.safetyTicks,
+    });
+    if (fired) {
       this.cannonRotationIdx = fired.rotationIdx;
       this.senders.sendCannonFired(fired.msg);
-      return true;
-    };
-    this.brain.battle.tick(this, state, executeFire);
+    }
+    this.brain.battle.onFireResult(this, state, !!fired);
   }
 
   // ── Upgrade pick: AI animates + commits; pick broadcast via senders.sendUpgradePick ──

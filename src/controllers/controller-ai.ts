@@ -30,10 +30,8 @@ import {
   type BuildViewState,
   type CannonPlacementPreview,
   type CannonViewState,
-  type FireIntent,
   type GameViewState,
   type PiecePlacementPreview,
-  type PlacePieceIntent,
   type UpgradePickViewState,
 } from "../shared/core/system-interfaces.ts";
 import type { GameState } from "../shared/core/types.ts";
@@ -174,11 +172,13 @@ export class AiController extends BaseController implements AiAnimatable {
   }
 
   buildTick(state: BuildViewState, _dt: number): PiecePlacementPreview[] {
-    const executePlace = (intent: PlacePieceIntent): boolean =>
-      executePlacePiece(state as GameState, intent, this);
-    const result = this.brain.build.tick(this, state, executePlace);
-    this.currentBuildPhantoms = result;
-    return result;
+    const result = this.brain.build.tick(this, state);
+    this.currentBuildPhantoms = result.phantoms;
+    if (result.commit) {
+      const placed = executePlacePiece(state as GameState, result.commit, this);
+      this.brain.build.onPlaceResult(this, state, placed);
+    }
+    return result.phantoms;
   }
 
   protected override onFinalizeBuildPhase(state: BuildViewState): void {
@@ -250,19 +250,17 @@ export class AiController extends BaseController implements AiAnimatable {
   }
 
   battleTick(state: BattleViewState, _dt: number): void {
-    const executeFire = (intent: FireIntent): boolean => {
-      const fired = fireNextReadyCannon(
-        state as GameState,
-        intent.playerId,
-        this.cannonRotationIdx,
-        intent.targetRow,
-        intent.targetCol,
-      );
-      if (!fired) return false;
-      this.cannonRotationIdx = fired.rotationIdx;
-      return true;
-    };
-    this.brain.battle.tick(this, state, executeFire);
+    const result = this.brain.battle.tick(this, state);
+    if (!result.commit) return;
+    const fired = fireNextReadyCannon(
+      state as GameState,
+      result.commit.playerId,
+      this.cannonRotationIdx,
+      result.commit.targetRow,
+      result.commit.targetCol,
+    );
+    if (fired) this.cannonRotationIdx = fired.rotationIdx;
+    this.brain.battle.onFireResult(this, state, !!fired);
   }
 
   // -----------------------------------------------------------------------

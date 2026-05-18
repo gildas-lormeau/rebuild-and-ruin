@@ -10,6 +10,7 @@ import { aiChooseLifeLost } from "./ai-life-lost.ts";
 import {
   createBattlePhase,
   initBattle,
+  onBattleFireResult,
   resetBattlePhaseKeepOrbit,
   tickBattle,
 } from "./ai-phase-battle.ts";
@@ -18,6 +19,7 @@ import {
   createBuildPhase,
   finalizeBuild,
   initBuild,
+  onBuildPlaceResult,
   resetBuildPhase,
   tickBuild,
 } from "./ai-phase-build.ts";
@@ -56,8 +58,9 @@ export function createDefaultAiBrain(): AiBrain {
     },
     build: {
       init: (host, state) => initBuild(host, buildPhase, state),
-      tick: (host, state, executePlace) =>
-        tickBuild(host, buildPhase, state, executePlace),
+      tick: (host, state) => tickBuild(host, buildPhase, state),
+      onPlaceResult: (host, _state, success) =>
+        onBuildPlaceResult(host, buildPhase, success),
       finalize: (host, state) => finalizeBuild(host, buildPhase, state),
       reset: () => resetBuildPhase(buildPhase),
       cursorSpeedFor: (skill) => BUILD_CURSOR_SPEEDS[skill - 1]!,
@@ -76,8 +79,9 @@ export function createDefaultAiBrain(): AiBrain {
     },
     battle: {
       init: (host, state) => initBattle(host, battlePhase, state),
-      tick: (host, state, executeFire) =>
-        tickBattle(host, battlePhase, state, executeFire),
+      tick: (host, state) => tickBattle(host, battlePhase, state),
+      onFireResult: (host, state, success) =>
+        onBattleFireResult(host, battlePhase, state, success),
       resetKeepOrbit: () => resetBattlePhaseKeepOrbit(battlePhase),
       setOrbitAngle: (angle) => {
         battlePhase.orbitAngle = angle;
