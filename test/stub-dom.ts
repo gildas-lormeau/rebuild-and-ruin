@@ -23,6 +23,7 @@ export function createStubElement(): HTMLElement {
       toggle: () => false,
     },
     querySelector: () => null,
+    querySelectorAll: () => [],
     style: { cursor: "default" },
   };
   return Object.assign(target, props) as unknown as HTMLElement;
