@@ -76,63 +76,108 @@ const TOP_LIGHT: MaterialSpec = {
   roughness: 0.4,
   metalness: 0.85,
 };
+/** Cross emblem palette — drives the visible shield-hp tier on the top
+ *  cap. The renderer's variant selector keys off `cannon.shieldHp` and
+ *  picks the matching variant; this is the only authored difference. */
 const EMBLEM_GREEN: MaterialSpec = {
   kind: "standard",
   color: 0x71b04e,
   roughness: 0.55,
   metalness: 0.4,
 };
+const EMBLEM_YELLOW: MaterialSpec = {
+  kind: "standard",
+  color: 0xd8b830,
+  roughness: 0.55,
+  metalness: 0.4,
+};
+const EMBLEM_ORANGE: MaterialSpec = {
+  kind: "standard",
+  color: 0xd86028,
+  roughness: 0.55,
+  metalness: 0.4,
+};
+const EMBLEM_GREY: MaterialSpec = {
+  kind: "standard",
+  color: 0x3a3a38,
+  roughness: 0.55,
+  metalness: 0.4,
+};
+/** Shared body params reused across every shield-tier variant — only the
+ *  cross emblem material changes. Authoring once keeps the 4 variants in
+ *  lockstep when the body needs a tweak. */
+const BODY_PARAMS: Omit<RampartParams, "emblem"> = {
+  core: {
+    width: cells(13),
+    depth: cells(13),
+    height: cells(3),
+    yBase: 0,
+    material: CORE_METAL,
+  },
+  corners: {
+    radius: 0.15,
+    height: cells(4),
+    footprintHalf: cells(6.5),
+    material: PILLAR_DARK,
+  },
+  top: {
+    width: cells(8),
+    depth: cells(8),
+    height: cells(1),
+    material: TOP_LIGHT,
+  },
+  band: {
+    yPos: cells(1.5),
+    thickness: cells(0.5),
+    flare: cells(0.5),
+    material: BAND_GREEN,
+  },
+};
+const EMBLEM_BASE = {
+  barLength: cells(6),
+  barThickness: cells(1),
+  barHeight: cells(0.5),
+};
 // ---------- variant registry ------------------------------------------
+// 2×2 sprite = 32 cells across (±16 cells around center). All shield-tier
+// variants share body geometry — only the cross emblem color differs.
+// `rampart_cannon` is the "full" alias retained for backward compatibility
+// (callers that don't know the shield state can still resolve a variant).
 export const VARIANTS: RampartVariant[] = [
   {
     name: "rampart_cannon",
     label: "rampart cannon",
     canvasPx: 64,
     params: {
-      // 2×2 sprite = 32 cells across (±16 cells around center). All
-      // dimensions in `cells(n)` so we can talk in integer pixel coords
-      // ("widen the core by 1 cell"). Two intentional off-grid values
-      // are kept as raw floats with comments below.
-      core: {
-        width: cells(13), // 13 cells = 1.625 world
-        depth: cells(13),
-        height: cells(3), // 3 cells = 0.375 world
-        yBase: 0,
-        material: CORE_METAL,
-      },
-      corners: {
-        // Centered at the core's corners (footprintHalf = core/2);
-        // radius extends them outward by 0.15 world (1.2 cells —
-        // intentionally off-grid so the cylinder curve reads smoothly
-        // rather than locking to the nearest pixel boundary).
-        radius: 0.15,
-        height: cells(4),
-        footprintHalf: cells(6.5),
-        material: PILLAR_DARK,
-      },
-      top: {
-        // Stepped cap noticeably smaller than the core so the core's
-        // shoulders show around it from above.
-        width: cells(8),
-        depth: cells(8),
-        height: cells(1),
-        material: TOP_LIGHT,
-      },
-      band: {
-        yPos: cells(1.5),
-        thickness: cells(0.5),
-        flare: cells(0.5),
-        material: BAND_GREEN,
-      },
-      // Simple cross emblem sitting flush on the top cap. Two thin
-      // bars: length 6 cells (cap.width − 2 cells of margin), thickness
-      // 1 cell, height 0.5 cell.
-      emblem: {
-        barLength: cells(6),
-        barThickness: cells(1),
-        barHeight: cells(0.5),
-        material: EMBLEM_GREEN,
-      },
+      ...BODY_PARAMS,
+      emblem: { ...EMBLEM_BASE, material: EMBLEM_GREEN },
+    },
+  },
+  {
+    name: "rampart_cannon_mid",
+    label: "rampart cannon (mid shield)",
+    canvasPx: 64,
+    params: {
+      ...BODY_PARAMS,
+      emblem: { ...EMBLEM_BASE, material: EMBLEM_YELLOW },
+    },
+  },
+  {
+    name: "rampart_cannon_low",
+    label: "rampart cannon (low shield)",
+    canvasPx: 64,
+    params: {
+      ...BODY_PARAMS,
+      emblem: { ...EMBLEM_BASE, material: EMBLEM_ORANGE },
+    },
+  },
+  {
+    name: "rampart_cannon_depleted",
+    label: "rampart cannon (shield depleted)",
+    canvasPx: 64,
+    params: {
+      ...BODY_PARAMS,
+      emblem: { ...EMBLEM_BASE, material: EMBLEM_GREY },
     },
   },
 ];

@@ -4,7 +4,12 @@
  * AI placement strategy lives in ai-strategy.ts.
  */
 
-import type { BurningPit, Grunt } from "../shared/core/battle-types.ts";
+import {
+  type BurningPit,
+  CannonMode,
+  type Grunt,
+  isCannonAlive,
+} from "../shared/core/battle-types.ts";
 import {
   addPlayerWalls,
   BONUS_PLACEMENT_BLOCKED,
@@ -12,6 +17,7 @@ import {
   collectOccupiedTiles,
   hasGruntAt,
   hasWallAt,
+  isCannonEnclosed,
   isTileOwnedByPlayer,
   type OccupancyCache,
 } from "../shared/core/board-occupancy.ts";
@@ -23,6 +29,7 @@ import {
   ENCLOSED_GRUNT_RESPAWN_CHANCE,
   MODIFIER_ID,
   type ModifierId,
+  RAMPART_SHIELD_HP,
   TERRITORY_POINT_TIERS,
   TOWER_SIZE,
 } from "../shared/core/game-constants.ts";
@@ -268,6 +275,7 @@ export function recheckTerritory(state: GameState): void {
     captureEnclosedBonusSquares(state, player, interior);
   }
   sweepMisplacedGrunts(state);
+  refillRampartShields(state);
 }
 
 /** End-of-build territory finalization. Same as recheckTerritory() plus:
@@ -293,6 +301,7 @@ export function finalizeTerritoryWithScoring(state: GameState): void {
   // ── Post-loop: global finalization ──
   sweepMisplacedGrunts(state);
   clearUnenclosedPendingRevives(state);
+  refillRampartShields(state);
 }
 
 /**
@@ -361,6 +370,26 @@ export function removeBonusSquaresCoveredByWalls(
 export function recomputeAllTerritory(state: GameState): void {
   for (const player of state.players) {
     recomputeTerritoryFromWalls(state, player);
+  }
+}
+
+/** Refill every alive rampart's shield to RAMPART_SHIELD_HP when its 2×2
+ *  footprint is enclosed in its owner's interior; zero it when not enclosed.
+ *  Called from `recheckTerritory` so the shield value tracks current
+ *  enclosure throughout build/cannon-place phases (cross emblem flips green
+ *  as soon as the perimeter closes, back to grey if it breaks). During
+ *  battle the interior is intentionally stale, so battle-tick callers don't
+ *  run recheckTerritory — the only mid-battle changes come from absorbed
+ *  hits via `applyWallShield`. */
+function refillRampartShields(state: GameState): void {
+  for (const player of state.players) {
+    for (const cannon of player.cannons) {
+      if (cannon.mode !== CannonMode.RAMPART) continue;
+      if (!isCannonAlive(cannon)) continue;
+      cannon.shieldHp = isCannonEnclosed(cannon, player)
+        ? RAMPART_SHIELD_HP
+        : 0;
+    }
   }
 }
 

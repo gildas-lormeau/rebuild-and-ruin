@@ -150,8 +150,10 @@ export const CATAPULT_SPAWN_CHANCE = 0.25;
 export const CATAPULT_TOWER_ATTACK_RANGE = 3;
 /** Scoring weight for super guns in balloon threat evaluation. */
 export const SUPER_GUN_THREAT_WEIGHT = 100;
-/** Shield HP pool for rampart cannons (absorbs wall hits in 2-tile Chebyshev radius). */
-export const RAMPART_SHIELD_HP = 6;
+/** Shield HP pool for rampart cannons (absorbs wall hits in 2-tile Chebyshev radius).
+ *  Refilled at every battle start in `prepareBattleState`, so this is the
+ *  per-battle budget, not a lifetime cap. */
+export const RAMPART_SHIELD_HP = 3;
 /** Chebyshev distance (tiles) for rampart wall absorption radius. */
 export const RAMPART_SHIELD_RADIUS = 2;
 /** Balloon flight animation duration in seconds. Exceeds the jaws

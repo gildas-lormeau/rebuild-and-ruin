@@ -7,17 +7,14 @@
  */
 
 import * as THREE from "three";
-import type {
-  Cannon as BattleCannon,
-  CannonMode,
-} from "../../../shared/core/battle-types.ts";
+import type { Cannon as BattleCannon } from "../../../shared/core/battle-types.ts";
 import {
   isBalloonCannon,
   isCannonAlive,
 } from "../../../shared/core/battle-types.ts";
 import { NORMAL_CANNON_SIZE } from "../../../shared/core/game-constants.ts";
 import { Phase } from "../../../shared/core/game-phase.ts";
-import { TILE_SIZE } from "../../../shared/core/grid.ts";
+import { GRID_COLS, TILE_SIZE } from "../../../shared/core/grid.ts";
 import { cannonSize } from "../../../shared/core/spatial.ts";
 import type { RenderOverlay } from "../../../shared/ui/overlay-types.ts";
 import type { FrameCtx } from "../frame-ctx.ts";
@@ -79,20 +76,31 @@ type VariantName =
   | "tier_3"
   | "super_gun"
   | "mortar"
-  | "rampart_cannon";
+  | "rampart_cannon"
+  | "rampart_cannon_mid"
+  | "rampart_cannon_low"
+  | "rampart_cannon_depleted";
 
-interface Cannon {
-  readonly col: number;
-  readonly row: number;
-  readonly mode: CannonMode;
-  readonly facing?: number;
-}
+/** Renderer-local cannon shape: the subset of `BattleCannon` the bucket
+ *  path reads. Derived via `Pick<>` rather than re-declared so the
+ *  shape-duplicates lint stays clean — adding/renaming a field in
+ *  battle-types automatically propagates here. */
+type Cannon = Pick<
+  BattleCannon,
+  "col" | "row" | "mode" | "facing" | "shieldHp"
+>;
 
 interface BarrelState {
   currentPitch: number;
   targetPitch: number;
 }
 
+const RAMPART_VARIANTS = new Set<VariantName>([
+  "rampart_cannon",
+  "rampart_cannon_mid",
+  "rampart_cannon_low",
+  "rampart_cannon_depleted",
+]);
 /** Cannon scenes are authored in a ±1 frustum covering a NORMAL_CANNON_SIZE
  *  tile span, so to make 1 authored unit = 1 game tile a 2×2 cannon uses
  *  scale = TILE_SIZE. Larger footprints (super_gun = 3×3) scale
@@ -230,7 +238,7 @@ export function createCannonsManager(
     const bucket = ensureBucket(variant, list.length);
     if (!bucket) return;
     const isSuper = variant === "super_gun";
-    const isRampart = variant === "rampart_cannon";
+    const isRampart = RAMPART_VARIANTS.has(variant);
     const offset = isSuper ? TILE_3X3_CENTER_OFFSET : TILE_2X2_CENTER_OFFSET;
     const size = cannonSize(list[0]!.mode);
     hostScale.set(
@@ -374,6 +382,7 @@ function bucketLiveCannonsByVariant(
   castles: readonly {
     cannons: readonly BattleCannon[];
     cannonTier: 1 | 2 | 3;
+    interior: ReadonlySet<number>;
   }[],
 ): Map<VariantName, Cannon[]> {
   const byVariant = new Map<VariantName, Cannon[]>();
@@ -381,7 +390,8 @@ function bucketLiveCannonsByVariant(
     for (const cannon of castle.cannons) {
       if (!isCannonAlive(cannon)) continue;
       if (isBalloonCannon(cannon)) continue;
-      const variant = selectVariant(cannon, castle.cannonTier);
+      const enclosed = isCannonFootprintInside(cannon, castle.interior);
+      const variant = selectVariant(cannon, castle.cannonTier, enclosed);
       let list = byVariant.get(variant);
       if (!list) {
         list = [];
@@ -400,11 +410,19 @@ function bucketLiveCannonsByVariant(
  *  `tier` applies only to regular cannons — super/mortar/rampart have
  *  their own authored sprites and keep them at every tier (speed boost
  *  still applies via ballSpeedMult in the simulation). */
-function selectVariant(cannon: Cannon, tier: 1 | 2 | 3): VariantName {
+function selectVariant(
+  cannon: Cannon,
+  tier: 1 | 2 | 3,
+  enclosed: boolean,
+): VariantName {
   const kind = cannonKind(cannon);
   switch (kind) {
     case "rampart":
-      return "rampart_cannon";
+      // Unenclosed rampart = shield inert regardless of shieldHp; render as
+      // depleted so the visual matches the gameplay state. Refilled to a
+      // non-depleted tier only at the next battle-start (refillRampartShields).
+      if (!enclosed) return "rampart_cannon_depleted";
+      return selectRampartVariant(cannon.shieldHp ?? 0);
     case "super":
       return "super_gun";
     case "mortar":
@@ -414,6 +432,17 @@ function selectVariant(cannon: Cannon, tier: 1 | 2 | 3): VariantName {
     case "balloon":
       throw new Error("selectVariant: balloon cannons are filtered upstream");
   }
+}
+
+/** Map current rampart shield HP to the matching sprite variant.
+ *  Mirrors the 4-tier authored variants in rampart-scene.ts: 3=green (full),
+ *  2=yellow, 1=orange, 0=grey (depleted). Caps above RAMPART_SHIELD_HP at
+ *  the top tier so a future buff doesn't break the lookup. */
+function selectRampartVariant(shieldHp: number): VariantName {
+  if (shieldHp >= 3) return "rampart_cannon";
+  if (shieldHp === 2) return "rampart_cannon_mid";
+  if (shieldHp === 1) return "rampart_cannon_low";
+  return "rampart_cannon_depleted";
 }
 
 /** Composite signature across every live cannon. Rebuilds only when one
@@ -435,12 +464,31 @@ function computeSignature(
       if (isBalloonCannon(cannon)) continue;
       const displayed =
         getCannonFacing(cannon.col, cannon.row) ?? cannon.facing ?? 0;
+      const enclosed = isCannonFootprintInside(cannon, castle.interior) ? 1 : 0;
       parts.push(
-        `${castle.playerId}:${cannon.col}:${cannon.row}:${cannon.mode}:${displayed}:${cannon.mortar ? 1 : 0}:${cannon.shielded ? 1 : 0}:${castle.cannonTier}`,
+        `${castle.playerId}:${cannon.col}:${cannon.row}:${cannon.mode}:${displayed}:${cannon.mortar ? 1 : 0}:${cannon.shielded ? 1 : 0}:${castle.cannonTier}:${cannon.shieldHp ?? -1}:${enclosed}`,
       );
     }
   }
   return parts.join("|");
+}
+
+/** Whether every tile of `cannon`'s footprint is in the castle's interior
+ *  set. Mirrors `isCannonEnclosed` in board-occupancy.ts but runs against
+ *  the read-only interior already on the overlay — no state import. */
+function isCannonFootprintInside(
+  cannon: BattleCannon,
+  interior: ReadonlySet<number>,
+): boolean {
+  const size = cannonSize(cannon.mode);
+  for (let dr = 0; dr < size; dr++) {
+    for (let dc = 0; dc < size; dc++) {
+      if (!interior.has((cannon.row + dr) * GRID_COLS + (cannon.col + dc))) {
+        return false;
+      }
+    }
+  }
+  return true;
 }
 
 /** Build a bucket for one variant: run the matching scene builder once
@@ -455,7 +503,7 @@ function buildBucket(
 ): VariantBucket | undefined {
   let scratchBuilder: ((scratch: THREE.Group) => void) | undefined;
   let barrelPivot: THREE.Vector3 | undefined;
-  if (variant === "rampart_cannon") {
+  if (RAMPART_VARIANTS.has(variant)) {
     const entry = getRampartVariant(variant);
     if (!entry) return undefined;
     scratchBuilder = (scratch) => buildRampart(THREE, scratch, entry.params);
