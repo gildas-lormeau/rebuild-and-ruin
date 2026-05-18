@@ -360,7 +360,12 @@ function tickChainDwelling(
   }
 }
 
-/** Standard fire: dwell on target then fire. */
+/** Standard fire: dwell on target then fire.
+ *  Commit failure (no cannon ready / wire validation reject) holds the
+ *  DWELLING state with a CANNON_RETRY_WAIT timer so the brain doesn't
+ *  invent a phantom shot — `trackShot` and the post-fire `pickTarget`
+ *  only run after a successful commit. Mirrors `tickChainDwelling`'s
+ *  retry semantics. */
 function tickDwelling(
   host: BattleHost,
   phase: BattlePhase,
@@ -376,7 +381,10 @@ function tickDwelling(
     phaseState.timer = CANNON_RETRY_WAIT;
     return;
   }
-  executeFire(intent);
+  if (!executeFire(intent)) {
+    phaseState.timer = CANNON_RETRY_WAIT;
+    return;
+  }
   host.strategy.trackShot(state, host.playerId, host.crosshair);
   // Random thinking delay before picking next target
   const thinkTime = host.scaledDelay(

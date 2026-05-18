@@ -6,7 +6,11 @@
  */
 
 import { BATTLE_MESSAGE } from "../../shared/core/battle-events.ts";
-import { BALL_SPEED } from "../../shared/core/game-constants.ts";
+import type { Cannonball } from "../../shared/core/battle-types.ts";
+import {
+  BALL_SPEED,
+  CROSSHAIR_SPEED,
+} from "../../shared/core/game-constants.ts";
 import type {
   PixelPos,
   TileGridPos,
@@ -54,6 +58,19 @@ const HIT_RADIUS = 1.0;
  *  so it doesn't snipe every ship — humans with manual lead still come
  *  out ahead, but the AI lands a meaningful fraction of its shots. */
 const SUPPLY_SHIP_AIM_NOISE = 0.5;
+/** Seconds between target-pick and cannonball-fire. Matches the AI battle
+ *  phase's `PRE_FIRE_DELAY_SEC` (dwell after arrival, before fire). Folded
+ *  into the lead so the AI compensates for the dwell on top of crosshair
+ *  travel + ball flight; without it the second-shot follow-up consistently
+ *  lands behind a damaged ship. */
+const PICK_TO_FIRE_DWELL_SEC = 0.15;
+/** Radius (tiles) for "ship engaged by my cannonball" detection. A ship
+ *  whose current position is within this distance of any in-flight ball's
+ *  predicted impact counts as already-committed and is preferred for the
+ *  next pick. Tuned wider than HIT_RADIUS (1.0) because in-flight balls
+ *  were leaded to a future ship position — at pick time the ship is up
+ *  to `SUPPLY_SHIP_SPEED * flightTime` tiles behind that impact point. */
+const SHIP_ENGAGED_RADIUS = 4.0;
 /** Seconds added to WALL_BUILD timer per consumed `extra_build_time`
  *  bonus. Matches Master Builder's `MASTER_BUILDER_BONUS_SECONDS` so
  *  the player intuition of "+5s build" is consistent across sources. */
@@ -210,33 +227,65 @@ export function supplyShipBuildTimerBonus(state: GameState): number {
 /** Pick a non-sinking supply ship as a shot target for AI cannons and
  *  return a lead-predicted pixel position so a ball fired from
  *  `shooterTile` actually lands near the ship by the time it arrives.
- *  Without lead, ship drift during the cannonball's flight (~0.1 tile
- *  per tile of shooter→ship distance) exceeds HIT_RADIUS at every
- *  non-point-blank range, so the AI was essentially never hitting.
- *  Symmetric noise (±SUPPLY_SHIP_AIM_NOISE) keeps the AI from sniping
- *  bonuses away from human players. Returns null when no targetable
- *  ship exists (modifier inactive, ships cleared, or all sinking). */
+ *  The lead accounts for the full pick→impact window:
+ *    crosshair travel (current `crosshair` → lead position)
+ *    + AI pre-fire dwell
+ *    + ball flight (`shooterTile` → lead position)
+ *  Earlier versions leaded only by ball flight, which under-predicted by
+ *  ~1–2s of ship motion and pushed every shot behind the ship — the
+ *  follow-up that would sink a damaged ship reliably missed.
+ *
+ *  Pool priority (highest first):
+ *    1. ships already engaged by one of my in-flight cannonballs — the
+ *       AI's `anticipatesTarget` pre-pick runs immediately after firing,
+ *       before the previous ball has landed, so `ship.hp` hasn't
+ *       decremented yet. Without this engagement signal the AI scatters
+ *       shots across all three ships and never lands the two-hit combo
+ *       needed to sink one.
+ *    2. damaged ships (hp < SUPPLY_SHIP_HP) — finishes off humans'
+ *       wounded ships, and catches the case where my own in-flight ball
+ *       has already landed by the time I re-pick.
+ *    3. all targetable — uniform random over fresh ships.
+ *  Symmetric noise (±SUPPLY_SHIP_AIM_NOISE) keeps humans with manual
+ *  lead ahead. Returns null when no targetable ship exists (modifier
+ *  inactive, ships cleared, or all sinking). */
 export function pickSupplyShipTarget(
   ships: readonly SupplyShip[] | null | undefined,
   shooterTile: TilePos,
+  crosshair: PixelPos,
+  cannonballs: readonly Cannonball[],
+  shooterId: ValidPlayerId,
   rng: Rng,
 ): PixelPos | null {
   if (!ships || ships.length === 0) return null;
   const targetable = ships.filter((ship) => !ship.sinking && ship.hp > 0);
   if (targetable.length === 0) return null;
-  const ship = rng.pick(targetable);
+  const engaged = targetable.filter((ship) =>
+    isShipEngagedBy(ship, cannonballs, shooterId),
+  );
+  const damaged = targetable.filter((ship) => ship.hp < SUPPLY_SHIP_HP);
+  const pool =
+    engaged.length > 0 ? engaged : damaged.length > 0 ? damaged : targetable;
+  const ship = rng.pick(pool);
 
   const ballSpeedTiles = BALL_SPEED / TILE_SIZE;
-  const deltaCol = ship.position.col - shooterTile.col;
-  const deltaRow = ship.position.row - shooterTile.row;
+  const crosshairSpeedTiles = (2 * CROSSHAIR_SPEED) / TILE_SIZE;
+  const flightDCol = ship.position.col - shooterTile.col;
+  const flightDRow = ship.position.row - shooterTile.row;
   const flightTime =
-    Math.sqrt(deltaCol * deltaCol + deltaRow * deltaRow) / ballSpeedTiles;
+    Math.sqrt(flightDCol * flightDCol + flightDRow * flightDRow) /
+    ballSpeedTiles;
+  const moveDCol = ship.position.col - crosshair.x / TILE_SIZE;
+  const moveDRow = ship.position.row - crosshair.y / TILE_SIZE;
+  const moveTime =
+    Math.sqrt(moveDCol * moveDCol + moveDRow * moveDRow) / crosshairSpeedTiles;
+  const totalLeadTime = flightTime + moveTime + PICK_TO_FIRE_DWELL_SEC;
   const leadCol =
     ship.position.col +
-    Math.cos(ship.headingRad) * SUPPLY_SHIP_SPEED * flightTime;
+    Math.cos(ship.headingRad) * SUPPLY_SHIP_SPEED * totalLeadTime;
   const leadRow =
     ship.position.row +
-    Math.sin(ship.headingRad) * SUPPLY_SHIP_SPEED * flightTime;
+    Math.sin(ship.headingRad) * SUPPLY_SHIP_SPEED * totalLeadTime;
   const noiseCol = (rng.next() - 0.5) * 2 * SUPPLY_SHIP_AIM_NOISE;
   const noiseRow = (rng.next() - 0.5) * 2 * SUPPLY_SHIP_AIM_NOISE;
   return {
@@ -304,6 +353,23 @@ export function consumeSupplyBonuses(
   if (pending.size === 0 && state.modern)
     state.modern.pendingSupplyBonuses = null;
   return count;
+}
+
+function isShipEngagedBy(
+  ship: SupplyShip,
+  cannonballs: readonly Cannonball[],
+  shooterId: ValidPlayerId,
+): boolean {
+  for (const ball of cannonballs) {
+    if (ball.playerId !== shooterId) continue;
+    const ballCol = ball.impactX / TILE_SIZE;
+    const ballRow = ball.impactY / TILE_SIZE;
+    const dCol = ship.position.col - ballCol;
+    const dRow = ship.position.row - ballRow;
+    if (dCol * dCol + dRow * dRow <= SHIP_ENGAGED_RADIUS * SHIP_ENGAGED_RADIUS)
+      return true;
+  }
+  return false;
 }
 
 function queueSupplyBonus(

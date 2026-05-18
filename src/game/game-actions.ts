@@ -43,7 +43,21 @@ export function executePlacePiece(
 }
 
 /** Execute a cannon-placement intent against game state.
- *  Returns true on success, false when validation fails (occupied tile, etc.). */
+ *  Returns true on success, false when validation fails (occupied tile,
+ *  slot budget exhausted, etc.).
+ *
+ *  Single entry point for IMMEDIATE-APPLY cannon placement — used by
+ *  HumanController.tryPlaceCannon (built from cursor + selected mode)
+ *  and by AiController's cannon brain (intent from `pickTarget`).
+ *  Online host human + AssistedHuman go through `scheduleCannonPlacement`
+ *  instead (deferred apply + wire broadcast); see
+ *  online/online-send-actions.ts.
+ *
+ *  CALLERS MUST CONSUME THE RETURN VALUE — a `false` return means the
+ *  placement was rejected, and the caller is expected to react (stop the
+ *  flush loop, retry, etc.). Statement-form calls that drop the bool
+ *  hide validation failures and have caused at least one infinite-loop
+ *  bug (see flushCannon's generator refactor). */
 export function executePlaceCannon(
   state: GameState,
   intent: PlaceCannonIntent,

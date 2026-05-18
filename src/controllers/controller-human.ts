@@ -4,7 +4,7 @@ import {
   canPlaceCannon,
   canPlacePiece,
   effectivePlacementCost,
-  placeCannon,
+  executePlaceCannon,
 } from "../game/index.ts";
 import { CannonMode } from "../shared/core/battle-types.ts";
 import { cannonModesForGame } from "../shared/core/cannon-mode-defs.ts";
@@ -30,6 +30,7 @@ import {
   type PiecePlacementPreview,
   type PlacePieceIntent,
 } from "../shared/core/system-interfaces.ts";
+import type { GameState } from "../shared/core/types.ts";
 import { Action } from "../shared/ui/input-action.ts";
 import type { KeyBindings } from "../shared/ui/player-config.ts";
 import { BaseController } from "./controller-base.ts";
@@ -256,26 +257,22 @@ export class HumanController extends BaseController implements InputReceiver {
   }
 
   /** Try to place a cannon at the current cursor position. Returns `true` on
-   *  success, `false` on validation failure.
-   *
-   *  EXCEPTION to the intent/orchestrator pattern used by tryPlacePiece below
-   *  (and documented as pattern #83 in skills/architecture-audit.md): this
-   *  method calls `placeCannon` directly instead of returning an intent object.
-   *  The historical reason is that `placeCannon` already accepts the structural
-   *  subset it needs (`player`, `row`, `col`, `mode`, `state`) without a full
-   *  GameState mutation, so there was no migration benefit. DO NOT copy
-   *  tryPlacePiece's intent shape here without first rewriting placeCannon —
-   *  and DO NOT copy this boolean-returning shape into new placement methods. */
+   *  success, `false` on validation failure. Builds a `PlaceCannonIntent`
+   *  from the human's cursor + selected mode and routes through the same
+   *  `executePlaceCannon` entry point as AI placements, so every immediate-
+   *  apply cannon commit funnels through one validator (and one lint-audited
+   *  return value). */
   tryPlaceCannon(state: CannonViewState, maxSlots: number): boolean {
-    const placed = placeCannon(
-      state.players[this.playerId]!,
-      this.cannonCursor.row,
-      this.cannonCursor.col,
+    return executePlaceCannon(
+      state as GameState,
+      {
+        playerId: this.playerId,
+        row: this.cannonCursor.row,
+        col: this.cannonCursor.col,
+        mode: this.cannonPlaceMode,
+      },
       maxSlots,
-      this.cannonPlaceMode,
-      state,
     );
-    return placed;
   }
 
   /** Compute a place-piece intent at the build cursor.

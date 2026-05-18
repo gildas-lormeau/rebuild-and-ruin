@@ -10,7 +10,6 @@ import type { PixelPos } from "../shared/core/geometry-types.ts";
 import type {
   BattleViewState,
   BuildViewState,
-  CannonPlacementPreview,
   CannonViewState,
   FireIntent,
   GameViewState,
@@ -29,6 +28,7 @@ import type {
   BattleHost,
   BuildHost,
   CannonHost,
+  CannonTickResult,
   SelectionHost,
 } from "./ai-strategy-types.ts";
 
@@ -53,16 +53,17 @@ export interface AiBrainBuild {
 
 export interface AiBrainCannon {
   init(host: CannonHost, state: CannonViewState, maxSlots: number): void;
-  tick(
-    host: CannonHost,
-    state: CannonViewState,
-    executePlace: (intent: PlaceCannonIntent) => boolean,
-  ): CannonPlacementPreview | undefined;
+  tick(host: CannonHost, state: CannonViewState): CannonTickResult;
+  /** Plan all remaining placements at end-of-phase. Yields intents one
+   *  at a time — caller commits each intent BEFORE pulling the next, so
+   *  the brain's slot-accounting reads include the caller's per-yield
+   *  mutations. Caller is expected to break on the first commit failure.
+   *  The generator's `finally` clears the brain's flush context even
+   *  when the caller exits the loop early. */
   flush(
     host: CannonHost,
     state: CannonViewState,
-    executePlace: (intent: PlaceCannonIntent) => boolean,
-  ): void;
+  ): Generator<PlaceCannonIntent, void>;
   isDone(): boolean;
   reset(): void;
   /** maxSlots captured at init — assisted-human reads this when scheduling

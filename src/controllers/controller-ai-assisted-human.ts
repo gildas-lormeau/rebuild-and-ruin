@@ -114,37 +114,44 @@ export class AiAssistedHumanController
     state: CannonViewState,
     _dt: number,
   ): CannonPlacementPreview | undefined {
-    const executePlace = (intent: PlaceCannonIntent): boolean => {
-      const stamped = scheduleCannonPlacement({
-        schedule: this.schedule,
-        state: state as GameState,
-        intent,
-        maxSlots: this.brain.cannon.maxSlots,
-        safetyTicks: this.safetyTicks,
-      });
-      if (!stamped) return false;
-      this.senders.sendCannonPlaced(stamped);
-      return true;
-    };
-    const result = this.brain.cannon.tick(this, state, executePlace);
-    this.currentCannonPhantom = result;
-    return result;
+    const result = this.brain.cannon.tick(this, state);
+    if (result.commit) {
+      this.commitScheduledPlacement(
+        state as GameState,
+        result.commit,
+        this.brain.cannon.maxSlots,
+      );
+    }
+    const phantom = result.phantom ?? undefined;
+    this.currentCannonPhantom = phantom;
+    return phantom;
   }
 
   override flushCannons(state: CannonViewState, maxSlots: number): void {
-    const executePlace = (intent: PlaceCannonIntent): boolean => {
-      const stamped = scheduleCannonPlacement({
-        schedule: this.schedule,
-        state: state as GameState,
-        intent,
-        maxSlots,
-        safetyTicks: this.safetyTicks,
-      });
-      if (!stamped) return false;
-      this.senders.sendCannonPlaced(stamped);
-      return true;
-    };
-    this.brain.cannon.flush(this, state, executePlace);
+    // Commit intents in order; stop on the first validation failure so a
+    // wedge in the brain's planning (mismatched slot accounting, occupied
+    // tile, etc.) can't burn frames retrying the same intent.
+    for (const intent of this.brain.cannon.flush(this, state)) {
+      if (!this.commitScheduledPlacement(state as GameState, intent, maxSlots))
+        break;
+    }
+  }
+
+  private commitScheduledPlacement(
+    state: GameState,
+    intent: PlaceCannonIntent,
+    maxSlots: number,
+  ): boolean {
+    const stamped = scheduleCannonPlacement({
+      schedule: this.schedule,
+      state,
+      intent,
+      maxSlots,
+      safetyTicks: this.safetyTicks,
+    });
+    if (!stamped) return false;
+    this.senders.sendCannonPlaced(stamped);
+    return true;
   }
 
   // ── Battle phase: AI ticks; fires broadcast via senders.sendCannonFired ──

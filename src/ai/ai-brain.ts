@@ -65,10 +65,8 @@ export function createDefaultAiBrain(): AiBrain {
     cannon: {
       init: (host, state, maxSlots) =>
         initCannon(host, cannonPhase, state, maxSlots),
-      tick: (host, state, executePlace) =>
-        tickCannon(host, cannonPhase, state, executePlace) ?? undefined,
-      flush: (host, state, executePlace) =>
-        flushCannon(host, cannonPhase, state, executePlace),
+      tick: (host, state) => tickCannon(host, cannonPhase, state),
+      flush: (host, state) => flushCannon(host, cannonPhase, state),
       isDone: () => isCannonDone(cannonPhase),
       reset: () => resetCannonPhase(cannonPhase),
       get maxSlots() {

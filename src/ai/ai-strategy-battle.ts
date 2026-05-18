@@ -418,7 +418,14 @@ export function pickTarget(
         row: sumRow / cannons.length,
         col: sumCol / cannons.length,
       };
-      const shipTarget = pickSupplyShipTarget(supplyShips, shooterTile, rng);
+      const shipTarget = pickSupplyShipTarget(
+        supplyShips,
+        shooterTile,
+        crosshair,
+        state.cannonballs,
+        playerId,
+        rng,
+      );
       if (shipTarget) {
         return { x: shipTarget.x, y: shipTarget.y };
       }

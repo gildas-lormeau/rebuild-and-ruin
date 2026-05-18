@@ -20,6 +20,7 @@ import type {
   CannonHost,
   CannonPlacement,
   CannonPlacementContext,
+  CannonTickResult,
 } from "./ai-strategy-types.ts";
 
 type CannonState =
@@ -101,66 +102,73 @@ export function isCannonDone(phase: CannonPhase): boolean {
   return phase.state.step === STEP.IDLE && phase.ctx === undefined;
 }
 
-/** Place all remaining cannons instantly (phase timer expired). Drains
- *  the in-flight target first (if any), then loops `nextCannonPlacement`
- *  until the strategy returns undefined. */
-export function flushCannon(
+/** Plan all remaining cannon placements when the phase timer expires.
+ *  Yields the in-flight target (if any) followed by every additional
+ *  placement `nextCannonPlacement` produces until it reports `undefined`.
+ *  Generator so each yield's `nextCannonPlacement` reads the state the
+ *  caller mutated by committing the previous intent — without that
+ *  feedback loop, scheduled placements never increment
+ *  `pendingCannonSlotCost`, the brain's slot accounting freezes, and it
+ *  re-emits the same target forever. Cleanup runs in `finally` so a
+ *  break out of the caller's `for...of` still settles the brain to IDLE. */
+export function* flushCannon(
   host: CannonHost,
   phase: CannonPhase,
   state: CannonViewState,
-  executePlaceCannon: (intent: PlaceCannonIntent) => boolean,
-): void {
-  if (phase.currentTarget) {
-    executePlaceCannon({
-      playerId: host.playerId,
-      row: phase.currentTarget.row,
-      col: phase.currentTarget.col,
-      mode: phase.currentTarget.mode,
-    });
-    phase.currentTarget = undefined;
-  }
-  if (phase.ctx) {
-    const player = state.players[host.playerId]!;
-    while (true) {
-      const target = host.strategy.nextCannonPlacement(
-        player,
-        phase.maxSlots,
-        state,
-        phase.ctx,
-      );
-      if (!target) break;
-      executePlaceCannon({
+): Generator<PlaceCannonIntent, void> {
+  try {
+    if (phase.currentTarget) {
+      yield {
         playerId: host.playerId,
-        row: target.row,
-        col: target.col,
-        mode: target.mode,
-      });
+        row: phase.currentTarget.row,
+        col: phase.currentTarget.col,
+        mode: phase.currentTarget.mode,
+      };
+      phase.currentTarget = undefined;
     }
+    if (phase.ctx) {
+      const player = state.players[host.playerId]!;
+      while (true) {
+        const target = host.strategy.nextCannonPlacement(
+          player,
+          phase.maxSlots,
+          state,
+          phase.ctx,
+        );
+        if (!target) break;
+        yield {
+          playerId: host.playerId,
+          row: target.row,
+          col: target.col,
+          mode: target.mode,
+        };
+      }
+    }
+  } finally {
+    phase.ctx = undefined;
+    phase.state = { step: STEP.IDLE };
   }
-  phase.ctx = undefined;
-  phase.state = { step: STEP.IDLE };
 }
 
 export function tickCannon(
   host: CannonHost,
   phase: CannonPhase,
   state: CannonViewState,
-  executePlaceCannon: (intent: PlaceCannonIntent) => boolean,
-): CannonPlacementPreview | null {
+): CannonTickResult {
   const player = state.players[host.playerId]!;
 
   switch (phase.state.step) {
     case STEP.IDLE:
-      return null;
+      return { phantom: null };
 
     case STEP.THINKING: {
       phase.state.timer--;
-      if (phase.state.timer > 0) return null;
+      if (phase.state.timer > 0) return { phantom: null };
       // Decide the next placement on the fly. `ctx` is cleared when the
       // strategy returns undefined so `isCannonDone` reads true cleanly.
       if (!phase.ctx) {
         phase.state = { step: STEP.IDLE };
-        return null;
+        return { phantom: null };
       }
       const target = host.strategy.nextCannonPlacement(
         player,
@@ -171,7 +179,7 @@ export function tickCannon(
       if (!target) {
         phase.ctx = undefined;
         phase.state = { step: STEP.IDLE };
-        return null;
+        return { phantom: null };
       }
       phase.currentTarget = target;
       if (target.mode !== phase.displayedMode) {
@@ -183,16 +191,18 @@ export function tickCannon(
             MODE_SWITCH_SPREAD_SEC,
           ),
         };
-        return phantomAt(
-          host.playerId,
-          phase,
-          Math.round(host.cannonCursor.row),
-          Math.round(host.cannonCursor.col),
-          false,
-        );
+        return {
+          phantom: phantomAt(
+            host.playerId,
+            phase,
+            Math.round(host.cannonCursor.row),
+            Math.round(host.cannonCursor.col),
+            false,
+          ),
+        };
       }
       phase.state = { step: STEP.MOVING };
-      return tickMoving(host, phase, state, player);
+      return { phantom: tickMoving(host, phase, state, player) };
     }
 
     case STEP.MODE_SWITCHING: {
@@ -200,17 +210,19 @@ export function tickCannon(
       if (phase.state.timer <= 0) {
         phase.state = { step: STEP.MOVING };
       }
-      return phantomAt(
-        host.playerId,
-        phase,
-        Math.round(host.cannonCursor.row),
-        Math.round(host.cannonCursor.col),
-        false,
-      );
+      return {
+        phantom: phantomAt(
+          host.playerId,
+          phase,
+          Math.round(host.cannonCursor.row),
+          Math.round(host.cannonCursor.col),
+          false,
+        ),
+      };
     }
 
     case STEP.MOVING:
-      return tickMoving(host, phase, state, player);
+      return { phantom: tickMoving(host, phase, state, player) };
 
     case STEP.DWELLING: {
       phase.state.timer--;
@@ -218,24 +230,26 @@ export function tickCannon(
         const target = phase.currentTarget;
         if (!target) {
           phase.state = { step: STEP.IDLE };
-          return null;
+          return { phantom: null };
         }
-        executePlaceCannon({
+        const commit: PlaceCannonIntent = {
           playerId: host.playerId,
           row: target.row,
           col: target.col,
           mode: target.mode,
-        });
+        };
         phase.currentTarget = undefined;
         phase.state = {
           step: STEP.THINKING,
           timer: host.scaledDelay(POST_PLACE_DELAY_SEC, POST_PLACE_SPREAD_SEC),
         };
-        return null;
+        return { phantom: null, commit };
       }
       const target = phase.currentTarget;
-      if (!target) return null;
-      return phantomAt(host.playerId, phase, target.row, target.col, true);
+      if (!target) return { phantom: null };
+      return {
+        phantom: phantomAt(host.playerId, phase, target.row, target.col, true),
+      };
     }
   }
 }

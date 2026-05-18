@@ -33,7 +33,6 @@ import {
   type FireIntent,
   type GameViewState,
   type PiecePlacementPreview,
-  type PlaceCannonIntent,
   type PlacePieceIntent,
   type UpgradePickViewState,
 } from "../shared/core/system-interfaces.ts";
@@ -205,25 +204,36 @@ export class AiController extends BaseController implements AiAnimatable {
     state: CannonViewState,
     _dt: number,
   ): CannonPlacementPreview | undefined {
-    const executePlace = (intent: PlaceCannonIntent): boolean =>
-      executePlaceCannon(
+    const result = this.brain.cannon.tick(this, state);
+    if (result.commit) {
+      const placed = executePlaceCannon(
         state as GameState,
-        intent,
+        result.commit,
         this.brain.cannon.maxSlots,
       );
-    const result = this.brain.cannon.tick(this, state, executePlace);
+      // Validation rejection here is self-correcting: the brain has already
+      // advanced to THINKING, the next decision cycle picks a fresh target
+      // against updated state. A tight retry of the same blocked target is
+      // prevented by the post-place THINKING delay (cf. build phase's
+      // explicit BLOCKED_RETRY_DELAY in ai-phase-build.ts:199).
+      void placed;
+    }
     // Leave currentCannonPhantom populated by the startCannonPhase hook
     // empty on init (see note there): AI's cannon tick decrements timers
     // and draws from strategy.rng, so seeding at dt=0 would mutate state
     // before the first real frame. Assign from tick result here.
-    this.currentCannonPhantom = result;
-    return result;
+    const phantom = result.phantom ?? undefined;
+    this.currentCannonPhantom = phantom;
+    return phantom;
   }
 
   flushCannons(state: CannonViewState, maxSlots: number): void {
-    const executePlace = (intent: PlaceCannonIntent): boolean =>
-      executePlaceCannon(state as GameState, intent, maxSlots);
-    this.brain.cannon.flush(this, state, executePlace);
+    // Commit intents in order; stop on the first validation failure so a
+    // wedge in the brain's planning (mismatched slot accounting, occupied
+    // tile, etc.) can't burn frames retrying the same intent.
+    for (const intent of this.brain.cannon.flush(this, state)) {
+      if (!executePlaceCannon(state as GameState, intent, maxSlots)) break;
+    }
   }
 
   // -----------------------------------------------------------------------

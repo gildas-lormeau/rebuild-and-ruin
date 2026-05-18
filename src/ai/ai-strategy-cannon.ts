@@ -196,7 +196,8 @@ export function nextCannonPlacement(
   rng: Rng,
   ctx: CannonPlacementContext,
 ): CannonPlacement | undefined {
-  const slotsLeft = count - cannonSlotsUsed(player);
+  const pendingCost = state.pendingCannonSlotCost[player.id] ?? 0;
+  const slotsLeft = count - cannonSlotsUsed(player) - pendingCost;
   if (slotsLeft <= 0) return undefined;
 
   if (ctx.pendingSuperGun) {

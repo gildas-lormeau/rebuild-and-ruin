@@ -17,9 +17,11 @@ import type { Player } from "../shared/core/player-types.ts";
 import type {
   BattleViewState,
   BuildViewState,
+  CannonPlacementPreview,
   CannonViewState,
   FireIntent,
   GameViewState,
+  PlaceCannonIntent,
 } from "../shared/core/system-interfaces.ts";
 import type { ZoneId } from "../shared/core/zone-id.ts";
 import type { Rng } from "../shared/platform/rng.ts";
@@ -31,6 +33,17 @@ export interface CannonPlacement {
   row: number;
   col: number;
   mode: CannonMode;
+}
+
+/** Per-frame cannon-phase tick result. `phantom` drives the cursor
+ *  preview render; `commit`, when present, is the intent the controller
+ *  must hand to its commit transport (executePlaceCannon /
+ *  scheduleCannonPlacement). Brain advances its own state machine
+ *  immediately after producing the intent — the controller is expected
+ *  to commit (or surface a failure) on the same frame. */
+export interface CannonTickResult {
+  readonly phantom: CannonPlacementPreview | null;
+  readonly commit?: PlaceCannonIntent;
 }
 
 /** Per-phase placement context — computed once at phase init. Tracks
