@@ -46,6 +46,9 @@ const LOUPE_CROSSHAIR_DOT = "rgba(255, 255, 255, 0.7)";
  *   tilt. Kept as a parameter (not a hard-coded pitch handler) so
  *   future renderers with different projections can plug in.
  */
+// lint:allow-callback-inversion -- DI getters: sceneCanvas/worldToScene are
+// injected for testability; the loupe samples canvases owned higher up but
+// never feeds state back into the caller's logic.
 export function createLoupe(
   container: HTMLElement,
   sceneCanvas: () => HTMLCanvasElement,

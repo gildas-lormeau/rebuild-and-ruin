@@ -42,6 +42,8 @@ export interface TerrainSdfTextureManager {
   dispose(): void;
 }
 
+// lint:allow-callback-inversion -- DI getter: SDF data is owned higher up;
+// the manager pulls it lazily on ensureBuilt.
 export function createTerrainSdfTextureManager(
   getBlurredSdf: GetBlurredSdf,
 ): TerrainSdfTextureManager {

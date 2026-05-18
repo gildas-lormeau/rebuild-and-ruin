@@ -16,7 +16,10 @@ export const GAME_EXIT_EVENT = "game-exit";
 
 let currentRoute = "";
 
-/** Register a handler that runs when `path` becomes the active route. */
+/** Register a handler that runs when `path` becomes the active route.
+ *
+ *  lint:allow-callback-inversion -- observer: router fires handlers when
+ *  the hash matches; handler runs at the caller's identity. */
 export function onRoute(path: string, handler: RouteHandler): void {
   handlers.set(path, handler);
 }

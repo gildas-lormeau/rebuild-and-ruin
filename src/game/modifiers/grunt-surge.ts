@@ -17,7 +17,14 @@ const GRUNT_SURGE_COUNT_MIN = 6;
 const GRUNT_SURGE_COUNT_MAX = 10;
 
 /** Build the grunt surge impl. Accepts a spawn function so this file stays
- *  in the deep-logic layer and doesn't import grunt-system directly. */
+ *  in the deep-logic layer and doesn't import grunt-system directly.
+ *
+ *  lint:allow-callback-inversion -- TODO: invert to intent. L6 modifier
+ *  invokes L11 grunt-system code via spawnOnZone; cleaner shape is to
+ *  return a list of (playerId, count) spawn descriptors and let
+ *  modifier-system / grunt-system perform the spawn. Tracked as
+ *  architectural debt; spawnOnZone returns void so this doesn't carry
+ *  the bug class from commit 69c555eb. */
 export function createGruntSurgeImpl(
   spawnOnZone: (
     state: GameState,

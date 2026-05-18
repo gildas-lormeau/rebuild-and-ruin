@@ -123,6 +123,8 @@ const BARREL_EASE_DOWN_PER_SEC = 4;
  *  asymptotic easing from keeping the map populated forever. */
 const BARREL_REST_EPSILON = 1e-4;
 
+// lint:allow-callback-inversion -- DI getter: facing data is owned by the
+// scene composer; the manager pulls it per-frame during render.
 export function createCannonsManager(
   scene: THREE.Scene,
   getCannonFacing: GetCannonFacing,

@@ -115,6 +115,8 @@ export function findVariant<V extends { name: string }>(
  * so the returned max-Y reflects the full authored silhouette in the
  * scratch Group's local frame.
  */
+// lint:allow-callback-inversion -- builder injection: build() populates the
+// scratch group with caller-owned geometry; receiver only measures bounds.
 export function measureVariantBoundsY(build: (scratch: THREE.Group) => void): {
   minY: number;
   maxY: number;

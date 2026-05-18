@@ -300,15 +300,20 @@ export type AnyEventHandler = (
 export interface GameEventBus {
   /** Emit an event to typed + wildcard listeners. */
   emit<K extends keyof GameEventMap>(type: K, event: GameEventMap[K]): void;
+  // lint:allow-callback-inversion -- observer: bus broadcasts; handlers
+  // run at the caller's layer and don't feed back into bus logic.
   /** Subscribe to a specific event type. */
   on<K extends keyof GameEventMap>(type: K, handler: GameEventHandler<K>): void;
+  // lint:allow-callback-inversion -- observer (see `on` above).
   /** Unsubscribe from a specific event type. */
   off<K extends keyof GameEventMap>(
     type: K,
     handler: GameEventHandler<K>,
   ): void;
+  // lint:allow-callback-inversion -- observer (see `on` above).
   /** Subscribe to ALL events (logging, debugging). */
   onAny(handler: AnyEventHandler): void;
+  // lint:allow-callback-inversion -- observer (see `on` above).
   /** Unsubscribe a catch-all handler. */
   offAny(handler: AnyEventHandler): void;
   /** Remove all listeners (game teardown). */

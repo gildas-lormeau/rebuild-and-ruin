@@ -58,7 +58,10 @@ export interface UpgradePickSystem {
   get: () => UpgradePickDialogState | null;
   /** Replace dialog state. Used by watcher-mode to apply host-broadcast state. */
   set: (dialog: UpgradePickDialogState | null) => void;
-  /** Try to show the upgrade pick dialog. Returns true if shown, false if skipped. */
+  /** Try to show the upgrade pick dialog. Returns true if shown, false if skipped.
+   *
+   *  lint:allow-callback-inversion -- completion callback: onDone fires
+   *  once when picking concludes; subsystem doesn't read return values. */
   tryShow: (onDone: () => void) => boolean;
   /** Tick the dialog (AI auto-pick, timer). */
   tick: (dt: number) => void;

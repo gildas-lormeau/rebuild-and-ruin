@@ -232,7 +232,14 @@ export function onCannonPlaced(player: Player): void {
 /** Post-impact hook: run any follow-up impacts triggered by upgrades.
  *  Battle-system supplies `applyBounce`, which owns computeImpact +
  *  applyImpactEvent + emit machinery; the upgrade file owns the
- *  RNG-driven bounce geometry. */
+ *  RNG-driven bounce geometry.
+ *
+ *  lint:allow-callback-inversion -- TODO: invert to intent. upgrade-system
+ *  (L9) invokes battle-system (L12) code via applyBounce; cleaner shape is
+ *  for upgrade-system to return ricochet descriptors and let battle-system
+ *  execute them. Tracked as architectural debt; the receiver doesn't
+ *  consume the callback's return so the bug class from commit 69c555eb
+ *  (dropped non-void return → tight loop) can't surface here. */
 export function onImpactResolved(
   state: GameState,
   shooterId: ValidPlayerId,

@@ -242,7 +242,10 @@ const SHADOW_CASTER_GROUPS: ReadonlySet<string> = new Set([
 ]);
 const SHADOW_RECEIVER_GROUPS: ReadonlySet<string> = new Set(["pits"]);
 
-/** Build the scene graph used by `createRender3d`. */
+/** Build the scene graph used by `createRender3d`.
+ *
+ *  lint:allow-callback-inversion -- DI getters: scene queries higher-layer
+ *  state owners on demand; no return value feeds back. */
 export function createRender3dScene(
   canvas: HTMLCanvasElement,
   getBlurredSdf: GetBlurredSdf,

@@ -21,7 +21,10 @@ import type { Mode } from "./ui-mode.ts";
 /** Run `action` with the pointer (local human) controller. Returns `true`
  *  if it actually ran, `false` when there is no human to receive the input
  *  (all-AI, demo, online-watcher). Ignore the return value to preserve the
- *  legacy silent-no-op behavior; inspect it to surface a diagnostic. */
+ *  legacy silent-no-op behavior; inspect it to surface a diagnostic.
+ *
+ *  lint:allow-callback-inversion -- dispatcher: action runs at the caller's
+ *  identity; receiver only guards on whether a pointer player exists. */
 export type WithPointerPlayer = (
   action: (human: PlayerController & InputReceiver) => void,
 ) => boolean;

@@ -59,7 +59,10 @@ export function computeCannonTileSet(
   return tiles;
 }
 
-/** Call `fn` for each tile of a cannon footprint (size based on mode). */
+/** Call `fn` for each tile of a cannon footprint (size based on mode).
+ *
+ *  lint:allow-callback-inversion -- iterator HOF: callback runs per tile,
+ *  no return value feeds back into iteration logic. */
 export function forEachCannonTile(
   cannon: Pick<Cannon, "row" | "col" | "mode">,
   callback: (r: number, c: number, key: TileKey) => void,
@@ -363,7 +366,9 @@ export function computeFloodedTiles(map: GameMap): Set<TileKey> {
   return flooded;
 }
 
-/** Call `fn` for each tile of a 2×2 tower footprint. */
+/** Call `fn` for each tile of a 2×2 tower footprint.
+ *
+ *  lint:allow-callback-inversion -- iterator HOF (see forEachCannonTile). */
 export function forEachTowerTile(
   tilePos: TilePos,
   callback: (r: number, c: number, key: TileKey) => void,

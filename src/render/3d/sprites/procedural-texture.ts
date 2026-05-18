@@ -16,7 +16,10 @@ interface ProceduralTextureContext {
 
 /** Build a repeating `CanvasTexture` of `size`×`size` by running `paint`
  *  against a seeded canvas. Returns `undefined` on SSR or if the 2D
- *  context can't be acquired. */
+ *  context can't be acquired.
+ *
+ *  lint:allow-callback-inversion -- builder injection: paint draws into
+ *  the prepared 2D context; receiver only manages the canvas lifecycle. */
 export function createTiledCanvasTexture(
   three: typeof THREE,
   size: number,

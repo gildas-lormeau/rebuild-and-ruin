@@ -186,7 +186,10 @@ export interface NetworkApi {
    *  Production: WebSocket onmessage routes through the implementation.
    *  Local play: no-op (no peers exist).
    *  Tests/loopback: in-memory delivery between machines in the same
-   *  scenario, exercising the same code path the WebSocket would. */
+   *  scenario, exercising the same code path the WebSocket would.
+   *
+   *  lint:allow-callback-inversion -- network observer: handler runs at
+   *  the caller's identity when a peer message arrives. */
   readonly onMessage: (
     handler: (msg: ServerMessage) => void | Promise<void>,
   ) => () => void;

@@ -4,6 +4,10 @@
  *  "DOM/global helpers as deps" rule — no runtime sub-system should reach for
  *  these globals directly. */
 
+// lint:allow-callback-inversion -- scheduler primitives: callbacks fire at
+// the caller's identity; receiver doesn't read return values to drive its
+// own logic. Same shape as `window.setTimeout` / `requestAnimationFrame`.
+
 export interface TimingApi {
   /** Monotonic timestamp source — produces frame timestamps used by render
    *  animations, dedup channels, and lobby/banner timers. Must be monotonic
