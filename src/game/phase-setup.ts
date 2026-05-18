@@ -66,6 +66,7 @@ import {
   recomputeGruntTargetedWalls,
   rollGruntWallAttacks,
   spawnGruntGroupOnZone,
+  spawnGruntSurgeOnZone,
   spawnInterbattleGrunts,
   updateGruntBlockedBattles,
 } from "./grunt-system.ts";
@@ -637,15 +638,37 @@ function applyBattleStartModifiers(state: GameState): ModifierDiff | null {
   const impl = MODIFIER_REGISTRY.get(mod);
   if (!impl) return null;
   const result = impl.apply(state);
+  // Execute any spawn requests the modifier emitted (grunt-surge stays in
+  // the deep-logic layer by returning descriptors instead of calling
+  // grunt-system directly). RNG draws happen inside spawnGruntSurgeOnZone
+  // and are deterministic given the input request order, which matches
+  // state.players iteration order in the producing modifier.
+  const spawnedTiles: number[] = [];
+  let spawnedCount = 0;
+  if (result.spawnRequests && result.spawnRequests.length > 0) {
+    const gruntsBefore = state.grunts.length;
+    for (const req of result.spawnRequests) {
+      spawnGruntSurgeOnZone(state, req.playerId, req.count);
+    }
+    for (let i = gruntsBefore; i < state.grunts.length; i++) {
+      const grunt = state.grunts[i]!;
+      spawnedTiles.push(packTile(grunt.row, grunt.col));
+    }
+    spawnedCount = state.grunts.length - gruntsBefore;
+  }
   if (!impl.skipsRecheck) recheckTerritory(state);
+  const changedTiles =
+    spawnedTiles.length === 0
+      ? result.changedTiles
+      : [...result.changedTiles, ...spawnedTiles];
   // Persist the changed-tile set on state alongside `activeModifier` so
   // the `MODIFIER_REVEAL` dwell-phase render can draw a tile pulse
   // without needing to re-derive what the modifier touched.
-  state.modern!.activeModifierChangedTiles = result.changedTiles;
+  state.modern!.activeModifierChangedTiles = changedTiles;
   return {
     id: mod,
-    changedTiles: result.changedTiles,
-    gruntsSpawned: result.gruntsSpawned,
+    changedTiles,
+    gruntsSpawned: result.gruntsSpawned + spawnedCount,
   };
 }
 

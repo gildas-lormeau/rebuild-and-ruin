@@ -392,6 +392,21 @@ export interface FrameContext {
 export interface ModifierApplyResult {
   readonly changedTiles: readonly number[];
   readonly gruntsSpawned: number;
+  /** Optional grunt-spawn requests for the orchestrator to execute AFTER
+   *  apply() returns. Lets deep-logic modifiers (grunt-surge) stay below
+   *  grunt-system in the import graph: the modifier returns descriptors
+   *  carrying any RNG-consumed planning decisions, then phase-setup runs
+   *  spawnGruntSurgeOnZone per request. The orchestrator merges resulting
+   *  spawn tiles + counts into the returned ModifierDiff so the reveal
+   *  banner pulse and grunts-spawned banner stay correct. */
+  readonly spawnRequests?: readonly ModifierSpawnRequest[];
+}
+
+/** A request to spawn grunts on a player's zone, emitted by a modifier's
+ *  apply() for the orchestrator to execute. */
+export interface ModifierSpawnRequest {
+  readonly playerId: ValidPlayerId;
+  readonly count: number;
 }
 
 /** Hooks shared across all lifecycle variants. */

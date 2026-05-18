@@ -22,13 +22,12 @@ import {
   hasFeature,
   type ModifierImpl,
 } from "../shared/core/types.ts";
-import { spawnGruntSurgeOnZone } from "./grunt-system.ts";
 import { dustStormImpl } from "./modifiers/dust-storm.ts";
 import { dryLightningImpl, wildfireImpl } from "./modifiers/fire.ts";
 import { fogOfWarImpl } from "./modifiers/fog-of-war.ts";
 import { frostbiteImpl } from "./modifiers/frostbite.ts";
 import { frozenRiverImpl } from "./modifiers/frozen-river.ts";
-import { createGruntSurgeImpl } from "./modifiers/grunt-surge.ts";
+import { gruntSurgeImpl } from "./modifiers/grunt-surge.ts";
 import { highTideImpl } from "./modifiers/high-tide.ts";
 import { lowWaterImpl } from "./modifiers/low-water.ts";
 import { rubbleClearingImpl } from "./modifiers/rubble-clearing.ts";
@@ -39,7 +38,7 @@ import { supplyShipImpl } from "./modifiers/supply-ship.ts";
 /** Compile-time exhaustiveness: every ModifierId must have an impl entry. */
 const MODIFIER_IMPLS = {
   wildfire: wildfireImpl,
-  grunt_surge: createGruntSurgeImpl(spawnGruntSurgeOnZone),
+  grunt_surge: gruntSurgeImpl,
   frozen_river: frozenRiverImpl,
   sinkhole: sinkholeImpl,
   high_tide: highTideImpl,
