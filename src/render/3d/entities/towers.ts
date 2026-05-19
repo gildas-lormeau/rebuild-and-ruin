@@ -7,7 +7,7 @@
  */
 
 import * as THREE from "three";
-import type { Tower } from "../../../shared/core/geometry-types.ts";
+import type { Tower, TowerIdx } from "../../../shared/core/geometry-types.ts";
 import { TILE_SIZE } from "../../../shared/core/grid.ts";
 import type { ValidPlayerId } from "../../../shared/core/player-slot.ts";
 import type { FrameCtx } from "../frame-ctx.ts";
@@ -135,7 +135,8 @@ export function createTowersManager(scene: THREE.Scene): TowersManager {
     const aliveMask = overlay?.entities?.towerAlive;
 
     const live = new Set<number>();
-    for (let i = 0; i < towers.length; i++) {
+    for (let idx = 0; idx < towers.length; idx++) {
+      const i = idx as TowerIdx;
       // Skip dead towers — the 3D debris manager (entities/debris.ts)
       // renders their rubble under the separate `debris` layer flag.
       // `towerAlive === undefined` (no battle state yet) means "all alive".

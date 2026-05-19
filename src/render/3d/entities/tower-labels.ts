@@ -9,6 +9,7 @@
 
 import * as THREE from "three";
 import { Phase } from "../../../shared/core/game-phase.ts";
+import type { TowerIdx } from "../../../shared/core/geometry-types.ts";
 import { TILE_SIZE } from "../../../shared/core/grid.ts";
 import type { ValidPlayerId } from "../../../shared/core/player-slot.ts";
 import {
@@ -108,7 +109,8 @@ export function createTowerLabelsManager(
     }
 
     const seen = new Set<number>();
-    for (let i = 0; i < towers.length; i++) {
+    for (let idx = 0; idx < towers.length; idx++) {
+      const i = idx as TowerIdx;
       // Labels only float above a player's ORIGINAL home tower —
       // captured secondary towers stay unlabelled so the home tower
       // remains the unambiguous "this is you" beacon during battle.

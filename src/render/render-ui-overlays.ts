@@ -10,6 +10,7 @@ import {
 } from "../shared/core/game-constants.ts";
 import type { BannerKind } from "../shared/core/game-event-bus.ts";
 import { Phase } from "../shared/core/game-phase.ts";
+import type { TowerIdx } from "../shared/core/geometry-types.ts";
 import {
   GRID_COLS,
   GRID_ROWS,
@@ -649,8 +650,8 @@ function buildOwnedTowersByIndex(view: RenderView): Map<number, number> {
   return ownedTowers;
 }
 
-function buildHomeTowerIndices(view: RenderView): Set<number> {
-  const indices = new Set<number>();
+function buildHomeTowerIndices(view: RenderView): Set<TowerIdx> {
+  const indices = new Set<TowerIdx>();
   for (const player of view.players) {
     if (player.homeTower) indices.add(player.homeTower.index);
   }

@@ -146,7 +146,7 @@ export interface EntityOverlay {
   /** Indices of the towers that are a player's *original* home tower.
    *  Used to pick the `home_tower` vs `secondary_tower` geometry; the
    *  ownership tint comes from `ownedTowers`. */
-  homeTowerIndices?: ReadonlySet<number>;
+  homeTowerIndices?: ReadonlySet<TowerIdx>;
   /** Frozen river tiles for rendering ice overlay. */
   frozenTiles?: ReadonlySet<TileKey>;
   /** Recently thawed tiles — drives the crack-and-fade break animation. */
