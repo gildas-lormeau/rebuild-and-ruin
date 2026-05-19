@@ -722,7 +722,6 @@ function buildUpgradePickUi(
             ? Math.max(0, dialog.timer - entry.pickedAtTimer)
             : 0;
         return {
-          id: upgradeId,
           label: def?.label ?? upgradeId,
           description: def?.description ?? "",
           category: def?.category ?? "",
@@ -773,8 +772,6 @@ function buildBattleCannonballsPayload(
       y: b.y,
       startX: b.startX,
       startY: b.startY,
-      targetX: b.impactX,
-      targetY: b.impactY,
       progress,
       altitude: b.altitude,
       incendiary: b.incendiary,

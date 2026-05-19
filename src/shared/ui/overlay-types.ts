@@ -69,7 +69,6 @@ export interface FrameData {
 
 /** Upgrade pick card data for rendering. */
 export interface UpgradePickCard {
-  readonly id: string;
   readonly label: string;
   readonly description: string;
   readonly category: string;
@@ -185,11 +184,6 @@ export interface OverlayCannonball {
    *  the arc apex proportionally to total flight distance. */
   startX: number;
   startY: number;
-  /** Target tile center (world-pixel coords). Lets the 3D renderer
-   *  compute target elevation so balls can arc onto wall tops
-   *  instead of passing through the wall to the ground plane. */
-  targetX: number;
-  targetY: number;
   progress: number;
   /** Altitude (world units) on the ballistic arc. The sim writes this
    *  directly each tick from the pinned trajectory — the renderer reads
