@@ -776,11 +776,10 @@ function applyImpactEvent(
   suppressCombo?: boolean,
 ): void {
   // Prefer shooterId from event (network payload) over parameter (host fallback)
-  const sid = (
+  const sid =
     "shooterId" in event && event.shooterId !== undefined
       ? event.shooterId
-      : shooterId
-  ) as ValidPlayerId | undefined;
+      : shooterId;
   switch (event.type) {
     case BATTLE_MESSAGE.WALL_DESTROYED:
       applyWallDestroyed(state, event, sid, suppressCombo);
@@ -1564,7 +1563,7 @@ function resolveBalloonCaptures(
       state.capturedCannons.push({
         cannon,
         cannonIdx: cannonIdx as CannonIdx,
-        victimId: victimId as ValidPlayerId,
+        victimId,
         capturerId: winnerId as ValidPlayerId,
       });
     }

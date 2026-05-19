@@ -547,7 +547,7 @@ function findCatapultBlockingWall(
     if (remainingRow > remainingCol) row += Math.sign(targetRow - row);
     else col += Math.sign(targetCol - col);
     if (row === targetRow && col === targetCol) break;
-    if (hasWallAt(state, row, col)) return packTile(row, col) as TileKey;
+    if (hasWallAt(state, row, col)) return packTile(row, col);
   }
   return null;
 }

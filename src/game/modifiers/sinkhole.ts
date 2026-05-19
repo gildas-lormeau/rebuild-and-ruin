@@ -130,7 +130,7 @@ function reapplySinkholeTiles(state: GameState): void {
   if (!sinkhole || sinkhole.size === 0) return;
   const tiles = state.map.tiles;
   for (const key of sinkhole) {
-    const { r, c } = unpackTile(key as TileKey);
+    const { r, c } = unpackTile(key);
     setWater(tiles, r, c);
   }
 }
@@ -180,7 +180,7 @@ function applySinkhole(state: GameState): ReadonlySet<number> {
   // Mutate tiles to water
   const tiles = state.map.tiles;
   for (const key of allSunk) {
-    const { r, c } = unpackTile(key as TileKey);
+    const { r, c } = unpackTile(key);
     setWater(tiles, r, c);
   }
 

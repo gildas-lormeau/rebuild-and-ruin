@@ -357,7 +357,7 @@ export function computeFloodedTiles(map: GameMap): Set<TileKey> {
       if (towerTiles.has(key)) continue;
       for (const [dr, dc] of DIRS_4) {
         if (isWater(map.tiles, r + dr, c + dc)) {
-          flooded.add(key as TileKey);
+          flooded.add(key);
           break;
         }
       }

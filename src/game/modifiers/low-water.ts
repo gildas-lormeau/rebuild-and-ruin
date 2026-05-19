@@ -92,7 +92,7 @@ function computeExposedRiverbedTiles(map: GameMap, rng: Rng): Set<TileKey> {
       const nr = r + dr;
       const nc = c + dc;
       if (!isWater(tiles, nr, nc)) continue;
-      if (exposed.has(packTile(nr, nc) as TileKey)) continue;
+      if (exposed.has(packTile(nr, nc))) continue;
       if (!inWater2x2(tiles, exposed, nr, nc)) {
         safe = false;
         break;
@@ -112,7 +112,7 @@ function inWater2x2(
   c: number,
 ): boolean {
   const stillWater = (rr: number, cc: number): boolean =>
-    isWater(tiles, rr, cc) && !exposed.has(packTile(rr, cc) as TileKey);
+    isWater(tiles, rr, cc) && !exposed.has(packTile(rr, cc));
   return (
     (stillWater(r, c + 1) &&
       stillWater(r + 1, c) &&

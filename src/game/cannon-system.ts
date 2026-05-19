@@ -354,7 +354,7 @@ function findLegalCannonPlacements(
   const interior = getInterior(player);
   const candidates: TilePos[] = [];
   for (const key of interior) {
-    const { r, c } = unpackTile(key as TileKey);
+    const { r, c } = unpackTile(key);
     if (canPlaceCannon(player, r, c, mode, state)) {
       candidates.push({ row: r, col: c });
     }

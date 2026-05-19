@@ -648,8 +648,7 @@ function tryEnqueueFlood(
   if (!inBounds(r, c)) return;
   if (ctx.zones[r]![c] !== 0) return;
   const fillable =
-    isGrass(ctx.tiles, r, c) ||
-    ctx.extraFillable?.has(packTile(r, c) as TileKey) === true;
+    isGrass(ctx.tiles, r, c) || ctx.extraFillable?.has(packTile(r, c)) === true;
   if (!fillable) return;
   ctx.zones[r]![c] = rid;
   ctx.queue.push(packTile(r, c));

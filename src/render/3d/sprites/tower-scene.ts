@@ -1484,7 +1484,7 @@ function roundedRectShape(
   halfD: number,
   R: number,
 ): THREE.Shape {
-  return _drawRoundedRect(new three.Shape(), halfW, halfD, R) as THREE.Shape;
+  return _drawRoundedRect(new three.Shape(), halfW, halfD, R);
 }
 
 function roundedRectPath(
@@ -1493,7 +1493,7 @@ function roundedRectPath(
   halfD: number,
   R: number,
 ): THREE.Path {
-  return _drawRoundedRect(new three.Path(), halfW, halfD, R) as THREE.Path;
+  return _drawRoundedRect(new three.Path(), halfW, halfD, R);
 }
 
 function _drawRoundedRect<T extends THREE.Path>(

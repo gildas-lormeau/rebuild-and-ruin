@@ -345,8 +345,8 @@ function applyCapturedCannons(
     state.capturedCannons.push({
       cannon: victim.cannons[captured.cannonIdx]!,
       cannonIdx: captured.cannonIdx,
-      victimId: captured.victimId as ValidPlayerId,
-      capturerId: captured.capturerId as ValidPlayerId,
+      victimId: captured.victimId,
+      capturerId: captured.capturerId,
     });
   }
 }

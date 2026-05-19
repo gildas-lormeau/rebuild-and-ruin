@@ -135,9 +135,7 @@ export function createControlsOverlay(frameCtx: UIContext): {
     return {
       name: name!,
       color: getPlayerColor(player as ValidPlayerId).wall,
-      bindings: ACTION_KEYS.map((key) =>
-        formatKeyName(keyBinding[key as keyof KeyBindings]),
-      ),
+      bindings: ACTION_KEYS.map((key) => formatKeyName(keyBinding[key])),
     };
   });
   const overlay: RenderOverlay = {

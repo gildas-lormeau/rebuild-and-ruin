@@ -330,7 +330,7 @@ function applyKeyRebinding(
 ): void {
   for (const otherAction of ACTION_KEYS) {
     if (otherAction === actionKey) continue;
-    if (keyBindings[otherAction as keyof KeyBindings] === newKey) {
+    if (keyBindings[otherAction] === newKey) {
       (keyBindings as unknown as Record<string, string>)[otherAction] =
         keyBindings[actionKey as keyof KeyBindings];
       break;

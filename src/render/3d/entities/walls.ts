@@ -412,7 +412,7 @@ function rebuildBuckets(
       list.push({
         col,
         row,
-        tileKey: key as TileKey,
+        tileKey: key,
         held: source.held,
         opacity: heldData?.opacity ?? 1,
         tint,
