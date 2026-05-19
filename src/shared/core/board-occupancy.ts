@@ -30,14 +30,14 @@ import type { GameViewState } from "./system-interfaces.ts";
  *  Build once via `buildOccupancyCache`, then pass to `canPlacePiece`
  *  to avoid per-tile linear scans over towers/cannons/grunts. */
 export interface OccupancyCache {
-  readonly towerKeys: ReadonlySet<number>;
-  readonly cannonKeys: ReadonlySet<number>;
-  readonly gruntKeys: ReadonlySet<number>;
+  readonly towerKeys: ReadonlySet<TileKey>;
+  readonly cannonKeys: ReadonlySet<TileKey>;
+  readonly gruntKeys: ReadonlySet<TileKey>;
   /** Union of every player's walls. Use for any-wall presence checks
    *  (e.g. wall-overlap validation in `canPlacePiece`); for own-wall checks,
    *  test `player.walls.has(key)` directly. */
-  readonly wallKeys: ReadonlySet<number>;
-  readonly pitKeys: ReadonlySet<number>;
+  readonly wallKeys: ReadonlySet<TileKey>;
+  readonly pitKeys: ReadonlySet<TileKey>;
 }
 
 /** Preset: tiles that block bonus square placement.
@@ -258,25 +258,25 @@ export function buildOccupancyCache(
     readonly burningPits: readonly BurningPit[];
   },
 ): OccupancyCache {
-  const towerKeys = new Set<number>();
+  const towerKeys = new Set<TileKey>();
   for (const tower of state.map.towers) {
     forEachTowerTile(tower, (_r, _c, key) => towerKeys.add(key));
   }
-  const cannonKeys = new Set<number>();
+  const cannonKeys = new Set<TileKey>();
   for (const player of state.players) {
     for (const cannon of player.cannons) {
       for (const key of computeCannonTileSet(cannon)) cannonKeys.add(key);
     }
   }
-  const gruntKeys = new Set<number>();
+  const gruntKeys = new Set<TileKey>();
   for (const grunt of state.grunts) {
     gruntKeys.add(packTile(grunt.row, grunt.col));
   }
-  const wallKeys = new Set<number>();
+  const wallKeys = new Set<TileKey>();
   for (const player of state.players) {
     for (const key of player.walls) wallKeys.add(key);
   }
-  const pitKeys = new Set<number>();
+  const pitKeys = new Set<TileKey>();
   for (const pit of state.burningPits) {
     pitKeys.add(packTile(pit.row, pit.col));
   }

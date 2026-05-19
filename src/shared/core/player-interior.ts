@@ -7,6 +7,7 @@
  * build via recheckTerritory.
  */
 
+import type { TileKey } from "./grid.ts";
 import {
   brandFreshInterior,
   type FreshInterior,
@@ -53,7 +54,7 @@ export function markWallsDirty(player: Player): void {
  *  When `fresh` is provided, assigns it as the new interior (handles branded-type cast). */
 export function markInteriorFresh(
   player: Player,
-  fresh?: Set<number>,
+  fresh?: Set<TileKey>,
 ): FreshInterior {
   if (fresh !== undefined) {
     player.interior = brandFreshInterior(fresh);

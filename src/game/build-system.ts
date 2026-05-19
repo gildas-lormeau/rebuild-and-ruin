@@ -544,7 +544,7 @@ function clearUnenclosedPendingRevives(state: GameState): void {
  *  Grass tiles not reachable through non-wall tiles become interior (territory).
  *  Calls markInteriorFresh() — after this, getInterior(player) is safe. */
 function recomputeInterior(player: Player): void {
-  const fresh = new Set<number>();
+  const fresh = new Set<TileKey>();
   const outside = computeOutside(player.walls);
   for (let r = 0; r < GRID_ROWS; r++) {
     for (let c = 0; c < GRID_COLS; c++) {

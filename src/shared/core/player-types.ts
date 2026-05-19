@@ -125,12 +125,12 @@ export function clearAllPlayerBags(state: {
 
 /** Create a branded empty interior set. Use at Player creation. */
 export function emptyFreshInterior(): FreshInterior {
-  return new Set<number>() as unknown as FreshInterior;
+  return new Set<TileKey>() as unknown as FreshInterior;
 }
 
 /** Brand an existing set as fresh interior. Use at checkpoint
  *  deserialization where the set is constructed from trusted data. */
-export function brandFreshInterior(set: ReadonlySet<number>): FreshInterior {
+export function brandFreshInterior(set: ReadonlySet<TileKey>): FreshInterior {
   return set as FreshInterior;
 }
 

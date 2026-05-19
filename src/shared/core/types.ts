@@ -499,7 +499,7 @@ export interface BounceDescriptor {
 export interface BattleStartCannonDeps {
   readonly filterActiveFiringCannons: (player: Player) => Cannon[];
   readonly isCannonEnclosed: (cannon: Cannon, player: Player) => boolean;
-  readonly homeEnclosedRegion: (player: Player) => Set<number>;
+  readonly homeEnclosedRegion: (player: Player) => Set<TileKey>;
 }
 
 /** Implementation hooks for a single upgrade. All hooks are optional —
