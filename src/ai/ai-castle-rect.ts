@@ -502,7 +502,7 @@ function addBankPlugGaps(
   const ringLeft = rect.left - 1,
     ringRight = rect.right + 1;
   // Find unfillable tiles on the ring (water and/or burning pits)
-  const unfillableRing: number[] = [];
+  const unfillableRing: TileKey[] = [];
   for (let r = ringTop; r <= ringBot; r++) {
     for (let c = ringLeft; c <= ringRight; c++) {
       if (!inBounds(r, c)) continue;
@@ -519,7 +519,7 @@ function addBankPlugGaps(
   }
   // For each unfillable ring tile, add interior-facing grass neighbors as plug gaps
   for (const wallKey of unfillableRing) {
-    const { r: wr, c: wc } = unpackTile(wallKey as TileKey);
+    const { r: wr, c: wc } = unpackTile(wallKey);
     for (const [dr, dc] of DIRS_8) {
       const nr = wr + dr,
         nc = wc + dc;

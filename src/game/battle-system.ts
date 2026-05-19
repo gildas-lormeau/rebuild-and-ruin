@@ -1327,7 +1327,7 @@ function collectWallImpacts(
     events.push({
       type: BATTLE_MESSAGE.WALL_ABSORBED,
       playerId: result.playerId,
-      tileKey: result.tileKey as TileKey,
+      tileKey: result.tileKey,
     });
     return { events, hitWall: false };
   }

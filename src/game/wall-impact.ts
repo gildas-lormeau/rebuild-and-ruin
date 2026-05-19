@@ -23,7 +23,7 @@ type WallShieldResult =
       absorbed: true;
       kind: ShieldKind.Reinforced;
       playerId: ValidPlayerId;
-      tileKey: number;
+      tileKey: TileKey;
     }
   | {
       absorbed: true;
@@ -94,7 +94,7 @@ export function applyWallShield(
 ): void {
   if (!result || !result.absorbed) return;
   if (result.kind === ShieldKind.Reinforced) {
-    state.players[result.playerId]?.damagedWalls.add(result.tileKey as TileKey);
+    state.players[result.playerId]?.damagedWalls.add(result.tileKey);
     return;
   }
   const cannon = getCannon(state, result.playerId, result.cannonIdx);

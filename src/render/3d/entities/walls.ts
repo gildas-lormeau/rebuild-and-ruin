@@ -311,20 +311,20 @@ function collectHeldWallEntries(
 ): {
   heldKeys: TileKey[];
   heldDamagedKeys: Set<TileKey>;
-  heldByKey: Map<number, { sinkY: number; opacity: number; damaged: boolean }>;
+  heldByKey: Map<TileKey, { sinkY: number; opacity: number; damaged: boolean }>;
 } {
   const heldKeys: TileKey[] = [];
   const heldDamagedKeys = new Set<TileKey>();
   const heldByKey = new Map<
-    number,
+    TileKey,
     { sinkY: number; opacity: number; damaged: boolean }
   >();
   if (!destroyedWalls) return { heldKeys, heldDamagedKeys, heldByKey };
   for (const wall of destroyedWalls) {
     const multipliers = wallDestroyAnimAt(wall.age * 1000);
-    const tileKey = wall.row * GRID_COLS + wall.col;
-    heldKeys.push(tileKey as TileKey);
-    if (wall.damaged) heldDamagedKeys.add(tileKey as TileKey);
+    const tileKey = (wall.row * GRID_COLS + wall.col) as TileKey;
+    heldKeys.push(tileKey);
+    if (wall.damaged) heldDamagedKeys.add(tileKey);
     heldByKey.set(tileKey, {
       sinkY: multipliers.sinkOffset / WALL_SCALE,
       opacity: multipliers.wallOpacity,
@@ -358,7 +358,7 @@ function rebuildBuckets(
   heldKeys: readonly TileKey[],
   heldDamagedKeys: ReadonlySet<TileKey>,
   heldByKey: ReadonlyMap<
-    number,
+    TileKey,
     { sinkY: number; opacity: number; damaged: boolean }
   >,
   sapperTargeted: ReadonlySet<TileKey>,
@@ -430,7 +430,7 @@ function rebuildBuckets(
 function refreshAnimAttrs(
   lastByBucket: Map<number, WallEntry[]>,
   heldByKey: ReadonlyMap<
-    number,
+    TileKey,
     { sinkY: number; opacity: number; damaged: boolean }
   >,
   sapperTargeted: ReadonlySet<TileKey>,
