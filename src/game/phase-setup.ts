@@ -353,7 +353,7 @@ export function prepareCastleWallsForPlayer(
 
   // Get wall tiles and apply clumsy builders to a temp set
   const wallTiles = computeCastleWallTiles(castle, planTiles);
-  const tempWalls = new Set<number>();
+  const tempWalls = new Set<TileKey>();
   for (const [r, c] of wallTiles) tempWalls.add(packTile(r, c));
   applyClumsyBuilders(
     tempWalls,
@@ -369,7 +369,7 @@ export function prepareCastleWallsForPlayer(
     tempWalls,
     state.rng,
   );
-  player.castleWallTiles = new Set(ordered as TileKey[]);
+  player.castleWallTiles = new Set(ordered);
   return { playerId: player.id, tiles: ordered };
 }
 

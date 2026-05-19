@@ -6,6 +6,7 @@
  *  and wildfire still apply elsewhere in the zone. */
 
 import { TOWER_SIZE } from "../../shared/core/game-constants.ts";
+import type { TileKey } from "../../shared/core/grid.ts";
 import { isPlayerSeated } from "../../shared/core/player-types.ts";
 import { packTile } from "../../shared/core/spatial.ts";
 import type { GameState } from "../../shared/core/types.ts";
@@ -26,8 +27,10 @@ export function getActiveZones(state: GameState): ZoneId[] {
 /** Tile keys covered by any fresh castle's 2x2 tower + castle-wall ring.
  *  Modifiers that place damage on tiles (wildfire, dry lightning, sinkhole)
  *  skip these; applyFireScar asserts it never touches one. */
-export function getProtectedCastleTiles(state: GameState): ReadonlySet<number> {
-  const protectedTiles = new Set<number>();
+export function getProtectedCastleTiles(
+  state: GameState,
+): ReadonlySet<TileKey> {
+  const protectedTiles = new Set<TileKey>();
   for (const player of state.players) {
     if (!isPlayerSeated(player)) continue;
     if (!player.inGracePeriod) continue;

@@ -265,7 +265,7 @@ export function computeCastleWallTiles(
  * Net effect: only extra walls near corners survive the sweep.
  */
 export function applyClumsyBuilders(
-  walls: Set<number>,
+  walls: Set<TileKey>,
   castle: Castle,
   tiles: readonly Tile[][],
   rng: Rng,
@@ -277,7 +277,7 @@ export function applyClumsyBuilders(
   const wallTop = top - 1;
   const wallBottom = bottom + 1;
 
-  const towerTiles = new Set<number>();
+  const towerTiles = new Set<TileKey>();
   for (const tower of allTowers ?? [castle.tower]) {
     forEachTowerTile(tower, (_r, _c, key) => towerTiles.add(key));
   }
@@ -328,7 +328,7 @@ export function applyClumsyBuilders(
   const currentWalls = [...walls];
   for (const key of currentWalls) {
     if (!rng.bool(CLUMSY_WALL_CHANCE * clumsyScale)) continue;
-    const { r, c } = unpackTile(key as TileKey);
+    const { r, c } = unpackTile(key);
 
     // Collect candidate neighbors (4-connected) that aren't already walls or tower
     const candidates: [number, number][] = [];
@@ -350,7 +350,7 @@ export function applyClumsyBuilders(
   // Sweep: remove completely isolated extra tiles (0 wall neighbors).
   // Tiles with 1+ neighbors are valid bumps from clumsy builders.
   for (const key of [...walls]) {
-    const { r, c } = unpackTile(key as TileKey);
+    const { r, c } = unpackTile(key);
     let neighbors = 0;
     for (const [dr, dc] of DIRS_4) {
       const nr = r + dr;
@@ -400,11 +400,11 @@ export function startOfBuildPhaseHousekeeping(state: GameState): void {
 export function orderCastleWallsForAnimation(
   castle: Castle,
   ringTiles: readonly [number, number][],
-  finalWalls: Set<number>,
+  finalWalls: ReadonlySet<TileKey>,
   rng: Rng,
-): number[] {
+): TileKey[] {
   // Pack the ideal ring into a fast-lookup set
-  const ringSet = new Set<number>();
+  const ringSet = new Set<TileKey>();
   for (const [r, c] of ringTiles) ringSet.add(packTile(r, c));
 
   // Walk the ring in perimeter order (randomly CW or CCW)
@@ -412,7 +412,7 @@ export function orderCastleWallsForAnimation(
   if (rng.bool(CASTLE_RING_REVERSE_CHANCE)) ringWalk.reverse();
 
   // Extras = clumsy-builder tiles outside the original ring
-  const extras = new Set<number>();
+  const extras = new Set<TileKey>();
   for (const k of finalWalls) {
     if (!ringSet.has(k)) extras.add(k);
   }
@@ -480,8 +480,8 @@ function spawnHousesInZone(state: GameState, zoneId: ZoneId): void {
   }
 }
 
-function buildTowerTileSet(towers: readonly Tower[]): Set<number> {
-  const towerTiles = new Set<number>();
+function buildTowerTileSet(towers: readonly Tower[]): Set<TileKey> {
+  const towerTiles = new Set<TileKey>();
   for (const tower of towers) {
     forEachTowerTile(tower, (_r, _c, key) => towerTiles.add(key));
   }
@@ -492,7 +492,7 @@ function buildTowerTileSet(towers: readonly Tower[]): Set<number> {
 function isValidHousePos(
   tiles: readonly Tile[][],
   zones: readonly ZoneCell[][],
-  towerTiles: Set<number>,
+  towerTiles: ReadonlySet<TileKey>,
   r: number,
   c: number,
   zoneId: ZoneId,
@@ -596,14 +596,14 @@ function extendGapsToTarget(
 /** Walk the castle perimeter clockwise: top→right→bottom→left. */
 function buildPerimeterWalk(
   castle: Castle,
-  ringSet: ReadonlySet<number>,
-): number[] {
+  ringSet: ReadonlySet<TileKey>,
+): TileKey[] {
   const wallLeft = castle.left - 1,
     wallRight = castle.right + 1,
     wallTop = castle.top - 1,
     wallBottom = castle.bottom + 1;
 
-  const walk: number[] = [];
+  const walk: TileKey[] = [];
   // Top edge (left to right)
   for (let c = wallLeft; c <= wallRight; c++) {
     const key = packTile(wallTop, c);
@@ -629,17 +629,17 @@ function buildPerimeterWalk(
 
 /** After each ring tile, insert any adjacent extra tiles, then append remainders. */
 function interleaveExtras(
-  activeRing: readonly number[],
-  extras: ReadonlySet<number>,
-  finalWalls: ReadonlySet<number>,
-): number[] {
-  const ordered: number[] = [];
-  const placed = new Set<number>();
+  activeRing: readonly TileKey[],
+  extras: ReadonlySet<TileKey>,
+  finalWalls: ReadonlySet<TileKey>,
+): TileKey[] {
+  const ordered: TileKey[] = [];
+  const placed = new Set<TileKey>();
   for (const k of activeRing) {
     if (placed.has(k)) continue;
     ordered.push(k);
     placed.add(k);
-    const { r, c } = unpackTile(k as TileKey);
+    const { r, c } = unpackTile(k);
     for (const [dr, dc] of DIRS_4) {
       const nr = r + dr;
       const nc = c + dc;
