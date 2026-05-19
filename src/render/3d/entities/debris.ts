@@ -13,7 +13,7 @@ import {
   isCannonAlive,
   isSuperCannon,
 } from "../../../shared/core/battle-types.ts";
-import type { Tower } from "../../../shared/core/geometry-types.ts";
+import type { Tower, TowerIdx } from "../../../shared/core/geometry-types.ts";
 import { GRID_COLS, TILE_SIZE } from "../../../shared/core/grid.ts";
 import type { ValidPlayerId } from "../../../shared/core/player-slot.ts";
 import { wallDestroyAnimAt } from "../../../shared/core/wall-destroy-anim.ts";
@@ -299,10 +299,11 @@ function collectDeadTowerDebris(
   const aliveMask = overlay.entities?.towerAlive;
   if (!aliveMask || !towers) return;
   const ownedTowers = overlay.entities?.ownedTowers;
-  for (let i = 0; i < towers.length; i++) {
+  for (let idx = 0; idx < towers.length; idx++) {
+    const i = idx as TowerIdx;
     if (aliveMask[i] !== false) continue;
     const tower = towers[i]!;
-    const ownerId = ownedTowers?.get(i) as ValidPlayerId | undefined;
+    const ownerId = ownedTowers?.get(i);
     const variantName =
       ownerId !== undefined ? "home_tower_debris" : "secondary_tower_debris";
     const bucketKey =
@@ -369,7 +370,8 @@ function computeStructuralSignature(
   const aliveMask = overlay.entities?.towerAlive;
   const ownedTowers = overlay.entities?.ownedTowers;
   if (aliveMask && towers) {
-    for (let i = 0; i < towers.length; i++) {
+    for (let idx = 0; idx < towers.length; idx++) {
+      const i = idx as TowerIdx;
       if (aliveMask[i] !== false) continue;
       const ownerId = ownedTowers?.get(i);
       parts.push(`t:${i}:${ownerId ?? "-"}`);

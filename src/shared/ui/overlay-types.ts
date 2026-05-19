@@ -142,7 +142,7 @@ export interface EntityOverlay {
   bonusSquares?: readonly TilePos[];
   /** Tower index → owner player id. Covers both a player's original home
    *  tower and any secondary towers they've enclosed. */
-  ownedTowers?: Map<number, number>;
+  ownedTowers?: Map<TowerIdx, ValidPlayerId>;
   /** Indices of the towers that are a player's *original* home tower.
    *  Used to pick the `home_tower` vs `secondary_tower` geometry; the
    *  ownership tint comes from `ownedTowers`. */

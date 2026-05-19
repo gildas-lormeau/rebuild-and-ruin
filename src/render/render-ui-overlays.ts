@@ -640,8 +640,10 @@ function buildStatusBar(
   };
 }
 
-function buildOwnedTowersByIndex(view: RenderView): Map<number, number> {
-  const ownedTowers = new Map<number, number>();
+function buildOwnedTowersByIndex(
+  view: RenderView,
+): Map<TowerIdx, ValidPlayerId> {
+  const ownedTowers = new Map<TowerIdx, ValidPlayerId>();
   for (const player of view.players) {
     for (const tower of player.ownedTowers) {
       ownedTowers.set(tower.index, player.id);
