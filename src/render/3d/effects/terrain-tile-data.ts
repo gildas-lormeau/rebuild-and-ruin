@@ -32,7 +32,7 @@ export interface TerrainTileDataManager {
 
 interface TileDataFingerprint {
   mapVersion: number;
-  interiorRefs: ReadonlyArray<ReadonlySet<number>>;
+  interiorRefs: ReadonlyArray<ReadonlySet<TileKey>>;
   frozenTiles: ReadonlySet<TileKey> | undefined;
   inBattle: boolean;
 }

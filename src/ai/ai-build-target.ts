@@ -30,8 +30,8 @@ export function canPieceFillAnyGap(
   state: BuildViewState,
   playerId: ValidPlayerId,
   piece: PieceShape,
-  interior: ReadonlySet<number>,
-  gaps: Set<number>,
+  interior: ReadonlySet<TileKey>,
+  gaps: Set<TileKey>,
   rect?: TileRect | null,
 ): boolean {
   const adjusted = adjustInterior(interior, gaps, rect);
@@ -45,15 +45,15 @@ export function canPieceFillAnyGap(
  * Returns true if the gap set was modified.
  */
 export function plugUnreachableGaps(
-  gaps: Set<number>,
+  gaps: Set<TileKey>,
   rect: TileRect | null,
   state: BuildViewState,
   playerId: ValidPlayerId,
-  walls: ReadonlySet<number>,
+  walls: ReadonlySet<TileKey>,
   interior: FreshInterior,
 ): boolean {
   if (!rect || gaps.size === 0) return false;
-  const unreachable: number[] = [];
+  const unreachable: TileKey[] = [];
   for (const gapKey of gaps) {
     if (!isGapFillableByAnyShape(state, playerId, interior, gapKey, rect)) {
       unreachable.push(gapKey);
@@ -63,7 +63,7 @@ export function plugUnreachableGaps(
   for (const gapKey of unreachable) gaps.delete(gapKey);
   // Add interior-facing grass neighbors as plug gaps (same diagonal-leak seal as water/pits)
   for (const gapKey of unreachable) {
-    const { r: gr, c: gc } = unpackTile(gapKey as TileKey);
+    const { r: gr, c: gc } = unpackTile(gapKey);
     for (const [dr, dc] of DIRS_8) {
       const nr = gr + dr,
         nc = gc + dc;
@@ -88,11 +88,11 @@ export function plugUnreachableGaps(
 function isGapFillableByAnyShape(
   state: BuildViewState,
   playerId: ValidPlayerId,
-  interior: ReadonlySet<number>,
-  gapKey: number,
+  interior: ReadonlySet<TileKey>,
+  gapKey: TileKey,
   rect?: TileRect | null,
 ): boolean {
-  const singleGap = new Set([gapKey]);
+  const singleGap = new Set<TileKey>([gapKey]);
   const adjusted = adjustInterior(interior, singleGap, rect);
   return canAnyRotationFillGap(
     ALL_PIECE_SHAPES,
@@ -109,10 +109,10 @@ function isGapFillableByAnyShape(
  * so the AI is free to extend pieces into it while filling gaps.
  */
 function adjustInterior(
-  interior: ReadonlySet<number>,
-  gaps: Set<number>,
+  interior: ReadonlySet<TileKey>,
+  gaps: Set<TileKey>,
   rect?: TileRect | null,
-): Set<number> {
+): Set<TileKey> {
   const adjusted = new Set(interior);
   for (const gapKey of gaps) adjusted.delete(gapKey);
   if (rect) {
@@ -128,8 +128,8 @@ function adjustInterior(
 /** Try all rotations of each piece against each gap anchor; return true on first fit. */
 function canAnyRotationFillGap(
   pieces: readonly PieceShape[],
-  gaps: Set<number>,
-  adjusted: ReadonlySet<number>,
+  gaps: Set<TileKey>,
+  adjusted: ReadonlySet<TileKey>,
   state: BuildViewState,
   playerId: ValidPlayerId,
 ): boolean {
@@ -140,7 +140,7 @@ function canAnyRotationFillGap(
     let rot = shape;
     for (let rotIdx = 0; rotIdx < 4; rotIdx++) {
       for (const gapKey of gaps) {
-        const { r: gr, c: gc } = unpackTile(gapKey as TileKey);
+        const { r: gr, c: gc } = unpackTile(gapKey);
         for (const [dr, dc] of rot.offsets) {
           if (
             canPlacePiece(

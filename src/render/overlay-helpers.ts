@@ -4,6 +4,7 @@
  *  helpers don't belong in overlay-types.ts (which is pure types). */
 
 import { Phase } from "../shared/core/game-phase.ts";
+import type { TileKey } from "../shared/core/grid.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import type { RenderOverlay } from "../shared/ui/overlay-types.ts";
 
@@ -43,7 +44,7 @@ export function interiorOwnersFromOverlay(
 export function snapshotInteriorRefs(
   overlay: RenderOverlay,
   inBattle: boolean,
-): ReadonlyArray<ReadonlySet<number>> {
+): ReadonlyArray<ReadonlySet<TileKey>> {
   if (inBattle) return overlay.battle?.battleTerritory?.slice() ?? [];
   return overlay.castles?.map((castle) => castle.interior) ?? [];
 }
@@ -52,7 +53,7 @@ export function snapshotInteriorRefs(
  *  against the live overlay refs. No allocation — fast steady-state path
  *  for cache invalidation in renderers that key on territory changes. */
 export function interiorRefsMatch(
-  cached: ReadonlyArray<ReadonlySet<number>>,
+  cached: ReadonlyArray<ReadonlySet<TileKey>>,
   overlay: RenderOverlay,
   inBattle: boolean,
 ): boolean {

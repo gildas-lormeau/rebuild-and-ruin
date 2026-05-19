@@ -120,7 +120,7 @@ export function createTowerLabelsManager(
       const tower = towers[i]!;
       seen.add(i);
 
-      const material = ensureMaterial(ownerId as ValidPlayerId);
+      const material = ensureMaterial(ownerId);
       let sprite = sprites.get(i);
       if (!sprite) {
         sprite = new THREE.Sprite(material);

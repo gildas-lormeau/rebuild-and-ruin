@@ -293,7 +293,7 @@ export function candidateToPlacement(candidate: Candidate): AiPlacement {
 
 /** Count 2×2 all-wall blocks a candidate would create (no exemptions). */
 export function countFatBlocks(
-  walls: ReadonlySet<number>,
+  walls: ReadonlySet<TileKey>,
   candidate: Candidate,
 ): number {
   const { addedKeys, isWall } = buildCandidateWallInfo(
@@ -304,7 +304,7 @@ export function countFatBlocks(
   );
   let blocks = 0;
   for (const key of addedKeys) {
-    const { r, c } = unpackTile(key as TileKey);
+    const { r, c } = unpackTile(key);
     if (tileCreatesFatBlock(r, c, isWall)) blocks++;
   }
   return blocks;
@@ -312,7 +312,7 @@ export function countFatBlocks(
 
 /** Cheap fat-wall check — no Set copy, just checks if placing creates 2×2 blocks. */
 export function checkFatWall(
-  walls: ReadonlySet<number>,
+  walls: ReadonlySet<TileKey>,
   candidate: Candidate,
 ): { hasFatWall: boolean; gapClosingFat: boolean } {
   const { addedKeys, isWall } = buildCandidateWallInfo(
@@ -324,7 +324,7 @@ export function checkFatWall(
   let hasFatWall = false;
   let gapClosingFat = false;
   for (const key of addedKeys) {
-    const { r, c } = unpackTile(key as TileKey);
+    const { r, c } = unpackTile(key);
     if (!tileCreatesFatBlock(r, c, isWall)) continue;
     if (candidate.gapsFilled > 0) {
       gapClosingFat = true;
@@ -439,7 +439,7 @@ function computeObstacleHitPenalty(
 
 function computeTowerProximityBonus(
   candidate: Candidate,
-  targetGaps: Set<number>,
+  targetGaps: Set<TileKey>,
   zoneTowers: readonly Tower[],
   ownedTowers: readonly Tower[],
 ): number {
@@ -467,8 +467,8 @@ function computeTowerProximityBonus(
 
 function computeSweepSafeBonus(
   candidate: Candidate,
-  targetGaps: Set<number>,
-  simulatedWalls: Set<number>,
+  targetGaps: Set<TileKey>,
+  simulatedWalls: Set<TileKey>,
 ): number {
   if (candidate.gapsFilled <= 0) return 0;
 
@@ -516,7 +516,7 @@ function computeCursorProximityBonus(
 
 function computeInnerObstacleBonus(
   candidate: Candidate,
-  targetGaps: Set<number>,
+  targetGaps: Set<TileKey>,
   castle: TileRect,
   tiles: readonly (readonly Tile[])[],
 ): number {
@@ -575,7 +575,7 @@ function computeDifficultyBonus(
 
 function computeWastefulClosureAdjustment(
   candidate: Candidate,
-  targetGaps: Set<number>,
+  targetGaps: Set<TileKey>,
   castle: TileRect,
   usefulGain: number,
   baseGapBonus: number,
@@ -613,17 +613,17 @@ function shouldRejectForFatWalls(
 
 /** Build the added-key set and wall predicate for a candidate placement. */
 function buildCandidateWallInfo(
-  walls: ReadonlySet<number>,
+  walls: ReadonlySet<TileKey>,
   offsets: readonly (readonly [number, number])[],
   row: number,
   col: number,
-): { addedKeys: number[]; isWall: (k: number) => boolean } {
-  const addedKeys: number[] = [];
+): { addedKeys: TileKey[]; isWall: (k: TileKey) => boolean } {
+  const addedKeys: TileKey[] = [];
   for (const [dr, dc] of offsets) {
     addedKeys.push(packTile(row + dr, col + dc));
   }
   const addedSet = new Set(addedKeys);
-  const isWall = (k: number) => walls.has(k) || addedSet.has(k);
+  const isWall = (k: TileKey) => walls.has(k) || addedSet.has(k);
   return { addedKeys, isWall };
 }
 
@@ -631,7 +631,7 @@ function buildCandidateWallInfo(
 function tileCreatesFatBlock(
   r: number,
   c: number,
-  isWall: (k: number) => boolean,
+  isWall: (k: TileKey) => boolean,
 ): boolean {
   for (const [cr, cc] of CORNERS_2X2) {
     const tr = r + cr,
@@ -653,7 +653,7 @@ function tileCreatesFatBlock(
 /** Count non-gap candidate tiles inside vs outside the castle rect. */
 function countNonGapTilesInCastle(
   candidate: Candidate,
-  targetGaps: Set<number>,
+  targetGaps: Set<TileKey>,
   castle: TileRect,
 ): { inside: number; outside: number } {
   let inside = 0;
@@ -686,7 +686,7 @@ function computeCandidateEnv(
   fatBlocks: number,
   batchHasWallAdjacent: boolean,
 ): CandidateEnv {
-  const candidateWallTiles: number[] = [];
+  const candidateWallTiles: TileKey[] = [];
   for (const [dr, dc] of candidate.piece.offsets) {
     candidateWallTiles.push(packTile(candidate.row + dr, candidate.col + dc));
   }
@@ -694,7 +694,7 @@ function computeCandidateEnv(
   const simulatedOutside = computeOutsideAfterAdd(
     ctx.outside,
     candidateWallTiles,
-  );
+  ) as Set<TileKey>;
   const rawGain = ctx.baselineOutside - simulatedOutside.size;
   const pieceTiles = candidate.piece.offsets.length;
   const usefulGain = rawGain - pieceTiles;
@@ -714,12 +714,12 @@ function computeCandidateEnv(
 }
 
 export function countSmallPocketTiles(
-  walls: ReadonlySet<number>,
-  outsideSet: Set<number>,
+  walls: ReadonlySet<TileKey>,
+  outsideSet: Set<TileKey>,
 ): { wasted: number; smallestPocket: number } {
   let wasted = 0;
   let smallestPocket = Infinity;
-  const visited = new Set<number>();
+  const visited = new Set<TileKey>();
   for (let r = 0; r < GRID_ROWS; r++) {
     for (let c = 0; c < GRID_COLS; c++) {
       const key = packTile(r, c);
@@ -736,9 +736,9 @@ export function countSmallPocketTiles(
 
 /** Build the simulated wall set for a candidate. */
 function createSimulatedWalls(
-  walls: ReadonlySet<number>,
+  walls: ReadonlySet<TileKey>,
   candidate: Candidate,
-): Set<number> {
+): Set<TileKey> {
   const simulatedWalls = new Set(walls);
   for (const [dr, dc] of candidate.piece.offsets) {
     simulatedWalls.add(packTile(candidate.row + dr, candidate.col + dc));

@@ -54,11 +54,11 @@ const OBSTRUCTION_PENALTY = 60;
  */
 export function computeFillableGaps(
   rect: TileRect,
-  walls: ReadonlySet<number>,
+  walls: ReadonlySet<TileKey>,
   interior: FreshInterior,
   state: BuildViewState,
   bankHugging: boolean,
-): Set<number> {
+): Set<TileKey> {
   const gaps = findGapTiles(rect, walls);
   filterUnfillableGaps(gaps, state, interior);
   // Pit plugs always needed; water plugs only when bankHugging
@@ -76,7 +76,7 @@ export function computeFillableGaps(
 export function scoreBuildTowerTarget(
   tower: Tower,
   state: BuildViewState,
-  player: { id: ValidPlayerId; walls: ReadonlySet<number> },
+  player: { id: ValidPlayerId; walls: ReadonlySet<TileKey> },
   currentRow: number,
   currentCol: number,
   castleMargin: number,
@@ -121,10 +121,10 @@ export function scoreBuildTowerTarget(
 export function hasMeaningfulHomeRingGaps(
   homeTowerEnclosed: boolean,
   castle: TileRect & { tower: Tower },
-  walls: ReadonlySet<number>,
-  outside: ReadonlySet<number>,
+  walls: ReadonlySet<TileKey>,
+  outside: ReadonlySet<TileKey>,
   state: BuildViewState,
-  interior: ReadonlySet<number>,
+  interior: ReadonlySet<TileKey>,
 ): boolean {
   if (!homeTowerEnclosed) return true;
   if (castle.top > castle.bottom || castle.left > castle.right) return false;
@@ -140,12 +140,12 @@ export function hasMeaningfulHomeRingGaps(
 
 /** Remove gaps that can't be filled (non-grass, burning pit, cannon, tower, inside interior). */
 export function filterUnfillableGaps(
-  gaps: Set<number>,
+  gaps: Set<TileKey>,
   state: BuildViewState,
-  interior?: ReadonlySet<number>,
+  interior?: ReadonlySet<TileKey>,
 ): void {
   for (const key of gaps) {
-    const { r, c } = unpackTile(key as TileKey);
+    const { r, c } = unpackTile(key);
     if (
       !isGrass(state.map.tiles, r, c) ||
       hasPitAt(state.burningPits, r, c) ||
@@ -169,17 +169,17 @@ export function filterUnfillableGaps(
  * `sizeLimit`.
  */
 export function floodPocket(
-  startKey: number,
-  visited: Set<number>,
-  walls: ReadonlySet<number>,
-  outside: ReadonlySet<number>,
+  startKey: TileKey,
+  visited: Set<TileKey>,
+  walls: ReadonlySet<TileKey>,
+  outside: ReadonlySet<TileKey>,
   sizeLimit?: number,
-): number[] {
-  const pocket: number[] = [startKey];
+): TileKey[] {
+  const pocket: TileKey[] = [startKey];
   visited.add(startKey);
   for (let queueIndex = 0; queueIndex < pocket.length; queueIndex++) {
     if (sizeLimit !== undefined && pocket.length > sizeLimit) break;
-    const { r: pr, c: pc } = unpackTile(pocket[queueIndex]! as TileKey);
+    const { r: pr, c: pc } = unpackTile(pocket[queueIndex]!);
     for (const [dr, dc] of DIRS_4) {
       const nr = pr + dr,
         nc = pc + dc;
@@ -204,9 +204,9 @@ export function floodPocket(
  */
 export function findGapTiles(
   castle: TileRect,
-  walls: ReadonlySet<number>,
-): Set<number> {
-  const gaps = new Set<number>();
+  walls: ReadonlySet<TileKey>,
+): Set<TileKey> {
+  const gaps = new Set<TileKey>();
   const wallTop = castle.top - 1;
   const wallBottom = castle.bottom + 1;
   const wallLeft = castle.left - 1;
@@ -490,9 +490,9 @@ function shrinkCornersForWater(
  * grass tiles just inside the rect that, once walled, seal the diagonal leak.
  */
 function addBankPlugGaps(
-  gaps: Set<number>,
+  gaps: Set<TileKey>,
   rect: TileRect,
-  walls: ReadonlySet<number>,
+  walls: ReadonlySet<TileKey>,
   tiles: readonly (readonly Tile[])[],
   burningPits?: readonly BurningPit[],
   includeWater = true,
@@ -564,7 +564,7 @@ function countRingTiles(rect: TileRect): number {
 function countCastleRectObstructions(
   rect: TileRect,
   state: BuildViewState,
-  player: { id: ValidPlayerId; walls: ReadonlySet<number> },
+  player: { id: ValidPlayerId; walls: ReadonlySet<TileKey> },
 ): { obstructions: number; area: number } {
   let obstructions = 0;
   const rTop = rect.top - 1;

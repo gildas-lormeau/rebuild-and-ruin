@@ -20,6 +20,7 @@ import type {
   TilePos,
   Tower,
 } from "../shared/core/geometry-types.ts";
+import type { TileKey } from "../shared/core/grid.ts";
 import type { PieceShape } from "../shared/core/pieces.ts";
 import { getInterior } from "../shared/core/player-interior.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
@@ -240,7 +241,7 @@ export class DefaultStrategy implements AiStrategy {
    *  preventing pseudo-gaps formed by newly-placed walls from polluting
    *  the target set and dispersing the AI's focus. */
   private _outerRingHolesSnapshot:
-    | { round: number; holes: ReadonlySet<number> }
+    | { round: number; holes: ReadonlySet<TileKey> }
     | undefined = undefined;
 
   /** Seeded PRNG — log rng.seed to reproduce this AI's behavior. */
@@ -328,7 +329,7 @@ export class DefaultStrategy implements AiStrategy {
   private ensureOuterRingHolesSnapshot(
     state: BuildViewState,
     playerId: ValidPlayerId,
-  ): ReadonlySet<number> | undefined {
+  ): ReadonlySet<TileKey> | undefined {
     const player = state.players[playerId];
     if (!player || player.castleWallTiles.size === 0) return undefined;
     if (this._outerRingHolesSnapshot?.round === state.round) {

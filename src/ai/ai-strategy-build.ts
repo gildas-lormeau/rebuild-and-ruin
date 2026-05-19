@@ -222,8 +222,7 @@ export function pickPlacement(
   // freely inside an open (gapped) enclosure. Without this exclusion, scoring
   // would penalize placements near gaps that need filling.
   const interiorExcludingGaps = new Set(getInterior(player));
-  for (const gapKey of targetGaps)
-    interiorExcludingGaps.delete(gapKey as TileKey);
+  for (const gapKey of targetGaps) interiorExcludingGaps.delete(gapKey);
   if (targetRect) {
     for (let r = targetRect.top; r <= targetRect.bottom; r++) {
       for (let c = targetRect.left; c <= targetRect.right; c++) {
@@ -450,10 +449,10 @@ function enumerateCandidates(
   state: BuildViewState,
   playerId: ValidPlayerId,
   piece: PieceShape,
-  walls: ReadonlySet<number>,
-  outside: Set<number>,
-  targetGaps: Set<number>,
-  interiorExcludingGaps: Set<number>,
+  walls: ReadonlySet<TileKey>,
+  outside: Set<TileKey>,
+  targetGaps: Set<TileKey>,
+  interiorExcludingGaps: Set<TileKey>,
 ): Candidate[] {
   const cache = buildOccupancyCache(state);
   const placementCtx = buildPlacementContext(state, playerId);
@@ -547,7 +546,7 @@ function selectTarget(ctx: TargetContext): TargetResult {
 /** Score all candidates with gap/wall/fat-wall metrics; filter fat walls when no gaps remain. */
 function prescoreCandidates(
   allCandidates: readonly Candidate[],
-  walls: ReadonlySet<number>,
+  walls: ReadonlySet<TileKey>,
   noTargetGaps: boolean,
 ): Scored[] {
   const scored: Scored[] = [];
@@ -630,7 +629,7 @@ function tryRepairHomeCastle(ctx: TargetContext): TargetResult {
     EXPANSION_TIERS.find((tier) => freeRatio > tier.minFreeRatio)?.maxExpand ??
     EXPANSION_DEFAULT_MAX;
 
-  let targetGaps: Set<number> = new Set();
+  let targetGaps: Set<TileKey> = new Set();
   for (let attempt = 0; attempt < MAX_EXPAND; attempt++) {
     const gaps = findGapTiles({ top, bottom, left, right }, player.walls);
     const wallRingTop = top - 1,
@@ -640,7 +639,7 @@ function tryRepairHomeCastle(ctx: TargetContext): TargetResult {
     let expanded = false;
 
     for (const key of gaps) {
-      const { r, c } = unpackTile(key as TileKey);
+      const { r, c } = unpackTile(key);
       // Only expand for temporary blockers (grunts, burning pits).
       // Water is permanent terrain — expanding just creates more water gaps.
       if (!isGrass(state.map.tiles, r, c)) continue;
@@ -761,13 +760,13 @@ function tryRepairOuterRing(ctx: TargetContext): TargetResult {
  *  ring-wall filter prevents the pair-scan from inventing pseudo-gaps
  *  between newly-placed walls inside the enclosure as the AI fills holes. */
 export function findOuterRingHoles(
-  walls: ReadonlySet<number>,
+  walls: ReadonlySet<TileKey>,
   state: BuildViewState,
-  interior: ReadonlySet<number>,
-): Set<number> {
-  const outside = computeOutside(walls);
-  const isRingWall = (key: number): boolean => {
-    const { r, c } = unpackTile(key as TileKey);
+  interior: ReadonlySet<TileKey>,
+): Set<TileKey> {
+  const outside = computeOutside(walls) as Set<TileKey>;
+  const isRingWall = (key: TileKey): boolean => {
+    const { r, c } = unpackTile(key);
     for (const [dr, dc] of DIRS_4) {
       const nr = r + dr;
       const nc = c + dc;
@@ -776,10 +775,10 @@ export function findOuterRingHoles(
     }
     return false;
   };
-  const holes = new Set<number>();
+  const holes = new Set<TileKey>();
   for (const wallKey of walls) {
     if (!isRingWall(wallKey)) continue;
-    const { r: wr, c: wc } = unpackTile(wallKey as TileKey);
+    const { r: wr, c: wc } = unpackTile(wallKey);
     for (const [dr, dc] of DIRS_4) {
       for (let step = 2; step <= HOLE_MAX_WIDTH + 1; step++) {
         const nr = wr + dr * step;
@@ -818,10 +817,10 @@ export function findOuterRingHoles(
 
 /** Filter a snapshot gap set to tiles still un-walled. */
 function snapshotMinusFilled(
-  snapshot: ReadonlySet<number>,
-  walls: ReadonlySet<number>,
-): Set<number> {
-  const remaining = new Set<number>();
+  snapshot: ReadonlySet<TileKey>,
+  walls: ReadonlySet<TileKey>,
+): Set<TileKey> {
+  const remaining = new Set<TileKey>();
   for (const key of snapshot) if (!walls.has(key)) remaining.add(key);
   return remaining;
 }
@@ -829,13 +828,13 @@ function snapshotMinusFilled(
 /** Compute the interior rect for the bounding box of a wall set, in the
  *  shape findGapTiles expects (interior tiles, with the wall ring one tile
  *  outside). Returns null when the walls don't span at least a 3×3 area. */
-function computeWallsInteriorBox(walls: ReadonlySet<number>): TileRect | null {
+function computeWallsInteriorBox(walls: ReadonlySet<TileKey>): TileRect | null {
   let minR = Infinity,
     maxR = -Infinity,
     minC = Infinity,
     maxC = -Infinity;
   for (const key of walls) {
-    const { r, c } = unpackTile(key as TileKey);
+    const { r, c } = unpackTile(key);
     if (r < minR) minR = r;
     if (r > maxR) maxR = r;
     if (c < minC) minC = c;
@@ -960,7 +959,7 @@ function trySecondaryTower(ctx: TargetContext): TargetResult {
  *  Returns true if the piece can fill at least one gap after plugging. */
 function canFillAfterPlugging(
   ctx: TargetContext,
-  gaps: Set<number>,
+  gaps: Set<TileKey>,
   rect: TileRect | null,
 ): boolean {
   const { state, playerId, player, piece } = ctx;
@@ -1033,7 +1032,7 @@ function analyzeEnclosures(
   // Water-as-barrier made the AI think bank-adjacent castles were closed when
   // territory's plain flood could still enter through the bank.
   const walls = player.walls;
-  const outside = computeOutside(walls);
+  const outside = computeOutside(walls) as Set<TileKey>;
   const homeTowerEnclosed = isTowerEnclosed(castle.tower, outside);
   // 4-dir BFS from a tower: returns true if the BFS can reach the map
   // border without crossing walls.
@@ -1108,8 +1107,8 @@ function scoreCandidateGapMetrics(
   row: number,
   col: number,
   offsets: ReadonlyArray<readonly [number, number]>,
-  walls: ReadonlySet<number>,
-  targetGaps: Set<number>,
+  walls: ReadonlySet<TileKey>,
+  targetGaps: Set<TileKey>,
 ): {
   gapsFilled: number;
   wallAdjacent: number;

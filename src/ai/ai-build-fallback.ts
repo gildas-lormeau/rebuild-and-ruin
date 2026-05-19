@@ -135,11 +135,11 @@ export function pickFallbackPlacement(
 
 export function createsSmallEnclosure(
   candidate: Candidate,
-  walls: ReadonlySet<number>,
-  outside: ReadonlySet<number>,
+  walls: ReadonlySet<TileKey>,
+  outside: ReadonlySet<TileKey>,
   state: BuildViewState,
 ): boolean {
-  const candidateWallTiles: number[] = [];
+  const candidateWallTiles: TileKey[] = [];
   for (const [dr, dc] of candidate.piece.offsets) {
     candidateWallTiles.push(packTile(candidate.row + dr, candidate.col + dc));
   }
@@ -147,11 +147,14 @@ export function createsSmallEnclosure(
   // calls during build phase (~99%) don't trap anything; this lets them
   // bail before paying the O(outside.size) clone that dominated the prior
   // implementation's cost.
-  const trapped = computeTrappedAfterAdd(outside, candidateWallTiles);
+  const trapped = computeTrappedAfterAdd(
+    outside,
+    candidateWallTiles,
+  ) as TileKey[];
   if (trapped.length === 0) return false;
   // Rare path: traps exist. Build simulatedOutside so floodPocket can
   // treat outside tiles as barriers.
-  const simulatedOutside = new Set(outside);
+  const simulatedOutside = new Set<TileKey>(outside);
   for (let i = 0; i < candidateWallTiles.length; i++) {
     simulatedOutside.delete(candidateWallTiles[i]!);
   }
@@ -161,7 +164,7 @@ export function createsSmallEnclosure(
   // Pre-seeding `visited` with the candidate's new wall tiles makes the
   // flood-pocket BFS treat them as barriers (visited == skip), so we pass
   // the original `walls` set instead of paying another clone here.
-  const visited = new Set<number>(candidateWallTiles);
+  const visited = new Set<TileKey>(candidateWallTiles);
   for (const seed of trapped) {
     if (visited.has(seed)) continue;
     const pocket = floodPocket(
@@ -213,8 +216,8 @@ function hasOccupantInPocket(
  *  cares about the threshold, not the exact tally. */
 function hasMinFreeInterior(
   state: BuildViewState,
-  walls: ReadonlySet<number>,
-  playerInterior: ReadonlySet<number>,
+  walls: ReadonlySet<TileKey>,
+  playerInterior: ReadonlySet<TileKey>,
   limit: number,
 ): boolean {
   let count = 0;

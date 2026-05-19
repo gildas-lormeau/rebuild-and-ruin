@@ -14,7 +14,11 @@ import {
 } from "../../../shared/core/battle-types.ts";
 import { NORMAL_CANNON_SIZE } from "../../../shared/core/game-constants.ts";
 import { Phase } from "../../../shared/core/game-phase.ts";
-import { GRID_COLS, TILE_SIZE } from "../../../shared/core/grid.ts";
+import {
+  GRID_COLS,
+  TILE_SIZE,
+  type TileKey,
+} from "../../../shared/core/grid.ts";
 import { cannonSize } from "../../../shared/core/spatial.ts";
 import type { RenderOverlay } from "../../../shared/ui/overlay-types.ts";
 import type { FrameCtx } from "../frame-ctx.ts";
@@ -382,7 +386,7 @@ function bucketLiveCannonsByVariant(
   castles: readonly {
     cannons: readonly BattleCannon[];
     cannonTier: 1 | 2 | 3;
-    interior: ReadonlySet<number>;
+    interior: ReadonlySet<TileKey>;
   }[],
 ): Map<VariantName, Cannon[]> {
   const byVariant = new Map<VariantName, Cannon[]>();
@@ -478,12 +482,14 @@ function computeSignature(
  *  the read-only interior already on the overlay — no state import. */
 function isCannonFootprintInside(
   cannon: BattleCannon,
-  interior: ReadonlySet<number>,
+  interior: ReadonlySet<TileKey>,
 ): boolean {
   const size = cannonSize(cannon.mode);
   for (let dr = 0; dr < size; dr++) {
     for (let dc = 0; dc < size; dc++) {
-      if (!interior.has((cannon.row + dr) * GRID_COLS + (cannon.col + dc))) {
+      const key = ((cannon.row + dr) * GRID_COLS +
+        (cannon.col + dc)) as TileKey;
+      if (!interior.has(key)) {
         return false;
       }
     }

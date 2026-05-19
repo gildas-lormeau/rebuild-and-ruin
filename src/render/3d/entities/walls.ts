@@ -286,9 +286,9 @@ function collectLiveWallKeys(overlay: RenderOverlay | undefined): {
   const damagedKeys = new Set<TileKey>();
   if (!overlay?.castles) return { liveKeys, damagedKeys };
   for (const castle of overlay.castles) {
-    for (const key of castle.walls) liveKeys.push(key as TileKey);
+    for (const key of castle.walls) liveKeys.push(key);
     if (castle.damagedWalls) {
-      for (const key of castle.damagedWalls) damagedKeys.add(key as TileKey);
+      for (const key of castle.damagedWalls) damagedKeys.add(key);
     }
   }
   return { liveKeys, damagedKeys };

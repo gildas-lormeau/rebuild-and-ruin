@@ -262,7 +262,7 @@ export function createFogManager(scene: THREE.Scene): FogManager {
   const scratchMatrix = new THREE.Matrix4();
   const scratchColor = new THREE.Color();
   // Reused across frames so `dilateInto` doesn't allocate. `clear()` then refill.
-  const keys = new Set<number>();
+  const keys = new Set<TileKey>();
   let lastFingerprint = -1;
 
   function ensureCapacity(required: number): void {
@@ -375,7 +375,7 @@ export function createFogManager(scene: THREE.Scene): FogManager {
     tiles.length = 0;
     fillets.length = 0;
     for (const key of keys) {
-      const { r, c } = unpackTile(key as TileKey);
+      const { r, c } = unpackTile(key);
       tiles.push({ row: r, col: c, seed: tileSeed(r, c) });
     }
     ensureCapacity(tiles.length);
@@ -592,15 +592,15 @@ export function createFogManager(scene: THREE.Scene): FogManager {
 /** Add to `out` every tile in the castle footprint (interior ∪ walls)
  *  dilated by one tile in all 8 directions. */
 function dilateInto(
-  out: Set<number>,
-  interior: ReadonlySet<number>,
-  walls: ReadonlySet<number>,
+  out: Set<TileKey>,
+  interior: ReadonlySet<TileKey>,
+  walls: ReadonlySet<TileKey>,
 ): void {
-  for (const key of interior) dilateKey(out, key as TileKey);
-  for (const key of walls) dilateKey(out, key as TileKey);
+  for (const key of interior) dilateKey(out, key);
+  for (const key of walls) dilateKey(out, key);
 }
 
-function dilateKey(out: Set<number>, key: TileKey): void {
+function dilateKey(out: Set<TileKey>, key: TileKey): void {
   out.add(key);
   const { r, c } = unpackTile(key);
   for (let dr = -1; dr <= 1; dr++) {
@@ -619,7 +619,7 @@ function dilateKey(out: Set<number>, key: TileKey): void {
  *  strings. Collisions are theoretically possible but negligible for
  *  our footprint sizes (≤ a few hundred tiles). Reserves `0` to mean
  *  "fog inactive" so the toggle reliably triggers a clear. */
-function computeFingerprint(packedKeys: Set<number>): number {
+function computeFingerprint(packedKeys: Set<TileKey>): number {
   if (packedKeys.size === 0) return -2;
   let hash = packedKeys.size;
   for (const key of packedKeys) {

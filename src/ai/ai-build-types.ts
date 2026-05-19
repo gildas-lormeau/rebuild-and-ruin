@@ -12,6 +12,7 @@ import type {
   TileRect,
   Tower,
 } from "../shared/core/geometry-types.ts";
+import type { TileKey } from "../shared/core/grid.ts";
 import type { PieceShape } from "../shared/core/pieces.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import type { Player } from "../shared/core/player-types.ts";
@@ -25,7 +26,7 @@ export type PrioritizedTilePos = TilePos & { priority: boolean };
 
 /** Result of enclosure analysis — which towers need walling, skip-home logic, etc. */
 export interface EnclosureAnalysis {
-  outside: Set<number>;
+  outside: Set<TileKey>;
   homeTowerEnclosed: boolean;
   zoneTowers: Tower[];
   unenclosedTowers: Tower[];
@@ -37,7 +38,7 @@ export interface EnclosureAnalysis {
 
 /** Result of target selection — which gaps to fill and the bounding rect. */
 export type TargetResult = {
-  targetGaps: Set<number>;
+  targetGaps: Set<TileKey>;
   targetRect: TileRect | null;
 };
 
@@ -56,7 +57,7 @@ export interface TargetContext {
   allCastlesEnclosed: boolean;
   unenclosedTowers: Tower[];
   otherUnenclosed: Tower[];
-  outerRingHolesSnapshot?: ReadonlySet<number>;
+  outerRingHolesSnapshot?: ReadonlySet<TileKey>;
 }
 
 /** Optional AI personality / context parameters for placement. */
@@ -74,7 +75,7 @@ export interface PlacementOptions {
    *  AI has since walled) instead of recomputing each tick — recomputation
    *  picks up "phantom" gaps formed by newly-placed walls pairing with
    *  existing walls, which would otherwise disperse the AI's focus. */
-  outerRingHolesSnapshot?: ReadonlySet<number>;
+  outerRingHolesSnapshot?: ReadonlySet<TileKey>;
 }
 
 /** Result of a single AI placement decision. null = no valid placement. */
@@ -105,9 +106,9 @@ export type Scored = {
 
 /** Shared context for fallback placement decisions — avoids threading 9 params. */
 export interface FallbackContext {
-  walls: ReadonlySet<number>;
-  outside: Set<number>;
-  playerInterior: ReadonlySet<number>;
+  walls: ReadonlySet<TileKey>;
+  outside: Set<TileKey>;
+  playerInterior: ReadonlySet<TileKey>;
   castle: { tower: Tower };
   castleMargin: number;
   homeWasBroken: boolean;
@@ -119,8 +120,8 @@ export interface FallbackContext {
 /** Per-candidate computed values for the scoring pipeline. Built once per
  *  candidate after cheap pre-filter checks pass, then passed to each rule. */
 export interface CandidateEnv {
-  simulatedWalls: Set<number>;
-  simulatedOutside: Set<number>;
+  simulatedWalls: Set<TileKey>;
+  simulatedOutside: Set<TileKey>;
   usefulGain: number;
   pocketDelta: number;
   pocketInfo: { wasted: number; smallestPocket: number };
@@ -149,9 +150,9 @@ export interface ScoringRule {
 /** Shared context for the scoring loop — avoids threading 15+ params through closures. */
 export type ScoringContext = {
   state: BuildViewState;
-  walls: ReadonlySet<number>;
-  outside: Set<number>;
-  targetGaps: Set<number>;
+  walls: ReadonlySet<TileKey>;
+  outside: Set<TileKey>;
+  targetGaps: Set<TileKey>;
   castle: TileRect;
   cursorPos: TilePos | undefined;
   zoneTowers: Tower[];

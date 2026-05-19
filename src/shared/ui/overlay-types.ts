@@ -244,7 +244,7 @@ export interface BattleOverlay {
    *  just absorbed an incoming hit — drives the cyan absorb-ring ping. */
   shieldFlashes?: readonly ShieldFlash[];
   balloons?: readonly OverlayBalloon[];
-  battleTerritory?: readonly Set<number>[];
+  battleTerritory?: readonly Set<TileKey>[];
   battleWalls?: readonly ReadonlySet<TileKey>[];
   /** True when Fog of War is active — renderer blankets each castle's
    *  walls + interior with an animated fog layer so players must aim
