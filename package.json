@@ -95,6 +95,7 @@
     "refactor2": "deno run -A scripts/refactor2/refactor2.ts",
     "audit:optional": "deno run -A scripts/audit-optional-properties.ts",
     "audit:bool-narrow": "deno run -A scripts/audit-boolean-narrowing.ts",
+    "audit:brands": "deno run -A scripts/audit-brand-candidates.ts",
     "audit:union-members": "deno run -A scripts/audit-union-members.ts",
     "audit:redundant-casts": "deno run -A scripts/audit-redundant-casts.ts",
     "audit:no-op-writes": "deno run -A scripts/audit-no-op-writes.ts",
