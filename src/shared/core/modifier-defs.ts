@@ -6,8 +6,23 @@
 
 import type { BurningPit, CannonMode } from "./battle-types.ts";
 import type { ModifierId } from "./game-constants.ts";
+import type { TileKey } from "./grid.ts";
 import type { ValidPlayerId } from "./player-slot.ts";
 import type { PoolDef } from "./pool-def.ts";
+
+/** Visual diff produced by a modifier apply function.
+ *  Consumed by the modifier reveal banner to progressively show map changes.
+ *  All tile keys are packed (row * GRID_COLS + col).
+ *
+ *  The display label is intentionally NOT a field — it's deterministic from
+ *  `id` via `modifierDef(id).label` and any consumer that needs it should
+ *  call that lookup. Keeps the type free of derived state and the wire
+ *  serialization (`BattleStartData.modifierDiff`) parallel. */
+export interface ModifierDiff {
+  readonly id: ModifierId;
+  readonly changedTiles: readonly TileKey[];
+  readonly gruntsSpawned: number;
+}
 
 /** Wire payload for tile-mutating modifier state — packed `row * GRID_COLS +
  *  col` keys per active modifier, or null when inactive. Single source of

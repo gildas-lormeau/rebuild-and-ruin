@@ -22,20 +22,6 @@ export type ModifierId =
   | "sapper"
   | "supply_ship";
 
-/** Visual diff produced by a modifier apply function.
- *  Consumed by the modifier reveal banner to progressively show map changes.
- *  All tile keys are packed (row * GRID_COLS + col).
- *
- *  The display label is intentionally NOT a field — it's deterministic from
- *  `id` via `modifierDef(id).label` and any consumer that needs it should
- *  call that lookup. Keeps the type free of derived state and the wire
- *  serialization (`BattleStartData.modifierDiff`) parallel. */
-export interface ModifierDiff {
-  readonly id: ModifierId;
-  readonly changedTiles: readonly number[];
-  readonly gruntsSpawned: number;
-}
-
 const US_PER_SEC = 1_000_000;
 /** String identifiers for modifiers. Labels live in modifier-defs.ts (MODIFIER_POOL). */
 export const MODIFIER_ID = {

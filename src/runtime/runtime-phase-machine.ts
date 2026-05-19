@@ -32,10 +32,7 @@ import {
 } from "../game/index.ts";
 import type { BalloonFlight } from "../shared/core/battle-types.ts";
 import { snapshotAllWalls } from "../shared/core/board-occupancy.ts";
-import {
-  MODIFIER_ID,
-  type ModifierDiff,
-} from "../shared/core/game-constants.ts";
+import { MODIFIER_ID } from "../shared/core/game-constants.ts";
 import {
   type BannerKind,
   emitGameEvent,
@@ -43,7 +40,10 @@ import {
 } from "../shared/core/game-event-bus.ts";
 import { Phase } from "../shared/core/game-phase.ts";
 import type { TileKey } from "../shared/core/grid.ts";
-import { modifierDef } from "../shared/core/modifier-defs.ts";
+import {
+  type ModifierDiff,
+  modifierDef,
+} from "../shared/core/modifier-defs.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import { clearAllPlayerBags } from "../shared/core/player-types.ts";
 import type { GameState } from "../shared/core/types.ts";

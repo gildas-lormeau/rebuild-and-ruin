@@ -11,9 +11,9 @@ import type { BalloonFlight } from "../shared/core/battle-types.ts";
 import {
   BATTLE_TIMER,
   MODIFIER_REVEAL_TIMER,
-  type ModifierDiff,
 } from "../shared/core/game-constants.ts";
 import { Phase } from "../shared/core/game-phase.ts";
+import type { ModifierDiff } from "../shared/core/modifier-defs.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import type { GameState, SelectionState } from "../shared/core/types.ts";
 import { resolveBalloons } from "./battle-system.ts";
