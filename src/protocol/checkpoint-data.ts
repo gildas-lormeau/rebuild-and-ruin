@@ -8,6 +8,7 @@
  */
 
 import type { TowerIdx } from "../shared/core/geometry-types.ts";
+import type { ZoneId } from "../shared/core/zone-id.ts";
 
 export interface SerializedCannon {
   row: number;
@@ -28,7 +29,7 @@ export interface SerializedCannon {
 export interface SerializedHouse {
   row: number;
   col: number;
-  zone: number;
+  zone: ZoneId;
   alive: boolean;
 }
 
@@ -78,5 +79,5 @@ export interface SerializedBurningPit {
 export interface SerializedBonusSquare {
   row: number;
   col: number;
-  zone: number;
+  zone: ZoneId;
 }

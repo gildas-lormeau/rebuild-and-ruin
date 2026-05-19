@@ -201,7 +201,7 @@ export function restoreFullStateSnapshot(
   state.bonusSquares = msg.bonusSquares.map((bonus) => ({
     row: bonus.row,
     col: bonus.col,
-    zone: bonus.zone as ZoneId,
+    zone: bonus.zone,
   }));
 
   // Restore RNG internal state in place — preserves the single per-game
@@ -260,7 +260,7 @@ function applyHousesCheckpoint(
   state.map.houses = houses.map((h) => ({
     row: h.row,
     col: h.col,
-    zone: h.zone as ZoneId,
+    zone: h.zone,
     alive: h.alive,
   }));
 }

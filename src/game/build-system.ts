@@ -83,7 +83,7 @@ import { restorationCrewInstantRevive } from "./upgrades/restoration-crew.ts";
  *  iteration to skip the upgrade-registry walks done per call. */
 interface PlacementContext {
   readonly player: Player;
-  readonly zone: number | undefined;
+  readonly zone: ZoneId | undefined;
   readonly overlapAllowance: number;
   readonly allowPitOverlap: boolean;
   readonly allowGruntOverlap: boolean;
