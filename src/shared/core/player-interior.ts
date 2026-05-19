@@ -56,8 +56,7 @@ export function markInteriorFresh(
   fresh?: Set<number>,
 ): FreshInterior {
   if (fresh !== undefined) {
-    (player as unknown as { interior: FreshInterior }).interior =
-      brandFreshInterior(fresh);
+    player.interior = brandFreshInterior(fresh);
   }
   interiorEpoch.set(player, wallsEpoch.get(player) ?? 0);
   return player.interior;

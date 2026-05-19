@@ -84,9 +84,7 @@ export function extractSubParts(scratch: THREE.Group): ExtractedSubPart[] {
   scratch.traverse((obj) => {
     if (!(obj instanceof THREE.Mesh)) return;
     const rawTags = obj.userData.tags;
-    const tags: readonly string[] = Array.isArray(rawTags)
-      ? (rawTags as readonly string[])
-      : [];
+    const tags: readonly string[] = Array.isArray(rawTags) ? rawTags : [];
     parts.push({
       geometry: obj.geometry,
       material: obj.material,

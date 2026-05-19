@@ -141,14 +141,13 @@ export function restoreFullStateSnapshot(
       (msg.activeModifier as NonNullable<
         GameState["modern"]
       >["activeModifier"]) ?? null;
-    state.modern!.activeModifierChangedTiles =
-      (msg.activeModifierChangedTiles as readonly number[] | undefined) ?? [];
+    state.modern!.activeModifierChangedTiles = msg.activeModifierChangedTiles;
     state.modern!.lastModifierId =
       (msg.lastModifierId as NonNullable<
         GameState["modern"]
       >["lastModifierId"]) ?? null;
     state.modern!.precomputedDustStormJitters =
-      (msg.precomputedDustStormJitters as readonly number[] | undefined) ?? [];
+      msg.precomputedDustStormJitters ?? [];
     state.modern!.rubbleClearingHeld = msg.rubbleClearingHeld ?? null;
     state.modern!.supplyShips = msg.supplyShips ?? null;
     state.modern!.pendingSupplyBonuses = msg.pendingSupplyBonuses

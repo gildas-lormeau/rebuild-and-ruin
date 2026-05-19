@@ -24,7 +24,7 @@ export function interiorOwnersFromOverlay(
       for (let pid = 0; pid < territories.length; pid++) {
         const territory = territories[pid];
         if (!territory) continue;
-        const playerSlot = pid as unknown as ValidPlayerId;
+        const playerSlot = pid as ValidPlayerId;
         for (const key of territory) owners.set(key, playerSlot);
       }
     }

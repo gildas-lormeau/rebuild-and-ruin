@@ -755,7 +755,7 @@ function addTurretBody(
       depth: turret.height,
       bevelEnabled: false,
       UVGenerator: stoneWallUVGenerator(three),
-    } as THREE.ExtrudeGeometryOptions);
+    });
     geom.rotateX(-Math.PI / 2);
     geom.translate(0, -turret.height / 2, 0);
     body = new three.Mesh(geom, [plainMat, sideMat]);
@@ -932,7 +932,7 @@ function addRoundedParapetRing(
     depth: parapet.height,
     bevelEnabled: false,
     UVGenerator: stoneWallUVGenerator(three),
-  } as THREE.ExtrudeGeometryOptions);
+  });
   geom.rotateX(-Math.PI / 2);
   const ring = new three.Mesh(geom, [parapetPlainMat, parapetSideMat]);
   ring.position.set(turret.x, wallTopY(turret), turret.z);
@@ -1087,7 +1087,7 @@ function addPolePlatformLip(
     bevelEnabled: false,
     curveSegments: 24,
     UVGenerator: stoneWallUVGenerator(three),
-  } as THREE.ExtrudeGeometryOptions);
+  });
   lipGeom.rotateX(-Math.PI / 2);
   const lipMesh = new three.Mesh(lipGeom, [platPlainMat, platSideMat]);
   lipMesh.position.set(plat.pos[0], plat.pos[1] + plat.height / 2, plat.pos[2]);

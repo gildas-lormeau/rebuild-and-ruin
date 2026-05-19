@@ -55,7 +55,7 @@ if (GRID_PORTRAIT_LAUNCHED) {
 
 try {
   (
-    screen.orientation as unknown as {
+    screen.orientation as {
       lock?: (orientation: string) => Promise<void>;
     }
   )
@@ -200,7 +200,7 @@ function tryFullscreen(): void {
     .requestFullscreen?.()
     .then(() => {
       (
-        screen.orientation as unknown as {
+        screen.orientation as {
           lock?: (orientation: string) => Promise<void>;
         }
       )

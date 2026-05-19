@@ -373,7 +373,7 @@ function buildCell(
     depth: H,
     bevelEnabled: false,
     UVGenerator: stoneWallUVGenerator(three, uOff, vOff),
-  } as THREE.ExtrudeGeometryOptions);
+  });
   // Shape lives in XY; extrusion goes along +Z. Rotate so XY → XZ
   // (the Shape's Y becomes world Z) and Z extrusion becomes +Y.
   geom.rotateX(-Math.PI / 2);
