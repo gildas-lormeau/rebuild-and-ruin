@@ -59,8 +59,8 @@ interface SelectionSystemDeps {
   /** Render-domain: sync overlay highlights from selectionStates (injected from composition root). */
   syncSelectionOverlay: (
     overlay: RenderOverlay,
-    selectionStates: Map<number, SelectionState>,
-    visiblePlayers?: ReadonlySet<number>,
+    selectionStates: Map<ValidPlayerId, SelectionState>,
+    visiblePlayers?: ReadonlySet<ValidPlayerId>,
   ) => void;
 
   // Sibling systems / parent callbacks
@@ -159,7 +159,7 @@ export function createSelectionSystem(
   }
 
   function syncSelectionOverlay(): void {
-    const visible = new Set<number>();
+    const visible = new Set<ValidPlayerId>();
     if (isReady()) {
       for (const ctrl of runtimeState.controllers) {
         if (isHuman(ctrl)) visible.add(ctrl.playerId);
@@ -325,8 +325,7 @@ export function createSelectionSystem(
     // deterministically, so each peer derives identical homeTower
     // sequences without wire chatter. Remote-human selections come in via
     // OPPONENT_TOWER_SELECTED from the input handler on the owning peer.
-    for (const [rawPid, selectionState] of selection.states) {
-      const pid = rawPid as ValidPlayerId;
+    for (const [pid, selectionState] of selection.states) {
       if (selectionState.confirmed) continue;
       if (isRemotePlayer(pid, remotePlayerSlots)) continue;
 
@@ -357,9 +356,8 @@ export function createSelectionSystem(
     // humans — their owning peer runs the same auto-confirm and
     // broadcasts via OPPONENT_TOWER_SELECTED.
     if (accum.select >= SELECT_TIMER) {
-      for (const [rawPid, selectionState] of selection.states) {
+      for (const [pid, selectionState] of selection.states) {
         if (selectionState.confirmed) continue;
-        const pid = rawPid as ValidPlayerId;
         if (isRemotePlayer(pid, remotePlayerSlots)) continue;
         confirmSelectionAndStartBuild(pid);
       }

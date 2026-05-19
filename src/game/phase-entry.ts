@@ -133,7 +133,7 @@ export function enterCannonPhase(state: GameState): CannonPhaseEntry {
  *  selection phase. The engine mutates it through the passed reference. */
 export function enterSelectionPhase(
   state: GameState,
-  selectionStates: Map<number, SelectionState>,
+  selectionStates: Map<ValidPlayerId, SelectionState>,
   pids?: readonly ValidPlayerId[],
 ): void {
   setPhase(state, Phase.CASTLE_SELECT);

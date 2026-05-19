@@ -20,7 +20,7 @@ import {
 import { filterActiveEnemies } from "../shared/core/board-occupancy.ts";
 import { RAMPART_SHIELD_RADIUS } from "../shared/core/game-constants.ts";
 import type { GameMap, TilePos, Tower } from "../shared/core/geometry-types.ts";
-import { GRID_COLS, GRID_ROWS } from "../shared/core/grid.ts";
+import { GRID_COLS, GRID_ROWS, type TileKey } from "../shared/core/grid.ts";
 import { getInterior } from "../shared/core/player-interior.ts";
 import type { Player } from "../shared/core/player-types.ts";
 import {
@@ -347,7 +347,7 @@ function scoreCannonPosition(
     for (const key of computeCannonTileSet(cannon)) occupied.add(key);
   }
   const interior = getInterior(player);
-  const checked = new Set<number>();
+  const checked = new Set<TileKey>();
   for (let dr = -1; dr <= size; dr++) {
     for (let dc = -1; dc <= size; dc++) {
       if (dr >= 0 && dr < size && dc >= 0 && dc < size) continue;

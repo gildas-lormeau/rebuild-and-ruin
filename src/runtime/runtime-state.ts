@@ -70,7 +70,7 @@ export interface DialogRuntimeState {
 }
 
 export interface SelectionRuntimeState {
-  states: Map<number, SelectionState>;
+  states: Map<ValidPlayerId, SelectionState>;
   castleBuilds: CastleBuildState[];
 }
 

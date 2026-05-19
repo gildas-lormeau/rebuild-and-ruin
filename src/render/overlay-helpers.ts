@@ -16,8 +16,8 @@ import type { RenderOverlay } from "../shared/ui/overlay-types.ts";
  *  are NOT included — callers that need them build a separate set. */
 export function interiorOwnersFromOverlay(
   overlay: RenderOverlay | undefined,
-): Map<number, ValidPlayerId> {
-  const owners = new Map<number, ValidPlayerId>();
+): Map<TileKey, ValidPlayerId> {
+  const owners = new Map<TileKey, ValidPlayerId>();
   if (!overlay) return owners;
   if (overlay.phase === Phase.BATTLE) {
     const territories = overlay.battle?.battleTerritory;

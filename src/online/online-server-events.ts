@@ -65,7 +65,7 @@ export interface HandleServerIncrementalDeps {
   /** Per-slot controllers — phantom messages for remote-controlled slots
    *  write directly into `controllers[msg.playerId].current{Build,Cannon}Phantom(s)`. */
   getControllers: () => readonly PlayerController[];
-  selectionStates: Map<number, SelectionState>;
+  selectionStates: Map<ValidPlayerId, SelectionState>;
   syncSelectionOverlay: () => void;
   confirmSelectionAndStartBuild: (
     playerId: ValidPlayerId,

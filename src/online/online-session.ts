@@ -58,8 +58,8 @@ export interface OnlineSession {
   roomGameMode: GameMode;
   keepaliveTimer: ReturnType<typeof setInterval> | null;
   lobbyStartTime: number;
-  earlyLifeLostChoices: Map<number, LifeLostChoice>;
-  earlyUpgradePickChoices: Map<number, string>;
+  earlyLifeLostChoices: Map<ValidPlayerId, LifeLostChoice>;
+  earlyUpgradePickChoices: Map<ValidPlayerId, string>;
 }
 
 /** Network deduplication maps — tracks the last-sent value per player for each

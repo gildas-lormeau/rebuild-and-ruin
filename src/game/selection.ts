@@ -13,7 +13,7 @@ import type { ZoneId } from "../shared/core/zone-id.ts";
 
 export function initTowerSelection(
   state: GameState,
-  selectionStates: Map<number, SelectionState>,
+  selectionStates: Map<ValidPlayerId, SelectionState>,
   playerId: ValidPlayerId,
   zone: ZoneId,
 ): void {
@@ -36,7 +36,7 @@ export function initTowerSelection(
 
 export function highlightTowerSelection(
   state: GameState,
-  selectionStates: Map<number, SelectionState>,
+  selectionStates: Map<ValidPlayerId, SelectionState>,
   idx: TowerIdx,
   zone: ZoneId,
   playerId: ValidPlayerId,
@@ -64,7 +64,7 @@ export function highlightTowerSelection(
  *  `finalizeBattle`. */
 export function confirmTowerSelection(
   state: GameState,
-  selectionStates: Map<number, SelectionState>,
+  selectionStates: Map<ValidPlayerId, SelectionState>,
   playerId: ValidPlayerId,
   onConfirmed?: (row: number, col: number) => void,
 ): { towerIdx: TowerIdx; allDone: boolean } | null {
@@ -98,7 +98,7 @@ export function initSelectionTimer(state: GameState): void {
 /** Clear selection state if in CASTLE_SELECT phase. Returns true if cleared. */
 export function finishSelectionPhase(
   state: GameState,
-  selectionStates: Map<number, SelectionState>,
+  selectionStates: Map<ValidPlayerId, SelectionState>,
 ): boolean {
   if (state.phase !== Phase.CASTLE_SELECT) return false;
   selectionStates.clear();
@@ -111,7 +111,7 @@ export function finishSelectionPhase(
  *  check runtime-specific conditions (castle build queue empty). */
 export function isSelectionComplete(
   state: GameState,
-  selectionStates: Map<number, SelectionState>,
+  selectionStates: Map<ValidPlayerId, SelectionState>,
 ): boolean {
   return (
     allSelectionsConfirmed(selectionStates) && allPlayersHaveTerritory(state)
@@ -119,7 +119,7 @@ export function isSelectionComplete(
 }
 
 export function allSelectionsConfirmed(
-  selectionStates: Map<number, SelectionState>,
+  selectionStates: Map<ValidPlayerId, SelectionState>,
 ): boolean {
   for (const [, selectionState] of selectionStates) {
     if (!selectionState.confirmed) return false;

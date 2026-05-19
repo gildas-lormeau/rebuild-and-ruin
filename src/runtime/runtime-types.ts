@@ -381,7 +381,7 @@ export interface CameraSystem {
 }
 
 export interface RuntimeSelection {
-  getStates: () => Map<number, SelectionState>;
+  getStates: () => Map<ValidPlayerId, SelectionState>;
   /** Enter CASTLE_SELECT. Omit `queue` for the initial cycle (bootstrap
    *  path: round 1 / watcher SELECT_START); pass an explicit queue for
    *  the lifeLostRoute reselect cycle. */

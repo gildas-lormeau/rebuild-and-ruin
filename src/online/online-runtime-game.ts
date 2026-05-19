@@ -206,7 +206,7 @@ const runtime: GameRuntime = createGameRuntime({
       const queue = ctx.session.earlyLifeLostChoices;
       if (queue.size === 0) return;
       for (const [pid, choice] of queue) {
-        const applied = apply(pid as ValidPlayerId, choice as ResolvedChoice);
+        const applied = apply(pid, choice as ResolvedChoice);
         devLog(
           `drain life_lost queued P${pid}=${choice} -> ${applied ? "applied" : "stale"}`,
         );
@@ -217,7 +217,7 @@ const runtime: GameRuntime = createGameRuntime({
       const queue = ctx.session.earlyUpgradePickChoices;
       if (queue.size === 0) return;
       for (const [pid, choice] of queue) {
-        const applied = apply(pid as ValidPlayerId, choice as UpgradeId);
+        const applied = apply(pid, choice as UpgradeId);
         devLog(
           `drain upgrade_pick queued P${pid}=${choice} -> ${applied ? "applied" : "stale"}`,
         );

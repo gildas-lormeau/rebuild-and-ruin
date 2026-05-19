@@ -30,7 +30,7 @@ export type WithPointerPlayer = (
 ) => boolean;
 
 export interface GameActionDeps {
-  getSelectionStates: () => Map<number, SelectionState>;
+  getSelectionStates: () => Map<ValidPlayerId, SelectionState>;
   highlightTowerForPlayer: (
     idx: TowerIdx,
     zone: ZoneId,

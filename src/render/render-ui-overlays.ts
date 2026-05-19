@@ -155,8 +155,8 @@ export function createBannerUi(
  *  If omitted, all unconfirmed players are shown. */
 export function updateSelectionOverlay(
   overlay: RenderOverlay,
-  selectionStates: Map<number, SelectionState>,
-  visiblePlayers?: ReadonlySet<number>,
+  selectionStates: Map<ValidPlayerId, SelectionState>,
+  visiblePlayers?: ReadonlySet<ValidPlayerId>,
 ): void {
   if (!overlay.selection) {
     overlay.selection = { highlighted: null, selected: null };
@@ -167,7 +167,7 @@ export function updateSelectionOverlay(
     if (visiblePlayers && !visiblePlayers.has(pid)) continue;
     overlay.selection.highlights.push({
       towerIdx: selectionState.highlighted,
-      playerId: pid as ValidPlayerId,
+      playerId: pid,
       confirmed: false,
     });
   }

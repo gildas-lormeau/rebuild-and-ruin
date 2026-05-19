@@ -229,13 +229,13 @@ export function createDebrisManager(scene: THREE.Scene): DebrisManager {
  *  (cross-fade-in matching the held mesh's sink). The wall-debris loop
  *  picks up the override; tiles not in destroyedWalls render at full
  *  opacity (default rubble). */
-function buildDebrisOpacityMap(overlay: RenderOverlay): Map<number, number> {
-  const out = new Map<number, number>();
+function buildDebrisOpacityMap(overlay: RenderOverlay): Map<TileKey, number> {
+  const out = new Map<TileKey, number>();
   const destroyedWalls = overlay.battle?.destroyedWalls;
   if (!destroyedWalls) return out;
   for (const wall of destroyedWalls) {
     const opacity = wallDestroyAnimAt(wall.age * 1000).debrisOpacity;
-    out.set(wall.row * GRID_COLS + wall.col, opacity);
+    out.set((wall.row * GRID_COLS + wall.col) as TileKey, opacity);
   }
   return out;
 }
@@ -244,7 +244,7 @@ function buildDebrisOpacityMap(overlay: RenderOverlay): Map<number, number> {
 function collectWallDebris(
   entries: DebrisEntry[],
   overlay: RenderOverlay,
-  debrisOpacityByTileKey: ReadonlyMap<number, number>,
+  debrisOpacityByTileKey: ReadonlyMap<TileKey, number>,
 ): void {
   const battleWalls = overlay.battle?.battleWalls;
   if (!battleWalls || !overlay.castles) return;
