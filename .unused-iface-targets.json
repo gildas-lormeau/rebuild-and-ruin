@@ -87,7 +87,14 @@
     {
       "label": "AI strategy — extension contract, multiple implementations",
       "targets": [
-        { "file": "src/ai/ai-strategy-types.ts", "interface": "AiStrategy" }
+        { "file": "src/ai/ai-strategy-types.ts", "interface": "AiStrategy" },
+        { "file": "src/ai/ai-defaults.ts", "interface": "AiDeps" }
+      ]
+    },
+    {
+      "label": "Runtime composition config — extension-hook shape",
+      "targets": [
+        { "file": "src/runtime/runtime-types.ts", "interface": "RuntimeConfig" }
       ]
     },
     {
