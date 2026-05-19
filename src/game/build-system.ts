@@ -35,7 +35,12 @@ import {
 } from "../shared/core/game-constants.ts";
 import { emitGameEvent, GAME_EVENT } from "../shared/core/game-event-bus.ts";
 import type { TilePos, TowerIdx } from "../shared/core/geometry-types.ts";
-import { GRID_COLS, GRID_ROWS, type Tile } from "../shared/core/grid.ts";
+import {
+  GRID_COLS,
+  GRID_ROWS,
+  type Tile,
+  type TileKey,
+} from "../shared/core/grid.ts";
 import { hasCannonAt, hasTowerAt } from "../shared/core/occupancy-queries.ts";
 import type { PieceShape } from "../shared/core/pieces.ts";
 import {
@@ -121,7 +126,7 @@ export function canPlacePiece(
     readonly burningPits: readonly BurningPit[];
     readonly modern?: {
       readonly activeModifier: ModifierId | null;
-      readonly exposedRiverbedTiles?: ReadonlySet<number> | null;
+      readonly exposedRiverbedTiles?: ReadonlySet<TileKey> | null;
     } | null;
   },
   playerId: ValidPlayerId,

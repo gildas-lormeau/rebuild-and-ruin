@@ -28,7 +28,7 @@ interface RenderModernSlice {
   readonly frozenTiles: ReadonlySet<TileKey> | null;
   /** Low-water exposed riverbed tiles. Renderer paints these as bank
    *  via FLAG_EXPOSED in the tile-data texture. */
-  readonly exposedRiverbedTiles: ReadonlySet<number> | null;
+  readonly exposedRiverbedTiles: ReadonlySet<TileKey> | null;
   readonly masterBuilderLockout: number;
   readonly comboTracker: {
     readonly events: readonly ComboEvent[];

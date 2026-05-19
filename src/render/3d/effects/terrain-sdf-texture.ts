@@ -9,7 +9,7 @@
 
 import * as THREE from "three";
 import type { GameMap } from "../../../shared/core/geometry-types.ts";
-import { MAP_PX_H, MAP_PX_W } from "../../../shared/core/grid.ts";
+import { MAP_PX_H, MAP_PX_W, type TileKey } from "../../../shared/core/grid.ts";
 
 /** Modifier projection for SDF generation. Tiles in `phantomWater` are
  *  treated as water (high_tide flooded grass) and tiles in `phantomGrass`
@@ -18,8 +18,8 @@ import { MAP_PX_H, MAP_PX_W } from "../../../shared/core/grid.ts";
  *  side projection so the bank gradient appears at the modifier-effective
  *  shoreline without mutating game state. */
 export interface SdfOpts {
-  phantomWater?: ReadonlySet<number>;
-  phantomGrass?: ReadonlySet<number>;
+  phantomWater?: ReadonlySet<TileKey>;
+  phantomGrass?: ReadonlySet<TileKey>;
 }
 
 export type GetBlurredSdf = (
