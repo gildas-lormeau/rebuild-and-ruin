@@ -40,7 +40,7 @@ interface FloodFillCtx {
   readonly tiles: readonly Tile[][];
   readonly extraFillable: ReadonlySet<TileKey> | undefined;
   readonly zones: ZoneCell[][];
-  readonly queue: number[];
+  readonly queue: TileKey[];
 }
 
 // Tower placement validation — multi-layer checks (isValidTowerPos):
@@ -361,7 +361,7 @@ function buildRiverDistanceGrid(tiles: readonly Tile[][]): number[][] {
     new Array(GRID_COLS).fill(Infinity),
   );
   // Flat-index BFS queue avoids tuple allocations (encode as packTile(r, c))
-  const queue: number[] = [];
+  const queue: TileKey[] = [];
 
   // Seed BFS from all river tiles
   for (let r = 0; r < GRID_ROWS; r++) {
@@ -377,23 +377,23 @@ function buildRiverDistanceGrid(tiles: readonly Tile[][]): number[][] {
   let head = 0;
   while (head < queue.length) {
     const idx = queue[head++]!;
-    const { r, c } = unpackTile(idx as TileKey);
+    const { r, c } = unpackTile(idx);
     const d1 = dist[r]![c]! + 1;
     if (r > 0 && dist[r - 1]![c]! > d1) {
       dist[r - 1]![c] = d1;
-      queue.push(idx - GRID_COLS);
+      queue.push((idx - GRID_COLS) as TileKey);
     }
     if (r < GRID_ROWS - 1 && dist[r + 1]![c]! > d1) {
       dist[r + 1]![c] = d1;
-      queue.push(idx + GRID_COLS);
+      queue.push((idx + GRID_COLS) as TileKey);
     }
     if (c > 0 && dist[r]![c - 1]! > d1) {
       dist[r]![c - 1] = d1;
-      queue.push(idx - 1);
+      queue.push((idx - 1) as TileKey);
     }
     if (c < GRID_COLS - 1 && dist[r]![c + 1]! > d1) {
       dist[r]![c + 1] = d1;
-      queue.push(idx + 1);
+      queue.push((idx + 1) as TileKey);
     }
   }
 
@@ -604,7 +604,7 @@ export function floodFillZones(
   let regionId = 0 as ZoneId;
   const regionSizes = new Map<ZoneId, number>();
   // Reusable flat-index queue across all fills (cleared per region)
-  const queue: number[] = [];
+  const queue: TileKey[] = [];
   const ctx: FloodFillCtx = { tiles, extraFillable, zones, queue };
 
   for (let r = 0; r < GRID_ROWS; r++) {
@@ -622,7 +622,7 @@ export function floodFillZones(
 
       while (head < queue.length) {
         const idx = queue[head++]!;
-        const { r: cr, c: cc } = unpackTile(idx as TileKey);
+        const { r: cr, c: cc } = unpackTile(idx);
         size++;
         tryEnqueueFlood(ctx, cr - 1, cc, regionId);
         tryEnqueueFlood(ctx, cr + 1, cc, regionId);

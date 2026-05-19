@@ -53,8 +53,8 @@ export const TILE_CENTER_OFFSET = 0.5;
 /** Return the set of packed tile keys covered by a cannon footprint. */
 export function computeCannonTileSet(
   cannon: Pick<Cannon, "row" | "col" | "mode">,
-): Set<number> {
-  const tiles = new Set<number>();
+): Set<TileKey> {
+  const tiles = new Set<TileKey>();
   forEachCannonTile(cannon, (_r, _c, key) => tiles.add(key));
   return tiles;
 }
@@ -148,7 +148,7 @@ export function tileCenterPx(row: number, col: number): PixelPos {
 /** True if all 4 tiles of a 2×2 tower are enclosed (not in the outside set). */
 export function isTowerEnclosed(
   tilePos: TilePos,
-  outside: Set<number>,
+  outside: ReadonlySet<TileKey>,
 ): boolean {
   for (let dr = 0; dr < 2; dr++) {
     for (let dc = 0; dc < 2; dc++) {
@@ -174,10 +174,10 @@ export function isTowerEnclosed(
 export function towerReachesOutsideCardinal(
   tower: Tower,
   walls: ReadonlySet<TileKey>,
-  targets?: ReadonlySet<number>,
+  targets?: ReadonlySet<TileKey>,
 ): boolean {
   const start = packTile(tower.row, tower.col);
-  const visited = new Set<number>([start]);
+  const visited = new Set<TileKey>([start]);
   const queue = [start];
   while (queue.length > 0) {
     const key = queue.pop()!;
@@ -263,7 +263,7 @@ export function towerAtPixel(
 /** Drop every item whose tile lies inside `tiles`. */
 export function filterOffTiles<T extends TilePos>(
   items: readonly T[],
-  tiles: ReadonlySet<number>,
+  tiles: ReadonlySet<TileKey>,
 ): T[] {
   return items.filter((item) => !tiles.has(packTile(item.row, item.col)));
 }
@@ -345,7 +345,7 @@ export function isTowerTile(tilePos: TilePos, r: number, c: number): boolean {
  *  set (renderer tile-data, apply-time eviction). Per-tile callers
  *  (grunt-movement) should use `isFloodedTile` instead. */
 export function computeFloodedTiles(map: GameMap): Set<TileKey> {
-  const towerTiles = new Set<number>();
+  const towerTiles = new Set<TileKey>();
   for (const tower of map.towers) {
     forEachTowerTile(tower, (_r, _c, key) => towerTiles.add(key));
   }

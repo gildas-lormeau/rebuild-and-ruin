@@ -214,7 +214,7 @@ export function canPlaceOverGrunt(
 export function onPiecePlaced(
   state: GameState,
   player: Player,
-  pieceKeys: ReadonlySet<number>,
+  pieceKeys: ReadonlySet<TileKey>,
 ): void {
   for (const impl of UPGRADE_REGISTRY.values()) {
     impl.onPiecePlaced?.(state, player, pieceKeys);

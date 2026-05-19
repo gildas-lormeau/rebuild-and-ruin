@@ -575,15 +575,15 @@ function restoreZoneGrass(state: GameState, zone: ZoneId): void {
   if (!anchor) return;
   const tiles = state.map.tiles;
   const sinkholeTiles = state.modern?.sinkholeTiles;
-  const visited = new Set<number>();
-  const queue: number[] = [packTile(anchor.row, anchor.col)];
+  const visited = new Set<TileKey>();
+  const queue: TileKey[] = [packTile(anchor.row, anchor.col)];
   visited.add(queue[0]!);
   while (queue.length > 0) {
     const key = queue.shift()!;
-    const { r, c } = unpackTile(key as TileKey);
+    const { r, c } = unpackTile(key);
     if (!isGrass(tiles, r, c)) {
       setGrass(tiles, r, c);
-      sinkholeTiles?.delete(key as TileKey);
+      sinkholeTiles?.delete(key);
     }
     for (const [dr, dc] of DIRS_4) {
       const nr = r + dr;

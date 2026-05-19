@@ -5,6 +5,7 @@
  * and onPiecePlaced (pit clearing).
  */
 
+import type { TileKey } from "../../shared/core/grid.ts";
 import type { Player } from "../../shared/core/player-types.ts";
 import { filterOffTiles } from "../../shared/core/spatial.ts";
 import type { GameState, UpgradeImpl } from "../../shared/core/types.ts";
@@ -20,7 +21,7 @@ export const foundationsImpl: UpgradeImpl = {
 function onPiecePlaced(
   state: GameState,
   player: Player,
-  pieceKeys: ReadonlySet<number>,
+  pieceKeys: ReadonlySet<TileKey>,
 ): void {
   if (!canPlaceOverBurningPit(player)) return;
   state.burningPits = filterOffTiles(state.burningPits, pieceKeys);

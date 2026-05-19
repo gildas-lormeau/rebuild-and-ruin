@@ -67,7 +67,7 @@ export const lowWaterImpl: ModifierImpl = {
  *  varied exposed strips instead of the same-every-time row-major slice. */
 function computeExposedRiverbedTiles(map: GameMap, rng: Rng): Set<TileKey> {
   const tiles = map.tiles;
-  const banks: number[] = [];
+  const banks: TileKey[] = [];
   for (let r = 0; r < GRID_ROWS; r++) {
     for (let c = 0; c < GRID_COLS; c++) {
       if (!isWater(tiles, r, c)) continue;
@@ -83,10 +83,10 @@ function computeExposedRiverbedTiles(map: GameMap, rng: Rng): Set<TileKey> {
 
   const exposed = new Set<TileKey>();
   for (const key of banks) {
-    const { r, c } = unpackTile(key as TileKey);
+    const { r, c } = unpackTile(key);
     // Tentatively expose this tile; revert if it would leave a water
     // neighbor without a 2×2-water anchor (river thinning to 1-wide).
-    exposed.add(key as TileKey);
+    exposed.add(key);
     let safe = true;
     for (const [dr, dc] of DIRS_4) {
       const nr = r + dr;
@@ -98,7 +98,7 @@ function computeExposedRiverbedTiles(map: GameMap, rng: Rng): Set<TileKey> {
         break;
       }
     }
-    if (!safe) exposed.delete(key as TileKey);
+    if (!safe) exposed.delete(key);
   }
   return exposed;
 }

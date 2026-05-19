@@ -6,6 +6,7 @@
  * global) + onPiecePlaced (removal).
  */
 
+import type { TileKey } from "../../shared/core/grid.ts";
 import type { Player } from "../../shared/core/player-types.ts";
 import { filterOffTiles } from "../../shared/core/spatial.ts";
 import type { GameState, UpgradeImpl } from "../../shared/core/types.ts";
@@ -21,7 +22,7 @@ export const entombImpl: UpgradeImpl = {
 function onPiecePlaced(
   state: GameState,
   _player: Player,
-  pieceKeys: ReadonlySet<number>,
+  pieceKeys: ReadonlySet<TileKey>,
 ): void {
   if (!isGlobalUpgradeActive(state.players, UID.ENTOMB)) return;
   state.grunts = filterOffTiles(state.grunts, pieceKeys);

@@ -528,7 +528,7 @@ export interface UpgradeImpl {
   onPiecePlaced?: (
     state: GameState,
     player: Player,
-    pieceKeys: ReadonlySet<number>,
+    pieceKeys: ReadonlySet<TileKey>,
   ) => void;
   /** Post-impact follow-ups (e.g. ricochet bounces). Generator yields each
    *  bounce position; the orchestrator applies impact + emits between

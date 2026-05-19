@@ -272,7 +272,7 @@ export function filterActiveFiringCannons(player: Player): Cannon[] {
  *  Returns the set of tile keys in the connected enclosed region.
  *  Exported so the upgrade-system dispatcher can inject it into
  *  per-upgrade battle-start hooks (e.g. shield-battery). */
-export function homeEnclosedRegion(player: Player): Set<number> {
+export function homeEnclosedRegion(player: Player): Set<TileKey> {
   assertInteriorFresh(player);
   const interior = getInterior(player);
   // Build traversable set: interior tiles + all owned tower tiles
@@ -286,8 +286,8 @@ export function homeEnclosedRegion(player: Player): Set<number> {
   }
   // Seed BFS from home tower tiles
   const home = player.homeTower!;
-  const visited = new Set<number>();
-  const queue: number[] = [];
+  const visited = new Set<TileKey>();
+  const queue: TileKey[] = [];
   for (let dr = 0; dr < TOWER_SIZE; dr++) {
     for (let dc = 0; dc < TOWER_SIZE; dc++) {
       const key = packTile(home.row + dr, home.col + dc);
@@ -300,7 +300,7 @@ export function homeEnclosedRegion(player: Player): Set<number> {
   // Flood through traversable tiles using 4-dir connectivity
   while (queue.length > 0) {
     const key = queue.pop()!;
-    const { r, c } = unpackTile(key as TileKey);
+    const { r, c } = unpackTile(key);
     for (const [dr, dc] of DIRS_4) {
       const neighborKey = packTile(r + dr, c + dc);
       if (!visited.has(neighborKey) && traversable.has(neighborKey)) {
