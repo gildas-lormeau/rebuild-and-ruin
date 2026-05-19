@@ -141,16 +141,16 @@ export function snapshotAllWalls(state: GameViewState): Set<TileKey>[] {
   return state.players.map((player) => new Set(player.walls));
 }
 
-export function collectAllWalls(state: GameViewState): Set<number> {
-  const allWalls = new Set<number>();
+export function collectAllWalls(state: GameViewState): Set<TileKey> {
+  const allWalls = new Set<TileKey>();
   for (const player of state.players) {
     for (const key of player.walls) allWalls.add(key);
   }
   return allWalls;
 }
 
-export function collectAllInterior(state: GameViewState): Set<number> {
-  const allInterior = new Set<number>();
+export function collectAllInterior(state: GameViewState): Set<TileKey> {
+  const allInterior = new Set<TileKey>();
   for (const player of state.players) {
     for (const key of player.interior) allInterior.add(key);
   }
@@ -308,7 +308,7 @@ export function addPlayerWall(player: Player, key: TileKey): void {
 /** Batch-add wall keys and mark dirty once. Use instead of a loop of .add() calls.
  *  WARNING: Leaves interior stale. Caller MUST call recheckTerritory(state) before
  *  any code reads player.interior. Enforced at runtime by assertInteriorFresh(). */
-export function addPlayerWalls(player: Player, keys: Iterable<number>): void {
+export function addPlayerWalls(player: Player, keys: Iterable<TileKey>): void {
   const walls = mutableWalls(player);
   for (const key of keys) walls.add(key);
   markWallsDirty(player);
@@ -372,17 +372,17 @@ function collectAllCannonTiles(
  * Sweep one layer of debris wall tiles (0 or 1 orthogonal neighbor).
  * Collects all isolated tiles first, then removes them in one batch.
  */
-function removeIsolatedWalls(walls: Set<number>): void {
-  const toRemove: number[] = [];
+function removeIsolatedWalls(walls: Set<TileKey>): void {
+  const toRemove: TileKey[] = [];
   for (const key of walls) {
-    const { r, c } = unpackTile(key as TileKey);
+    const { r, c } = unpackTile(key);
     if (countWallNeighbors(walls, r, c) <= 1) toRemove.push(key);
   }
   for (const key of toRemove) walls.delete(key);
 }
 
 /** Cast ReadonlySet → Set for internal mutation. Only used by wall helpers in this file. */
-function mutableWalls(player: Player): Set<number> {
+function mutableWalls(player: Player): Set<TileKey> {
   return player.walls as Set<TileKey>;
 }
 

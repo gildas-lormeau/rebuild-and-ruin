@@ -764,7 +764,7 @@ export function findOuterRingHoles(
   state: BuildViewState,
   interior: ReadonlySet<TileKey>,
 ): Set<TileKey> {
-  const outside = computeOutside(walls) as Set<TileKey>;
+  const outside = computeOutside(walls);
   const isRingWall = (key: TileKey): boolean => {
     const { r, c } = unpackTile(key);
     for (const [dr, dc] of DIRS_4) {
@@ -1032,7 +1032,7 @@ function analyzeEnclosures(
   // Water-as-barrier made the AI think bank-adjacent castles were closed when
   // territory's plain flood could still enter through the bank.
   const walls = player.walls;
-  const outside = computeOutside(walls) as Set<TileKey>;
+  const outside = computeOutside(walls);
   const homeTowerEnclosed = isTowerEnclosed(castle.tower, outside);
   // 4-dir BFS from a tower: returns true if the BFS can reach the map
   // border without crossing walls.

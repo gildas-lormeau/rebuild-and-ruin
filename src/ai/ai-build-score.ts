@@ -694,7 +694,7 @@ function computeCandidateEnv(
   const simulatedOutside = computeOutsideAfterAdd(
     ctx.outside,
     candidateWallTiles,
-  ) as Set<TileKey>;
+  );
   const rawGain = ctx.baselineOutside - simulatedOutside.size;
   const pieceTiles = candidate.piece.offsets.length;
   const usefulGain = rawGain - pieceTiles;

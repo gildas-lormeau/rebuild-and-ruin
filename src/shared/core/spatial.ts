@@ -173,7 +173,7 @@ export function isTowerEnclosed(
  */
 export function towerReachesOutsideCardinal(
   tower: Tower,
-  walls: ReadonlySet<number>,
+  walls: ReadonlySet<TileKey>,
   targets?: ReadonlySet<number>,
 ): boolean {
   const start = packTile(tower.row, tower.col);
@@ -216,7 +216,7 @@ export function hasPitAt(
 
 /** Count orthogonal wall neighbors of a tile key in a wall set. */
 export function countWallNeighbors(
-  walls: ReadonlySet<number>,
+  walls: ReadonlySet<TileKey>,
   r: number,
   c: number,
 ): number {
@@ -395,8 +395,8 @@ export function isWater(
 }
 
 /** Build a set of all water tile keys — use as extra barriers for computeOutside. */
-export function waterKeys(tiles: readonly (readonly Tile[])[]): Set<number> {
-  const water = new Set<number>();
+export function waterKeys(tiles: readonly (readonly Tile[])[]): Set<TileKey> {
+  const water = new Set<TileKey>();
   for (let r = 0; r < GRID_ROWS; r++)
     for (let c = 0; c < GRID_COLS; c++)
       if (tiles[r]![c] === Tile.Water) water.add(packTile(r, c));
@@ -406,10 +406,10 @@ export function waterKeys(tiles: readonly (readonly Tile[])[]): Set<number> {
 /** Flood-fill from map edges to find all "outside" tiles (not enclosed by walls).
  *  `extraBarriers` (e.g. water keys) are treated as impassable, like walls. */
 export function computeOutside(
-  walls: ReadonlySet<number>,
-  extraBarriers?: ReadonlySet<number>,
-): Set<number> {
-  const outside = new Set<number>();
+  walls: ReadonlySet<TileKey>,
+  extraBarriers?: ReadonlySet<TileKey>,
+): Set<TileKey> {
+  const outside = new Set<TileKey>();
   // Parallel queues for r/c — avoids per-dequeue object allocation from unpackTile.
   const queueR: number[] = [];
   const queueC: number[] = [];
@@ -417,7 +417,7 @@ export function computeOutside(
   // Seed boundary tiles directly (4 edges) instead of scanning the full grid.
   // Top + bottom rows.
   for (let c = 0; c < GRID_COLS; c++) {
-    const topKey = c; // packTile(0, c)
+    const topKey = c as TileKey; // packTile(0, c)
     if (!walls.has(topKey) && !(hasExtra && extraBarriers.has(topKey))) {
       outside.add(topKey);
       queueR.push(0);
@@ -425,7 +425,7 @@ export function computeOutside(
     }
     if (GRID_ROWS > 1) {
       const botR = GRID_ROWS - 1;
-      const botKey = botR * GRID_COLS + c;
+      const botKey = (botR * GRID_COLS + c) as TileKey;
       if (!walls.has(botKey) && !(hasExtra && extraBarriers.has(botKey))) {
         outside.add(botKey);
         queueR.push(botR);
@@ -435,7 +435,7 @@ export function computeOutside(
   }
   // Left + right columns (excluding corners — already covered above).
   for (let r = 1; r < GRID_ROWS - 1; r++) {
-    const leftKey = r * GRID_COLS;
+    const leftKey = (r * GRID_COLS) as TileKey;
     if (!walls.has(leftKey) && !(hasExtra && extraBarriers.has(leftKey))) {
       outside.add(leftKey);
       queueR.push(r);
@@ -443,7 +443,7 @@ export function computeOutside(
     }
     if (GRID_COLS > 1) {
       const rightC = GRID_COLS - 1;
-      const rightKey = r * GRID_COLS + rightC;
+      const rightKey = (r * GRID_COLS + rightC) as TileKey;
       if (!walls.has(rightKey) && !(hasExtra && extraBarriers.has(rightKey))) {
         outside.add(rightKey);
         queueR.push(r);
@@ -474,9 +474,9 @@ export function computeOutside(
  *  Requires `baselineOutside === computeOutside(baselineWalls)` with no
  *  `extraBarriers` — callers using extra barriers must keep using `computeOutside`. */
 export function computeOutsideAfterAdd(
-  baselineOutside: ReadonlySet<number>,
+  baselineOutside: ReadonlySet<TileKey>,
   newWallTiles: readonly TileKey[],
-): Set<number> {
+): Set<TileKey> {
   const trapped = computeTrappedAfterAdd(baselineOutside, newWallTiles);
   const newOutside = new Set(baselineOutside);
   for (let i = 0; i < newWallTiles.length; i++) {
@@ -499,14 +499,14 @@ export function computeOutsideAfterAdd(
  *  `forEachNeighbor8` callback helper) — the closure-call overhead added
  *  up to hundreds of ms across a single seed's run in profiling. */
 export function computeTrappedAfterAdd(
-  baselineOutside: ReadonlySet<number>,
+  baselineOutside: ReadonlySet<TileKey>,
   newWallTiles: readonly TileKey[],
-): number[] {
-  const trapped: number[] = [];
+): TileKey[] {
+  const trapped: TileKey[] = [];
   const newWallSet = new Set(newWallTiles);
   // Only baseline-outside neighbors of the new walls can lose their boundary
   // path — every other tile keeps its existing connection.
-  const suspects: number[] = [];
+  const suspects: TileKey[] = [];
   for (let i = 0; i < newWallTiles.length; i++) {
     const tile = newWallTiles[i]!;
     const r = (tile / GRID_COLS) | 0;
@@ -525,13 +525,13 @@ export function computeTrappedAfterAdd(
   if (suspects.length === 0) return trapped;
   // BFS each suspect's component. If it touches the map edge, it stays
   // outside; otherwise the whole component is now trapped.
-  const visited = new Set<number>();
+  const visited = new Set<TileKey>();
   const queueR: number[] = [];
   const queueC: number[] = [];
   for (let seedIdx = 0; seedIdx < suspects.length; seedIdx++) {
     const seed = suspects[seedIdx]!;
     if (visited.has(seed)) continue;
-    const componentTiles: number[] = [seed];
+    const componentTiles: TileKey[] = [seed];
     const seedR = (seed / GRID_COLS) | 0;
     const seedC = seed - seedR * GRID_COLS;
     visited.add(seed);
@@ -742,7 +742,7 @@ function boundsCenterPx(bounds: TileBounds): PixelPos {
 function forEachNeighbor8(
   r: number,
   c: number,
-  visit: (neighborR: number, neighborC: number, neighborKey: number) => void,
+  visit: (neighborR: number, neighborC: number, neighborKey: TileKey) => void,
 ): void {
   for (let dirIdx = 0; dirIdx < 8; dirIdx++) {
     const dir = DIRS_8[dirIdx]!;
@@ -755,7 +755,7 @@ function forEachNeighbor8(
       neighborC >= GRID_COLS
     )
       continue;
-    visit(neighborR, neighborC, neighborR * GRID_COLS + neighborC);
+    visit(neighborR, neighborC, (neighborR * GRID_COLS + neighborC) as TileKey);
   }
 }
 

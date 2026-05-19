@@ -364,7 +364,7 @@ export function replenishBonusSquares(state: GameState): void {
 
 export function removeBonusSquaresCoveredByWalls(
   state: GameState,
-  walls: ReadonlySet<number>,
+  walls: ReadonlySet<TileKey>,
 ): void {
   state.bonusSquares = filterOffTiles(state.bonusSquares, walls);
 }

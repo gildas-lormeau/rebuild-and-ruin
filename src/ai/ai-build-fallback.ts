@@ -147,10 +147,7 @@ export function createsSmallEnclosure(
   // calls during build phase (~99%) don't trap anything; this lets them
   // bail before paying the O(outside.size) clone that dominated the prior
   // implementation's cost.
-  const trapped = computeTrappedAfterAdd(
-    outside,
-    candidateWallTiles,
-  ) as TileKey[];
+  const trapped = computeTrappedAfterAdd(outside, candidateWallTiles);
   if (trapped.length === 0) return false;
   // Rare path: traps exist. Build simulatedOutside so floodPocket can
   // treat outside tiles as barriers.

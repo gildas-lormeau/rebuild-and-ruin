@@ -459,15 +459,15 @@ function refreshAnimAttrs(
  *  equivalent to "same-castle wall tile" for cardinal adjacency — see
  *  the notes in the pre-instancing version of this file. */
 function computeMask(
-  walls: ReadonlySet<number>,
+  walls: ReadonlySet<TileKey>,
   col: number,
   row: number,
 ): number {
   let mask = 0;
-  if (walls.has((row - 1) * GRID_COLS + col)) mask |= MASK_N;
-  if (walls.has((row + 1) * GRID_COLS + col)) mask |= MASK_S;
-  if (walls.has(row * GRID_COLS + (col + 1))) mask |= MASK_E;
-  if (walls.has(row * GRID_COLS + (col - 1))) mask |= MASK_W;
+  if (walls.has(((row - 1) * GRID_COLS + col) as TileKey)) mask |= MASK_N;
+  if (walls.has(((row + 1) * GRID_COLS + col) as TileKey)) mask |= MASK_S;
+  if (walls.has((row * GRID_COLS + (col + 1)) as TileKey)) mask |= MASK_E;
+  if (walls.has((row * GRID_COLS + (col - 1)) as TileKey)) mask |= MASK_W;
   return mask;
 }
 
