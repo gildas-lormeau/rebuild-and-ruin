@@ -345,7 +345,7 @@ export function computeScoreDeltas(
 export function prepareCastleWallsForPlayer(
   state: GameState,
   playerId: ValidPlayerId,
-): { playerId: ValidPlayerId; tiles: number[] } | null {
+): { playerId: ValidPlayerId; tiles: TileKey[] } | null {
   const player = state.players[playerId];
   if (!player?.homeTower) return null;
   const planTiles = effectivePlanTiles(state);

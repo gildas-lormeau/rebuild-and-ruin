@@ -86,8 +86,8 @@ export function collectOccupiedTiles(
     includeBonusSquares?: boolean;
     includeGrunts?: boolean;
   },
-): Set<number> {
-  const occupied = new Set<number>();
+): Set<TileKey> {
+  const occupied = new Set<TileKey>();
 
   if (options?.includeWalls) {
     for (const key of collectAllWalls(state)) occupied.add(key);
@@ -357,8 +357,8 @@ export function getBattleInterior(player: Player): ReadonlySet<TileKey> {
 function collectAllCannonTiles(
   state: GameViewState,
   options?: { excludeBalloonCannons?: boolean },
-): Set<number> {
-  const cannonTiles = new Set<number>();
+): Set<TileKey> {
+  const cannonTiles = new Set<TileKey>();
   for (const player of state.players) {
     for (const cannon of player.cannons) {
       if (options?.excludeBalloonCannons && isBalloonCannon(cannon)) continue;

@@ -14,7 +14,11 @@ import {
   isSuperCannon,
 } from "../../../shared/core/battle-types.ts";
 import type { Tower, TowerIdx } from "../../../shared/core/geometry-types.ts";
-import { GRID_COLS, TILE_SIZE } from "../../../shared/core/grid.ts";
+import {
+  GRID_COLS,
+  TILE_SIZE,
+  type TileKey,
+} from "../../../shared/core/grid.ts";
 import type { ValidPlayerId } from "../../../shared/core/player-slot.ts";
 import { wallDestroyAnimAt } from "../../../shared/core/wall-destroy-anim.ts";
 import type { RenderOverlay } from "../../../shared/ui/overlay-types.ts";
@@ -394,7 +398,7 @@ function computeStructuralSignature(
     for (const castle of overlay.castles) {
       const origWalls = battleWalls[castle.playerId];
       if (!origWalls) continue;
-      const destroyed: number[] = [];
+      const destroyed: TileKey[] = [];
       for (const key of origWalls) {
         if (!castle.walls.has(key)) destroyed.push(key);
       }

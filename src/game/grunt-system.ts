@@ -54,6 +54,7 @@ import {
   zoneAt,
 } from "../shared/core/spatial.ts";
 import { type GameState, hasFeature } from "../shared/core/types.ts";
+import type { ZoneId } from "../shared/core/zone-id.ts";
 import {
   getDeadZones,
   getGruntTargetTower,
@@ -430,7 +431,7 @@ export function spawnGruntOnZone(
 function nearestAttackableTowerInZone(
   state: GameState,
   grunt: Grunt,
-  deadZones: ReadonlySet<number>,
+  deadZones: ReadonlySet<ZoneId>,
 ): TowerIdx | undefined {
   const gruntZone = zoneAt(state.map, grunt.row, grunt.col);
   if (gruntZone === undefined) return undefined;

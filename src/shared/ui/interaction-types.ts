@@ -1,3 +1,4 @@
+import type { TileKey } from "../core/grid.ts";
 import type { PlayerId, ValidPlayerId } from "../core/player-slot.ts";
 import type { UpgradeId } from "../core/upgrade-defs.ts";
 
@@ -77,7 +78,7 @@ export interface CastleWallPlan {
   /** Ordered wall tiles for castle construction animation.
    *  Encoded as packed tile keys: row * GRID_COLS + col.
    *  Use unpackTile() from spatial.ts to convert to (row, col). */
-  tiles: number[];
+  tiles: TileKey[];
 }
 
 /** Which button is focused in the life-lost dialog. */

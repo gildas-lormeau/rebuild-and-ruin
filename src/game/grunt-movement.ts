@@ -38,6 +38,7 @@ import {
   zoneAt,
 } from "../shared/core/spatial.ts";
 import type { GameState } from "../shared/core/types.ts";
+import type { ZoneId } from "../shared/core/zone-id.ts";
 
 /** Manhattan radius for checking if another grunt targeting the same tower is queued nearby. */
 const GRUNT_BLOCKED_NEARBY_DISTANCE = 2;
@@ -91,8 +92,8 @@ export function moveGrunts(state: GameState): boolean {
 }
 
 /** Zones owned by eliminated players — grunts must never target or attack their towers. */
-export function getDeadZones(state: GameState): ReadonlySet<number> {
-  const zones = new Set<number>();
+export function getDeadZones(state: GameState): ReadonlySet<ZoneId> {
+  const zones = new Set<ZoneId>();
   for (const player of state.players) {
     if (!isPlayerEliminated(player)) continue;
     const zone = state.playerZones[player.id];
@@ -124,7 +125,7 @@ export function getLiveTargetTower(
 function lockGruntTarget(
   state: GameState,
   grunt: Grunt,
-  deadZones: ReadonlySet<number>,
+  deadZones: ReadonlySet<ZoneId>,
 ): void {
   // Drop stale target if it points at an eliminated player's zone
   if (grunt.targetTowerIdx !== undefined) {
