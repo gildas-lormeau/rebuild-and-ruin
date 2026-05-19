@@ -31,6 +31,15 @@ import {
   UID,
   type UpgradeId,
 } from "../shared/core/upgrade-defs.ts";
+import {
+  allHooksAllow,
+  anyHookTrue,
+  firstNonNullHook,
+  forEachHook,
+  mergeHookGenerators,
+  productHooks,
+  sumHooks,
+} from "../shared/platform/utils.ts";
 import type { UpgradePickDialogState } from "../shared/ui/interaction-types.ts";
 import { architectImpl } from "./upgrades/architect.ts";
 import { ceasefireImpl } from "./upgrades/ceasefire.ts";
@@ -89,17 +98,16 @@ const OFFER_COUNT = 3;
 /** Cannonball speed multiplier when Rapid Fire is active.
  *  Cancels out with Mortar's slowdown by design — see ballSpeedMult below. */
 const RAPID_FIRE_SPEED_MULT = 1.5;
-/** Registry map for dispatching upgrade lifecycle hooks by id. */
-const UPGRADE_REGISTRY = new Map<UpgradeId, UpgradeImpl>(
-  Object.entries(UPGRADE_IMPLS) as [UpgradeId, UpgradeImpl][],
-);
+/** Flat iteration source for the dispatchers below. `Object.values` is
+ *  hoisted once because hot-path callers (e.g. `ballSpeedMult` siblings)
+ *  invoke the dispatchers per cannonball / per frame. */
+const UPGRADE_IMPL_LIST = Object.values(UPGRADE_IMPLS);
 
 /** True when this round's battle phase should be skipped entirely. */
 export function shouldSkipBattle(state: GameState): boolean {
-  for (const impl of UPGRADE_REGISTRY.values()) {
-    if (impl.shouldSkipBattle?.(state)) return true;
-  }
-  return false;
+  return anyHookTrue(UPGRADE_IMPL_LIST, (impl) =>
+    impl.shouldSkipBattle?.(state),
+  );
 }
 
 /** Whether this player is allowed to build this frame.
@@ -108,20 +116,14 @@ export function canPlayerBuild(
   state: GameState,
   playerId: ValidPlayerId,
 ): boolean {
-  for (const impl of UPGRADE_REGISTRY.values()) {
-    if (impl.canPlayerBuild && !impl.canPlayerBuild(state, playerId))
-      return false;
-  }
-  return true;
+  return allHooksAllow(UPGRADE_IMPL_LIST, (impl) =>
+    impl.canPlayerBuild?.(state, playerId),
+  );
 }
 
 /** Build timer bonus contributed by active upgrades (additive). */
 export function buildTimerBonus(state: GameState): number {
-  let bonus = 0;
-  for (const impl of UPGRADE_REGISTRY.values()) {
-    bonus += impl.buildTimerBonus?.(state) ?? 0;
-  }
-  return bonus;
+  return sumHooks(UPGRADE_IMPL_LIST, (impl) => impl.buildTimerBonus?.(state));
 }
 
 /** Cannonball speed multiplier for a firing cannon. Combines upgrade
@@ -145,56 +147,45 @@ export function ballSpeedMult(player: Player, isMortar: boolean): number {
  *  Caller is responsible for emitting WALL_ABSORBED and marking the tile
  *  in damagedWalls via the event dispatch. */
 export function shouldAbsorbWallHit(player: Player, tileKey: TileKey): boolean {
-  for (const impl of UPGRADE_REGISTRY.values()) {
-    if (impl.shouldAbsorbWallHit?.(player, tileKey)) return true;
-  }
-  return false;
+  return anyHookTrue(UPGRADE_IMPL_LIST, (impl) =>
+    impl.shouldAbsorbWallHit?.(player, tileKey),
+  );
 }
 
 /** End-of-build territory score multiplier for a player (multiplicative). */
 export function territoryScoreMult(player: Player): number {
-  let mult = 1;
-  for (const impl of UPGRADE_REGISTRY.values()) {
-    mult *= impl.territoryScoreMult?.(player) ?? 1;
-  }
-  return mult;
+  return productHooks(UPGRADE_IMPL_LIST, (impl) =>
+    impl.territoryScoreMult?.(player),
+  );
 }
 
 /** Extra cannon slots granted to a player by active upgrades (additive). */
 export function cannonSlotsBonus(player: Player): number {
-  let bonus = 0;
-  for (const impl of UPGRADE_REGISTRY.values()) {
-    bonus += impl.cannonSlotsBonus?.(player) ?? 0;
-  }
-  return bonus;
+  return sumHooks(UPGRADE_IMPL_LIST, (impl) => impl.cannonSlotsBonus?.(player));
 }
 
 /** True when this player's build bag should draw from the small-piece
  *  sub-pool this round. Consumed by controller-types.ts's initBag. */
 export function useSmallPieces(player: Player): boolean {
-  for (const impl of UPGRADE_REGISTRY.values()) {
-    if (impl.useSmallPieces?.(player)) return true;
-  }
-  return false;
+  return anyHookTrue(UPGRADE_IMPL_LIST, (impl) =>
+    impl.useSmallPieces?.(player),
+  );
 }
 
 /** How many own-wall tiles this player may overlap with a single piece
  *  placement. Aggregates every upgrade that relaxes wall-overlap rules. */
 export function wallOverlapAllowance(player: Player): number {
-  let allowance = 0;
-  for (const impl of UPGRADE_REGISTRY.values()) {
-    allowance += impl.wallOverlapAllowance?.(player) ?? 0;
-  }
-  return allowance;
+  return sumHooks(UPGRADE_IMPL_LIST, (impl) =>
+    impl.wallOverlapAllowance?.(player),
+  );
 }
 
 /** True when this player may place pieces on top of burning pits.
  *  Callers should skip the pit-block check when this returns true. */
 export function canPlaceOverBurningPit(player: Player): boolean {
-  for (const impl of UPGRADE_REGISTRY.values()) {
-    if (impl.canPlaceOverBurningPit?.(player)) return true;
-  }
-  return false;
+  return anyHookTrue(UPGRADE_IMPL_LIST, (impl) =>
+    impl.canPlaceOverBurningPit?.(player),
+  );
 }
 
 /** True when this player may place pieces on top of grunts. Takes the
@@ -203,10 +194,9 @@ export function canPlaceOverGrunt(
   players: readonly Player[],
   player: Player,
 ): boolean {
-  for (const impl of UPGRADE_REGISTRY.values()) {
-    if (impl.canPlaceOverGrunt?.(players, player)) return true;
-  }
-  return false;
+  return anyHookTrue(UPGRADE_IMPL_LIST, (impl) =>
+    impl.canPlaceOverGrunt?.(players, player),
+  );
 }
 
 /** Post-placement hook: run upgrade-driven side effects triggered by a
@@ -216,40 +206,37 @@ export function onPiecePlaced(
   player: Player,
   pieceKeys: ReadonlySet<TileKey>,
 ): void {
-  for (const impl of UPGRADE_REGISTRY.values()) {
-    impl.onPiecePlaced?.(state, player, pieceKeys);
-  }
+  forEachHook(UPGRADE_IMPL_LIST, (impl) =>
+    impl.onPiecePlaced?.(state, player, pieceKeys),
+  );
 }
 
 /** Post-placement hook: run upgrade-driven side effects triggered by a
  *  just-placed cannon (e.g. Rapid Emplacement consuming itself). */
 export function onCannonPlaced(player: Player): void {
-  for (const impl of UPGRADE_REGISTRY.values()) {
-    impl.onCannonPlaced?.(player);
-  }
+  forEachHook(UPGRADE_IMPL_LIST, (impl) => impl.onCannonPlaced?.(player));
 }
 
 /** Post-impact hook: yield bounce positions from any upgrade that wants
  *  follow-up impacts. The caller (battle-system) applies impact + dedup
  *  between yields so the upgrade's per-bounce RNG draws stay interleaved
  *  with applyImpactEvent's RNG (HOUSE_CRUSHED → grunt-spawn roll). */
-export function* onImpactResolved(
+export function onImpactResolved(
   state: GameState,
   shooterId: ValidPlayerId,
   hitRow: number,
   hitCol: number,
   initialImpactEvents: readonly ImpactEvent[],
 ): Generator<BounceDescriptor, void> {
-  for (const impl of UPGRADE_REGISTRY.values()) {
-    const gen = impl.onImpactResolved?.(
+  return mergeHookGenerators(UPGRADE_IMPL_LIST, (impl) =>
+    impl.onImpactResolved?.(
       state,
       shooterId,
       hitRow,
       hitCol,
       initialImpactEvents,
-    );
-    if (gen) yield* gen;
-  }
+    ),
+  );
 }
 
 /** Post-grunt-kill hook: query upgrades for a replacement spawn target.
@@ -259,11 +246,9 @@ export function onGruntKilled(
   state: GameState,
   shooterId: ValidPlayerId,
 ): ConscriptionRespawnTarget | null {
-  for (const impl of UPGRADE_REGISTRY.values()) {
-    const result = impl.onGruntKilled?.(state, shooterId);
-    if (result) return result;
-  }
-  return null;
+  return firstNonNullHook(UPGRADE_IMPL_LIST, (impl) =>
+    impl.onGruntKilled?.(state, shooterId),
+  );
 }
 
 /** Post-cannon-kill hook: award upgrade effects triggered when a shooter
@@ -272,17 +257,15 @@ export function onCannonKilled(
   state: GameState,
   shooterId: ValidPlayerId,
 ): void {
-  for (const impl of UPGRADE_REGISTRY.values()) {
-    impl.onCannonKilled?.(state, shooterId);
-  }
+  forEachHook(UPGRADE_IMPL_LIST, (impl) =>
+    impl.onCannonKilled?.(state, shooterId),
+  );
 }
 
 /** Phase-boundary hook: configure upgrade state at the start of a build phase.
  *  Called by phase-setup.ts's build-phase initializer. */
 export function onBuildPhaseStart(state: GameState): void {
-  for (const impl of UPGRADE_REGISTRY.values()) {
-    impl.onBuildPhaseStart?.(state);
-  }
+  forEachHook(UPGRADE_IMPL_LIST, (impl) => impl.onBuildPhaseStart?.(state));
 }
 
 /** Phase-boundary hook: run battle-start upgrade elections (Mortar picks
@@ -295,17 +278,15 @@ export function onBattlePhaseStart(
   state: GameState,
   deps: BattleStartCannonDeps,
 ): void {
-  for (const impl of UPGRADE_REGISTRY.values()) {
-    impl.onBattlePhaseStart?.(state, deps);
-  }
+  forEachHook(UPGRADE_IMPL_LIST, (impl) =>
+    impl.onBattlePhaseStart?.(state, deps),
+  );
 }
 
 /** Per-frame hook: advance upgrade-effect timers during the build phase.
  *  Called from the runtime's per-frame build-phase tick. */
 export function tickBuildUpgrades(state: GameState, dt: number): void {
-  for (const impl of UPGRADE_REGISTRY.values()) {
-    impl.tickBuild?.(state, dt);
-  }
+  forEachHook(UPGRADE_IMPL_LIST, (impl) => impl.tickBuild?.(state, dt));
 }
 
 /** Apply all picked upgrades to player state. Each per-upgrade pick hook
@@ -324,7 +305,7 @@ export function applyUpgradePicks(
       playerId: entry.playerId,
       upgradeId: entry.choice,
     });
-    UPGRADE_REGISTRY.get(entry.choice)?.onPick?.(state, player);
+    UPGRADE_IMPLS[entry.choice]?.onPick?.(state, player);
   }
 }
 

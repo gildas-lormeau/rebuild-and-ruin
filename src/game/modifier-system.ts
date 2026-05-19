@@ -22,6 +22,7 @@ import {
   hasFeature,
   type ModifierImpl,
 } from "../shared/core/types.ts";
+import { forEachHook } from "../shared/platform/utils.ts";
 import { dustStormImpl } from "./modifiers/dust-storm.ts";
 import { dryLightningImpl, wildfireImpl } from "./modifiers/fire.ts";
 import { fogOfWarImpl } from "./modifiers/fog-of-war.ts";
@@ -51,10 +52,12 @@ const MODIFIER_IMPLS = {
   sapper: sapperImpl,
   supply_ship: supplyShipImpl,
 } as const satisfies Record<ModifierId, ModifierImpl>;
-/** Registry map for dispatching modifier lifecycle hooks by id. */
-export const MODIFIER_REGISTRY = new Map<ModifierId, ModifierImpl>(
-  Object.entries(MODIFIER_IMPLS) as [ModifierId, ModifierImpl][],
-);
+/** Flat iteration source for the dispatchers below. */
+const MODIFIER_IMPL_LIST: readonly ModifierImpl[] =
+  Object.values(MODIFIER_IMPLS);
+/** Public lookup for per-id dispatch (consumed by phase-setup.ts). */
+export const MODIFIER_IMPLS_BY_ID: Record<ModifierId, ModifierImpl> =
+  MODIFIER_IMPLS;
 
 /** Roll a modifier for the current round. Returns null if no modifier fires.
  *  Must be called at a deterministic point using state.rng for online sync.
@@ -109,7 +112,7 @@ export function applyCheckpointModifierTiles(
   data: SerializedModifierTiles,
 ): void {
   if (!hasFeature(state, FID.MODIFIERS)) return;
-  for (const impl of MODIFIER_REGISTRY.values()) {
+  for (const impl of MODIFIER_IMPL_LIST) {
     if (impl.lifecycle === "instant") continue;
     impl.restore?.(state, data);
   }
@@ -125,8 +128,8 @@ export function clearActiveInstantModifier(state: GameState): void {
   if (!hasFeature(state, FID.MODIFIERS)) return;
   const activeMod = state.modern?.activeModifier;
   if (!activeMod) return;
-  const impl = MODIFIER_REGISTRY.get(activeMod);
-  if (impl?.lifecycle === "instant") impl.clear?.(state);
+  const impl = MODIFIER_IMPLS_BY_ID[activeMod];
+  if (impl.lifecycle === "instant") impl.clear?.(state);
 }
 
 /** Clear all round-scoped modifier state (frozen tiles, high tide, low
@@ -137,7 +140,7 @@ export function clearActiveInstantModifier(state: GameState): void {
  *  `clearActiveInstantModifier`, permanent modifiers never clear. Each
  *  clear function is idempotent. */
 export function clearActiveModifiers(state: GameState): void {
-  for (const impl of MODIFIER_REGISTRY.values()) {
+  forEachHook(MODIFIER_IMPL_LIST, (impl) => {
     if (impl.lifecycle === "round-scoped") impl.clear(state);
-  }
+  });
 }

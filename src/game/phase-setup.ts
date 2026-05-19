@@ -73,7 +73,7 @@ import {
 import {
   clearActiveInstantModifier,
   clearActiveModifiers,
-  MODIFIER_REGISTRY,
+  MODIFIER_IMPLS_BY_ID,
   rollModifier,
 } from "./modifier-system.ts";
 import { consumeSupplyBonuses } from "./modifiers/supply-ship.ts";
@@ -635,8 +635,7 @@ function decayBurningPits(state: GameState): void {
 function applyBattleStartModifiers(state: GameState): ModifierDiff | null {
   const mod = state.modern?.activeModifier;
   if (!mod) return null;
-  const impl = MODIFIER_REGISTRY.get(mod);
-  if (!impl) return null;
+  const impl = MODIFIER_IMPLS_BY_ID[mod];
   const result = impl.apply(state);
   // Execute any spawn requests the modifier emitted (grunt-surge stays in
   // the deep-logic layer by returning descriptors instead of calling
