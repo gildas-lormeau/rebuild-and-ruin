@@ -58,7 +58,7 @@ export function createTowerLabelsManager(
 
   const materials = new Map<number, THREE.SpriteMaterial>();
   const textures = new Map<number, THREE.CanvasTexture>();
-  const sprites = new Map<number, THREE.Sprite>();
+  const sprites = new Map<TowerIdx, THREE.Sprite>();
 
   function ensureMaterial(playerId: ValidPlayerId): THREE.SpriteMaterial {
     const cached = materials.get(playerId);
@@ -108,7 +108,7 @@ export function createTowerLabelsManager(
       return;
     }
 
-    const seen = new Set<number>();
+    const seen = new Set<TowerIdx>();
     for (let idx = 0; idx < towers.length; idx++) {
       const i = idx as TowerIdx;
       // Labels only float above a player's ORIGINAL home tower —

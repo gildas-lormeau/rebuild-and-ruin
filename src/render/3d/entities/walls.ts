@@ -80,7 +80,7 @@ interface WallEntry {
 /** Copper-brown tint for sapper-targeted walls — matches the
  *  `sapper` palette pulseColor used by the reveal banner chrome. */
 const SAPPER_TINT_HEX = 0xa07050;
-const EMPTY_KEY_SET: ReadonlySet<number> = new Set();
+const EMPTY_KEY_SET: ReadonlySet<TileKey> = new Set();
 /** Pack (mask, damaged, held) into a single 6-bit key — 4 bits for the
  *  mask (0-15), one bit for the reinforced-wall absorbed-hit state, and
  *  one bit separating live walls from held (sinking) ones. Used as the
@@ -264,12 +264,12 @@ export function createWallsManager(scene: THREE.Scene): WallsManager {
  *  short-circuit when nothing changes. */
 function collectSapperState(overlay: RenderOverlay | undefined): {
   intensity: number;
-  targeted: ReadonlySet<number>;
+  targeted: ReadonlySet<TileKey>;
   targetedSig: string;
 } {
   const intensity = overlay?.battle?.sapperRevealIntensity ?? 0;
   const rawTargeted = overlay?.battle?.sapperTargetedWalls;
-  const targeted: ReadonlySet<number> =
+  const targeted: ReadonlySet<TileKey> =
     rawTargeted && intensity > 0 ? new Set(rawTargeted) : EMPTY_KEY_SET;
   const targetedSig =
     targeted.size === 0 ? "" : [...targeted].sort((a, b) => a - b).join(",");
@@ -361,7 +361,7 @@ function rebuildBuckets(
     number,
     { sinkY: number; opacity: number; damaged: boolean }
   >,
-  sapperTargeted: ReadonlySet<number>,
+  sapperTargeted: ReadonlySet<TileKey>,
   sapperIntensity: number,
 ): Map<number, WallEntry[]> {
   const liveSet = new Set<TileKey>(liveKeys);
@@ -433,7 +433,7 @@ function refreshAnimAttrs(
     number,
     { sinkY: number; opacity: number; damaged: boolean }
   >,
-  sapperTargeted: ReadonlySet<number>,
+  sapperTargeted: ReadonlySet<TileKey>,
   sapperIntensity: number,
 ): void {
   for (const list of lastByBucket.values()) {

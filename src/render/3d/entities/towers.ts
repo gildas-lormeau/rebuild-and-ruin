@@ -46,7 +46,7 @@ export function createTowersManager(scene: THREE.Scene): TowersManager {
   // objects from tower-scene are not tracked — those are cached). Per-
   // tower disposal lets a single ownership flip rebuild one tower
   // instead of all of them.
-  const entries = new Map<number, TowerEntry>();
+  const entries = new Map<TowerIdx, TowerEntry>();
   // Last seen map reference — a new GameMap (rematch / fresh game) means
   // tower positions may have changed under stable indices, so we must
   // clear before re-syncing. Without this the per-tower signature
@@ -134,7 +134,7 @@ export function createTowersManager(scene: THREE.Scene): TowersManager {
     const homeTowerIndices = overlay?.entities?.homeTowerIndices;
     const aliveMask = overlay?.entities?.towerAlive;
 
-    const live = new Set<number>();
+    const live = new Set<TowerIdx>();
     for (let idx = 0; idx < towers.length; idx++) {
       const i = idx as TowerIdx;
       // Skip dead towers — the 3D debris manager (entities/debris.ts)
