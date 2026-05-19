@@ -255,7 +255,7 @@ export function planWallDemolition(
       );
       const length = rng.int(MIN_WALL_SEGMENT_LENGTH, maxLength);
       return segment.slice(0, length).map((k) => {
-        const { r, c } = unpackTile(k as TileKey);
+        const { r, c } = unpackTile(k);
         return { row: r, col: c };
       });
     }
@@ -1110,7 +1110,7 @@ function is2x2(keys: readonly TileKey[]): boolean {
  *  breach 2+ large enclosures at once.  Only enclosures larger than
  *  DESTROY_POCKET_MAX_SIZE are considered (smaller ones are pockets). */
 function findStructuralHits(
-  walls: ReadonlySet<number>,
+  walls: ReadonlySet<TileKey>,
   mapTiles: GameMap["tiles"],
 ): StructuralHitCandidate[] {
   // 1. Compute outside and interior
@@ -1135,15 +1135,15 @@ function findStructuralHits(
   if (large.length < 2) return [];
 
   // Label each interior tile with its large-enclosure index
-  const labels = new Map<number, number>();
+  const labels = new Map<TileKey, number>();
   for (let idx = 0; idx < large.length; idx++) {
     for (const key of large[idx]!) labels.set(key, idx);
   }
 
   // 3. Find outer-shell walls (8-dir adjacent to outside)
-  const outerWalls: number[] = [];
+  const outerWalls: TileKey[] = [];
   for (const wallKey of walls) {
-    const { r, c } = unpackTile(wallKey as TileKey);
+    const { r, c } = unpackTile(wallKey);
     for (const [dr, dc] of DIRS_8) {
       const nr = r + dr;
       const nc = c + dc;
@@ -1164,7 +1164,7 @@ function findStructuralHits(
     modWalls.delete(wallKey);
     const broken = countBrokenEnclosures(modWalls, large);
     if (broken >= 2) {
-      const { r, c } = unpackTile(wallKey as TileKey);
+      const { r, c } = unpackTile(wallKey);
       hits.push({ tiles: [{ row: r, col: c }], enclosuresBroken: broken });
     }
   }
@@ -1172,7 +1172,7 @@ function findStructuralHits(
   // 5. Two-tile pairs (only when no single-tile hits exist)
   if (hits.length === 0) {
     for (const wallKey of outerWalls) {
-      const { r, c } = unpackTile(wallKey as TileKey);
+      const { r, c } = unpackTile(wallKey);
       for (const [dr, dc] of DIRS_4) {
         const nr = r + dr;
         const nc = c + dc;
@@ -1207,9 +1207,9 @@ function findStructuralHits(
 
 /** Which large-enclosure indices does a pair of wall tiles border? (8-dir) */
 function borderedEnclosuresPair(
-  keyA: number,
-  keyB: number,
-  labels: ReadonlyMap<number, number>,
+  keyA: TileKey,
+  keyB: TileKey,
+  labels: ReadonlyMap<TileKey, number>,
 ): Set<number> {
   const result = borderedEnclosures(keyA, labels);
   for (const label of borderedEnclosures(keyB, labels)) result.add(label);
@@ -1218,10 +1218,10 @@ function borderedEnclosuresPair(
 
 /** Which large-enclosure indices does a wall tile border? (8-dir) */
 function borderedEnclosures(
-  wallKey: number,
-  labels: ReadonlyMap<number, number>,
+  wallKey: TileKey,
+  labels: ReadonlyMap<TileKey, number>,
 ): Set<number> {
-  const { r, c } = unpackTile(wallKey as TileKey);
+  const { r, c } = unpackTile(wallKey);
   const result = new Set<number>();
   for (const [dr, dc] of DIRS_8) {
     const nr = r + dr;
@@ -1236,8 +1236,8 @@ function borderedEnclosures(
 /** Simulate wall removal and count how many enclosures now have tiles
  *  reachable from map edges (breached by the 8-dir flood). */
 function countBrokenEnclosures(
-  modifiedWalls: ReadonlySet<number>,
-  enclosures: readonly (readonly number[])[],
+  modifiedWalls: ReadonlySet<TileKey>,
+  enclosures: readonly (readonly TileKey[])[],
 ): number {
   const newOutside = computeOutside(modifiedWalls);
   let broken = 0;
@@ -1280,18 +1280,18 @@ function findEnclosureComponents(tileSet: ReadonlySet<TileKey>): TileKey[][] {
 
 /** Random walk to find up to maxLength connected wall tiles. */
 function findConnectedWalls(
-  walls: ReadonlySet<number>,
-  startKey: number,
+  walls: ReadonlySet<TileKey>,
+  startKey: TileKey,
   maxLength: number,
   rng: Rng,
-): number[] {
-  const visited = new Set<number>();
+): TileKey[] {
+  const visited = new Set<TileKey>();
   visited.add(startKey);
-  const result: number[] = [startKey];
+  const result: TileKey[] = [startKey];
   let current = startKey;
   while (result.length < maxLength) {
-    const { r, c } = unpackTile(current as TileKey);
-    const neighbors: number[] = [];
+    const { r, c } = unpackTile(current);
+    const neighbors: TileKey[] = [];
     for (const [dr, dc] of DIRS_4) {
       const nr = r + dr;
       const nc = c + dc;
