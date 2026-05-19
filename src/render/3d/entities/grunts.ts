@@ -9,7 +9,11 @@
 
 import * as THREE from "three";
 import type { Grunt } from "../../../shared/core/battle-types.ts";
-import { GRID_COLS, TILE_SIZE } from "../../../shared/core/grid.ts";
+import {
+  GRID_COLS,
+  TILE_SIZE,
+  type TileKey,
+} from "../../../shared/core/grid.ts";
 import type { FrameCtx } from "../frame-ctx.ts";
 import { buildGrunt, getGruntVariant } from "../sprites/grunt-scene.ts";
 import {
@@ -71,7 +75,7 @@ const FROSTBITE_COLOR = /* @__PURE__ */ new THREE.Color(FROSTBITE_TINT_HEX);
  *  frostbite-tinted) base color via the per-instance tint shader patch
  *  in `attachInstanceTint`. */
 const GRUNT_SURGE_TINT_HEX = 0xdc3232;
-const EMPTY_KEY_SET: ReadonlySet<number> = new Set();
+const EMPTY_KEY_SET: ReadonlySet<TileKey> = new Set();
 
 /** 3-step gradient texture for `MeshToonMaterial`. Pixel 0 = shadow,
  *  pixel 1 = mid, pixel 2 = lit. NearestFilter so steps are hard. The
@@ -156,7 +160,7 @@ export function createGruntsManager(scene: THREE.Scene): GruntsManager {
 
     const surgeIntensity = overlay?.battle?.gruntSurgeRevealIntensity ?? 0;
     const spawnTilesRaw = overlay?.battle?.gruntSurgeSpawnTiles;
-    const spawnTiles: ReadonlySet<number> =
+    const spawnTiles: ReadonlySet<TileKey> =
       spawnTilesRaw && surgeIntensity > 0
         ? new Set(spawnTilesRaw)
         : EMPTY_KEY_SET;
@@ -190,7 +194,7 @@ export function createGruntsManager(scene: THREE.Scene): GruntsManager {
     grunts: readonly Grunt[],
     frostbiteIntensity: number,
     surgeIntensity: number,
-    spawnTiles: ReadonlySet<number>,
+    spawnTiles: ReadonlySet<TileKey>,
     surgeTilesSig: string,
   ): void {
     const count = grunts.length;
@@ -250,7 +254,7 @@ export function createGruntsManager(scene: THREE.Scene): GruntsManager {
         const data = attr.array as Float32Array;
         for (let i = 0; i < count; i++) {
           const grunt = grunts[i]!;
-          const tileKey = grunt.row * GRID_COLS + grunt.col;
+          const tileKey = (grunt.row * GRID_COLS + grunt.col) as TileKey;
           data[i] = spawnTiles.has(tileKey) ? surgeIntensity : 0;
         }
         attr.needsUpdate = true;

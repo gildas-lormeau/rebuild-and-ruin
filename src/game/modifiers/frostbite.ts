@@ -5,6 +5,7 @@
  * migration via the standard grunt serialization.
  */
 
+import type { TileKey } from "../../shared/core/grid.ts";
 import { packTile } from "../../shared/core/spatial.ts";
 import type { GameState, ModifierImpl } from "../../shared/core/types.ts";
 
@@ -14,7 +15,7 @@ export const frostbiteImpl: ModifierImpl = {
     // Reset stale chip flags from a prior frostbite round so the new battle
     // starts with every grunt at full ice-cube health. Then pulse the
     // existing grunt tiles — those are the units about to freeze.
-    const changedTiles: number[] = [];
+    const changedTiles: TileKey[] = [];
     for (const grunt of state.grunts) {
       grunt.chipped = undefined;
       changedTiles.push(packTile(grunt.row, grunt.col));

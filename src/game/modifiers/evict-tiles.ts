@@ -29,12 +29,12 @@ interface EvictOptions {
  *  call with an empty set (returns immediately). */
 export function evictEntitiesOnTiles(
   state: GameState,
-  tiles: ReadonlySet<number>,
+  tiles: ReadonlySet<TileKey>,
   opts: EvictOptions,
 ): void {
   if (tiles.size === 0) return;
   if (opts.walls) {
-    for (const key of tiles) removeWallFromAllPlayers(state, key as TileKey);
+    for (const key of tiles) removeWallFromAllPlayers(state, key);
   }
   if (opts.houses) {
     for (const house of state.map.houses) {

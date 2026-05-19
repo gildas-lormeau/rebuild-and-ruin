@@ -254,13 +254,8 @@ export function gruntAttackTowers(
           // Rampart shields it; shield side effects applied directly (no bus
           // events — matches today's silent grunt wall removal).
           // Interior-staleness contract: see battle-system.ts applyImpactEvent JSDoc.
-          const { r, c } = unpackTile(grunt.targetedWall as TileKey);
-          const result = resolveWallShield(
-            state,
-            r,
-            c,
-            grunt.targetedWall as TileKey,
-          );
+          const { r, c } = unpackTile(grunt.targetedWall);
+          const result = resolveWallShield(state, r, c, grunt.targetedWall);
           if (result?.absorbed) {
             applyWallShield(state, result);
           } else if (result) {
@@ -272,8 +267,7 @@ export function gruntAttackTowers(
             // `tickBattlePhase` via `wallEvents` for wire broadcast and
             // watcher-side `applyImpactEvent`.
             const owner = state.players[result.playerId];
-            if (owner)
-              deletePlayerWallBattle(owner, grunt.targetedWall as TileKey);
+            if (owner) deletePlayerWallBattle(owner, grunt.targetedWall);
             // Mirror applyImpactEvent: clear targetedWall on every grunt
             // that was aiming at this wall (grunts don't move, no repick).
             const destroyedKey = grunt.targetedWall;
@@ -474,16 +468,10 @@ function nearestAttackableTowerInZone(
 function computeGruntTargetedWall(
   state: GameState,
   grunt: Grunt,
-): number | undefined {
+): TileKey | undefined {
   if (!canAttemptWallAttack(state, grunt, true)) return undefined;
   const target = getGruntTargetTower(state, grunt);
-  const wallKey = pickAdjacentWallKeyForAttack(
-    state,
-    grunt.row,
-    grunt.col,
-    target,
-  );
-  return wallKey >= 0 ? wallKey : undefined;
+  return pickAdjacentWallKeyForAttack(state, grunt.row, grunt.col, target);
 }
 
 /** Per-tick check for catapults: if a wall sits between the catapult and
@@ -726,13 +714,13 @@ function pickAdjacentWallKeyForAttack(
   row: number,
   col: number,
   target: TilePos | null,
-): number {
+): TileKey | undefined {
   const walls = adjacentWallKeys(state, row, col);
-  if (!target) return walls[0] ?? -1;
-  let bestWallKey = -1;
+  if (!target) return walls[0];
+  let bestWallKey: TileKey | undefined;
   let bestDist = Infinity;
   for (const wallKey of walls) {
-    const { r: nr, c: nc } = unpackTile(wallKey as TileKey);
+    const { r: nr, c: nc } = unpackTile(wallKey);
     const distance = manhattanDistance(nr, nc, target.row, target.col);
     if (distance < bestDist) {
       bestDist = distance;
@@ -746,8 +734,8 @@ function adjacentWallKeys(
   state: GameState,
   row: number,
   col: number,
-): number[] {
-  const walls: number[] = [];
+): TileKey[] {
+  const walls: TileKey[] = [];
   for (const [dr, dc] of DIRS_4) {
     const nr = row + dr;
     const nc = col + dc;

@@ -232,7 +232,7 @@ export interface ModernState {
    *  the render path. Parallel lifecycle to `activeModifier` — cleared
    *  alongside it. Empty array = no changed tiles (or no active
    *  modifier). */
-  activeModifierChangedTiles: readonly number[];
+  activeModifierChangedTiles: readonly TileKey[];
   /** Previous round's modifier id (for no-repeat rule). null = none. */
   lastModifierId: ModifierId | null;
   /** Master Builder lockout countdown (seconds remaining). 0 = no lockout.
@@ -390,7 +390,7 @@ export interface FrameContext {
 
 /** Result shape returned by every modifier's apply function. */
 export interface ModifierApplyResult {
-  readonly changedTiles: readonly number[];
+  readonly changedTiles: readonly TileKey[];
   readonly gruntsSpawned: number;
   /** Optional grunt-spawn requests for the orchestrator to execute AFTER
    *  apply() returns. Lets deep-logic modifiers (grunt-surge) stay below

@@ -14,6 +14,7 @@ import {
   getProtectedCastleTiles,
 } from "../src/game/modifiers/modifier-eligibility.ts";
 import { TOWER_SIZE } from "../src/shared/core/game-constants.ts";
+import type { TileKey } from "../src/shared/core/grid.ts";
 import { packTile } from "../src/shared/core/spatial.ts";
 import { createScenario } from "./scenario.ts";
 
@@ -61,7 +62,7 @@ Deno.test("applyFireScar throws if scar touches a protected tile", async () => {
   assert(target, "need at least one seated player");
   target.inGracePeriod = true;
   const tower = target.homeTower!;
-  const scar = new Set<number>([packTile(tower.row, tower.col)]);
+  const scar = new Set<TileKey>([packTile(tower.row, tower.col)]);
   assertThrows(
     () => applyFireScar(sc.state, scar),
     Error,

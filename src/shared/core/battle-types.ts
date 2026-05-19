@@ -33,7 +33,7 @@ export interface Grunt extends TilePos {
    *  don't move during battle), reset on every grunt at battle end. Read by
    *  sapper's reveal banner and by `gruntAttackTowers`'s wall pick. Derived
    *  from synced state — not serialized. */
-  targetedWall?: number;
+  targetedWall?: TileKey;
   /** Facing angle in radians (snapped to 90°). 0 = up. */
   facing?: number;
   /** True after this grunt has absorbed one frostbite hit (next hit kills).

@@ -136,7 +136,7 @@ function reapplySinkholeTiles(state: GameState): void {
 }
 
 /** Apply sinkhole: one cluster per active zone, permanently converting grass to water. */
-function applySinkhole(state: GameState): ReadonlySet<number> {
+function applySinkhole(state: GameState): ReadonlySet<TileKey> {
   const modern = state.modern;
   if (!modern) return new Set();
   const existing = modern.sinkholeTiles?.size ?? 0;

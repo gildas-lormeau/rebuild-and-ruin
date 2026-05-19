@@ -11,6 +11,7 @@ import {
   type CannonMode,
   isCannonAlive,
 } from "../../shared/core/battle-types.ts";
+import type { TileKey } from "../../shared/core/grid.ts";
 import type { ValidPlayerId } from "../../shared/core/player-slot.ts";
 import {
   cannonTier,
@@ -39,8 +40,8 @@ export const rubbleClearingImpl: ModifierImpl = {
 /** Apply rubble clearing: snapshot the entities being removed (for the
  *  renderer's post-banner fade), then remove them. Returns the tile keys
  *  of cleared positions for the reveal banner. */
-function applyRubbleClearing(state: GameState): readonly number[] {
-  const cleared: number[] = [];
+function applyRubbleClearing(state: GameState): readonly TileKey[] {
+  const cleared: TileKey[] = [];
   const heldDeadCannons: {
     ownerId: ValidPlayerId;
     col: number;

@@ -18,6 +18,7 @@ import {
   MAP_PX_W,
   SCALE,
   TILE_SIZE,
+  type TileKey,
 } from "../shared/core/grid.ts";
 import { modifierDef, type SupplyShip } from "../shared/core/modifier-defs.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
@@ -840,8 +841,8 @@ function formatComboText(event: ComboEvent): string {
   return `${label}${streak}! +${event.bonus}`;
 }
 
-function collectSapperTargetedWalls(view: RenderView): readonly number[] {
-  const targeted = new Set<number>();
+function collectSapperTargetedWalls(view: RenderView): readonly TileKey[] {
+  const targeted = new Set<TileKey>();
   for (const grunt of view.grunts) {
     if (grunt.targetedWall !== undefined) targeted.add(grunt.targetedWall);
   }

@@ -53,12 +53,12 @@ export const wildfireImpl: ModifierImpl = {
 };
 
 /** Apply dry lightning: scatter random burning pits on grass tiles per active zone. */
-function applyDryLightning(state: GameState): ReadonlySet<number> {
+function applyDryLightning(state: GameState): ReadonlySet<TileKey> {
   const activeZones = getActiveZones(state);
-  const allStrikes = new Set<number>();
+  const allStrikes = new Set<TileKey>();
   for (const zone of activeZones) {
     const canBurn = buildCanBurnPredicate(state, zone);
-    const candidates: number[] = [];
+    const candidates: TileKey[] = [];
     for (let row = 1; row < GRID_ROWS - 1; row++) {
       for (let col = 1; col < GRID_COLS - 1; col++) {
         if (canBurn(row, col)) candidates.push(packTile(row, col));
@@ -79,9 +79,9 @@ function applyDryLightning(state: GameState): ReadonlySet<number> {
 
 /** Apply wildfire: one scar per active zone, ~10 tiles each.
  *  Avoids towers, cannons, and water. Returns all scar tile keys for the reveal banner. */
-function applyWildfire(state: GameState): ReadonlySet<number> {
+function applyWildfire(state: GameState): ReadonlySet<TileKey> {
   const activeZones = getActiveZones(state);
-  const allScar = new Set<number>();
+  const allScar = new Set<TileKey>();
   for (const zone of activeZones) {
     const scar = generateWildfireScar(state, zone);
     for (const key of scar) allScar.add(key);
@@ -96,7 +96,7 @@ function applyWildfire(state: GameState): ReadonlySet<number> {
  *  this function trusts its input. */
 export function applyFireScar(
   state: GameState,
-  scar: ReadonlySet<number>,
+  scar: ReadonlySet<TileKey>,
 ): void {
   evictEntitiesOnTiles(state, scar, {
     walls: true,
@@ -105,7 +105,7 @@ export function applyFireScar(
     bonusSquares: true,
   });
   for (const key of scar) {
-    const { r, c } = unpackTile(key as TileKey);
+    const { r, c } = unpackTile(key);
     state.burningPits.push({
       row: r,
       col: c,
@@ -116,7 +116,7 @@ export function applyFireScar(
 
 /** Generate the scar shape: random-walk a cardinal spine, then fatten it.
  *  Retries with a new seed if the walk gets stuck (e.g., boxed in by water/towers). */
-function generateWildfireScar(state: GameState, zone: ZoneId): Set<number> {
+function generateWildfireScar(state: GameState, zone: ZoneId): Set<TileKey> {
   const canBurn = buildCanBurnPredicate(state, zone);
 
   // Collect seed candidates (interior tiles only — skip map border)
@@ -128,7 +128,7 @@ function generateWildfireScar(state: GameState, zone: ZoneId): Set<number> {
   }
   if (candidates.length === 0) return new Set();
 
-  let best = new Set<number>();
+  let best = new Set<TileKey>();
   for (let attempt = 0; attempt < 3; attempt++) {
     const scar = growWildfireFromSeed(state, canBurn, candidates);
     if (scar.size > best.size) best = scar;
@@ -168,10 +168,10 @@ function growWildfireFromSeed(
   state: GameState,
   canBurn: (row: number, col: number) => boolean,
   candidates: readonly { row: number; col: number }[],
-): Set<number> {
+): Set<TileKey> {
   const seed = state.rng.pick(candidates);
   const spine: { row: number; col: number }[] = [seed];
-  const scar = new Set<number>();
+  const scar = new Set<TileKey>();
   scar.add(packTile(seed.row, seed.col));
   let cr = seed.row;
   let cc = seed.col;

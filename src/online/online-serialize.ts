@@ -141,7 +141,8 @@ export function restoreFullStateSnapshot(
       (msg.activeModifier as NonNullable<
         GameState["modern"]
       >["activeModifier"]) ?? null;
-    state.modern!.activeModifierChangedTiles = msg.activeModifierChangedTiles;
+    state.modern!.activeModifierChangedTiles =
+      msg.activeModifierChangedTiles as TileKey[];
     state.modern!.lastModifierId =
       (msg.lastModifierId as NonNullable<
         GameState["modern"]

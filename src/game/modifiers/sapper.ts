@@ -7,6 +7,7 @@
  * Reinforced Walls absorption + Rampart shielding still apply as normal.
  */
 
+import type { TileKey } from "../../shared/core/grid.ts";
 import type { GameState, ModifierImpl } from "../../shared/core/types.ts";
 
 export const sapperImpl: ModifierImpl = {
@@ -16,7 +17,7 @@ export const sapperImpl: ModifierImpl = {
     // `targetedWall` (the adjacent wall closest to its target tower,
     // computed at end-of-build in `finalizeRoundCleanup`). Deduped via Set
     // since multiple grunts can target the same wall.
-    const changedTiles = new Set<number>();
+    const changedTiles = new Set<TileKey>();
     for (const grunt of state.grunts) {
       if (grunt.targetedWall !== undefined)
         changedTiles.add(grunt.targetedWall);

@@ -16,7 +16,7 @@ import type {
   TileGridPos,
   TilePos,
 } from "../../shared/core/geometry-types.ts";
-import { TILE_SIZE } from "../../shared/core/grid.ts";
+import { TILE_SIZE, type TileKey } from "../../shared/core/grid.ts";
 import type {
   SupplyBonusId,
   SupplyShip,
@@ -386,7 +386,7 @@ function queueSupplyBonus(
   state.modern.pendingSupplyBonuses.set(playerId, queue);
 }
 
-function applySupplyShip(state: GameState): readonly number[] {
+function applySupplyShip(state: GameState): readonly TileKey[] {
   const { exits, junction, riverMidpoints } = state.map;
   const ships: SupplyShip[] = [];
   const armCount = Math.min(SUPPLY_SHIP_COUNT, exits.length);

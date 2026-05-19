@@ -24,7 +24,7 @@ interface RenderModernSlice {
    *  current MODIFIER_REVEAL window. Read by render-composition to
    *  thread per-modifier "which tiles were affected" into the overlay
    *  (e.g. grunt-surge spawn tiles). */
-  readonly activeModifierChangedTiles: readonly number[];
+  readonly activeModifierChangedTiles: readonly TileKey[];
   readonly frozenTiles: ReadonlySet<TileKey> | null;
   /** Low-water exposed riverbed tiles. Renderer paints these as bank
    *  via FLAG_EXPOSED in the tile-data texture. */

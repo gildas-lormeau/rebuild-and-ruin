@@ -317,7 +317,7 @@ export interface BattleOverlay {
   /** Wall tile keys grunts will attack this battle (sapper modifier).
    *  Exposed alongside `sapperRevealIntensity` so the walls manager
    *  knows which slots to tint. Undefined outside the reveal. */
-  sapperTargetedWalls?: readonly number[];
+  sapperTargetedWalls?: readonly TileKey[];
   /** Grunt-surge fresh-grunt tint mix factor [0, 1] during the
    *  modifier reveal — grunts whose tile is in `gruntSurgeSpawnTiles`
    *  lerp toward red by this amount. Undefined outside the reveal. */
@@ -326,7 +326,7 @@ export interface BattleOverlay {
    *  alongside `gruntSurgeRevealIntensity` so the grunt manager knows
    *  which slots to tint. Stable across the MODIFIER_REVEAL phase
    *  (grunts don't move pre-battle). */
-  gruntSurgeSpawnTiles?: readonly number[];
+  gruntSurgeSpawnTiles?: readonly TileKey[];
   /** Supply ships sailing the Y-river during battle. Undefined when no
    *  supply_ship modifier is active or when the ship list is empty. */
   supplyShips?: readonly OverlaySupplyShip[];

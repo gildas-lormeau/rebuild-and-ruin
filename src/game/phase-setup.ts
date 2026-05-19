@@ -643,7 +643,7 @@ function applyBattleStartModifiers(state: GameState): ModifierDiff | null {
   // grunt-system directly). RNG draws happen inside spawnGruntSurgeOnZone
   // and are deterministic given the input request order, which matches
   // state.players iteration order in the producing modifier.
-  const spawnedTiles: number[] = [];
+  const spawnedTiles: TileKey[] = [];
   let spawnedCount = 0;
   if (result.spawnRequests && result.spawnRequests.length > 0) {
     const gruntsBefore = state.grunts.length;
