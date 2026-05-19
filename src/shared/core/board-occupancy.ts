@@ -350,7 +350,7 @@ export function isCannonEnclosed(cannon: Cannon, player: Player): boolean {
  *  Battle-phase only: interior is intentionally stale during battle because
  *  walls destroyed by cannonballs are not reflected until the next build phase.
  *  Do NOT use outside battle code — use `getInterior()` everywhere else. */
-export function getBattleInterior(player: Player): ReadonlySet<number> {
+export function getBattleInterior(player: Player): ReadonlySet<TileKey> {
   return player.interior;
 }
 

@@ -61,7 +61,7 @@ type TargetCandidate = PrioritizedTilePos & { isCannon?: boolean };
  *  still inside an eligible enemy's interior. */
 export type BattleTargetMemory = {
   ownerId: ValidPlayerId | undefined;
-  anchorTileKey: number | undefined;
+  anchorTileKey: TileKey | undefined;
 };
 
 type StructuralHitCandidate = {
@@ -177,7 +177,7 @@ export function planPocketDestruction(
     let found = false;
     for (const key of pocket) {
       if (found) break;
-      const { r, c } = unpackTile(key as TileKey);
+      const { r, c } = unpackTile(key);
       for (const [dr, dc] of DIRS_4) {
         const nr = r + dr;
         const nc = c + dc;
@@ -925,7 +925,7 @@ function pickEnclosureWallTarget(
   type CachedEnclosure = {
     ownerId: ValidPlayerId;
     walls: ReadonlySet<number>;
-    tiles: number[];
+    tiles: TileKey[];
   };
   const allEnclosures: CachedEnclosure[] = [];
   for (const other of filterActiveEnemies(state, playerId)) {
@@ -975,7 +975,7 @@ function pickEnclosureWallTarget(
   const seen = new Set<number>();
   const borderWalls: TilePos[] = [];
   for (const key of enclosureTileSet) {
-    const { r, c } = unpackTile(key as TileKey);
+    const { r, c } = unpackTile(key);
     for (const [dr, dc] of DIRS_4) {
       const nr = r + dr;
       const nc = c + dc;
@@ -1093,8 +1093,8 @@ function jitterWithinTile(
 }
 
 /** Check if a 4-tile pocket forms a 2x2 square (can fit a cannon). */
-function is2x2(keys: readonly number[]): boolean {
-  const tiles = keys.map((key) => unpackTile(key as TileKey));
+function is2x2(keys: readonly TileKey[]): boolean {
+  const tiles = keys.map((key) => unpackTile(key));
   const minRow = Math.min(...tiles.map((tile) => tile.r));
   const minCol = Math.min(...tiles.map((tile) => tile.c));
   const expected: Set<number> = new Set([
@@ -1115,7 +1115,7 @@ function findStructuralHits(
 ): StructuralHitCandidate[] {
   // 1. Compute outside and interior
   const outside = computeOutside(walls);
-  const interior = new Set<number>();
+  const interior = new Set<TileKey>();
   for (let row = 0; row < GRID_ROWS; row++) {
     for (let col = 0; col < GRID_COLS; col++) {
       const key = packTile(row, col);
@@ -1253,18 +1253,18 @@ function countBrokenEnclosures(
 }
 
 /** Find connected components of a tile set using 4-dir connectivity. */
-function findEnclosureComponents(tileSet: ReadonlySet<number>): number[][] {
-  const visited = new Set<number>();
-  const components: number[][] = [];
+function findEnclosureComponents(tileSet: ReadonlySet<TileKey>): TileKey[][] {
+  const visited = new Set<TileKey>();
+  const components: TileKey[][] = [];
   for (const key of tileSet) {
     if (visited.has(key)) continue;
-    const component: number[] = [];
+    const component: TileKey[] = [];
     const queue = [key];
     visited.add(key);
     while (queue.length > 0) {
       const current = queue.pop()!;
       component.push(current);
-      const { r, c } = unpackTile(current as TileKey);
+      const { r, c } = unpackTile(current);
       for (const [dr, dc] of DIRS_4) {
         const neighborKey = packTile(r + dr, c + dc);
         if (!visited.has(neighborKey) && tileSet.has(neighborKey)) {
