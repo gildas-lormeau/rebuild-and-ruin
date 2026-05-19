@@ -112,6 +112,41 @@
       ]
     },
     {
+      "label": "Phase-scoped render-view projections — probe-verified",
+      "targets": [
+        { "file": "src/shared/core/render-view.ts", "interface": "SelectionRenderView" },
+        { "file": "src/shared/core/render-view.ts", "interface": "BuildRenderView" },
+        { "file": "src/shared/core/render-view.ts", "interface": "CannonRenderView" },
+        { "file": "src/shared/core/render-view.ts", "interface": "BattleRenderView" },
+        { "file": "src/shared/core/render-view.ts", "interface": "ModifierRevealRenderView" },
+        { "file": "src/shared/core/render-view.ts", "interface": "UpgradePickRenderView" }
+      ]
+    },
+    {
+      "label": "Dialog / castle interaction state — probe-verified",
+      "targets": [
+        { "file": "src/shared/ui/interaction-types.ts", "interface": "LifeLostEntry" },
+        { "file": "src/shared/ui/interaction-types.ts", "interface": "LifeLostDialogState" },
+        { "file": "src/shared/ui/interaction-types.ts", "interface": "UpgradePickEntry" },
+        { "file": "src/shared/ui/interaction-types.ts", "interface": "UpgradePickDialogState" },
+        { "file": "src/shared/ui/interaction-types.ts", "interface": "ControlsState" },
+        { "file": "src/shared/ui/interaction-types.ts", "interface": "AutoResolveDeps" },
+        { "file": "src/shared/ui/interaction-types.ts", "interface": "CastleBuildState" },
+        { "file": "src/shared/ui/interaction-types.ts", "interface": "CastleWallPlan" }
+      ]
+    },
+    {
+      "label": "Wire payload shapes — probe-verified; review findings before removing (forward-compat concerns)",
+      "targets": [
+        { "file": "src/protocol/checkpoint-data.ts", "interface": "SerializedCannon" },
+        { "file": "src/protocol/checkpoint-data.ts", "interface": "SerializedHouse" },
+        { "file": "src/protocol/checkpoint-data.ts", "interface": "SerializedGrunt" },
+        { "file": "src/protocol/checkpoint-data.ts", "interface": "SerializedPlayer" },
+        { "file": "src/protocol/checkpoint-data.ts", "interface": "SerializedBurningPit" },
+        { "file": "src/protocol/checkpoint-data.ts", "interface": "SerializedBonusSquare" }
+      ]
+    },
+    {
       "label": "Controller / observer contracts: impls subscribe to a subset of hooks; runtime dispatches",
       "targets": [
         { "file": "src/shared/core/system-interfaces.ts", "interface": "SelectionController" },

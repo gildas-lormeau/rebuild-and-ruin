@@ -106,7 +106,7 @@ const AUDIT_EXCLUDE_FILE_SUFFIXES = [
   "render-view.ts",
   "interaction-types.ts",
   "ui-mode.ts",
-  "checkpoint.ts",
+  "checkpoint-data.ts",
 ];
 
 function loadTargets(): readonly Target[] {
