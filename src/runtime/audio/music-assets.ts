@@ -354,7 +354,6 @@ export async function listStoredAssets(): Promise<StoredFileStatus[]> {
 }
 
 async function clearPcmCache(): Promise<void> {
-  if (typeof indexedDB === "undefined") return;
   const database = await openDatabase();
   try {
     await new Promise<void>((resolve, reject) => {

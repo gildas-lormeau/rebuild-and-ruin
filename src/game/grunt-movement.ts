@@ -261,7 +261,6 @@ function isAdjacentToLivingTower(
   col: number,
   towerIndex: TowerIdx,
 ): boolean {
-  if (!state.towerAlive[towerIndex]) return false;
   const tower = state.map.towers[towerIndex]!;
   for (const [dr, dc] of DIRS_4) {
     if (isTowerTile(tower, row + dr, col + dc)) return true;
