@@ -289,7 +289,7 @@ function applyPlayersCheckpoint(
       shieldHp: c.shieldHp || undefined,
       balloonHits: c.balloonHits || undefined,
       balloonCapturerIds: c.balloonCapturerIds?.length
-        ? [...c.balloonCapturerIds]
+        ? ([...c.balloonCapturerIds] as ValidPlayerId[])
         : undefined,
     }));
     // homeTowerIdx and castleWallTiles are stable across one castle's lifetime;

@@ -80,7 +80,7 @@ export interface Cannon extends TilePos {
   /** Players who contributed balloon hits THIS battle. Reset each battle by
    *  cleanupBalloonHitTrackingAfterBattle — only the deciding battle's
    *  contributors can claim the capture. */
-  balloonCapturerIds?: number[];
+  balloonCapturerIds?: ValidPlayerId[];
 }
 
 /** A live cannonball: the originator-pinned trajectory plus the per-tick

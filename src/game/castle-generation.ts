@@ -111,7 +111,7 @@ export function createCastle(
   const GAP_BUDGET = 8;
 
   // Build a set of tiles occupied by OTHER towers (2×2 each)
-  const otherTowerTiles = new Set<number>();
+  const otherTowerTiles = new Set<TileKey>();
   if (allTowers) {
     for (const other of allTowers) {
       if (other === tower) continue;

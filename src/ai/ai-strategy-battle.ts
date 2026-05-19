@@ -166,7 +166,7 @@ export function planPocketDestruction(
   );
   if (pockets.length <= POCKET_COUNT_THRESHOLD) return null;
   // Build a set of all small-pocket tiles for quick lookup
-  const pocketTiles = new Set<number>();
+  const pocketTiles = new Set<TileKey>();
   for (const pocket of pockets) {
     for (const k of pocket) pocketTiles.add(k);
   }
@@ -290,7 +290,7 @@ export function planStructuralHit(
   allHits.sort((a, b) => b.enclosuresBroken - a.enclosuresBroken);
 
   // Collect up to maxHits distinct opportunities (no overlapping tiles)
-  const usedTiles = new Set<number>();
+  const usedTiles = new Set<TileKey>();
   const targets: TilePos[] = [];
   let picked = 0;
   for (const hit of allHits) {

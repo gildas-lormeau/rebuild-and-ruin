@@ -75,7 +75,7 @@ export function phantomWireMode(phantom: CannonPhantom): CannonMode {
 
 /** Create a new dedup channel (empty — all first sends will pass). */
 export function createDedupChannel(): DedupChannel {
-  const map = new Map<number, string>();
+  const map = new Map<ValidPlayerId, string>();
   return {
     shouldSend(playerId: ValidPlayerId, key: string): boolean {
       if (map.get(playerId) === key) return false;

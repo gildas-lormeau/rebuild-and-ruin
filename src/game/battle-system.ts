@@ -1564,7 +1564,7 @@ function resolveBalloonCaptures(
         cannon,
         cannonIdx: cannonIdx as CannonIdx,
         victimId,
-        capturerId: winnerId as ValidPlayerId,
+        capturerId: winnerId,
       });
     }
   }

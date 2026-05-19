@@ -56,8 +56,8 @@ export function createTowerLabelsManager(
   root.name = "tower-labels";
   scene.add(root);
 
-  const materials = new Map<number, THREE.SpriteMaterial>();
-  const textures = new Map<number, THREE.CanvasTexture>();
+  const materials = new Map<ValidPlayerId, THREE.SpriteMaterial>();
+  const textures = new Map<ValidPlayerId, THREE.CanvasTexture>();
   const sprites = new Map<TowerIdx, THREE.Sprite>();
 
   function ensureMaterial(playerId: ValidPlayerId): THREE.SpriteMaterial {
