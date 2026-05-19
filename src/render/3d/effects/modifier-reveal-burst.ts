@@ -8,7 +8,11 @@
 
 import * as THREE from "three";
 import type { ModifierId } from "../../../shared/core/game-constants.ts";
-import { GRID_COLS, TILE_SIZE } from "../../../shared/core/grid.ts";
+import {
+  GRID_COLS,
+  TILE_SIZE,
+  type TileKey,
+} from "../../../shared/core/grid.ts";
 import { ELEVATION_STACK, Z_FIGHT_MARGIN } from "../elevation.ts";
 import type { FrameCtx } from "../frame-ctx.ts";
 import { type EffectManager } from "./fire-burst.ts";
@@ -40,7 +44,7 @@ interface ModifierRevealBurstConfig {
    *  `staggerSpanMs` (the legacy "rolling" feel). Override to get a
    *  directional wave, sequential strikes, etc. */
   readonly computeDelays?: (
-    tiles: readonly number[],
+    tiles: readonly TileKey[],
     staggerSpanMs: number,
   ) => readonly number[];
 }
@@ -117,7 +121,7 @@ export function createModifierRevealBurstManager(
     hosts.length = 0;
   }
 
-  function startReveal(tiles: readonly number[]): void {
+  function startReveal(tiles: readonly TileKey[]): void {
     ensurePool(tiles.length);
     const delays = (config.computeDelays ?? seededRandomDelays)(
       tiles,
@@ -196,7 +200,7 @@ function easeOutQuad(progress: number): number {
 }
 
 function seededRandomDelays(
-  tiles: readonly number[],
+  tiles: readonly TileKey[],
   staggerSpanMs: number,
 ): readonly number[] {
   const result: number[] = [];

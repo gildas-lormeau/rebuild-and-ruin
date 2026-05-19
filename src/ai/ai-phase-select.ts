@@ -5,6 +5,7 @@
  * readable and testable.
  */
 
+import type { TowerIdx } from "../shared/core/geometry-types.ts";
 import { selectPlayerTower } from "../shared/core/player-types.ts";
 import type { GameViewState } from "../shared/core/system-interfaces.ts";
 import type { ZoneId } from "../shared/core/zone-id.ts";
@@ -15,7 +16,7 @@ type AiSelectionState =
   | { step: "idle" }
   | {
       step: "browsing";
-      queue: number[];
+      queue: TowerIdx[];
       browseTimer: number;
       confirmInitialDelay: number;
     }

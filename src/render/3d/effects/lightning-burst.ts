@@ -6,6 +6,7 @@
 
 import type * as THREE from "three";
 import { MODIFIER_ID } from "../../../shared/core/game-constants.ts";
+import type { TileKey } from "../../../shared/core/grid.ts";
 import { type EffectManager } from "./fire-burst.ts";
 import { createModifierRevealBurstManager } from "./modifier-reveal-burst.ts";
 
@@ -25,7 +26,7 @@ export function createLightningBurstManager(scene: THREE.Scene): EffectManager {
 }
 
 function lightningSequentialDelays(
-  tiles: readonly number[],
+  tiles: readonly TileKey[],
   staggerSpanMs: number,
 ): readonly number[] {
   if (tiles.length === 0) return [];

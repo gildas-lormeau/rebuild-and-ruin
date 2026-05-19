@@ -5,10 +5,10 @@ import type { Player } from "./player-types.ts";
  *  Intentionally skips dirty-marking — modifier runs between phases. */
 export function deletePlayerWallsBatch(
   player: Player,
-  keys: readonly number[],
+  keys: readonly TileKey[],
 ): void {
   const walls = player.walls as Set<TileKey>;
-  for (const key of keys) walls.delete(key as TileKey);
+  for (const key of keys) walls.delete(key);
 }
 
 /** Remove a wall tile from all players. Used during battle (grunt attacks)

@@ -45,8 +45,8 @@ export function createWallDustManager(scene: THREE.Scene): EffectManager {
   scene.add(root);
 
   const texture = getSharedSmokeTexture();
-  const hosts = new Map<number, DustHost>();
-  const seenThisFrame = new Set<number>();
+  const hosts = new Map<TileKey, DustHost>();
+  const seenThisFrame = new Set<TileKey>();
 
   function buildHost(tileKey: TileKey, row: number, col: number): DustHost {
     const seed = tileSeed(row, col);
@@ -94,10 +94,9 @@ export function createWallDustManager(scene: THREE.Scene): EffectManager {
     for (const wall of destroyedWalls) {
       const dustOpacity = wallDestroyAnimAt(wall.age * 1000).dustOpacity;
       if (dustOpacity <= 0) continue;
-      const tileKey = wall.row * GRID_COLS + wall.col;
+      const tileKey = (wall.row * GRID_COLS + wall.col) as TileKey;
       seenThisFrame.add(tileKey);
-      const host =
-        hosts.get(tileKey) ?? buildHost(tileKey as TileKey, wall.row, wall.col);
+      const host = hosts.get(tileKey) ?? buildHost(tileKey, wall.row, wall.col);
       host.sprite.scale.set(host.baseSize, host.baseSize, 1);
       host.material.opacity = dustOpacity;
     }

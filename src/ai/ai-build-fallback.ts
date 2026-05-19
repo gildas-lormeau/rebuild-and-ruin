@@ -192,11 +192,11 @@ export function memoize<K, V>(func: (key: K) => V): (key: K) => V {
  *  grunt). A pocket with an occupant has a use, so it's not a "wasted"
  *  small enclosure — only fully empty grass pockets reject the candidate. */
 function hasOccupantInPocket(
-  pocket: readonly number[],
+  pocket: readonly TileKey[],
   state: BuildViewState,
 ): boolean {
   for (const pocketKey of pocket) {
-    const { r: pr, c: pc } = unpackTile(pocketKey as TileKey);
+    const { r: pr, c: pc } = unpackTile(pocketKey);
     for (const tower of state.map.towers) {
       if (isTowerTile(tower, pr, pc)) return true;
     }

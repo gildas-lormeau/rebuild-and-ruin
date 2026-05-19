@@ -7,6 +7,7 @@
  * or end-of-build via recheckTerritory.
  */
 
+import type { TileKey } from "../../shared/core/grid.ts";
 import { isPlayerEliminated } from "../../shared/core/player-types.ts";
 import { deletePlayerWallsBatch } from "../../shared/core/player-walls.ts";
 import {
@@ -27,7 +28,7 @@ function onPick(state: GameState): void {
     if (isPlayerEliminated(player)) continue;
     if (player.walls.size === 0) continue;
     const outside = computeOutside(player.walls);
-    const inner: number[] = [];
+    const inner: TileKey[] = [];
     for (const key of player.walls) {
       const { r, c } = unpackTile(key);
       let loadBearing = false;

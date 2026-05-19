@@ -5,7 +5,6 @@
 
 import { addPlayerWall } from "../shared/core/board-occupancy.ts";
 import { emitGameEvent, GAME_EVENT } from "../shared/core/game-event-bus.ts";
-import type { TileKey } from "../shared/core/grid.ts";
 import type { GameState } from "../shared/core/types.ts";
 import type {
   CastleBuildState,
@@ -58,7 +57,7 @@ export function tickCastleBuildAnimation(params: {
       if (castleBuild.wallTimelineIdx < plan.tiles.length) {
         const key = plan.tiles[castleBuild.wallTimelineIdx]!;
         const owner = state.players[plan.playerId]!;
-        addPlayerWall(owner, key as TileKey);
+        addPlayerWall(owner, key);
         emitGameEvent(state.bus, GAME_EVENT.CASTLE_BUILD_TILE, {
           playerId: plan.playerId,
           tileKey: key,

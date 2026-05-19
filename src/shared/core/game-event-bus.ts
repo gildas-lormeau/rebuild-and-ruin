@@ -9,6 +9,7 @@ import { BATTLE_MESSAGE, type BattleEvent } from "./battle-events.ts";
 import type { ModifierId } from "./game-constants.ts";
 import type { Phase } from "./game-phase.ts";
 import type { CannonIdx, TowerIdx, Viewport } from "./geometry-types.ts";
+import type { TileKey } from "./grid.ts";
 import type { ValidPlayerId } from "./player-slot.ts";
 import type { UpgradeId } from "./upgrade-defs.ts";
 import type { ZoneId } from "./zone-id.ts";
@@ -197,14 +198,14 @@ export type EntityEvent =
   | {
       type: "wallPlaced";
       playerId: ValidPlayerId;
-      tileKeys: readonly number[];
+      tileKeys: readonly TileKey[];
     }
   /** One tile of a castle prebuild animation (round-1 autobuild /
    *  reselect) was just dropped in. Fires per tile, so N tiles in a
    *  castle = N events. Separate from `wallPlaced` (which is for
    *  player-driven build-phase placement) so consumers can disambiguate
    *  the two gameplay beats — cosmetic-only event for SFX pacing. */
-  | { type: "castleBuildTile"; playerId: ValidPlayerId; tileKey: number }
+  | { type: "castleBuildTile"; playerId: ValidPlayerId; tileKey: TileKey }
   /** A tower transitioned from un-enclosed to enclosed by a player (all
    *  footprint tiles became interior-or-wall). Fires from inside the
    *  territory flood-fill, so prebuild animations AND player-driven wall

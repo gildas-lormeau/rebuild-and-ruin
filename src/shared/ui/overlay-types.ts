@@ -383,7 +383,7 @@ export interface UIOverlay {
      *  banner-aware site computes this; consumers see only the number. */
     revealTimeMs: number;
     /** Tile keys (row * GRID_COLS + col) the modifier touched. */
-    tiles: readonly number[];
+    tiles: readonly TileKey[];
   };
   gameOver?: GameOverOverlay;
   timer?: number;
