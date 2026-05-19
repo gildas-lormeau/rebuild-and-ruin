@@ -475,7 +475,7 @@ export function computeOutside(
  *  `extraBarriers` — callers using extra barriers must keep using `computeOutside`. */
 export function computeOutsideAfterAdd(
   baselineOutside: ReadonlySet<number>,
-  newWallTiles: readonly number[],
+  newWallTiles: readonly TileKey[],
 ): Set<number> {
   const trapped = computeTrappedAfterAdd(baselineOutside, newWallTiles);
   const newOutside = new Set(baselineOutside);
@@ -500,7 +500,7 @@ export function computeOutsideAfterAdd(
  *  up to hundreds of ms across a single seed's run in profiling. */
 export function computeTrappedAfterAdd(
   baselineOutside: ReadonlySet<number>,
-  newWallTiles: readonly number[],
+  newWallTiles: readonly TileKey[],
 ): number[] {
   const trapped: number[] = [];
   const newWallSet = new Set(newWallTiles);
@@ -516,7 +516,7 @@ export function computeTrappedAfterAdd(
       const nr = r + dir[0];
       const nc = c + dir[1];
       if (nr < 0 || nr >= GRID_ROWS || nc < 0 || nc >= GRID_COLS) continue;
-      const neighborKey = nr * GRID_COLS + nc;
+      const neighborKey = (nr * GRID_COLS + nc) as TileKey;
       if (newWallSet.has(neighborKey)) continue;
       if (!baselineOutside.has(neighborKey)) continue;
       suspects.push(neighborKey);
@@ -545,7 +545,7 @@ export function computeTrappedAfterAdd(
         const nr = r + dir[0];
         const nc = c + dir[1];
         if (nr < 0 || nr >= GRID_ROWS || nc < 0 || nc >= GRID_COLS) continue;
-        const neighborKey = nr * GRID_COLS + nc;
+        const neighborKey = (nr * GRID_COLS + nc) as TileKey;
         if (visited.has(neighborKey)) continue;
         if (newWallSet.has(neighborKey)) continue;
         if (!baselineOutside.has(neighborKey)) continue;
