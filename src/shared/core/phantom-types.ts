@@ -67,12 +67,6 @@ export interface DedupChannel {
   clear(): void;
 }
 
-/** Return the cannon mode for network transmission. Currently identity (returns
- *  phantom.mode directly), but provides an abstraction point if wire format diverges. */
-export function phantomWireMode(phantom: CannonPhantom): CannonMode {
-  return phantom.mode;
-}
-
 /** Create a new dedup channel (empty — all first sends will pass). */
 export function createDedupChannel(): DedupChannel {
   const map = new Map<ValidPlayerId, string>();

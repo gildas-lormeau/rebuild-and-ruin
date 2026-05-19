@@ -39,7 +39,6 @@ import {
   cannonPhantomKey,
   type PiecePhantomPayload,
   type PiecePlacedPayload,
-  phantomWireMode,
   piecePhantomKey,
 } from "../shared/core/phantom-types.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
@@ -547,7 +546,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
         playerId: ctrl.playerId,
         row: phantom.row,
         col: phantom.col,
-        mode: phantomWireMode(phantom),
+        mode: phantom.mode,
         valid: phantom.valid,
       });
     }
