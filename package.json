@@ -101,6 +101,7 @@
     "audit:no-op-writes": "deno run -A scripts/audit-no-op-writes.ts",
     "audit:stale-snapshot": "deno run -A scripts/audit-stale-snapshot.ts",
     "audit:array-drift": "deno run -A scripts/audit-array-element-drift.ts",
+    "audit:loose-params": "deno run -A scripts/audit-loose-params.ts",
     "graph": "deno run -A scripts/layer-graph.ts",
     "graph:files": "deno run -A scripts/file-graph.ts --layout fdp"
   },

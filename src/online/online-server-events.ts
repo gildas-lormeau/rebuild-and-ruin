@@ -468,7 +468,7 @@ function isRemoteHumanAction(
  *  tolerate late arrival before state init or after elimination. */
 function isActivePlayer(
   state: GameState | undefined,
-  pid: number,
+  pid: ValidPlayerId,
 ): state is GameState {
   return (
     state !== undefined &&

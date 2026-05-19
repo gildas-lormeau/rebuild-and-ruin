@@ -147,7 +147,7 @@ export function syncAccumulatorsFromTimer(
 function deriveAiStrategySeed(
   baseSeed: number,
   round: number,
-  slot: number,
+  slot: ValidPlayerId,
 ): number {
   return (
     (baseSeed + round * SEED_ROUND_MULTIPLIER + slot * SEED_SLOT_MULTIPLIER) >>>
