@@ -61,9 +61,6 @@
       "pair": "BuildViewState@src/shared/core/system-interfaces.ts ↔ UpgradePickViewState@src/shared/core/system-interfaces.ts"
     },
     {
-      "pair": "Cannon@src/render/3d/entities/cannons.ts ↔ CannonPlacement@src/ai/ai-strategy-types.ts"
-    },
-    {
       "pair": "Cannon@src/shared/core/battle-types.ts ↔ SerializedCannon@src/protocol/checkpoint-data.ts"
     },
     {
@@ -113,9 +110,6 @@
     },
     {
       "pair": "GruntOverride@test/phase-tests/types.ts ↔ SerializedGrunt@src/protocol/checkpoint-data.ts"
-    },
-    {
-      "pair": "LobbySystem@src/runtime/runtime-lobby.ts ↔ RuntimeLobby@src/runtime/runtime-types.ts"
     },
     {
       "pair": "MastParams@src/render/3d/sprites/supply-ship-scene.ts ↔ PoleParams@src/render/3d/sprites/tower-scene.ts"
@@ -382,24 +376,6 @@
       "pair": "CameraSystem@src/runtime/runtime-types.ts ↔ ZoomButtonDeps@src/shared/ui/input-deps.ts"
     },
     {
-      "pair": "Cannon@src/render/3d/entities/cannons.ts ↔ CannonOverride@test/phase-tests/types.ts"
-    },
-    {
-      "pair": "Cannon@src/render/3d/entities/cannons.ts ↔ CannonPlacement@src/ai/ai-strategy-types.ts"
-    },
-    {
-      "pair": "Cannon@src/render/3d/entities/cannons.ts ↔ CannonShapePayload@src/shared/core/phantom-types.ts"
-    },
-    {
-      "pair": "Cannon@src/render/3d/entities/cannons.ts ↔ PlaceCannonIntent@src/shared/core/system-interfaces.ts"
-    },
-    {
-      "pair": "Cannon@src/render/3d/entities/cannons.ts ↔ SerializedCannon@src/protocol/checkpoint-data.ts"
-    },
-    {
-      "pair": "Cannon@src/render/3d/entities/cannons.ts ↔ SerializedGrunt@src/protocol/checkpoint-data.ts"
-    },
-    {
       "pair": "Cannon@src/shared/core/battle-types.ts ↔ SerializedCannon@src/protocol/checkpoint-data.ts"
     },
     {
@@ -521,6 +497,9 @@
     },
     {
       "pair": "CargoCrateParams@src/render/3d/sprites/supply-ship-scene.ts ↔ TurretParams@src/render/3d/sprites/tower-scene.ts"
+    },
+    {
+      "pair": "CastleData@src/shared/ui/overlay-types.ts ↔ Player@src/shared/core/player-types.ts"
     },
     {
       "pair": "CheeksSupportsParams@src/render/3d/sprites/cannon-scene.ts ↔ DoorParams@src/render/3d/sprites/house-scene.ts"

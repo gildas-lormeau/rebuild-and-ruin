@@ -562,7 +562,7 @@ export interface LoupeHandle {
 /** A cannon captured by a propaganda balloon — fires for the balloon owner during battle. */
 export interface CastleData {
   /** Wall tile positions encoded as row*GRID_COLS+col. */
-  walls: ReadonlySet<number>;
+  walls: ReadonlySet<TileKey>;
   /** Enclosed territory: grass tiles fully surrounded by walls (inverse flood-fill).
    *  Encoded as row*GRID_COLS+col. Used for cannon eligibility, grunt blocking, and scoring. */
   interior: FreshInterior;
@@ -572,7 +572,7 @@ export interface CastleData {
   playerId: ValidPlayerId;
   /** Wall tiles that absorbed one hit from Reinforced Walls upgrade.
    *  Rendered with a crack overlay so players can see which walls are weakened. */
-  damagedWalls?: ReadonlySet<number>;
+  damagedWalls?: ReadonlySet<TileKey>;
   /** Current cannon tier for this player (derived from lives lost — 1 at
    *  full lives, 2 after one loss, 3 on the last life). The 3D renderer
    *  swaps regular cannons to the matching `tier_N` sprite; the 2D path

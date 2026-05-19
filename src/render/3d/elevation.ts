@@ -9,7 +9,12 @@ import {
   isSuperCannon,
 } from "../../shared/core/battle-types.ts";
 import type { GameMap } from "../../shared/core/geometry-types.ts";
-import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "../../shared/core/grid.ts";
+import {
+  GRID_COLS,
+  GRID_ROWS,
+  TILE_SIZE,
+  type TileKey,
+} from "../../shared/core/grid.ts";
 import type {
   CastleData,
   RenderOverlay,
@@ -280,7 +285,7 @@ function elevationAt(
   const col = Math.floor(x / TILE_SIZE);
   const row = Math.floor(y / TILE_SIZE);
   if (col < 0 || col >= GRID_COLS || row < 0 || row >= GRID_ROWS) return 0;
-  const key = row * GRID_COLS + col;
+  const key = (row * GRID_COLS + col) as TileKey;
   for (const castle of castles) {
     if (castle.walls.has(key)) return WALL_TOP_Y;
   }
