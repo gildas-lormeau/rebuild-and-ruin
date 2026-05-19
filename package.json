@@ -103,6 +103,7 @@
     "audit:array-drift": "deno run -A scripts/audit-array-element-drift.ts",
     "audit:loose-params": "deno run -A scripts/audit-loose-params.ts",
     "audit:passthrough": "deno run -A scripts/audit-passthrough-functions.ts",
+    "audit:single-call-exports": "deno run -A scripts/audit-single-call-exports.ts",
     "graph": "deno run -A scripts/layer-graph.ts",
     "graph:files": "deno run -A scripts/file-graph.ts --layout fdp"
   },
