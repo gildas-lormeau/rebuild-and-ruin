@@ -171,10 +171,10 @@ export interface PhantomOverlay {
   piecePhantoms?: readonly RenderPiecePhantom[];
   cannonPhantoms?: readonly RenderCannonPhantom[];
   /** Default cannon facing per player — used by cannon phantom rendering. */
-  defaultFacings?: ReadonlyMap<number, number>;
+  defaultFacings?: ReadonlyMap<ValidPlayerId, number>;
   /** Current cannon tier per player — lets the 3D cannon-phantom picker
    *  match the authored sprite of the actual cannon that will be placed. */
-  cannonTiers?: ReadonlyMap<number, 1 | 2 | 3>;
+  cannonTiers?: ReadonlyMap<ValidPlayerId, 1 | 2 | 3>;
 }
 
 /** Cannonball in flight — overlay payload with animation progress. */

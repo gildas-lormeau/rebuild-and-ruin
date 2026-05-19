@@ -182,8 +182,8 @@ export function createRenderSystem(deps: RenderSystemDeps): RenderSystem {
     // player state. A cached map computed at tick start would be stale
     // — live derivation guarantees the capture sees the post-mutation
     // facings that the renderer is about to draw against.
-    const defaultFacings = new Map<number, number>();
-    const cannonTiers = new Map<number, 1 | 2 | 3>();
+    const defaultFacings = new Map<ValidPlayerId, number>();
+    const cannonTiers = new Map<ValidPlayerId, 1 | 2 | 3>();
     for (const player of runtimeState.state.players) {
       defaultFacings.set(player.id, player.defaultFacing);
       cannonTiers.set(player.id, cannonTier(player));

@@ -274,8 +274,8 @@ export function createPhantomsManager(scene: THREE.Scene): PhantomsManager {
   function placeCannon(
     phantom: RenderCannonPhantom,
     index: number,
-    facings: ReadonlyMap<number, number> | undefined,
-    tiers: ReadonlyMap<number, 1 | 2 | 3> | undefined,
+    facings: ReadonlyMap<ValidPlayerId, number> | undefined,
+    tiers: ReadonlyMap<ValidPlayerId, 1 | 2 | 3> | undefined,
   ): void {
     const variant = selectCannonVariant(
       phantom,
