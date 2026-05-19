@@ -333,7 +333,7 @@ export function planIceTrench(
   if (shoreline.length === 0) return null;
 
   const bestAnchorKey = pickAnchor(shoreline, bankGrunts, rng);
-  const anchor = unpackTile(bestAnchorKey as TileKey);
+  const anchor = unpackTile(bestAnchorKey);
 
   const inward = inwardFromShore(state, anchor, playerZone);
   if (!inward) return null;
@@ -342,7 +342,7 @@ export function planIceTrench(
 
   const result: TilePos[] = [];
   for (const key of trenchKeys) {
-    const { r, c } = unpackTile(key as TileKey);
+    const { r, c } = unpackTile(key);
     result.push({ row: r, col: c });
   }
   return result.length > 0 ? orderByNearest(result) : null;
@@ -599,7 +599,7 @@ export function planGruntSweep(
  *  zone, not by any stored "victim" field. */
 function collectBankGrunts(
   state: BattleViewState,
-  frozenTiles: ReadonlySet<number>,
+  frozenTiles: ReadonlySet<TileKey>,
   playerZone: ZoneId | undefined,
 ): TilePos[] {
   const out: TilePos[] = [];
@@ -623,12 +623,12 @@ function collectBankGrunts(
  *  trench will extend across the river. */
 function findIceShoreline(
   state: BattleViewState,
-  frozenTiles: ReadonlySet<number>,
+  frozenTiles: ReadonlySet<TileKey>,
   playerZone: ZoneId | undefined,
-): number[] {
-  const out: number[] = [];
+): TileKey[] {
+  const out: TileKey[] = [];
   for (const key of frozenTiles) {
-    const { r, c } = unpackTile(key as TileKey);
+    const { r, c } = unpackTile(key);
     for (const [dr, dc] of DIRS_4) {
       const nr = r + dr;
       const nc = c + dc;
@@ -648,12 +648,12 @@ function findIceShoreline(
 /** Score each shoreline tile by distance to the nearest bank grunt, then
  *  pick randomly among the top 5 for variety. */
 function pickAnchor(
-  shoreline: readonly number[],
+  shoreline: readonly TileKey[],
   bankGrunts: readonly TilePos[],
   rng: Rng,
-): number {
+): TileKey {
   const scored = shoreline.map((shoreKey) => {
-    const { r, c } = unpackTile(shoreKey as TileKey);
+    const { r, c } = unpackTile(shoreKey);
     let minDist = Infinity;
     for (const grunt of bankGrunts) {
       const dist = manhattanDistance(grunt.row, grunt.col, r, c);
@@ -688,15 +688,15 @@ function inwardFromShore(
 /** U-shape trench: base walks laterally along the shore from the anchor,
  *  arms then curve diagonally inward from each base end toward the enemy. */
 function buildUTrench(
-  frozenTiles: ReadonlySet<number>,
+  frozenTiles: ReadonlySet<TileKey>,
   anchor: { r: number; c: number },
-  anchorKey: number,
+  anchorKey: TileKey,
   inward: readonly [number, number],
-): Set<number> {
+): Set<TileKey> {
   const lateral1: [number, number] = inward[0] === 0 ? [1, 0] : [0, 1];
   const lateral2: [number, number] = inward[0] === 0 ? [-1, 0] : [0, -1];
 
-  const trenchKeys = new Set<number>();
+  const trenchKeys = new Set<TileKey>();
   trenchKeys.add(anchorKey);
 
   const armStarts: [number, number][] = [];
@@ -740,8 +740,8 @@ function buildUTrench(
  *  `nextStep` picks the next (row, col) from the current cursor. Stops on
  *  out-of-bounds or non-frozen tile. Returns the final cursor position. */
 function walkAlongIce(
-  frozenTiles: ReadonlySet<number>,
-  trenchKeys: Set<number>,
+  frozenTiles: ReadonlySet<TileKey>,
+  trenchKeys: Set<TileKey>,
   startR: number,
   startC: number,
   nextStep: (cr: number, cc: number) => [number, number],

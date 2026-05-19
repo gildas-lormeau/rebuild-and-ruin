@@ -9,7 +9,11 @@
 
 import * as THREE from "three";
 import { Phase } from "../../../shared/core/game-phase.ts";
-import { GRID_COLS, GRID_ROWS } from "../../../shared/core/grid.ts";
+import {
+  GRID_COLS,
+  GRID_ROWS,
+  type TileKey,
+} from "../../../shared/core/grid.ts";
 import {
   interiorOwnersFromOverlay,
   interiorRefsMatch,
@@ -29,7 +33,7 @@ export interface TerrainTileDataManager {
 interface TileDataFingerprint {
   mapVersion: number;
   interiorRefs: ReadonlyArray<ReadonlySet<number>>;
-  frozenTiles: ReadonlySet<number> | undefined;
+  frozenTiles: ReadonlySet<TileKey> | undefined;
   inBattle: boolean;
 }
 
@@ -78,7 +82,7 @@ export function createTerrainTileDataManager(): TerrainTileDataManager {
     const interiorOwners = interiorOwnersFromOverlay(overlay);
     for (let row = 0; row < GRID_ROWS; row++) {
       for (let col = 0; col < GRID_COLS; col++) {
-        const tileIdx = row * GRID_COLS + col;
+        const tileIdx = (row * GRID_COLS + col) as TileKey;
         const owner = interiorOwners.get(tileIdx);
         let flags = 0;
         if (frozenTiles?.has(tileIdx)) flags |= FLAG_FROZEN;

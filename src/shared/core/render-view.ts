@@ -7,6 +7,7 @@ import type {
 import { BATTLE_TIMER, type ModifierId } from "./game-constants.ts";
 import { Phase } from "./game-phase.ts";
 import type { BonusSquare, GameMap } from "./geometry-types.ts";
+import type { TileKey } from "./grid.ts";
 import type { SupplyShip } from "./modifier-defs.ts";
 import type { ValidPlayerId } from "./player-slot.ts";
 import type { Player } from "./player-types.ts";
@@ -24,7 +25,7 @@ interface RenderModernSlice {
    *  thread per-modifier "which tiles were affected" into the overlay
    *  (e.g. grunt-surge spawn tiles). */
   readonly activeModifierChangedTiles: readonly number[];
-  readonly frozenTiles: ReadonlySet<number> | null;
+  readonly frozenTiles: ReadonlySet<TileKey> | null;
   /** Low-water exposed riverbed tiles. Renderer paints these as bank
    *  via FLAG_EXPOSED in the tile-data texture. */
   readonly exposedRiverbedTiles: ReadonlySet<number> | null;

@@ -148,7 +148,7 @@ export interface EntityOverlay {
    *  ownership tint comes from `ownedTowers`. */
   homeTowerIndices?: ReadonlySet<number>;
   /** Frozen river tiles for rendering ice overlay. */
-  frozenTiles?: ReadonlySet<number>;
+  frozenTiles?: ReadonlySet<TileKey>;
   /** Recently thawed tiles — drives the crack-and-fade break animation. */
   thawingTiles?: readonly ThawingTile[];
   /** High-tide flooded tiles for rendering water over grass. Computed
