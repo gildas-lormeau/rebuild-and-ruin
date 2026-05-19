@@ -38,9 +38,9 @@ export interface SerializedGrunt {
   targetTowerIdx?: TowerIdx;
   attackCountdown?: number;
   blockedRounds?: number;
-  attackingWall?: boolean;
+  attackingWall?: true;
   facing?: number;
-  chipped?: boolean;
+  chipped?: true;
   /** Variant tag — omitted for regular grunts. */
   kind?: "catapult";
   /** Catapult skip-tick toggle — omitted when absent. */

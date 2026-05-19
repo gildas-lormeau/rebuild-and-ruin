@@ -15,14 +15,14 @@ import {
 import type { GameState } from "../../shared/core/types.ts";
 
 interface EvictOptions {
-  readonly walls?: boolean;
-  readonly houses?: boolean;
-  readonly grunts?: boolean;
-  readonly bonusSquares?: boolean;
-  readonly burningPits?: boolean;
+  readonly walls?: true;
+  readonly houses?: true;
+  readonly grunts?: true;
+  readonly bonusSquares?: true;
+  readonly burningPits?: true;
   /** Cannons are evicted when ANY tile of their multi-tile footprint
    *  intersects `tiles`. */
-  readonly cannons?: boolean;
+  readonly cannons?: true;
 }
 
 /** Remove the requested entity types from any tile in `tiles`. Safe to

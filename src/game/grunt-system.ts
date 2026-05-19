@@ -290,12 +290,12 @@ export function gruntAttackTowers(
             wallEvents.push(event);
             state.bus.emit(event.type, event);
           }
-          grunt.attackingWall = false;
+          delete grunt.attackingWall;
         }
         continue;
       }
       // No targeted wall — stop wall attack
-      grunt.attackingWall = false;
+      delete grunt.attackingWall;
     }
 
     if (attackTarget !== undefined) {
@@ -347,7 +347,7 @@ export function updateGruntBlockedBattles(state: GameState): void {
       grunt.blockedRounds += 1;
     }
     // Clear wall attack state (decision does not persist across rounds)
-    grunt.attackingWall = false;
+    delete grunt.attackingWall;
   }
 }
 
@@ -514,7 +514,7 @@ function maybeRouteCatapultToBlockingWall(
     }
     grunt.attackingWall = true;
   } else if (grunt.attackingWall) {
-    grunt.attackingWall = false;
+    delete grunt.attackingWall;
     grunt.targetedWall = undefined;
     grunt.attackCountdown = undefined;
   }

@@ -27,8 +27,6 @@ export interface MaterialSpec {
   emissive?: number;
   /** <1 auto-enables transparent */
   opacity?: number;
-  /** standard only; enables flatShading */
-  flat?: boolean;
   /** default 'front' */
   side?: MaterialSide;
 }
@@ -89,7 +87,6 @@ export function createMaterial(
   }
   stdOpts.roughness = spec.roughness ?? 0.6;
   stdOpts.metalness = spec.metalness ?? 0.3;
-  if (spec.flat) stdOpts.flatShading = true;
   return new THREE.MeshStandardMaterial(stdOpts);
 }
 

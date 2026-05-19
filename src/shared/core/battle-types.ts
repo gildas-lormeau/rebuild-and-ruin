@@ -23,8 +23,10 @@ export interface Grunt extends TilePos {
   /** Number of consecutive battles the grunt has been blocked (not adjacent to target tower).
    *  Initialized to 0 at spawn; incremented by updateGruntBlockedBattles at end of each battle. */
   blockedRounds: number;
-  /** If true, this grunt is attacking a wall tile during battle (decided at battle start). */
-  attackingWall?: boolean;
+  /** If true, this grunt is attacking a wall tile during battle (decided at battle start).
+   *  Absent ≡ not attacking — every reader uses a truthy check, and the explicit-`false`
+   *  state was indistinguishable from absent. */
+  attackingWall?: true;
   /** Tile key of the wall this grunt would attack — the adjacent wall closest
    *  to its target tower. Computed once at end-of-build in `finalizeRoundCleanup`,
    *  cleared when that wall is destroyed mid-battle (no recompute — grunts

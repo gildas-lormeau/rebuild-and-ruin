@@ -74,7 +74,7 @@ in the preview pages.
 
 One canonical `MaterialSpec` typedef in `sprite-kit.ts`. Fields:
 `kind` (`'basic' | 'standard'`), `color`, optional `side`, `emissive`,
-`opacity`, `roughness`, `metalness`, `flat`. Use `createMaterial(spec)` to
+`opacity`, `roughness`, `metalness`. Use `createMaterial(spec)` to
 instantiate; all fields are honored uniformly.
 
 Shared named-material constants live in `sprite-materials.ts`.
