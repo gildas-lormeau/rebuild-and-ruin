@@ -2,9 +2,9 @@
  * AI life-lost decision. Today always CONTINUE; future surrender /
  * abandon strategies hook in here. Determinism contract: must stay
  * pure — no `state.rng` draws (runtime calls this lazily at commit,
- * no cache; a wire-arrived choice would skip a watcher's draw and
- * drift state). If a future strategy needs RNG, mirror
- * `precomputeAiUpgradePicks` via `state.precomputedLifeLostChoices`.
+ * with no cache; a wire-arrived choice would skip a watcher's draw
+ * and drift state). RNG-needing strategies must mirror
+ * `precomputeAiUpgradePicks` so every peer reads the same value.
  */
 
 import type { GameViewState } from "../shared/core/system-interfaces.ts";

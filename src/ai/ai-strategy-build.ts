@@ -42,7 +42,6 @@ import {
 import type { BuildViewState } from "../shared/core/system-interfaces.ts";
 import {
   createsSmallEnclosure,
-  memoize,
   pickFallbackPlacement,
 } from "./ai-build-fallback.ts";
 import {
@@ -78,6 +77,7 @@ import {
   hasMeaningfulHomeRingGaps,
   scoreBuildTowerTarget,
 } from "./ai-castle-rect.ts";
+import { memoize } from "./ai-constants.ts";
 
 type BuildSkillConfig = (typeof BUILD_SKILL_TABLE)[number];
 
@@ -158,13 +158,11 @@ export function pickPlacement(
   const {
     cursorPos,
     homeWasBroken,
-    /** Tile margin around the home tower for castle ring placement.
-     *  Derived from AI aggressiveness (2 or 3). Default 3 = widest ring. */
-    castleMargin = 3,
-    bankHugging = false,
-    caresAboutHouses = true,
-    caresAboutBonuses = true,
-    buildSkill = 3,
+    castleMargin,
+    bankHugging,
+    caresAboutHouses,
+    caresAboutBonuses,
+    buildSkill,
     outerRingHolesSnapshot,
   } = options;
   const maybePlayer = state.players[playerId];
@@ -488,18 +486,17 @@ function selectBestPlacement(
 
   // If no territory gain: discard or build toward unenclosed towers
   if (bestScore <= 0) {
-    const fallback = pickFallbackPlacement(sortedScored, state, {
+    return pickFallbackPlacement(sortedScored, state, {
       walls: player.walls,
       outside,
       playerInterior: getInterior(player),
       castle,
       castleMargin: extras.castleMargin,
-      homeWasBroken: !!scoringCtx.homeWasBroken,
+      homeWasBroken: scoringCtx.homeWasBroken,
       unenclosedTowers: extras.unenclosedTowers,
       caresAboutHouses,
       caresAboutBonuses,
-    });
-    if (fallback) return fallback.placement;
+    }).placement;
   }
 
   return {
@@ -1029,7 +1026,7 @@ function analyzeEnclosures(
   castle: Castle,
   castleMargin: number,
   bankHugging: boolean,
-  homeWasBroken: boolean | undefined,
+  homeWasBroken: boolean,
 ): EnclosureAnalysis {
   const zoneTowers = state.map.towers.filter(
     (tower) => tower.zone === castle.tower.zone,

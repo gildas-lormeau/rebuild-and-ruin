@@ -243,8 +243,6 @@ export class DefaultStrategy implements AiStrategy {
 
   /** Seeded PRNG — log rng.seed to reproduce this AI's behavior. */
   readonly rng: Rng;
-  /** The archetype that shaped this AI's personality. */
-  readonly archetype: ArchetypeId;
   bankHugging: boolean;
   private caresAboutHouses: boolean;
   private caresAboutBonuses: boolean;
@@ -271,7 +269,6 @@ export class DefaultStrategy implements AiStrategy {
    */
   constructor(rng: Rng, personality: AiPersonality) {
     this.rng = rng;
-    this.archetype = personality.archetype;
     this.buildSkill = personality.buildSkill;
     this.spatialAwareness = personality.spatialAwareness;
     this.aggressiveness = personality.aggressiveness;
@@ -562,5 +559,6 @@ export class DefaultStrategy implements AiStrategy {
   reset(): void {
     this.onLifeLost();
     this.shotCounts = new Map<ShotKey, number>();
+    this._outerRingHolesSnapshot = undefined;
   }
 }

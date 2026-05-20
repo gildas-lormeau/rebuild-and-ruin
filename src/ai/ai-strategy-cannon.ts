@@ -50,6 +50,9 @@ import type {
 
 type CannonCandidate = { row: number; col: number; score: number };
 
+const SUPER_SLOT_COST = cannonSlotCost(CannonMode.SUPER);
+const RAMPART_SLOT_COST = cannonSlotCost(CannonMode.RAMPART);
+const BALLOON_SLOT_COST = cannonSlotCost(CannonMode.BALLOON);
 /** Chance to pick the tower closest to zone centroid vs random. */
 const CENTROID_TOWER_PROBABILITY = 2 / 3;
 /** Tiles from map edge before border penalty kicks in. */
@@ -205,7 +208,7 @@ export function nextCannonPlacement(
 
   if (ctx.pendingSuperGun) {
     ctx.pendingSuperGun = false;
-    if (slotsLeft >= cannonSlotCost(CannonMode.SUPER)) {
+    if (slotsLeft >= SUPER_SLOT_COST) {
       const best = collectCannonCandidates(
         player,
         CannonMode.SUPER,
@@ -232,7 +235,7 @@ export function nextCannonPlacement(
     ctx.pendingRampart = false;
     if (
       state.gameMode === GAME_MODE_MODERN &&
-      slotsLeft >= cannonSlotCost(CannonMode.RAMPART) &&
+      slotsLeft >= RAMPART_SLOT_COST &&
       normalCandidates.length >= 4
     ) {
       const rampartCandidates = collectCannonCandidates(
@@ -257,7 +260,7 @@ export function nextCannonPlacement(
   if (ctx.pendingBalloon) {
     ctx.pendingBalloon = false;
     if (
-      slotsLeft >= cannonSlotCost(CannonMode.BALLOON) &&
+      slotsLeft >= BALLOON_SLOT_COST &&
       shouldPlaceBalloon(
         state,
         player,

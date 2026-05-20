@@ -46,3 +46,14 @@ export function secondsToTicks(seconds: number): number {
 export function traitLookup<T>(level: number, values: readonly [T, T, T]): T {
   return values[level - 1]!;
 }
+
+/** Create a memoized version of a function (Map-based cache). */
+export function memoize<K, V>(func: (key: K) => V): (key: K) => V {
+  const cache = new Map<K, V>();
+  return (key: K): V => {
+    if (cache.has(key)) return cache.get(key)!;
+    const computed = func(key);
+    cache.set(key, computed);
+    return computed;
+  };
+}

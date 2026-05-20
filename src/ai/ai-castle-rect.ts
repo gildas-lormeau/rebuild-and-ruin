@@ -1,8 +1,9 @@
 /**
  * AI Strategy — castle rectangle geometry and gap analysis.
- *
  * Contains castle rect computation, wall ring gap detection,
- * and tower scoring used during the build phase.
+ * and tower scoring used during the build phase. Hardcodes
+ * TOWER_SIZE = 2: `tower.row + 1` / `tower.col + 1` reach the
+ * bottom-right corner of the 2×2 footprint.
  */
 
 import type { BurningPit } from "../shared/core/battle-types.ts";
@@ -156,7 +157,7 @@ export function findReachableRingGaps(
 export function filterUnfillableGaps(
   gaps: Set<TileKey>,
   state: BuildViewState,
-  interior?: ReadonlySet<TileKey>,
+  interior: ReadonlySet<TileKey>,
 ): void {
   for (const key of gaps) {
     const { r, c } = unpackTile(key);
@@ -165,7 +166,7 @@ export function filterUnfillableGaps(
       hasPitAt(state.burningPits, r, c) ||
       hasCannonAt(state, r, c) ||
       hasTowerAt(state, r, c) ||
-      (interior && interior.has(key))
+      interior.has(key)
     ) {
       gaps.delete(key);
     }

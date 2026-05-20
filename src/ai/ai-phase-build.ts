@@ -236,7 +236,8 @@ function tickMoving(
   phase: BuildPhase,
   state: BuildViewState,
 ): PiecePlacementPreview[] {
-  const phaseState = phase.state as Extract<BuildState, { step: "moving" }>;
+  if (phase.state.step !== STEP.MOVING) return [];
+  const phaseState = phase.state;
   const { target, rotation } = phaseState;
 
   // Tick rotation animation concurrently with movement
@@ -271,7 +272,7 @@ function tickMoving(
   // Show phantom at current cursor position — use current rotation frame
   const movingPiece =
     rotation.idx < rotation.seq.length
-      ? rotation.seq[Math.min(rotation.idx, rotation.seq.length - 1)]!
+      ? rotation.seq[rotation.idx]!
       : target.piece;
   const pivotDr = target.piece.pivot[0] - movingPiece.pivot[0];
   const pivotDc = target.piece.pivot[1] - movingPiece.pivot[1];

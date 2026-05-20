@@ -93,17 +93,16 @@ const MAX_POCKET_TARGETS = 5;
 const MIN_WALL_SEGMENT_LENGTH = 4;
 /** Maximum wall tiles targeted in a single wall demolition chain. */
 const MAX_WALL_DEMOLITION_TARGETS = 10;
-/** Timer ticks remaining that define the "second half" of battle. */
+/** Timer seconds remaining that define the "second half" of battle
+ *  (state.timer is in seconds; BATTLE_TIMER = 10). */
 const BATTLE_SECOND_HALF_TIMER = 5;
 /** Chance to switch focus to a different enemy in the second half. */
 const TARGET_SWITCH_PROBABILITY = 0.25;
 /** Chance to target a strategic wall tile (flanked by 2+ obstacles). */
 const STRATEGIC_TARGET_PROBABILITY = 1 / 4;
-/** Chance to target a supply ship sailing the river. No lead prediction —
- *  the AI fires at the ship's current position, so cannonball flight
- *  time + ship motion create natural miss-chance. Bonuses still
- *  favour humans (who can lead and time shots), but AIs occasionally
- *  land a hit. */
+/** Chance to target a supply ship sailing the river. Aiming uses lead
+ *  prediction via `pickSupplyShipTarget`, but the chosen probability
+ *  keeps ships from dominating AI shot selection. */
 const SUPPLY_SHIP_TARGET_PROBABILITY = 1 / 8;
 /** Chance to target a wall tile blocking a grunt's path to its tower. */
 const GRUNT_WALL_TARGET_PROBABILITY = 1 / 8;

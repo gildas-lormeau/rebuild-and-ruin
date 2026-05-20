@@ -57,15 +57,16 @@ export interface TargetContext {
   outerRingHolesSnapshot: ReadonlySet<TileKey>;
 }
 
-/** Optional AI personality / context parameters for placement. */
+/** AI personality / context parameters for placement. Filled in by
+ *  DefaultStrategy.pickPlacement before invoking the internal pipeline. */
 export interface PlacementOptions {
-  cursorPos?: TilePos;
-  homeWasBroken?: boolean;
-  castleMargin?: number;
-  bankHugging?: boolean;
-  caresAboutHouses?: boolean;
-  caresAboutBonuses?: boolean;
-  buildSkill?: number;
+  cursorPos: TilePos | undefined;
+  homeWasBroken: boolean;
+  castleMargin: number;
+  bankHugging: boolean;
+  caresAboutHouses: boolean;
+  caresAboutBonuses: boolean;
+  buildSkill: number;
   /** Phase-stable snapshot of outer-ring breach tiles (computed by the
    *  strategy on first call of the build phase and held constant).
    *  tryRepairOuterRing uses this set verbatim (minus tiles the AI has
@@ -165,7 +166,7 @@ export type ScoringContext = {
   caresAboutBonuses: boolean;
   allCastlesEnclosed: boolean;
   homeTowerEnclosed: boolean;
-  homeWasBroken: boolean | undefined;
+  homeWasBroken: boolean;
   baselineOutside: number;
   baselinePocketWaste: number;
 };

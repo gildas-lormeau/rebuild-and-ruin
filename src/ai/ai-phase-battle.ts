@@ -234,7 +234,8 @@ function tickCountdown(
   }
   if (!phase.crosshairTarget) return;
 
-  const phaseState = phase.state as Extract<BattleState, { step: "countdown" }>;
+  if (phase.state.step !== STEP.COUNTDOWN) return;
+  const phaseState = phase.state;
 
   if (state.battleCountdown > 0) {
     // During countdown, move to target then orbit around it
@@ -345,10 +346,8 @@ function tickChainDwelling(
   host: BattleHost,
   phase: BattlePhase,
 ): BattleTickResult {
-  const phaseState = phase.state as Extract<
-    BattleState,
-    { step: "chain_dwelling" }
-  >;
+  if (phase.state.step !== STEP.CHAIN_DWELLING) return {};
+  const phaseState = phase.state;
   phaseState.timer--;
   if (phaseState.timer > 0) return {};
 
@@ -397,7 +396,8 @@ function tickDwelling(
   phase: BattlePhase,
   state: BattleViewState,
 ): BattleTickResult {
-  const phaseState = phase.state as Extract<BattleState, { step: "dwelling" }>;
+  if (phase.state.step !== STEP.DWELLING) return {};
+  const phaseState = phase.state;
   phaseState.timer--;
   if (phaseState.timer > 0) return {};
 

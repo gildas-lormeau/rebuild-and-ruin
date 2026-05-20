@@ -31,7 +31,7 @@ import type {
   Scored,
 } from "./ai-build-types.ts";
 import { floodPocket } from "./ai-castle-rect.ts";
-import { SMALL_POCKET_MAX_SIZE } from "./ai-constants.ts";
+import { memoize, SMALL_POCKET_MAX_SIZE } from "./ai-constants.ts";
 
 const MIN_FREE_INTERIOR = 6;
 
@@ -50,7 +50,7 @@ export function pickFallbackPlacement(
   scored: readonly Scored[],
   state: BuildViewState,
   buildCtx: FallbackContext,
-): { placement: AiPlacement | null; reason: string } | null {
+): { placement: AiPlacement | null; reason: string } {
   const {
     walls,
     outside,
@@ -177,17 +177,6 @@ export function createsSmallEnclosure(
   return false;
 }
 
-/** Create a memoized version of a function (Map-based cache). */
-export function memoize<K, V>(func: (key: K) => V): (key: K) => V {
-  const cache = new Map<K, V>();
-  return (key: K): V => {
-    if (cache.has(key)) return cache.get(key)!;
-    const computed = func(key);
-    cache.set(key, computed);
-    return computed;
-  };
-}
-
 /** True if any tile in `pocket` is occupied (tower, non-grass terrain, or
  *  grunt). A pocket with an occupant has a use, so it's not a "wasted"
  *  small enclosure — only fully empty grass pockets reject the candidate. */
@@ -283,7 +272,7 @@ function pickTowerExtensionCandidate(
     return { candidate: extending[0]!.candidate, reason: "extend" };
   }
 
-  const fallback = [...scored].filter((score) =>
+  const fallback = scored.filter((score) =>
     isExtensionFallbackCandidateForFallback(
       score.candidate,
       createsSmallEnclosureCached,
@@ -434,7 +423,7 @@ function pickDiscardCandidate(
   createsSmallEnclosureCached: (candidate: Candidate) => boolean,
   isInsideOrFatCandidate: (candidate: Candidate) => boolean,
 ): Candidate | null {
-  const throwAway = [...scored].filter(
+  const throwAway = scored.filter(
     (score) => !isInsideOrFatCandidate(score.candidate),
   );
   if (throwAway.length === 0) return null;

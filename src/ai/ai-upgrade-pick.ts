@@ -118,11 +118,11 @@ function aiPickUpgrade(
   if (hasDeadTowers && offers.includes(UID.SECOND_WIND)) {
     return UID.SECOND_WIND;
   }
-  const hasGruntsInZone = playerHasGruntsInZone(state, playerId);
+  const hasGruntsInZone = anyEntityInPlayerZone(state, playerId, state.grunts);
   if (hasGruntsInZone && offers.includes(UID.CLEAR_THE_FIELD)) {
     return UID.CLEAR_THE_FIELD;
   }
-  const hasPits = playerHasBurningPitsInZone(state, playerId);
+  const hasPits = anyEntityInPlayerZone(state, playerId, state.burningPits);
   if (hasPits && offers.includes(UID.FOUNDATIONS)) {
     return UID.FOUNDATIONS;
   }
@@ -184,28 +184,15 @@ function playerHasDeadTowers(
   return player.ownedTowers.some((tower) => !state.towerAlive[tower.index]);
 }
 
-function playerHasGruntsInZone(
+function anyEntityInPlayerZone(
   state: UpgradePickViewState,
   playerId: ValidPlayerId,
+  entities: readonly { row: number; col: number }[],
 ): boolean {
   const player = state.players[playerId];
   if (!player?.homeTower) return false;
   const zone = player.homeTower.zone;
-  return state.grunts.some(
-    (grunt) => zoneAt(state.map, grunt.row, grunt.col) === zone,
-  );
-}
-
-function playerHasBurningPitsInZone(
-  state: UpgradePickViewState,
-  playerId: ValidPlayerId,
-): boolean {
-  const player = state.players[playerId];
-  if (!player?.homeTower) return false;
-  const zone = player.homeTower.zone;
-  return state.burningPits.some(
-    (pit) => zoneAt(state.map, pit.row, pit.col) === zone,
-  );
+  return entities.some((e) => zoneAt(state.map, e.row, e.col) === zone);
 }
 
 function playerHasDeadCannons(
