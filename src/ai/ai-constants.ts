@@ -28,6 +28,12 @@ export const STEP = {
   CHAIN_DWELLING: "chain_dwelling",
   PICKING: "picking",
 } as const;
+/** Pause after placing a piece/cannon before thinking about the next one. */
+export const POST_PLACE_DELAY_SEC = 0.3;
+export const POST_PLACE_SPREAD_SEC = 0.4;
+/** Pause on target tile before attempting placement. */
+export const PRE_PLACE_DELAY_SEC = 0.2;
+export const PRE_PLACE_SPREAD_SEC = 0.3;
 
 /** Convert a duration in seconds to an integer tick count. */
 export function secondsToTicks(seconds: number): number {

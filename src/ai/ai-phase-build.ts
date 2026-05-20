@@ -16,7 +16,14 @@ import type {
   BuildViewState,
   PiecePlacementPreview,
 } from "../shared/core/system-interfaces.ts";
-import { STEP, secondsToTicks } from "./ai-constants.ts";
+import {
+  POST_PLACE_DELAY_SEC,
+  POST_PLACE_SPREAD_SEC,
+  PRE_PLACE_DELAY_SEC,
+  PRE_PLACE_SPREAD_SEC,
+  STEP,
+  secondsToTicks,
+} from "./ai-constants.ts";
 import type { BuildHost, BuildTickResult } from "./ai-strategy-types.ts";
 
 type BuildTarget = { piece: PieceShape } & TilePos;
@@ -47,12 +54,6 @@ const ROTATION_FRAME_RANGE = secondsToTicks(0.08);
 const ROTATION_INITIAL_BASE = secondsToTicks(0.15);
 /** Random variation added to the initial rotation delay (ticks). */
 const ROTATION_INITIAL_RANGE = secondsToTicks(0.1);
-/** Pause after placing a piece before thinking about the next one. */
-const POST_PLACE_DELAY_SEC = 0.3;
-const POST_PLACE_SPREAD_SEC = 0.4;
-/** Pause on target tile before attempting placement. */
-const PRE_PLACE_DELAY_SEC = 0.2;
-const PRE_PLACE_SPREAD_SEC = 0.3;
 /** Wait time when placement is blocked and retrying (ticks). */
 const BLOCKED_RETRY_DELAY = secondsToTicks(1.0);
 /** Minimum re-think delay after a blocked retry (ticks). */

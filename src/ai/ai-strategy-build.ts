@@ -55,7 +55,11 @@ import {
   FAT_WALL_TILE_PENALTY,
   scoreTopCandidates,
 } from "./ai-build-score.ts";
-import { canPieceFillAnyGap, plugUnreachableGaps } from "./ai-build-target.ts";
+import {
+  adjustInterior,
+  canPieceFillAnyGap,
+  plugUnreachableGaps,
+} from "./ai-build-target.ts";
 import type {
   AiPlacement,
   Candidate,
@@ -230,15 +234,11 @@ export function pickPlacement(
   // Interior excluding gaps and castle-rect tiles — lets the AI place pieces
   // freely inside an open (gapped) enclosure. Without this exclusion, scoring
   // would penalize placements near gaps that need filling.
-  const interiorExcludingGaps = new Set(getInterior(player));
-  for (const gapKey of targetGaps) interiorExcludingGaps.delete(gapKey);
-  if (targetRect) {
-    for (let r = targetRect.top; r <= targetRect.bottom; r++) {
-      for (let c = targetRect.left; c <= targetRect.right; c++) {
-        interiorExcludingGaps.delete(packTile(r, c));
-      }
-    }
-  }
+  const interiorExcludingGaps = adjustInterior(
+    getInterior(player),
+    targetGaps,
+    targetRect,
+  );
 
   const allCandidates = enumerateCandidates(
     state,

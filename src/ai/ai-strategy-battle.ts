@@ -14,7 +14,7 @@ import {
   filterActiveEnemies,
   getBattleInterior,
 } from "../shared/core/board-occupancy.ts";
-import { MODIFIER_ID, TOWER_SIZE } from "../shared/core/game-constants.ts";
+import { MODIFIER_ID } from "../shared/core/game-constants.ts";
 import type {
   CannonIdx,
   GameMap,
@@ -34,6 +34,7 @@ import {
   computeOutside,
   DIRS_4,
   DIRS_8,
+  forEachTowerTile,
   inBounds,
   isCannonTile,
   isGrass,
@@ -814,28 +815,22 @@ function collectGruntBlockingWallTargets(
     const enemyId = state.playerZones.indexOf(gruntZone);
     const enemy = enemyId >= 0 ? state.players[enemyId] : undefined;
     if (!enemy || isPlayerEliminated(enemy)) continue;
-    let bestTowerRow = tower.row,
-      bestTowerCol = tower.col,
-      bestDistance = Infinity;
-    for (let tileRow = tower.row; tileRow < tower.row + TOWER_SIZE; tileRow++) {
-      for (
-        let tileCol = tower.col;
-        tileCol < tower.col + TOWER_SIZE;
-        tileCol++
-      ) {
-        const distance = manhattanDistance(
-          tileRow,
-          tileCol,
-          grunt.row,
-          grunt.col,
-        );
-        if (distance < bestDistance) {
-          bestDistance = distance;
-          bestTowerRow = tileRow;
-          bestTowerCol = tileCol;
-        }
+    let bestTowerRow = tower.row;
+    let bestTowerCol = tower.col;
+    let bestDistance = Infinity;
+    forEachTowerTile(tower, (tileRow, tileCol) => {
+      const distance = manhattanDistance(
+        tileRow,
+        tileCol,
+        grunt.row,
+        grunt.col,
+      );
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        bestTowerRow = tileRow;
+        bestTowerCol = tileCol;
       }
-    }
+    });
     const dr = Math.sign(bestTowerRow - grunt.row);
     const dc = Math.sign(bestTowerCol - grunt.col);
     const dirs: [number, number][] = [];

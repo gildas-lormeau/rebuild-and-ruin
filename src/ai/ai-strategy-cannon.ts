@@ -455,6 +455,7 @@ function rampartNetWallCoverage(
   const existingRampartCenters: TilePos[] = [];
   for (const cannon of player.cannons) {
     if (!isCannonAlive(cannon) || !isRampartCannon(cannon)) continue;
+    if ((cannon.shieldHp ?? 0) <= 0) continue;
     if (!isCannonEnclosed(cannon, player)) continue;
     existingRampartCenters.push({ row: cannon.row + 1, col: cannon.col + 1 });
   }
@@ -495,7 +496,7 @@ function shouldPlaceBalloon(
     enemyHasThreateningSuperGun(state, enemy),
   );
   const hasEnemyCannons = enemyPlayers.some((enemy) =>
-    enemyHasLiveCannon(enemy),
+    enemyHasLiveCannon(state, enemy),
   );
 
   return (
@@ -505,8 +506,12 @@ function shouldPlaceBalloon(
   );
 }
 
-function enemyHasLiveCannon(enemy: Player): boolean {
-  return enemy.cannons.some((c) => isCannonAlive(c));
+function enemyHasLiveCannon(state: CannonViewState, enemy: Player): boolean {
+  return enemy.cannons.some((c) => {
+    if (!isCannonAlive(c)) return false;
+    if (state.capturedCannons.some((cc) => cc.cannon === c)) return false;
+    return true;
+  });
 }
 
 function enemyHasThreateningSuperGun(

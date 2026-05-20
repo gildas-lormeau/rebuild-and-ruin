@@ -86,7 +86,7 @@ function isGapFillableByAnyShape(
  * Gap tiles are ring holes, not forbidden interior; the rect interior is open
  * so the AI is free to extend pieces into it while filling gaps.
  */
-function adjustInterior(
+export function adjustInterior(
   interior: ReadonlySet<TileKey>,
   gaps: Set<TileKey>,
   rect?: TileRect | null,

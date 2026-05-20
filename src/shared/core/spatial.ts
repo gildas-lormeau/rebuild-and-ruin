@@ -394,31 +394,17 @@ export function isWater(
   return tiles[r]?.[c] === Tile.Water;
 }
 
-/** Build a set of all water tile keys — use as extra barriers for computeOutside. */
-export function waterKeys(tiles: readonly (readonly Tile[])[]): Set<TileKey> {
-  const water = new Set<TileKey>();
-  for (let r = 0; r < GRID_ROWS; r++)
-    for (let c = 0; c < GRID_COLS; c++)
-      if (tiles[r]![c] === Tile.Water) water.add(packTile(r, c));
-  return water;
-}
-
-/** Flood-fill from map edges to find all "outside" tiles (not enclosed by walls).
- *  `extraBarriers` (e.g. water keys) are treated as impassable, like walls. */
-export function computeOutside(
-  walls: ReadonlySet<TileKey>,
-  extraBarriers?: ReadonlySet<TileKey>,
-): Set<TileKey> {
+/** Flood-fill from map edges to find all "outside" tiles (not enclosed by walls). */
+export function computeOutside(walls: ReadonlySet<TileKey>): Set<TileKey> {
   const outside = new Set<TileKey>();
   // Parallel queues for r/c — avoids per-dequeue object allocation from unpackTile.
   const queueR: number[] = [];
   const queueC: number[] = [];
-  const hasExtra = extraBarriers !== undefined;
   // Seed boundary tiles directly (4 edges) instead of scanning the full grid.
   // Top + bottom rows.
   for (let c = 0; c < GRID_COLS; c++) {
     const topKey = c as TileKey; // packTile(0, c)
-    if (!walls.has(topKey) && !(hasExtra && extraBarriers.has(topKey))) {
+    if (!walls.has(topKey)) {
       outside.add(topKey);
       queueR.push(0);
       queueC.push(c);
@@ -426,7 +412,7 @@ export function computeOutside(
     if (GRID_ROWS > 1) {
       const botR = GRID_ROWS - 1;
       const botKey = (botR * GRID_COLS + c) as TileKey;
-      if (!walls.has(botKey) && !(hasExtra && extraBarriers.has(botKey))) {
+      if (!walls.has(botKey)) {
         outside.add(botKey);
         queueR.push(botR);
         queueC.push(c);
@@ -436,7 +422,7 @@ export function computeOutside(
   // Left + right columns (excluding corners — already covered above).
   for (let r = 1; r < GRID_ROWS - 1; r++) {
     const leftKey = (r * GRID_COLS) as TileKey;
-    if (!walls.has(leftKey) && !(hasExtra && extraBarriers.has(leftKey))) {
+    if (!walls.has(leftKey)) {
       outside.add(leftKey);
       queueR.push(r);
       queueC.push(0);
@@ -444,7 +430,7 @@ export function computeOutside(
     if (GRID_COLS > 1) {
       const rightC = GRID_COLS - 1;
       const rightKey = (r * GRID_COLS + rightC) as TileKey;
-      if (!walls.has(rightKey) && !(hasExtra && extraBarriers.has(rightKey))) {
+      if (!walls.has(rightKey)) {
         outside.add(rightKey);
         queueR.push(r);
         queueC.push(rightC);
@@ -457,7 +443,6 @@ export function computeOutside(
     forEachNeighbor8(r, c, (neighborR, neighborC, neighborKey) => {
       if (outside.has(neighborKey)) return;
       if (walls.has(neighborKey)) return;
-      if (hasExtra && extraBarriers.has(neighborKey)) return;
       outside.add(neighborKey);
       queueR.push(neighborR);
       queueC.push(neighborC);
@@ -471,8 +456,7 @@ export function computeOutside(
  *  re-flooding regions far from the added walls. Hot path for AI candidate
  *  scoring, which evaluates many small wall additions against the same baseline.
  *
- *  Requires `baselineOutside === computeOutside(baselineWalls)` with no
- *  `extraBarriers` — callers using extra barriers must keep using `computeOutside`. */
+ *  Requires `baselineOutside === computeOutside(baselineWalls)`. */
 export function computeOutsideAfterAdd(
   baselineOutside: ReadonlySet<TileKey>,
   newWallTiles: readonly TileKey[],

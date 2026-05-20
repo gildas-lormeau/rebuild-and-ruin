@@ -25,11 +25,7 @@ import type { PieceShape } from "../shared/core/pieces.ts";
 import { getInterior } from "../shared/core/player-interior.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import type { Player } from "../shared/core/player-types.ts";
-import {
-  computeOutside,
-  isTowerEnclosed,
-  waterKeys,
-} from "../shared/core/spatial.ts";
+import { computeOutside, isTowerEnclosed } from "../shared/core/spatial.ts";
 import type {
   BattleViewState,
   BuildViewState,
@@ -349,7 +345,7 @@ export class DefaultStrategy implements AiStrategy {
     const player = state.players[playerId]!;
     this._homeWasBroken = false;
     if (player.homeTower) {
-      const outside = computeOutside(player.walls, waterKeys(state.map.tiles));
+      const outside = computeOutside(player.walls);
       this._homeWasBroken = !isTowerEnclosed(player.homeTower, outside);
     }
   }

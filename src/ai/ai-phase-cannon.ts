@@ -15,7 +15,13 @@ import type {
   CannonViewState,
   PlaceCannonIntent,
 } from "../shared/core/system-interfaces.ts";
-import { STEP } from "./ai-constants.ts";
+import {
+  POST_PLACE_DELAY_SEC,
+  POST_PLACE_SPREAD_SEC,
+  PRE_PLACE_DELAY_SEC,
+  PRE_PLACE_SPREAD_SEC,
+  STEP,
+} from "./ai-constants.ts";
 import type {
   CannonHost,
   CannonPlacement,
@@ -44,15 +50,9 @@ interface CannonPhase {
   displayedMode: CannonMode | undefined;
 }
 
-/** Pause after placing or initializing before thinking about the next cannon. */
-const POST_PLACE_DELAY_SEC = 0.3;
-const POST_PLACE_SPREAD_SEC = 0.4;
 /** Pause during cannon mode switch animation (e.g. normal → balloon). */
 const MODE_SWITCH_DELAY_SEC = 0.25;
 const MODE_SWITCH_SPREAD_SEC = 0.2;
-/** Pause on target tile before attempting placement. */
-const PRE_PLACE_DELAY_SEC = 0.2;
-const PRE_PLACE_SPREAD_SEC = 0.3;
 /** AI cannon-phase cursor speed in tiles per second, indexed by cursorSkill-1
  *  (skill 1→[0], 2→[1], 3→[2]). */
 export const CANNON_CURSOR_SPEEDS = [3, 4, 5] as const;
