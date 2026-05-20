@@ -1,10 +1,10 @@
 /**
  * AI upgrade-pick: per-entry auto-resolve tick + contextual decision heuristic.
- * Determinism: `precomputeAiUpgradePicks` runs at `battle-done.mutate` so the
- * `state.rng.next()` fallback inside `aiPickUpgrade` is drawn once per peer in
- * lockstep — lazy draws in the dialog tick would drift across peers because
- * `shouldAutoResolve` is asymmetric (host skips remote slots, non-host skips
- * its own). Dialog tick reads `state.modern.precomputedUpgradePicks`.
+ * The pick is derived from a private Rng seeded by
+ * `deriveAiStrategySeed(state.rng.seed, state.round, playerId)` — every peer
+ * reproduces the same pick from state alone, so the dialog tick can call
+ * lazily without touching the shared lockstep `state.rng`. Mirrors the shape
+ * of `chooseLifeLost`.
  */
 
 import { deriveAiStrategySeed } from "../shared/core/ai-seed.ts";
@@ -14,7 +14,6 @@ import { getInterior } from "../shared/core/player-interior.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import { zoneAt } from "../shared/core/spatial.ts";
 import type { UpgradePickViewState } from "../shared/core/system-interfaces.ts";
-import type { GameState } from "../shared/core/types.ts";
 import { UID, type UpgradeId } from "../shared/core/upgrade-defs.ts";
 import { Rng } from "../shared/platform/rng.ts";
 import type { UpgradePickEntry } from "../shared/ui/interaction-types.ts";
@@ -38,9 +37,8 @@ const UPGRADE_PICK_LOCK_IN = secondsToTicks(0.35);
  *
  *  Phases of the animation:
  *    1. Cycling — focus steps through offers while autoTimer < lockInStart.
- *    2. Lock-in — points focusedCard at the eventual pick (from
- *                 precomputedUpgradePicks, idempotent) for the final
- *                 LOCK_IN window.
+ *    2. Lock-in — points focusedCard at `aiPickUpgrade` (idempotent — pure
+ *                 function of state) for the final LOCK_IN window.
  *    3. Commit — applies the pick to entry.choice, records pickedAtTimer. */
 export function tickAiUpgradePickEntry(
   entry: UpgradePickEntry,
@@ -56,7 +54,7 @@ export function tickAiUpgradePickEntry(
   const lockInStart = Math.max(0, effectiveDelay - UPGRADE_PICK_LOCK_IN);
 
   if (entry.autoTimer >= effectiveDelay) {
-    const pick = resolveAiPick(entry, state, true);
+    const pick = aiPickUpgrade(entry.offers, state, entry.playerId);
     entry.choice = pick;
     entry.focusedCard = entry.offers.indexOf(pick);
     entry.pickedAtTimer = dialogTimer;
@@ -65,7 +63,7 @@ export function tickAiUpgradePickEntry(
 
   if (entry.autoTimer >= lockInStart) {
     entry.focusedCard = entry.offers.indexOf(
-      resolveAiPick(entry, state, false),
+      aiPickUpgrade(entry.offers, state, entry.playerId),
     );
     return;
   }
@@ -78,56 +76,10 @@ export function tickAiUpgradePickEntry(
   entry.focusedCard = (((start + dir * rawStep) % len) + len) % len;
 }
 
-/** Precompute every alive player's AI upgrade pick at battle-done.mutate,
- *  right after `prepareNextRound` populated `pendingUpgradeOffers`. Anchors
- *  every `state.rng.next()` draw to a deterministic state-mutation point
- *  that runs identically on every peer — see file header for why the lazy
- *  per-tick draw was peer-asymmetric.
- *
- *  No-op when not in modern mode or before UPGRADE_FIRST_ROUND (offers
- *  would be null in those cases). */
-export function precomputeAiUpgradePicks(state: GameState): void {
-  const offers = state.modern?.pendingUpgradeOffers;
-  if (!offers) return;
-  const picks = new Map<ValidPlayerId, UpgradeId>();
-  for (const [playerId, playerOffers] of offers) {
-    picks.set(playerId, aiPickUpgrade(playerOffers, state, playerId));
-  }
-  state.modern!.precomputedUpgradePicks = picks;
-}
-
-/** Resolve the AI's pick for a pending entry — prefers the deterministic
- *  precomputed value (drawn from `state.rng` at battle-done.mutate), falls
- *  back to a fresh `aiPickUpgrade` call if precompute didn't run (unit
- *  tests that build the dialog without going through battle-done).
- *
- *  Parity hazard: the fallback draws from `state.rng` lazily and
- *  asymmetrically (only AI slots whose precompute slot is missing draw),
- *  so an online peer hitting this path mid-match would drift. The
- *  `warnIfMissing` flag — set only on the commit tick — surfaces the
- *  drift in dev / test output without spamming once-per-frame through
- *  the lock-in window. Any production hit indicates a missing
- *  precompute call site to fix. */
-function resolveAiPick(
-  entry: UpgradePickEntry,
-  state: UpgradePickViewState,
-  warnIfMissing: boolean,
-): UpgradeId {
-  const precomputed = state.modern?.precomputedUpgradePicks?.get(
-    entry.playerId,
-  );
-  if (precomputed !== undefined) return precomputed;
-  if (warnIfMissing) {
-    console.warn(
-      `ai-upgrade-pick: precomputedUpgradePicks missing for player ${entry.playerId} — falling back to state.rng draw (parity hazard in multiplayer)`,
-    );
-  }
-  return aiPickUpgrade(entry.offers, state, entry.playerId);
-}
-
 /** AI-aware pick: contextual upgrade selection based on game state.
- *  File-local — invoked by `precomputeAiUpgradePicks` (deterministic,
- *  battle-done anchor) and by `resolveAiPick` as a defensive fallback. */
+ *  File-local — invoked by `tickAiUpgradePickEntry`. Pure function of
+ *  `(state.rng.seed, state.round, playerId)` via `deriveAiStrategySeed`,
+ *  so every peer reproduces the same pick without touching `state.rng`. */
 function aiPickUpgrade(
   offers: readonly [UpgradeId, UpgradeId, UpgradeId],
   state: UpgradePickViewState,

@@ -7,7 +7,6 @@
  * events are observation-only — never control flow.
  */
 
-import { precomputeAiUpgradePicks } from "../ai/ai-upgrade-pick.ts";
 import type { GameOverReason } from "../game/index.ts";
 import {
   applyUpgradePicks,
@@ -432,13 +431,6 @@ const BATTLE_DONE: Transition = {
       ctx.log(`supply ships resolved: ${summary}`);
     }
     prepareNextRound(ctx.state);
-    // Lockstep anchor for the AI upgrade-pick decision: drains
-    // `state.rng` once per alive player, here on every peer, so the
-    // dialog's runtime tick reads a precomputed value instead of
-    // calling `aiPickUpgrade` lazily at lock-in. See
-    // `ai/ai-upgrade-pick.ts` header for the asymmetry that motivated
-    // this anchor.
-    precomputeAiUpgradePicks(ctx.state);
     ctx.broadcast?.buildStart?.();
     return EMPTY_TRANSITION_RESULT;
   },
@@ -468,10 +460,6 @@ const CEASEFIRE: Transition = {
     ctx.log(`ceasefire: skipping battle (round=${ctx.state.round})`);
     ctx.scoreDelta.reset?.();
     ctx.ceasefireSkipBattle?.();
-    // Same lockstep anchor as battle-done — `ceasefireSkipBattle` calls
-    // `enterBuildSkippingBattle` which runs `prepareNextRound`, so the
-    // upgrade offers exist by this point.
-    precomputeAiUpgradePicks(ctx.state);
     ctx.broadcast?.buildStart?.();
     return EMPTY_TRANSITION_RESULT;
   },
