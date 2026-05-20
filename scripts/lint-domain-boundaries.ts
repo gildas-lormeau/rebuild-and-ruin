@@ -88,12 +88,8 @@ const typeOnlyViolations: TypeOnlyViolation[] = [];
 const dynamicImportViolations: DynamicImportViolation[] = [];
 const diskFiles: string[] = [];
 const unassigned = diskFiles.filter((f) => !fileToDomain.has(f));
-// Report
-const totalViolations =
-  violations.length +
-  typeOnlyViolations.length +
-  dynamicImportViolations.length;
 
+// Report
 let checkedFiles = 0;
 let checkedImports = 0;
 
@@ -147,13 +143,11 @@ for (const sf of project.getSourceFiles()) {
     const depAbs = ref.resolved.getFilePath();
     const depRel = path.relative(ROOT, depAbs);
     const depDomain = fileToDomain.get(depRel);
-
     if (!depDomain) continue; // dep not in any domain (external)
     checkedImports++;
 
     // Same-domain imports are always allowed
     if (depDomain === fileDomain) continue;
-
     if (!allowed.has(depDomain)) {
       violations.push({
         file: relFile,
@@ -284,7 +278,15 @@ for (const dir of ["src", "server"]) {
   }
 }
 
-if (totalViolations === 0 && unassigned.length === 0) {
+// Inline lengths to dodge biome const-hoist: declaring totalViolations
+// here gets reordered above the violation-push loops (memory:
+// feedback_biome_const_hoist.md), making the check stale-zero.
+if (
+  violations.length === 0 &&
+  typeOnlyViolations.length === 0 &&
+  dynamicImportViolations.length === 0 &&
+  unassigned.length === 0
+) {
   console.log(
     `\n✔ No domain boundary violations (${checkedFiles} files, ${checkedImports} imports checked)\n`,
   );
