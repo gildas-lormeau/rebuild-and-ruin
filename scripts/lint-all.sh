@@ -5,7 +5,7 @@
 # surfaces every broken check.
 
 TMP=$(mktemp -d)
-trap 'rm -rf "$TMP"' EXIT
+trap 'rc=$?; if [ "$rc" -ne 0 ] && [ -d "$TMP" ]; then rm -rf .git/lint-all-last; mv "$TMP" .git/lint-all-last; echo "lint:all: logs preserved in .git/lint-all-last/" >&2; else rm -rf "$TMP"; fi' EXIT
 
 # run LABEL CMD...
 #   Executes CMD, logs to $TMP/LABEL.log. On failure, touches $TMP/FAILED.LABEL.
