@@ -286,8 +286,8 @@ function applyPlayersCheckpoint(
       facing: c.facing ?? player.defaultFacing,
       mortar: c.mortar,
       shielded: c.shielded,
-      shieldHp: c.shieldHp || undefined,
-      balloonHits: c.balloonHits || undefined,
+      shieldHp: c.shieldHp,
+      balloonHits: c.balloonHits,
       balloonCapturerIds: c.balloonCapturerIds?.length
         ? ([...c.balloonCapturerIds] as ValidPlayerId[])
         : undefined,
@@ -386,8 +386,8 @@ function serializeCannon(cannon: Cannon) {
     facing: cannon.facing ?? 0,
     mortar: cannon.mortar,
     shielded: cannon.shielded,
-    shieldHp: cannon.shieldHp || undefined,
-    balloonHits: cannon.balloonHits || undefined,
+    shieldHp: cannon.shieldHp,
+    balloonHits: cannon.balloonHits,
     balloonCapturerIds: cannon.balloonCapturerIds?.length
       ? cannon.balloonCapturerIds
       : undefined,
