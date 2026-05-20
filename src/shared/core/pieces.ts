@@ -275,8 +275,12 @@ export function rotateCW(piece: PieceShape): PieceShape {
 
 /** Normalized key for a piece shape (origin-independent). */
 function pieceKey(pieceShape: PieceShape): string {
-  const minR = Math.min(...pieceShape.offsets.map((offset) => offset[0]));
-  const minC = Math.min(...pieceShape.offsets.map((offset) => offset[1]));
+  let minR = Infinity;
+  let minC = Infinity;
+  for (const [r, c] of pieceShape.offsets) {
+    if (r < minR) minR = r;
+    if (c < minC) minC = c;
+  }
   return [...pieceShape.offsets]
     .map(([r, c]) => [r - minR, c - minC] as [number, number])
     .sort((a, b) => a[0] - b[0] || a[1] - b[1])

@@ -1095,9 +1095,13 @@ function jitterWithinTile(
 
 /** Check if a 4-tile pocket forms a 2x2 square (can fit a cannon). */
 function is2x2(keys: readonly TileKey[]): boolean {
-  const tiles = keys.map((key) => unpackTile(key));
-  const minRow = Math.min(...tiles.map((tile) => tile.r));
-  const minCol = Math.min(...tiles.map((tile) => tile.c));
+  let minRow = Infinity;
+  let minCol = Infinity;
+  for (const key of keys) {
+    const { r, c } = unpackTile(key);
+    if (r < minRow) minRow = r;
+    if (c < minCol) minCol = c;
+  }
   const expected: Set<TileKey> = new Set([
     packTile(minRow, minCol),
     packTile(minRow, minCol + 1),
