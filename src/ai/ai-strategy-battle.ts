@@ -970,11 +970,12 @@ function pickEnclosureWallTarget(
     targetMemory.anchorTileKey = enclosure.tiles[0];
   }
 
-  // Find walls bordering this enclosure (4-dir adjacent to an enclosure tile)
-  const enclosureTileSet = new Set(enclosure.tiles);
+  // Find walls bordering this enclosure (4-dir adjacent to an enclosure tile).
+  // `enclosure.tiles` is already unique (built by findEnclosureComponents BFS
+  // with a visited set), so iterate it directly instead of allocating a Set.
   const seen = new Set<TileKey>();
   const borderWalls: TilePos[] = [];
-  for (const key of enclosureTileSet) {
+  for (const key of enclosure.tiles) {
     const { r, c } = unpackTile(key);
     for (const [dr, dc] of DIRS_4) {
       const nr = r + dr;
