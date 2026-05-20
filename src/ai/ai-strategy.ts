@@ -52,6 +52,7 @@ import {
   planStructuralHit,
   planSuperAttack,
   planWallDemolition,
+  type ShotKey,
   trackShot,
 } from "./ai-strategy-battle.ts";
 import { findOuterRingHoles, pickPlacement } from "./ai-strategy-build.ts";
@@ -223,7 +224,7 @@ export function rollPersonality(
 export class DefaultStrategy implements AiStrategy {
   /** Shot count per cannon — tracks hits to know when to stop targeting.
    *  Keyed by (playerId << 8 | cannonIdx) to survive checkpoint cannon replacement. */
-  private shotCounts = new Map<number, number>();
+  private shotCounts = new Map<ShotKey, number>();
   /** Focus fire on this player during battle. */
   private focusFirePlayerId: ValidPlayerId | undefined;
   /** Sticky enclosure target — prevents per-shot oscillation between
@@ -324,17 +325,18 @@ export class DefaultStrategy implements AiStrategy {
   }
 
   /** Lazily snapshot outer-ring breach tiles on the first build-phase tick
-   *  of each round. Invalidates when state.round changes. Returns undefined
-   *  when the player has no castle yet (round 1 pre-CASTLE_SELECT path). */
+   *  of each round. Invalidates when state.round changes. Empty set when
+   *  the player has no walls/castle yet — findOuterRingHoles is cheap on
+   *  an empty wall set, so we always return a real set rather than
+   *  threading an undefined sentinel through the build pipeline. */
   private ensureOuterRingHolesSnapshot(
     state: BuildViewState,
     playerId: ValidPlayerId,
-  ): ReadonlySet<TileKey> | undefined {
-    const player = state.players[playerId];
-    if (!player || player.castleWallTiles.size === 0) return undefined;
+  ): ReadonlySet<TileKey> {
     if (this._outerRingHolesSnapshot?.round === state.round) {
       return this._outerRingHolesSnapshot.holes;
     }
+    const player = state.players[playerId]!;
     const holes = findOuterRingHoles(player.walls, state, getInterior(player));
     this._outerRingHolesSnapshot = { round: state.round, holes };
     return holes;
@@ -356,11 +358,7 @@ export class DefaultStrategy implements AiStrategy {
   // Cannon placement
   // -----------------------------------------------------------------------
 
-  initCannonPhase(
-    player: Player,
-    count: number,
-    _state: CannonViewState,
-  ): CannonPlacementContext {
+  initCannonPhase(player: Player, count: number): CannonPlacementContext {
     return createCannonPlacementContext(
       player,
       count,
@@ -567,21 +565,6 @@ export class DefaultStrategy implements AiStrategy {
 
   reset(): void {
     this.onLifeLost();
-    this.shotCounts = new Map();
+    this.shotCounts = new Map<ShotKey, number>();
   }
-}
-
-/** Standalone pickPlacement wrapper for headless tests / external callers. */
-export function pickPlacementStandalone(
-  state: BuildViewState,
-  playerId: ValidPlayerId,
-  piece: PieceShape,
-  cursorPos?: TilePos,
-): AiPlacement | null {
-  return pickPlacement(
-    state,
-    playerId,
-    piece,
-    cursorPos ? { cursorPos } : undefined,
-  );
 }

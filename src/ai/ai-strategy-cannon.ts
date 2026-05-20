@@ -18,7 +18,10 @@ import {
   isSuperCannon,
 } from "../shared/core/battle-types.ts";
 import { filterActiveEnemies } from "../shared/core/board-occupancy.ts";
-import { RAMPART_SHIELD_RADIUS } from "../shared/core/game-constants.ts";
+import {
+  GAME_MODE_MODERN,
+  RAMPART_SHIELD_RADIUS,
+} from "../shared/core/game-constants.ts";
 import type { GameMap, TilePos, Tower } from "../shared/core/geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, type TileKey } from "../shared/core/grid.ts";
 import { getInterior } from "../shared/core/player-interior.ts";
@@ -91,7 +94,7 @@ export function autoSelectTower(
   map: GameMap,
   zone: ZoneId,
   rng: Rng,
-  spatialAwareness = 2,
+  spatialAwareness: 1 | 2 | 3,
 ): Tower | null {
   const zoneTowers = map.towers.filter((tower) => tower.zone === zone);
   if (zoneTowers.length === 0) return null;
@@ -145,9 +148,9 @@ export function createCannonPlacementContext(
   player: Player,
   count: number,
   rng: Rng,
-  aggressiveness = 2,
-  defensiveness = 2,
-  spatialAwareness = 2,
+  aggressiveness: 1 | 2 | 3,
+  defensiveness: 1 | 2 | 3,
+  spatialAwareness: 1 | 2 | 3,
 ): CannonPlacementContext {
   // Cannon scoring noise — controlled by spatialAwareness
   // 1 = noisy (×5), 2 = default (×1), 3 = precise (×0.25)
@@ -228,7 +231,7 @@ export function nextCannonPlacement(
   if (ctx.pendingRampart) {
     ctx.pendingRampart = false;
     if (
-      state.gameMode === "modern" &&
+      state.gameMode === GAME_MODE_MODERN &&
       slotsLeft >= cannonSlotCost(CannonMode.RAMPART) &&
       normalCandidates.length >= 4
     ) {
@@ -318,8 +321,8 @@ function scoreCannonPosition(
   mode: CannonMode,
   state: CannonViewState,
   rng: Rng,
-  noiseScale = 1,
-  towerCenters: readonly TilePos[] = player.ownedTowers.map(towerCenter),
+  noiseScale: number,
+  towerCenters: readonly TilePos[],
 ): number {
   const size = cannonSize(mode);
   let score = 0;

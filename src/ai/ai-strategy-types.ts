@@ -141,11 +141,11 @@ export interface CannonHost {
 export interface BattleHost {
   readonly playerId: ValidPlayerId;
   readonly strategy: AiStrategy;
-  crosshair: { x: number; y: number };
+  crosshair: PixelPos;
   readonly cannonRotationIdx: number | undefined;
   readonly anticipatesTarget: boolean;
   scaledDelay(base: number, spread: number): number;
-  stepCrosshairToward(tx: number, ty: number): boolean;
+  stepCrosshairToward(tx: PixelPos["x"], ty: PixelPos["y"]): boolean;
   fire(state: BattleViewState): FireIntent | null;
 }
 
@@ -170,11 +170,7 @@ export interface AiStrategy {
   /** Initialize per-phase cannon-placement context — pre-rolls the
    *  probabilistic super/rampart/balloon decisions so subsequent
    *  per-cannon queries are deterministic. Called once at phase start. */
-  initCannonPhase(
-    player: Player,
-    count: number,
-    state: CannonViewState,
-  ): CannonPlacementContext;
+  initCannonPhase(player: Player, count: number): CannonPlacementContext;
 
   /** Decide the next single cannon placement. Returns `undefined` when
    *  the AI has run out of slots or legal positions. Called each time

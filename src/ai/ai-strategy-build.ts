@@ -15,7 +15,12 @@ import {
   hasAliveHouseAt,
   hasGruntAt,
 } from "../shared/core/board-occupancy.ts";
-import type { Castle, TileRect, Tower } from "../shared/core/geometry-types.ts";
+import type {
+  Castle,
+  TileBounds,
+  TileRect,
+  Tower,
+} from "../shared/core/geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, type TileKey } from "../shared/core/grid.ts";
 import { type PieceShape, rotateCW } from "../shared/core/pieces.ts";
 import { getInterior } from "../shared/core/player-interior.ts";
@@ -64,8 +69,8 @@ import type {
 import {
   castleRect,
   computeFillableGaps,
-  filterUnfillableGaps,
   findGapTiles,
+  findReachableRingGaps,
   hasMeaningfulHomeRingGaps,
   scoreBuildTowerTarget,
 } from "./ai-castle-rect.ts";
@@ -91,6 +96,10 @@ const EXPANSION_TIERS: readonly { minFreeRatio: number; maxExpand: number }[] =
     { minFreeRatio: 0.1, maxExpand: 4 },
   ];
 const EXPANSION_DEFAULT_MAX = 5;
+/** Tiles the territory-expansion ring extends past the existing wall bbox
+ *  when all towers are already enclosed (`tryExpandTerritory`). One ring of
+ *  walls is the bbox itself; this is the *outward* growth budget on top. */
+const TERRITORY_EXPAND_RING = 2;
 const BUILD_SKILL_TABLE = [
   /*1*/ {
     topCandidates: 12,
@@ -140,7 +149,7 @@ export function pickPlacement(
   state: BuildViewState,
   playerId: ValidPlayerId,
   piece: PieceShape,
-  options?: PlacementOptions,
+  options: PlacementOptions,
 ): AiPlacement | null {
   const {
     cursorPos,
@@ -153,7 +162,7 @@ export function pickPlacement(
     caresAboutBonuses = true,
     buildSkill = 3,
     outerRingHolesSnapshot,
-  } = options ?? {};
+  } = options;
   const maybePlayer = state.players[playerId];
   if (!maybePlayer || maybePlayer.castleWallTiles.size === 0) return null;
   const player = maybePlayer;
@@ -280,6 +289,67 @@ export function pickPlacement(
     hasManageableGaps:
       targetGaps.size > 0 && targetGaps.size <= MANAGEABLE_GAP_LIMIT,
   });
+}
+
+/** Identify real breach points by scanning for short non-wall runs between
+ *  paired *ring* walls. A "ring wall" is a wall whose outer face touches the
+ *  exterior — i.e. has at least one 4-dir neighbor in computeOutside. The
+ *  ring-wall filter prevents the pair-scan from inventing pseudo-gaps
+ *  between newly-placed walls inside the enclosure as the AI fills holes. */
+export function findOuterRingHoles(
+  walls: ReadonlySet<TileKey>,
+  state: BuildViewState,
+  interior: ReadonlySet<TileKey>,
+): Set<TileKey> {
+  const outside = computeOutside(walls);
+  const isRingWall = (key: TileKey): boolean => {
+    const { r, c } = unpackTile(key);
+    for (const [dr, dc] of DIRS_4) {
+      const nr = r + dr;
+      const nc = c + dc;
+      if (!inBounds(nr, nc)) continue;
+      if (outside.has(packTile(nr, nc))) return true;
+    }
+    return false;
+  };
+  const holes = new Set<TileKey>();
+  for (const wallKey of walls) {
+    if (!isRingWall(wallKey)) continue;
+    const { r: wr, c: wc } = unpackTile(wallKey);
+    for (const [dr, dc] of DIRS_4) {
+      for (let step = 2; step <= HOLE_MAX_WIDTH + 1; step++) {
+        const nr = wr + dr * step;
+        const nc = wc + dc * step;
+        if (nr < 0 || nr >= GRID_ROWS || nc < 0 || nc >= GRID_COLS) break;
+        let allFillable = true;
+        for (let inner = 1; inner < step; inner++) {
+          const ir = wr + dr * inner;
+          const ic = wc + dc * inner;
+          if (walls.has(packTile(ir, ic))) {
+            allFillable = false;
+            break;
+          }
+          if (
+            !isGrass(state.map.tiles, ir, ic) ||
+            hasPitAt(state.burningPits, ir, ic) ||
+            interior.has(packTile(ir, ic))
+          ) {
+            allFillable = false;
+            break;
+          }
+        }
+        if (!allFillable) continue;
+        const farKey = packTile(nr, nc);
+        if (walls.has(farKey) && isRingWall(farKey)) {
+          for (let inner = 1; inner < step; inner++) {
+            holes.add(packTile(wr + dr * inner, wc + dc * inner));
+          }
+          break;
+        }
+      }
+    }
+  }
+  return holes;
 }
 
 /** Pick the best placement from scored candidates, with gap-filler priority and fallback. */
@@ -686,9 +756,13 @@ function tryRepairHomeCastle(ctx: TargetContext): TargetResult {
       break;
     }
   }
-  targetGaps = findGapTiles({ top, bottom, left, right }, player.walls);
-  filterUnfillableGaps(targetGaps, state, getInterior(player));
   const targetRect: TileRect = { top, bottom, left, right };
+  targetGaps = findReachableRingGaps(
+    targetRect,
+    player.walls,
+    state,
+    getInterior(player),
+  );
 
   // Verify the piece can actually fill these gaps (try plugging if needed)
   if (
@@ -707,7 +781,7 @@ function tryRepairHomeCastle(ctx: TargetContext): TargetResult {
  *  outer ring is too far gone to be worth chasing — caller then falls
  *  back to the ideal-castle repair logic. */
 function tryRepairOuterRing(ctx: TargetContext): TargetResult {
-  const { state, player, castle } = ctx;
+  const { player, castle } = ctx;
   if (player.walls.size === 0) return NO_TARGET;
   const outerRect = computeWallsInteriorBox(player.walls);
   if (!outerRect) return NO_TARGET;
@@ -731,14 +805,11 @@ function tryRepairOuterRing(ctx: TargetContext): TargetResult {
     (castle.bottom - castle.top + 1) * (castle.right - castle.left + 1);
   if (outerArea <= idealArea) return NO_TARGET;
   // Detect breach tiles by scanning for short non-wall runs between paired
-  // walls. This works for any ring shape (rectangular, stair-stepped,
-  // water-bounded) and catches holes anywhere along the ring, not just on
-  // the bbox perimeter. When the strategy has snapshotted the initial gap
-  // set for this phase, prefer that — recomputing each tick picks up
-  // "phantom" gaps where AI-placed walls happen to pair with original walls.
-  const gaps = ctx.outerRingHolesSnapshot
-    ? snapshotMinusFilled(ctx.outerRingHolesSnapshot, player.walls)
-    : findOuterRingHoles(player.walls, state, getInterior(player));
+  // walls. The strategy snapshots the initial gap set on the first tick of
+  // each build phase; we drop tiles the AI has since walled. Recomputing
+  // each tick would pick up "phantom" gaps where AI-placed walls happen to
+  // pair with original walls, dispersing the AI's focus.
+  const gaps = snapshotMinusFilled(ctx.outerRingHolesSnapshot, player.walls);
   // Already closed (gaps=0) means the outer ring isn't actually breached;
   // homeTowerEnclosed would also be true and we wouldn't reach this path.
   // Many gaps means the outer ring is too shelled to be a realistic target
@@ -752,67 +823,6 @@ function tryRepairOuterRing(ctx: TargetContext): TargetResult {
   // castle. Inner-castle construction would break the outer ring and the
   // end-of-build wall sweep would then destroy the player's investment.
   return { targetGaps: gaps, targetRect: outerRect };
-}
-
-/** Identify real breach points by scanning for short non-wall runs between
- *  paired *ring* walls. A "ring wall" is a wall whose outer face touches the
- *  exterior — i.e. has at least one 4-dir neighbor in computeOutside. The
- *  ring-wall filter prevents the pair-scan from inventing pseudo-gaps
- *  between newly-placed walls inside the enclosure as the AI fills holes. */
-export function findOuterRingHoles(
-  walls: ReadonlySet<TileKey>,
-  state: BuildViewState,
-  interior: ReadonlySet<TileKey>,
-): Set<TileKey> {
-  const outside = computeOutside(walls);
-  const isRingWall = (key: TileKey): boolean => {
-    const { r, c } = unpackTile(key);
-    for (const [dr, dc] of DIRS_4) {
-      const nr = r + dr;
-      const nc = c + dc;
-      if (!inBounds(nr, nc)) continue;
-      if (outside.has(packTile(nr, nc))) return true;
-    }
-    return false;
-  };
-  const holes = new Set<TileKey>();
-  for (const wallKey of walls) {
-    if (!isRingWall(wallKey)) continue;
-    const { r: wr, c: wc } = unpackTile(wallKey);
-    for (const [dr, dc] of DIRS_4) {
-      for (let step = 2; step <= HOLE_MAX_WIDTH + 1; step++) {
-        const nr = wr + dr * step;
-        const nc = wc + dc * step;
-        if (nr < 0 || nr >= GRID_ROWS || nc < 0 || nc >= GRID_COLS) break;
-        let allFillable = true;
-        for (let inner = 1; inner < step; inner++) {
-          const ir = wr + dr * inner;
-          const ic = wc + dc * inner;
-          if (walls.has(packTile(ir, ic))) {
-            allFillable = false;
-            break;
-          }
-          if (
-            !isGrass(state.map.tiles, ir, ic) ||
-            hasPitAt(state.burningPits, ir, ic) ||
-            interior.has(packTile(ir, ic))
-          ) {
-            allFillable = false;
-            break;
-          }
-        }
-        if (!allFillable) continue;
-        const farKey = packTile(nr, nc);
-        if (walls.has(farKey) && isRingWall(farKey)) {
-          for (let inner = 1; inner < step; inner++) {
-            holes.add(packTile(wr + dr * inner, wc + dc * inner));
-          }
-          break;
-        }
-      }
-    }
-  }
-  return holes;
 }
 
 /** Filter a snapshot gap set to tiles still un-walled. */
@@ -829,24 +839,14 @@ function snapshotMinusFilled(
  *  shape findGapTiles expects (interior tiles, with the wall ring one tile
  *  outside). Returns null when the walls don't span at least a 3×3 area. */
 function computeWallsInteriorBox(walls: ReadonlySet<TileKey>): TileRect | null {
-  let minR = Infinity,
-    maxR = -Infinity,
-    minC = Infinity,
-    maxC = -Infinity;
-  for (const key of walls) {
-    const { r, c } = unpackTile(key);
-    if (r < minR) minR = r;
-    if (r > maxR) maxR = r;
-    if (c < minC) minC = c;
-    if (c > maxC) maxC = c;
-  }
-  if (!Number.isFinite(minR)) return null;
-  if (maxR - minR < 2 || maxC - minC < 2) return null;
+  const bbox = computeWallsBBox(walls);
+  if (bbox === null) return null;
+  if (bbox.maxR - bbox.minR < 2 || bbox.maxC - bbox.minC < 2) return null;
   return {
-    top: minR + 1,
-    bottom: maxR - 1,
-    left: minC + 1,
-    right: maxC - 1,
+    top: bbox.minR + 1,
+    bottom: bbox.maxR - 1,
+    left: bbox.minC + 1,
+    right: bbox.maxC - 1,
   };
 }
 
@@ -979,23 +979,13 @@ function tryExpandTerritory(ctx: TargetContext): TargetResult {
   const { state, player, bankHugging, allCastlesEnclosed } = ctx;
   if (!allCastlesEnclosed) return NO_TARGET;
 
-  let minR = GRID_ROWS,
-    maxR = 0,
-    minC = GRID_COLS,
-    maxC = 0;
-  for (const key of player.walls) {
-    const { r, c } = unpackTile(key);
-    if (r < minR) minR = r;
-    if (r > maxR) maxR = r;
-    if (c < minC) minC = c;
-    if (c > maxC) maxC = c;
-  }
-  const EXPAND = 2;
+  const bbox = computeWallsBBox(player.walls);
+  if (bbox === null) return NO_TARGET;
   const expandRect: TileRect = {
-    top: Math.max(1, minR + 1),
-    bottom: Math.min(GRID_ROWS - 2, maxR - 1 + EXPAND),
-    left: Math.max(1, minC + 1),
-    right: Math.min(GRID_COLS - 2, maxC - 1 + EXPAND),
+    top: Math.max(1, bbox.minR + 1),
+    bottom: Math.min(GRID_ROWS - 2, bbox.maxR - 1 + TERRITORY_EXPAND_RING),
+    left: Math.max(1, bbox.minC + 1),
+    right: Math.min(GRID_COLS - 2, bbox.maxC - 1 + TERRITORY_EXPAND_RING),
   };
   if (
     expandRect.top > expandRect.bottom ||
@@ -1012,6 +1002,24 @@ function tryExpandTerritory(ctx: TargetContext): TargetResult {
   );
   if (gaps.size > 0) return { targetGaps: gaps, targetRect: expandRect };
   return NO_TARGET;
+}
+
+/** Min/max R,C bounding box of a wall set (empty → null). Callers shape it
+ *  into whatever rect they need — interior box, expansion ring, etc. */
+function computeWallsBBox(walls: ReadonlySet<TileKey>): TileBounds | null {
+  let minR = Infinity,
+    maxR = -Infinity,
+    minC = Infinity,
+    maxC = -Infinity;
+  for (const key of walls) {
+    const { r, c } = unpackTile(key);
+    if (r < minR) minR = r;
+    if (r > maxR) maxR = r;
+    if (c < minC) minC = c;
+    if (c > maxC) maxC = c;
+  }
+  if (!Number.isFinite(minR)) return null;
+  return { minR, maxR, minC, maxC };
 }
 
 /** Analyze board enclosures: which towers are open, whether to skip home, etc. */
@@ -1053,8 +1061,12 @@ function analyzeEnclosures(
           castleMargin,
           !bankHugging,
         );
-        const ringGaps = findGapTiles(rect, player.walls);
-        filterUnfillableGaps(ringGaps, state, getInterior(player));
+        const ringGaps = findReachableRingGaps(
+          rect,
+          player.walls,
+          state,
+          getInterior(player),
+        );
         if (ringGaps.size > 0) return true; // real gaps need filling
         return false;
       }

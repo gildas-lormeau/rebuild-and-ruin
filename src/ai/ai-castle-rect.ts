@@ -49,8 +49,8 @@ const DEAD_TOWER_PENALTY = 50;
 const OBSTRUCTION_PENALTY = 60;
 
 /**
- * Compute the fillable gap set for a castle rect: find ring gaps, remove
- * unfillable tiles, and optionally add bank-plug gaps for water ring tiles.
+ * Compute the fillable gap set for a castle rect: reachable ring gaps plus
+ * bank/pit plug gaps for diagonal-leak sealing.
  */
 export function computeFillableGaps(
   rect: TileRect,
@@ -59,8 +59,7 @@ export function computeFillableGaps(
   state: BuildViewState,
   bankHugging: boolean,
 ): Set<TileKey> {
-  const gaps = findGapTiles(rect, walls);
-  filterUnfillableGaps(gaps, state, interior);
+  const gaps = findReachableRingGaps(rect, walls, state, interior);
   // Pit plugs always needed; water plugs only when bankHugging
   addBankPlugGaps(
     gaps,
@@ -133,9 +132,24 @@ export function hasMeaningfulHomeRingGaps(
   // ring gaps are cosmetic and not worth pursuing.
   if (!towerReachesOutsideCardinal(castle.tower, walls, outside)) return false;
 
-  const gaps = findGapTiles(castle, walls);
+  return findReachableRingGaps(castle, walls, state, interior).size > 0;
+}
+
+/**
+ * Ring gaps reachable by some piece: `findGapTiles + filterUnfillableGaps`,
+ * without the bank/pit plug step. Use this when a caller wants "real" gaps
+ * to repair (no diagonal-leak plugs added). Use `computeFillableGaps` when
+ * a placement target needs the plug seal too.
+ */
+export function findReachableRingGaps(
+  rect: TileRect,
+  walls: ReadonlySet<TileKey>,
+  state: BuildViewState,
+  interior: ReadonlySet<TileKey>,
+): Set<TileKey> {
+  const gaps = findGapTiles(rect, walls);
   filterUnfillableGaps(gaps, state, interior);
-  return gaps.size > 0;
+  return gaps;
 }
 
 /** Remove gaps that can't be filled (non-grass, burning pit, cannon, tower, inside interior). */
@@ -265,7 +279,7 @@ export function castleRect(
   tiles: readonly (readonly Tile[])[],
   towers: readonly Tower[],
   margin: number,
-  shrinkCorners = true,
+  shrinkCorners: boolean,
 ): TileRect {
   const ctx: MarginCtx = { margin, tiles, towers, self: tower };
   // Per-side max before obstacle
@@ -517,13 +531,28 @@ function addBankPlugGaps(
       }
     }
   }
-  // For each unfillable ring tile, add interior-facing grass neighbors as plug gaps
-  for (const wallKey of unfillableRing) {
-    const { r: wr, c: wc } = unpackTile(wallKey);
+  addInteriorPlugGaps(gaps, unfillableRing, rect, walls, tiles);
+}
+
+/**
+ * Add interior-facing grass neighbors of each `sourceTile` as plug gaps —
+ * a single 8-dir step from each source, staying inside `rect`, skipping
+ * walls and non-grass tiles. Seals diagonal flood-fill leaks both at
+ * bank/pit ring gaps (`addBankPlugGaps`) and at interior unreachable gaps
+ * (`plugUnreachableGaps` in ai-build-target.ts).
+ */
+export function addInteriorPlugGaps(
+  gaps: Set<TileKey>,
+  sourceTiles: Iterable<TileKey>,
+  rect: TileRect,
+  walls: ReadonlySet<TileKey>,
+  tiles: readonly (readonly Tile[])[],
+): void {
+  for (const sourceKey of sourceTiles) {
+    const { r: sr, c: sc } = unpackTile(sourceKey);
     for (const [dr, dc] of DIRS_8) {
-      const nr = wr + dr,
-        nc = wc + dc;
-      // Only add tiles inside the rect (not on the ring itself)
+      const nr = sr + dr;
+      const nc = sc + dc;
       if (
         nr < rect.top ||
         nr > rect.bottom ||

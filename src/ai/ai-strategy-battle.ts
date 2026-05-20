@@ -47,13 +47,13 @@ import {
 import type { BattleViewState } from "../shared/core/system-interfaces.ts";
 import type { ZoneId } from "../shared/core/zone-id.ts";
 import type { Rng } from "../shared/platform/rng.ts";
-import type {
-  PrioritizedTilePos,
-  StrategicPixelPos,
-} from "./ai-build-types.ts";
+import type { StrategicPixelPos } from "./ai-build-types.ts";
 import { traitLookup } from "./ai-constants.ts";
 
-type TargetCandidate = PrioritizedTilePos & { isCannon?: boolean };
+type TargetCandidate = TilePos & {
+  priority: boolean;
+  isCannon?: boolean;
+};
 
 /** Persistent target memory — keeps the AI locked onto one enclosure across
  *  shots so it doesn't oscillate between random enclosures. The anchor is any
@@ -63,6 +63,10 @@ export type BattleTargetMemory = {
   ownerId: ValidPlayerId | undefined;
   anchorTileKey: TileKey | undefined;
 };
+
+/** Packed `(playerId, cannonIdx)` key for the per-cannon shot counter map.
+ *  Branded so a raw `number` can't be mistakenly fed into shotCounts.get(). */
+export type ShotKey = number & { readonly __brand: "ShotKey" };
 
 type StructuralHitCandidate = {
   tiles: TilePos[];
@@ -107,6 +111,10 @@ const GRUNT_WALL_TARGET_PROBABILITY = 1 / 8;
 const FRESH_CANNON_TARGET_PROBABILITY = 1 / 3;
 /** How many of the closest candidates to pick randomly from. */
 const TOP_TARGET_PICK_COUNT = 3;
+/** Ice-trench anchor: pick uniformly from the N shoreline tiles closest to
+ *  a bank grunt. Wider than `TOP_TARGET_PICK_COUNT` because trench anchors
+ *  don't compete with cannon-targeting accuracy — anchor variety matters. */
+const ICE_TRENCH_ANCHOR_TOP = 5;
 /** Minimum preferred distance (in tiles) from crosshair for target spread. */
 const SWEET_SPOT_MIN_DISTANCE = 0;
 /** Width of the preferred distance band (sweet spot = min .. min + range). */
@@ -353,7 +361,7 @@ export function pickTarget(
   playerId: ValidPlayerId,
   crosshair: PixelPos,
   focusFirePlayerId: ValidPlayerId | undefined,
-  shotCounts: Map<number, number>,
+  shotCounts: Map<ShotKey, number>,
   targetMemory: BattleTargetMemory,
   rng: Rng,
   wallsOnly?: boolean,
@@ -543,7 +551,7 @@ export function trackShot(
   state: BattleViewState,
   playerId: ValidPlayerId,
   crosshair: PixelPos,
-  shotCounts: Map<number, number>,
+  shotCounts: Map<ShotKey, number>,
 ): void {
   const row = pxToTile(crosshair.y);
   const col = pxToTile(crosshair.x);
@@ -646,7 +654,7 @@ function findIceShoreline(
 }
 
 /** Score each shoreline tile by distance to the nearest bank grunt, then
- *  pick randomly among the top 5 for variety. */
+ *  pick randomly among the top `ICE_TRENCH_ANCHOR_TOP` for variety. */
 function pickAnchor(
   shoreline: readonly TileKey[],
   bankGrunts: readonly TilePos[],
@@ -662,7 +670,7 @@ function pickAnchor(
     return { key: shoreKey, dist: minDist };
   });
   scored.sort((a, b) => a.dist - b.dist);
-  const topCount = Math.min(scored.length, 5);
+  const topCount = Math.min(scored.length, ICE_TRENCH_ANCHOR_TOP);
   return scored[rng.int(0, topCount - 1)]!.key;
 }
 
@@ -853,7 +861,7 @@ function collectEnemyTargets(
   playerId: ValidPlayerId,
   focusFirePlayerId: ValidPlayerId | undefined,
   switchTarget: boolean,
-  shotCounts: Map<number, number>,
+  shotCounts: Map<ShotKey, number>,
   wallsOnly?: boolean,
 ): TargetCandidate[] {
   const targets: TargetCandidate[] = [];
@@ -903,8 +911,8 @@ function collectEnemyTargets(
 }
 
 /** Stable numeric key for shotCounts: survives cannon object replacement. */
-function shotCountKey(playerId: ValidPlayerId, cannonIdx: CannonIdx): number {
-  return (playerId << 8) | cannonIdx;
+function shotCountKey(playerId: ValidPlayerId, cannonIdx: CannonIdx): ShotKey {
+  return ((playerId << 8) | cannonIdx) as ShotKey;
 }
 
 /** Pick an enclosure of an eligible enemy, then return a random wall
@@ -924,7 +932,7 @@ function pickEnclosureWallTarget(
   // Collect all enclosures across eligible enemies, tagged with their owner
   type CachedEnclosure = {
     ownerId: ValidPlayerId;
-    walls: ReadonlySet<number>;
+    walls: ReadonlySet<TileKey>;
     tiles: TileKey[];
   };
   const allEnclosures: CachedEnclosure[] = [];

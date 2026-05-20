@@ -17,14 +17,9 @@ import {
 } from "../shared/core/pieces.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import type { FreshInterior } from "../shared/core/player-types.ts";
-import {
-  DIRS_8,
-  isGrass,
-  packTile,
-  unpackTile,
-} from "../shared/core/spatial.ts";
+import { packTile, unpackTile } from "../shared/core/spatial.ts";
 import type { BuildViewState } from "../shared/core/system-interfaces.ts";
-import { filterUnfillableGaps } from "./ai-castle-rect.ts";
+import { addInteriorPlugGaps, filterUnfillableGaps } from "./ai-castle-rect.ts";
 
 export function canPieceFillAnyGap(
   state: BuildViewState,
@@ -61,25 +56,8 @@ export function plugUnreachableGaps(
   }
   if (unreachable.length === 0) return false;
   for (const gapKey of unreachable) gaps.delete(gapKey);
-  // Add interior-facing grass neighbors as plug gaps (same diagonal-leak seal as water/pits)
-  for (const gapKey of unreachable) {
-    const { r: gr, c: gc } = unpackTile(gapKey);
-    for (const [dr, dc] of DIRS_8) {
-      const nr = gr + dr,
-        nc = gc + dc;
-      if (
-        nr < rect.top ||
-        nr > rect.bottom ||
-        nc < rect.left ||
-        nc > rect.right
-      )
-        continue;
-      const neighborKey = packTile(nr, nc);
-      if (walls.has(neighborKey)) continue;
-      if (!isGrass(state.map.tiles, nr, nc)) continue;
-      gaps.add(neighborKey);
-    }
-  }
+  // Seal diagonal-leak through interior-facing grass (same shape as water/pit plug)
+  addInteriorPlugGaps(gaps, unreachable, rect, walls, state.map.tiles);
   filterUnfillableGaps(gaps, state, interior);
   return true;
 }

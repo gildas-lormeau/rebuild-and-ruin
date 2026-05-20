@@ -26,6 +26,19 @@ interface SelectionPhase {
   state: AiSelectionState;
 }
 
+/** Minimum number of *other* towers to visit before the chosen one. */
+const MIN_BROWSE_COUNT = 1;
+/** Inclusive range of additional browses on top of `MIN_BROWSE_COUNT` —
+ *  picked uniformly via `floor(rng * BROWSE_COUNT_RANGE)`, so the realized
+ *  visit count is 1–3. */
+const BROWSE_COUNT_RANGE = 3;
+/** Dwell on each browsed tower before advancing to the next (pre-delayScale). */
+const BROWSE_DELAY_SEC = 0.8;
+const BROWSE_SPREAD_SEC = 0.6;
+/** Pause on the final (chosen) tower before confirming the selection. */
+const CONFIRM_INITIAL_DELAY_SEC = 1.0;
+const CONFIRM_INITIAL_SPREAD_SEC = 0.6;
+
 export function createSelectionPhase(): SelectionPhase {
   return { state: { step: STEP.IDLE } };
 }
@@ -45,12 +58,14 @@ export function initSelection(
   if (!player) return;
   const chosenTower = host.strategy.chooseBestTower(state.map, zone);
 
-  // Build browse queue: visit 1-3 random zone towers before the chosen one
+  // Build browse queue: visit MIN_BROWSE_COUNT..MIN+RANGE-1 random zone towers
+  // before the chosen one (currently 1–3).
   const zoneTowers = state.map.towers.filter((tower) => tower.zone === zone);
   const others = zoneTowers.filter((tower) => tower !== chosenTower);
   const browseCount = Math.min(
     others.length,
-    1 + Math.floor(host.strategy.rng.next() * 3),
+    MIN_BROWSE_COUNT +
+      Math.floor(host.strategy.rng.next() * BROWSE_COUNT_RANGE),
   );
   // Shuffle and take browseCount
   for (let i = others.length - 1; i > 0; i--) {
@@ -63,8 +78,11 @@ export function initSelection(
   phase.state = {
     step: STEP.BROWSING,
     queue,
-    browseTimer: host.scaledDelay(0.8, 0.6),
-    confirmInitialDelay: host.scaledDelay(1.0, 0.6),
+    browseTimer: host.scaledDelay(BROWSE_DELAY_SEC, BROWSE_SPREAD_SEC),
+    confirmInitialDelay: host.scaledDelay(
+      CONFIRM_INITIAL_DELAY_SEC,
+      CONFIRM_INITIAL_SPREAD_SEC,
+    ),
   };
 
   // Start at first tower in browse queue
@@ -85,13 +103,16 @@ export function tickSelection(
     case STEP.IDLE:
       return false;
     case STEP.BROWSING: {
-      const battleState = phase.state;
-      battleState.browseTimer--;
-      if (battleState.browseTimer <= 0 && battleState.queue.length > 1) {
-        battleState.queue.shift();
-        battleState.browseTimer = host.scaledDelay(0.8, 0.6);
+      const selectionState = phase.state;
+      selectionState.browseTimer--;
+      if (selectionState.browseTimer <= 0 && selectionState.queue.length > 1) {
+        selectionState.queue.shift();
+        selectionState.browseTimer = host.scaledDelay(
+          BROWSE_DELAY_SEC,
+          BROWSE_SPREAD_SEC,
+        );
         if (state) {
-          const nextIdx = battleState.queue[0];
+          const nextIdx = selectionState.queue[0];
           const nextTower =
             nextIdx !== undefined ? state.map.towers[nextIdx] : undefined;
           const browsePlayer = state.players[host.playerId];
@@ -100,10 +121,10 @@ export function tickSelection(
         }
         return false;
       }
-      if (battleState.queue.length <= 1) {
+      if (selectionState.queue.length <= 1) {
         phase.state = {
           step: STEP.CONFIRMING,
-          timer: battleState.confirmInitialDelay,
+          timer: selectionState.confirmInitialDelay,
         };
       }
       return false;

@@ -1,9 +1,10 @@
 # `src/ai/` — AI strategy + per-phase state machines
 
 The **ai** domain implements computer-controlled players: per-phase
-state machines (select/build/cannon/battle), pluggable strategy
-modules that make placement/fire decisions, and the top-level
-`AiController` that dispatches to them.
+state machines (select/build/cannon/battle) and pluggable strategy
+modules that make placement/fire decisions. The thin host wrapper
+(`AiController`) that delegates to these lives in `src/controllers/`,
+not here.
 
 AI code is **separate from game rules**. Game rules live in
 `src/game/` and say what IS legal; AI decides what the computer WANTS
@@ -21,9 +22,11 @@ Each game phase the AI plays through is decomposed into three layers:
    tick that drives cursor animation, locks in decisions, and
    executes intents through the orchestrator. Holds the "where is
    the AI's cursor right now" state.
-3. **Controller dispatcher** (`controller-ai.ts`) — One thin shim per
-   player. Owns the mutable `BagState` (piece bag) and forwards each
-   phase tick to the matching `ai-phase-*.ts` module.
+3. **Brain** (`ai-brain.ts`) — Aggregates the four phase machines
+   plus the dialog auto-resolvers behind one `AiBrain` interface
+   (`ai-brain-types.ts`). One brain instance per AI player. The
+   controller (`src/controllers/controller-ai.ts`) owns cursor +
+   trait state and delegates every phase tick to its injected brain.
 
 This split lets strategy modules stay pure + unit-testable while
 per-frame animation state lives in the phase modules.
@@ -36,10 +39,11 @@ per-frame animation state lives in the phase modules.
    goes through one of these methods. The composition root wires
    in a default strategy; tests can swap for mocks.
 
-2. **[controller-ai.ts](./controller-ai.ts)** — `AiController` class.
-   One instance per AI-controlled slot. Dispatches each phase's tick
-   to its matching `ai-phase-*.ts` module and threads the strategy
-   handle through.
+2. **[ai-brain.ts](./ai-brain.ts)** — Aggregates the four phase
+   machines + dialog auto-resolvers behind `AiBrain`. One instance
+   per AI-controlled slot, injected into
+   [`src/controllers/controller-ai.ts`](../controllers/controller-ai.ts)
+   which owns the cursor/trait state and forwards each tick.
 
 3. **[ai-phase-build.ts](./ai-phase-build.ts)** — The most complex
    phase machine — piece placement with cursor animation and
@@ -79,17 +83,18 @@ split into focused modules:
 - **`ai-castle-rect.ts`** — Castle rectangle geometry and gap
   analysis.
 
-### Dialog auto-resolvers (called by runtime subsystems)
-- **`ai-life-lost.ts`** — Auto-resolves life-lost dialog entries for
-  AI players. Consumed by `runtime-life-lost.ts` via a callback in
-  the deps bag.
+### Dialog auto-resolvers (exposed via brain methods)
+- **`ai-life-lost.ts`** — Decides life-lost dialog choices for AI
+  players. Reached via `brain.chooseLifeLost(...)` from
+  `controller.tickLifeLost(...)`; the runtime dialog subsystem
+  invokes the controller method, not this file directly.
 - **`ai-upgrade-pick.ts`** — Auto-resolves upgrade-pick dialog
-  entries. Consumed by `runtime/subsystems/upgrade-pick.ts` the same way.
+  entries. Reached via `brain.tickUpgradePick(...)` from
+  `controller.tickUpgradePick(...)`. Same dispatch shape.
 
 ### Shared helpers
 - **`ai-constants.ts`** — Step sizes, eval intervals, animation
   timing. Zero imports, leaf module.
-- **`controller-ai.ts`** — `AiController` — the public entry point.
 
 ## The seeding contract (load-bearing for determinism)
 
@@ -119,10 +124,10 @@ contract as human controllers:
 
 - **`placeCannons(state, rng)`** returns a list of `CannonPlacement`
   intents. The orchestrator applies them via `applyCannonPlacement`.
-- **Battle phase** returns `FireIntent` via a callback —
-  `controller-ai.ts` builds a `fireExecutor` closure that calls
-  `fireNextReadyCannon` with mutable state, and passes it into
-  `ai-phase-battle.ts`.
+- **Battle phase** returns a fire commit from `brain.battle.tick()`.
+  `controllers/controller-ai.ts:battleTick` invokes
+  `fireNextReadyCannon` against mutable state when a commit comes
+  back, then feeds the result to `brain.battle.onFireResult(...)`.
 - **`pickPlacement`** (build phase) returns a piece placement choice;
   `ai-phase-build.ts` animates the cursor there, then calls
   `tryPlacePiece()` via the orchestrator.
@@ -143,15 +148,19 @@ splitting into an `ai-build-*.ts` sub-module like the existing ones.
 Rare — usually phases are added to `game/` first and then the AI
 gets a matching phase module. Pattern:
 1. Create `ai-phase-<name>.ts` with the tick + state
-2. Add an entry in `controller-ai.ts` to dispatch to it
+2. Expose it on `AiBrain` (`ai-brain-types.ts` + `ai-brain.ts`)
 3. Add strategy methods to `AiStrategy` if decision logic is needed
 4. Wire the strategy impl in `ai-strategy.ts`
+5. Override the matching `tick*` on `controllers/controller-ai.ts` to
+   delegate to the new brain field
 
 ### Tune difficulty
-Difficulty lives in constants + early-exit logic. See
-`ai-constants.ts` and the `difficulty` check in `controller-ai.ts`.
-Higher difficulty means more evaluation candidates, deeper lookahead,
-and better tie-breaking — never "cheating" rule breaks.
+Difficulty lives in strategy traits (`thinkingSpeed`, `cursorSkill`,
+`spatialAwareness`) plus the constants in `ai-constants.ts`. The
+controller derives `delayScale` / `boostThreshold` / etc. from those
+traits — see `src/controllers/controller-ai.ts`. Higher difficulty
+means more evaluation candidates, deeper lookahead, and better
+tie-breaking — never "cheating" rule breaks.
 
 ### Debug AI behavior
 The scenario API (`test/scenario.ts`) plays real games with real AI
@@ -176,22 +185,23 @@ on the AiController — it pollutes snapshots.
   load-bearing for future targeting improvements. Don't delete
   existing call sites.
 
-- **`controller-ai.ts` is the ONLY file that instantiates
-  AI-internal state.** Don't scatter `new XxxState()` calls through
-  `ai-phase-*.ts`; construct in the controller and pass references
-  down.
+- **`ai-brain.ts` is the ONLY place that instantiates AI-internal
+  state.** Don't scatter `new XxxState()` calls through
+  `ai-phase-*.ts`; construct in the brain and pass references down
+  via the host interfaces.
 
 - **AI for eliminated players must be gated.** Several places check
   `isPlayerEliminated(player)` before running strategy. Eliminated
   players shouldn't generate decisions — add the guard when you
   introduce new strategy entry points.
 
-- **Upgrade pick / life-lost auto-resolve are wired via callbacks
-  in the composition root.** They're not imported by the runtime
-  dialog modules directly (would create a `runtime → ai` dependency
-  the lint forbids). Instead, `runtime-composition.ts` imports
-  from `ai/` and passes the functions through `deps` bags. If you
-  need a new auto-resolver, follow the same pattern.
+- **Upgrade pick / life-lost auto-resolve are reached through the
+  controller, not through deps-bag callbacks.** Runtime dialog
+  subsystems call `controller.tickUpgradePick(...)` /
+  `controller.tickLifeLost(...)`; AI overrides delegate to
+  `brain.tickUpgradePick` / `brain.chooseLifeLost`. Runtime never
+  imports from `ai/` (the layer lint forbids it). If you need a new
+  auto-resolver, add a brain method + controller override.
 
 ## Related reading
 

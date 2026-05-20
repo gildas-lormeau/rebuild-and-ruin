@@ -87,7 +87,6 @@ export function initCannon(
   phase.ctx = host.strategy.initCannonPhase(
     state.players[host.playerId]!,
     maxSlots,
-    state,
   );
   phase.currentTarget = undefined;
   phase.maxSlots = maxSlots;

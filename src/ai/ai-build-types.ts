@@ -21,9 +21,6 @@ import type { BuildViewState } from "../shared/core/system-interfaces.ts";
 /** Pixel position annotated with strategic flag (AI targeting). */
 export type StrategicPixelPos = PixelPos & { strategic?: boolean };
 
-/** Tile position annotated with priority flag (AI targeting). */
-export type PrioritizedTilePos = TilePos & { priority: boolean };
-
 /** Result of enclosure analysis — which towers need walling, skip-home logic, etc. */
 export interface EnclosureAnalysis {
   outside: Set<TileKey>;
@@ -57,7 +54,7 @@ export interface TargetContext {
   allCastlesEnclosed: boolean;
   unenclosedTowers: Tower[];
   otherUnenclosed: Tower[];
-  outerRingHolesSnapshot?: ReadonlySet<TileKey>;
+  outerRingHolesSnapshot: ReadonlySet<TileKey>;
 }
 
 /** Optional AI personality / context parameters for placement. */
@@ -70,12 +67,12 @@ export interface PlacementOptions {
   caresAboutBonuses?: boolean;
   buildSkill?: number;
   /** Phase-stable snapshot of outer-ring breach tiles (computed by the
-   *  strategy on first call of the build phase and held constant). When
-   *  provided, tryRepairOuterRing uses this set verbatim (minus tiles the
-   *  AI has since walled) instead of recomputing each tick — recomputation
-   *  picks up "phantom" gaps formed by newly-placed walls pairing with
-   *  existing walls, which would otherwise disperse the AI's focus. */
-  outerRingHolesSnapshot?: ReadonlySet<TileKey>;
+   *  strategy on first call of the build phase and held constant).
+   *  tryRepairOuterRing uses this set verbatim (minus tiles the AI has
+   *  since walled) instead of recomputing each tick — recomputation picks
+   *  up "phantom" gaps formed by newly-placed walls pairing with existing
+   *  walls, which would otherwise disperse the AI's focus. */
+  outerRingHolesSnapshot: ReadonlySet<TileKey>;
 }
 
 /** Result of a single AI placement decision. null = no valid placement. */

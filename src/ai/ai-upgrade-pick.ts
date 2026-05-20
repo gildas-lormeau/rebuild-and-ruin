@@ -7,7 +7,9 @@
  * its own). Dialog tick reads `state.modern.precomputedUpgradePicks`.
  */
 
+import { isBalloonCannon, isCannonAlive } from "../shared/core/battle-types.ts";
 import { GRID_COLS, GRID_ROWS } from "../shared/core/grid.ts";
+import { getInterior } from "../shared/core/player-interior.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import { zoneAt } from "../shared/core/spatial.ts";
 import type { UpgradePickViewState } from "../shared/core/system-interfaces.ts";
@@ -160,7 +162,9 @@ function playerTerritoryRatio(
   playerId: ValidPlayerId,
 ): number {
   const player = state.players[playerId];
-  if (!player?.homeTower || player.interior.size === 0) return 0;
+  if (!player?.homeTower) return 0;
+  const interior = getInterior(player);
+  if (interior.size === 0) return 0;
   const zone = player.homeTower.zone;
   let zoneGrassCount = 0;
   for (let row = 0; row < GRID_ROWS; row++) {
@@ -168,7 +172,7 @@ function playerTerritoryRatio(
       if (zoneAt(state.map, row, col) === zone) zoneGrassCount++;
     }
   }
-  return zoneGrassCount > 0 ? player.interior.size / zoneGrassCount : 0;
+  return zoneGrassCount > 0 ? interior.size / zoneGrassCount : 0;
 }
 
 function playerHasDeadTowers(
@@ -221,7 +225,7 @@ function playerHasThickWalls(
   const player = state.players[playerId];
   if (!player || player.walls.size === 0) return false;
   // Rough heuristic: if walls outnumber interior tiles, walls are thick
-  return player.walls.size > player.interior.size;
+  return player.walls.size > getInterior(player).size;
 }
 
 function playerCannonCount(
@@ -231,6 +235,6 @@ function playerCannonCount(
   const player = state.players[playerId];
   if (!player) return 0;
   return player.cannons.filter(
-    (cannon) => cannon.hp > 0 && cannon.mode !== "balloon",
+    (cannon) => isCannonAlive(cannon) && !isBalloonCannon(cannon),
   ).length;
 }
