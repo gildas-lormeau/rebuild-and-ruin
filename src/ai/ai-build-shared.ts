@@ -1,7 +1,8 @@
 /**
- * AI build-phase fallback — discard placement, tower extension,
- * and ring-distance scoring when no territory gain is possible.
- *
+ * AI build-phase shared infrastructure: pickFallbackPlacement (tower
+ * extension + ring-distance fallback), createsSmallEnclosure (small-pocket
+ * trap check shared with scoring pipeline), memoize (kept at this layer
+ * so closures may reference L≤10 symbols — see lint:callback-inversion).
  * Called by the build placement orchestrator (ai-strategy-build.ts).
  */
 
@@ -23,6 +24,7 @@ import {
   candidateObstacleHits,
   candidateToPlacement,
   countFatBlocks,
+  packCandidateTiles,
 } from "./ai-build-score.ts";
 import type {
   AiPlacement,
@@ -31,7 +33,7 @@ import type {
   Scored,
 } from "./ai-build-types.ts";
 import { floodPocket } from "./ai-castle-rect.ts";
-import { memoize, SMALL_POCKET_MAX_SIZE } from "./ai-constants.ts";
+import { SMALL_POCKET_MAX_SIZE } from "./ai-constants.ts";
 
 const MIN_FREE_INTERIOR = 6;
 
@@ -97,9 +99,10 @@ export function pickFallbackPlacement(
     ? unenclosedTowers.filter((tower) => tower !== castle.tower)
     : unenclosedTowers;
 
-  const isInsideOrFatCandidate = (candidate: Candidate): boolean => {
-    return insideEnclosure(candidate) || countFatBlocks(walls, candidate) > 0;
-  };
+  const isInsideOrFatCandidate = memoize(
+    (candidate: Candidate): boolean =>
+      insideEnclosure(candidate) || countFatBlocks(walls, candidate) > 0,
+  );
 
   if (fallbackTowers.length > 0) {
     const ringDistanceCache = new Map<
@@ -133,16 +136,26 @@ export function pickFallbackPlacement(
   }
 }
 
+/** Map-based memoize for per-candidate predicates. Lives at this layer
+ *  (rather than ai-constants L0) so closures passed to it may reference
+ *  L≤10 symbols — see lint:callback-inversion. */
+export function memoize<K, V>(func: (key: K) => V): (key: K) => V {
+  const cache = new Map<K, V>();
+  return (key: K): V => {
+    if (cache.has(key)) return cache.get(key)!;
+    const computed = func(key);
+    cache.set(key, computed);
+    return computed;
+  };
+}
+
 export function createsSmallEnclosure(
   candidate: Candidate,
   walls: ReadonlySet<TileKey>,
   outside: ReadonlySet<TileKey>,
   state: BuildViewState,
 ): boolean {
-  const candidateWallTiles: TileKey[] = [];
-  for (const [dr, dc] of candidate.piece.offsets) {
-    candidateWallTiles.push(packTile(candidate.row + dr, candidate.col + dc));
-  }
+  const candidateWallTiles = packCandidateTiles(candidate);
   // Cheap path: detect traps without cloning the outside set. The bulk of
   // calls during build phase (~99%) don't trap anything; this lets them
   // bail before paying the O(outside.size) clone that dominated the prior

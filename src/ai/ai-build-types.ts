@@ -2,12 +2,11 @@
  * Shared types for the AI build-phase pipeline.
  *
  * Used by ai-strategy-build.ts (orchestrator), ai-build-target.ts,
- * ai-build-score.ts, and ai-build-fallback.ts.
+ * ai-build-score.ts, and ai-build-shared.ts.
  */
 
 import type {
   Castle,
-  PixelPos,
   TilePos,
   TileRect,
   Tower,
@@ -17,9 +16,6 @@ import type { PieceShape } from "../shared/core/pieces.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import type { Player } from "../shared/core/player-types.ts";
 import type { BuildViewState } from "../shared/core/system-interfaces.ts";
-
-/** Pixel position annotated with strategic flag (AI targeting). */
-export type StrategicPixelPos = PixelPos & { strategic?: boolean };
 
 /** Result of enclosure analysis — which towers need walling, skip-home logic, etc. */
 export interface EnclosureAnalysis {
@@ -66,7 +62,7 @@ export interface PlacementOptions {
   bankHugging: boolean;
   caresAboutHouses: boolean;
   caresAboutBonuses: boolean;
-  buildSkill: number;
+  buildSkill: 1 | 2 | 3 | 4 | 5;
   /** Phase-stable snapshot of outer-ring breach tiles (computed by the
    *  strategy on first call of the build phase and held constant).
    *  tryRepairOuterRing uses this set verbatim (minus tiles the AI has

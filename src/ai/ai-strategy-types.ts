@@ -27,8 +27,11 @@ import type {
 } from "../shared/core/system-interfaces.ts";
 import type { ZoneId } from "../shared/core/zone-id.ts";
 import type { Rng } from "../shared/platform/rng.ts";
-import type { AiPlacement, StrategicPixelPos } from "./ai-build-types.ts";
+import type { AiPlacement } from "./ai-build-types.ts";
 import type { ChainType } from "./ai-chain.ts";
+
+/** Pixel position annotated with strategic flag (AI targeting). */
+export type StrategicPixelPos = PixelPos & { strategic?: boolean };
 
 /** A single cannon placement decision returned by the AI strategy. */
 export interface CannonPlacement {

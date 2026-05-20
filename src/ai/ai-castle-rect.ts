@@ -1,13 +1,14 @@
 /**
  * AI Strategy — castle rectangle geometry and gap analysis.
  * Contains castle rect computation, wall ring gap detection,
- * and tower scoring used during the build phase. Hardcodes
- * TOWER_SIZE = 2: `tower.row + 1` / `tower.col + 1` reach the
- * bottom-right corner of the 2×2 footprint.
+ * and tower scoring used during the build phase. `tower.row +
+ * TOWER_SIZE - 1` / `tower.col + TOWER_SIZE - 1` reach the
+ * bottom-right corner of the tower's footprint.
  */
 
 import type { BurningPit } from "../shared/core/battle-types.ts";
 import { hasEnemyWallAt, hasGruntAt } from "../shared/core/board-occupancy.ts";
+import { TOWER_SIZE } from "../shared/core/game-constants.ts";
 import type { TileRect, Tower } from "../shared/core/geometry-types.ts";
 import {
   GRID_COLS,
@@ -290,16 +291,16 @@ export function castleRect(
     -1,
     GRID_ROWS,
     tower.col,
-    tower.col + 1,
+    tower.col + TOWER_SIZE - 1,
     true,
   );
   const capBottom = maxMarginForSide(
     ctx,
-    tower.row + 1,
+    tower.row + TOWER_SIZE - 1,
     1,
     GRID_ROWS,
     tower.col,
-    tower.col + 1,
+    tower.col + TOWER_SIZE - 1,
     true,
   );
   const capLeft = maxMarginForSide(
@@ -308,16 +309,16 @@ export function castleRect(
     -1,
     GRID_COLS,
     tower.row,
-    tower.row + 1,
+    tower.row + TOWER_SIZE - 1,
     false,
   );
   const capRight = maxMarginForSide(
     ctx,
-    tower.col + 1,
+    tower.col + TOWER_SIZE - 1,
     1,
     GRID_COLS,
     tower.row,
-    tower.row + 1,
+    tower.row + TOWER_SIZE - 1,
     false,
   );
 
@@ -354,9 +355,9 @@ export function castleRect(
   // Return interior bounds — wall ring is one tile outside these bounds.
   return {
     top: tower.row - growthTop,
-    bottom: tower.row + 1 + growthBottom,
+    bottom: tower.row + TOWER_SIZE - 1 + growthBottom,
     left: tower.col - growthLeft,
-    right: tower.col + 1 + growthRight,
+    right: tower.col + TOWER_SIZE - 1 + growthRight,
   };
 }
 
@@ -450,9 +451,9 @@ function shrinkCornersForWater(
 ): [number, number, number, number] {
   for (let pass = 0; pass < 3; pass++) {
     const rTop = tower.row - growthTop - 1;
-    const rBot = tower.row + 1 + growthBottom + 1;
+    const rBot = tower.row + TOWER_SIZE - 1 + growthBottom + 1;
     const rLeft = tower.col - growthLeft - 1;
-    const rRight = tower.col + 1 + growthRight + 1;
+    const rRight = tower.col + TOWER_SIZE - 1 + growthRight + 1;
     let shrunk = false;
     if (rTop >= 0 && rLeft >= 0 && isWater(tiles, rTop, rLeft)) {
       if (growthTop >= growthLeft && growthTop > 0) {

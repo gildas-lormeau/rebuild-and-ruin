@@ -22,9 +22,9 @@ import {
   PRE_PLACE_DELAY_SEC,
   PRE_PLACE_SPREAD_SEC,
   STEP,
-  secondsToTicks,
 } from "./ai-constants.ts";
 import type { BuildHost, BuildTickResult } from "./ai-strategy-types.ts";
+import { secondsToTicks } from "./ai-utils.ts";
 
 type BuildTarget = { piece: PieceShape } & TilePos;
 

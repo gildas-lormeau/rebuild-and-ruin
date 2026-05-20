@@ -8,7 +8,6 @@
  */
 
 import type { AiBrain } from "../ai/ai-brain-types.ts";
-import { secondsToTicks } from "../ai/ai-constants.ts";
 import type {
   AiStrategy,
   BattleHost,
@@ -16,6 +15,7 @@ import type {
   CannonHost,
   SelectionHost,
 } from "../ai/ai-strategy-types.ts";
+import { secondsToTicks } from "../ai/ai-utils.ts";
 import {
   executePlaceCannon,
   executePlacePiece,

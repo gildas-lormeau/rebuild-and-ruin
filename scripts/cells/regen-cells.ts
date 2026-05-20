@@ -82,6 +82,7 @@ const SUBPATH_PARTITIONS: Record<string, readonly string[]> = {
 const LABELS: Record<string, string> = {
   // L0 — leaf modules (no intra-project imports)
   "0::ai": "AI tuning data",
+  "1::ai": "AI utilities (secondsToTicks, traitLookup)",
   "0::game": "domain barrel",
   "0::input": "input primitives & recorder",
   "0::online": "DOM lookup helpers",
@@ -173,7 +174,7 @@ const LABELS: Record<string, string> = {
   // L9 — system implementations
   "9::ai": "AI brain assembly + build decision helpers",
   "9::controllers": "AI controller (host wrapper around injected brain)",
-  "9::game": "upgrade system",
+  "9::game": "modifier + upgrade systems",
   "9::input": "input device handlers (kb, mouse, touch)",
   "9::online": "online runtime lobby",
   "9::render": "render UI entry",
@@ -182,7 +183,7 @@ const LABELS: Record<string, string> = {
   "9::runtime": "runtime types, main loop, phase machine & subsystems",
 
   // L10 — mid-depth assembly
-  "10::ai": "AI build fallback",
+  "10::ai": "AI build shared (fallback + small-enclosure check + memoize)",
   "10::controllers": "AI assisted-human controller variant",
   "10::game": "battle impact systems",
   "10::online": "online phase transitions",
@@ -197,7 +198,7 @@ const LABELS: Record<string, string> = {
 
   // L12 — phase orchestration
   "12::ai": "AI strategy orchestrator",
-  "12::game": "battle, build & modifier system orchestration",
+  "12::game": "battle & build system orchestration",
   "12::render": "3D renderer entry",
 
   // L13 — wiring

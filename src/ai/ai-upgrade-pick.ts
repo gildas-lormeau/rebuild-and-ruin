@@ -16,7 +16,7 @@ import type { UpgradePickViewState } from "../shared/core/system-interfaces.ts";
 import type { GameState } from "../shared/core/types.ts";
 import { UID, type UpgradeId } from "../shared/core/upgrade-defs.ts";
 import type { UpgradePickEntry } from "../shared/ui/interaction-types.ts";
-import { secondsToTicks } from "./ai-constants.ts";
+import { secondsToTicks } from "./ai-utils.ts";
 
 const SMALL_PIECES_TERRITORY_RATIO = 0.8;
 /** Extra delay per auto-resolving entry (by entry index) so AI picks land
@@ -54,7 +54,7 @@ export function tickAiUpgradePickEntry(
   const lockInStart = Math.max(0, effectiveDelay - UPGRADE_PICK_LOCK_IN);
 
   if (entry.autoTimer >= effectiveDelay) {
-    const pick = resolveAiPick(entry, state);
+    const pick = resolveAiPick(entry, state, true);
     entry.choice = pick;
     entry.focusedCard = entry.offers.indexOf(pick);
     entry.pickedAtTimer = dialogTimer;
@@ -62,7 +62,9 @@ export function tickAiUpgradePickEntry(
   }
 
   if (entry.autoTimer >= lockInStart) {
-    entry.focusedCard = entry.offers.indexOf(resolveAiPick(entry, state));
+    entry.focusedCard = entry.offers.indexOf(
+      resolveAiPick(entry, state, false),
+    );
     return;
   }
 
@@ -95,15 +97,30 @@ export function precomputeAiUpgradePicks(state: GameState): void {
 /** Resolve the AI's pick for a pending entry — prefers the deterministic
  *  precomputed value (drawn from `state.rng` at battle-done.mutate), falls
  *  back to a fresh `aiPickUpgrade` call if precompute didn't run (unit
- *  tests that build the dialog without going through battle-done). */
+ *  tests that build the dialog without going through battle-done).
+ *
+ *  Parity hazard: the fallback draws from `state.rng` lazily and
+ *  asymmetrically (only AI slots whose precompute slot is missing draw),
+ *  so an online peer hitting this path mid-match would drift. The
+ *  `warnIfMissing` flag — set only on the commit tick — surfaces the
+ *  drift in dev / test output without spamming once-per-frame through
+ *  the lock-in window. Any production hit indicates a missing
+ *  precompute call site to fix. */
 function resolveAiPick(
   entry: UpgradePickEntry,
   state: UpgradePickViewState,
+  warnIfMissing: boolean,
 ): UpgradeId {
-  return (
-    state.modern?.precomputedUpgradePicks?.get(entry.playerId) ??
-    aiPickUpgrade(entry.offers, state, entry.playerId)
+  const precomputed = state.modern?.precomputedUpgradePicks?.get(
+    entry.playerId,
   );
+  if (precomputed !== undefined) return precomputed;
+  if (warnIfMissing) {
+    console.warn(
+      `ai-upgrade-pick: precomputedUpgradePicks missing for player ${entry.playerId} — falling back to state.rng draw (parity hazard in multiplayer)`,
+    );
+  }
+  return aiPickUpgrade(entry.offers, state, entry.playerId);
 }
 
 /** AI-aware pick: contextual upgrade selection based on game state.

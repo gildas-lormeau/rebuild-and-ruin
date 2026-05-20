@@ -48,6 +48,7 @@
   {
     "name": "L1",
     "files": [
+      "src/ai/ai-utils.ts",
       "src/online/online-config.ts",
       "src/online/online-router.ts",
       "src/render/3d/effects/terrain-pattern-textures.ts",
@@ -304,6 +305,7 @@
       "src/ai/ai-build-score.ts",
       "src/ai/ai-build-target.ts",
       "src/controllers/controller-ai.ts",
+      "src/game/modifier-system.ts",
       "src/game/upgrade-system.ts",
       "src/online/online-runtime-lobby.ts",
       "src/render/3d/effects/grass-emergence.ts",
@@ -321,7 +323,7 @@
   {
     "name": "L10",
     "files": [
-      "src/ai/ai-build-fallback.ts",
+      "src/ai/ai-build-shared.ts",
       "src/controllers/controller-ai-assisted-human.ts",
       "src/game/cannon-system.ts",
       "src/game/wall-impact.ts",
@@ -344,7 +346,6 @@
       "src/ai/ai-strategy.ts",
       "src/game/battle-system.ts",
       "src/game/build-system.ts",
-      "src/game/modifier-system.ts",
       "src/render/3d/renderer.ts"
     ]
   },

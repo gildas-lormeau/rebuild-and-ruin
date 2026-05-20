@@ -41,19 +41,30 @@ modules.
 
 ## Read these first
 
-1. **[ai-strategy.ts](./ai-strategy.ts)** — The pluggable `AiStrategy`
-   interface: `pickPlacement`, `placeCannons`, `planBattle`,
-   `pickTarget`, `trackShot`, `assessBuildEnd`. Every AI decision
-   goes through one of these methods. The composition root wires
-   in a default strategy; tests can swap for mocks.
+1. **[ai-strategy-types.ts](./ai-strategy-types.ts)** — The pluggable
+   `AiStrategy` interface and its value types (`CannonPlacement`,
+   `BattlePlan`, `BuildTickResult` / `CannonTickResult` /
+   `BattleTickResult`, the per-phase `*Host` interfaces). Every AI
+   decision goes through one of these methods:
+   `chooseBestTower`, `pickPlacement`, `assessBuildEnd`,
+   `initCannonPhase`, `nextCannonPlacement`, `planBattle`,
+   `pickTarget`, `trackShot`, `onLifeLost`, `reset`. Low-layer file
+   so phase modules + controllers can import without pulling in
+   `DefaultStrategy`.
 
-2. **[ai-brain.ts](./ai-brain.ts)** — Aggregates the four phase
-   machines + dialog auto-resolvers behind `AiBrain`. One instance
-   per AI-controlled slot, injected into
+2. **[ai-strategy.ts](./ai-strategy.ts)** — `DefaultStrategy` —
+   the concrete `AiStrategy` implementation plus `rollPersonality`
+   (skill/trait dice at game start). The composition root wires this
+   in; tests can swap for mocks against the interface.
+
+3. **[ai-brain.ts](./ai-brain.ts)** — Aggregates the four phase
+   machines + dialog auto-resolvers behind `AiBrain`
+   (`ai-brain-types.ts`). One instance per AI-controlled slot,
+   injected into
    [`src/controllers/controller-ai.ts`](../controllers/controller-ai.ts)
    which owns the cursor/trait state and forwards each tick.
 
-3. **[ai-phase-build.ts](./ai-phase-build.ts)** — The most complex
+4. **[ai-phase-build.ts](./ai-phase-build.ts)** — The most complex
    phase machine — piece placement with cursor animation and
    concurrent rotation. Read this to understand the
    "strategy plans → phase-machine animates → orchestrator executes"
@@ -61,33 +72,47 @@ modules.
 
 ## File categories
 
+### Strategy interface + value types
+- **`ai-strategy-types.ts`** — `AiStrategy` interface,
+  `CannonPlacement` / `BattlePlan` / `*TickResult` / `*Host`
+  interfaces. Imported by phase modules + controllers.
+- **`ai-brain-types.ts`** — `AiBrain*` interfaces (per-phase brain
+  contracts + `chooseLifeLost` / `tickUpgradePick`). The seam between
+  `controller-ai.ts` and a concrete brain.
+
 ### Strategy (pure decision)
-- **`ai-strategy.ts`** — The `AiStrategy` interface.
-- **`ai-strategy-build.ts`** — Build-phase piece placement orchestrator.
+- **`ai-strategy.ts`** — `DefaultStrategy` class +
+  `rollPersonality`.
+- **`ai-strategy-build.ts`** — Build-phase piece placement
+  orchestrator (`pickPlacement` impl).
 - **`ai-strategy-cannon.ts`** — Cannon placement + tower selection.
 - **`ai-strategy-battle.ts`** — Battle target selection + shot
-  scoring + trackShot (post-fire observer).
+  scoring + `trackShot` (post-fire observer) + `planBattle` chain
+  planners.
 
 ### Per-phase state machines (tick-driven)
-- **`ai-phase-select.ts`** — Initial castle selection. Browses towers,
-  confirms.
+- **`ai-phase-select.ts`** — Initial castle selection. Browses
+  towers, confirms.
 - **`ai-phase-build.ts`** — Build phase. Animates cursor, rotates
-  pieces, places piece when cursor arrives.
+  pieces, returns a `PlacePieceIntent` commit when cursor arrives.
 - **`ai-phase-cannon.ts`** — Cannon phase. Cursor animation + mode
-  switching.
+  switching + per-slot `PlaceCannonIntent` commits.
 - **`ai-phase-battle.ts`** — Battle phase. Targeting, chain attacks,
-  countdown orbit, fire timing.
+  countdown orbit, fire timing — returns `FireIntent` commits.
 
 ### Build strategy sub-modules
 The build-phase strategy is the most complex part of the AI, so it's
 split into focused modules:
 - **`ai-build-types.ts`** — Shared interfaces (`TargetContext`,
-  `ScoringContext`).
+  `ScoringContext`, `AiPlacement`).
 - **`ai-build-target.ts`** — Target tower ring selection.
 - **`ai-build-score.ts`** — Scoring a candidate placement (territory
   gain, fat walls, pockets, ring distance).
-- **`ai-build-fallback.ts`** — Fallback when scoring yields no gain
-  (tower extension, ring distance).
+- **`ai-build-shared.ts`** — Build-pipeline shared infra:
+  `pickFallbackPlacement` (tower extension, ring distance fallback when
+  scoring yields no gain), `createsSmallEnclosure` (small-pocket trap
+  check shared with the scoring pipeline), and `memoize` (per-candidate
+  predicate cache, placed here so closures may reference L≤10 symbols).
 - **`ai-castle-rect.ts`** — Castle rectangle geometry and gap
   analysis.
 
@@ -102,43 +127,72 @@ split into focused modules:
 
 ### Shared helpers
 - **`ai-constants.ts`** — Step sizes, eval intervals, animation
-  timing. Zero imports, leaf module.
+  timing, plus the `STEP` state-machine discriminant. Pure-data L0
+  leaf (no imports, no helpers).
+- **`ai-utils.ts`** — `secondsToTicks` (uses `SIM_TICK_DT` from
+  shared/core/game-constants) and `traitLookup` (3-element
+  skill-table accessor). Small L1 file split out so `ai-constants.ts`
+  can stay a leaf module.
+- **`ai-chain.ts`** — `ChainType` constants (`WALL`, `GRUNT`,
+  `ICE_TRENCH`, `STRUCTURAL`, `POCKET`) returned in `BattlePlan`.
+- **`ai-defaults.ts`** — Factory that bundles a `DefaultStrategy`
+  with the default brain — single entry point for AI composition.
+
+(`memoize` lives in `ai-build-shared.ts` at L10 rather than alongside
+the other helpers — `lint:callback-inversion` needs the function's
+declaration layer ≥ the layer of the symbols its closure references.)
 
 ## The seeding contract (load-bearing for determinism)
 
 The AI's decisions must be deterministic from a seed. This requires
 discipline about where RNG happens:
 
-- **Strategy modules use an injected `Rng`** — received via the
-  strategy handle's state, not via `Math.random()`.
-- **Seeding happens at game start + host promotion** — the
-  composition root seeds the strategy deterministically from
-  `state.round` / player seed. See the seeding contract doc
-  referenced in `skills/` and the memory entry about it.
+- **Strategy uses an injected `Rng`** — `AiStrategy.rng` (set at
+  `DefaultStrategy` construction), not `Math.random()` and not
+  `Date.now()`.
+- **Online parity is mirror-simulation** — every peer runs the same
+  AI tick against the synced `GameState` + `state.rng`. The wire
+  carries only human input; AI outputs are recomputed on each peer.
 - **Tie-breaking matters** — two candidate placements with identical
   scores must be resolved deterministically (e.g., by tile index).
   Introducing a set iteration order dependency will break determinism
   tests without any obvious symptom.
+- **The probability-gate ladder in `planBattle` is order-sensitive** —
+  each `rng.bool(prob)` and each plan call consumes from the shared
+  stream. Adding or reordering chain branches shifts every following
+  draw; re-record determinism fixtures when you do.
 
 If you're adding a new strategy knob that uses randomness, thread it
-through the existing `Rng` handle. Do NOT introduce a new
-`Math.random()` call — the determinism fixtures will fail the next
-commit.
+through the existing `Rng` handle. The determinism fixtures
+(`test/determinism-fixtures/`, replayed by
+`npm run test:determinism`) will fail the next commit otherwise.
 
 ## The intent pattern (orchestrator executes, strategy returns)
 
 AI modules follow the same "return intent, orchestrator executes"
 contract as human controllers:
 
-- **`placeCannons(state, rng)`** returns a list of `CannonPlacement`
-  intents. The orchestrator applies them via `applyCannonPlacement`.
-- **Battle phase** returns a fire commit from `brain.battle.tick()`.
-  `controllers/controller-ai.ts:battleTick` invokes
-  `fireNextReadyCannon` against mutable state when a commit comes
-  back, then feeds the result to `brain.battle.onFireResult(...)`.
-- **`pickPlacement`** (build phase) returns a piece placement choice;
-  `ai-phase-build.ts` animates the cursor there, then calls
-  `tryPlacePiece()` via the orchestrator.
+- **Cannon placement** is streamed, not batched:
+  `strategy.initCannonPhase(player, count)` runs once at phase start
+  and pre-rolls the super/rampart/balloon decisions; then
+  `strategy.nextCannonPlacement(...)` is called each time the
+  animation loop is ready for the next placement. The phase module
+  (`ai-phase-cannon.ts`) returns each placement as a
+  `PlaceCannonIntent` via `CannonTickResult.commit`; the controller
+  forwards the intent to its commit transport.
+- **Build phase**: `ai-phase-build.ts` calls `strategy.pickPlacement`,
+  animates the cursor, and returns a `PlacePieceIntent` via
+  `BuildTickResult.commit` when the cursor reaches the target. The
+  controller commits and feeds the result back through
+  `brain.build.onPlaceResult(success)` — that's how the
+  blocked-retry semantics survive moving the commit out of the
+  brain.
+- **Battle phase** returns a `FireIntent` via `BattleTickResult.commit`.
+  The controller commits via `fireNextReadyCannon` /
+  `scheduleCannonFire`, then feeds the result to
+  `brain.battle.onFireResult(...)` — preserves the
+  `CANNON_RETRY_WAIT` semantics for "no cannon ready yet" by
+  re-aiming the same crosshair on the next pass.
 
 Do NOT mutate `GameState` from inside a strategy function. The
 compiler won't catch it (JavaScript mutation is unrestricted) but

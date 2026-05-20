@@ -39,6 +39,7 @@ import {
   tickSelection,
 } from "./ai-phase-select.ts";
 import { tickAiUpgradePickEntry } from "./ai-upgrade-pick.ts";
+import { traitLookup } from "./ai-utils.ts";
 
 /** Build a fresh default brain. Caller owns the returned object; each
  *  controller instance must get its own brain (the closure captures
@@ -63,7 +64,7 @@ export function createDefaultAiBrain(): AiBrain {
         onBuildPlaceResult(host, buildPhase, success),
       finalize: (host, state) => finalizeBuild(host, buildPhase, state),
       reset: () => resetBuildPhase(buildPhase),
-      cursorSpeedFor: (skill) => BUILD_CURSOR_SPEEDS[skill - 1]!,
+      cursorSpeedFor: (skill) => traitLookup(skill, BUILD_CURSOR_SPEEDS),
     },
     cannon: {
       init: (host, state, maxSlots) =>
@@ -75,7 +76,7 @@ export function createDefaultAiBrain(): AiBrain {
       get maxSlots() {
         return cannonPhase.maxSlots;
       },
-      cursorSpeedFor: (skill) => CANNON_CURSOR_SPEEDS[skill - 1]!,
+      cursorSpeedFor: (skill) => traitLookup(skill, CANNON_CURSOR_SPEEDS),
     },
     battle: {
       init: (host, state) => initBattle(host, battlePhase, state),

@@ -34,9 +34,8 @@ import type {
 } from "../shared/core/system-interfaces.ts";
 import type { ZoneId } from "../shared/core/zone-id.ts";
 import { Rng } from "../shared/platform/rng.ts";
-import type { AiPlacement, StrategicPixelPos } from "./ai-build-types.ts";
+import type { AiPlacement } from "./ai-build-types.ts";
 import { CHAIN, type ChainType } from "./ai-chain.ts";
-import { traitLookup } from "./ai-constants.ts";
 import {
   type BattleTargetMemory,
   countUsableCannons,
@@ -62,7 +61,9 @@ import type {
   BattlePlan,
   CannonPlacement,
   CannonPlacementContext,
+  StrategicPixelPos,
 } from "./ai-strategy-types.ts";
+import { traitLookup } from "./ai-utils.ts";
 
 interface ArchetypeProfile {
   buildSkill: [number, number]; // [lo, hi] for 1–5
@@ -417,7 +418,7 @@ export class DefaultStrategy implements AiStrategy {
     }
 
     // Grunt sweep: enough grunts targeting us and enough usable cannons
-    if (usableCannonCount >= CHAIN_ATTACK_MIN_CANNONS) {
+    if (!chainTargets && usableCannonCount >= CHAIN_ATTACK_MIN_CANNONS) {
       const gruntTargets = planGruntSweep(
         state,
         playerId,

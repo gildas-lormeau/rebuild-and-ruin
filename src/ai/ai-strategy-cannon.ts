@@ -43,11 +43,11 @@ import {
 import type { CannonViewState } from "../shared/core/system-interfaces.ts";
 import type { ZoneId } from "../shared/core/zone-id.ts";
 import type { Rng } from "../shared/platform/rng.ts";
-import { traitLookup } from "./ai-constants.ts";
 import type {
   CannonPlacement,
   CannonPlacementContext,
 } from "./ai-strategy-types.ts";
+import { traitLookup } from "./ai-utils.ts";
 
 type CannonCandidate = { row: number; col: number; score: number };
 

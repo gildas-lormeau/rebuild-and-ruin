@@ -1,6 +1,6 @@
 /**
  * AI build-phase placement orchestrator: target ring (ai-build-target),
- * enumerate candidates, score (ai-build-score), fall back (ai-build-fallback).
+ * enumerate candidates, score (ai-build-score), fall back (ai-build-shared).
  * Castle rectangle + gap analysis live in ai-castle-rect.
  */
 
@@ -40,19 +40,20 @@ import {
 } from "../shared/core/spatial.ts";
 import type { BuildViewState } from "../shared/core/system-interfaces.ts";
 import {
-  createsSmallEnclosure,
-  pickFallbackPlacement,
-} from "./ai-build-fallback.ts";
-import {
+  candidateObstacleHits,
   candidateToPlacement,
   checkFatWall,
   compareByNumericScoreDesc,
-  compareCandidatesByObstaclePreference,
   countFatBlocks,
   countSmallPocketTiles,
   FAT_WALL_TILE_PENALTY,
   scoreTopCandidates,
 } from "./ai-build-score.ts";
+import {
+  createsSmallEnclosure,
+  memoize,
+  pickFallbackPlacement,
+} from "./ai-build-shared.ts";
 import {
   adjustInterior,
   canPieceFillAnyGap,
@@ -76,7 +77,6 @@ import {
   hasMeaningfulHomeRingGaps,
   scoreBuildTowerTarget,
 } from "./ai-castle-rect.ts";
-import { memoize } from "./ai-constants.ts";
 
 type BuildSkillConfig = (typeof BUILD_SKILL_TABLE)[number];
 
@@ -393,13 +393,10 @@ function selectBestPlacement(
         !isSmallEnclosure(c),
     );
     if (open.length > 0) {
-      open.sort((a, b) =>
-        compareCandidatesByObstaclePreference(
-          a,
-          b,
-          caresAboutHouses,
-          caresAboutBonuses,
-        ),
+      open.sort(
+        (a, b) =>
+          candidateObstacleHits(a, caresAboutHouses, caresAboutBonuses) -
+          candidateObstacleHits(b, caresAboutHouses, caresAboutBonuses),
       );
       return candidateToPlacement(open[0]!);
     }
@@ -506,7 +503,7 @@ function selectBestPlacement(
 }
 
 /** Look up skill config by 1-based buildSkill level (1=clumsy, 5=clean). */
-function getBuildSkillConfig(buildSkill: number): BuildSkillConfig {
+function getBuildSkillConfig(buildSkill: 1 | 2 | 3 | 4 | 5): BuildSkillConfig {
   return BUILD_SKILL_TABLE[buildSkill - 1]!;
 }
 
@@ -936,24 +933,6 @@ function trySecondaryTower(ctx: TargetContext): TargetResult {
   return NO_TARGET;
 }
 
-/** Try plugging structurally unreachable gaps (e.g. thick walls from + pieces)
- *  then re-check whether the current piece can fill any gap.
- *  Returns true if the piece can fill at least one gap after plugging. */
-function canFillAfterPlugging(
-  ctx: TargetContext,
-  gaps: Set<TileKey>,
-  rect: TileRect | null,
-): boolean {
-  const { state, playerId, player, piece } = ctx;
-  const interior = getInterior(player);
-  if (canPieceFillAnyGap(state, playerId, piece, interior, gaps, rect))
-    return true;
-  return (
-    plugUnreachableGaps(gaps, rect, state, playerId, player.walls, interior) &&
-    canPieceFillAnyGap(state, playerId, piece, interior, gaps, rect)
-  );
-}
-
 /** Phase 3: all towers enclosed — expand territory outward.
  *  Compute bounding box of existing walls, expand by 2, and treat
  *  the expanded ring as gaps to fill over multiple rounds. */
@@ -982,8 +961,36 @@ function tryExpandTerritory(ctx: TargetContext): TargetResult {
     state,
     bankHugging,
   );
-  if (gaps.size > 0) return { targetGaps: gaps, targetRect: expandRect };
-  return NO_TARGET;
+  if (gaps.size === 0) return NO_TARGET;
+  // Gate on canPieceFillAnyGap — without it, the scorer runs a full candidate
+  // sweep against expand gaps even when the current piece can't help, which
+  // forces pickFallbackPlacement to call createsSmallEnclosure on hundreds of
+  // candidates per tick. Mirrors the gate trySecondaryTower applies.
+  if (
+    gaps.size <= MANAGEABLE_GAP_LIMIT &&
+    !canFillAfterPlugging(ctx, gaps, expandRect)
+  ) {
+    return NO_TARGET;
+  }
+  return { targetGaps: gaps, targetRect: expandRect };
+}
+
+/** Try plugging structurally unreachable gaps (e.g. thick walls from + pieces)
+ *  then re-check whether the current piece can fill any gap.
+ *  Returns true if the piece can fill at least one gap after plugging. */
+function canFillAfterPlugging(
+  ctx: TargetContext,
+  gaps: Set<TileKey>,
+  rect: TileRect | null,
+): boolean {
+  const { state, playerId, player, piece } = ctx;
+  const interior = getInterior(player);
+  if (canPieceFillAnyGap(state, playerId, piece, interior, gaps, rect))
+    return true;
+  return (
+    plugUnreachableGaps(gaps, rect, state, playerId, player.walls, interior) &&
+    canPieceFillAnyGap(state, playerId, piece, interior, gaps, rect)
+  );
 }
 
 /** Min/max R,C bounding box of a wall set (empty → null). Callers shape it

@@ -14,10 +14,14 @@ import type {
   BattleViewState,
   FireIntent,
 } from "../shared/core/system-interfaces.ts";
-import type { StrategicPixelPos } from "./ai-build-types.ts";
 import { CHAIN, type ChainType } from "./ai-chain.ts";
-import { STEP, secondsToTicks } from "./ai-constants.ts";
-import type { BattleHost, BattleTickResult } from "./ai-strategy-types.ts";
+import { STEP } from "./ai-constants.ts";
+import type {
+  BattleHost,
+  BattleTickResult,
+  StrategicPixelPos,
+} from "./ai-strategy-types.ts";
+import { secondsToTicks } from "./ai-utils.ts";
 
 /** Pre-battle countdown orbit parameters (randomized once per countdown). */
 type CountdownOrbit = { rx: number; ry: number; speed: number };

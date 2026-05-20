@@ -121,6 +121,14 @@
   },
   {
     "layer": 1,
+    "domain": "ai",
+    "role": "AI utilities (secondsToTicks, traitLookup)",
+    "files": [
+      "src/ai/ai-utils.ts"
+    ]
+  },
+  {
+    "layer": 1,
     "domain": "online",
     "role": "online wiring config",
     "files": [
@@ -749,8 +757,9 @@
   {
     "layer": 9,
     "domain": "game",
-    "role": "upgrade system",
+    "role": "modifier + upgrade systems",
     "files": [
+      "src/game/modifier-system.ts",
       "src/game/upgrade-system.ts"
     ]
   },
@@ -797,9 +806,9 @@
   {
     "layer": 10,
     "domain": "ai",
-    "role": "AI build fallback",
+    "role": "AI build shared (fallback + small-enclosure check + memoize)",
     "files": [
-      "src/ai/ai-build-fallback.ts"
+      "src/ai/ai-build-shared.ts"
     ]
   },
   {
@@ -872,11 +881,10 @@
   {
     "layer": 12,
     "domain": "game",
-    "role": "battle, build & modifier system orchestration",
+    "role": "battle & build system orchestration",
     "files": [
       "src/game/battle-system.ts",
-      "src/game/build-system.ts",
-      "src/game/modifier-system.ts"
+      "src/game/build-system.ts"
     ]
   },
   {

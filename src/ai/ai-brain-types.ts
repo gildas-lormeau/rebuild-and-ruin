@@ -17,8 +17,8 @@ import type {
 } from "../shared/core/system-interfaces.ts";
 import type { ZoneId } from "../shared/core/zone-id.ts";
 import type {
-  LifeLostChoice,
   LifeLostEntry,
+  ResolvedChoice,
   UpgradePickEntry,
 } from "../shared/ui/interaction-types.ts";
 import type {
@@ -103,8 +103,9 @@ export interface AiBrain {
   readonly cannon: AiBrainCannon;
   readonly battle: AiBrainBattle;
 
-  /** Auto-resolve the AI's life-lost dialog choice given the entry + state. */
-  chooseLifeLost(entry: LifeLostEntry, state: GameViewState): LifeLostChoice;
+  /** Auto-resolve the AI's life-lost dialog choice given the entry + state.
+   *  Returns CONTINUE or ABANDON — never PENDING; the brain owes a decision. */
+  chooseLifeLost(entry: LifeLostEntry, state: GameViewState): ResolvedChoice;
 
   /** Advance the AI's upgrade-pick animation + commit when ready. */
   tickUpgradePick(

@@ -49,8 +49,8 @@ import {
 import type { BattleViewState } from "../shared/core/system-interfaces.ts";
 import type { ZoneId } from "../shared/core/zone-id.ts";
 import type { Rng } from "../shared/platform/rng.ts";
-import type { StrategicPixelPos } from "./ai-build-types.ts";
-import { traitLookup } from "./ai-constants.ts";
+import type { StrategicPixelPos } from "./ai-strategy-types.ts";
+import { traitLookup } from "./ai-utils.ts";
 
 type TargetCandidate = TilePos & {
   priority: boolean;

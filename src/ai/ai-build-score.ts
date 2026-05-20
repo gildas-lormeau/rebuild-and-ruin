@@ -253,18 +253,6 @@ const SCORING_RULES: readonly ScoringRule[] = [
 /** Penalty per tile that would create a 2x2 fat wall block. */
 export const FAT_WALL_TILE_PENALTY = 5;
 
-export function compareCandidatesByObstaclePreference(
-  a: Pick<Candidate, "housesHit" | "bonusHit">,
-  b: Pick<Candidate, "housesHit" | "bonusHit">,
-  caresAboutHouses: boolean,
-  caresAboutBonuses: boolean,
-): number {
-  return (
-    candidateObstacleHits(a, caresAboutHouses, caresAboutBonuses) -
-    candidateObstacleHits(b, caresAboutHouses, caresAboutBonuses)
-  );
-}
-
 export function compareByNumericScoreDesc<T extends { score: number }>(
   a: T,
   b: T,
@@ -298,9 +286,7 @@ export function countFatBlocks(
 ): number {
   const { addedKeys, isWall } = buildCandidateWallInfo(
     walls,
-    candidate.piece.offsets,
-    candidate.row,
-    candidate.col,
+    packCandidateTiles(candidate),
   );
   let blocks = 0;
   for (const key of addedKeys) {
@@ -317,9 +303,7 @@ export function checkFatWall(
 ): { hasFatWall: boolean; gapClosingFat: boolean } {
   const { addedKeys, isWall } = buildCandidateWallInfo(
     walls,
-    candidate.piece.offsets,
-    candidate.row,
-    candidate.col,
+    packCandidateTiles(candidate),
   );
   let hasFatWall = false;
   let gapClosingFat = false;
@@ -614,14 +598,8 @@ function shouldRejectForFatWalls(
 /** Build the added-key set and wall predicate for a candidate placement. */
 function buildCandidateWallInfo(
   walls: ReadonlySet<TileKey>,
-  offsets: readonly (readonly [number, number])[],
-  row: number,
-  col: number,
+  addedKeys: TileKey[],
 ): { addedKeys: TileKey[]; isWall: (k: TileKey) => boolean } {
-  const addedKeys: TileKey[] = [];
-  for (const [dr, dc] of offsets) {
-    addedKeys.push(packTile(row + dr, col + dc));
-  }
   const addedSet = new Set(addedKeys);
   const isWall = (k: TileKey) => walls.has(k) || addedSet.has(k);
   return { addedKeys, isWall };
@@ -686,11 +664,8 @@ function computeCandidateEnv(
   fatBlocks: number,
   batchHasWallAdjacent: boolean,
 ): CandidateEnv {
-  const candidateWallTiles: TileKey[] = [];
-  for (const [dr, dc] of candidate.piece.offsets) {
-    candidateWallTiles.push(packTile(candidate.row + dr, candidate.col + dc));
-  }
-  const simulatedWalls = createSimulatedWalls(ctx.walls, candidate);
+  const candidateWallTiles = packCandidateTiles(candidate);
+  const simulatedWalls = createSimulatedWalls(ctx.walls, candidateWallTiles);
   const simulatedOutside = computeOutsideAfterAdd(
     ctx.outside,
     candidateWallTiles,
@@ -711,6 +686,16 @@ function computeCandidateEnv(
     fatBlocks,
     batchHasWallAdjacent,
   };
+}
+
+/** Pack a candidate's piece-offset tiles into a TileKey[]. Hot path: called
+ *  per candidate by every scoring stage. */
+export function packCandidateTiles(candidate: Candidate): TileKey[] {
+  const tiles: TileKey[] = [];
+  for (const [dr, dc] of candidate.piece.offsets) {
+    tiles.push(packTile(candidate.row + dr, candidate.col + dc));
+  }
+  return tiles;
 }
 
 export function countSmallPocketTiles(
@@ -734,14 +719,12 @@ export function countSmallPocketTiles(
   return { wasted, smallestPocket };
 }
 
-/** Build the simulated wall set for a candidate. */
+/** Build the simulated wall set for a candidate's pre-packed tiles. */
 function createSimulatedWalls(
   walls: ReadonlySet<TileKey>,
-  candidate: Candidate,
+  candidateWallTiles: readonly TileKey[],
 ): Set<TileKey> {
   const simulatedWalls = new Set(walls);
-  for (const [dr, dc] of candidate.piece.offsets) {
-    simulatedWalls.add(packTile(candidate.row + dr, candidate.col + dc));
-  }
+  for (const key of candidateWallTiles) simulatedWalls.add(key);
   return simulatedWalls;
 }
