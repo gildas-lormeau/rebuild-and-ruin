@@ -24,6 +24,7 @@ import {
 } from "../shared/core/game-constants.ts";
 import type { GameMap, TilePos, Tower } from "../shared/core/geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, type TileKey } from "../shared/core/grid.ts";
+import { isCannonCaptured } from "../shared/core/occupancy-queries.ts";
 import { getInterior } from "../shared/core/player-interior.ts";
 import type { Player } from "../shared/core/player-types.ts";
 import {
@@ -510,20 +511,20 @@ function shouldPlaceBalloon(
 }
 
 function enemyHasLiveCannon(state: CannonViewState, enemy: Player): boolean {
-  return enemy.cannons.some((c) => {
-    if (!isCannonAlive(c)) return false;
-    if (state.capturedCannons.some((cc) => cc.cannon === c)) return false;
-    return true;
-  });
+  return enemy.cannons.some(
+    (c) => isCannonAlive(c) && !isCannonCaptured(state, c),
+  );
 }
 
 function enemyHasThreateningSuperGun(
   state: CannonViewState,
   enemy: Player,
 ): boolean {
-  return enemy.cannons.some((c) => {
-    if (!isCannonAlive(c) || !isSuperCannon(c)) return false;
-    if (state.capturedCannons.some((cc) => cc.cannon === c)) return false;
-    return isCannonEnclosed(c, enemy);
-  });
+  return enemy.cannons.some(
+    (c) =>
+      isCannonAlive(c) &&
+      isSuperCannon(c) &&
+      !isCannonCaptured(state, c) &&
+      isCannonEnclosed(c, enemy),
+  );
 }

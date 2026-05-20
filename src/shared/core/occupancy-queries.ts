@@ -1,8 +1,16 @@
-import { type Cannon, isBalloonCannon } from "./battle-types.ts";
+import {
+  type Cannon,
+  type CapturedCannon,
+  isBalloonCannon,
+} from "./battle-types.ts";
 import type { CannonIdx, Tower } from "./geometry-types.ts";
 import type { ValidPlayerId } from "./player-slot.ts";
 import type { Player } from "./player-types.ts";
 import { isCannonTile, isTowerTile } from "./spatial.ts";
+
+type CapturedCannonState = {
+  readonly capturedCannons: readonly CapturedCannon[];
+};
 
 export function hasTowerAt(
   state: { readonly map: { readonly towers: readonly Tower[] } },
@@ -36,4 +44,37 @@ export function getCannon(
   cannonIdx: CannonIdx,
 ): Cannon | undefined {
   return state.players[playerId]?.cannons[cannonIdx];
+}
+
+/** True if `cannon` is currently captured by any player (its original owner
+ *  cannot fire it; the capturer fires it). */
+export function isCannonCaptured(
+  state: CapturedCannonState,
+  cannon: Cannon,
+): boolean {
+  return state.capturedCannons.some((cc) => cc.cannon === cannon);
+}
+
+/** True if `cannon` is currently captured by `capturerId` (so it counts as
+ *  that player's gun, not its original owner's). */
+export function isCannonCapturedBy(
+  state: CapturedCannonState,
+  cannon: Cannon,
+  capturerId: ValidPlayerId,
+): boolean {
+  return state.capturedCannons.some(
+    (cc) => cc.cannon === cannon && cc.capturerId === capturerId,
+  );
+}
+
+/** True if `cannon` has been captured FROM `victimId` (i.e. `victimId` is
+ *  the original owner and the cannon currently fires for someone else). */
+export function isCannonCapturedFrom(
+  state: CapturedCannonState,
+  cannon: Cannon,
+  victimId: ValidPlayerId,
+): boolean {
+  return state.capturedCannons.some(
+    (cc) => cc.cannon === cannon && cc.victimId === victimId,
+  );
 }

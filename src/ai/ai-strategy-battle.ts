@@ -27,6 +27,7 @@ import {
   TILE_SIZE,
   type TileKey,
 } from "../shared/core/grid.ts";
+import { isCannonCapturedBy } from "../shared/core/occupancy-queries.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import { isPlayerEliminated } from "../shared/core/player-types.ts";
 import {
@@ -867,13 +868,7 @@ function collectEnemyTargets(
       for (let idx = 0; idx < other.cannons.length; idx++) {
         const cannon = other.cannons[idx]!;
         if (!isCannonAlive(cannon) || isBalloonCannon(cannon)) continue;
-        if (
-          state.capturedCannons.some(
-            (cc) => cc.cannon === cannon && cc.capturerId === playerId,
-          )
-        ) {
-          continue;
-        }
+        if (isCannonCapturedBy(state, cannon, playerId)) continue;
         // Skip if we've already fired enough shots to destroy it
         const key = shotCountKey(other.id, idx as CannonIdx);
         const shots = shotCounts.get(key) ?? 0;
@@ -904,9 +899,11 @@ function collectEnemyTargets(
   return targets;
 }
 
-/** Stable numeric key for shotCounts: survives cannon object replacement. */
+/** Stable numeric key for shotCounts: survives cannon object replacement.
+ *  Uses a 16-bit shift so cannonIdx has room well beyond any conceivable
+ *  per-player cap (slot caps put real values in the low single digits). */
 function shotCountKey(playerId: ValidPlayerId, cannonIdx: CannonIdx): ShotKey {
-  return ((playerId << 8) | cannonIdx) as ShotKey;
+  return ((playerId << 16) | cannonIdx) as ShotKey;
 }
 
 /** Pick an enclosure of an eligible enemy, then return a random wall

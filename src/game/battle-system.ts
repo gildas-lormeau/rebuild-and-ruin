@@ -45,7 +45,10 @@ import { emitGameEvent, GAME_EVENT } from "../shared/core/game-event-bus.ts";
 import { Phase } from "../shared/core/game-phase.ts";
 import type { CannonIdx, TilePos } from "../shared/core/geometry-types.ts";
 import { TILE_SIZE, type TileKey } from "../shared/core/grid.ts";
-import { getCannon } from "../shared/core/occupancy-queries.ts";
+import {
+  getCannon,
+  isCannonCapturedFrom,
+} from "../shared/core/occupancy-queries.ts";
 import { getInterior } from "../shared/core/player-interior.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import {
@@ -1043,13 +1046,7 @@ export function canFireOwnCannon(
   if (!cannon || !isCannonAlive(cannon)) return false;
   if (isBalloonCannon(cannon) || isRampartCannon(cannon)) return false;
   // Captured cannons cannot be fired by their original owner
-  if (
-    state.capturedCannons.some(
-      (captured) =>
-        captured.cannon === cannon && captured.victimId === playerId,
-    )
-  )
-    return false;
+  if (isCannonCapturedFrom(state, cannon, playerId)) return false;
   // Cannon must be inside enclosed territory
   if (!isCannonEnclosed(cannon, player)) return false;
   // Lockstep guard: if a fire for this cannon is already enqueued on this

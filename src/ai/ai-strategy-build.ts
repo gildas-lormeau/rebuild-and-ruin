@@ -22,6 +22,7 @@ import type {
   Tower,
 } from "../shared/core/geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, type TileKey } from "../shared/core/grid.ts";
+import { hasCannonAt, hasTowerAt } from "../shared/core/occupancy-queries.ts";
 import { type PieceShape, rotateCW } from "../shared/core/pieces.ts";
 import { getInterior } from "../shared/core/player-interior.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
@@ -31,10 +32,8 @@ import {
   DIRS_4,
   hasPitAt,
   inBounds,
-  isCannonTile,
   isGrass,
   isTowerEnclosed,
-  isTowerTile,
   packTile,
   towerReachesOutsideCardinal,
   unpackTile,
@@ -859,27 +858,13 @@ function computeInteriorFreeRatio(
     for (let col = rect.left; col <= rect.right; col++) {
       total++;
       const key = packTile(row, col);
-      if (player.walls.has(key)) {
+      if (
+        player.walls.has(key) ||
+        !isGrass(state.map.tiles, row, col) ||
+        hasTowerAt(state, row, col) ||
+        hasCannonAt(state, row, col)
+      ) {
         occupied++;
-        continue;
-      }
-      if (!isGrass(state.map.tiles, row, col)) {
-        occupied++;
-        continue;
-      }
-      for (const tower of state.map.towers) {
-        if (isTowerTile(tower, row, col)) {
-          occupied++;
-          break;
-        }
-      }
-      for (const other of state.players) {
-        for (const cannon of other.cannons) {
-          if (isCannonTile(cannon, row, col)) {
-            occupied++;
-            break;
-          }
-        }
       }
     }
   }
