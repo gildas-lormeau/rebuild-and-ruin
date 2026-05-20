@@ -94,16 +94,17 @@ export interface CannonViewState extends GameViewState {
   readonly pendingCannonSlotCost: readonly number[];
 }
 
-/** Upgrade-pick dialog state slice.  5 fields on top of GameViewState.
+/** Upgrade-pick dialog state slice.  6 fields on top of GameViewState.
  *  Used by UpgradePickController.tickUpgradePick and forceUpgradePick —
  *  covers the fields read by the AI decision heuristic (aiPickUpgrade)
- *  plus the rng needed for deterministic fallback randomization. */
+ *  plus the rng + round needed for deriving the per-pick private Rng. */
 export interface UpgradePickViewState extends GameViewState {
-  readonly rng: Rng;
-  readonly towerAlive: readonly boolean[];
-  readonly grunts: readonly Grunt[];
   readonly burningPits: readonly BurningPit[];
+  readonly grunts: readonly Grunt[];
   readonly modern: UpgradePickModernView;
+  readonly rng: Rng;
+  readonly round: number;
+  readonly towerAlive: readonly boolean[];
 }
 
 /** Battle-phase state slice.  15 fields.

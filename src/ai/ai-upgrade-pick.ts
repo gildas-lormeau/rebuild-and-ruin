@@ -7,6 +7,7 @@
  * its own). Dialog tick reads `state.modern.precomputedUpgradePicks`.
  */
 
+import { deriveAiStrategySeed } from "../shared/core/ai-seed.ts";
 import { isBalloonCannon, isCannonAlive } from "../shared/core/battle-types.ts";
 import { GRID_COLS, GRID_ROWS } from "../shared/core/grid.ts";
 import { getInterior } from "../shared/core/player-interior.ts";
@@ -15,6 +16,7 @@ import { zoneAt } from "../shared/core/spatial.ts";
 import type { UpgradePickViewState } from "../shared/core/system-interfaces.ts";
 import type { GameState } from "../shared/core/types.ts";
 import { UID, type UpgradeId } from "../shared/core/upgrade-defs.ts";
+import { Rng } from "../shared/platform/rng.ts";
 import type { UpgradePickEntry } from "../shared/ui/interaction-types.ts";
 import { secondsToTicks } from "./ai-utils.ts";
 
@@ -167,11 +169,14 @@ function aiPickUpgrade(
   if (!playerHasThickWalls(state, playerId)) excluded.add(UID.DEMOLITION);
   const viable = offers.filter((id) => !excluded.has(id));
   const pool = viable.length > 0 ? viable : offers;
-  // lint:allow-state-rng -- aiPickUpgrade is invoked from
-  // precomputeAiUpgradePicks at battle-done.mutate, which fires symmetrically
-  // on every peer; drawing from state.rng here is required for the
-  // precomputed picks to agree across host and watchers.
-  return pool[Math.floor(state.rng.next() * pool.length)]!;
+  const pickRng = new Rng(
+    // lint:allow-state-rng -- reading state.rng.seed (immutable constructor
+    // seed, not a draw) to derive a private Rng. The derived seed depends
+    // only on (baseSeed, round, slot), so every peer arrives at the same
+    // private Rng for the same slot without advancing state.rng.
+    deriveAiStrategySeed(state.rng.seed, state.round, playerId),
+  );
+  return pool[Math.floor(pickRng.next() * pool.length)]!;
 }
 
 function playerTerritoryRatio(
