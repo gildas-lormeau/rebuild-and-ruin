@@ -1,6 +1,7 @@
 import {
   createController,
   ensureAiModulesLoaded,
+  rollAiPersonality,
 } from "../controllers/controller-factory.ts";
 import { applyGameConfig, createGameFromSeed } from "../game/index.ts";
 import type { AiPersonality } from "../shared/core/ai-personality.ts";
@@ -178,7 +179,6 @@ export async function bootstrapGame(deps: InitGameDeps): Promise<void> {
   //   If you ever need identity preservation across promotion, checkpoint
   //   the strategy seeds into SerializedPlayer and restore them on rebuild.
   const factory = deps.controllerFactory ?? createController;
-  const aiStrategy = hasAi ? await import("../ai/ai-strategy.ts") : null;
   const nextControllers = await Promise.all(
     Array.from({ length: playerCount }, (_, i) => {
       const isAi = !deps.humanSlots[i];
@@ -187,10 +187,7 @@ export async function bootstrapGame(deps: InitGameDeps): Promise<void> {
       const aiFields = isAi
         ? {
             privateSeed: state.rng.int(0, MAX_UINT32),
-            personality: aiStrategy!.rollPersonality(
-              state.rng,
-              deps.difficulty,
-            ),
+            personality: rollAiPersonality(state.rng, deps.difficulty),
             rng: state.rng,
           }
         : { privateSeed: undefined, personality: undefined, rng: undefined };

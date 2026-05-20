@@ -7,6 +7,10 @@
  * called first.
  */
 
+import {
+  ensureAiModulesLoaded,
+  rollAiPersonality,
+} from "../controllers/controller-factory.ts";
 import { createAiController } from "../runtime/runtime-bootstrap.ts";
 import { setMode } from "../runtime/runtime-state.ts";
 import type { GameRuntime } from "../runtime/runtime-types.ts";
@@ -51,7 +55,11 @@ export async function promoteToHost(): Promise<void> {
     _runtime.runtimeState.state,
     _runtime.runtimeState.controllers,
     _client.ctx.session.myPlayerId,
-    (id, rng, personality) => createAiController(id, rng, personality),
+    {
+      ensureLoaded: ensureAiModulesLoaded,
+      rollPersonality: rollAiPersonality,
+      create: createAiController,
+    },
     _runtime.runtimeState.settings.difficulty,
   );
   syncAccumulatorsFromTimer(

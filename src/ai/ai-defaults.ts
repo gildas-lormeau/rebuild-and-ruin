@@ -12,7 +12,7 @@ import type { AiBrain } from "./ai-brain-types.ts";
 import { DefaultStrategy } from "./ai-strategy.ts";
 import type { AiStrategy } from "./ai-strategy-types.ts";
 
-export interface AiDeps {
+interface AiDeps {
   strategy: AiStrategy;
   brain: AiBrain;
 }

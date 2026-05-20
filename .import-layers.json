@@ -48,6 +48,7 @@
   {
     "name": "L1",
     "files": [
+      "src/ai/ai-personality-roll.ts",
       "src/ai/ai-utils.ts",
       "src/online/online-config.ts",
       "src/online/online-router.ts",
@@ -307,6 +308,7 @@
       "src/controllers/controller-ai.ts",
       "src/game/modifier-system.ts",
       "src/game/upgrade-system.ts",
+      "src/online/online-host-promotion.ts",
       "src/online/online-runtime-lobby.ts",
       "src/render/3d/effects/grass-emergence.ts",
       "src/render/3d/effects/ground-collapse.ts",
@@ -356,7 +358,6 @@
       "src/game/game-actions.ts",
       "src/game/phase-setup.ts",
       "src/game/scheduled-actions.ts",
-      "src/online/online-host-promotion.ts",
       "src/online/online-server-events.ts",
       "src/runtime/runtime-composition.ts"
     ]

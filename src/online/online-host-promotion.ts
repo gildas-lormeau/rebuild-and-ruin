@@ -3,7 +3,6 @@
  * accumulator sync during host migration.
  */
 
-import { rollPersonality } from "../ai/ai-strategy.ts";
 import {
   buildTimerBonus,
   enterCannonPhase,
@@ -19,6 +18,23 @@ import type { PlayerController } from "../shared/core/system-interfaces.ts";
 import type { GameState } from "../shared/core/types.ts";
 import { Rng } from "../shared/platform/rng.ts";
 
+/** AI dependencies injected by the caller — keeps this file free of any
+ *  `controllers/` or `ai/` imports. The caller wires up the concrete
+ *  implementations (typically from `controllers/controller-factory.ts`). */
+interface AiPromotionDeps {
+  /** Resolves once AI chunks are loaded. Called once before the per-slot loop
+   *  so `rollPersonality` can run synchronously. */
+  readonly ensureLoaded: () => Promise<void>;
+  /** Sync personality roll (requires `ensureLoaded` to have resolved). */
+  readonly rollPersonality: (rng: Rng, difficulty?: number) => AiPersonality;
+  /** Construct an AI controller for the given slot. */
+  readonly create: (
+    id: ValidPlayerId,
+    rng: Rng,
+    personality: AiPersonality,
+  ) => Promise<PlayerController>;
+}
+
 /** Large prime for deriving per-round AI strategy seeds (ensures uncorrelated rounds). */
 const SEED_ROUND_MULTIPLIER = 1000003;
 /** Golden ratio hash constant (2^32 × φ⁻¹) for deriving per-slot AI strategy seeds. */
@@ -28,17 +44,16 @@ const SEED_SLOT_MULTIPLIER = 0x9e3779b9;
  * Return a new controller array with non-self slots replaced by fresh AI
  * controllers initialized for the current game phase. Called during host promotion.
  */
-export function rebuildControllersForPhase(
+export async function rebuildControllersForPhase(
   state: GameState,
   controllers: readonly PlayerController[],
   myPlayerId: PlayerId,
-  createAiController: (
-    id: ValidPlayerId,
-    rng: Rng,
-    personality: AiPersonality,
-  ) => Promise<PlayerController>,
+  aiDeps: AiPromotionDeps,
   difficulty: number | undefined,
 ): Promise<PlayerController[]> {
+  // Pre-load AI modules so rollPersonality can run synchronously inside
+  // the per-slot loop (matches the bootstrap path).
+  await aiDeps.ensureLoaded();
   return Promise.all(
     controllers.map(async (existing, i) => {
       if (i === myPlayerId) return existing;
@@ -56,8 +71,8 @@ export function rebuildControllersForPhase(
       const personalityRng = new Rng(
         deriveAiStrategySeed(state.rng.seed ^ 1, state.round, pid),
       );
-      const personality = rollPersonality(personalityRng, difficulty);
-      const ctrl = await createAiController(pid, strategyRng, personality);
+      const personality = aiDeps.rollPersonality(personalityRng, difficulty);
+      const ctrl = await aiDeps.create(pid, strategyRng, personality);
 
       // Initialize AI for the current phase
       if (state.phase === Phase.WALL_BUILD) {

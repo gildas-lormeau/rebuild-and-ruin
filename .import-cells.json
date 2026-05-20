@@ -122,8 +122,9 @@
   {
     "layer": 1,
     "domain": "ai",
-    "role": "AI utilities (secondsToTicks, traitLookup)",
+    "role": "AI utilities (secondsToTicks, traitLookup) + personality roll",
     "files": [
+      "src/ai/ai-personality-roll.ts",
       "src/ai/ai-utils.ts"
     ]
   },
@@ -768,6 +769,7 @@
     "domain": "online",
     "role": "online runtime lobby",
     "files": [
+      "src/online/online-host-promotion.ts",
       "src/online/online-runtime-lobby.ts"
     ]
   },
@@ -918,7 +920,6 @@
     "domain": "online",
     "role": "online server-event handlers",
     "files": [
-      "src/online/online-host-promotion.ts",
       "src/online/online-server-events.ts"
     ]
   },

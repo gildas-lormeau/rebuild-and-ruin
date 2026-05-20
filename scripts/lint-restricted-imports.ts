@@ -40,7 +40,17 @@
  *    no-op when the feature is inactive) rather than branching on capability
  *    flags. Zero-hit today; tripwire for future leaks.
  *
- * 6. `modifier-reveal-time.ts` (which resolves the banner-aware
+ * 6. Files in `src/controllers/` may only be imported by an explicit
+ *    composition-root allowlist (`runtime-bootstrap.ts`,
+ *    `online-runtime-promote.ts`, `online-rehydrate.ts`) plus other files
+ *    inside `src/controllers/` itself. Helpers that need controller
+ *    construction must receive an injected deps bag — direct imports of
+ *    `controller-factory.ts` from non-roots are the leak this catches.
+ *    (Pre-existing example: `online-host-promotion.ts` briefly imported
+ *    `ensureAiModulesLoaded` + `rollAiPersonality` before being
+ *    refactored to take an `AiPromotionDeps` parameter.)
+ *
+ * 7. `modifier-reveal-time.ts` (which resolves the banner-aware
  *    `revealTimeMs` scalar) must only be imported by `runtime-render.ts`.
  *    Modifier-effect code receives `revealTimeMs` already-resolved; it must
  *    never call `revealTimeFor` / `tickModifierRevealClock` itself, nor
@@ -158,6 +168,15 @@ const GAME_DEEP_IMPORT_ALLOWLIST: Record<
  *  resolved (via the 2D registry or the path-A `overlay.ui.modifierReveal`
  *  publication) and must never read banner state itself. */
 const MODIFIER_REVEAL_TIME_IMPORTER = "src/runtime/runtime-render.ts";
+/** Composition-root files allowed to import from `src/controllers/`. Other
+ *  files that need controller construction must accept a deps bag from
+ *  their caller (see online-host-promotion.ts:AiPromotionDeps for the
+ *  pattern). New roots must be justified in the import allowlist comment. */
+const CONTROLLER_IMPORT_ALLOWLIST = new Set([
+  "src/runtime/runtime-bootstrap.ts",
+  "src/online/online-runtime-promote.ts",
+  "src/online/online-rehydrate.ts",
+]);
 
 main();
 
@@ -173,6 +192,7 @@ function main(): void {
     checkUidImports(filePath, content, violations);
     checkRuntimeMutatorImports(filePath, content, violations);
     checkRuntimeHasFeatureCalls(filePath, content, violations);
+    checkControllerImports(filePath, content, violations);
     checkModifierRevealTimeImports(filePath, content, violations);
   }
 
@@ -349,6 +369,26 @@ function checkRuntimeHasFeatureCalls(
       line: idx + 1,
       message:
         "Runtime must not call `hasFeature(` directly — feature gating belongs in the game layer. Ask the game layer to run the gated path (or expose a semantic function) instead.",
+    });
+  }
+}
+
+function checkControllerImports(
+  file: string,
+  content: string,
+  violations: Violation[],
+): void {
+  const rel = relative(process.cwd(), file);
+  // Files inside src/controllers/ can freely import each other.
+  if (rel.startsWith("src/controllers/")) return;
+  if (CONTROLLER_IMPORT_ALLOWLIST.has(rel)) return;
+
+  for (const imp of parseImports(content)) {
+    if (!imp.source.includes("/controllers/")) continue;
+    violations.push({
+      file: rel,
+      line: imp.line,
+      message: `Import from "${imp.source}" — only composition-root files (${[...CONTROLLER_IMPORT_ALLOWLIST].join(", ")}) may import from src/controllers/. Helpers must receive controller construction via an injected deps bag (see online-host-promotion.ts for the pattern).`,
     });
   }
 }

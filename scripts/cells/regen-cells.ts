@@ -82,7 +82,7 @@ const SUBPATH_PARTITIONS: Record<string, readonly string[]> = {
 const LABELS: Record<string, string> = {
   // L0 — leaf modules (no intra-project imports)
   "0::ai": "AI tuning data",
-  "1::ai": "AI utilities (secondsToTicks, traitLookup)",
+  "1::ai": "AI utilities (secondsToTicks, traitLookup) + personality roll",
   "0::game": "domain barrel",
   "0::input": "input primitives & recorder",
   "0::online": "DOM lookup helpers",

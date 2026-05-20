@@ -5,7 +5,11 @@
  * would be too slow to be useful.
  */
 
-import { createController } from "../controllers/controller-factory.ts";
+import {
+  createController,
+  ensureAiModulesLoaded,
+  rollAiPersonality,
+} from "../controllers/controller-factory.ts";
 import type { FullStateMessage } from "../protocol/protocol.ts";
 import { setMode } from "../runtime/runtime-state.ts";
 import type { GameRuntime } from "../runtime/runtime-types.ts";
@@ -57,8 +61,12 @@ export async function applyMidGameCheckpoint(
     state,
     runtime.runtimeState.controllers,
     ALL_SLOTS_AI,
-    (id, rng, personality) =>
-      createController(id, true, undefined, rng, undefined, personality),
+    {
+      ensureLoaded: ensureAiModulesLoaded,
+      rollPersonality: rollAiPersonality,
+      create: (id, rng, personality) =>
+        createController(id, true, undefined, rng, undefined, personality),
+    },
     undefined,
   );
 
