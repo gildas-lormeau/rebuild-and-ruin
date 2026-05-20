@@ -31,7 +31,6 @@
       "shared",
       "protocol",
       "game",
-      "controllers",
       "runtime"
     ],
     "server": [

@@ -8,10 +8,10 @@
  */
 
 import {
+  createAiController,
   ensureAiModulesLoaded,
   rollAiPersonality,
-} from "../controllers/controller-factory.ts";
-import { createAiController } from "../runtime/runtime-bootstrap.ts";
+} from "../runtime/runtime-bootstrap.ts";
 import { setMode } from "../runtime/runtime-state.ts";
 import type { GameRuntime } from "../runtime/runtime-types.ts";
 import { assertNever } from "../shared/platform/utils.ts";

@@ -41,14 +41,11 @@
  *    flags. Zero-hit today; tripwire for future leaks.
  *
  * 6. Files in `src/controllers/` may only be imported by an explicit
- *    composition-root allowlist (`runtime-bootstrap.ts`,
- *    `online-runtime-promote.ts`, `online-rehydrate.ts`) plus other files
- *    inside `src/controllers/` itself. Helpers that need controller
- *    construction must receive an injected deps bag — direct imports of
- *    `controller-factory.ts` from non-roots are the leak this catches.
- *    (Pre-existing example: `online-host-promotion.ts` briefly imported
- *    `ensureAiModulesLoaded` + `rollAiPersonality` before being
- *    refactored to take an `AiPromotionDeps` parameter.)
+ *    composition-root allowlist (`runtime-bootstrap.ts`) plus other files
+ *    inside `src/controllers/` itself. All other code — including online
+ *    promotion + rehydrate — routes through `runtime-bootstrap.ts`'s
+ *    re-exports of the controller-factory surface, so online never
+ *    crosses the `online → controllers` boundary directly.
  *
  * 7. `modifier-reveal-time.ts` (which resolves the banner-aware
  *    `revealTimeMs` scalar) must only be imported by `runtime-render.ts`.
@@ -174,8 +171,6 @@ const MODIFIER_REVEAL_TIME_IMPORTER = "src/runtime/runtime-render.ts";
  *  pattern). New roots must be justified in the import allowlist comment. */
 const CONTROLLER_IMPORT_ALLOWLIST = new Set([
   "src/runtime/runtime-bootstrap.ts",
-  "src/online/online-runtime-promote.ts",
-  "src/online/online-rehydrate.ts",
 ]);
 
 main();

@@ -5,12 +5,12 @@
  * would be too slow to be useful.
  */
 
+import type { FullStateMessage } from "../protocol/protocol.ts";
 import {
-  createController,
+  createAiController,
   ensureAiModulesLoaded,
   rollAiPersonality,
-} from "../controllers/controller-factory.ts";
-import type { FullStateMessage } from "../protocol/protocol.ts";
+} from "../runtime/runtime-bootstrap.ts";
 import { setMode } from "../runtime/runtime-state.ts";
 import type { GameRuntime } from "../runtime/runtime-types.ts";
 import type { BalloonFlight } from "../shared/core/battle-types.ts";
@@ -64,8 +64,7 @@ export async function applyMidGameCheckpoint(
     {
       ensureLoaded: ensureAiModulesLoaded,
       rollPersonality: rollAiPersonality,
-      create: (id, rng, personality) =>
-        createController(id, true, undefined, rng, undefined, personality),
+      create: createAiController,
     },
     undefined,
   );

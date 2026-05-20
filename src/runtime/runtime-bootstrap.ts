@@ -31,6 +31,14 @@ import {
 } from "../shared/ui/settings-defs.ts";
 import { type RuntimeState, setRuntimeGameState } from "./runtime-state.ts";
 
+// Re-export AI loading helpers so online code routes through runtime/
+// instead of importing controllers/ directly. Keeps online's domain
+// boundary at runtime + shared + protocol + game.
+export {
+  ensureAiModulesLoaded,
+  rollAiPersonality,
+} from "../controllers/controller-factory.ts";
+
 interface BootstrapFromSettingsDeps {
   readonly clearFrameData: () => void;
   readonly resetUIState: () => void;
