@@ -190,6 +190,7 @@
     "role": "shared foundational types & defs",
     "files": [
       "src/shared/core/action-schedule.ts",
+      "src/shared/core/ai-seed.ts",
       "src/shared/core/elevation-constants.ts",
       "src/shared/core/feature-defs.ts",
       "src/shared/core/geometry-types.ts",
@@ -425,6 +426,7 @@
     "domain": "online",
     "role": "online lobby UI & session state",
     "files": [
+      "src/online/online-host-promotion.ts",
       "src/online/online-lobby-ui.ts",
       "src/online/online-send-actions.ts",
       "src/online/online-session.ts"
@@ -769,7 +771,6 @@
     "domain": "online",
     "role": "online runtime lobby",
     "files": [
-      "src/online/online-host-promotion.ts",
       "src/online/online-runtime-lobby.ts"
     ]
   },

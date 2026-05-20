@@ -10,6 +10,7 @@ import {
 } from "../game/index.ts";
 import type { MutableAccums } from "../runtime/timer-accums.ts";
 import type { AiPersonality } from "../shared/core/ai-personality.ts";
+import { deriveAiStrategySeed } from "../shared/core/ai-seed.ts";
 import { BATTLE_TIMER } from "../shared/core/game-constants.ts";
 import { Phase } from "../shared/core/game-phase.ts";
 import type { PlayerId, ValidPlayerId } from "../shared/core/player-slot.ts";
@@ -34,11 +35,6 @@ interface AiPromotionDeps {
     personality: AiPersonality,
   ) => Promise<PlayerController>;
 }
-
-/** Large prime for deriving per-round AI strategy seeds (ensures uncorrelated rounds). */
-const SEED_ROUND_MULTIPLIER = 1000003;
-/** Golden ratio hash constant (2^32 × φ⁻¹) for deriving per-slot AI strategy seeds. */
-const SEED_SLOT_MULTIPLIER = 0x9e3779b9;
 
 /**
  * Return a new controller array with non-self slots replaced by fresh AI
@@ -139,33 +135,4 @@ export function syncAccumulatorsFromTimer(
   } else if (state.phase === Phase.BATTLE) {
     accum.battle = BATTLE_TIMER - state.timer;
   }
-}
-
-/** Derive a deterministic AI strategy seed from the base RNG seed, round, and player slot.
- *  Both multipliers must be used together — they ensure seeds are uncorrelated
- *  across rounds (large prime) and across slots (golden ratio hash).
- *
- *  Contract vs. the initial-host path (runtime-bootstrap.ts):
- *    - Initial hosts pull AI seeds from state.rng.int() in player order,
- *      which advances state.rng before castle selection.
- *    - Promoted hosts derive seeds from (baseSeed, round, slot) without
- *      touching state.rng, because a promoted host doesn't know what the
- *      original host pulled at init time.
- *
- *  The two formulas are intentionally different. As a result, a promoted
- *  host's AI identity (personality, targeting rhythm, etc.) does NOT match
- *  what the previous host was running — it's effectively a new AI instance.
- *  This is acceptable because watchers replay events (not AI decisions), so
- *  parity is preserved within each "era". If identity preservation across
- *  promotion ever matters, checkpoint the strategy seeds into SerializedPlayer
- *  and restore them in rebuildControllersForPhase above. */
-function deriveAiStrategySeed(
-  baseSeed: number,
-  round: number,
-  slot: ValidPlayerId,
-): number {
-  return (
-    (baseSeed + round * SEED_ROUND_MULTIPLIER + slot * SEED_SLOT_MULTIPLIER) >>>
-    0 // >>> 0 coerces to uint32 (consistent seed behavior across platforms)
-  );
 }
