@@ -226,16 +226,12 @@ export interface FullStateMessage extends SerializedModifierTiles {
   activeModifierChangedTiles: number[];
   lastModifierId: string | null;
   pendingUpgradeOffers?: [number, [string, string, string]][] | null;
-  /** AI's precomputed upgrade pick per player, drawn from `state.rng` at
-   *  battle-done.mutate. Late-joiners and host-migration receivers need
-   *  this — they restore the post-precompute `state.rng` state, so they
-   *  can't recompute the picks themselves without drifting RNG. */
-  precomputedUpgradePicks?: [number, string][] | null;
   /** Precomputed dust-storm jitter angles (radians), drawn from
    *  `state.rng` at `prepareBattleState` when the rolled modifier is
    *  dust-storm. Indexed by `state.shotsFired` at fire time on every
-   *  peer. Empty array when dust-storm isn't active this round. Same
-   *  late-joiner reasoning as `precomputedUpgradePicks`. */
+   *  peer. Empty array when dust-storm isn't active this round.
+   *  Late-joiners receive this because they restore the post-prepare
+   *  `state.rng` state and can't recompute the jitters themselves. */
   precomputedDustStormJitters?: number[];
   masterBuilderLockout?: number;
   masterBuilderOwners?: number[] | null;

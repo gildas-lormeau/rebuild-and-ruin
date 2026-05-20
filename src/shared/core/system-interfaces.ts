@@ -32,17 +32,6 @@ import type { Player } from "./player-types.ts";
 import type { UpgradeId } from "./upgrade-defs.ts";
 import type { ZoneId } from "./zone-id.ts";
 
-/** Inline structural subset of ModernState fields read by the upgrade-pick
- *  dialog tick.  Mirrors the inline-subset trick BattleViewState uses for
- *  `frozenTiles`/`activeModifier` — keeps UpgradePickViewState free of a
- *  types.ts import. */
-type UpgradePickModernView = {
-  readonly precomputedUpgradePicks: ReadonlyMap<
-    ValidPlayerId,
-    UpgradeId
-  > | null;
-} | null;
-
 /** Minimal game-state slice used in controller method signatures.
  *  Breaks the coupling chain: consumers of controller interfaces no longer
  *  transitively depend on types.ts (GameState). GameState satisfies this
@@ -104,7 +93,6 @@ export interface UpgradePickViewState extends GameViewState {
   readonly towerAlive: readonly boolean[];
   readonly grunts: readonly Grunt[];
   readonly burningPits: readonly BurningPit[];
-  readonly modern: UpgradePickModernView;
 }
 
 /** Battle-phase state slice.  15 fields.

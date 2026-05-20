@@ -170,14 +170,6 @@ export function restoreFullStateSnapshot(
           ]),
         )
       : null;
-    state.modern!.precomputedUpgradePicks = msg.precomputedUpgradePicks
-      ? new Map(
-          msg.precomputedUpgradePicks.map(([pid, choice]) => [
-            pid as ValidPlayerId,
-            choice as UpgradeId,
-          ]),
-        )
-      : null;
     state.modern!.masterBuilderLockout = msg.masterBuilderLockout ?? 0;
     state.modern!.masterBuilderOwners = msg.masterBuilderOwners
       ? new Set(msg.masterBuilderOwners as ValidPlayerId[])
@@ -399,9 +391,6 @@ function serializeModernFields(state: GameState) {
   return {
     pendingUpgradeOffers: state.modern?.pendingUpgradeOffers
       ? [...state.modern.pendingUpgradeOffers.entries()]
-      : null,
-    precomputedUpgradePicks: state.modern?.precomputedUpgradePicks
-      ? [...state.modern.precomputedUpgradePicks.entries()]
       : null,
     precomputedDustStormJitters: state.modern?.precomputedDustStormJitters
       ? [...state.modern.precomputedDustStormJitters]
