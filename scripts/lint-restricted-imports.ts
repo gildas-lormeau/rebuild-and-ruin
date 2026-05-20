@@ -4,7 +4,7 @@
  * Rules:
  * 1. `Tile` enum must only be imported as a value in allowlisted files.
  *    All other files should use `import type { Tile }` or prefer spatial helpers
- *    (isWater, isGrass, waterKeys, etc.) instead.
+ *    (isWater, isGrass, etc.) instead.
  *
  * 2. Non-game files must go through `src/game/index.ts` (the barrel) rather than
  *    deep-importing from specific `src/game/*.ts` files. A narrow allowlist exists
