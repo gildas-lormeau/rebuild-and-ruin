@@ -15,9 +15,15 @@ legality, execute intents) but game code never imports from `ai/`.
 
 Each game phase the AI plays through is decomposed into three layers:
 
-1. **Strategy** (`ai-strategy-*.ts`) — Pure decision functions that
+1. **Strategy** (`ai-strategy-*.ts`) — Decision functions that
    return placements, targets, or fire intents. No animation, no
-   state, no side effects. Given a snapshot, return a decision.
+   `GameState` mutation. Strategy DOES hold its own per-AI cache
+   state (sticky enclosure target, shot counts, focus-fire target,
+   phase-stable snapshots) and per-phase consumable flags
+   (`CannonPlacementContext.pendingSuperGun`/`Rampart`/`Balloon`,
+   each flipped to false the first time it's attempted). That's
+   intentional — see the `DefaultStrategy` fields in
+   `ai-strategy.ts` and the `CannonPlacementContext` JSDoc.
 2. **Phase state machine** (`ai-phase-*.ts`) — Per-frame stateful
    tick that drives cursor animation, locks in decisions, and
    executes intents through the orchestrator. Holds the "where is
@@ -28,8 +34,10 @@ Each game phase the AI plays through is decomposed into three layers:
    controller (`src/controllers/controller-ai.ts`) owns cursor +
    trait state and delegates every phase tick to its injected brain.
 
-This split lets strategy modules stay pure + unit-testable while
-per-frame animation state lives in the phase modules.
+This split lets strategy modules stay unit-testable (no animation,
+no `GameState` writes — snapshot-in, decision-out from the caller's
+perspective) while per-frame animation state lives in the phase
+modules.
 
 ## Read these first
 
@@ -134,7 +142,10 @@ contract as human controllers:
 
 Do NOT mutate `GameState` from inside a strategy function. The
 compiler won't catch it (JavaScript mutation is unrestricted) but
-the architecture lint and determinism tests will.
+the architecture lint and determinism tests will. Mutating the
+strategy's own caches (the `DefaultStrategy` `private` fields, the
+`CannonPlacementContext` pending flags) is fine and expected — they
+exist precisely to carry state across calls.
 
 ## Common operations
 
