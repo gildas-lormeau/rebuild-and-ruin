@@ -99,12 +99,12 @@ export interface CannonViewState extends GameViewState {
  *  covers the fields read by the AI decision heuristic (aiPickUpgrade)
  *  plus the rng + round needed for deriving the per-pick private Rng. */
 export interface UpgradePickViewState extends GameViewState {
-  readonly burningPits: readonly BurningPit[];
-  readonly grunts: readonly Grunt[];
-  readonly modern: UpgradePickModernView;
   readonly rng: Rng;
   readonly round: number;
   readonly towerAlive: readonly boolean[];
+  readonly grunts: readonly Grunt[];
+  readonly burningPits: readonly BurningPit[];
+  readonly modern: UpgradePickModernView;
 }
 
 /** Battle-phase state slice.  15 fields.
