@@ -791,7 +791,6 @@
     "activeModifierChangedTiles": [],
     "lastModifierId": null,
     "pendingUpgradeOffers": null,
-    "precomputedUpgradePicks": null,
     "precomputedDustStormJitters": [],
     "masterBuilderLockout": 0,
     "masterBuilderOwners": null,
