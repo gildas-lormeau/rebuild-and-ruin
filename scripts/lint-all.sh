@@ -76,6 +76,7 @@ echo "lint:all: parallel checks..."
   run shape-duplicates  deno run -A scripts/find-shape-duplicates.ts --exact-only --test --shared-subset 3
   run dead-params       deno run -A scripts/lint-dead-params.ts --min-callers=1
   run unused-iface      deno run -A scripts/lint-unused-interface-fields.ts
+  run union-drift       env AUDIT_EXIT_NONZERO=1 deno run -A scripts/audit-literal-union-drift.ts --report
 ) &
 
 # Lane 5 — deno type-check + lint

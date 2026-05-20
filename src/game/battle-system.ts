@@ -122,7 +122,10 @@ export interface BattleCombatResult {
  *  scattered across the file. */
 interface AnnouncementStep {
   readonly text: string;
-  readonly eventType: "battleReady" | "battleAim" | "battleFire";
+  readonly eventType: (typeof GAME_EVENT)[
+    | "BATTLE_READY"
+    | "BATTLE_AIM"
+    | "BATTLE_FIRE"];
 }
 
 /** Firework-whistle variant durations (seconds), indexed by variant id.
