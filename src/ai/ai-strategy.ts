@@ -18,7 +18,6 @@ import type { PieceShape } from "../shared/core/pieces.ts";
 import { getInterior } from "../shared/core/player-interior.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import type { Player } from "../shared/core/player-types.ts";
-import { computeOutside, isTowerEnclosed } from "../shared/core/spatial.ts";
 import type {
   BattleViewState,
   BuildViewState,
@@ -196,11 +195,9 @@ export class DefaultStrategy implements AiStrategy {
    *  pickPlacement(), reflecting last round's outcome, not real-time state. */
   assessBuildEnd(state: GameViewState, playerId: ValidPlayerId): void {
     const player = state.players[playerId]!;
-    this._homeWasBroken = false;
-    if (player.homeTower) {
-      const outside = computeOutside(player.walls);
-      this._homeWasBroken = !isTowerEnclosed(player.homeTower, outside);
-    }
+    this._homeWasBroken =
+      player.homeTower !== null &&
+      !player.ownedTowers.includes(player.homeTower);
   }
 
   // -----------------------------------------------------------------------
