@@ -66,8 +66,13 @@ const WATER_SEARCH_RANGE = 2;
 const WATER_ADJACENT_PENALTY = 15;
 /** Penalty for water at Manhattan distance 2. */
 const WATER_NEAR_PENALTY = 8;
-/** Score cost per tile of distance to the nearest owned tower. */
-const TOWER_DISTANCE_MULTIPLIER = 2;
+/** Score cost per tile of distance to the nearest owned tower. Tuned to
+ *  decisively beat the wasted-tile penalty (-10 per dead pocket × ~3
+ *  pockets per tower-adjacent placement) so cannons cluster around towers
+ *  instead of drifting into open middle space, while staying below the
+ *  border (-30) and water (-15) penalty ceilings so coastal towers don't
+ *  drag cannons onto edge tiles. */
+const TOWER_DISTANCE_MULTIPLIER = 24;
 /** Penalty per cannon tile that is 4-adjacent to one of the player's own
  *  walls. Wall-hugging cannons take enemy-fire splash on their own walls,
  *  exposing the castle. */

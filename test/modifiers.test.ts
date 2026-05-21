@@ -69,7 +69,7 @@ const MAX_TIMEOUT_MS = 600_000;
  *  Refresh by running the in-test seed-search probe and picking the first
  *  seed where the effect fires. */
 const PER_MODIFIER_SEED: Partial<Record<ModifierId, number>> = {
-  frostbite: 3,
+  frostbite: 17,
 };
 /** Effect probes — see file header. Modifiers without an entry fall
  *  back to a pick-only assertion (the MODIFIER_APPLIED event itself is

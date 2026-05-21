@@ -14,6 +14,9 @@ import roundOneWithWalls from "./fixtures/cannon-place/round1-with-walls.json" w
 import roundTwoThree10x10Castles from "./fixtures/cannon-place/round2-three-10x10-castles.json" with {
   type: "json",
 };
+import roundTwoWholeZoneMultiTowers from "./fixtures/cannon-place/round2-whole-zone-multi-towers.json" with {
+  type: "json",
+};
 import {
   applyBonusSquareOverrides,
   applyHouseOverrides,
@@ -309,5 +312,68 @@ Deno.test("phase-test: AI cannon placement prefers tower side over wall side in 
     `AI prefers wall side: ${wallSide} cannons closer to wall, ` +
       `${towerSide} closer to tower, ${neutral} equidistant. ` +
       `Per-player: ${JSON.stringify(perPlayer)}`,
+  );
+});
+
+Deno.test("phase-test: AI clusters cannons near owned towers in a multi-tower whole-zone enclosure", async () => {
+  // Fixture: player 0 has a single enclosure spanning the whole zone, with
+  // 4 owned towers spread across it. cannonLimits[0] is bumped so the AI
+  // fills the interior. Without a sufficient pull toward towers, the AI
+  // drifts placements toward the geometric center of the enclosure instead
+  // of clustering around the towers — which leaves towers under-defended
+  // and clogs the middle.
+  const sc = await createPhaseScenario(
+    roundTwoWholeZoneMultiTowers as unknown as FixtureFile,
+  );
+  waitForPhase(sc, Phase.BATTLE);
+
+  const player = sc.state.players[0]!;
+  assertEquals(
+    player.cannons.length,
+    20,
+    `expected AI to place all 20 cannons (cannonLimits=20)`,
+  );
+  assertGreater(
+    player.ownedTowers.length,
+    1,
+    `fixture should give player 0 multiple owned towers, got ${player.ownedTowers.length}`,
+  );
+
+  const towerCenters = player.ownedTowers.map((tower) => ({
+    row: tower.row + 1,
+    col: tower.col + 1,
+  }));
+
+  const distances: number[] = [];
+  for (const cannon of player.cannons) {
+    const cRow = cannon.row + 1;
+    const cCol = cannon.col + 1;
+    let nearest = Infinity;
+    for (const tc of towerCenters) {
+      const distance = Math.abs(cRow - tc.row) + Math.abs(cCol - tc.col);
+      if (distance < nearest) nearest = distance;
+    }
+    distances.push(nearest);
+  }
+  distances.sort((a, b) => a - b);
+  const totalDistance = distances.reduce((sum, distance) => sum + distance, 0);
+  const avg = totalDistance / distances.length;
+  const max = distances[distances.length - 1]!;
+
+  // No cannon should be more than 5 Manhattan tiles from its nearest owned
+  // tower's center. With TOWER_DISTANCE_MULTIPLIER too low the AI drifts
+  // cannons into the geometric middle of the enclosure, producing outliers
+  // at distance 6+.
+  assert(
+    max <= 5,
+    `AI drifts a cannon away from any tower: max=${max} avg=${avg.toFixed(2)} ` +
+      `sorted=[${distances.join(",")}]`,
+  );
+  // Tighter signal: average distance must stay below the broken-baseline
+  // (~3.40 at multiplier=2/8). The fixed behavior settles around 3.1.
+  assert(
+    avg <= 3.3,
+    `AI cannons drift away from towers on average: avg=${avg.toFixed(2)} ` +
+      `max=${max} sorted=[${distances.join(",")}]`,
   );
 });
