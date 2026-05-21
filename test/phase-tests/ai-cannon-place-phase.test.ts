@@ -279,13 +279,13 @@ Deno.test("phase-test: AI cannon placement prefers tower side over wall side in 
           const cr = cannon.row + dr;
           const cc = cannon.col + dc;
           for (const wallKey of player.walls) {
-            const { r, c } = unpackTile(wallKey);
-            const distance = Math.abs(cr - r) + Math.abs(cc - c);
+            const { row, col } = unpackTile(wallKey);
+            const distance = Math.abs(cr - row) + Math.abs(cc - col);
             if (distance < minWall) minWall = distance;
           }
           for (const towerKey of towerTiles) {
-            const { r, c } = unpackTile(towerKey);
-            const distance = Math.abs(cr - r) + Math.abs(cc - c);
+            const { row, col } = unpackTile(towerKey);
+            const distance = Math.abs(cr - row) + Math.abs(cc - col);
             if (distance < minTower) minTower = distance;
           }
         }

@@ -166,7 +166,7 @@ export function towerReachesOutsideCardinal(
   const queue = [start];
   while (queue.length > 0) {
     const key = queue.pop()!;
-    const { r: kr, c: kc } = unpackTile(key);
+    const { row: kr, col: kc } = unpackTile(key);
     if (targets) {
       if (targets.has(key)) return true;
     } else {
@@ -651,14 +651,14 @@ function extendBoundsFromWalls(
   walls: ReadonlySet<TileKey>,
 ): void {
   for (const key of walls) {
-    const { r, c } = unpackTile(key);
-    extendBounds(bounds, r, c);
+    const { row, col } = unpackTile(key);
+    extendBounds(bounds, row, col);
   }
 }
 
 /** Convert a packed tile key back to row/column coordinates. */
-export function unpackTile(key: TileKey): { r: number; c: number } {
-  return { r: Math.floor(key / GRID_COLS), c: key % GRID_COLS };
+export function unpackTile(key: TileKey): TilePos {
+  return { row: Math.floor(key / GRID_COLS), col: key % GRID_COLS };
 }
 
 function extendBoundsFromTower(

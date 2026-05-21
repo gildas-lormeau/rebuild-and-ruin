@@ -203,7 +203,7 @@ function hasOccupantInPocket(
   state: BuildViewState,
 ): boolean {
   for (const pocketKey of pocket) {
-    const { r: pr, c: pc } = unpackTile(pocketKey);
+    const { row: pr, col: pc } = unpackTile(pocketKey);
     for (const tower of state.map.towers) {
       if (isTowerTile(tower, pr, pc)) return true;
     }

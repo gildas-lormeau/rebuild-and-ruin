@@ -605,8 +605,8 @@ function collectEnemyTargets(
   for (const player of state.players) {
     if (player.id === myPid || isPlayerEliminated(player)) continue;
     for (const key of player.walls) {
-      const { r, c } = unpackTile(key);
-      enemyTargets.push(tileCenterPx(r, c));
+      const { row, col } = unpackTile(key);
+      enemyTargets.push(tileCenterPx(row, col));
     }
   }
 

@@ -118,7 +118,7 @@ function canAnyRotationFillGap(
     let rot = shape;
     for (let rotIdx = 0; rotIdx < 4; rotIdx++) {
       for (const gapKey of gaps) {
-        const { r: gr, c: gc } = unpackTile(gapKey);
+        const { row: gr, col: gc } = unpackTile(gapKey);
         for (const [dr, dc] of rot.offsets) {
           if (
             canPlacePiece(

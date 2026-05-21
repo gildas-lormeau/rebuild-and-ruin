@@ -307,10 +307,10 @@ export function findOuterRingHoles(
 ): Set<TileKey> {
   const outside = computeOutside(walls);
   const isRingWall = (key: TileKey): boolean => {
-    const { r, c } = unpackTile(key);
+    const { row, col } = unpackTile(key);
     for (const [dr, dc] of DIRS_4) {
-      const nr = r + dr;
-      const nc = c + dc;
+      const nr = row + dr;
+      const nc = col + dc;
       if (!inBounds(nr, nc)) continue;
       if (outside.has(packTile(nr, nc))) return true;
     }
@@ -319,7 +319,7 @@ export function findOuterRingHoles(
   const holes = new Set<TileKey>();
   for (const wallKey of walls) {
     if (!isRingWall(wallKey)) continue;
-    const { r: wr, c: wc } = unpackTile(wallKey);
+    const { row: wr, col: wc } = unpackTile(wallKey);
     for (const [dr, dc] of DIRS_4) {
       for (let step = 2; step <= HOLE_MAX_WIDTH + 1; step++) {
         const nr = wr + dr * step;
@@ -719,16 +719,17 @@ function tryRepairHomeCastle(ctx: TargetContext): TargetResult {
     let expanded = false;
 
     for (const key of gaps) {
-      const { r, c } = unpackTile(key);
+      const { row, col } = unpackTile(key);
       // Only expand for temporary blockers (grunts, burning pits).
       // Water is permanent terrain — expanding just creates more water gaps.
-      if (!isGrass(state.map.tiles, r, c)) continue;
+      if (!isGrass(state.map.tiles, row, col)) continue;
       const blocked =
-        hasGruntAt(state.grunts, r, c) || hasPitAt(state.burningPits, r, c);
+        hasGruntAt(state.grunts, row, col) ||
+        hasPitAt(state.burningPits, row, col);
       if (!blocked) continue;
 
       if (
-        r === wallRingTop &&
+        row === wallRingTop &&
         top - 1 >= homeRect.top - MAX_EXPAND &&
         top - 1 >= 1
       ) {
@@ -736,7 +737,7 @@ function tryRepairHomeCastle(ctx: TargetContext): TargetResult {
         expanded = true;
       }
       if (
-        r === wallRingBottom &&
+        row === wallRingBottom &&
         bottom + 1 <= homeRect.bottom + MAX_EXPAND &&
         bottom + 1 < GRID_ROWS - 1
       ) {
@@ -744,7 +745,7 @@ function tryRepairHomeCastle(ctx: TargetContext): TargetResult {
         expanded = true;
       }
       if (
-        c === wallRingLeft &&
+        col === wallRingLeft &&
         left - 1 >= homeRect.left - MAX_EXPAND &&
         left - 1 >= 1
       ) {
@@ -752,7 +753,7 @@ function tryRepairHomeCastle(ctx: TargetContext): TargetResult {
         expanded = true;
       }
       if (
-        c === wallRingRight &&
+        col === wallRingRight &&
         right + 1 <= homeRect.right + MAX_EXPAND &&
         right + 1 < GRID_COLS - 1
       ) {
@@ -1018,11 +1019,11 @@ function computeWallsBBox(walls: ReadonlySet<TileKey>): TileBounds | null {
     minC = Infinity,
     maxC = -Infinity;
   for (const key of walls) {
-    const { r, c } = unpackTile(key);
-    if (r < minR) minR = r;
-    if (r > maxR) maxR = r;
-    if (c < minC) minC = c;
-    if (c > maxC) maxC = c;
+    const { row, col } = unpackTile(key);
+    if (row < minR) minR = row;
+    if (row > maxR) maxR = row;
+    if (col < minC) minC = col;
+    if (col > maxC) maxC = col;
   }
   if (!Number.isFinite(minR)) return null;
   return { minR, maxR, minC, maxC };

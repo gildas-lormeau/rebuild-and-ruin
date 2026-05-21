@@ -81,8 +81,8 @@ export function effectivePlanTiles(state: {
   if (flooded.size === 0) return state.map.tiles;
   const cloned: Tile[][] = state.map.tiles.map((row) => [...row]);
   for (const key of flooded) {
-    const { r, c } = unpackTile(key);
-    setWater(cloned, r, c);
+    const { row, col } = unpackTile(key);
+    setWater(cloned, row, col);
   }
   return cloned;
 }
@@ -328,13 +328,13 @@ export function applyClumsyBuilders(
   const currentWalls = [...walls];
   for (const key of currentWalls) {
     if (!rng.bool(CLUMSY_WALL_CHANCE * clumsyScale)) continue;
-    const { r, c } = unpackTile(key);
+    const { row, col } = unpackTile(key);
 
     // Collect candidate neighbors (4-connected) that aren't already walls or tower
     const candidates: [number, number][] = [];
     for (const [dr, dc] of DIRS_4) {
-      const nr = r + dr;
-      const nc = c + dc;
+      const nr = row + dr;
+      const nc = col + dc;
       if (!isGrass(tiles, nr, nc)) continue;
       if (walls.has(packTile(nr, nc))) continue;
       if (isTower(nr, nc)) continue;
@@ -350,11 +350,11 @@ export function applyClumsyBuilders(
   // Sweep: remove completely isolated extra tiles (0 wall neighbors).
   // Tiles with 1+ neighbors are valid bumps from clumsy builders.
   for (const key of [...walls]) {
-    const { r, c } = unpackTile(key);
+    const { row, col } = unpackTile(key);
     let neighbors = 0;
     for (const [dr, dc] of DIRS_4) {
-      const nr = r + dr;
-      const nc = c + dc;
+      const nr = row + dr;
+      const nc = col + dc;
       if (!inBounds(nr, nc)) continue;
       if (walls.has(packTile(nr, nc))) neighbors++;
     }
@@ -639,10 +639,10 @@ function interleaveExtras(
     if (placed.has(k)) continue;
     ordered.push(k);
     placed.add(k);
-    const { r, c } = unpackTile(k);
+    const { row, col } = unpackTile(k);
     for (const [dr, dc] of DIRS_4) {
-      const nr = r + dr;
-      const nc = c + dc;
+      const nr = row + dr;
+      const nc = col + dc;
       if (!inBounds(nr, nc)) continue;
       const neighborKey = packTile(nr, nc);
       if (extras.has(neighborKey) && !placed.has(neighborKey)) {

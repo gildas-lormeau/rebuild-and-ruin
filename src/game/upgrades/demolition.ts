@@ -30,11 +30,11 @@ function onPick(state: GameState): void {
     const outside = computeOutside(player.walls);
     const inner: TileKey[] = [];
     for (const key of player.walls) {
-      const { r, c } = unpackTile(key);
+      const { row, col } = unpackTile(key);
       let loadBearing = false;
       for (const [dr, dc] of DIRS_8) {
-        const nr = r + dr,
-          nc = c + dc;
+        const nr = row + dr,
+          nc = col + dc;
         if (!inBounds(nr, nc) || outside.has(packTile(nr, nc))) {
           loadBearing = true;
           break;

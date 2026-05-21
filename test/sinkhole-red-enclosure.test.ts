@@ -35,8 +35,8 @@ Deno.test("seed 546418: red encloses its sinkhole during the next build phase", 
     "expected sinkhole tiles on the map",
   );
   const redSinkholeTiles = [...sinkholeTiles].filter((key) => {
-    const { r, c } = unpackTile(key);
-    return sc.state.map.zones[r]?.[c] === redZone;
+    const { row, col } = unpackTile(key);
+    return sc.state.map.zones[row]?.[col] === redZone;
   });
   assert(
     redSinkholeTiles.length > 0,
@@ -92,9 +92,9 @@ function dumpSinkholeState(
 
   console.log("=== Sinkhole tiles (per-tile inspection) ===");
   for (const key of sinkholeTiles) {
-    const { r, c } = unpackTile(key);
-    const inspection = sc.tileAt(r, c);
-    const zone = state.map.zones[r]?.[c] ?? null;
+    const { row, col } = unpackTile(key);
+    const inspection = sc.tileAt(row, col);
+    const zone = state.map.zones[row]?.[col] ?? null;
     const ownersStr = inspection.interior.length > 0
       ? `interior of player(s) [${inspection.interior.join(",")}]`
       : "no interior owner";
@@ -105,7 +105,7 @@ function dumpSinkholeState(
       : "";
     const extras = [grunt, cannon].filter(Boolean).join(" ");
     console.log(
-      `  (${r},${c}) key=${key} zone=${zone} terrain=${inspection.terrain} ${wallStr} ${ownersStr}${extras ? " " + extras : ""}`,
+      `  (${row},${col}) key=${key} zone=${zone} terrain=${inspection.terrain} ${wallStr} ${ownersStr}${extras ? " " + extras : ""}`,
     );
   }
 
@@ -120,13 +120,13 @@ function dumpSinkholeState(
     `walls=${red.walls.size} interior=${red.interior.size} castleWallTiles=${red.castleWallTiles.size} ownedTowers=${red.ownedTowers.length}`,
   );
   const redSinkholeInInterior = sinkholeTiles.filter((key) => {
-    const { r, c } = unpackTile(key);
-    return state.map.zones[r]?.[c] === redZone && red.interior.has(key);
+    const { row, col } = unpackTile(key);
+    return state.map.zones[row]?.[col] === redZone && red.interior.has(key);
   });
   console.log(
     `sinkhole tiles in red's zone: ${sinkholeTiles.filter((k) => {
-      const { r, c } = unpackTile(k);
-      return state.map.zones[r]?.[c] === redZone;
+      const { row, col } = unpackTile(k);
+      return state.map.zones[row]?.[col] === redZone;
     }).length} | enclosed by red: ${redSinkholeInInterior.length}`,
   );
   console.log(

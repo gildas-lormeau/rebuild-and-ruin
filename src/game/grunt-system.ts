@@ -220,8 +220,8 @@ export function gruntAttackTowers(
           // Rampart shields it; shield side effects applied directly (no bus
           // events — matches today's silent grunt wall removal).
           // Interior-staleness contract: see battle-system.ts applyImpactEvent JSDoc.
-          const { r, c } = unpackTile(grunt.targetedWall);
-          const result = resolveWallShield(state, r, c, grunt.targetedWall);
+          const { row, col } = unpackTile(grunt.targetedWall);
+          const result = resolveWallShield(state, row, col, grunt.targetedWall);
           if (result?.absorbed) {
             applyWallShield(state, result);
           } else if (result) {
@@ -243,8 +243,8 @@ export function gruntAttackTowers(
             }
             const event: ImpactEvent = {
               type: BATTLE_MESSAGE.WALL_DESTROYED,
-              row: r,
-              col: c,
+              row: row,
+              col: col,
               playerId: result.playerId,
             };
             wallEvents.push(event);
@@ -626,8 +626,8 @@ function findGruntSpawnPositions(
   const usedSet = state.gruntSpawnUsedTiles.get(zone);
   if (usedSet) {
     for (const tileKey of usedSet) {
-      const { r, c } = unpackTile(tileKey);
-      usedTiles.push({ row: r, col: c });
+      const { row, col } = unpackTile(tileKey);
+      usedTiles.push({ row: row, col: col });
     }
   }
 
@@ -783,7 +783,7 @@ function pickAdjacentWallKeyForAttack(
   let bestWallKey: TileKey | undefined;
   let bestDist = Infinity;
   for (const wallKey of walls) {
-    const { r: nr, c: nc } = unpackTile(wallKey);
+    const { row: nr, col: nc } = unpackTile(wallKey);
     const distance = manhattanDistance(nr, nc, target.row, target.col);
     if (distance < bestDist) {
       bestDist = distance;

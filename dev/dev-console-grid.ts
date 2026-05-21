@@ -330,8 +330,8 @@ function paintFrozenTiles(grid: Cell[][], state: GameState): void {
   const frozenTiles = state.modern?.frozenTiles;
   if (!frozenTiles) return;
   for (const key of frozenTiles) {
-    const { r, c } = unpackTile(key);
-    setCell(grid, r, c, CellKind.FrozenWater, "f", NO_OWNER);
+    const { row, col } = unpackTile(key);
+    setCell(grid, row, col, CellKind.FrozenWater, "f", NO_OWNER);
   }
 }
 
@@ -347,12 +347,12 @@ function paintTerritoryAndWalls(
     if (isPlayerEliminated(player)) continue;
     if (playerFilter !== undefined && player.id !== playerFilter) continue;
     for (const key of player.interior) {
-      const { r, c } = unpackTile(key as TileKey);
-      setCell(grid, r, c, CellKind.Interior, "░", player.id);
+      const { row, col } = unpackTile(key as TileKey);
+      setCell(grid, row, col, CellKind.Interior, "░", player.id);
     }
     for (const key of player.walls) {
-      const { r, c } = unpackTile(key);
-      setCell(grid, r, c, CellKind.Wall, "#", player.id);
+      const { row, col } = unpackTile(key);
+      setCell(grid, row, col, CellKind.Wall, "#", player.id);
     }
   }
 }

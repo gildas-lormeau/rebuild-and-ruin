@@ -375,8 +375,8 @@ export function createFogManager(scene: THREE.Scene): FogManager {
     tiles.length = 0;
     fillets.length = 0;
     for (const key of keys) {
-      const { r, c } = unpackTile(key);
-      tiles.push({ row: r, col: c, seed: tileSeed(r, c) });
+      const { row, col } = unpackTile(key);
+      tiles.push({ row: row, col: col, seed: tileSeed(row, col) });
     }
     ensureCapacity(tiles.length);
     if (
@@ -602,12 +602,12 @@ function dilateInto(
 
 function dilateKey(out: Set<TileKey>, key: TileKey): void {
   out.add(key);
-  const { r, c } = unpackTile(key);
+  const { row, col } = unpackTile(key);
   for (let dr = -1; dr <= 1; dr++) {
     for (let dc = -1; dc <= 1; dc++) {
       if (dr === 0 && dc === 0) continue;
-      const nr = r + dr;
-      const nc = c + dc;
+      const nr = row + dr;
+      const nc = col + dc;
       if (!inBounds(nr, nc)) continue;
       out.add(packTile(nr, nc));
     }

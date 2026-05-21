@@ -291,8 +291,8 @@ export function countFatBlocks(
   );
   let blocks = 0;
   for (const key of addedKeys) {
-    const { r, c } = unpackTile(key);
-    if (tileCreatesFatBlock(r, c, isWall)) blocks++;
+    const { row, col } = unpackTile(key);
+    if (tileCreatesFatBlock(row, col, isWall)) blocks++;
   }
   return blocks;
 }
@@ -310,8 +310,8 @@ export function checkFatWall(
   let hasFatWall = false;
   let gapClosingFat = false;
   for (const key of addedKeys) {
-    const { r, c } = unpackTile(key);
-    if (!tileCreatesFatBlock(r, c, isWall)) continue;
+    const { row, col } = unpackTile(key);
+    if (!tileCreatesFatBlock(row, col, isWall)) continue;
     if (candidate.gapsFilled > 0) {
       gapClosingFat = true;
       continue;

@@ -97,7 +97,7 @@ Deno.test("scenario: tileAt inspects a walled-in interior tile", async () => {
 
   // Sample a wall tile — inspection should report the wall owner.
   const wallKey = player.walls.values().next().value!;
-  const { r: wallRow, c: wallCol } = unpackTile(wallKey);
+  const { row: wallRow, col: wallCol } = unpackTile(wallKey);
   const wallInspect = sc.tileAt(wallRow, wallCol);
   assert(
     wallInspect.wall?.playerId === player.id,
@@ -107,7 +107,7 @@ Deno.test("scenario: tileAt inspects a walled-in interior tile", async () => {
   // Sample an interior tile — inspection should report interior ownership
   // and a valid zone id.
   const interiorKey = player.interior.values().next().value!;
-  const { r: interiorRow, c: interiorCol } = unpackTile(interiorKey);
+  const { row: interiorRow, col: interiorCol } = unpackTile(interiorKey);
   const interiorInspect = sc.tileAt(interiorRow, interiorCol);
   assert(
     interiorInspect.interior.includes(player.id),

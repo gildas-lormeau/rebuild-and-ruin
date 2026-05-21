@@ -300,9 +300,9 @@ export function homeEnclosedRegion(player: Player): Set<TileKey> {
   // Flood through traversable tiles using 4-dir connectivity
   while (queue.length > 0) {
     const key = queue.pop()!;
-    const { r, c } = unpackTile(key);
+    const { row, col } = unpackTile(key);
     for (const [dr, dc] of DIRS_4) {
-      const neighborKey = packTile(r + dr, c + dc);
+      const neighborKey = packTile(row + dr, col + dc);
       if (!visited.has(neighborKey) && traversable.has(neighborKey)) {
         visited.add(neighborKey);
         queue.push(neighborKey);
@@ -354,9 +354,9 @@ function findLegalCannonPlacements(
   const interior = getInterior(player);
   const candidates: TilePos[] = [];
   for (const key of interior) {
-    const { r, c } = unpackTile(key);
-    if (canPlaceCannon(player, r, c, mode, state)) {
-      candidates.push({ row: r, col: c });
+    const { row, col } = unpackTile(key);
+    if (canPlaceCannon(player, row, col, mode, state)) {
+      candidates.push({ row: row, col: col });
     }
   }
   return candidates;

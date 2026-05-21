@@ -83,14 +83,14 @@ function computeExposedRiverbedTiles(map: GameMap, rng: Rng): Set<TileKey> {
 
   const exposed = new Set<TileKey>();
   for (const key of banks) {
-    const { r, c } = unpackTile(key);
+    const { row, col } = unpackTile(key);
     // Tentatively expose this tile; revert if it would leave a water
     // neighbor without a 2×2-water anchor (river thinning to 1-wide).
     exposed.add(key);
     let safe = true;
     for (const [dr, dc] of DIRS_4) {
-      const nr = r + dr;
-      const nc = c + dc;
+      const nr = row + dr;
+      const nc = col + dc;
       if (!isWater(tiles, nr, nc)) continue;
       if (exposed.has(packTile(nr, nc))) continue;
       if (!inWater2x2(tiles, exposed, nr, nc)) {

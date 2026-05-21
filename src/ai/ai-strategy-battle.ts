@@ -186,10 +186,10 @@ export function planPocketDestruction(
     let found = false;
     for (const key of pocket) {
       if (found) break;
-      const { r, c } = unpackTile(key);
+      const { row, col } = unpackTile(key);
       for (const [dr, dc] of DIRS_4) {
-        const nr = r + dr;
-        const nc = c + dc;
+        const nr = row + dr;
+        const nc = col + dc;
         if (!inBounds(nr, nc)) continue;
         const neighborKey = packTile(nr, nc);
         if (!player.walls.has(neighborKey) || picked.has(neighborKey)) continue;
@@ -264,8 +264,8 @@ export function planWallDemolition(
       );
       const length = rng.int(MIN_WALL_SEGMENT_LENGTH, maxLength);
       return segment.slice(0, length).map((k) => {
-        const { r, c } = unpackTile(k);
-        return { row: r, col: c };
+        const { row, col } = unpackTile(k);
+        return { row: row, col: col };
       });
     }
   }
@@ -351,8 +351,7 @@ export function planIceTrench(
 
   const result: TilePos[] = [];
   for (const key of trenchKeys) {
-    const { r, c } = unpackTile(key);
-    result.push({ row: r, col: c });
+    result.push(unpackTile(key));
   }
   return result.length > 0 ? orderByNearest(result) : null;
 }
@@ -637,10 +636,10 @@ function findIceShoreline(
 ): TileKey[] {
   const out: TileKey[] = [];
   for (const key of frozenTiles) {
-    const { r, c } = unpackTile(key);
+    const { row, col } = unpackTile(key);
     for (const [dr, dc] of DIRS_4) {
-      const nr = r + dr;
-      const nc = c + dc;
+      const nr = row + dr;
+      const nc = col + dc;
       if (!inBounds(nr, nc)) continue;
       if (
         isGrass(state.map.tiles, nr, nc) &&
@@ -662,10 +661,10 @@ function pickAnchor(
   rng: Rng,
 ): TileKey {
   const scored = shoreline.map((shoreKey) => {
-    const { r, c } = unpackTile(shoreKey);
+    const { row, col } = unpackTile(shoreKey);
     let minDist = Infinity;
     for (const grunt of bankGrunts) {
-      const dist = manhattanDistance(grunt.row, grunt.col, r, c);
+      const dist = manhattanDistance(grunt.row, grunt.col, row, col);
       if (dist < minDist) minDist = dist;
     }
     return { key: shoreKey, dist: minDist };
@@ -680,12 +679,12 @@ function pickAnchor(
  *  not adjacent to AI-zone grass. */
 function inwardFromShore(
   state: BattleViewState,
-  anchor: { r: number; c: number },
+  anchor: TilePos,
   playerZone: ZoneId | undefined,
 ): readonly [number, number] | null {
   for (const [dr, dc] of DIRS_4) {
-    const nr = anchor.r + dr;
-    const nc = anchor.c + dc;
+    const nr = anchor.row + dr;
+    const nc = anchor.col + dc;
     if (!inBounds(nr, nc)) continue;
     if (zoneAt(state.map, nr, nc) === playerZone) {
       return [-dr, -dc] as const;
@@ -698,7 +697,7 @@ function inwardFromShore(
  *  arms then curve diagonally inward from each base end toward the enemy. */
 function buildUTrench(
   frozenTiles: ReadonlySet<TileKey>,
-  anchor: { r: number; c: number },
+  anchor: TilePos,
   anchorKey: TileKey,
   inward: readonly [number, number],
 ): Set<TileKey> {
@@ -713,8 +712,8 @@ function buildUTrench(
     const end = walkAlongIce(
       frozenTiles,
       trenchKeys,
-      anchor.r,
-      anchor.c,
+      anchor.row,
+      anchor.col,
       (cr, cc) => [cr + lateral[0], cc + lateral[1]],
       ICE_TRENCH_BASE_HALF,
     );
@@ -779,7 +778,7 @@ function collectStrategicWallTargets(
   for (const other of filterActiveEnemies(state, playerId)) {
     if (focusFirePlayerId != null && other.id !== focusFirePlayerId) continue;
     for (const key of other.walls) {
-      const { r: wallRow, c: wallCol } = unpackTile(key);
+      const { row: wallRow, col: wallCol } = unpackTile(key);
       // Skip walls already targeted by a cannonball in flight
       if (isTileTargetedByInFlightBall(state, wallRow, wallCol)) continue;
       // Track obstacle directions: [north, south, west, east]
@@ -886,7 +885,7 @@ function collectEnemyTargets(
     }
 
     for (const key of other.walls) {
-      const { r: wallRow, c: wallCol } = unpackTile(key);
+      const { row: wallRow, col: wallCol } = unpackTile(key);
       // Prioritize already-damaged reinforced walls (one more hit destroys them)
       targets.push({
         row: wallRow,
@@ -975,10 +974,10 @@ function pickEnclosureWallTarget(
   const seen = new Set<TileKey>();
   const borderWalls: TilePos[] = [];
   for (const key of enclosure.tiles) {
-    const { r, c } = unpackTile(key);
+    const { row, col } = unpackTile(key);
     for (const [dr, dc] of DIRS_4) {
-      const nr = r + dr;
-      const nc = c + dc;
+      const nr = row + dr;
+      const nc = col + dc;
       const neighborKey = packTile(nr, nc);
       if (
         !seen.has(neighborKey) &&
@@ -1097,9 +1096,9 @@ function is2x2(keys: readonly TileKey[]): boolean {
   let minRow = Infinity;
   let minCol = Infinity;
   for (const key of keys) {
-    const { r, c } = unpackTile(key);
-    if (r < minRow) minRow = r;
-    if (c < minCol) minCol = c;
+    const { row, col } = unpackTile(key);
+    if (row < minRow) minRow = row;
+    if (col < minCol) minCol = col;
   }
   const expected: Set<TileKey> = new Set([
     packTile(minRow, minCol),
@@ -1147,10 +1146,10 @@ function findStructuralHits(
   // 3. Find outer-shell walls (8-dir adjacent to outside)
   const outerWalls: TileKey[] = [];
   for (const wallKey of walls) {
-    const { r, c } = unpackTile(wallKey);
+    const { row, col } = unpackTile(wallKey);
     for (const [dr, dc] of DIRS_8) {
-      const nr = r + dr;
-      const nc = c + dc;
+      const nr = row + dr;
+      const nc = col + dc;
       if (inBounds(nr, nc) && outside.has(packTile(nr, nc))) {
         outerWalls.push(wallKey);
         break;
@@ -1168,18 +1167,18 @@ function findStructuralHits(
     modWalls.delete(wallKey);
     const broken = countBrokenEnclosures(modWalls, large);
     if (broken >= 2) {
-      const { r, c } = unpackTile(wallKey);
-      hits.push({ tiles: [{ row: r, col: c }], enclosuresBroken: broken });
+      const { row, col } = unpackTile(wallKey);
+      hits.push({ tiles: [{ row: row, col: col }], enclosuresBroken: broken });
     }
   }
 
   // 5. Two-tile pairs (only when no single-tile hits exist)
   if (hits.length === 0) {
     for (const wallKey of outerWalls) {
-      const { r, c } = unpackTile(wallKey);
+      const { row, col } = unpackTile(wallKey);
       for (const [dr, dc] of DIRS_4) {
-        const nr = r + dr;
-        const nc = c + dc;
+        const nr = row + dr;
+        const nc = col + dc;
         if (!inBounds(nr, nc)) continue;
         const neighborKey = packTile(nr, nc);
         // Deduplicate pairs and ensure neighbor is also a wall
@@ -1193,10 +1192,10 @@ function findStructuralHits(
         modWalls.delete(neighborKey);
         const broken = countBrokenEnclosures(modWalls, large);
         if (broken >= 2) {
-          const { r: nr2, c: nc2 } = unpackTile(neighborKey);
+          const { row: nr2, col: nc2 } = unpackTile(neighborKey);
           hits.push({
             tiles: [
-              { row: r, col: c },
+              { row: row, col: col },
               { row: nr2, col: nc2 },
             ],
             enclosuresBroken: broken,
@@ -1225,11 +1224,11 @@ function borderedEnclosures(
   wallKey: TileKey,
   labels: ReadonlyMap<TileKey, number>,
 ): Set<number> {
-  const { r, c } = unpackTile(wallKey);
+  const { row, col } = unpackTile(wallKey);
   const result = new Set<number>();
   for (const [dr, dc] of DIRS_8) {
-    const nr = r + dr;
-    const nc = c + dc;
+    const nr = row + dr;
+    const nc = col + dc;
     if (!inBounds(nr, nc)) continue;
     const label = labels.get(packTile(nr, nc));
     if (label !== undefined) result.add(label);
@@ -1268,9 +1267,9 @@ function findEnclosureComponents(tileSet: ReadonlySet<TileKey>): TileKey[][] {
     while (queue.length > 0) {
       const current = queue.pop()!;
       component.push(current);
-      const { r, c } = unpackTile(current);
+      const { row, col } = unpackTile(current);
       for (const [dr, dc] of DIRS_4) {
-        const neighborKey = packTile(r + dr, c + dc);
+        const neighborKey = packTile(row + dr, col + dc);
         if (!visited.has(neighborKey) && tileSet.has(neighborKey)) {
           visited.add(neighborKey);
           queue.push(neighborKey);
@@ -1294,11 +1293,11 @@ function findConnectedWalls(
   const result: TileKey[] = [startKey];
   let current = startKey;
   while (result.length < maxLength) {
-    const { r, c } = unpackTile(current);
+    const { row, col } = unpackTile(current);
     const neighbors: TileKey[] = [];
     for (const [dr, dc] of DIRS_4) {
-      const nr = r + dr;
-      const nc = c + dc;
+      const nr = row + dr;
+      const nc = col + dc;
       if (!inBounds(nr, nc)) continue;
       const neighborKey = packTile(nr, nc);
       if (!visited.has(neighborKey) && walls.has(neighborKey))

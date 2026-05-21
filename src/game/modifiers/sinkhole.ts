@@ -130,8 +130,8 @@ function reapplySinkholeTiles(state: GameState): void {
   if (!sinkhole || sinkhole.size === 0) return;
   const tiles = state.map.tiles;
   for (const key of sinkhole) {
-    const { r, c } = unpackTile(key);
-    setWater(tiles, r, c);
+    const { row, col } = unpackTile(key);
+    setWater(tiles, row, col);
   }
 }
 
@@ -180,8 +180,8 @@ function applySinkhole(state: GameState): ReadonlySet<TileKey> {
   // Mutate tiles to water
   const tiles = state.map.tiles;
   for (const key of allSunk) {
-    const { r, c } = unpackTile(key);
-    setWater(tiles, r, c);
+    const { row, col } = unpackTile(key);
+    setWater(tiles, row, col);
   }
 
   // `buildCanSinkPredicate` already rejects cannon tiles, so no cannon

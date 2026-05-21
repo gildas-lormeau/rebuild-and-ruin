@@ -377,22 +377,22 @@ function buildRiverDistanceGrid(tiles: readonly Tile[][]): number[][] {
   let head = 0;
   while (head < queue.length) {
     const idx = queue[head++]!;
-    const { r, c } = unpackTile(idx);
-    const d1 = dist[r]![c]! + 1;
-    if (r > 0 && dist[r - 1]![c]! > d1) {
-      dist[r - 1]![c] = d1;
+    const { row, col } = unpackTile(idx);
+    const d1 = dist[row]![col]! + 1;
+    if (row > 0 && dist[row - 1]![col]! > d1) {
+      dist[row - 1]![col] = d1;
       queue.push((idx - GRID_COLS) as TileKey);
     }
-    if (r < GRID_ROWS - 1 && dist[r + 1]![c]! > d1) {
-      dist[r + 1]![c] = d1;
+    if (row < GRID_ROWS - 1 && dist[row + 1]![col]! > d1) {
+      dist[row + 1]![col] = d1;
       queue.push((idx + GRID_COLS) as TileKey);
     }
-    if (c > 0 && dist[r]![c - 1]! > d1) {
-      dist[r]![c - 1] = d1;
+    if (col > 0 && dist[row]![col - 1]! > d1) {
+      dist[row]![col - 1] = d1;
       queue.push((idx - 1) as TileKey);
     }
-    if (c < GRID_COLS - 1 && dist[r]![c + 1]! > d1) {
-      dist[r]![c + 1] = d1;
+    if (col < GRID_COLS - 1 && dist[row]![col + 1]! > d1) {
+      dist[row]![col + 1] = d1;
       queue.push((idx + 1) as TileKey);
     }
   }
@@ -622,7 +622,7 @@ export function floodFillZones(
 
       while (head < queue.length) {
         const idx = queue[head++]!;
-        const { r: cr, c: cc } = unpackTile(idx);
+        const { row: cr, col: cc } = unpackTile(idx);
         size++;
         tryEnqueueFlood(ctx, cr - 1, cc, regionId);
         tryEnqueueFlood(ctx, cr + 1, cc, regionId);

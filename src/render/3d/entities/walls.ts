@@ -13,11 +13,11 @@ import {
   TILE_SIZE,
   type TileKey,
 } from "../../../shared/core/grid.ts";
+import { unpackTile } from "../../../shared/core/spatial.ts";
 import { wallDestroyAnimAt } from "../../../shared/core/wall-destroy-anim.ts";
 import type { RenderOverlay } from "../../../shared/ui/overlay-types.ts";
 import type { FrameCtx } from "../frame-ctx.ts";
 import { buildWall } from "../sprites/wall-scene.ts";
-import { unpackTileKey } from "./entity-helpers.ts";
 import {
   type BucketSubPart,
   buildVariantBucket,
@@ -398,7 +398,7 @@ function rebuildBuckets(
   ];
   for (const source of sources) {
     for (const key of source.keys) {
-      const { row, col } = unpackTileKey(key);
+      const { row, col } = unpackTile(key);
       const mask = computeMask(source.maskSet, col, row);
       const bucketKey =
         mask | (source.damagedSet.has(key) ? DAMAGED_BIT : 0) | source.heldBit;

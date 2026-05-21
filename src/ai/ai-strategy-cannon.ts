@@ -297,15 +297,15 @@ function collectCannonCandidates(
 ): CannonCandidate[] {
   const candidates: CannonCandidate[] = [];
   for (const key of getInterior(player)) {
-    const { r, c } = unpackTile(key);
-    if (!canPlaceCannon(player, r, c, mode, state)) continue;
+    const { row, col } = unpackTile(key);
+    if (!canPlaceCannon(player, row, col, mode, state)) continue;
     candidates.push({
-      row: r,
-      col: c,
+      row: row,
+      col: col,
       score: scoreCannonPosition(
         player,
-        r,
-        c,
+        row,
+        col,
         mode,
         state,
         rng,

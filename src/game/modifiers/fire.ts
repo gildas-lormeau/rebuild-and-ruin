@@ -105,10 +105,10 @@ export function applyFireScar(
     bonusSquares: true,
   });
   for (const key of scar) {
-    const { r, c } = unpackTile(key);
+    const { row, col } = unpackTile(key);
     state.burningPits.push({
-      row: r,
-      col: c,
+      row: row,
+      col: col,
       roundsLeft: BURNING_PIT_DURATION,
     });
   }

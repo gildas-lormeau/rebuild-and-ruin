@@ -580,14 +580,14 @@ function restoreZoneGrass(state: GameState, zone: ZoneId): void {
   visited.add(queue[0]!);
   while (queue.length > 0) {
     const key = queue.shift()!;
-    const { r, c } = unpackTile(key);
-    if (!isGrass(tiles, r, c)) {
-      setGrass(tiles, r, c);
+    const { row, col } = unpackTile(key);
+    if (!isGrass(tiles, row, col)) {
+      setGrass(tiles, row, col);
       sinkholeTiles?.delete(key);
     }
     for (const [dr, dc] of DIRS_4) {
-      const nr = r + dr;
-      const nc = c + dc;
+      const nr = row + dr;
+      const nc = col + dc;
       if (nr < 0 || nr >= GRID_ROWS || nc < 0 || nc >= GRID_COLS) continue;
       const neighborKey = packTile(nr, nc);
       if (visited.has(neighborKey)) continue;

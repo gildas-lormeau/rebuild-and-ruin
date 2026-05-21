@@ -576,9 +576,9 @@ function emitGruntsEnclosedPerRegion(
       if (enclosed.some((grunt) => packTile(grunt.row, grunt.col) === key)) {
         count++;
       }
-      const { r, c } = unpackTile(key);
+      const { row, col } = unpackTile(key);
       for (const [dr, dc] of DIRS_4) {
-        const nKey = packTile(r + dr, c + dc);
+        const nKey = packTile(row + dr, col + dc);
         if (interior.has(nKey) && !visited.has(nKey)) {
           visited.add(nKey);
           queue.push(nKey);

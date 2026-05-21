@@ -389,8 +389,8 @@ function collectAllCannonTiles(
 function removeIsolatedWalls(walls: Set<TileKey>): void {
   const toRemove: TileKey[] = [];
   for (const key of walls) {
-    const { r, c } = unpackTile(key);
-    if (countWallNeighbors(walls, r, c) <= 1) toRemove.push(key);
+    const { row, col } = unpackTile(key);
+    if (countWallNeighbors(walls, row, col) <= 1) toRemove.push(key);
   }
   for (const key of toRemove) walls.delete(key);
 }

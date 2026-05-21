@@ -161,12 +161,12 @@ export function filterUnfillableGaps(
   interior: ReadonlySet<TileKey>,
 ): void {
   for (const key of gaps) {
-    const { r, c } = unpackTile(key);
+    const { row, col } = unpackTile(key);
     if (
-      !isGrass(state.map.tiles, r, c) ||
-      hasPitAt(state.burningPits, r, c) ||
-      hasCannonAt(state, r, c) ||
-      hasTowerAt(state, r, c) ||
+      !isGrass(state.map.tiles, row, col) ||
+      hasPitAt(state.burningPits, row, col) ||
+      hasCannonAt(state, row, col) ||
+      hasTowerAt(state, row, col) ||
       interior.has(key)
     ) {
       gaps.delete(key);
@@ -195,7 +195,7 @@ export function floodPocket(
   visited.add(startKey);
   for (let queueIndex = 0; queueIndex < pocket.length; queueIndex++) {
     if (sizeLimit !== undefined && pocket.length > sizeLimit) break;
-    const { r: pr, c: pc } = unpackTile(pocket[queueIndex]!);
+    const { row: pr, col: pc } = unpackTile(pocket[queueIndex]!);
     for (const [dr, dc] of DIRS_4) {
       const nr = pr + dr,
         nc = pc + dc;
@@ -551,7 +551,7 @@ export function addInteriorPlugGaps(
   tiles: readonly (readonly Tile[])[],
 ): void {
   for (const sourceKey of sourceTiles) {
-    const { r: sr, c: sc } = unpackTile(sourceKey);
+    const { row: sr, col: sc } = unpackTile(sourceKey);
     for (const [dr, dc] of DIRS_8) {
       const nr = sr + dr;
       const nc = sc + dc;

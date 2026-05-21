@@ -20,6 +20,7 @@ import {
   type TileKey,
 } from "../../../shared/core/grid.ts";
 import type { ValidPlayerId } from "../../../shared/core/player-slot.ts";
+import { unpackTile } from "../../../shared/core/spatial.ts";
 import { wallDestroyAnimAt } from "../../../shared/core/wall-destroy-anim.ts";
 import type { RenderOverlay } from "../../../shared/ui/overlay-types.ts";
 import { getPlayerColor } from "../../../shared/ui/player-config.ts";
@@ -31,7 +32,6 @@ import {
   rgbToHex,
   TILE_2X2_CENTER_OFFSET,
   TILE_3X3_CENTER_OFFSET,
-  unpackTileKey,
 } from "./entity-helpers.ts";
 import {
   type BucketSubPart,
@@ -253,7 +253,7 @@ function collectWallDebris(
     if (!origWalls) continue;
     for (const key of origWalls) {
       if (castle.walls.has(key)) continue;
-      const { row, col } = unpackTileKey(key);
+      const { row, col } = unpackTile(key);
       const variantName = wallDebrisVariantName(col, row);
       entries.push({
         key: variantName,
