@@ -283,10 +283,11 @@ export function candidateToPlacement(candidate: Candidate): AiPlacement {
 export function countFatBlocks(
   walls: ReadonlySet<TileKey>,
   candidate: Candidate,
+  aliveHouseKeys: ReadonlySet<TileKey>,
 ): number {
   const { addedKeys, isWall } = buildCandidateWallInfo(
     walls,
-    packCandidateTiles(candidate),
+    packCandidateTiles(candidate, aliveHouseKeys),
   );
   let blocks = 0;
   for (const key of addedKeys) {
@@ -300,10 +301,11 @@ export function countFatBlocks(
 export function checkFatWall(
   walls: ReadonlySet<TileKey>,
   candidate: Candidate,
+  aliveHouseKeys: ReadonlySet<TileKey>,
 ): { hasFatWall: boolean; gapClosingFat: boolean } {
   const { addedKeys, isWall } = buildCandidateWallInfo(
     walls,
-    packCandidateTiles(candidate),
+    packCandidateTiles(candidate, aliveHouseKeys),
   );
   let hasFatWall = false;
   let gapClosingFat = false;
@@ -664,7 +666,7 @@ function computeCandidateEnv(
   fatBlocks: number,
   batchHasWallAdjacent: boolean,
 ): CandidateEnv {
-  const candidateWallTiles = packCandidateTiles(candidate);
+  const candidateWallTiles = packCandidateTiles(candidate, ctx.aliveHouseKeys);
   const simulatedWalls = createSimulatedWalls(ctx.walls, candidateWallTiles);
   const simulatedOutside = computeOutsideAfterAdd(
     ctx.outside,
@@ -688,12 +690,20 @@ function computeCandidateEnv(
   };
 }
 
-/** Pack a candidate's piece-offset tiles into a TileKey[]. Hot path: called
- *  per candidate by every scoring stage. */
-export function packCandidateTiles(candidate: Candidate): TileKey[] {
+/** Pack the WALL tiles of a candidate placement into a TileKey[]. Piece
+ *  offsets that overlap an alive house are excluded — those tiles spawn
+ *  a grunt instead of laying a wall (see `applyPiecePlacement`), so
+ *  every simulated-wall predictor that consumes this set must agree.
+ *  Hot path: called per candidate by every scoring stage. */
+export function packCandidateTiles(
+  candidate: Candidate,
+  aliveHouseKeys: ReadonlySet<TileKey>,
+): TileKey[] {
   const tiles: TileKey[] = [];
   for (const [dr, dc] of candidate.piece.offsets) {
-    tiles.push(packTile(candidate.row + dr, candidate.col + dc));
+    const key = packTile(candidate.row + dr, candidate.col + dc);
+    if (aliveHouseKeys.has(key)) continue;
+    tiles.push(key);
   }
   return tiles;
 }

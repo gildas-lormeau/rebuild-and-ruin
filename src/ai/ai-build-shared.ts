@@ -6,6 +6,7 @@
  * Called by the build placement orchestrator (ai-strategy-build.ts).
  */
 
+import { collectAliveHouseKeys } from "../shared/core/board-occupancy.ts";
 import { TOWER_SIZE } from "../shared/core/game-constants.ts";
 import type { Tower } from "../shared/core/geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, type TileKey } from "../shared/core/grid.ts";
@@ -81,8 +82,10 @@ export function pickFallbackPlacement(
     return { placement: null, reason: "interior-full" };
   }
 
+  const aliveHouseKeys = collectAliveHouseKeys(state);
+
   const createsSmallEnclosureCached = memoize((candidate: Candidate) =>
-    createsSmallEnclosure(candidate, walls, outside, state),
+    createsSmallEnclosure(candidate, walls, outside, state, aliveHouseKeys),
   );
 
   const insideEnclosure = (candidate: Candidate): boolean => {
@@ -101,7 +104,8 @@ export function pickFallbackPlacement(
 
   const isInsideOrFatCandidate = memoize(
     (candidate: Candidate): boolean =>
-      insideEnclosure(candidate) || countFatBlocks(walls, candidate) > 0,
+      insideEnclosure(candidate) ||
+      countFatBlocks(walls, candidate, aliveHouseKeys) > 0,
   );
 
   if (fallbackTowers.length > 0) {
@@ -154,8 +158,9 @@ export function createsSmallEnclosure(
   walls: ReadonlySet<TileKey>,
   outside: ReadonlySet<TileKey>,
   state: BuildViewState,
+  aliveHouseKeys: ReadonlySet<TileKey>,
 ): boolean {
-  const candidateWallTiles = packCandidateTiles(candidate);
+  const candidateWallTiles = packCandidateTiles(candidate, aliveHouseKeys);
   // Cheap path: detect traps without cloning the outside set. The bulk of
   // calls during build phase (~99%) don't trap anything; this lets them
   // bail before paying the O(outside.size) clone that dominated the prior

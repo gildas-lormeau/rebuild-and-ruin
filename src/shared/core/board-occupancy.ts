@@ -196,6 +196,20 @@ export function hasAliveHouseAt(
   return state.map.houses.some((house) => house.alive && isAtTile(house, r, c));
 }
 
+/** Tile keys of every alive house, as a Set for O(1) hit-testing. The AI's
+ *  simulated-wall predictors use this to exclude piece tiles that land on
+ *  houses (those tiles spawn a grunt instead of a wall — see
+ *  `applyPiecePlacement`). */
+export function collectAliveHouseKeys(
+  state: GameViewState,
+): ReadonlySet<TileKey> {
+  const keys = new Set<TileKey>();
+  for (const house of state.map.houses) {
+    if (house.alive) keys.add(packTile(house.row, house.col));
+  }
+  return keys;
+}
+
 export function findLivingTowerIndexAt(
   state: GameViewState & { readonly towerAlive: readonly boolean[] },
   r: number,

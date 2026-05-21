@@ -165,4 +165,9 @@ export type ScoringContext = {
   homeWasBroken: boolean;
   baselineOutside: number;
   baselinePocketWaste: number;
+  /** Tile keys of every alive house. Piece offsets that hit one of these
+   *  tiles do NOT become walls on placement (they spawn a grunt instead),
+   *  so the simulated-wall predictors filter them out. Computed once per
+   *  AI tick at scoring-context construction. */
+  aliveHouseKeys: ReadonlySet<TileKey>;
 };

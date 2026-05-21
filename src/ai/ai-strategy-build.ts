@@ -12,6 +12,7 @@ import {
 } from "../game/index.ts";
 import {
   buildOccupancyCache,
+  collectAliveHouseKeys,
   hasAliveHouseAt,
   hasGruntAt,
 } from "../shared/core/board-occupancy.ts";
@@ -255,7 +256,13 @@ export function pickPlacement(
 
   const noTargetGaps = allCastlesEnclosed && targetGaps.size === 0;
   const noBuildTargets = noTargetGaps && unenclosedTowers.length === 0;
-  const scored = prescoreCandidates(allCandidates, player.walls, noTargetGaps);
+  const aliveHouseKeys = collectAliveHouseKeys(state);
+  const scored = prescoreCandidates(
+    allCandidates,
+    player.walls,
+    noTargetGaps,
+    aliveHouseKeys,
+  );
 
   const scoringCtx: ScoringContext = {
     state,
@@ -274,6 +281,7 @@ export function pickPlacement(
     homeWasBroken,
     baselineOutside,
     baselinePocketWaste,
+    aliveHouseKeys,
   };
 
   return selectBestPlacement(scored, allCandidates, scoringCtx, {
@@ -369,11 +377,12 @@ function selectBestPlacement(
     allCastlesEnclosed,
     caresAboutHouses,
     caresAboutBonuses,
+    aliveHouseKeys,
   } = scoringCtx;
   const { player, castle, noBuildTargets, hasManageableGaps } = extras;
 
   const fatBlockCountFor = memoize((candidate: Candidate) =>
-    countFatBlocks(walls, candidate),
+    countFatBlocks(walls, candidate, aliveHouseKeys),
   );
 
   if (scored.length === 0) {
@@ -382,7 +391,7 @@ function selectBestPlacement(
       return null;
     }
     const isSmallEnclosure = memoize((candidate: Candidate) =>
-      createsSmallEnclosure(candidate, walls, outside, state),
+      createsSmallEnclosure(candidate, walls, outside, state, aliveHouseKeys),
     );
 
     const open = allCandidates.filter(
@@ -610,14 +619,19 @@ function prescoreCandidates(
   allCandidates: readonly Candidate[],
   walls: ReadonlySet<TileKey>,
   noTargetGaps: boolean,
+  aliveHouseKeys: ReadonlySet<TileKey>,
 ): Scored[] {
   const scored: Scored[] = [];
   for (const candidate of allCandidates) {
-    const { hasFatWall, gapClosingFat } = checkFatWall(walls, candidate);
+    const { hasFatWall, gapClosingFat } = checkFatWall(
+      walls,
+      candidate,
+      aliveHouseKeys,
+    );
 
     if (noTargetGaps && (hasFatWall || gapClosingFat)) continue;
 
-    const fatBlocks = countFatBlocks(walls, candidate);
+    const fatBlocks = countFatBlocks(walls, candidate, aliveHouseKeys);
 
     scored.push({
       candidate,
