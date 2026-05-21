@@ -580,6 +580,10 @@ function enumerateCandidates(
           )
             bonusHit++;
         }
+        // Every offset on an alive house means zero walls will be laid
+        // (applyPiecePlacement filters house tiles out of wallKeys) and
+        // grunts spawn against the placing player. Strictly bad — reject.
+        if (housesHit === rotated.offsets.length) continue;
 
         candidates.push({
           row: r,

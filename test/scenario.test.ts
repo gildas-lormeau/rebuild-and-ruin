@@ -216,6 +216,66 @@ Deno.test(
 );
 
 Deno.test(
+  "scenario: AI never places a piece that lays zero walls and crushes a house",
+  async () => {
+    // After the piece-on-house parity change (ad713fe2), a piece offset that
+    // lands on an alive house spawns a grunt instead of a wall. A candidate
+    // where every offset is on an alive house therefore produces 0 walls and
+    // only spawns hostile grunts — strictly negative for the placing player.
+    // Seed 505038 modern round 1 Gold places a 1×1 on the house at (20,23)
+    // without the defense-in-depth guard in `enumerateCandidates`.
+    const sc = await createScenario({ seed: 505038, mode: "modern", rounds: 2 });
+
+    type Placement = {
+      round: number;
+      playerId: ValidPlayerId;
+      wallCount: number;
+      crushCount: number;
+    };
+    let currentRound = 1;
+    let pending: Placement | null = null;
+    const badPlacements: Placement[] = [];
+
+    const flush = () => {
+      if (!pending) return;
+      if (pending.wallCount === 0 && pending.crushCount > 0) {
+        badPlacements.push(pending);
+      }
+      pending = null;
+    };
+
+    sc.bus.on(GAME_EVENT.ROUND_START, (ev) => {
+      currentRound = ev.round;
+    });
+    sc.bus.on(GAME_EVENT.WALL_PLACED, (ev) => {
+      flush();
+      pending = {
+        round: currentRound,
+        playerId: ev.playerId,
+        wallCount: ev.tileKeys.length,
+        crushCount: 0,
+      };
+    });
+    sc.bus.on(GAME_EVENT.HOUSE_CRUSHED, () => {
+      if (pending) pending.crushCount++;
+    });
+
+    try {
+      waitUntilRound(sc, 2, { timeoutMs: 480_000 });
+    } catch (_e) {
+      // Reaching round 2 is enough for this seed to trigger the bug if any.
+    }
+    flush();
+
+    assertEquals(
+      badPlacements,
+      [],
+      `placements that produce 0 walls and crush ≥1 house: ${JSON.stringify(badPlacements)}`,
+    );
+  },
+);
+
+Deno.test(
   "scenario: enclosing grunts emits gruntsEnclosed once per sealed pocket",
   async () => {
     // The `woodcrus` SFX is driven by `gruntsEnclosed`, one per connected
