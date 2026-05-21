@@ -22,6 +22,7 @@ const OUT_DIR = Deno.env.get("PERF_OUT_DIR") ?? "tmp/perf";
 const SEED = Number(Deno.env.get("PERF_SEED") ?? "42");
 const ROUNDS = Number(Deno.env.get("PERF_ROUNDS") ?? "1");
 const FAST_MODE = Deno.env.get("PERF_FAST") === "1";
+const COLD_START = Deno.env.get("PERF_COLD") === "1";
 
 Deno.test("e2e perf: single round produces DevTools artifacts", async () => {
   await Deno.mkdir(OUT_DIR, { recursive: true });
@@ -32,6 +33,7 @@ Deno.test("e2e perf: single round produces DevTools artifacts", async () => {
     headless: false,
     fastMode: FAST_MODE,
     rounds: ROUNDS,
+    coldStart: COLD_START,
   });
 
   // Baseline counters before anything interesting has happened.
@@ -40,10 +42,14 @@ Deno.test("e2e perf: single round produces DevTools artifacts", async () => {
   await sc.perf.startTrace();
   await sc.perf.startCpuProfile();
 
-  // Real-time 1-round game needs a generous wall-clock budget —
-  // castle select + build + cannon + battle + round-over banner all
-  // run on their real timers now that fastMode is off.
-  await sc.runGame({ timeoutMs: 180_000 });
+  // Stop on lobby re-entry — the moment the post-game lobby returns,
+  // we have everything we wanted to trace. Using runGame's `mode ===
+  // STOPPED` signal lets the auto-restart kick in before the next poll
+  // tick and silently capture the start of a second game. The timeout
+  // is now just a safety net (~70s/round + slack).
+  await sc.runUntil((s) => s.lobbyActive(), {
+    timeoutMs: 60_000 + 90_000 * ROUNDS,
+  });
 
   await sc.perf.stopCpuProfile(`${OUT_DIR}/cpu.cpuprofile`);
   await sc.perf.stopTrace(`${OUT_DIR}/trace.json`);
@@ -65,13 +71,11 @@ Deno.test("e2e perf: single round produces DevTools artifacts", async () => {
 
   // Prove each artifact was written and is non-empty. Parse the JSON
   // ones to confirm they're well-formed (DevTools silently ignores
-  // broken files).
-  const trace = JSON.parse(await Deno.readTextFile(`${OUT_DIR}/trace.json`));
-  assertGreater(
-    (trace.traceEvents as unknown[]).length,
-    0,
-    "trace has events",
-  );
+  // broken files). For the trace we just check the framing because a
+  // multi-round trace busts V8's max string length on full JSON.parse;
+  // stopTrace already stream-writes valid JSON.
+  const traceStat = await Deno.stat(`${OUT_DIR}/trace.json`);
+  assert(traceStat.size > 32, "trace.json is non-empty");
 
   const cpu = JSON.parse(await Deno.readTextFile(`${OUT_DIR}/cpu.cpuprofile`));
   assertGreater(
@@ -96,7 +100,7 @@ Deno.test("e2e perf: single round produces DevTools artifacts", async () => {
   assertGreater(eventMeta.keptEvents, 0, "some game events were captured");
 
   console.log(
-    `[perf] trace=${trace.traceEvents.length} events, ` +
+    `[perf] trace=${(traceStat.size / 1024 / 1024).toFixed(1)}MB, ` +
       `cpu=${cpu.nodes.length} nodes, ` +
       `gameEvents=${eventMeta.keptEvents}, ` +
       `heapDelta=${(after.jsHeapUsedBytes - before.jsHeapUsedBytes).toLocaleString()} bytes, ` +

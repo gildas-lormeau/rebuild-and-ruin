@@ -87,6 +87,11 @@ export interface E2EScenarioOptions {
    *  timings are meaningless to DevTools, and the whole point of a
    *  CPU profile / Chrome trace is real wall-clock frame cost. */
   fastMode?: boolean;
+  /** Disable Chrome's GPU program / shader disk caches at launch so
+   *  every run pays the first-use shader-compile cost. Perf-only —
+   *  use when measuring cold-start hitches that the OS/Chrome would
+   *  otherwise amortize across runs. Defaults to false. */
+  coldStart?: boolean;
 }
 
 /** Event type — GAME_EVENT constants (string literal keys of GameEventMap). */
@@ -407,9 +412,13 @@ export async function createE2EScenario(
     roomCode: joinCode,
     mobile = false,
     fastMode = true,
+    coldStart = false,
   } = opts;
 
-  const browser = await chromium.launch({ headless });
+  const launchArgs = coldStart
+    ? ["--disable-gpu-program-cache", "--disable-gpu-shader-disk-cache"]
+    : [];
+  const browser = await chromium.launch({ headless, args: launchArgs });
   // Mobile emulation: Playwright's `isMobile: true` + `hasTouch: true`
   // are what the runtime's `IS_TOUCH_DEVICE` detection keys on, so the
   // touch controls wire up (and `camera.enableMobileZoom` fires from
@@ -724,10 +733,22 @@ export async function createE2EScenario(
       // Chrome's trace format is `{ "traceEvents": [...] }` — the
       // object form DevTools' Performance panel loads. The bare-array
       // form also works for chrome://tracing but is less portable.
-      await Deno.writeTextFile(
-        path,
-        JSON.stringify({ traceEvents: buffer.events }),
-      );
+      // Stream-write per-event: a full JSON.stringify of multi-round
+      // traces busts V8's max string length (~256MB UTF-16).
+      const file = await Deno.open(path, { write: true, create: true, truncate: true });
+      const encoder = new TextEncoder();
+      // Newline between events lets jq/grep walk the file line-by-line
+      // without re-parsing the whole array — useful since the trace
+      // itself busts V8's string limit beyond ~2 rounds.
+      await file.write(encoder.encode('{"traceEvents":[\n'));
+      for (let i = 0; i < buffer.events.length; i++) {
+        const prefix = i === 0 ? "" : ",\n";
+        await file.write(
+          encoder.encode(prefix + JSON.stringify(buffer.events[i])),
+        );
+      }
+      await file.write(encoder.encode("\n]}"));
+      file.close();
     },
 
     startCpuProfile: async (cpuOpts = {}) => {
