@@ -42,7 +42,6 @@
       "shared",
       "protocol",
       "game",
-      "ai",
       "controllers",
       "input",
       "render"
