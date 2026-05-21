@@ -1,8 +1,6 @@
 {
   "allowed": {
-    "shared": [
-      "shared"
-    ],
+    "shared": [],
     "protocol": [
       "shared"
     ],
@@ -35,8 +33,7 @@
     ],
     "server": [
       "shared",
-      "protocol",
-      "server"
+      "protocol"
     ],
     "runtime": [
       "shared",
@@ -56,8 +53,7 @@
       "render",
       "online",
       "server",
-      "runtime",
-      "entry"
+      "runtime"
     ]
   },
   "typeOnlyFrom": {
