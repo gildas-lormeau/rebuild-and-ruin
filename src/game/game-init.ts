@@ -114,6 +114,8 @@ function createGameState(
     cannonballs: [],
     shotsFired: 0,
     grunts: [],
+    gruntSpawnSeq: 0,
+    gruntSpawnUsedTiles: new Map(),
     towerAlive: map.towers.map(() => true),
     towerPendingRevive: new Set(),
     burningPits: [],

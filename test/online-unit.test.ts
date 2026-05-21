@@ -132,6 +132,7 @@ function makeFullState(migrationSeq: number): FullStateMessage {
     simTick: 0,
     players: [],
     grunts: [],
+    gruntSpawnSeq: 0,
     houses: [],
     bonusSquares: [],
     towerAlive: [],

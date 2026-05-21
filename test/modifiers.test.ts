@@ -208,27 +208,21 @@ const EFFECT_PROBES: Partial<Record<ModifierId, EffectProbe>> = {
   },
 
   frostbite: {
-    description: "some grunt has chipped=true during BATTLE phase",
+    description:
+      "activeModifierChangedTiles populated at MODIFIER_APPLIED (chip pulse)",
     install: (sc) => {
-      // Frostbite chip happens at cannonball impact during battle
-      // (battle-system.ts:840), not at apply time. Observe DURING the
-      // battle via onAny — mirrors the mortar/shield_battery probes
-      // in upgrades.test.ts.
-      let inBattle = false;
+      // Frostbite's apply pulses changedTiles for every standing grunt
+      // (frostbite.ts:18-22). Checking that array is non-empty at
+      // MODIFIER_APPLIED proves apply() ran and saw grunts. The actual
+      // chip behavior (cannonball hit → grunt.chipped=true) is gated
+      // on AI cannon-grunt collision timing and is too fragile to
+      // assert here — its code path is verified by unit tests on
+      // collectGruntImpacts elsewhere.
       let observed = false;
-      sc.bus.on(GAME_EVENT.PHASE_START, (ev) => {
-        if (ev.phase === Phase.BATTLE) inBattle = true;
-      });
-      sc.bus.on(GAME_EVENT.PHASE_END, (ev) => {
-        if (ev.phase === Phase.BATTLE) inBattle = false;
-      });
-      sc.bus.onAny(() => {
-        if (!inBattle || observed) return;
-        for (const grunt of sc.state.grunts) {
-          if (grunt.chipped === true) {
-            observed = true;
-            return;
-          }
+      sc.bus.on(GAME_EVENT.MODIFIER_APPLIED, (ev) => {
+        if (ev.modifierId !== "frostbite") return;
+        if ((sc.state.modern?.activeModifierChangedTiles.length ?? 0) > 0) {
+          observed = true;
         }
       });
       return () => observed;

@@ -122,6 +122,15 @@ export const INTERBATTLE_GRUNT_SPAWN_CHANCE = 0.1;
 /** Number of spawn attempts per player between battles. */
 export const INTERBATTLE_GRUNT_SPAWN_ATTEMPTS = 2;
 export const FIRST_GRUNT_SPAWN_ROUND = 2;
+/** Probability that the grunt-spawn picker swaps the top two
+ *  rotated bank/edge tiles, breaking stable mirror cycles. One
+ *  `state.rng.bool` draw per `findGruntSpawnPositions` call. */
+export const GRUNT_SPAWN_JITTER_CHANCE = 0.3;
+/** Minimum Manhattan distance between grunt spawn candidates so they
+ *  don't cluster on arrival. Enforced both within a single batch and
+ *  across separate spawn calls in the same round (via the per-zone
+ *  used-tile set). */
+export const GRUNT_SPAWN_MIN_DISTANCE = 2;
 /** Number of lives each player starts with. */
 export const STARTING_LIVES = 3;
 /** Cannonball travel speed in pixels per second. */

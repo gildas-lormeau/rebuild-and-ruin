@@ -224,6 +224,13 @@ export type EntityEvent =
       type: "gruntSpawn";
       row: number;
       col: number;
+      /** How the grunt arrived: `"zone-pick"` = chosen by
+       *  `findGruntSpawnPositions` (bank/edge tier), `"at-tile"` =
+       *  spawned at an exact tile via `spawnGruntAtTile` (house crushed
+       *  by piece placement). Tests can filter by source — only zone-pick
+       *  spawns are subject to the picker's distribution rules. */
+      source: "zone-pick" | "at-tile";
+      round: number;
     }
   | {
       type: "gruntSpawnBlocked";

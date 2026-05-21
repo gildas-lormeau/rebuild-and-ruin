@@ -96,6 +96,21 @@ export interface GameState {
   shotsFired: number;
   /** Active grunts on the map. */
   grunts: Grunt[];
+  /** Match-lifetime counter advanced on each call to
+   *  `findGruntSpawnPositions`. Used to rotate the sorted bank (and
+   *  edge fallback) by `seq % list.length`, so successive spawn calls
+   *  cycle through every candidate tile instead of all seeding at the
+   *  closest-to-tower tile. Deliberately NOT reset at round boundaries
+   *  — keeping it monotonic prevents the per-round-first spawn from
+   *  landing on the same tile every round. */
+  gruntSpawnSeq: number;
+  /** Per-zone set of bank/edge tiles already used for grunt spawns in
+   *  the current round. Acts as a hard guarantee against same-tile
+   *  reuse even when grunts walk inland between spawn events (and the
+   *  existing-grunt filter no longer blocks the original bank tile).
+   *  Cleared at the WALL_BUILD → next-round transition (just before
+   *  `state.round++` + ROUND_START) — cross-round reuse is allowed. */
+  gruntSpawnUsedTiles: Map<ZoneId, Set<TileKey>>;
   /** Whether each tower is alive (indexed same as map.towers). */
   towerAlive: boolean[];
   /** Dead towers that were enclosed last build phase — revive if still enclosed next build phase. */

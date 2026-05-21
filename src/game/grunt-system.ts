@@ -20,6 +20,8 @@ import {
   CATAPULT_SPAWN_CHANCE,
   FIRST_GRUNT_SPAWN_ROUND,
   GRUNT_ATTACK_DURATION,
+  GRUNT_SPAWN_JITTER_CHANCE,
+  GRUNT_SPAWN_MIN_DISTANCE,
   GRUNT_WALL_ATTACK_CHANCE,
   GRUNT_WALL_ATTACK_MIN_BATTLES,
   INTERBATTLE_GRUNT_SPAWN_ATTEMPTS,
@@ -66,8 +68,6 @@ import { applyWallShield, resolveWallShield } from "./wall-impact.ts";
 
 /** Search radius for finding nearest water tile. */
 const WATER_SEARCH_RADIUS = 5;
-/** Minimum Manhattan distance between spawn candidates so grunts don't cluster on arrival. */
-const GRUNT_SPAWN_MIN_DISTANCE = 2;
 /** Max ring radius when spawning a grunt near a destroyed house. */
 const NEAR_SPAWN_RADIUS = 8;
 
@@ -88,7 +88,7 @@ export function spawnGruntAtTile(
     )
   )
     return;
-  addGrunt(state, row, col);
+  addGrunt(state, row, col, "at-tile");
 }
 
 /** Find a spawn position near (posRow, posCol) by spiralling outward.
@@ -123,28 +123,6 @@ export function findGruntSpawnNear(
     if (best) return best;
   }
   return null;
-}
-
-/** Spawn a group of grunts on a player's zone (bank-first). */
-export function spawnGruntGroupOnZone(
-  state: GameState,
-  playerId: ValidPlayerId,
-  count: number,
-): void {
-  const player = state.players[playerId];
-  if (!isPlayerSeated(player)) return;
-  const positions = findGruntSpawnPositions(state, player, count);
-  for (const pos of positions) {
-    addGrunt(state, pos.row, pos.col);
-  }
-  if (positions.length < count) {
-    state.bus.emit(GAME_EVENT.GRUNT_SPAWN_BLOCKED, {
-      type: GAME_EVENT.GRUNT_SPAWN_BLOCKED,
-      playerId,
-      requested: count,
-      placed: positions.length,
-    });
-  }
 }
 
 /** Spawn grunts distributed evenly across alive towers in a player's zone.
@@ -190,7 +168,7 @@ export function spawnGruntSurgeOnZone(
     if (bestIdx < 0) break;
     used.add(bestIdx);
     const pick = positions[bestIdx]!;
-    addGrunt(state, pick.row, pick.col);
+    addGrunt(state, pick.row, pick.col, "zone-pick");
   }
   if (positions.length < totalCount) {
     state.bus.emit(GAME_EVENT.GRUNT_SPAWN_BLOCKED, {
@@ -381,30 +359,28 @@ export function spawnInterbattleGrunts(
     for (let idx = 0; idx < INTERBATTLE_GRUNT_SPAWN_ATTEMPTS; idx++) {
       if (state.rng.bool(INTERBATTLE_GRUNT_SPAWN_CHANCE)) spawnCount++;
     }
-    if (spawnCount === 0) continue;
-    for (let spawnIdx = 0; spawnIdx < spawnCount; spawnIdx++) {
-      spawnGruntOnZone(state, player.id);
-    }
+    if (spawnCount > 0) spawnGruntGroupOnZone(state, player.id, spawnCount);
   }
 }
 
-/** Spawn a single grunt on the given player's zone (bank-first). */
-export function spawnGruntOnZone(
+/** Spawn a group of grunts on a player's zone (bank-first). */
+export function spawnGruntGroupOnZone(
   state: GameState,
   playerId: ValidPlayerId,
+  count: number,
 ): void {
   const player = state.players[playerId];
   if (!isPlayerSeated(player)) return;
-  const spawnPos = findGruntSpawnPositions(state, player, 1);
-  for (const pos of spawnPos) {
-    addGrunt(state, pos.row, pos.col);
+  const positions = findGruntSpawnPositions(state, player, count);
+  for (const pos of positions) {
+    addGrunt(state, pos.row, pos.col, "zone-pick");
   }
-  if (spawnPos.length === 0) {
+  if (positions.length < count) {
     state.bus.emit(GAME_EVENT.GRUNT_SPAWN_BLOCKED, {
       type: GAME_EVENT.GRUNT_SPAWN_BLOCKED,
       playerId,
-      requested: 1,
-      placed: 0,
+      requested: count,
+      placed: positions.length,
     });
   }
 }
@@ -533,7 +509,12 @@ function findCatapultBlockingWall(
  *  being attacked) is derived from the grunt's current zone at read time,
  *  never stored. Listeners on GRUNT_SPAWN do `zoneOwnerIdAt(state, row, col)`
  *  if they need that. */
-function addGrunt(state: GameState, row: number, col: number): void {
+function addGrunt(
+  state: GameState,
+  row: number,
+  col: number,
+  source: "zone-pick" | "at-tile",
+): void {
   if (!inBounds(row, col) || !isGrass(state.map.tiles, row, col)) return;
   const grunt: Grunt = { row, col, blockedRounds: 0 };
   if (hasFeature(state, FID.CATAPULTS) && state.rng.bool(CATAPULT_SPAWN_CHANCE))
@@ -543,6 +524,8 @@ function addGrunt(state: GameState, row: number, col: number): void {
     type: GAME_EVENT.GRUNT_SPAWN,
     row,
     col,
+    source,
+    round: state.round,
   });
 }
 
@@ -571,52 +554,144 @@ function findGruntSpawnPositions(
     }
   }
 
-  // Sort by distance to nearest alive tower's center (2x2 → +1 offset)
-  let sortRow: number | undefined;
-  let sortCol: number | undefined;
-  const aliveTower = state.map.towers.find(
-    (tower) =>
-      tower.zone === zone && state.towerAlive[state.map.towers.indexOf(tower)],
+  // Score each tile by distance to its NEAREST alive tower in the zone
+  // (2x2 → +1 offset to center). Using min-over-towers instead of a
+  // single anchor tower means bank tiles near any tower rank similarly,
+  // so spawns spread across the whole zone instead of clustering on
+  // one tower's bank.
+  const aliveTowerCenters: { row: number; col: number }[] = [];
+  for (let i = 0; i < state.map.towers.length; i++) {
+    const tower = state.map.towers[i]!;
+    if (tower.zone === zone && state.towerAlive[i]) {
+      aliveTowerCenters.push({ row: tower.row + 1, col: tower.col + 1 });
+    }
+  }
+  const scoreToNearestTower = (row: number, col: number): number => {
+    if (aliveTowerCenters.length === 0) return 0;
+    let best = Infinity;
+    for (const tower of aliveTowerCenters) {
+      const dist = manhattanDistance(tower.row, tower.col, row, col);
+      if (dist < best) best = dist;
+    }
+    return best;
+  };
+  const sortByNearestTower = (arr: { row: number; col: number }[]): void => {
+    if (aliveTowerCenters.length === 0) return;
+    arr.sort(
+      (a, b) =>
+        scoreToNearestTower(a.row, a.col) - scoreToNearestTower(b.row, b.col),
+    );
+  };
+  sortByNearestTower(bank);
+  sortByNearestTower(edge);
+
+  // Rotate the sorted list by `seq % length` so successive calls cycle
+  // through every candidate tile instead of all seeding at the closest
+  // tile. Optional minor RNG jitter swaps the top two ~30% of the time
+  // to break stable mirror cycles. Applied identically to bank (primary
+  // tier) and edge (fallback tier).
+  const seq = state.gruntSpawnSeq++;
+  const jitter = state.rng.bool(GRUNT_SPAWN_JITTER_CHANCE);
+  const rotateList = (arr: { row: number; col: number }[]): void => {
+    if (arr.length < 2) return;
+    const rotation = seq % arr.length;
+    if (rotation > 0) {
+      const head = arr.slice(0, rotation);
+      const tail = arr.slice(rotation);
+      arr.length = 0;
+      arr.push(...tail, ...head);
+    }
+    if (jitter && arr.length >= 2) {
+      const swap = arr[0]!;
+      arr[0] = arr[1]!;
+      arr[1] = swap;
+    }
+  };
+  rotateList(bank);
+  rotateList(edge);
+
+  // Existing grunts in this zone act as "prior picks" — successive spawn
+  // calls (separate rounds, separate enclosures) would otherwise all seed
+  // at the closest-to-tower bank tile and cluster across time, not just
+  // within one batch.
+  const zoneGrunts = state.grunts.filter(
+    (grunt) => zoneAt(state.map, grunt.row, grunt.col) === zone,
   );
-  if (aliveTower) {
-    sortRow = aliveTower.row + 1;
-    sortCol = aliveTower.col + 1;
+
+  // Tiles already used for spawns this round (regardless of where the
+  // grunt is now — it may have walked inland). Distance-based filter
+  // against these prevents clustering when the rotation cycle wraps
+  // past `bank.length`.
+  const usedTiles: { row: number; col: number }[] = [];
+  const usedSet = state.gruntSpawnUsedTiles.get(zone);
+  if (usedSet) {
+    for (const tileKey of usedSet) {
+      const { r, c } = unpackTile(tileKey);
+      usedTiles.push({ row: r, col: c });
+    }
   }
 
-  // Sort each tier by distance to target (closest first)
-  const sortByTarget = (
-    arr: { row: number; col: number }[],
-  ): { row: number; col: number }[] => {
-    if (sortRow !== undefined && sortCol !== undefined) {
-      const sr = sortRow;
-      const sc = sortCol;
-      arr.sort(
-        (tileA, tileB) =>
-          manhattanDistance(tileA.row, tileA.col, sr, sc) -
-          manhattanDistance(tileB.row, tileB.col, sr, sc),
-      );
-    }
-    return arr;
-  };
-  sortByTarget(bank);
-  sortByTarget(edge);
-
-  // Pick from bank first, then edge, with min spacing
+  // Two-pass pick: first pass enforces spacing against zone grunts,
+  // recently-used spawn tiles, and batch picks. If still short of
+  // `count`, second pass drops only the zoneGrunts filter (the soft
+  // "don't crowd existing grunts" preference); used-tile and batch
+  // filters stay active so the relaxation never produces adjacent
+  // clusters in the same round.
   const result: TilePos[] = [];
-  const pick = (candidates: readonly { row: number; col: number }[]) => {
+  // lint:allow-closure-captures -- intentional: `pick` is a local
+  // helper that splits the strict/relaxed pass over the same picking
+  // state (`result`, `usedTiles`, `zoneGrunts`, `count`) — lifting it
+  // to module scope would force a 5-field params object for a
+  // single-file helper.
+  const pick = (
+    candidates: readonly { row: number; col: number }[],
+    strict: boolean,
+  ) => {
     for (const cand of candidates) {
       if (result.length >= count) return;
-      const tooClose = result.some(
+      const tooCloseToBatch = result.some(
         (existing) =>
           manhattanDistance(existing.row, existing.col, cand.row, cand.col) <
           GRUNT_SPAWN_MIN_DISTANCE,
       );
-      if (tooClose) continue;
+      if (tooCloseToBatch) continue;
+      const tooCloseToUsed = usedTiles.some(
+        (used) =>
+          manhattanDistance(used.row, used.col, cand.row, cand.col) <
+          GRUNT_SPAWN_MIN_DISTANCE,
+      );
+      if (tooCloseToUsed) continue;
+      if (strict) {
+        const tooCloseToZoneGrunt = zoneGrunts.some(
+          (grunt) =>
+            manhattanDistance(grunt.row, grunt.col, cand.row, cand.col) <
+            GRUNT_SPAWN_MIN_DISTANCE,
+        );
+        if (tooCloseToZoneGrunt) continue;
+      }
       result.push({ row: cand.row, col: cand.col });
     }
   };
-  pick(bank);
-  pick(edge);
+  pick(bank, true);
+  pick(edge, true);
+  if (result.length < count) {
+    pick(bank, false);
+    pick(edge, false);
+  }
+
+  // Record the picks in this round's used-tile set so future calls
+  // avoid clustering near them.
+  if (result.length > 0) {
+    let zoneUsed = state.gruntSpawnUsedTiles.get(zone);
+    if (!zoneUsed) {
+      zoneUsed = new Set();
+      state.gruntSpawnUsedTiles.set(zone, zoneUsed);
+    }
+    for (const pos of result) {
+      zoneUsed.add(packTile(pos.row, pos.col));
+    }
+  }
+
   return result;
 }
 

@@ -74,7 +74,7 @@ import type { GameViewState } from "../shared/core/system-interfaces.ts";
 import type { GameState } from "../shared/core/types.ts";
 import type { ZoneCell, ZoneId } from "../shared/core/zone-id.ts";
 import { getDeadZones } from "./grunt-movement.ts";
-import { spawnGruntAtTile, spawnGruntOnZone } from "./grunt-system.ts";
+import { spawnGruntAtTile, spawnGruntGroupOnZone } from "./grunt-system.ts";
 import { topZonesBySize } from "./map-generation.ts";
 import {
   canPlaceOverBurningPit,
@@ -487,6 +487,7 @@ function destroyEnclosedHousesAndSpawnGrunts(
   player: Player,
   interior: FreshInterior,
 ): void {
+  const enemyCounts = new Map<ValidPlayerId, number>();
   for (const house of state.map.houses) {
     if (!house.alive) continue;
     const hKey = packTile(house.row, house.col);
@@ -495,8 +496,11 @@ function destroyEnclosedHousesAndSpawnGrunts(
     house.alive = false;
     for (const enemy of state.players) {
       if (enemy.id === player.id || !isPlayerSeated(enemy)) continue;
-      spawnGruntOnZone(state, enemy.id);
+      enemyCounts.set(enemy.id, (enemyCounts.get(enemy.id) ?? 0) + 1);
     }
+  }
+  for (const [enemyId, count] of enemyCounts) {
+    spawnGruntGroupOnZone(state, enemyId, count);
   }
 }
 
@@ -532,13 +536,20 @@ function removeEnclosedGruntsAndRespawn(
   );
   if (enemies.length === 0) return;
 
-  // Each enclosed grunt has 50% chance to respawn, alternating between enemies
+  // Each enclosed grunt has 50% chance to respawn, alternating between
+  // enemies. Tally per-enemy counts first, then batch-spawn so the
+  // group-spawn min-spacing filter spreads them along the bank instead of
+  // clustering at the closest-to-tower stretch.
+  const counts = new Array<number>(enemies.length).fill(0);
   let enemyIdx = 0;
   for (let i = 0; i < enclosed.length; i++) {
     if (!state.rng.bool(ENCLOSED_GRUNT_RESPAWN_CHANCE)) continue;
-    const enemy = enemies[enemyIdx % enemies.length]!;
-    spawnGruntOnZone(state, enemy.id);
+    counts[enemyIdx % enemies.length] = counts[enemyIdx % enemies.length]! + 1;
     enemyIdx++;
+  }
+  for (let e = 0; e < enemies.length; e++) {
+    if (counts[e]! > 0)
+      spawnGruntGroupOnZone(state, enemies[e]!.id, counts[e]!);
   }
 }
 

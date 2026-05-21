@@ -208,6 +208,14 @@ export interface FullStateMessage extends SerializedModifierTiles {
   simTick: number;
   players: SerializedPlayer[];
   grunts: SerializedGrunt[];
+  /** Match-lifetime grunt-spawn rotation counter
+   *  (state.gruntSpawnSeq). Carried so a late-joining peer rotates the
+   *  next pick at the same offset as the surviving host. */
+  gruntSpawnSeq: number;
+  /** Per-zone tiles already used for grunt spawns in the current round
+   *  (state.gruntSpawnUsedTiles). Serialized as `[zoneId, tileKey[]]`
+   *  pairs; empty when no zone has spawned this round. */
+  gruntSpawnUsedTiles?: [number, number[]][];
   houses: SerializedHouse[];
   bonusSquares: SerializedBonusSquare[];
   towerAlive: boolean[];

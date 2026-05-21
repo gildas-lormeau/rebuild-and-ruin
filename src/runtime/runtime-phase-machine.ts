@@ -389,6 +389,11 @@ const ROUND_END: Transition = {
     // Game continues — advance the counter and emit ROUND_START so the
     // life-lost popup (and everything after it) reads the new round.
     ctx.state.round++;
+    // gruntSpawnSeq deliberately NOT reset — it must keep advancing so
+    // the per-round-first spawn lands at a different rotation than the
+    // previous round's first spawn. Only the per-round used-tile set
+    // resets (that's the within-round no-cluster guarantee).
+    ctx.state.gruntSpawnUsedTiles.clear();
     emitRoundStart(ctx.state);
     return {
       ...EMPTY_TRANSITION_RESULT,

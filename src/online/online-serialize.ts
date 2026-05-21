@@ -69,6 +69,14 @@ export function createFullStateMessage(
     simTick: state.simTick,
     players: serializePlayers(state),
     grunts: serializeGrunts(state),
+    gruntSpawnSeq: state.gruntSpawnSeq,
+    gruntSpawnUsedTiles:
+      state.gruntSpawnUsedTiles.size > 0
+        ? [...state.gruntSpawnUsedTiles].map(
+            ([zone, tiles]) =>
+              [zone as number, [...tiles] as number[]] as [number, number[]],
+          )
+        : undefined,
     houses: state.map.houses.map((h) => ({
       row: h.row,
       col: h.col,
@@ -126,6 +134,13 @@ export function restoreFullStateSnapshot(
   state.maxRounds = msg.maxRounds;
   state.shotsFired = msg.shotsFired;
   state.simTick = msg.simTick;
+  state.gruntSpawnSeq = msg.gruntSpawnSeq;
+  state.gruntSpawnUsedTiles = new Map(
+    (msg.gruntSpawnUsedTiles ?? []).map(([zone, tiles]) => [
+      zone as ZoneId,
+      new Set(tiles as TileKey[]),
+    ]),
+  );
   state.cannonLimits = msg.cannonLimits;
   state.cannonPlaceDone = new Set(msg.cannonPlaceDone as ValidPlayerId[]);
   state.salvageSlots = msg.salvageSlots ?? state.players.map(() => 0);
