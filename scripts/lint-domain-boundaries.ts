@@ -13,7 +13,6 @@ import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import { Project, type SourceFile, SyntaxKind } from "ts-morph";
-import { tierOfLayer } from "./cells/tier-of-layer.ts";
 
 interface Config {
   allowed: Record<string, string[]>;
@@ -24,11 +23,6 @@ interface Config {
 interface Cell {
   layer: number;
   domain: string;
-  files: string[];
-}
-
-interface LayerGroup {
-  name: string;
   files: string[];
 }
 
@@ -67,10 +61,6 @@ const CONFIG_PATH = path.join(ROOT, ".domain-boundaries.json");
 const CELLS_PATH = path.join(ROOT, ".import-cells.json");
 const config: Config = JSON.parse(readFileSync(CONFIG_PATH, "utf-8"));
 const cells: Cell[] = JSON.parse(readFileSync(CELLS_PATH, "utf-8"));
-// Build set of files in the "roots" tier — these are composition roots,
-// automatically exempt from typeOnlyFrom restrictions.
-const LAYER_FILE = path.join(ROOT, ".import-layers.json");
-const rootsTierFiles = new Set<string>();
 // Build reverse map: file → domain
 const fileToDomain = new Map<string, string>();
 // Build allowed set per domain
@@ -82,8 +72,6 @@ const project = new Project({
 });
 const violations: Violation[] = [];
 const typeOnlyFrom = new Map<string, Set<string>>();
-// Composition roots (files in the "roots" tier) are exempt from typeOnlyFrom.
-const typeOnlyExempt = rootsTierFiles;
 const typeOnlyViolations: TypeOnlyViolation[] = [];
 const dynamicImportViolations: DynamicImportViolation[] = [];
 const diskFiles: string[] = [];
@@ -92,17 +80,6 @@ const unassigned = diskFiles.filter((f) => !fileToDomain.has(f));
 // Report
 let checkedFiles = 0;
 let checkedImports = 0;
-
-try {
-  const layers: LayerGroup[] = JSON.parse(readFileSync(LAYER_FILE, "utf-8"));
-  for (let i = 0; i < layers.length; i++) {
-    if (tierOfLayer(i) === "roots") {
-      for (const file of layers[i]!.files) rootsTierFiles.add(file);
-    }
-  }
-} catch {
-  // layer file missing — no tier-based exemptions
-}
 
 for (const cell of cells) {
   for (const file of cell.files) {
@@ -173,7 +150,6 @@ for (const sf of project.getSourceFiles()) {
   const fileDomain = fileToDomain.get(relFile);
 
   if (!fileDomain) continue;
-  if (typeOnlyExempt.has(relFile)) continue;
 
   const restricted = typeOnlyFrom.get(fileDomain);
   if (!restricted) continue;
