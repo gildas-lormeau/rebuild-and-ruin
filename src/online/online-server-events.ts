@@ -386,9 +386,9 @@ function handleCannonPhantom(
 /** Apply a remote slot's life-lost choice. Same clone-everywhere shape
  *  as `handleUpgradePick`: runs on host AND watcher because a real human's
  *  controller has no local AI brain to fill `entry.choice`. AI / assisted
- *  controllers fill `entry.choice` deterministically (state.rng-derived)
- *  on every peer, so a wire-arrived duplicate is silently dropped by the
- *  `entry.choice === LifeLostChoice.PENDING` guard below. */
+ *  controllers fill `entry.choice` deterministically from state on every
+ *  peer (see `aiChooseLifeLost`), so a wire-arrived duplicate is silently
+ *  dropped by the `entry.choice === LifeLostChoice.PENDING` guard below. */
 function handleLifeLostChoice(
   msg: LifeLostChoiceMsg,
   deps: HandleServerIncrementalDeps,
@@ -423,7 +423,8 @@ function parseLifeLostChoice(raw: unknown): ResolvedChoice | null {
  *  clone-everywhere — the watcher needs the wire signal because a real
  *  human's controller has no local AI brain to fill `entry.choice`
  *  itself. AI / assisted-human controllers also tick locally on every
- *  peer and pick deterministically (state.rng-derived), so a wire-arrived
+ *  peer and pick deterministically from state (`aiPickUpgrade` derives a
+ *  private Rng from state.rng.seed + round + playerId), so a wire-arrived
  *  pick that matches an already-filled entry is a harmless duplicate. */
 function handleUpgradePick(
   msg: UpgradePickMsg,

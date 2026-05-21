@@ -510,8 +510,8 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
           // Without this, the originator marks done at simTick=N while
           // the receiver only sees it at simTick=N+wireDelay, letting one
           // peer exit CANNON_PLACE first and drift state.rng cross-peer
-          // through the post-cannon-place transition (modifier roll, AI
-          // upgrade-pick precompute, grunt spawn).
+          // through the post-cannon-place transition (modifier roll,
+          // grunt spawn).
           const playerId = ctrl.playerId;
           const applyAt = state.simTick + DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS;
           state.pendingCannonPlaceDone.add(playerId);
