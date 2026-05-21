@@ -71,14 +71,16 @@ const GRUNT_SPAWN_MIN_DISTANCE = 2;
 /** Max ring radius when spawning a grunt near a destroyed house. */
 const NEAR_SPAWN_RADIUS = 8;
 
-/** Spawn a grunt near (posRow, posCol) on the same zone.
- *  Spirals outward from the position to find the closest valid tile.
- *  Skips if excludePlayerId is the only non-eliminated player. */
-export function spawnGruntNearPos(
+/** Spawn a grunt exactly at (row, col) — used when a piece is laid on
+ *  top of a house, so the new occupant emerges where the house stood
+ *  (no wall is built on that tile). Skips if `excludePlayerId` is the
+ *  only non-eliminated player. Caller must guarantee the tile is grass
+ *  and unobstructed; `addGrunt` silently no-ops otherwise. */
+export function spawnGruntAtTile(
   state: GameState,
   excludePlayerId: ValidPlayerId,
-  posRow: number,
-  posCol: number,
+  row: number,
+  col: number,
 ): void {
   if (
     state.players.every(
@@ -86,22 +88,7 @@ export function spawnGruntNearPos(
     )
   )
     return;
-  const pos = findGruntSpawnNear(state, posRow, posCol);
-  if (pos) {
-    addGrunt(state, pos.row, pos.col);
-  } else {
-    const victimId = state.players.find(
-      (player) => player.id !== excludePlayerId && !player.eliminated,
-    )?.id;
-    if (victimId !== undefined) {
-      state.bus.emit(GAME_EVENT.GRUNT_SPAWN_BLOCKED, {
-        type: GAME_EVENT.GRUNT_SPAWN_BLOCKED,
-        playerId: victimId,
-        requested: 1,
-        placed: 0,
-      });
-    }
-  }
+  addGrunt(state, row, col);
 }
 
 /** Find a spawn position near (posRow, posCol) by spiralling outward.

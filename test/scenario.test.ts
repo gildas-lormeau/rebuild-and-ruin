@@ -7,7 +7,8 @@ import {
 } from "./scenario.ts";
 import { GAME_EVENT } from "../src/shared/core/game-event-bus.ts";
 import { Phase } from "../src/shared/core/game-phase.ts";
-import { unpackTile } from "../src/shared/core/spatial.ts";
+import { packTile, unpackTile } from "../src/shared/core/spatial.ts";
+import type { TileKey } from "../src/shared/core/grid.ts";
 import { diffAsciiSnapshots } from "../dev/dev-console-grid.ts";
 import { MESSAGE } from "../src/protocol/protocol.ts";
 import type { ValidPlayerId } from "../src/shared/core/player-slot.ts";
@@ -158,6 +159,99 @@ Deno.test("scenario: runGame plays a full game to completion", async () => {
     "expected game to progress past round 1",
   );
 });
+
+Deno.test(
+  "scenario: piece on house spawns grunt at house tile, no wall on that tile",
+  async () => {
+    // Original-Rampart parity: when a piece is placed on a house, the
+    // house tile becomes a grunt (no wall is laid on that exact tile —
+    // the grunt sits there). Other tiles of the piece still become walls.
+    const sc = await createScenario({ seed: 42, rounds: 5 });
+
+    const crushedTiles = new Set<TileKey>();
+    const wallOnCrushedTile: TileKey[] = [];
+    const gruntSpawnsAtCrushedTile = new Set<TileKey>();
+
+    sc.bus.on(GAME_EVENT.HOUSE_CRUSHED, (ev) => {
+      const key = packTile(ev.row, ev.col);
+      crushedTiles.add(key);
+      // The HOUSE_CRUSHED event fires inside applyPiecePlacement AFTER
+      // addPlayerWalls. After the fix the placement code excludes the
+      // house tile from the wall set, so no player should have a wall
+      // at that key when this listener runs.
+      if (sc.state.players.some((player) => player.walls.has(key))) {
+        wallOnCrushedTile.push(key);
+      }
+    });
+
+    sc.bus.on(GAME_EVENT.GRUNT_SPAWN, (ev) => {
+      const key = packTile(ev.row, ev.col);
+      if (crushedTiles.has(key)) {
+        gruntSpawnsAtCrushedTile.add(key);
+      }
+    });
+
+    try {
+      waitUntilRound(sc, 5, { timeoutMs: 480_000 });
+    } catch (_e) {
+      // Game-over before round 5 is fine — we just need enough crushes.
+    }
+
+    assertGreater(
+      crushedTiles.size,
+      0,
+      "expected at least one HOUSE_CRUSHED across rounds 1–4",
+    );
+    assertEquals(
+      wallOnCrushedTile.length,
+      0,
+      `walls should NOT be placed on crushed-house tiles (got ${wallOnCrushedTile.length})`,
+    );
+    assertEquals(
+      gruntSpawnsAtCrushedTile.size,
+      crushedTiles.size,
+      `every crushed-house tile should get a grunt at that exact tile (${gruntSpawnsAtCrushedTile.size}/${crushedTiles.size})`,
+    );
+  },
+);
+
+Deno.test(
+  "scenario: enclosing grunts emits gruntsEnclosed once per sealed pocket",
+  async () => {
+    // The `woodcrus` SFX is driven by `gruntsEnclosed`, one per connected
+    // enclosed region that holds grunts. Multiple grunts in the same
+    // pocket → one event with count > 1; two disjoint pockets sealed by
+    // a single placement → two events.
+    const sc = await createScenario({ seed: 42, rounds: 5 });
+
+    const events: { playerId: number; count: number }[] = [];
+    sc.bus.on(GAME_EVENT.GRUNTS_ENCLOSED, (ev) => {
+      events.push({ playerId: ev.playerId, count: ev.count });
+    });
+
+    try {
+      waitUntilRound(sc, 5, { timeoutMs: 480_000 });
+    } catch (_e) {
+      // Game-over before round 5 is fine.
+    }
+
+    assertGreater(
+      events.length,
+      0,
+      "expected at least one gruntsEnclosed event across rounds 1–4",
+    );
+    for (const ev of events) {
+      assertGreater(ev.count, 0, `gruntsEnclosed count must be ≥ 1, got ${ev.count}`);
+    }
+    // Seed 42 produces a multi-grunt pocket — proves grouping packs
+    // peers into one event instead of splitting them into N count=1
+    // events.
+    assert(
+      events.some((ev) => ev.count >= 2),
+      `expected at least one multi-grunt pocket; counts=${events.map((event) => event.count).join(",")}`,
+    );
+  },
+);
 
 Deno.test(
   "scenario: assisted controller broadcasts placements through network.send",

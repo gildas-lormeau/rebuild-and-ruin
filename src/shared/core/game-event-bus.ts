@@ -182,10 +182,10 @@ export type LifecycleEvent =
       | { type: "cameraTarget"; kind: "fullmap"; source: CameraTargetSource }
     )
   /** A wall piece placed during the build phase landed on top of a live
-   *  house, crushing it. Drives the `woodcrus` SFX. Distinct from the
-   *  battle-phase `houseDestroyed` event (cannonball impact) — that one
-   *  is a networked game-state ImpactEvent, this one is purely
-   *  presentational. */
+   *  house, crushing it. The house is replaced by a grunt at the same
+   *  tile (no wall is laid there). Purely diagnostic — no SFX. Distinct
+   *  from the battle-phase `houseDestroyed` event (cannonball impact),
+   *  which is a networked game-state ImpactEvent. */
   | { type: "houseCrushed"; row: number; col: number };
 
 export type EntityEvent =
@@ -230,6 +230,15 @@ export type EntityEvent =
       playerId: ValidPlayerId;
       requested: number;
       placed: number;
+    }
+  /** One enclosure of the player's territory just trapped one or more
+   *  grunts. Fires once per connected enclosed region containing grunts
+   *  (a single placement can produce multiple events if it seals off
+   *  several disjoint pockets at once). Drives the `woodcrus` SFX. */
+  | {
+      type: "gruntsEnclosed";
+      playerId: ValidPlayerId;
+      count: number;
     };
 
 export type ModernEvent =
@@ -359,6 +368,7 @@ const ENTITY_EVENT = {
   CANNON_PLACED: "cannonPlaced",
   GRUNT_SPAWN: "gruntSpawn",
   GRUNT_SPAWN_BLOCKED: "gruntSpawnBlocked",
+  GRUNTS_ENCLOSED: "gruntsEnclosed",
 } as const;
 const MODERN_EVENT = {
   MODIFIER_APPLIED: "modifierApplied",

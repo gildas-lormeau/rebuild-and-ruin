@@ -58,6 +58,7 @@ import {
 } from "../shared/core/player-types.ts";
 import {
   computeOutside,
+  DIRS_4,
   filterOffTiles,
   hasEnclosableMargin,
   hasPitAt,
@@ -66,13 +67,14 @@ import {
   isGrass,
   manhattanDistance,
   packTile,
+  unpackTile,
   zoneAt,
 } from "../shared/core/spatial.ts";
 import type { GameViewState } from "../shared/core/system-interfaces.ts";
 import type { GameState } from "../shared/core/types.ts";
 import type { ZoneCell, ZoneId } from "../shared/core/zone-id.ts";
 import { getDeadZones } from "./grunt-movement.ts";
-import { spawnGruntNearPos, spawnGruntOnZone } from "./grunt-system.ts";
+import { spawnGruntAtTile, spawnGruntOnZone } from "./grunt-system.ts";
 import { topZonesBySize } from "./map-generation.ts";
 import {
   canPlaceOverBurningPit,
@@ -229,32 +231,43 @@ export function applyPiecePlacement(
 ): void {
   if (isPlayerEliminated(state.players[playerId])) return;
   const player = state.players[playerId]!;
-  const destroyedHousePositions: TilePos[] = [];
   const pieceKeys = new Set(
     offsets.map(([dr, dc]) => packTile(row + dr, col + dc)),
   );
-  addPlayerWalls(player, pieceKeys);
-  emitGameEvent(state.bus, GAME_EVENT.WALL_PLACED, {
-    playerId,
-    tileKeys: [...pieceKeys],
-  });
+  // Original-Rampart parity: piece tiles that overlap alive houses do
+  // NOT become walls — the house is destroyed and a grunt emerges in
+  // its place, occupying the tile. Wall set = piece minus house tiles.
+  const destroyedHousePositions: TilePos[] = [];
+  const houseTileKeys = new Set<TileKey>();
   for (const house of state.map.houses) {
     if (!house.alive) continue;
     const houseKey = packTile(house.row, house.col);
     if (pieceKeys.has(houseKey)) {
       house.alive = false;
       destroyedHousePositions.push({ row: house.row, col: house.col });
-      emitGameEvent(state.bus, GAME_EVENT.HOUSE_CRUSHED, {
-        row: house.row,
-        col: house.col,
-      });
+      houseTileKeys.add(houseKey);
     }
   }
-  state.bonusSquares = filterOffTiles(state.bonusSquares, pieceKeys);
-  onPiecePlaced(state, player, pieceKeys);
+  const wallKeys =
+    houseTileKeys.size === 0
+      ? pieceKeys
+      : new Set([...pieceKeys].filter((key) => !houseTileKeys.has(key)));
+  addPlayerWalls(player, wallKeys);
+  emitGameEvent(state.bus, GAME_EVENT.WALL_PLACED, {
+    playerId,
+    tileKeys: [...wallKeys],
+  });
+  for (const pos of destroyedHousePositions) {
+    emitGameEvent(state.bus, GAME_EVENT.HOUSE_CRUSHED, {
+      row: pos.row,
+      col: pos.col,
+    });
+  }
+  state.bonusSquares = filterOffTiles(state.bonusSquares, wallKeys);
+  onPiecePlaced(state, player, wallKeys);
   recheckTerritory(state);
   for (const pos of destroyedHousePositions) {
-    spawnGruntNearPos(state, playerId, pos.row, pos.col);
+    spawnGruntAtTile(state, playerId, pos.row, pos.col);
   }
   advancePlayerBag(player, true);
 }
@@ -509,6 +522,11 @@ function removeEnclosedGruntsAndRespawn(
   state.grunts = kept;
   player.score += enclosed.length * DESTROY_GRUNT_POINTS;
 
+  // One event per connected enclosed region containing grunts — drives
+  // the `woodcrus` SFX. A single placement that seals off two disjoint
+  // pockets simultaneously emits twice.
+  emitGruntsEnclosedPerRegion(state, player.id, enclosed, interior);
+
   const enemies = state.players.filter(
     (other) => other.id !== player.id && isPlayerSeated(other),
   );
@@ -521,6 +539,42 @@ function removeEnclosedGruntsAndRespawn(
     const enemy = enemies[enemyIdx % enemies.length]!;
     spawnGruntOnZone(state, enemy.id);
     enemyIdx++;
+  }
+}
+
+/** Flood-fill the interior (4-dir) from each unvisited enclosed grunt to
+ *  group grunts by connected enclosed region, then emit one
+ *  `gruntsEnclosed` event per group. Walls separate regions, so two
+ *  pockets sealed by a single placement are treated as distinct
+ *  enclosures. */
+function emitGruntsEnclosedPerRegion(
+  state: GameState,
+  playerId: ValidPlayerId,
+  enclosed: readonly Grunt[],
+  interior: FreshInterior,
+): void {
+  const visited = new Set<TileKey>();
+  for (const seed of enclosed) {
+    const startKey = packTile(seed.row, seed.col);
+    if (visited.has(startKey)) continue;
+    let count = 0;
+    const queue: TileKey[] = [startKey];
+    visited.add(startKey);
+    while (queue.length > 0) {
+      const key = queue.shift()!;
+      if (enclosed.some((grunt) => packTile(grunt.row, grunt.col) === key)) {
+        count++;
+      }
+      const { r, c } = unpackTile(key);
+      for (const [dr, dc] of DIRS_4) {
+        const nKey = packTile(r + dr, c + dc);
+        if (interior.has(nKey) && !visited.has(nKey)) {
+          visited.add(nKey);
+          queue.push(nKey);
+        }
+      }
+    }
+    emitGameEvent(state.bus, GAME_EVENT.GRUNTS_ENCLOSED, { playerId, count });
   }
 }
 

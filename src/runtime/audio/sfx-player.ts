@@ -191,11 +191,13 @@ const SFX_EVENT_MAP: SfxEventMap = {
   // crunch as the hull breaks up. Same `woodcrus` used for house
   // destruction, which fits a wooden cargo ship going under.
   shipSunk: { sample: "woodcrus" },
-  // woodcrus — wooden-crunch sample fires in both phases: build-phase
-  // wall-on-top-of-house (via houseCrushed) and battle-phase cannonball
-  // destroying a house (via houseDestroyed).
-  houseCrushed: { sample: "woodcrus" },
+  // woodcrus — wooden-crunch sample fires for two cases: battle-phase
+  // cannonball destroying a house (via houseDestroyed), and build-phase
+  // walls enclosing one or more grunts (via gruntsEnclosed, once per
+  // sealed pocket). Build-phase piece-on-house plays no SFX (the house
+  // is silently replaced by a grunt at the same tile).
   houseDestroyed: { sample: "woodcrus" },
+  gruntsEnclosed: { sample: "woodcrus" },
   bannerStart: {
     sample: "whoosh2",
     filter: (event) => event.bannerKind === "battle",
