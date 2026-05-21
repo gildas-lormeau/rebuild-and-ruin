@@ -14,7 +14,6 @@
     "fixture:edit": "deno run --no-check -A scripts/fixture-tui.ts",
     "test:determinism": "timeout 30 deno test --no-check --allow-read test/determinism.test.ts",
     "test:speed": "timeout 30 deno test --no-check test/dev-speed.test.ts",
-    "test:banner:high-tide": "timeout 30 deno test --no-check test/banner-high-tide-battle.test.ts",
     "test:modifiers": "timeout 60 deno test --no-check test/modifiers.test.ts",
     "test:upgrades": "timeout 60 deno test --no-check test/upgrades.test.ts",
     "test:cannon-tier": "timeout 30 deno test --no-check test/cannon-tier.test.ts",
