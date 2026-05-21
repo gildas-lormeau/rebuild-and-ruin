@@ -22,11 +22,7 @@ import {
   createZoneCycleButton,
 } from "../input/input-touch-ui.ts";
 import { updateTouchControls } from "../input/input-touch-update.ts";
-import {
-  type GameMessage,
-  MESSAGE,
-  type ServerMessage,
-} from "../protocol/protocol.ts";
+import type { GameMessage, ServerMessage } from "../protocol/protocol.ts";
 import { pickHitWorld as pickElevatedHit } from "../render/3d/elevation.ts";
 import { createRender3d } from "../render/3d/renderer.ts";
 import {
@@ -437,14 +433,14 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     hostAtFrameStart: config.network.amHost,
     sendTowerSelected: (pid, idx, confirmed, applyAt) =>
       config.network.send({
-        type: MESSAGE.OPPONENT_TOWER_SELECTED,
+        type: "opponentTowerSelected",
         playerId: pid,
         towerIdx: idx,
         confirmed,
         applyAt,
       }),
     sendSelectStart: (timer) =>
-      config.network.send({ type: MESSAGE.SELECT_START, timer }),
+      config.network.send({ type: "selectStart", timer }),
     log: config.log,
     camera,
     syncSelectionOverlay: updateSelectionOverlay,
@@ -580,7 +576,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   const lifeLost: LifeLostSystem = createLifeLostSystem({
     runtimeState,
     sendLifeLostChoice: (choice, playerId) =>
-      config.network.send({ type: MESSAGE.LIFE_LOST_CHOICE, choice, playerId }),
+      config.network.send({ type: "lifeLostChoice", choice, playerId }),
     log: config.log,
     requestRender,
     panelPos: (pid) =>
@@ -597,7 +593,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     log: config.log,
     requestRender,
     sendUpgradePick: (playerId, choice) =>
-      config.network.send({ type: MESSAGE.UPGRADE_PICK, playerId, choice }),
+      config.network.send({ type: "upgradePick", playerId, choice }),
     applyEarlyChoices: config.onlineDialogDrains?.drainUpgradePick,
   });
 
@@ -622,16 +618,16 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     send: config.network.send,
     log: config.log,
     sendOpponentCannonPlaced: (msg) =>
-      config.network.send({ type: MESSAGE.OPPONENT_CANNON_PLACED, ...msg }),
+      config.network.send({ type: "opponentCannonPlaced", ...msg }),
     sendOpponentCannonPhantom: (msg) =>
-      config.network.send({ type: MESSAGE.OPPONENT_CANNON_PHANTOM, ...msg }),
+      config.network.send({ type: "opponentCannonPhantom", ...msg }),
     sendOpponentPiecePlaced: (msg) =>
-      config.network.send({ type: MESSAGE.OPPONENT_PIECE_PLACED, ...msg }),
+      config.network.send({ type: "opponentPiecePlaced", ...msg }),
     sendOpponentPhantom: (msg) =>
-      config.network.send({ type: MESSAGE.OPPONENT_PHANTOM, ...msg }),
+      config.network.send({ type: "opponentPhantom", ...msg }),
     sendOpponentCannonPhaseDone: (playerId, applyAt) =>
       config.network.send({
-        type: MESSAGE.OPPONENT_CANNON_PHASE_DONE,
+        type: "opponentCannonPhaseDone",
         playerId,
         applyAt,
       }),
