@@ -9,11 +9,7 @@ import roundTwoWholeZoneWithHoles from "./fixtures/wall-build/round2-whole-zone-
   type: "json",
 };
 import { Phase } from "../../src/shared/core/game-phase.ts";
-import {
-  computeOutside,
-  isTowerEnclosed,
-  packTile,
-} from "../../src/shared/core/spatial.ts";
+import { packTile } from "../../src/shared/core/spatial.ts";
 import { createPhaseScenario } from "./loader.ts";
 import type { FixtureFile } from "./types.ts";
 import { waitForPhase } from "../scenario.ts";
@@ -93,9 +89,8 @@ Deno.test("phase-test: AI repairs the existing outer ring instead of retreating 
     if (!homeTower) {
       throw new Error(`player ${player.id} should have a home tower`);
     }
-    const outside = computeOutside(player.walls);
     assert(
-      isTowerEnclosed(homeTower, outside),
+      player.ownedTowers.includes(homeTower),
       `player ${player.id} home tower should be re-enclosed after WALL_BUILD`,
     );
     // Whole-zone fixture: real repair preserves an interior of >100 tiles.

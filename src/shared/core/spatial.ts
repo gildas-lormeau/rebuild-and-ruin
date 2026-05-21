@@ -145,21 +145,6 @@ export function tileCenterPx(row: number, col: number): PixelPos {
   return { x: (col + 0.5) * TILE_SIZE, y: (row + 0.5) * TILE_SIZE };
 }
 
-/** True if all 4 tiles of a 2×2 tower are enclosed (not in the outside set). */
-export function isTowerEnclosed(
-  tilePos: TilePos,
-  outside: ReadonlySet<TileKey>,
-): boolean {
-  for (let dr = 0; dr < 2; dr++) {
-    for (let dc = 0; dc < 2; dc++) {
-      if (outside.has(packTile(tilePos.row + dr, tilePos.col + dc))) {
-        return false;
-      }
-    }
-  }
-  return true;
-}
-
 /**
  * 4-directional BFS from a tower tile — returns true if the BFS reaches any
  * tile in `targets` without crossing `walls`.  When `targets` is omitted the

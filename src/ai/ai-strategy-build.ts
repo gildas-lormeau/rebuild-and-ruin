@@ -33,7 +33,6 @@ import {
   hasPitAt,
   inBounds,
   isGrass,
-  isTowerEnclosed,
   packTile,
   towerReachesOutsideCardinal,
   unpackTile,
@@ -1024,17 +1023,18 @@ function analyzeEnclosures(
     (tower) => tower.zone === castle.tower.zone,
   );
 
-  // Enclosure detection must match territory's computeOutside (no water
-  // barriers) so the AI and recheckTerritory agree on which towers are enclosed.
-  // Water-as-barrier made the AI think bank-adjacent castles were closed when
-  // territory's plain flood could still enter through the bank.
-  const walls = player.walls;
-  const outside = computeOutside(walls);
-  const homeTowerEnclosed = isTowerEnclosed(castle.tower, outside);
+  // `outside` is still needed for the 4-dir diagonal-leak disambiguation
+  // (towerReachesOutsideCardinal) and for hasMeaningfulHomeRingGaps. The
+  // 8-dir "is this tower enclosed by my walls" question is answered by
+  // player.ownedTowers, which recheckTerritory keeps in sync via the same
+  // computeOutside-derived interior.
+  const outside = computeOutside(player.walls);
+  const ownedTowerSet = new Set(player.ownedTowers.map((tower) => tower.index));
+  const homeTowerEnclosed = ownedTowerSet.has(castle.tower.index);
   // 4-dir BFS from a tower: returns true if the BFS can reach the map
   // border without crossing walls.
   const unenclosedTowers = zoneTowers.filter((tower) => {
-    if (!isTowerEnclosed(tower, outside)) {
+    if (!ownedTowerSet.has(tower.index)) {
       // 8-dir flood says not enclosed. But if 4-dir BFS can't reach the
       // map border, the tower only has diagonal leaks — walls form a
       // complete orthogonal ring. Treat as enclosed to avoid building a
