@@ -82,7 +82,7 @@ export const FEATURE_CONSUMERS = {
     "stateAccess:applyBattleStartModifiers": "src/game/phase-setup.ts",
     "stateAccess:frozenTiles": "src/game/grunt-movement.ts",
     "stateAccess:detectIceThaw": "src/game/battle-system.ts",
-    "stateAccess:activeModifier": "src/runtime/runtime-phase-ticks.ts",
+    "stateAccess:activeModifier": "src/runtime/subsystems/phase-ticks.ts",
     "serialize:fullState": "src/online/online-serialize.ts",
     "render:modifierLabel": "src/render/render-ui-overlays.ts",
     "render:frozenTiles": "src/render/render-ui-overlays.ts",
@@ -97,10 +97,10 @@ export const FEATURE_CONSUMERS = {
     "stateAccess:masterBuilderOwners": "src/online/online-host-promotion.ts",
     "stateAccess:pendingUpgradeOffers":
       "src/online/online-phase-transitions.ts",
-    "stateAccess:runtimePending": "src/runtime/runtime-phase-ticks.ts",
-    "stateAccess:lockoutOverlay": "src/runtime/runtime-render.ts",
+    "stateAccess:runtimePending": "src/runtime/subsystems/phase-ticks.ts",
+    "stateAccess:lockoutOverlay": "src/runtime/subsystems/render.ts",
     "serialize:fullState": "src/online/online-serialize.ts",
-    "render:lockoutTimer": "src/runtime/runtime-render.ts",
+    "render:lockoutTimer": "src/runtime/subsystems/render.ts",
   },
   combos: {
     "gate:prepareBattleState": "src/game/phase-setup.ts",

@@ -252,7 +252,7 @@ export const BATTLE_EVENT_CONSUMERS = {
   },
   wallDestroyed: {
     stateApply: "src/game/battle-system.ts",
-    haptics: "src/runtime/runtime-haptics.ts",
+    haptics: "src/runtime/subsystems/haptics.ts",
     networkHandle: "src/online/online-server-events.ts",
     networkRelay: "server/game-room.ts",
     orchestrator: "src/game/battle-system.ts",
@@ -260,7 +260,7 @@ export const BATTLE_EVENT_CONSUMERS = {
   },
   cannonDamaged: {
     stateApply: "src/game/battle-system.ts",
-    haptics: "src/runtime/runtime-haptics.ts",
+    haptics: "src/runtime/subsystems/haptics.ts",
     networkHandle: "src/online/online-server-events.ts",
     networkRelay: "server/game-room.ts",
     orchestrator: "src/game/battle-system.ts",
@@ -315,7 +315,7 @@ export const BATTLE_EVENT_CONSUMERS = {
   },
   towerKilled: {
     stateApply: "src/game/battle-system.ts",
-    haptics: "src/runtime/runtime-haptics.ts",
+    haptics: "src/runtime/subsystems/haptics.ts",
     networkHandle: "src/online/online-server-events.ts",
     networkRelay: "server/game-room.ts",
   },

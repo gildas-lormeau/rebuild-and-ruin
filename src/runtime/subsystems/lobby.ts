@@ -1,32 +1,32 @@
-import { generateMap } from "../game/index.ts";
+import { generateMap } from "../../game/index.ts";
 import {
   LOBBY_SKIP_LOCKOUT,
   LOBBY_SKIP_STEP,
-} from "../shared/core/game-constants.ts";
-import type { GameMap } from "../shared/core/geometry-types.ts";
-import { CANVAS_H, CANVAS_W, TILE_SIZE } from "../shared/core/grid.ts";
-import type { ValidPlayerId } from "../shared/core/player-slot.ts";
+} from "../../shared/core/game-constants.ts";
+import type { GameMap } from "../../shared/core/geometry-types.ts";
+import { CANVAS_H, CANVAS_W, TILE_SIZE } from "../../shared/core/grid.ts";
+import type { ValidPlayerId } from "../../shared/core/player-slot.ts";
 import {
   CURSOR_DEFAULT,
   CURSOR_POINTER,
   IS_TOUCH_DEVICE,
-} from "../shared/platform/platform.ts";
-import { Rng } from "../shared/platform/rng.ts";
-import type { RenderOverlay } from "../shared/ui/overlay-types.ts";
+} from "../../shared/platform/platform.ts";
+import { Rng } from "../../shared/platform/rng.ts";
+import type { RenderOverlay } from "../../shared/ui/overlay-types.ts";
 import {
   computeGameSeed,
   type KeyBindings,
   MAX_PLAYERS,
-} from "../shared/ui/player-config.ts";
-import { Mode } from "../shared/ui/ui-mode.ts";
-import { type RuntimeState, setMode } from "./runtime-state.ts";
+} from "../../shared/ui/player-config.ts";
+import { Mode } from "../../shared/ui/ui-mode.ts";
+import { type RuntimeState, setMode } from "../runtime-state.ts";
 import type {
   ComputeLobbyLayoutFn,
   CreateLobbyOverlayFn,
   LobbyClickHitTestFn,
   LobbyHit,
   UIContext,
-} from "./runtime-ui-contracts.ts";
+} from "../runtime-ui-contracts.ts";
 
 /** Public lobby handle exposed on `GameRuntime`. Drives the pre-game
  *  lobby (player joining, seed entry, mode selection). */
@@ -60,7 +60,7 @@ interface LobbySystemDeps {
 
 interface LobbySystem {
   /** Build the lobby's `{map, overlay}` pair for the unified render entry
-   *  in `runtime-render.ts`. Lazy seed/map generation lives here so the
+   *  in `render.ts`. Lazy seed/map generation lives here so the
    *  first frame after `show()` always has a preview to draw. */
   buildOverlay: () => { map: GameMap; overlay: RenderOverlay | undefined };
   tickLobby: (dt: number) => void;

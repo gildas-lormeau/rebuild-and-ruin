@@ -252,8 +252,8 @@ function handleCannonPlaced(
  *  SAFETY` and schedules its own `cannonPlaceDone.add` for that tick;
  *  this receiver schedules the same add for the same `applyAt`, so the
  *  phase-exit predicate flips at identical sim ticks across peers. The
- *  mirror schedule for the originator side lives in `runtime-phase-ticks
- *  .ts:tickCannonPhase`'s broadcast block. */
+ *  mirror schedule for the originator side lives in
+ *  `runtime/subsystems/phase-ticks.ts:tickCannonPhase`'s broadcast block. */
 function handleCannonPhaseDone(
   msg: CannonPhaseDoneMsg,
   state: GameState | undefined,

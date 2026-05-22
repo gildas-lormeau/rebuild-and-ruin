@@ -1003,8 +1003,8 @@ function printCoverageReport(
     /^src\/online-/,
     /^src\/controller-human\.ts$/,
     /^src\/input-/,
-    /^src\/runtime-camera\.ts$/,
-    /^src\/runtime-.*\.ts$/,
+    /^src\/runtime\/subsystems\/camera\.ts$/,
+    /^src\/runtime\/.*\.ts$/,
   ];
   const interesting = summaries.filter((summary) =>
     interestingPatterns.some((pattern) => pattern.test(summary.path)),

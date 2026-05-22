@@ -211,7 +211,7 @@ export interface OnlineOverlayParams {
    *  field per consumer (`fogRevealOpacity`, `rubbleClearingFade`,
    *  `frostbiteRevealProgress`, `sapperRevealIntensity`,
    *  `gruntSurgeRevealIntensity`). Built by
-   *  `deriveRevealOverlayFields` in `runtime-render.ts` from the single
+   *  `deriveRevealOverlayFields` in `subsystems/render.ts` from the single
    *  resolved `revealTimeMs` — bespoke per-modifier `revealTimeFor`
    *  plumbing does not live here. Spread into `overlay.battle`. */
   revealOverlayFields: RevealOverlayBattleFields;

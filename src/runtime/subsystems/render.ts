@@ -5,32 +5,38 @@
  * Extracted from runtime-composition.ts to reduce composition-root fan-out.
  */
 
-import { Phase } from "../shared/core/game-phase.ts";
-import type { GameMap, Viewport } from "../shared/core/geometry-types.ts";
+import { Phase } from "../../shared/core/game-phase.ts";
+import type { GameMap, Viewport } from "../../shared/core/geometry-types.ts";
 import type {
   CannonPhantom,
   PiecePhantom,
-} from "../shared/core/phantom-types.ts";
-import type { ValidPlayerId } from "../shared/core/player-slot.ts";
-import { cannonTier, isPlayerEliminated } from "../shared/core/player-types.ts";
-import { selectRenderView } from "../shared/core/render-view.ts";
+} from "../../shared/core/phantom-types.ts";
+import type { ValidPlayerId } from "../../shared/core/player-slot.ts";
+import {
+  cannonTier,
+  isPlayerEliminated,
+} from "../../shared/core/player-types.ts";
+import { selectRenderView } from "../../shared/core/render-view.ts";
 import type {
   InputReceiver,
   PlayerController,
-} from "../shared/core/system-interfaces.ts";
-import type { LoupeHandle, RenderOverlay } from "../shared/ui/overlay-types.ts";
-import { PLAYER_COLORS, PLAYER_NAMES } from "../shared/ui/player-config.ts";
-import { Mode } from "../shared/ui/ui-mode.ts";
-import { deriveRevealOverlayFields } from "./modifier-reveal-overlay-registry.ts";
+} from "../../shared/core/system-interfaces.ts";
+import type {
+  LoupeHandle,
+  RenderOverlay,
+} from "../../shared/ui/overlay-types.ts";
+import { PLAYER_COLORS, PLAYER_NAMES } from "../../shared/ui/player-config.ts";
+import { Mode } from "../../shared/ui/ui-mode.ts";
+import { deriveRevealOverlayFields } from "../modifier-reveal-overlay-registry.ts";
 import {
   revealTimeFor,
   tickModifierRevealClock,
-} from "./modifier-reveal-time.ts";
+} from "../modifier-reveal-time.ts";
 import {
   isPaused,
   isStateInstalled,
   type RuntimeState,
-} from "./runtime-state.ts";
+} from "../runtime-state.ts";
 import type {
   CreateBannerUiFn,
   CreateOnlineOverlayFn,
@@ -39,8 +45,8 @@ import type {
   QuitButton,
   TouchControlsDeps,
   ZoomButton,
-} from "./runtime-ui-contracts.ts";
-import type { TimingApi } from "./timing-api.ts";
+} from "../runtime-ui-contracts.ts";
+import type { TimingApi } from "../timing-api.ts";
 
 interface RenderSystemDeps {
   readonly runtimeState: RuntimeState;

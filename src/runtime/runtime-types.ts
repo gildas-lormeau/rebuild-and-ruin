@@ -28,7 +28,7 @@ import type { ResolvedChoice } from "../shared/ui/interaction-types.ts";
 import type { RendererInterface } from "../shared/ui/overlay-types.ts";
 import type { TimingApi } from "./timing-api.ts";
 
-/** Online-only per-frame coordination consumed by runtime-phase-ticks.ts.
+/** Online-only per-frame coordination consumed by subsystems/phase-ticks.ts.
  *
  *  Every field is INDEPENDENTLY OPTIONAL — the runtime checks for presence
  *  and silently skips when missing.
@@ -36,7 +36,7 @@ import type { TimingApi } from "./timing-api.ts";
  *  Under clone-everywhere, every peer runs the same phase ticks locally
  *  and dispatches transitions itself. The only role-gated fields are the
  *  four `broadcast*` phase markers, gated by `frameMeta.hostAtFrameStart`
- *  at the call site in `buildHostPhaseCtx` (runtime-phase-ticks.ts) — only
+ *  at the call site in `buildHostPhaseCtx` (subsystems/phase-ticks.ts) — only
  *  the host emits to the wire. Every other field is called unconditionally
  *  on every peer (each self-gates by ownership where relevant).
  *

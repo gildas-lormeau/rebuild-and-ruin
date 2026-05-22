@@ -7,18 +7,18 @@
  * fresh (idempotent per-bus). Tests pass an optional observer.
  */
 
-import { BATTLE_MESSAGE } from "../shared/core/battle-events.ts";
-import { HAPTICS_ON } from "../shared/core/game-constants.ts";
+import { BATTLE_MESSAGE } from "../../shared/core/battle-events.ts";
+import { HAPTICS_ON } from "../../shared/core/game-constants.ts";
 import {
   GAME_EVENT,
   type GameEventBus,
-} from "../shared/core/game-event-bus.ts";
-import type { ValidPlayerId } from "../shared/core/player-slot.ts";
+} from "../../shared/core/game-event-bus.ts";
+import type { ValidPlayerId } from "../../shared/core/player-slot.ts";
 import type {
   HapticReason,
   HapticsObserver,
-} from "../shared/core/system-interfaces.ts";
-import { CAN_VIBRATE } from "../shared/platform/platform.ts";
+} from "../../shared/core/system-interfaces.ts";
+import { CAN_VIBRATE } from "../../shared/platform/platform.ts";
 
 interface HapticsSubsystemDeps {
   /** Live getter — read once per haptic fire so setting changes take effect

@@ -2,7 +2,7 @@
  * Options and controls screen rendering + hit-testing.
  *
  * Extracted from render-ui.ts — these modal screens have their own
- * hit-test logic consumed by runtime-options.ts.
+ * hit-test logic consumed by runtime/subsystems/options.ts.
  */
 
 import type {

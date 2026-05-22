@@ -137,8 +137,9 @@ const LABELS: Record<string, string> = {
   "6::online": "online lobby UI & session state",
   "6::render": "render contracts & overlay helpers",
   "6::runtime":
-    "runtime cores: state, tick context, dialog cores, haptics & overlay registry",
+    "runtime cores: state, tick context, dialog cores & overlay registry",
   "6::runtime/audio": "audio players (music + sfx)",
+  "6::runtime/subsystems": "camera & haptics — leaf-depth subsystem factories",
   "6::server": "server game-room",
   "6::shared": "shared action schedule & query helpers",
 
@@ -162,7 +163,8 @@ const LABELS: Record<string, string> = {
     "AI strategy primitives (build types, castle rect) + wall-demolition tactic planner",
   "8::controllers": "controller factory",
   "8::entry": "server entry",
-  "8::runtime/subsystems": "subsystem factories importing runtime contracts",
+  "8::runtime/subsystems":
+    "input, lobby, options, render — mid-depth subsystem factories",
   "8::game": "core subsystems (castle gen, grunt movement)",
   "8::game/modifiers": "modifier implementations",
   "8::game/upgrades": "upgrade implementation (erosion)",
@@ -172,7 +174,7 @@ const LABELS: Record<string, string> = {
   "8::render/3d/effects":
     "effect subsystems (burns, dust, supply-ship, modifier-reveal)",
   "8::runtime":
-    "runtime subsystems (camera, input, render, lobby, life-lost, options) + lifecycle, castle-build, phase-machine, tick-consumers",
+    "runtime primitives at this depth: castle-build, phase-machine, tick-consumers",
 
   // L9 — system implementations
   "9::ai":
@@ -183,7 +185,9 @@ const LABELS: Record<string, string> = {
   "9::render": "render UI entry",
   "9::render/3d/effects":
     "effect implementations (emergence, collapse, ice, lightning, water surge, wildfire)",
-  "9::runtime": "runtime types, main loop, phase machine & subsystems",
+  "9::runtime": "runtime types & main loop",
+  "9::runtime/subsystems":
+    "phase-ticks & selection — phase-orchestrating subsystem factories",
 
   // L10 — mid-depth assembly
   "10::ai":
@@ -192,7 +196,8 @@ const LABELS: Record<string, string> = {
   "10::online": "online phase transitions",
   "10::render": "map renderer",
   "10::render/3d/effects": "modifier-effect registry",
-  "10::runtime": "runtime tick consumers & lifecycle integration",
+  "10::runtime": "runtime tick consumers",
+  "10::runtime/subsystems": "game-lifecycle — top subsystem factory",
 
   // L11 — system composition
   "11::ai":

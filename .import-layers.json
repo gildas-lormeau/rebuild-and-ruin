@@ -195,13 +195,13 @@
       "src/runtime/audio/music-player.ts",
       "src/runtime/audio/sfx-player.ts",
       "src/runtime/modifier-reveal-overlay-registry.ts",
-      "src/runtime/runtime-camera.ts",
-      "src/runtime/runtime-haptics.ts",
       "src/runtime/runtime-life-lost-core.ts",
       "src/runtime/runtime-state.ts",
       "src/runtime/runtime-tick-context.ts",
       "src/runtime/runtime-types.ts",
       "src/runtime/runtime-upgrade-pick-core.ts",
+      "src/runtime/subsystems/camera.ts",
+      "src/runtime/subsystems/haptics.ts",
       "src/shared/core/controller-guards.ts",
       "src/shared/core/occupancy-queries.ts",
       "src/shared/core/render-view.ts",
@@ -290,11 +290,11 @@
       "src/render/render-ui-screens.ts",
       "src/render/render-ui-settings.ts",
       "src/runtime/runtime-castle-build.ts",
-      "src/runtime/runtime-input.ts",
-      "src/runtime/runtime-lobby.ts",
-      "src/runtime/runtime-options.ts",
       "src/runtime/runtime-phase-machine.ts",
-      "src/runtime/runtime-render.ts"
+      "src/runtime/subsystems/input.ts",
+      "src/runtime/subsystems/lobby.ts",
+      "src/runtime/subsystems/options.ts",
+      "src/runtime/subsystems/render.ts"
     ]
   },
   {
@@ -314,8 +314,8 @@
       "src/render/3d/effects/wildfire-burst.ts",
       "src/render/render-ui.ts",
       "src/runtime/runtime-bootstrap.ts",
-      "src/runtime/runtime-phase-ticks.ts",
-      "src/runtime/runtime-selection.ts"
+      "src/runtime/subsystems/phase-ticks.ts",
+      "src/runtime/subsystems/selection.ts"
     ]
   },
   {
@@ -334,7 +334,7 @@
       "src/game/wall-impact.ts",
       "src/render/3d/effects/modifier-effect-registry.ts",
       "src/render/render-map.ts",
-      "src/runtime/runtime-game-lifecycle.ts"
+      "src/runtime/subsystems/game-lifecycle.ts"
     ]
   },
   {

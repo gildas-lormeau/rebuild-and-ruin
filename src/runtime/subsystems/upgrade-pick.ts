@@ -4,7 +4,7 @@
  * having a `prepare()` pre-create step for progressive reveal during
  * the banner sweep, before tryShow() activates the mode. Owns the
  * dialog lifecycle (create, tick, resolve); input handling lives in
- * runtime-input.ts.
+ * subsystems/input.ts.
  */
 
 import {

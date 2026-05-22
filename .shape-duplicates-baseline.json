@@ -175,10 +175,10 @@
       "pair": "BannerSystemDeps@src/runtime/subsystems/banner.ts ↔ LifeLostSystemDeps@src/runtime/subsystems/life-lost.ts"
     },
     {
-      "pair": "BannerSystemDeps@src/runtime/subsystems/banner.ts ↔ LobbySystemDeps@src/runtime/runtime-lobby.ts"
+      "pair": "BannerSystemDeps@src/runtime/subsystems/banner.ts ↔ LobbySystemDeps@src/runtime/subsystems/lobby.ts"
     },
     {
-      "pair": "BannerSystemDeps@src/runtime/subsystems/banner.ts ↔ SelectionSystemDeps@src/runtime/runtime-selection.ts"
+      "pair": "BannerSystemDeps@src/runtime/subsystems/banner.ts ↔ SelectionSystemDeps@src/runtime/subsystems/selection.ts"
     },
     {
       "pair": "BannerSystemDeps@src/runtime/subsystems/banner.ts ↔ UpgradePickSystemDeps@src/runtime/subsystems/upgrade-pick.ts"
@@ -355,13 +355,13 @@
       "pair": "BurstHost@src/render/3d/effects/modifier-reveal-burst.ts ↔ ThawHost@src/render/3d/effects/thawing.ts"
     },
     {
-      "pair": "CameraSystem@src/runtime/runtime-camera.ts ↔ PhaseTicksDeps@src/runtime/runtime-phase-ticks.ts"
+      "pair": "CameraSystem@src/runtime/subsystems/camera.ts ↔ PhaseTicksDeps@src/runtime/subsystems/phase-ticks.ts"
     },
     {
-      "pair": "CameraSystem@src/runtime/runtime-camera.ts ↔ PhaseTransitionCtx@src/runtime/runtime-phase-machine.ts"
+      "pair": "CameraSystem@src/runtime/subsystems/camera.ts ↔ PhaseTransitionCtx@src/runtime/runtime-phase-machine.ts"
     },
     {
-      "pair": "CameraSystem@src/runtime/runtime-camera.ts ↔ ZoomButtonDeps@src/shared/ui/input-deps.ts"
+      "pair": "CameraSystem@src/runtime/subsystems/camera.ts ↔ ZoomButtonDeps@src/shared/ui/input-deps.ts"
     },
     {
       "pair": "Cannon@src/shared/core/battle-types.ts ↔ SerializedCannon@src/protocol/checkpoint-data.ts"
@@ -658,28 +658,28 @@
       "pair": "HullParams@src/render/3d/sprites/supply-ship-scene.ts ↔ WindowParams@src/render/3d/sprites/house-scene.ts"
     },
     {
-      "pair": "LifecycleWiringDeps@src/runtime/runtime-game-lifecycle.ts ↔ RuntimeLoopDeps@src/runtime/runtime-main-loop.ts"
+      "pair": "LifecycleWiringDeps@src/runtime/subsystems/game-lifecycle.ts ↔ RuntimeLoopDeps@src/runtime/runtime-main-loop.ts"
     },
     {
-      "pair": "LifeLostSystemDeps@src/runtime/subsystems/life-lost.ts ↔ LobbySystemDeps@src/runtime/runtime-lobby.ts"
+      "pair": "LifeLostSystemDeps@src/runtime/subsystems/life-lost.ts ↔ LobbySystemDeps@src/runtime/subsystems/lobby.ts"
     },
     {
-      "pair": "LifeLostSystemDeps@src/runtime/subsystems/life-lost.ts ↔ SelectionSystemDeps@src/runtime/runtime-selection.ts"
+      "pair": "LifeLostSystemDeps@src/runtime/subsystems/life-lost.ts ↔ SelectionSystemDeps@src/runtime/subsystems/selection.ts"
     },
     {
       "pair": "LifeLostSystemDeps@src/runtime/subsystems/life-lost.ts ↔ UpgradePickSystemDeps@src/runtime/subsystems/upgrade-pick.ts"
     },
     {
-      "pair": "LobbySystemDeps@src/runtime/runtime-lobby.ts ↔ OptionsSystemDeps@src/runtime/runtime-options.ts"
+      "pair": "LobbySystemDeps@src/runtime/subsystems/lobby.ts ↔ OptionsSystemDeps@src/runtime/subsystems/options.ts"
     },
     {
-      "pair": "LobbySystemDeps@src/runtime/runtime-lobby.ts ↔ RuntimeConfig@src/runtime/runtime-types.ts"
+      "pair": "LobbySystemDeps@src/runtime/subsystems/lobby.ts ↔ RuntimeConfig@src/runtime/runtime-types.ts"
     },
     {
-      "pair": "LobbySystemDeps@src/runtime/runtime-lobby.ts ↔ SelectionSystemDeps@src/runtime/runtime-selection.ts"
+      "pair": "LobbySystemDeps@src/runtime/subsystems/lobby.ts ↔ SelectionSystemDeps@src/runtime/subsystems/selection.ts"
     },
     {
-      "pair": "LobbySystemDeps@src/runtime/runtime-lobby.ts ↔ UpgradePickSystemDeps@src/runtime/subsystems/upgrade-pick.ts"
+      "pair": "LobbySystemDeps@src/runtime/subsystems/lobby.ts ↔ UpgradePickSystemDeps@src/runtime/subsystems/upgrade-pick.ts"
     },
     {
       "pair": "MaskBucket@src/render/3d/entities/walls.ts ↔ VariantBucket@src/render/3d/entities/debris.ts"
@@ -709,10 +709,10 @@
       "pair": "ParapetParams@src/render/3d/sprites/tower-scene.ts ↔ SailParams@src/render/3d/sprites/supply-ship-scene.ts"
     },
     {
-      "pair": "PhaseTicksDeps@src/runtime/runtime-phase-ticks.ts ↔ PhaseTransitionCtx@src/runtime/runtime-phase-machine.ts"
+      "pair": "PhaseTicksDeps@src/runtime/subsystems/phase-ticks.ts ↔ PhaseTransitionCtx@src/runtime/runtime-phase-machine.ts"
     },
     {
-      "pair": "PhaseTicksDeps@src/runtime/runtime-phase-ticks.ts ↔ RuntimeLoopDeps@src/runtime/runtime-main-loop.ts"
+      "pair": "PhaseTicksDeps@src/runtime/subsystems/phase-ticks.ts ↔ RuntimeLoopDeps@src/runtime/runtime-main-loop.ts"
     },
     {
       "pair": "PieceDims@src/render/3d/sprites/debris-scene.ts ↔ PolePlatformParams@src/render/3d/sprites/tower-scene.ts"
@@ -874,7 +874,7 @@
       "pair": "ScheduledPiecePlacement@src/game/scheduled-actions.ts ↔ WallShieldedMessage@src/shared/core/battle-events.ts"
     },
     {
-      "pair": "SelectionSystemDeps@src/runtime/runtime-selection.ts ↔ UpgradePickSystemDeps@src/runtime/subsystems/upgrade-pick.ts"
+      "pair": "SelectionSystemDeps@src/runtime/subsystems/selection.ts ↔ UpgradePickSystemDeps@src/runtime/subsystems/upgrade-pick.ts"
     },
     {
       "pair": "SlabParams@src/render/3d/sprites/cannon-scene.ts ↔ TopParams@src/render/3d/sprites/rampart-scene.ts"

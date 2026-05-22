@@ -1,28 +1,28 @@
-import type { GameMap } from "../shared/core/geometry-types.ts";
-import { MAP_PX_H, MAP_PX_W, SCALE } from "../shared/core/grid.ts";
-import type { ValidPlayerId } from "../shared/core/player-slot.ts";
+import type { GameMap } from "../../shared/core/geometry-types.ts";
+import { MAP_PX_H, MAP_PX_W, SCALE } from "../../shared/core/grid.ts";
+import type { ValidPlayerId } from "../../shared/core/player-slot.ts";
 import {
   CURSOR_DEFAULT,
   CURSOR_POINTER,
   IS_TOUCH_DEVICE,
-} from "../shared/platform/platform.ts";
-import type { RenderOverlay } from "../shared/ui/overlay-types.ts";
+} from "../../shared/platform/platform.ts";
+import type { RenderOverlay } from "../../shared/ui/overlay-types.ts";
 import {
   ACTION_KEYS,
   MAX_PLAYERS,
   SEED_CUSTOM,
   saveSettings,
-} from "../shared/ui/player-config.ts";
+} from "../../shared/ui/player-config.ts";
 import {
   HIT_ARROW,
   HIT_CLOSE,
   OPT_CONTROLS,
   OPT_SEED,
   OPT_SOUND,
-} from "../shared/ui/settings-defs.ts";
-import type { CycleOptionFn } from "../shared/ui/settings-ui.ts";
-import { isInteractiveMode, Mode } from "../shared/ui/ui-mode.ts";
-import { type RuntimeState, safeState } from "./runtime-state.ts";
+} from "../../shared/ui/settings-defs.ts";
+import type { CycleOptionFn } from "../../shared/ui/settings-ui.ts";
+import { isInteractiveMode, Mode } from "../../shared/ui/ui-mode.ts";
+import { type RuntimeState, safeState } from "../runtime-state.ts";
 import type {
   ControlsScreenHitTestFn,
   CreateControlsOverlayFn,
@@ -31,7 +31,7 @@ import type {
   SeedField,
   UIContext,
   VisibleOptionsFn,
-} from "./runtime-ui-contracts.ts";
+} from "../runtime-ui-contracts.ts";
 
 interface OptionsSystemDeps {
   runtimeState: RuntimeState;
@@ -71,7 +71,7 @@ interface OptionsSystem {
   /** Returns CSS cursor for controls screen (pointer over cells and close button). */
   controlsCursorAt: (canvasX: number, canvasY: number) => string;
   /** Build the options screen's `{map, overlay}` for the unified render
-   *  entry in `runtime-render.ts`. */
+   *  entry in `render.ts`. */
   buildOptionsOverlay: () => {
     map: GameMap;
     overlay: RenderOverlay | undefined;
@@ -79,7 +79,7 @@ interface OptionsSystem {
   showOptions: () => void;
   closeOptions: () => void;
   /** Build the controls screen's `{map, overlay}` for the unified render
-   *  entry in `runtime-render.ts`. */
+   *  entry in `render.ts`. */
   buildControlsOverlay: () => {
     map: GameMap;
     overlay: RenderOverlay | undefined;
@@ -205,7 +205,7 @@ export function createOptionsSystem(deps: OptionsSystemDeps): OptionsSystem {
   // Hit-test functions expect backing-store pixels — the two helpers below
   // centralise the CSS → backing-store (÷ SCALE) conversion so callers
   // always pass raw CSS coords.  (Lobby hit-tests handle scaling internally,
-  // so runtime-lobby.ts passes CSS coords directly without a wrapper.)
+  // so lobby.ts passes CSS coords directly without a wrapper.)
 
   function optionsHitTest(
     canvasX: number,

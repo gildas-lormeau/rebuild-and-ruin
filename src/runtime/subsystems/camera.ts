@@ -15,19 +15,19 @@ import {
   ZONE_PAD_SELECTION,
   ZONE_PAD_WITH_WALLS,
   ZOOM_LERP_SPEED,
-} from "../shared/core/game-constants.ts";
+} from "../../shared/core/game-constants.ts";
 import {
   type CameraTargetSource,
   GAME_EVENT,
-} from "../shared/core/game-event-bus.ts";
-import { isPlacementPhase, Phase } from "../shared/core/game-phase.ts";
+} from "../../shared/core/game-event-bus.ts";
+import { isPlacementPhase, Phase } from "../../shared/core/game-phase.ts";
 import type {
   GameMap,
   TileBounds,
   TilePos,
   Viewport,
   WorldPos,
-} from "../shared/core/geometry-types.ts";
+} from "../../shared/core/geometry-types.ts";
 import {
   CANVAS_H,
   CANVAS_W,
@@ -37,36 +37,36 @@ import {
   MAP_PX_W,
   SCALE,
   TILE_SIZE,
-} from "../shared/core/grid.ts";
+} from "../../shared/core/grid.ts";
 import type {
   CannonPhantom,
   PiecePhantom,
-} from "../shared/core/phantom-types.ts";
-import type { ValidPlayerId } from "../shared/core/player-slot.ts";
+} from "../../shared/core/phantom-types.ts";
+import type { ValidPlayerId } from "../../shared/core/player-slot.ts";
 import {
   bestEnemyZone,
   enemyZones,
   isPlayerEliminated,
   playerByZone,
   zoneByPlayer,
-} from "../shared/core/player-types.ts";
+} from "../../shared/core/player-types.ts";
 import {
   cannonSize,
   castleCenterPx as castleCenterPxShared,
   pxToTile,
   towerCenterPx,
   zoneAt,
-} from "../shared/core/spatial.ts";
-import type { FrameContext, GameState } from "../shared/core/types.ts";
-import type { ZoneCell, ZoneId } from "../shared/core/zone-id.ts";
-import type { RenderOverlay } from "../shared/ui/overlay-types.ts";
-import { isInteractiveMode, Mode } from "../shared/ui/ui-mode.ts";
+} from "../../shared/core/spatial.ts";
+import type { FrameContext, GameState } from "../../shared/core/types.ts";
+import type { ZoneCell, ZoneId } from "../../shared/core/zone-id.ts";
+import type { RenderOverlay } from "../../shared/ui/overlay-types.ts";
+import { isInteractiveMode, Mode } from "../../shared/ui/ui-mode.ts";
 import {
   cameraStateFromViewport,
   fitTileBoundsToViewport,
   screenToWorld as projectScreenToWorld,
   worldToScreen as projectWorldToScreen,
-} from "./camera-projection.ts";
+} from "../camera-projection.ts";
 
 /** Public camera handle exposed on `GameRuntime`. Consumed via `Pick<>`
  *  by sub-systems that need a slice (selection, input, game-lifecycle);

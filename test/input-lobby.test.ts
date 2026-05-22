@@ -9,7 +9,7 @@
  * If these tests pass, the wiring proves we can drive any browser-only
  * input path from a deno test without mocking the input system.
  *
- * Lobby timer rules (see `runtime-lobby.ts`):
+ * Lobby timer rules (see `subsystems/lobby.ts`):
  *   - First click on a slot joins it (sets `mouseJoinedSlot`).
  *   - Subsequent clicks call `lobbySkipStep`, which adds `LOBBY_SKIP_STEP`
  *     (1 second) to `timerAccum` per click — but only down to

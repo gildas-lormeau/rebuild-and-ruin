@@ -62,7 +62,7 @@ export function createRender3d(
   // Match the world canvas's internal resolution to the 2D canvas so the
   // two stack 1:1 under CSS `object-fit: contain`. The extra
   // TOP_MARGIN_MAP_PX rows at the top host the reserved strip
-  // (`overlay.ui.reserveTopStrip` — see runtime-render.ts); scene
+  // (`overlay.ui.reserveTopStrip` — see runtime/subsystems/render.ts); scene
   // rendering shifts down so the map occupies the bottom MAP_PX_H rows
   // and world-Y=0 aligns with the top of the game area on the 2D
   // canvas. Canvas dims stay constant across phases so CSS layout and
@@ -300,7 +300,7 @@ export function createRender3d(
       // Default to 0 so callers that don't plumb the camera's max
       // pitch get the "no shadows" stance from `sunBlendFromPitch`,
       // matching the 2D / headless branch. The runtime always passes
-      // `camera.getPitchMax()` from composition — `runtime-camera.ts`
+      // `camera.getPitchMax()` from composition — `runtime/subsystems/camera.ts`
       // is the single source of truth for the actual value.
       pitchMax = 0,
     ) => {
@@ -353,7 +353,7 @@ export function createRender3d(
     // 2D `clientToSurface` returns raw backing-store canvas pixels.
     // In 3D mode the display canvas is TOP_MARGIN_CANVAS_PX taller
     // than the game area (reserved strip above row 0 — see
-    // runtime-render.ts `reserveTopStrip`). Subtract the strip offset
+    // runtime/subsystems/render.ts `reserveTopStrip`). Subtract the strip offset
     // so (0, 0) reported by `clientToSurface` is the top-left of the
     // GAME AREA — same contract as in 2D mode, so downstream consumers
     // (mouse handlers, touch, hit-tests) don't branch on renderer
@@ -605,7 +605,7 @@ export function createRender3d(
  *
  *  Linear ratio of `pitch / pitchMax`, clamped. The camera's pitch
  *  animation already applies a cubic ease-out (see
- *  `runtime-camera.ts`), so layering a second easing curve here would
+ *  `runtime/subsystems/camera.ts`), so layering a second easing curve here would
  *  double-ease the fade. Linear keeps the curve identical to the
  *  camera's animation, which is the source of truth for "tilt
  *  progress".

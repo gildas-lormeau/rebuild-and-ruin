@@ -22,7 +22,7 @@ const SRC = join(process.cwd(), "src");
 /** Files allowed to import BANNER_*_SUB constants. */
 const ALLOWED_SUB_FILES = new Set([
   "banner-messages.ts",
-  "runtime-phase-ticks.ts",
+  "phase-ticks.ts",
   "online-phase-transitions.ts",
 ]);
 

@@ -136,7 +136,7 @@ for 3D) and injects the per-frame overlay factories from
 `render-ui-overlays.ts` / `render-ui-screens.ts` into the runtime's
 render subsystem via a deps bag.
 
-`src/runtime/runtime-render.ts` then:
+`src/runtime/subsystems/render.ts` then:
 1. Builds the `RenderOverlay` from `runtimeState` each frame.
 2. Computes the current viewport from the camera subsystem.
 3. Calls `renderer.drawFrame(map, overlay, viewport, now, pitch, ...)`.
@@ -154,7 +154,7 @@ render subsystem via a deps bag.
 4. Add a draw function in `render-ui.ts` (or `render-ui-settings.ts` for
    modal screens) and call it from `render-map.ts` `drawMap`.
 5. If interactive, add a hit-test and wire it in the appropriate
-   `runtime-*.ts` input handler.
+   `runtime/subsystems/*.ts` input handler.
 
 ### Add a new world entity / visual effect
 World content lives in 3D. Add a manager under `3d/entities/` (entity)
@@ -202,7 +202,7 @@ adds an effect without touching the scene assembly.
 
 ## Related reading
 
-- **[src/runtime/runtime-render.ts](../runtime/runtime-render.ts)** —
+- **[src/runtime/subsystems/render.ts](../runtime/subsystems/render.ts)** —
   Runtime subsystem that calls into this folder.
 - **[src/runtime/runtime-composition.ts](../runtime/runtime-composition.ts)** —
   Composition root that picks the renderer and wires overlay factories.

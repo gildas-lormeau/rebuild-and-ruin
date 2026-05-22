@@ -65,24 +65,9 @@ import {
   createVisibilityListener,
 } from "./runtime-browser-dom.ts";
 import { createBrowserTimingApi } from "./runtime-browser-timing.ts";
-import { createCameraSystem } from "./runtime-camera.ts";
-import {
-  buildLifecycleDeps,
-  createGameLifecycle,
-} from "./runtime-game-lifecycle.ts";
 import type { GameRuntime } from "./runtime-handle.ts";
-import { createHapticsSubsystem } from "./runtime-haptics.ts";
-import { createInputSystem, type TouchHandles } from "./runtime-input.ts";
 import { createLocalInputActions } from "./runtime-input-actions.ts";
-import { createLobbySystem } from "./runtime-lobby.ts";
 import { createRuntimeLoop } from "./runtime-main-loop.ts";
-import { createOptionsSystem } from "./runtime-options.ts";
-import {
-  createPhaseTicksSystem,
-  type PhaseTicksSystem,
-} from "./runtime-phase-ticks.ts";
-import { createRenderSystem } from "./runtime-render.ts";
-import { createSelectionSystem } from "./runtime-selection.ts";
 import {
   createRuntimeState,
   isPaused,
@@ -95,13 +80,28 @@ import type { NetworkApi, RuntimeConfig } from "./runtime-types.ts";
 import type { UIContext } from "./runtime-ui-contracts.ts";
 import { createAudioOrchestrator } from "./subsystems/audio.ts";
 import { createBannerSystem } from "./subsystems/banner.ts";
+import { createCameraSystem } from "./subsystems/camera.ts";
 import { createCannonAnimator } from "./subsystems/cannon-animator.ts";
+import {
+  buildLifecycleDeps,
+  createGameLifecycle,
+} from "./subsystems/game-lifecycle.ts";
+import { createHapticsSubsystem } from "./subsystems/haptics.ts";
+import { createInputSystem, type TouchHandles } from "./subsystems/input.ts";
 import {
   createLifeLostSystem,
   type LifeLostSystem,
 } from "./subsystems/life-lost.ts";
+import { createLobbySystem } from "./subsystems/lobby.ts";
+import { createOptionsSystem } from "./subsystems/options.ts";
+import {
+  createPhaseTicksSystem,
+  type PhaseTicksSystem,
+} from "./subsystems/phase-ticks.ts";
 import { createPointerPlayerLookup } from "./subsystems/pointer-player.ts";
+import { createRenderSystem } from "./subsystems/render.ts";
 import { createScoreDeltaSystem } from "./subsystems/score-deltas.ts";
+import { createSelectionSystem } from "./subsystems/selection.ts";
 import {
   createUpgradePickSystem,
   type UpgradePickSystem,
@@ -352,7 +352,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   } = createPointerPlayerLookup(runtimeState);
 
   // -------------------------------------------------------------------------
-  // Camera / zoom (delegated to runtime-camera.ts)
+  // Camera / zoom (delegated to subsystems/camera.ts)
   // -------------------------------------------------------------------------
 
   const camera = createCameraSystem({
@@ -420,7 +420,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   });
 
   // -------------------------------------------------------------------------
-  // Selection sub-system (delegated to runtime-selection.ts)
+  // Selection sub-system (delegated to subsystems/selection.ts)
   // -------------------------------------------------------------------------
 
   const selection = createSelectionSystem({
@@ -456,7 +456,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   });
 
   // -------------------------------------------------------------------------
-  // Render sub-system (delegated to runtime-render.ts)
+  // Render sub-system (delegated to subsystems/render.ts)
   // -------------------------------------------------------------------------
 
   const { render, captureSceneOffscreen } = createRenderSystem({
@@ -517,7 +517,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   });
 
   // -------------------------------------------------------------------------
-  // Game lifecycle (delegated to runtime-game-lifecycle.ts)
+  // Game lifecycle (delegated to subsystems/game-lifecycle.ts)
   // -------------------------------------------------------------------------
 
   const lifecycle = createGameLifecycle(
@@ -612,7 +612,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   }
 
   // -------------------------------------------------------------------------
-  // Phase ticks sub-system (delegated to runtime-phase-ticks.ts)
+  // Phase ticks sub-system (delegated to subsystems/phase-ticks.ts)
   // -------------------------------------------------------------------------
 
   const phaseTicks: PhaseTicksSystem = createPhaseTicksSystem({
@@ -888,7 +888,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     shutdown: (): void => {
       setMode(runtimeState, Mode.STOPPED);
       // Close the lobby input gate. Game-start paths flip this themselves
-      // (runtime-lobby tickLobby, online initFromServer); this covers the
+      // (subsystems/lobby tickLobby, online initFromServer); this covers the
       // quit-back-to-menu paths so callers don't repeat the assignment.
       runtimeState.lobby.active = false;
       audio.stopAll();

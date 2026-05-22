@@ -104,7 +104,7 @@ events by checking `event.key` against each player's bindings in
 turn. First match wins. Don't assume keys are unique across players —
 the user can (and does) rebind.
 
-The options menu's keybinding UI is in `src/runtime/runtime-options.ts`
+The options menu's keybinding UI is in `src/runtime/subsystems/options.ts`
 — it interacts with this folder only through `KeyBindings` objects,
 not through handler state.
 
@@ -124,7 +124,7 @@ the UI visibility.
    `shared/ui/player-config.ts`.
 3. Handle the action in `input-keyboard.ts` or wherever relevant.
 4. If it's a UI-rebindable action, add to the options menu entry
-   list in `src/runtime/runtime-options.ts`.
+   list in `src/runtime/subsystems/options.ts`.
 
 ### Add a new sound effect
 1. Add the reason to `SoundReason` enum in `sound-system.ts`.
@@ -140,7 +140,7 @@ call from event handler.
 ### Debug "click does nothing"
 Start at `input-mouse.ts` / `input-touch-canvas.ts` to verify the
 event fires. Then step into `input-dispatch.ts` to see pointer
-routing. Then into `runtime-input.ts` to see action dispatch. Then
+routing. Then into `subsystems/input.ts` to see action dispatch. Then
 into `controller-human.ts` to see intent generation.
 
 ## Gotchas
@@ -172,7 +172,7 @@ into `controller-human.ts` to see intent generation.
 
 ## Related reading
 
-- **[src/runtime/runtime-input.ts](../runtime/runtime-input.ts)** —
+- **[src/runtime/subsystems/input.ts](../runtime/subsystems/input.ts)** —
   The runtime subsystem that wires input handlers to controllers
   via the deps bag.
 - **[src/player/controller-human.ts](../player/controller-human.ts)**

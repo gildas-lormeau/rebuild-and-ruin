@@ -54,7 +54,7 @@ Deno.test(
       0,
       "expected at least one phaseChange haptic during the first build→battle sequence",
     );
-    // Sanity: the duration matches HAPTIC_PHASE_CHANGE_MS in runtime-haptics.ts.
+    // Sanity: the duration matches HAPTIC_PHASE_CHANGE_MS in subsystems/haptics.ts.
     const PHASE_CHANGE_MS = 250;
     assert(
       phaseChanges.every((call) => call.ms === PHASE_CHANGE_MS),
@@ -91,7 +91,7 @@ Deno.test(
       0,
       "expected at least one wallDestroyed haptic during the match (was the observer installed?)",
     );
-    // Duration should match the constant in runtime-haptics.ts so a
+    // Duration should match the constant in subsystems/haptics.ts so a
     // refactor fails loudly instead of silently drifting.
     const WALL_HIT_MS = 200;
     assert(

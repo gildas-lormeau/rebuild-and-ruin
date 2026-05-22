@@ -67,27 +67,18 @@ exempt from the cross-domain restriction).
   Separated from `runtime-types.ts` because it sits ABOVE every subsystem
   in the import graph (one-way: handle imports types, not the reverse).
 
-### Sub-system factories (one `createXSystem(deps)` each)
-Each of these exports a `createXSystem(deps)` factory that takes a
-deps object and returns a handle with methods. They are wired by
-`runtime-composition.ts`, never imported by each other.
+### Sub-system factories (`subsystems/` — one `createXSystem(deps)` each)
+**Every file in `src/runtime/subsystems/` is a sub-system.** Each exports
+a `createXSystem(deps)` factory that takes a deps object and returns a
+handle with methods. They are wired by `runtime-composition.ts`, never
+imported by each other. Directory membership is the contract: if you
+want to add a sub-system, the file goes in `subsystems/`; if you put a
+`create*System(deps)` factory at `runtime/` root, `lint-architecture.ts`
+(Check 5) will reject it.
 
-| File | System | What it owns |
-|---|---|---|
-| `subsystems/banner.ts` | Banner | Phase transition banner show/tick |
-| `runtime-camera.ts` | Camera | Viewport, zoom, auto-zoom, lerp |
-| `runtime-game-lifecycle.ts` | Lifecycle | startGame, rematch, endGame, returnToLobby |
-| `runtime-haptics.ts` | Haptics | Vibration observer — gated by haptics setting, write-only test observer |
-| `subsystems/pointer-player.ts` | PointerPlayer | Cached pointer-player lookup (touch vs. desktop) |
-| `runtime-input.ts` | Input | Keyboard/mouse/touch event registration + dispatch |
-| `subsystems/life-lost.ts` | LifeLost | Life-lost dialog lifecycle (show/tick/resolve) |
-| `runtime-lobby.ts` | Lobby | Lobby UI state + render + slot joining |
-| `runtime-options.ts` | Options | Options/controls screens, keybinding UI, seed input |
-| `runtime-phase-ticks.ts` | PhaseTicks | Per-frame dispatch for cannon/build/battle phases |
-| `runtime-render.ts` | Render | Per-frame overlay build + drawFrame + touch controls update |
-| `subsystems/score-deltas.ts` | ScoreDelta | Animated score delta display after build phase |
-| `runtime-selection.ts` | Selection | Castle selection phase (initial + reselect) |
-| `subsystems/upgrade-pick.ts` | UpgradePick | Upgrade-pick dialog lifecycle (show/tick/resolve) |
+For the current list, run `ls src/runtime/subsystems/` — the directory
+listing IS the table. Naming convention: bare kebab-case (no
+`runtime-` prefix; location implies it).
 
 ### Audio cluster (primitives + two sub-system factories)
 The audio files form a cohesive primitive cluster rather than independent
@@ -127,7 +118,7 @@ exempt from the "sub-systems must not import from each other" rule.
   [skills/layer-graph-cleanup.md](../../skills/layer-graph-cleanup.md).
 - **`runtime-tick-context.ts`** — Shared tick-context types + the
   APPLY/TICK/CHECKPOINT mutation-phase doc. Extracted from
-  `runtime-phase-ticks.ts` so `battle-ticks.ts` can depend on it
+  `subsystems/phase-ticks.ts` so `battle-ticks.ts` can depend on it
   without a peer dependency.
 - **`runtime-life-lost-core.ts`** — Pure dialog state helpers for the
   life-lost system (separated from the factory for testability).
@@ -142,7 +133,7 @@ exempt from the "sub-systems must not import from each other" rule.
   is the single entry point — captures the scene, runs mutate, walks
   the display, fires postDisplay. The actual model is clone-everywhere:
   the only `PhaseTransitionCtx` builder is `buildHostPhaseCtx` in
-  [`runtime-phase-ticks.ts`](runtime-phase-ticks.ts), used on every
+  [`subsystems/phase-ticks.ts`](subsystems/phase-ticks.ts), used on every
   peer; role differences (host has wire `broadcast`, watcher doesn't)
   live in optional `ctx` fields populated only where they apply, not in
   a separate watcher builder. `online/online-phase-transitions.ts` is
@@ -151,7 +142,7 @@ exempt from the "sub-systems must not import from each other" rule.
   \+ **`{dust-storm,fog,frostbite,grunt-surge,sapper}-reveal-overlay.ts`**
   — Modifier 3D-effect helper cluster. The registry maps `ModifierId →
   effect-deriver`; each `*-reveal-overlay.ts` is one such deriver.
-  Single external consumer (`runtime-render.ts`), parallel structure to
+  Single external consumer (`subsystems/render.ts`), parallel structure to
   the audio cluster. Internal cross-imports between these files are
   legitimate.
 - **`banner-messages.ts`** — Phase transition banner string constants.
@@ -227,11 +218,11 @@ Key points that confuse first-time readers:
 ## Common operations
 
 ### Add a new sub-system
-1. Create `src/runtime/runtime-<name>.ts` with a `createXSystem(deps)` factory.
+1. Create `src/runtime/subsystems/<name>.ts` with a `createXSystem(deps)` factory.
 2. Define the `XDeps` and `XSystem` interfaces in the same file (or in `runtime-types.ts` if consumed elsewhere).
 3. Add to `runtime-composition.ts` in dependency order (after its deps are created, before its consumers).
 4. If other sub-systems need to call yours, add the handle to their deps via the composition root.
-5. Run `deno run -A scripts/lint-architecture.ts` — it enforces the factory shape.
+5. Run `deno run -A scripts/lint-architecture.ts` — it enforces the factory shape and the `subsystems/`-only rule (Check 5 rejects sub-systems placed at `runtime/` root).
 
 ### Add a new dialog lifecycle (modal UI)
 Look at `subsystems/life-lost.ts` or `subsystems/upgrade-pick.ts` for the
@@ -240,9 +231,9 @@ pure state helpers, the factory wires tick/show/resolve + sound/haptics.
 The modal dialog contract is documented in `runtime-types.ts`.
 
 ### Add a new phase tick
-Look at `runtime-phase-ticks.ts`. Per-phase tick logic lives in there.
+Look at `subsystems/phase-ticks.ts`. Per-phase tick logic lives in there.
 If the new phase logic is pure game code, put it in `src/game/` first
-and call it from `runtime-phase-ticks.ts`.
+and call it from `subsystems/phase-ticks.ts`.
 
 ### Add a new dev tool command
 `dev-console.ts`. Guarded by `IS_DEV`, so no production cost.

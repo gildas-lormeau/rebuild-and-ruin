@@ -115,7 +115,7 @@ export function fitTileBounds(bounds: TileBounds, pad: number): CameraState {
  *  reproduces `viewport` when re-projected onto `canvas`. `canvas` is
  *  required because zoom depends on the ratio of canvas to viewport size.
  *  `pitch` defaults to 0 for the flat case; callers animating tilt (see
- *  runtime-camera) pass the current pitch so screen↔world round-trips stay
+ *  subsystems/camera) pass the current pitch so screen↔world round-trips stay
  *  consistent with what the 3D renderer draws. */
 export function cameraStateFromViewport(
   viewport: Viewport,
@@ -133,7 +133,7 @@ export function cameraStateFromViewport(
 }
 
 /** Flat-viewport form of {@link fitTileBounds}. Implicitly targets the main
- *  canvas (via MAP_PX_W/H) — callers in runtime-camera rely on this contract.
+ *  canvas (via MAP_PX_W/H) — callers in subsystems/camera rely on this contract.
  *
  *  Pitch-agnostic by design: the function inputs are a tile-bounds rect plus
  *  a padding, neither of which knows about camera tilt. Under tilt the

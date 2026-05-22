@@ -4,7 +4,7 @@
  * These tests intentionally bypass the scenario runtime because
  * camera-projection is stateless math with no dependency on GameState.
  * The behavioural gate here is byte-parity with the inline viewport math
- * in runtime-camera.ts at pitch=0.
+ * in subsystems/camera.ts at pitch=0.
  */
 
 import { assert, assertAlmostEquals, assertEquals } from "@std/assert";
@@ -66,9 +66,9 @@ Deno.test("screenToWorld ∘ worldToScreen is identity at pitch=0", () => {
 });
 
 Deno.test(
-  "worldToScreen matches runtime-camera inline formula (within fp epsilon)",
+  "worldToScreen matches subsystems/camera inline formula (within fp epsilon)",
   () => {
-    // The inline formula in runtime-camera.ts uses CANVAS_W/H constants, so
+    // The inline formula in subsystems/camera.ts uses CANVAS_W/H constants, so
     // parity is only claimed against a camera sized to the main canvas.
     // Real viewports in the runtime always preserve canvas aspect ratio
     // (fitTileBoundsToViewport and the pinch handler both enforce this). Parity
@@ -107,7 +107,7 @@ Deno.test(
   },
 );
 
-/** Replicate runtime-camera.ts's current formulas verbatim. The module under
+/** Replicate subsystems/camera.ts's current formulas verbatim. The module under
  *  test must agree with these byte-for-byte when pitch=0 and the input camera
  *  was constructed via cameraStateFromViewport. */
 function inlineScreenToWorld(

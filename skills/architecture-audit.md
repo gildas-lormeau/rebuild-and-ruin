@@ -208,13 +208,13 @@ sufficient for LLM agents to follow correctly.
 
 9. **Checkpoint `capturePreState` ordering invariant** — online/online-checkpoints.ts:53 JSDoc
    explains capturePreState and the lifecycle at each function. online/online-phase-transitions.ts:105-107
-   documents the ordering guarantee. runtime/runtime-phase-ticks.ts:165 has INVARIANT comment
+   documents the ordering guarantee. runtime/subsystems/phase-ticks.ts:165 has INVARIANT comment
    reinforcing that banner captures oldCastles BEFORE applyCheckpoint mutates state.
    Individual checkpoint apply functions have NO payload validation by design — the host
    is authoritative. Only full-state recovery (validateFullState in online/online-serialize.ts)
    validates, because that payload crosses a trust boundary during host promotion.
 
-10. **`net` required on all tick deps interfaces** — runtime/runtime-phase-ticks.ts:5-9 documents
+10. **`net` required on all tick deps interfaces** — runtime/subsystems/phase-ticks.ts:5-9 documents
     `net is REQUIRED on all tick deps interfaces...the compiler enforces the choice.`
 
 11. **`session.isHost` is volatile — never cache, always read via `isHostInContext()`** —
@@ -469,8 +469,8 @@ sufficient for LLM agents to follow correctly.
     -1 grace offset to prevent UI/server race.
 
 71. **Coordinate space divergence between options and lobby hit-tests is documented** —
-    runtime/runtime-options.ts:221-224 documents that canvasX/Y are CSS pixels divided by
-    SCALE before hit-tests. runtime/runtime-lobby.ts:87-89 documents that lobby passes raw
+    runtime/subsystems/options.ts:221-224 documents that canvasX/Y are CSS pixels divided by
+    SCALE before hit-tests. runtime/subsystems/lobby.ts:87-89 documents that lobby passes raw
     CSS pixels (hit-tests handle TILE_SIZE internally). Both include CONTRAST comments.
 
 72. **Remote human finalization differs between cannon and build — documented at function level** —
@@ -563,7 +563,7 @@ sufficient for LLM agents to follow correctly.
     with a table and guidance for new dialogs.
 
 90. **Camera system uses all-getters deps (exception to standard destructuring)** —
-    runtime/runtime-camera.ts:1-11 file header documents the exception: all-getters
+    runtime/subsystems/camera.ts:1-11 file header documents the exception: all-getters
     because camera state can change during host migration. Other subsystems destructure.
 
 91. **Mode classification table in ui-mode.ts** —
@@ -667,7 +667,7 @@ sufficient for LLM agents to follow correctly.
 108. **`ACCUM_BATTLE` / `ACCUM_CANNON` / `ACCUM_BUILD` / `ACCUM_GRUNT` constants
     are the canonical timer-accumulator keys** — runtime/runtime-tick-context.ts exports
     them as `"battle" satisfies keyof TimerAccums` etc. All `advancePhaseTimer`
-    call sites use the constants, never string literals. runtime-phase-ticks.ts
+    call sites use the constants, never string literals. subsystems/phase-ticks.ts
     imports them alongside `advancePhaseTimer`.
 
 109. **Interior staleness contract is canonical in applyImpactEvent JSDoc** —

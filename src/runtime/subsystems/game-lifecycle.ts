@@ -7,26 +7,26 @@
  * lean.
  */
 
-import { DEMO_RETURN_DELAY_MS } from "../shared/core/game-constants.ts";
-import type { ValidPlayerId } from "../shared/core/player-slot.ts";
+import { DEMO_RETURN_DELAY_MS } from "../../shared/core/game-constants.ts";
+import type { ValidPlayerId } from "../../shared/core/player-slot.ts";
 import {
   FOCUS_MENU,
   FOCUS_REMATCH,
   type GameOverFocus,
-} from "../shared/ui/interaction-types.ts";
-import type { GameOverOverlay } from "../shared/ui/overlay-types.ts";
-import { Mode } from "../shared/ui/ui-mode.ts";
-import type { CameraSystem } from "./runtime-camera.ts";
-import type { RuntimeSelection } from "./runtime-selection.ts";
+} from "../../shared/ui/interaction-types.ts";
+import type { GameOverOverlay } from "../../shared/ui/overlay-types.ts";
+import { Mode } from "../../shared/ui/ui-mode.ts";
 import {
   type RuntimeState,
   resetTransientState,
   setMode,
-} from "./runtime-state.ts";
-import type { RuntimeConfig } from "./runtime-types.ts";
-import type { RuntimeLifeLost } from "./subsystems/life-lost.ts";
-import type { RuntimeUpgradePick } from "./subsystems/upgrade-pick.ts";
-import type { TimingApi } from "./timing-api.ts";
+} from "../runtime-state.ts";
+import type { RuntimeConfig } from "../runtime-types.ts";
+import type { TimingApi } from "../timing-api.ts";
+import type { CameraSystem } from "./camera.ts";
+import type { RuntimeLifeLost } from "./life-lost.ts";
+import type { RuntimeSelection } from "./selection.ts";
+import type { RuntimeUpgradePick } from "./upgrade-pick.ts";
 
 interface GameLifecycleDeps {
   readonly log: (msg: string) => void;

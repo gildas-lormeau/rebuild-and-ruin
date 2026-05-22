@@ -48,7 +48,7 @@
  *    crosses the `online → controllers` boundary directly.
  *
  * 7. `modifier-reveal-time.ts` (which resolves the banner-aware
- *    `revealTimeMs` scalar) must only be imported by `runtime-render.ts`.
+ *    `revealTimeMs` scalar) must only be imported by `subsystems/render.ts`.
  *    Modifier-effect code receives `revealTimeMs` already-resolved; it must
  *    never call `revealTimeFor` / `tickModifierRevealClock` itself, nor
  *    inspect `runtimeState.banner` to derive reveal timing. New 2D overlay
@@ -63,7 +63,7 @@
  */
 
 import { readdirSync, readFileSync, statSync } from "node:fs";
-import { basename, join, relative } from "node:path";
+import { basename, join, normalize, relative } from "node:path";
 import process from "node:process";
 
 interface Violation {
@@ -79,24 +79,11 @@ const TILE_VALUE_ALLOWLIST = new Set([
   "spatial.ts",
   "map-generation.ts",
 ]);
-/** Runtime subsystem files (architecture-linter list). Matched by basename;
- *  the cross-domain check applies regardless of whether the file lives at
- *  `runtime/` root or under `runtime/subsystems/`. */
-const RUNTIME_SUBSYSTEMS = new Set([
-  "banner.ts",
-  "life-lost.ts",
-  "pointer-player.ts",
-  "score-deltas.ts",
-  "upgrade-pick.ts",
-  "runtime-camera.ts",
-  "runtime-game-lifecycle.ts",
-  "runtime-input.ts",
-  "runtime-lobby.ts",
-  "runtime-options.ts",
-  "runtime-phase-ticks.ts",
-  "runtime-render.ts",
-  "runtime-selection.ts",
-]);
+/** Runtime subsystem files. All sub-systems live in `runtime/subsystems/`
+ *  (see `lint-architecture.ts`). Membership is checked by full path so
+ *  basenames that also exist elsewhere (`input.ts`, `camera.ts`, …) don't
+ *  collide. */
+const RUNTIME_SUBSYSTEMS_DIR = "src/runtime/subsystems/";
 /** Domains that runtime subsystems (L8) are allowed to import from. */
 const ALLOWED_SUBSYSTEM_DOMAINS = new Set(["shared", "runtime", "game"]);
 /** Mutation helpers from `src/shared/core/*` that runtime must not import.
@@ -164,7 +151,7 @@ const GAME_DEEP_IMPORT_ALLOWLIST: Record<
  *  timing resolver. Modifier-effect code receives `revealTimeMs` already
  *  resolved (via the 2D registry or the path-A `overlay.ui.modifierReveal`
  *  publication) and must never read banner state itself. */
-const MODIFIER_REVEAL_TIME_IMPORTER = "src/runtime/runtime-render.ts";
+const MODIFIER_REVEAL_TIME_IMPORTER = "src/runtime/subsystems/render.ts";
 /** Composition-root files allowed to import from `src/controllers/`. Other
  *  files that need controller construction must accept a deps bag from
  *  their caller (see online-host-promotion.ts:AiPromotionDeps for the
@@ -234,18 +221,26 @@ function checkRuntimeSubsystemImports(
   content: string,
   violations: Violation[],
 ): void {
-  const base = basename(file);
-  if (!RUNTIME_SUBSYSTEMS.has(base)) return;
+  const rel = relative(process.cwd(), file);
+  if (!rel.startsWith(RUNTIME_SUBSYSTEMS_DIR)) return;
 
+  const fileDir = relative(process.cwd(), join(file, ".."));
   const lines = content.split("\n");
   for (let idx = 0; idx < lines.length; idx++) {
     const ln = lines[idx]!;
-    const sourceMatch = ln.match(/from\s+"((?:\.\.\/)+(\w+)\/[^"]+)"/);
+    const sourceMatch = ln.match(/from\s+"((?:\.\.\/)+[^"]+)"/);
     if (!sourceMatch) continue;
-    const domain = sourceMatch[2]!;
+    // Resolve to top-level src/<domain>/ rather than reading the first
+    // path segment after `..` — intra-runtime imports like `../audio/x.ts`
+    // would otherwise be misread as cross-domain (audio is a runtime
+    // sub-cluster, not a domain).
+    const resolved = normalize(join(fileDir, sourceMatch[1]!));
+    const domainMatch = resolved.match(/^src\/([^/]+)\//);
+    if (!domainMatch) continue;
+    const domain = domainMatch[1]!;
     if (!ALLOWED_SUBSYSTEM_DOMAINS.has(domain)) {
       violations.push({
-        file: relative(process.cwd(), file),
+        file: rel,
         line: idx + 1,
         message: `Runtime subsystem imports from ${domain}/ — only shared/, runtime/, and game/ allowed. Move the type to shared/ui-contracts.ts or inject the value from the composition root.`,
       });

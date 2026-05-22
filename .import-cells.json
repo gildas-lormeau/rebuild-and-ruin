@@ -448,11 +448,9 @@
   {
     "layer": 6,
     "domain": "runtime",
-    "role": "runtime cores: state, tick context, dialog cores, haptics & overlay registry",
+    "role": "runtime cores: state, tick context, dialog cores & overlay registry",
     "files": [
       "src/runtime/modifier-reveal-overlay-registry.ts",
-      "src/runtime/runtime-camera.ts",
-      "src/runtime/runtime-haptics.ts",
       "src/runtime/runtime-life-lost-core.ts",
       "src/runtime/runtime-state.ts",
       "src/runtime/runtime-tick-context.ts",
@@ -468,6 +466,16 @@
     "files": [
       "src/runtime/audio/music-player.ts",
       "src/runtime/audio/sfx-player.ts"
+    ]
+  },
+  {
+    "layer": 6,
+    "domain": "runtime",
+    "subdomain": "subsystems",
+    "role": "camera & haptics — leaf-depth subsystem factories",
+    "files": [
+      "src/runtime/subsystems/camera.ts",
+      "src/runtime/subsystems/haptics.ts"
     ]
   },
   {
@@ -725,14 +733,22 @@
   {
     "layer": 8,
     "domain": "runtime",
-    "role": "runtime subsystems (camera, input, render, lobby, life-lost, options) + lifecycle, castle-build, phase-machine, tick-consumers",
+    "role": "runtime primitives at this depth: castle-build, phase-machine, tick-consumers",
     "files": [
       "src/runtime/runtime-castle-build.ts",
-      "src/runtime/runtime-input.ts",
-      "src/runtime/runtime-lobby.ts",
-      "src/runtime/runtime-options.ts",
-      "src/runtime/runtime-phase-machine.ts",
-      "src/runtime/runtime-render.ts"
+      "src/runtime/runtime-phase-machine.ts"
+    ]
+  },
+  {
+    "layer": 8,
+    "domain": "runtime",
+    "subdomain": "subsystems",
+    "role": "input, lobby, options, render — mid-depth subsystem factories",
+    "files": [
+      "src/runtime/subsystems/input.ts",
+      "src/runtime/subsystems/lobby.ts",
+      "src/runtime/subsystems/options.ts",
+      "src/runtime/subsystems/render.ts"
     ]
   },
   {
@@ -787,11 +803,19 @@
   {
     "layer": 9,
     "domain": "runtime",
-    "role": "runtime types, main loop, phase machine & subsystems",
+    "role": "runtime types & main loop",
     "files": [
-      "src/runtime/runtime-bootstrap.ts",
-      "src/runtime/runtime-phase-ticks.ts",
-      "src/runtime/runtime-selection.ts"
+      "src/runtime/runtime-bootstrap.ts"
+    ]
+  },
+  {
+    "layer": 9,
+    "domain": "runtime",
+    "subdomain": "subsystems",
+    "role": "phase-ticks & selection — phase-orchestrating subsystem factories",
+    "files": [
+      "src/runtime/subsystems/phase-ticks.ts",
+      "src/runtime/subsystems/selection.ts"
     ]
   },
   {
@@ -839,9 +863,10 @@
   {
     "layer": 10,
     "domain": "runtime",
-    "role": "runtime tick consumers & lifecycle integration",
+    "subdomain": "subsystems",
+    "role": "game-lifecycle — top subsystem factory",
     "files": [
-      "src/runtime/runtime-game-lifecycle.ts"
+      "src/runtime/subsystems/game-lifecycle.ts"
     ]
   },
   {

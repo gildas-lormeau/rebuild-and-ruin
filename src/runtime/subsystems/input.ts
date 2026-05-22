@@ -1,33 +1,32 @@
-import { isHuman } from "../shared/core/controller-guards.ts";
-import type { TowerIdx } from "../shared/core/geometry-types.ts";
-import { GRID_PORTRAIT_LAUNCHED } from "../shared/core/grid.ts";
-import type { ValidPlayerId } from "../shared/core/player-slot.ts";
-import { zoneTowerCenterPx } from "../shared/core/spatial.ts";
+import { isHuman } from "../../shared/core/controller-guards.ts";
+import type { TowerIdx } from "../../shared/core/geometry-types.ts";
+import { GRID_PORTRAIT_LAUNCHED } from "../../shared/core/grid.ts";
+import type { ValidPlayerId } from "../../shared/core/player-slot.ts";
+import { zoneTowerCenterPx } from "../../shared/core/spatial.ts";
 import {
   type BuildViewState,
   type CannonViewState,
   type InputReceiver,
   type PlayerController,
-} from "../shared/core/system-interfaces.ts";
-import type { ZoneId } from "../shared/core/zone-id.ts";
-import { IS_TOUCH_DEVICE } from "../shared/platform/platform.ts";
-import { Action } from "../shared/ui/input-action.ts";
-import type { WithPointerPlayer } from "../shared/ui/input-deps.ts";
+} from "../../shared/core/system-interfaces.ts";
+import type { ZoneId } from "../../shared/core/zone-id.ts";
+import { IS_TOUCH_DEVICE } from "../../shared/platform/platform.ts";
+import { Action } from "../../shared/ui/input-action.ts";
+import type { WithPointerPlayer } from "../../shared/ui/input-deps.ts";
 import {
   FOCUS_MENU,
   FOCUS_REMATCH,
   type GameOverFocus,
   type ResolvedChoice,
-} from "../shared/ui/interaction-types.ts";
+} from "../../shared/ui/interaction-types.ts";
 import type {
   LoupeHandle,
   RendererInterface,
-} from "../shared/ui/overlay-types.ts";
-import { OPT_CONTROLS, OPT_SOUND } from "../shared/ui/settings-defs.ts";
-import { Mode } from "../shared/ui/ui-mode.ts";
-import type { CameraSystem } from "./runtime-camera.ts";
-import { type RuntimeState, safeState, setMode } from "./runtime-state.ts";
-import type { NetworkApi, OnlineActions } from "./runtime-types.ts";
+} from "../../shared/ui/overlay-types.ts";
+import { OPT_CONTROLS, OPT_SOUND } from "../../shared/ui/settings-defs.ts";
+import { Mode } from "../../shared/ui/ui-mode.ts";
+import { type RuntimeState, safeState, setMode } from "../runtime-state.ts";
+import type { NetworkApi, OnlineActions } from "../runtime-types.ts";
 import type {
   CreateDpadFn,
   CreateFloatingActionsFn,
@@ -39,7 +38,8 @@ import type {
   RegisterMouseHandlersFn,
   RegisterOnlineInputDeps,
   RegisterTouchHandlersFn,
-} from "./runtime-ui-contracts.ts";
+} from "../runtime-ui-contracts.ts";
+import type { CameraSystem } from "./camera.ts";
 
 type DpadHandle = ReturnType<CreateDpadFn>;
 
@@ -81,7 +81,7 @@ interface InputSystemDeps {
 
   // Action surface — same shape online and offline. Online wrappers
   // broadcast inside each adapter (see online-send-actions.ts); local
-  // play uses `createLocalInputActions` (see runtime-input-actions.ts).
+  // play uses `createLocalInputActions` (see ../runtime-input-actions.ts).
   // NOT NetworkApi — named `actions` rather than `network` because the
   // dispatcher treats both modes uniformly.
   readonly actions: OnlineActions;

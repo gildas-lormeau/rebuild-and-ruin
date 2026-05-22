@@ -1,4 +1,4 @@
-import type { GameOverReason } from "../game/index.ts";
+import type { GameOverReason } from "../../game/index.ts";
 import {
   advanceBattleCountdown,
   allCannonPlaceDone,
@@ -14,25 +14,25 @@ import {
   setBattleCountdown,
   shouldSkipBattle,
   tickBuildUpgrades,
-} from "../game/index.ts";
-import { DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS } from "../shared/core/action-schedule.ts";
+} from "../../game/index.ts";
+import { DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS } from "../../shared/core/action-schedule.ts";
 import {
   ageImpacts,
   type Crosshair,
   clearImpacts,
   WALL_BURN_DURATION,
-} from "../shared/core/battle-types.ts";
-import { isHuman } from "../shared/core/controller-guards.ts";
+} from "../../shared/core/battle-types.ts";
+import { isHuman } from "../../shared/core/controller-guards.ts";
 import {
   BALLOON_FLIGHT_DURATION,
   BATTLE_COUNTDOWN,
   BATTLE_TIMER,
   IMPACT_FLASH_DURATION,
   MODIFIER_REVEAL_TIMER,
-} from "../shared/core/game-constants.ts";
-import { emitGameEvent, GAME_EVENT } from "../shared/core/game-event-bus.ts";
-import { Phase } from "../shared/core/game-phase.ts";
-import type { TileKey } from "../shared/core/grid.ts";
+} from "../../shared/core/game-constants.ts";
+import { emitGameEvent, GAME_EVENT } from "../../shared/core/game-event-bus.ts";
+import { Phase } from "../../shared/core/game-phase.ts";
+import type { TileKey } from "../../shared/core/grid.ts";
 import {
   type CannonPhantomPayload,
   type CannonPlacedPayload,
@@ -40,39 +40,38 @@ import {
   type PiecePhantomPayload,
   type PiecePlacedPayload,
   piecePhantomKey,
-} from "../shared/core/phantom-types.ts";
-import type { ValidPlayerId } from "../shared/core/player-slot.ts";
-import { isPlayerEliminated } from "../shared/core/player-types.ts";
+} from "../../shared/core/phantom-types.ts";
+import type { ValidPlayerId } from "../../shared/core/player-slot.ts";
+import { isPlayerEliminated } from "../../shared/core/player-types.ts";
 import {
   type CannonController,
   type PlayerController,
-} from "../shared/core/system-interfaces.ts";
-import type { GameState } from "../shared/core/types.ts";
-import { WALL_DESTROY_ANIM_DURATION } from "../shared/core/wall-destroy-anim.ts";
-import type { UpgradePickDialogState } from "../shared/ui/interaction-types.ts";
-import { Mode } from "../shared/ui/ui-mode.ts";
-import type { BannerShow } from "./runtime-banner-state.ts";
+} from "../../shared/core/system-interfaces.ts";
+import type { GameState } from "../../shared/core/types.ts";
+import { WALL_DESTROY_ANIM_DURATION } from "../../shared/core/wall-destroy-anim.ts";
+import type { UpgradePickDialogState } from "../../shared/ui/interaction-types.ts";
+import { Mode } from "../../shared/ui/ui-mode.ts";
+import type { BannerShow } from "../runtime-banner-state.ts";
 import {
   recordBattleVisualEvents,
   tickBalloonFlights,
-} from "./runtime-battle-anim.ts";
+} from "../runtime-battle-anim.ts";
 import {
   type PhaseTransitionCtx,
   runTransition,
-} from "./runtime-phase-machine.ts";
+} from "../runtime-phase-machine.ts";
 import {
   assertStateInstalled,
   type RuntimeState,
   setMode,
-} from "./runtime-state.ts";
+} from "../runtime-state.ts";
 import {
   advancePhaseTimer,
   isRemotePlayer,
   localControllers,
   tickGruntsIfDue,
-} from "./runtime-tick-context.ts";
-import type { OnlinePhaseTicks, RuntimeConfig } from "./runtime-types.ts";
-import type { RuntimeLifeLost } from "./subsystems/life-lost.ts";
+} from "../runtime-tick-context.ts";
+import type { OnlinePhaseTicks, RuntimeConfig } from "../runtime-types.ts";
 import {
   ACCUM_BATTLE,
   ACCUM_BUILD,
@@ -80,8 +79,9 @@ import {
   ACCUM_GRUNT,
   ACCUM_MODIFIER_REVEAL,
   resetAccum,
-} from "./timer-accums.ts";
-import type { TimingApi } from "./timing-api.ts";
+} from "../timer-accums.ts";
+import type { TimingApi } from "../timing-api.ts";
+import type { RuntimeLifeLost } from "./life-lost.ts";
 
 interface PhaseTicksDeps extends Pick<RuntimeConfig, "log"> {
   runtimeState: RuntimeState;

@@ -290,7 +290,7 @@ export function tickBattlePhase(
   tickSupplyShips(state, dt, newImpacts);
   // Grunt-broken walls flow through the same `impactEvents` channel as
   // cannonball-driven WALL_DESTROYED so they reach the watcher via the
-  // shared broadcast loop in `runtime-phase-ticks.ts`.
+  // shared broadcast loop in `runtime/subsystems/phase-ticks.ts`.
   const impactEvents = [...wallEvents, ...cannonImpactEvents];
   return { towerEvents, impactEvents, newImpacts };
 }

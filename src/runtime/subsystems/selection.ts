@@ -7,38 +7,38 @@ import {
   isSelectionComplete,
   prepareCastleWallsForPlayer,
   recheckTerritory,
-} from "../game/index.ts";
-import { DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS } from "../shared/core/action-schedule.ts";
-import { isHuman } from "../shared/core/controller-guards.ts";
+} from "../../game/index.ts";
+import { DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS } from "../../shared/core/action-schedule.ts";
+import { isHuman } from "../../shared/core/controller-guards.ts";
 import {
   SELECT_ANNOUNCEMENT_DURATION,
   SELECT_TIMER,
   WALL_BUILD_INTERVAL,
-} from "../shared/core/game-constants.ts";
-import { Phase } from "../shared/core/game-phase.ts";
-import type { TowerIdx } from "../shared/core/geometry-types.ts";
-import type { ValidPlayerId } from "../shared/core/player-slot.ts";
+} from "../../shared/core/game-constants.ts";
+import { Phase } from "../../shared/core/game-phase.ts";
+import type { TowerIdx } from "../../shared/core/geometry-types.ts";
+import type { ValidPlayerId } from "../../shared/core/player-slot.ts";
 import {
   type InputReceiver,
   type PlayerController,
-} from "../shared/core/system-interfaces.ts";
-import type { SelectionState } from "../shared/core/types.ts";
-import type { ZoneId } from "../shared/core/zone-id.ts";
-import type { RenderOverlay } from "../shared/ui/overlay-types.ts";
-import { Mode } from "../shared/ui/ui-mode.ts";
-import { BANNER_SELECT } from "./banner-messages.ts";
-import type { CameraSystem } from "./runtime-camera.ts";
+} from "../../shared/core/system-interfaces.ts";
+import type { SelectionState } from "../../shared/core/types.ts";
+import type { ZoneId } from "../../shared/core/zone-id.ts";
+import type { RenderOverlay } from "../../shared/ui/overlay-types.ts";
+import { Mode } from "../../shared/ui/ui-mode.ts";
+import { BANNER_SELECT } from "../banner-messages.ts";
 import {
   createCastleBuildState,
   tickCastleBuildAnimation,
-} from "./runtime-castle-build.ts";
-import { type RuntimeState, setMode } from "./runtime-state.ts";
-import { advancePhaseTimer, isRemotePlayer } from "./runtime-tick-context.ts";
+} from "../runtime-castle-build.ts";
+import { type RuntimeState, setMode } from "../runtime-state.ts";
+import { advancePhaseTimer, isRemotePlayer } from "../runtime-tick-context.ts";
 import {
   ACCUM_SELECT,
   type MutableAccums,
   resetAccum,
-} from "./timer-accums.ts";
+} from "../timer-accums.ts";
+import type { CameraSystem } from "./camera.ts";
 
 /** Public selection handle exposed on `GameRuntime`. Drives the CASTLE_SELECT
  *  phase (initial cycle + reselect cycle) and the castle-build animation. */

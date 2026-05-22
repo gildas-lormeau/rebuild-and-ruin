@@ -3,7 +3,7 @@
  * pulse drives. Each entry receives the resolved `revealTimeMs` and
  * returns the fields its consumers read. Add a new 2D reveal effect by
  * writing a `derive*`, adding the field(s) to `BattleOverlay`, and adding
- * one entry below — no `runtime-render` edits. 3D bursts use a separate
+ * one entry below — no `subsystems/render` edits. 3D bursts use a separate
  * registry (`MODIFIER_EFFECT_FACTORIES` + `overlay.ui.modifierReveal`).
  */
 

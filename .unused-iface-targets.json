@@ -10,16 +10,16 @@
     {
       "label": "Sub-system handles surfaced on GameRuntime",
       "targets": [
-        { "file": "src/runtime/runtime-selection.ts", "interface": "RuntimeSelection" },
+        { "file": "src/runtime/subsystems/selection.ts", "interface": "RuntimeSelection" },
         { "file": "src/runtime/subsystems/life-lost.ts", "interface": "RuntimeLifeLost" },
         { "file": "src/runtime/subsystems/upgrade-pick.ts", "interface": "RuntimeUpgradePick" },
         { "file": "src/runtime/subsystems/score-deltas.ts", "interface": "RuntimeScoreDelta" },
-        { "file": "src/runtime/runtime-lobby.ts", "interface": "RuntimeLobby" },
-        { "file": "src/runtime/runtime-game-lifecycle.ts", "interface": "RuntimeLifecycle" },
-        { "file": "src/runtime/runtime-phase-ticks.ts", "interface": "RuntimePhaseTicks" },
+        { "file": "src/runtime/subsystems/lobby.ts", "interface": "RuntimeLobby" },
+        { "file": "src/runtime/subsystems/game-lifecycle.ts", "interface": "RuntimeLifecycle" },
+        { "file": "src/runtime/subsystems/phase-ticks.ts", "interface": "RuntimePhaseTicks" },
         { "file": "src/runtime/audio/music-player.ts", "interface": "RuntimeMusic" },
         { "file": "src/runtime/audio/sfx-player.ts", "interface": "RuntimeSfx" },
-        { "file": "src/runtime/runtime-camera.ts", "interface": "CameraSystem" }
+        { "file": "src/runtime/subsystems/camera.ts", "interface": "CameraSystem" }
       ]
     },
     {
@@ -34,7 +34,7 @@
     {
       "label": "Per-subsystem dep-injection contracts (XxxDeps) and system handles",
       "targets": [
-        { "file": "src/runtime/runtime-phase-ticks.ts", "interface": "PhaseTicksSystem" },
+        { "file": "src/runtime/subsystems/phase-ticks.ts", "interface": "PhaseTicksSystem" },
         { "file": "src/shared/ui/input-deps.ts", "interface": "OverlayActionDeps" },
         { "file": "src/shared/ui/input-deps.ts", "interface": "DpadDeps" },
         { "file": "src/shared/ui/input-deps.ts", "interface": "QuitButtonDeps" },
