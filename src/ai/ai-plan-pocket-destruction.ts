@@ -1,0 +1,108 @@
+/**
+ * AI tactic — pocket destruction. Find small/non-2x2 enclosures inside an
+ * enemy's territory and target one bordering wall per pocket, so the enemy
+ * can't fit a cannon there.
+ */
+
+import { getBattleInterior } from "../shared/core/board-occupancy.ts";
+import type { TilePos } from "../shared/core/geometry-types.ts";
+import type { TileKey } from "../shared/core/grid.ts";
+import type { ValidPlayerId } from "../shared/core/player-slot.ts";
+import {
+  DIRS_4,
+  inBounds,
+  orderByNearest,
+  packTile,
+  unpackTile,
+} from "../shared/core/spatial.ts";
+import type { BattleViewState } from "../shared/core/system-interfaces.ts";
+import {
+  DESTROY_POCKET_MAX_SIZE,
+  findEnclosureComponents,
+} from "./ai-strategy-battle.ts";
+
+/** Minimum number of small pockets before pocket destruction triggers. */
+const POCKET_COUNT_THRESHOLD = 5;
+/** Maximum wall tiles targeted in a single pocket destruction chain. */
+const MAX_POCKET_TARGETS = 5;
+
+/** Plan pocket destruction: find small enclosures (< 2x2) and non-square 4-tile pockets, target one wall per pocket.
+ *
+ *  Uses getBattleInterior() — interior is intentionally stale during battle
+ *  (walls destroyed by cannonballs are not reflected until the next build phase).
+ *  Pocket detection uses the last-known enclosure state to pick wall targets. */
+export function planPocketDestruction(
+  state: BattleViewState,
+  playerId: ValidPlayerId,
+): TilePos[] | null {
+  const player = state.players[playerId]!;
+  const interior = getBattleInterior(player);
+  if (interior.size === 0) return null;
+  const components = findEnclosureComponents(interior);
+  const pockets = components.filter(
+    (comp) =>
+      comp.length < DESTROY_POCKET_MAX_SIZE ||
+      (comp.length === DESTROY_POCKET_MAX_SIZE && !is2x2(comp)),
+  );
+  if (pockets.length <= POCKET_COUNT_THRESHOLD) return null;
+  // Build a set of all small-pocket tiles for quick lookup
+  const pocketTiles = new Set<TileKey>();
+  for (const pocket of pockets) {
+    for (const k of pocket) pocketTiles.add(k);
+  }
+
+  const targets: TilePos[] = [];
+  const picked = new Set<TileKey>();
+  for (const pocket of pockets) {
+    let found = false;
+    for (const key of pocket) {
+      if (found) break;
+      const { row, col } = unpackTile(key);
+      for (const [dr, dc] of DIRS_4) {
+        const nr = row + dr;
+        const nc = col + dc;
+        if (!inBounds(nr, nc)) continue;
+        const neighborKey = packTile(nr, nc);
+        if (!player.walls.has(neighborKey) || picked.has(neighborKey)) continue;
+        // Check that this wall doesn't also border a large enclosure
+        let bordersLarge = false;
+        for (const [dr2, dc2] of DIRS_4) {
+          const ar = nr + dr2;
+          const ac = nc + dc2;
+          if (!inBounds(ar, ac)) continue;
+          const adjacentKey = packTile(ar, ac);
+          if (interior.has(adjacentKey) && !pocketTiles.has(adjacentKey)) {
+            bordersLarge = true;
+            break;
+          }
+        }
+        if (bordersLarge) continue;
+        targets.push({ row: nr, col: nc });
+        picked.add(neighborKey);
+        found = true;
+        break;
+      }
+    }
+  }
+  if (targets.length === 0) return null;
+  if (targets.length > MAX_POCKET_TARGETS) targets.length = MAX_POCKET_TARGETS;
+  return orderByNearest(targets);
+}
+
+/** Check if a 4-tile pocket forms a 2x2 square (can fit a cannon). */
+function is2x2(keys: readonly TileKey[]): boolean {
+  let minRow = Infinity;
+  let minCol = Infinity;
+  for (const key of keys) {
+    const { row, col } = unpackTile(key);
+    if (row < minRow) minRow = row;
+    if (col < minCol) minCol = col;
+  }
+  const expected: Set<TileKey> = new Set([
+    packTile(minRow, minCol),
+    packTile(minRow, minCol + 1),
+    packTile(minRow + 1, minCol),
+    packTile(minRow + 1, minCol + 1),
+  ]);
+  return keys.length === 4 && keys.every((key) => expected.has(key));
+}

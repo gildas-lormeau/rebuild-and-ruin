@@ -28,17 +28,17 @@ import type { ZoneId } from "../shared/core/zone-id.ts";
 import { Rng } from "../shared/platform/rng.ts";
 import type { AiPlacement } from "./ai-build-types.ts";
 import { CHAIN, type ChainType } from "./ai-chain.ts";
+import { planCharitySweep } from "./ai-plan-charity-sweep.ts";
+import { planGruntSweep } from "./ai-plan-grunt-sweep.ts";
+import { planIceTrench } from "./ai-plan-ice-trench.ts";
+import { planPocketDestruction } from "./ai-plan-pocket-destruction.ts";
+import { planStructuralHit } from "./ai-plan-structural-hit.ts";
+import { planSuperAttack } from "./ai-plan-super-attack.ts";
+import { planWallDemolition } from "./ai-plan-wall-demolition.ts";
 import {
   type BattleTargetMemory,
   countUsableCannons,
   pickTarget,
-  planCharitySweep,
-  planGruntSweep,
-  planIceTrench,
-  planPocketDestruction,
-  planStructuralHit,
-  planSuperAttack,
-  planWallDemolition,
   type ShotKey,
   trackShot,
 } from "./ai-strategy-battle.ts";

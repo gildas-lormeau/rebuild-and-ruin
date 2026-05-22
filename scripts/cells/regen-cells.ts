@@ -126,7 +126,8 @@ const LABELS: Record<string, string> = {
   "5::shared": "first logic — spatial, walls, interior, contracts",
 
   // L6 — upgrades, modifiers & runtime contracts
-  "6::ai": "AI decision intents & build types",
+  "6::ai":
+    "AI decision intents (life lost, upgrade pick) + base-layer tactic planners (grunt sweep, ice trench)",
   "6::controllers": "BaseController abstraction",
   "6::game":
     "core game systems (combos, game-over, selection, map gen, elevation)",
@@ -142,7 +143,7 @@ const LABELS: Record<string, string> = {
   "6::shared": "shared action schedule & query helpers",
 
   // L7 — entity renderers & cross-domain handlers
-  "7::ai": "AI strategy + Host interface contracts",
+  "7::ai": "AI charity-sweep tactic planner (delegates to grunt sweep)",
   "7::controllers": "human controller",
   "7::game": "game state setup",
   "7::game/modifiers": "modifier implementations",
@@ -157,7 +158,8 @@ const LABELS: Record<string, string> = {
   "7::shared": "shared board occupancy",
 
   // L8 — subsystems
-  "8::ai": "AI strategy primitives",
+  "8::ai":
+    "AI strategy primitives (build types, castle rect) + wall-demolition tactic planner",
   "8::controllers": "controller factory",
   "8::entry": "server entry",
   "8::game": "core subsystems (castle gen, grunt movement)",
@@ -172,7 +174,8 @@ const LABELS: Record<string, string> = {
     "runtime subsystems (camera, input, render, lobby, life-lost, options) + lifecycle, castle-build, phase-machine, tick-consumers",
 
   // L9 — system implementations
-  "9::ai": "AI brain assembly + build decision helpers",
+  "9::ai":
+    "AI strategy types + build score helpers + super-attack tactic planner",
   "9::game": "modifier + upgrade systems",
   "9::input": "input device handlers (kb, mouse, touch)",
   "9::online": "online runtime lobby",
@@ -182,7 +185,8 @@ const LABELS: Record<string, string> = {
   "9::runtime": "runtime types, main loop, phase machine & subsystems",
 
   // L10 — mid-depth assembly
-  "10::ai": "AI build shared (fallback + small-enclosure check + memoize)",
+  "10::ai":
+    "AI brain types, build shared/target, phase machines, battle/cannon dispatchers",
   "10::game": "battle impact systems",
   "10::online": "online phase transitions",
   "10::render": "map renderer",
@@ -190,7 +194,8 @@ const LABELS: Record<string, string> = {
   "10::runtime": "runtime tick consumers & lifecycle integration",
 
   // L11 — system composition
-  "11::ai": "AI build strategy",
+  "11::ai":
+    "AI brain + build strategy + derived tactic planners (pocket destruction, structural hit)",
   "11::controllers": "AI controller (host wrapper around injected brain)",
   "11::game": "grunt system",
   "11::render": "frame renderers",

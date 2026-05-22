@@ -142,6 +142,8 @@
     "files": [
       "server/game-room.ts",
       "src/ai/ai-life-lost.ts",
+      "src/ai/ai-plan-grunt-sweep.ts",
+      "src/ai/ai-plan-ice-trench.ts",
       "src/ai/ai-upgrade-pick.ts",
       "src/controllers/controller-base.ts",
       "src/game/combos.ts",
@@ -207,6 +209,7 @@
     "name": "L7",
     "files": [
       "server/room-manager.ts",
+      "src/ai/ai-plan-charity-sweep.ts",
       "src/controllers/controller-human.ts",
       "src/game/game-init.ts",
       "src/game/modifiers/fire.ts",
@@ -255,6 +258,7 @@
       "server/server.ts",
       "src/ai/ai-build-types.ts",
       "src/ai/ai-castle-rect.ts",
+      "src/ai/ai-plan-wall-demolition.ts",
       "src/controllers/controller-factory.ts",
       "src/game/castle-generation.ts",
       "src/game/grunt-movement.ts",
@@ -297,6 +301,7 @@
     "name": "L9",
     "files": [
       "src/ai/ai-build-score.ts",
+      "src/ai/ai-plan-super-attack.ts",
       "src/ai/ai-strategy-types.ts",
       "src/game/modifier-system.ts",
       "src/game/upgrade-system.ts",
@@ -335,6 +340,8 @@
     "name": "L11",
     "files": [
       "src/ai/ai-brain.ts",
+      "src/ai/ai-plan-pocket-destruction.ts",
+      "src/ai/ai-plan-structural-hit.ts",
       "src/ai/ai-strategy-build.ts",
       "src/controllers/controller-ai.ts",
       "src/game/grunt-system.ts",

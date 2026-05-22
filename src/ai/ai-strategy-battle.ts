@@ -1,6 +1,13 @@
+/**
+ * AI battle-phase dispatcher: target picking (`pickTarget`), per-cannon shot
+ * tracking (`trackShot`), `countUsableCannons`, and the shared helpers used
+ * across the per-tactic `ai-plan-*` planner files (`findEnclosureComponents`,
+ * the cross-tactic `DESTROY_POCKET_MAX_SIZE` threshold, and the
+ * `BattleTargetMemory`/`ShotKey` types).
+ */
+
 import {
   canFireOwnCannon,
-  filterActiveFiringCannons,
   getGruntTargetTower,
   pickSupplyShipTarget,
 } from "../game/index.ts";
@@ -14,40 +21,27 @@ import {
   filterActiveEnemies,
   getBattleInterior,
 } from "../shared/core/board-occupancy.ts";
-import { MODIFIER_ID } from "../shared/core/game-constants.ts";
 import type {
   CannonIdx,
-  GameMap,
   PixelPos,
   TilePos,
 } from "../shared/core/geometry-types.ts";
-import {
-  GRID_COLS,
-  GRID_ROWS,
-  TILE_SIZE,
-  type TileKey,
-} from "../shared/core/grid.ts";
+import { TILE_SIZE, type TileKey } from "../shared/core/grid.ts";
 import { isCannonCapturedBy } from "../shared/core/occupancy-queries.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import { isPlayerEliminated } from "../shared/core/player-types.ts";
 import {
   cannonSize,
-  computeOutside,
   DIRS_4,
-  DIRS_8,
   forEachTowerTile,
-  inBounds,
   isCannonTile,
-  isGrass,
   manhattanDistance,
-  orderByNearest,
   packTile,
   pxToTile,
   unpackTile,
   zoneAt,
 } from "../shared/core/spatial.ts";
 import type { BattleViewState } from "../shared/core/system-interfaces.ts";
-import type { ZoneId } from "../shared/core/zone-id.ts";
 import type { Rng } from "../shared/platform/rng.ts";
 import type { StrategicPixelPos } from "./ai-strategy-types.ts";
 import { traitLookup } from "./ai-utils.ts";
@@ -70,30 +64,6 @@ export type BattleTargetMemory = {
  *  Branded so a raw `number` can't be mistakenly fed into shotCounts.get(). */
 export type ShotKey = number & { readonly __shotKey: true };
 
-type StructuralHitCandidate = {
-  tiles: TilePos[];
-  enclosuresBroken: number;
-};
-
-/** Minimum grunts targeting a player before a grunt sweep is considered.
- *  Lowered during grunt-heavy modifiers (grunt_surge, frozen_river) so the
- *  AI reacts sooner to the increased threat. */
-const GRUNT_SWEEP_THRESHOLD = 15;
-const GRUNT_SWEEP_THRESHOLD_MODIFIER = 8;
-/** Skip charity sweep if the enemy has more usable cannons than this. */
-const CHARITY_CANNON_THRESHOLD = 6;
-/** Pockets smaller than this are worth destroying — can't fit a 2×2 cannon.
- *  Distinct from DESTROY_POCKET_MAX_SIZE (build scoring) which is higher (9)
- *  because build prevention is stricter than battle destruction. */
-const DESTROY_POCKET_MAX_SIZE = 4;
-/** Minimum number of small pockets before pocket destruction triggers. */
-const POCKET_COUNT_THRESHOLD = 5;
-/** Maximum wall tiles targeted in a single pocket destruction chain. */
-const MAX_POCKET_TARGETS = 5;
-/** Minimum connected wall tiles needed to start a wall demolition run. */
-const MIN_WALL_SEGMENT_LENGTH = 4;
-/** Maximum wall tiles targeted in a single wall demolition chain. */
-const MAX_WALL_DEMOLITION_TARGETS = 10;
 /** Timer seconds remaining that define the "second half" of battle
  *  (state.timer is in seconds; BATTLE_TIMER = 10). */
 const BATTLE_SECOND_HALF_TIMER = 5;
@@ -112,18 +82,15 @@ const GRUNT_WALL_TARGET_PROBABILITY = 1 / 8;
 const FRESH_CANNON_TARGET_PROBABILITY = 1 / 3;
 /** How many of the closest candidates to pick randomly from. */
 const TOP_TARGET_PICK_COUNT = 3;
-/** Ice-trench anchor: pick uniformly from the N shoreline tiles closest to
- *  a bank grunt. Wider than `TOP_TARGET_PICK_COUNT` because trench anchors
- *  don't compete with cannon-targeting accuracy — anchor variety matters. */
-const ICE_TRENCH_ANCHOR_TOP = 5;
 /** Minimum preferred distance (in tiles) from crosshair for target spread. */
 const SWEET_SPOT_MIN_DISTANCE = 0;
 /** Width of the preferred distance band (sweet spot = min .. min + range). */
 const SWEET_SPOT_DISTANCE_RANGE = 5;
-/** Tiles per side of the base (lateral from anchor). */
-const ICE_TRENCH_BASE_HALF = 3;
-/** Tiles per arm extending from each end of the base toward the enemy. */
-const ICE_TRENCH_ARM_LENGTH = 1;
+/** Pockets smaller than this are worth destroying — can't fit a 2×2 cannon.
+ *  Distinct from DESTROY_POCKET_MAX_SIZE (build scoring) which is higher (9)
+ *  because build prevention is stricter than battle destruction. Exported
+ *  for the pocket-destruction and structural-hit tactic files. */
+export const DESTROY_POCKET_MAX_SIZE = 4;
 
 /** Count cannons that are alive and enclosed (usable for firing). */
 export function countUsableCannons(
@@ -136,224 +103,6 @@ export function countUsableCannons(
     if (canFireOwnCannon(state, playerId, i as CannonIdx)) count++;
   }
   return count;
-}
-
-/** Plan a charity sweep: kill grunts on an enemy's territory when they can't. */
-export function planCharitySweep(
-  state: BattleViewState,
-  playerId: ValidPlayerId,
-  usableCannonCount: number,
-  rng: Rng,
-): TilePos[] | null {
-  for (const enemy of state.players) {
-    if (enemy.id === playerId || isPlayerEliminated(enemy)) continue;
-    if (filterActiveFiringCannons(enemy).length > CHARITY_CANNON_THRESHOLD)
-      continue;
-    const targets = planGruntSweep(state, enemy.id, usableCannonCount, rng);
-    if (targets) return targets;
-  }
-  return null;
-}
-
-/** Plan pocket destruction: find small enclosures (< 2x2) and non-square 4-tile pockets, target one wall per pocket.
- *
- *  Uses getBattleInterior() — interior is intentionally stale during battle
- *  (walls destroyed by cannonballs are not reflected until the next build phase).
- *  Pocket detection uses the last-known enclosure state to pick wall targets. */
-export function planPocketDestruction(
-  state: BattleViewState,
-  playerId: ValidPlayerId,
-): TilePos[] | null {
-  const player = state.players[playerId]!;
-  const interior = getBattleInterior(player);
-  if (interior.size === 0) return null;
-  const components = findEnclosureComponents(interior);
-  const pockets = components.filter(
-    (comp) =>
-      comp.length < DESTROY_POCKET_MAX_SIZE ||
-      (comp.length === DESTROY_POCKET_MAX_SIZE && !is2x2(comp)),
-  );
-  if (pockets.length <= POCKET_COUNT_THRESHOLD) return null;
-  // Build a set of all small-pocket tiles for quick lookup
-  const pocketTiles = new Set<TileKey>();
-  for (const pocket of pockets) {
-    for (const k of pocket) pocketTiles.add(k);
-  }
-
-  const targets: TilePos[] = [];
-  const picked = new Set<TileKey>();
-  for (const pocket of pockets) {
-    let found = false;
-    for (const key of pocket) {
-      if (found) break;
-      const { row, col } = unpackTile(key);
-      for (const [dr, dc] of DIRS_4) {
-        const nr = row + dr;
-        const nc = col + dc;
-        if (!inBounds(nr, nc)) continue;
-        const neighborKey = packTile(nr, nc);
-        if (!player.walls.has(neighborKey) || picked.has(neighborKey)) continue;
-        // Check that this wall doesn't also border a large enclosure
-        let bordersLarge = false;
-        for (const [dr2, dc2] of DIRS_4) {
-          const ar = nr + dr2;
-          const ac = nc + dc2;
-          if (!inBounds(ar, ac)) continue;
-          const adjacentKey = packTile(ar, ac);
-          if (interior.has(adjacentKey) && !pocketTiles.has(adjacentKey)) {
-            bordersLarge = true;
-            break;
-          }
-        }
-        if (bordersLarge) continue;
-        targets.push({ row: nr, col: nc });
-        picked.add(neighborKey);
-        found = true;
-        break;
-      }
-    }
-  }
-  if (targets.length === 0) return null;
-  if (targets.length > MAX_POCKET_TARGETS) targets.length = MAX_POCKET_TARGETS;
-  return orderByNearest(targets);
-}
-
-/** Plan a super attack: like wall demolition but hit every other tile (stride of 2). */
-export function planSuperAttack(
-  state: BattleViewState,
-  playerId: ValidPlayerId,
-  usableCannonCount: number,
-  rng: Rng,
-): TilePos[] | null {
-  const segment = planWallDemolition(
-    state,
-    playerId,
-    usableCannonCount * 2,
-    rng,
-  );
-  if (!segment) return null;
-  // Keep every other tile
-  const strided = segment.filter((_, i) => i % 2 === 0);
-  return strided.length >= 2 ? strided : null;
-}
-
-/** Plan a wall demolition run: find connected enemy wall segment. */
-export function planWallDemolition(
-  state: BattleViewState,
-  playerId: ValidPlayerId,
-  usableCannonCount: number,
-  rng: Rng,
-): TilePos[] | null {
-  const enemies = filterActiveEnemies(state, playerId);
-  rng.shuffle(enemies);
-  for (const enemy of enemies) {
-    if (enemy.walls.size < MIN_WALL_SEGMENT_LENGTH) continue;
-    const wallKeys = [...enemy.walls];
-    const startKey = rng.pick(wallKeys);
-    const segment = findConnectedWalls(
-      enemy.walls,
-      startKey,
-      usableCannonCount,
-      rng,
-    );
-    if (segment.length >= MIN_WALL_SEGMENT_LENGTH) {
-      const maxLength = Math.min(
-        segment.length,
-        usableCannonCount,
-        MAX_WALL_DEMOLITION_TARGETS,
-      );
-      const length = rng.int(MIN_WALL_SEGMENT_LENGTH, maxLength);
-      return segment.slice(0, length).map((k) => {
-        const { row, col } = unpackTile(k);
-        return { row: row, col: col };
-      });
-    }
-  }
-  return null;
-}
-
-/** Plan a structural hit: find 1–2 wall tiles whose removal breaks 2+ large
- *  enclosures simultaneously.  Analyses each enemy's wall layout, finds
- *  "outer-shell" wall tiles adjacent to the outside flood, and simulates
- *  removal to count how many enclosures would be breached.
- *  Falls back to 2-tile pairs when single-tile hits aren't available
- *  (thick walls).  Returns up to `maxHits` worth of targets, ordered by
- *  nearest-neighbor for chain execution. */
-export function planStructuralHit(
-  state: BattleViewState,
-  playerId: ValidPlayerId,
-  maxHits: number,
-): TilePos[] | null {
-  const enemies = filterActiveEnemies(state, playerId);
-  const allHits: StructuralHitCandidate[] = [];
-
-  for (const enemy of enemies) {
-    if (enemy.walls.size === 0) continue;
-    const hits = findStructuralHits(enemy.walls, state.map.tiles);
-    for (const hit of hits) allHits.push(hit);
-  }
-
-  if (allHits.length === 0) return null;
-
-  // Prioritize hits that break the most enclosures
-  allHits.sort((a, b) => b.enclosuresBroken - a.enclosuresBroken);
-
-  // Collect up to maxHits distinct opportunities (no overlapping tiles)
-  const usedTiles = new Set<TileKey>();
-  const targets: TilePos[] = [];
-  let picked = 0;
-  for (const hit of allHits) {
-    if (picked >= maxHits) break;
-    const overlaps = hit.tiles.some((tile) =>
-      usedTiles.has(packTile(tile.row, tile.col)),
-    );
-    if (overlaps) continue;
-    for (const tile of hit.tiles) {
-      usedTiles.add(packTile(tile.row, tile.col));
-      targets.push(tile);
-    }
-    picked++;
-  }
-
-  return targets.length > 0 ? orderByNearest(targets) : null;
-}
-
-/** Plan an ice trench to block enemy grunts crossing the frozen river.
- *  Builds two wings from an anchor point near the AI's most threatened tower,
- *  each extending diagonally toward the enemy zone.  Shape adapts to the ice
- *  layout — produces V shapes on diagonal rivers, U shapes on straight ones.
- *  Only fires when enemy grunts are on the opposite side heading toward us. */
-export function planIceTrench(
-  state: BattleViewState,
-  playerId: ValidPlayerId,
-  rng: Rng,
-): TilePos[] | null {
-  const frozenTiles = state.modern?.frozenTiles;
-  if (!frozenTiles || frozenTiles.size === 0) return null;
-
-  const player = state.players[playerId]!;
-  if (player.ownedTowers.length === 0) return null;
-  const playerZone = state.playerZones[playerId];
-
-  const bankGrunts = collectBankGrunts(state, frozenTiles, playerZone);
-  if (bankGrunts.length === 0) return null;
-
-  const shoreline = findIceShoreline(state, frozenTiles, playerZone);
-  if (shoreline.length === 0) return null;
-
-  const bestAnchorKey = pickAnchor(shoreline, bankGrunts, rng);
-  const anchor = unpackTile(bestAnchorKey);
-
-  const inward = inwardFromShore(state, anchor, playerZone);
-  if (!inward) return null;
-
-  const trenchKeys = buildUTrench(frozenTiles, anchor, bestAnchorKey, inward);
-
-  const result: TilePos[] = [];
-  for (const key of trenchKeys) {
-    result.push(unpackTile(key));
-  }
-  return result.length > 0 ? orderByNearest(result) : null;
 }
 
 export function pickTarget(
@@ -566,207 +315,6 @@ export function trackShot(
       }
     }
   }
-}
-
-/** Plan a grunt sweep: chain-fire at enemy grunts attacking a specific player,
- *  ordered by nearest neighbor from a random start.
- *  @param victimPlayerId — the player whose territory the grunts are attacking
- *    (the AI when called for our own defense; an enemy when called by
- *    `planCharitySweep` to clean up someone who can't fight back).
- *  Grunts are ownerless: "attacking the victim" means "currently sitting
- *  in the victim's zone", per the rule that grunts attack towers in
- *  their current territory. */
-export function planGruntSweep(
-  state: BattleViewState,
-  victimPlayerId: ValidPlayerId,
-  usableCannonCount: number,
-  rng: Rng,
-): TilePos[] | null {
-  const victimZone = state.playerZones[victimPlayerId];
-  const grunts = state.grunts.filter(
-    (grunt) => zoneAt(state.map, grunt.row, grunt.col) === victimZone,
-  );
-  const mod = state.modern?.activeModifier;
-  const threshold =
-    mod === MODIFIER_ID.GRUNT_SURGE || mod === MODIFIER_ID.FROZEN_RIVER
-      ? GRUNT_SWEEP_THRESHOLD_MODIFIER
-      : GRUNT_SWEEP_THRESHOLD;
-  if (grunts.length <= threshold) return null;
-  const positions = grunts.map((grunt) => ({ row: grunt.row, col: grunt.col }));
-  // Random starting point
-  const startIndex = rng.int(0, positions.length - 1);
-  [positions[0], positions[startIndex]] = [
-    positions[startIndex]!,
-    positions[0]!,
-  ];
-  return orderByNearest(positions, usableCannonCount);
-}
-
-/** Precondition: collect grunts on the opposite bank (enemy zone, 4-dir
- *  adjacent to frozen water). Grunts are ownerless — partition by current
- *  zone, not by any stored "victim" field. */
-function collectBankGrunts(
-  state: BattleViewState,
-  frozenTiles: ReadonlySet<TileKey>,
-  playerZone: ZoneId | undefined,
-): TilePos[] {
-  const out: TilePos[] = [];
-  for (const grunt of state.grunts) {
-    const gruntZone = zoneAt(state.map, grunt.row, grunt.col);
-    if (gruntZone === undefined || gruntZone === playerZone) continue;
-    for (const [dr, dc] of DIRS_4) {
-      const nr = grunt.row + dr;
-      const nc = grunt.col + dc;
-      if (!inBounds(nr, nc)) continue;
-      if (frozenTiles.has(packTile(nr, nc))) {
-        out.push({ row: grunt.row, col: grunt.col });
-        break;
-      }
-    }
-  }
-  return out;
-}
-
-/** Frozen tiles 4-dir adjacent to AI-zone grass — the shore from which the
- *  trench will extend across the river. */
-function findIceShoreline(
-  state: BattleViewState,
-  frozenTiles: ReadonlySet<TileKey>,
-  playerZone: ZoneId | undefined,
-): TileKey[] {
-  const out: TileKey[] = [];
-  for (const key of frozenTiles) {
-    const { row, col } = unpackTile(key);
-    for (const [dr, dc] of DIRS_4) {
-      const nr = row + dr;
-      const nc = col + dc;
-      if (!inBounds(nr, nc)) continue;
-      if (
-        isGrass(state.map.tiles, nr, nc) &&
-        zoneAt(state.map, nr, nc) === playerZone
-      ) {
-        out.push(key);
-        break;
-      }
-    }
-  }
-  return out;
-}
-
-/** Score each shoreline tile by distance to the nearest bank grunt, then
- *  pick randomly among the top `ICE_TRENCH_ANCHOR_TOP` for variety. */
-function pickAnchor(
-  shoreline: readonly TileKey[],
-  bankGrunts: readonly TilePos[],
-  rng: Rng,
-): TileKey {
-  const scored = shoreline.map((shoreKey) => {
-    const { row, col } = unpackTile(shoreKey);
-    let minDist = Infinity;
-    for (const grunt of bankGrunts) {
-      const dist = manhattanDistance(grunt.row, grunt.col, row, col);
-      if (dist < minDist) minDist = dist;
-    }
-    return { key: shoreKey, dist: minDist };
-  });
-  scored.sort((a, b) => a.dist - b.dist);
-  const topCount = Math.min(scored.length, ICE_TRENCH_ANCHOR_TOP);
-  return scored[rng.int(0, topCount - 1)]!.key;
-}
-
-/** Direction from the anchor pointing across the river (opposite of the
- *  cardinal that lands on AI-zone grass). null if the anchor is unexpectedly
- *  not adjacent to AI-zone grass. */
-function inwardFromShore(
-  state: BattleViewState,
-  anchor: TilePos,
-  playerZone: ZoneId | undefined,
-): readonly [number, number] | null {
-  for (const [dr, dc] of DIRS_4) {
-    const nr = anchor.row + dr;
-    const nc = anchor.col + dc;
-    if (!inBounds(nr, nc)) continue;
-    if (zoneAt(state.map, nr, nc) === playerZone) {
-      return [-dr, -dc] as const;
-    }
-  }
-  return null;
-}
-
-/** U-shape trench: base walks laterally along the shore from the anchor,
- *  arms then curve diagonally inward from each base end toward the enemy. */
-function buildUTrench(
-  frozenTiles: ReadonlySet<TileKey>,
-  anchor: TilePos,
-  anchorKey: TileKey,
-  inward: readonly [number, number],
-): Set<TileKey> {
-  const lateral1: [number, number] = inward[0] === 0 ? [1, 0] : [0, 1];
-  const lateral2: [number, number] = inward[0] === 0 ? [-1, 0] : [0, -1];
-
-  const trenchKeys = new Set<TileKey>();
-  trenchKeys.add(anchorKey);
-
-  const armStarts: [number, number][] = [];
-  for (const lateral of [lateral1, lateral2]) {
-    const end = walkAlongIce(
-      frozenTiles,
-      trenchKeys,
-      anchor.row,
-      anchor.col,
-      (cr, cc) => [cr + lateral[0], cc + lateral[1]],
-      ICE_TRENCH_BASE_HALF,
-    );
-    armStarts.push(end);
-  }
-
-  for (let idx = 0; idx < armStarts.length; idx++) {
-    const [startR, startC] = armStarts[idx]!;
-    const lateral = idx === 0 ? lateral1 : lateral2;
-    walkAlongIce(
-      frozenTiles,
-      trenchKeys,
-      startR,
-      startC,
-      (cr, cc) => {
-        // Prefer diagonal, fall back to straight inward.
-        const diagR = cr + inward[0] + lateral[0];
-        const diagC = cc + inward[1] + lateral[1];
-        if (inBounds(diagR, diagC) && frozenTiles.has(packTile(diagR, diagC))) {
-          return [diagR, diagC];
-        }
-        return [cr + inward[0], cc + inward[1]];
-      },
-      ICE_TRENCH_ARM_LENGTH,
-    );
-  }
-
-  return trenchKeys;
-}
-
-/** Walk up to `maxSteps` along frozen tiles, adding each to `trenchKeys`.
- *  `nextStep` picks the next (row, col) from the current cursor. Stops on
- *  out-of-bounds or non-frozen tile. Returns the final cursor position. */
-function walkAlongIce(
-  frozenTiles: ReadonlySet<TileKey>,
-  trenchKeys: Set<TileKey>,
-  startR: number,
-  startC: number,
-  nextStep: (cr: number, cc: number) => [number, number],
-  maxSteps: number,
-): [number, number] {
-  let cr = startR;
-  let cc = startC;
-  for (let step = 0; step < maxSteps; step++) {
-    const [nr, nc] = nextStep(cr, cc);
-    if (!inBounds(nr, nc)) break;
-    const tileKey = packTile(nr, nc);
-    if (!frozenTiles.has(tileKey)) break;
-    trenchKeys.add(tileKey);
-    cr = nr;
-    cc = nc;
-  }
-  return [cr, cc];
 }
 
 function collectStrategicWallTargets(
@@ -993,6 +541,34 @@ function pickEnclosureWallTarget(
   return borderWalls[Math.floor(rand() * borderWalls.length)]!;
 }
 
+/** Find connected components of a tile set using 4-dir connectivity. */
+export function findEnclosureComponents(
+  tileSet: ReadonlySet<TileKey>,
+): TileKey[][] {
+  const visited = new Set<TileKey>();
+  const components: TileKey[][] = [];
+  for (const key of tileSet) {
+    if (visited.has(key)) continue;
+    const component: TileKey[] = [];
+    const queue = [key];
+    visited.add(key);
+    while (queue.length > 0) {
+      const current = queue.pop()!;
+      component.push(current);
+      const { row, col } = unpackTile(current);
+      for (const [dr, dc] of DIRS_4) {
+        const neighborKey = packTile(row + dr, col + dc);
+        if (!visited.has(neighborKey) && tileSet.has(neighborKey)) {
+          visited.add(neighborKey);
+          queue.push(neighborKey);
+        }
+      }
+    }
+    components.push(component);
+  }
+  return components;
+}
+
 /** True if any cannonball in flight is targeting (row, col). */
 function isTileTargetedByInFlightBall(
   state: BattleViewState,
@@ -1089,224 +665,4 @@ function jitterWithinTile(
     x: centerX + (rand() - 0.5) * jitterRange,
     y: centerY + (rand() - 0.5) * jitterRange,
   };
-}
-
-/** Check if a 4-tile pocket forms a 2x2 square (can fit a cannon). */
-function is2x2(keys: readonly TileKey[]): boolean {
-  let minRow = Infinity;
-  let minCol = Infinity;
-  for (const key of keys) {
-    const { row, col } = unpackTile(key);
-    if (row < minRow) minRow = row;
-    if (col < minCol) minCol = col;
-  }
-  const expected: Set<TileKey> = new Set([
-    packTile(minRow, minCol),
-    packTile(minRow, minCol + 1),
-    packTile(minRow + 1, minCol),
-    packTile(minRow + 1, minCol + 1),
-  ]);
-  return keys.length === 4 && keys.every((key) => expected.has(key));
-}
-
-/** Analyse a player's walls and find single- or double-tile removals that
- *  breach 2+ large enclosures at once.  Only enclosures larger than
- *  DESTROY_POCKET_MAX_SIZE are considered (smaller ones are pockets). */
-function findStructuralHits(
-  walls: ReadonlySet<TileKey>,
-  mapTiles: GameMap["tiles"],
-): StructuralHitCandidate[] {
-  // 1. Compute outside and interior
-  const outside = computeOutside(walls);
-  const interior = new Set<TileKey>();
-  for (let row = 0; row < GRID_ROWS; row++) {
-    for (let col = 0; col < GRID_COLS; col++) {
-      const key = packTile(row, col);
-      if (!outside.has(key) && !walls.has(key) && isGrass(mapTiles, row, col)) {
-        interior.add(key);
-      }
-    }
-  }
-
-  // 2. Connected components of interior (4-dir) — each is an enclosure
-  const components = findEnclosureComponents(interior);
-
-  // Only consider large enclosures (> DESTROY_POCKET_MAX_SIZE tiles)
-  const large = components.filter(
-    (comp) => comp.length > DESTROY_POCKET_MAX_SIZE,
-  );
-  if (large.length < 2) return [];
-
-  // Label each interior tile with its large-enclosure index
-  const labels = new Map<TileKey, number>();
-  for (let idx = 0; idx < large.length; idx++) {
-    for (const key of large[idx]!) labels.set(key, idx);
-  }
-
-  // 3. Find outer-shell walls (8-dir adjacent to outside)
-  const outerWalls: TileKey[] = [];
-  for (const wallKey of walls) {
-    const { row, col } = unpackTile(wallKey);
-    for (const [dr, dc] of DIRS_8) {
-      const nr = row + dr;
-      const nc = col + dc;
-      if (inBounds(nr, nc) && outside.has(packTile(nr, nc))) {
-        outerWalls.push(wallKey);
-        break;
-      }
-    }
-  }
-
-  // 4. Single-tile structural hits
-  const hits: StructuralHitCandidate[] = [];
-  for (const wallKey of outerWalls) {
-    const bordered = borderedEnclosures(wallKey, labels);
-    if (bordered.size < 2) continue;
-
-    const modWalls = new Set(walls);
-    modWalls.delete(wallKey);
-    const broken = countBrokenEnclosures(modWalls, large);
-    if (broken >= 2) {
-      const { row, col } = unpackTile(wallKey);
-      hits.push({ tiles: [{ row: row, col: col }], enclosuresBroken: broken });
-    }
-  }
-
-  // 5. Two-tile pairs (only when no single-tile hits exist)
-  if (hits.length === 0) {
-    for (const wallKey of outerWalls) {
-      const { row, col } = unpackTile(wallKey);
-      for (const [dr, dc] of DIRS_4) {
-        const nr = row + dr;
-        const nc = col + dc;
-        if (!inBounds(nr, nc)) continue;
-        const neighborKey = packTile(nr, nc);
-        // Deduplicate pairs and ensure neighbor is also a wall
-        if (!walls.has(neighborKey) || neighborKey <= wallKey) continue;
-
-        const bordered = borderedEnclosuresPair(wallKey, neighborKey, labels);
-        if (bordered.size < 2) continue;
-
-        const modWalls = new Set(walls);
-        modWalls.delete(wallKey);
-        modWalls.delete(neighborKey);
-        const broken = countBrokenEnclosures(modWalls, large);
-        if (broken >= 2) {
-          const { row: nr2, col: nc2 } = unpackTile(neighborKey);
-          hits.push({
-            tiles: [
-              { row: row, col: col },
-              { row: nr2, col: nc2 },
-            ],
-            enclosuresBroken: broken,
-          });
-        }
-      }
-    }
-  }
-
-  return hits;
-}
-
-/** Which large-enclosure indices does a pair of wall tiles border? (8-dir) */
-function borderedEnclosuresPair(
-  keyA: TileKey,
-  keyB: TileKey,
-  labels: ReadonlyMap<TileKey, number>,
-): Set<number> {
-  const result = borderedEnclosures(keyA, labels);
-  for (const label of borderedEnclosures(keyB, labels)) result.add(label);
-  return result;
-}
-
-/** Which large-enclosure indices does a wall tile border? (8-dir) */
-function borderedEnclosures(
-  wallKey: TileKey,
-  labels: ReadonlyMap<TileKey, number>,
-): Set<number> {
-  const { row, col } = unpackTile(wallKey);
-  const result = new Set<number>();
-  for (const [dr, dc] of DIRS_8) {
-    const nr = row + dr;
-    const nc = col + dc;
-    if (!inBounds(nr, nc)) continue;
-    const label = labels.get(packTile(nr, nc));
-    if (label !== undefined) result.add(label);
-  }
-  return result;
-}
-
-/** Simulate wall removal and count how many enclosures now have tiles
- *  reachable from map edges (breached by the 8-dir flood). */
-function countBrokenEnclosures(
-  modifiedWalls: ReadonlySet<TileKey>,
-  enclosures: readonly (readonly TileKey[])[],
-): number {
-  const newOutside = computeOutside(modifiedWalls);
-  let broken = 0;
-  for (const comp of enclosures) {
-    for (const tileKey of comp) {
-      if (newOutside.has(tileKey)) {
-        broken++;
-        break;
-      }
-    }
-  }
-  return broken;
-}
-
-/** Find connected components of a tile set using 4-dir connectivity. */
-function findEnclosureComponents(tileSet: ReadonlySet<TileKey>): TileKey[][] {
-  const visited = new Set<TileKey>();
-  const components: TileKey[][] = [];
-  for (const key of tileSet) {
-    if (visited.has(key)) continue;
-    const component: TileKey[] = [];
-    const queue = [key];
-    visited.add(key);
-    while (queue.length > 0) {
-      const current = queue.pop()!;
-      component.push(current);
-      const { row, col } = unpackTile(current);
-      for (const [dr, dc] of DIRS_4) {
-        const neighborKey = packTile(row + dr, col + dc);
-        if (!visited.has(neighborKey) && tileSet.has(neighborKey)) {
-          visited.add(neighborKey);
-          queue.push(neighborKey);
-        }
-      }
-    }
-    components.push(component);
-  }
-  return components;
-}
-
-/** Random walk to find up to maxLength connected wall tiles. */
-function findConnectedWalls(
-  walls: ReadonlySet<TileKey>,
-  startKey: TileKey,
-  maxLength: number,
-  rng: Rng,
-): TileKey[] {
-  const visited = new Set<TileKey>();
-  visited.add(startKey);
-  const result: TileKey[] = [startKey];
-  let current = startKey;
-  while (result.length < maxLength) {
-    const { row, col } = unpackTile(current);
-    const neighbors: TileKey[] = [];
-    for (const [dr, dc] of DIRS_4) {
-      const nr = row + dr;
-      const nc = col + dc;
-      if (!inBounds(nr, nc)) continue;
-      const neighborKey = packTile(nr, nc);
-      if (!visited.has(neighborKey) && walls.has(neighborKey))
-        neighbors.push(neighborKey);
-    }
-    if (neighbors.length === 0) break;
-    current = rng.pick(neighbors);
-    visited.add(current);
-    result.push(current);
-  }
-  return result;
 }
