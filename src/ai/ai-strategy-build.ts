@@ -9,12 +9,14 @@ import {
   canPlacePiece,
   createCastle,
   effectivePlanTiles,
+  type PlacementContext,
 } from "../game/index.ts";
 import {
   buildOccupancyCache,
   collectAliveHouseKeys,
   hasAliveHouseAt,
   hasGruntAt,
+  type OccupancyCache,
 } from "../shared/core/board-occupancy.ts";
 import type {
   Castle,
@@ -206,6 +208,15 @@ export function pickPlacement(
   );
   const walls = player.walls;
 
+  // Build the occupancy cache + placement context once per pickPlacement.
+  // Every sub-helper that walks candidates (enumerateCandidates,
+  // canPieceFillAnyGap, plugUnreachableGaps) reads these — without this
+  // hoist they get rebuilt up to ~10 times per tick during target selection.
+  // State is read-only during pickPlacement so memoization is safe.
+  const cache = buildOccupancyCache(state);
+  const placementCtx = buildPlacementContext(state, playerId);
+  if (!placementCtx) return null;
+
   // Step 1: determine which rectangle to build/repair.
   // Pipeline: tryRepairHomeCastle → trySecondaryTower → tryExpandTerritory
   // Each phase only runs if the previous one found no gaps.
@@ -224,6 +235,8 @@ export function pickPlacement(
     unenclosedTowers,
     otherUnenclosed,
     outerRingHolesSnapshot,
+    cache,
+    placementCtx,
   });
   // Step 2: score candidates
   const baselineOutside = outside.size;
@@ -244,6 +257,8 @@ export function pickPlacement(
     player.walls,
     outside,
     targetGaps,
+    cache,
+    placementCtx,
     interiorExcludingGaps,
   );
   if (allCandidates.length === 0) return null;
@@ -518,11 +533,10 @@ function enumerateCandidates(
   walls: ReadonlySet<TileKey>,
   outside: Set<TileKey>,
   targetGaps: Set<TileKey>,
+  cache: OccupancyCache,
+  placementCtx: PlacementContext,
   interiorExcludingGaps: Set<TileKey>,
 ): Candidate[] {
-  const cache = buildOccupancyCache(state);
-  const placementCtx = buildPlacementContext(state, playerId);
-  if (!placementCtx) return [];
   const candidates: Candidate[] = [];
   let rotated = piece;
   for (let rotation = 0; rotation < 4; rotation++) {
@@ -660,6 +674,8 @@ function tryRepairHomeCastle(ctx: TargetContext): TargetResult {
     castle,
     effectiveSkipHome,
     homeHasRingGaps,
+    cache,
+    placementCtx,
   } = ctx;
   if (effectiveSkipHome || !homeHasRingGaps) return NO_TARGET;
   // Prefer the player's existing outer perimeter when it's salvageable —
@@ -683,6 +699,8 @@ function tryRepairHomeCastle(ctx: TargetContext): TargetResult {
       getInterior(player),
       outer.targetGaps,
       null,
+      cache,
+      placementCtx,
     )
   ) {
     return outer;
@@ -995,13 +1013,42 @@ function canFillAfterPlugging(
   gaps: Set<TileKey>,
   rect: TileRect | null,
 ): boolean {
-  const { state, playerId, player, piece } = ctx;
+  const { state, playerId, player, piece, cache, placementCtx } = ctx;
   const interior = getInterior(player);
-  if (canPieceFillAnyGap(state, playerId, piece, interior, gaps, rect))
+  if (
+    canPieceFillAnyGap(
+      state,
+      playerId,
+      piece,
+      interior,
+      gaps,
+      rect,
+      cache,
+      placementCtx,
+    )
+  )
     return true;
   return (
-    plugUnreachableGaps(gaps, rect, state, playerId, player.walls, interior) &&
-    canPieceFillAnyGap(state, playerId, piece, interior, gaps, rect)
+    plugUnreachableGaps(
+      gaps,
+      rect,
+      state,
+      playerId,
+      player.walls,
+      interior,
+      cache,
+      placementCtx,
+    ) &&
+    canPieceFillAnyGap(
+      state,
+      playerId,
+      piece,
+      interior,
+      gaps,
+      rect,
+      cache,
+      placementCtx,
+    )
   );
 }
 

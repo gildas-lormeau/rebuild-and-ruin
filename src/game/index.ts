@@ -16,6 +16,7 @@ export {
 export {
   buildPlacementContext,
   canPlacePiece,
+  type PlacementContext,
   recheckTerritory,
   recomputeAllTerritory,
 } from "./build-system.ts";

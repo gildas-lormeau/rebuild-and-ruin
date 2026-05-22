@@ -5,6 +5,8 @@
  * ai-build-score.ts, and ai-build-shared.ts.
  */
 
+import type { PlacementContext } from "../game/index.ts";
+import type { OccupancyCache } from "../shared/core/board-occupancy.ts";
 import type {
   Castle,
   TilePos,
@@ -51,6 +53,11 @@ export interface TargetContext {
   unenclosedTowers: Tower[];
   otherUnenclosed: Tower[];
   outerRingHolesSnapshot: ReadonlySet<TileKey>;
+  /** Occupancy cache built once per pickPlacement to skip rebuilding inside
+   *  every canPlacePiece sweep called by selectTarget's sub-helpers. */
+  cache: OccupancyCache;
+  /** PlacementContext built once per pickPlacement — pairs with `cache`. */
+  placementCtx: PlacementContext;
 }
 
 /** AI personality / context parameters for placement. Filled in by

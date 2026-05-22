@@ -141,7 +141,6 @@
     "name": "L6",
     "files": [
       "server/game-room.ts",
-      "src/ai/ai-build-types.ts",
       "src/ai/ai-life-lost.ts",
       "src/ai/ai-upgrade-pick.ts",
       "src/controllers/controller-base.ts",
@@ -208,7 +207,6 @@
     "name": "L7",
     "files": [
       "server/room-manager.ts",
-      "src/ai/ai-strategy-types.ts",
       "src/controllers/controller-human.ts",
       "src/game/game-init.ts",
       "src/game/modifiers/fire.ts",
@@ -255,14 +253,8 @@
     "name": "L8",
     "files": [
       "server/server.ts",
-      "src/ai/ai-brain-types.ts",
+      "src/ai/ai-build-types.ts",
       "src/ai/ai-castle-rect.ts",
-      "src/ai/ai-phase-battle.ts",
-      "src/ai/ai-phase-build.ts",
-      "src/ai/ai-phase-cannon.ts",
-      "src/ai/ai-phase-select.ts",
-      "src/ai/ai-strategy-battle.ts",
-      "src/ai/ai-strategy-cannon.ts",
       "src/controllers/controller-factory.ts",
       "src/game/castle-generation.ts",
       "src/game/grunt-movement.ts",
@@ -304,10 +296,9 @@
   {
     "name": "L9",
     "files": [
-      "src/ai/ai-brain.ts",
       "src/ai/ai-build-score.ts",
       "src/ai/ai-build-target.ts",
-      "src/controllers/controller-ai.ts",
+      "src/ai/ai-strategy-types.ts",
       "src/game/modifier-system.ts",
       "src/game/upgrade-system.ts",
       "src/online/online-runtime-lobby.ts",
@@ -326,8 +317,14 @@
   {
     "name": "L10",
     "files": [
+      "src/ai/ai-brain-types.ts",
       "src/ai/ai-build-shared.ts",
-      "src/controllers/controller-ai-assisted-human.ts",
+      "src/ai/ai-phase-battle.ts",
+      "src/ai/ai-phase-build.ts",
+      "src/ai/ai-phase-cannon.ts",
+      "src/ai/ai-phase-select.ts",
+      "src/ai/ai-strategy-battle.ts",
+      "src/ai/ai-strategy-cannon.ts",
       "src/game/cannon-system.ts",
       "src/game/wall-impact.ts",
       "src/render/3d/effects/modifier-effect-registry.ts",
@@ -337,7 +334,9 @@
   {
     "name": "L11",
     "files": [
+      "src/ai/ai-brain.ts",
       "src/ai/ai-strategy-build.ts",
+      "src/controllers/controller-ai.ts",
       "src/game/grunt-system.ts",
       "src/render/3d/scene.ts",
       "src/render/render-canvas.ts"
@@ -347,6 +346,7 @@
     "name": "L12",
     "files": [
       "src/ai/ai-strategy.ts",
+      "src/controllers/controller-ai-assisted-human.ts",
       "src/game/battle-system.ts",
       "src/game/build-system.ts",
       "src/render/3d/renderer.ts"

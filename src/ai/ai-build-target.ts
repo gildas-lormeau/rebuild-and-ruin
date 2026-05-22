@@ -6,8 +6,8 @@
  * These are the helper functions it depends on.
  */
 
-import { buildPlacementContext, canPlacePiece } from "../game/index.ts";
-import { buildOccupancyCache } from "../shared/core/board-occupancy.ts";
+import { canPlacePiece, type PlacementContext } from "../game/index.ts";
+import type { OccupancyCache } from "../shared/core/board-occupancy.ts";
 import type { TileRect } from "../shared/core/geometry-types.ts";
 import type { TileKey } from "../shared/core/grid.ts";
 import {
@@ -27,10 +27,20 @@ export function canPieceFillAnyGap(
   piece: PieceShape,
   interior: ReadonlySet<TileKey>,
   gaps: Set<TileKey>,
-  rect?: TileRect | null,
+  rect: TileRect | null,
+  cache: OccupancyCache,
+  placementCtx: PlacementContext,
 ): boolean {
   const adjusted = adjustInterior(interior, gaps, rect);
-  return canAnyRotationFillGap([piece], gaps, adjusted, state, playerId);
+  return canAnyRotationFillGap(
+    [piece],
+    gaps,
+    adjusted,
+    state,
+    playerId,
+    cache,
+    placementCtx,
+  );
 }
 
 /**
@@ -46,11 +56,23 @@ export function plugUnreachableGaps(
   playerId: ValidPlayerId,
   walls: ReadonlySet<TileKey>,
   interior: FreshInterior,
+  cache: OccupancyCache,
+  placementCtx: PlacementContext,
 ): boolean {
   if (!rect || gaps.size === 0) return false;
   const unreachable: TileKey[] = [];
   for (const gapKey of gaps) {
-    if (!isGapFillableByAnyShape(state, playerId, interior, gapKey, rect)) {
+    if (
+      !isGapFillableByAnyShape(
+        state,
+        playerId,
+        interior,
+        gapKey,
+        rect,
+        cache,
+        placementCtx,
+      )
+    ) {
       unreachable.push(gapKey);
     }
   }
@@ -68,7 +90,9 @@ function isGapFillableByAnyShape(
   playerId: ValidPlayerId,
   interior: ReadonlySet<TileKey>,
   gapKey: TileKey,
-  rect?: TileRect | null,
+  rect: TileRect | null,
+  cache: OccupancyCache,
+  placementCtx: PlacementContext,
 ): boolean {
   const singleGap = new Set<TileKey>([gapKey]);
   const adjusted = adjustInterior(interior, singleGap, rect);
@@ -78,6 +102,8 @@ function isGapFillableByAnyShape(
     adjusted,
     state,
     playerId,
+    cache,
+    placementCtx,
   );
 }
 
@@ -110,10 +136,9 @@ function canAnyRotationFillGap(
   adjusted: ReadonlySet<TileKey>,
   state: BuildViewState,
   playerId: ValidPlayerId,
+  cache: OccupancyCache,
+  placementCtx: PlacementContext,
 ): boolean {
-  const cache = buildOccupancyCache(state);
-  const placementCtx = buildPlacementContext(state, playerId);
-  if (!placementCtx) return false;
   for (const shape of pieces) {
     let rot = shape;
     for (let rotIdx = 0; rotIdx < 4; rotIdx++) {

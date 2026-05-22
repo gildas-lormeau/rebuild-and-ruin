@@ -173,7 +173,6 @@ const LABELS: Record<string, string> = {
 
   // L9 — system implementations
   "9::ai": "AI brain assembly + build decision helpers",
-  "9::controllers": "AI controller (host wrapper around injected brain)",
   "9::game": "modifier + upgrade systems",
   "9::input": "input device handlers (kb, mouse, touch)",
   "9::online": "online runtime lobby",
@@ -184,7 +183,6 @@ const LABELS: Record<string, string> = {
 
   // L10 — mid-depth assembly
   "10::ai": "AI build shared (fallback + small-enclosure check + memoize)",
-  "10::controllers": "AI assisted-human controller variant",
   "10::game": "battle impact systems",
   "10::online": "online phase transitions",
   "10::render": "map renderer",
@@ -193,11 +191,13 @@ const LABELS: Record<string, string> = {
 
   // L11 — system composition
   "11::ai": "AI build strategy",
+  "11::controllers": "AI controller (host wrapper around injected brain)",
   "11::game": "grunt system",
   "11::render": "frame renderers",
 
   // L12 — phase orchestration
   "12::ai": "AI strategy orchestrator",
+  "12::controllers": "AI assisted-human controller variant",
   "12::game": "battle & build system orchestration",
   "12::render": "3D renderer entry",
 

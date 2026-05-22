@@ -87,7 +87,7 @@ import { restorationCrewInstantRevive } from "./upgrades/restoration-crew.ts";
 /** Per-player invariants used by `canPlacePiece`. Build once via
  *  `buildPlacementContext` outside a candidate loop and pass it into every
  *  iteration to skip the upgrade-registry walks done per call. */
-interface PlacementContext {
+export interface PlacementContext {
   readonly player: Player;
   readonly zone: ZoneId | undefined;
   readonly overlapAllowance: number;

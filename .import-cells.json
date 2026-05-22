@@ -348,7 +348,6 @@
     "domain": "ai",
     "role": "AI decision intents & build types",
     "files": [
-      "src/ai/ai-build-types.ts",
       "src/ai/ai-life-lost.ts",
       "src/ai/ai-upgrade-pick.ts"
     ]
@@ -487,14 +486,6 @@
   },
   {
     "layer": 7,
-    "domain": "ai",
-    "role": "AI strategy + Host interface contracts",
-    "files": [
-      "src/ai/ai-strategy-types.ts"
-    ]
-  },
-  {
-    "layer": 7,
     "domain": "controllers",
     "role": "human controller",
     "files": [
@@ -619,14 +610,8 @@
     "domain": "ai",
     "role": "AI strategy primitives",
     "files": [
-      "src/ai/ai-brain-types.ts",
-      "src/ai/ai-castle-rect.ts",
-      "src/ai/ai-phase-battle.ts",
-      "src/ai/ai-phase-build.ts",
-      "src/ai/ai-phase-cannon.ts",
-      "src/ai/ai-phase-select.ts",
-      "src/ai/ai-strategy-battle.ts",
-      "src/ai/ai-strategy-cannon.ts"
+      "src/ai/ai-build-types.ts",
+      "src/ai/ai-castle-rect.ts"
     ]
   },
   {
@@ -744,17 +729,9 @@
     "domain": "ai",
     "role": "AI brain assembly + build decision helpers",
     "files": [
-      "src/ai/ai-brain.ts",
       "src/ai/ai-build-score.ts",
-      "src/ai/ai-build-target.ts"
-    ]
-  },
-  {
-    "layer": 9,
-    "domain": "controllers",
-    "role": "AI controller (host wrapper around injected brain)",
-    "files": [
-      "src/controllers/controller-ai.ts"
+      "src/ai/ai-build-target.ts",
+      "src/ai/ai-strategy-types.ts"
     ]
   },
   {
@@ -811,15 +788,14 @@
     "domain": "ai",
     "role": "AI build shared (fallback + small-enclosure check + memoize)",
     "files": [
-      "src/ai/ai-build-shared.ts"
-    ]
-  },
-  {
-    "layer": 10,
-    "domain": "controllers",
-    "role": "AI assisted-human controller variant",
-    "files": [
-      "src/controllers/controller-ai-assisted-human.ts"
+      "src/ai/ai-brain-types.ts",
+      "src/ai/ai-build-shared.ts",
+      "src/ai/ai-phase-battle.ts",
+      "src/ai/ai-phase-build.ts",
+      "src/ai/ai-phase-cannon.ts",
+      "src/ai/ai-phase-select.ts",
+      "src/ai/ai-strategy-battle.ts",
+      "src/ai/ai-strategy-cannon.ts"
     ]
   },
   {
@@ -853,7 +829,16 @@
     "domain": "ai",
     "role": "AI build strategy",
     "files": [
+      "src/ai/ai-brain.ts",
       "src/ai/ai-strategy-build.ts"
+    ]
+  },
+  {
+    "layer": 11,
+    "domain": "controllers",
+    "role": "AI controller (host wrapper around injected brain)",
+    "files": [
+      "src/controllers/controller-ai.ts"
     ]
   },
   {
@@ -879,6 +864,14 @@
     "role": "AI strategy orchestrator",
     "files": [
       "src/ai/ai-strategy.ts"
+    ]
+  },
+  {
+    "layer": 12,
+    "domain": "controllers",
+    "role": "AI assisted-human controller variant",
+    "files": [
+      "src/controllers/controller-ai-assisted-human.ts"
     ]
   },
   {
