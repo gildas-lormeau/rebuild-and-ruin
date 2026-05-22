@@ -7,7 +7,7 @@
  * targeted walls flash a few times within a smooth peak-and-fade window.
  */
 
-import { bellPulse } from "../bell-pulse.ts";
+import { bellPulse } from "./bell-pulse.ts";
 import { deriveModifierRamp } from "./ramp.ts";
 
 export const SAPPER_REVEAL_PULSE_PERIOD_MS = 280;

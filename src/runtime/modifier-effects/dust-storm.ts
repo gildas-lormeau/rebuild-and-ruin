@@ -7,8 +7,8 @@
  * reset, no pause, the storm IS the buildup that just finished.
  */
 
-import { wavedRamp } from "../waved-ramp.ts";
 import { deriveModifierRamp } from "./ramp.ts";
+import { wavedRamp } from "./waved-ramp.ts";
 
 /** Amplitude at reveal start — a slight breeze rather than dead-still
  *  so the first frame shows motion. Mirrors fog/frostbite's "floor"

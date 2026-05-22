@@ -66,8 +66,6 @@ src/runtime/
 ├── tick-consumers.ts       OnlinePhaseTicks consumer map
 ├── timer-accums.ts         phase-timer accumulator helpers
 ├── timing-api.ts           TimingApi type
-├── waved-ramp.ts           waved ease helper (selection / castle anim)
-├── bell-pulse.ts           bell-cadence pulse helper
 │
 ├── browser/                browser bindings (entry-point only)
 │   ├── dom.ts
@@ -82,6 +80,8 @@ src/runtime/
 │   ├── registry.ts         ModifierId → effect-deriver
 │   ├── ramp.ts             shared reveal ramp
 │   ├── reveal-time.ts      banner-aware reveal-time scalar
+│   ├── waved-ramp.ts       lerp + damped-sine helper (fog / rubble)
+│   ├── bell-pulse.ts       bell envelope × pulse helper (sapper / grunt-surge)
 │   ├── dust-storm.ts
 │   ├── fog.ts
 │   ├── frostbite.ts

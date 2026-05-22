@@ -7,8 +7,8 @@
  * post-sweep dwell so the curve completes before the phase advances.
  */
 
-import { wavedRamp } from "../waved-ramp.ts";
 import { deriveModifierRamp } from "./ramp.ts";
+import { wavedRamp } from "./waved-ramp.ts";
 
 /** Opacity floor at the snapshot frame — fog faintly appears so the
  *  banner sweep reveals something rather than nothing. */
