@@ -6,8 +6,5 @@
   "imports": {
     "@std/assert": "jsr:@std/assert@^1.0.19",
     "jsfxr": "npm:jsfxr"
-  },
-  "lint": {
-    "exclude": ["src/render/3d/sprites/*.mjs"]
   }
 }
