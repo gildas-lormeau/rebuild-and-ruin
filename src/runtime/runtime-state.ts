@@ -54,7 +54,7 @@ export interface OptionsUIState {
 
 export interface InputTrackingState {
   /** Player slot joined by mouse/trackpad, or null if none joined yet. */
-  mouseJoinedSlot: number | null;
+  mouseJoinedSlot: ValidPlayerId | null;
 }
 
 export interface DialogRuntimeState {
