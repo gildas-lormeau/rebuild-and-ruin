@@ -20,8 +20,12 @@
  *   that fires symmetrically on every peer)
  *
  * Scope:
- *   src/ai/**\/*.ts
- *   src/controllers/controller-ai*.ts
+ *   src/ai/**\/*.ts                      (structural opt-in)
+ *   src/controllers/controller-ai*.ts    (structural opt-in)
+ *   any src/**\/*.ts that uses `strategy.rng` in code (auto opt-in:
+ *   "this file consumes strategy.rng" is a perfect proxy for "this file
+ *   is AI/animation code that must not also touch state.rng"). Doc-comment
+ *   mentions of `strategy.rng` do NOT opt a file in.
  *
  * Usage:
  *   deno run -A scripts/lint-ai-rng-isolation.ts
@@ -39,18 +43,23 @@ interface Violation {
   snippet: string;
 }
 
-const SRC_AI = join(process.cwd(), "src", "ai");
-const SRC_CONTROLLERS = join(process.cwd(), "src", "controllers");
+const SRC = join(process.cwd(), "src");
+const SRC_AI = join(SRC, "ai");
+const SRC_CONTROLLERS = join(SRC, "controllers");
 const STATE_RNG = /\bstate\.rng\b/;
+const STRATEGY_RNG = /\bstrategy\.rng\b/;
 const ALLOW_MARKER = /lint:allow-state-rng/;
 
 main();
 
 function main(): void {
-  const files = [
-    ...collectFiles(SRC_AI),
-    ...collectControllerAiFiles(SRC_CONTROLLERS),
-  ];
+  const files = Array.from(
+    new Set([
+      ...collectFiles(SRC_AI),
+      ...collectControllerAiFiles(SRC_CONTROLLERS),
+      ...collectStrategyRngFiles(SRC),
+    ]),
+  );
   const violations: Violation[] = [];
 
   for (const filePath of files) {
@@ -106,6 +115,25 @@ function collectControllerAiFiles(dir: string): string[] {
     ) {
       results.push(join(dir, entry));
     }
+  }
+  return results;
+}
+
+/** Recursively walk `dir` and return every .ts file whose code (strings and
+ *  comments stripped) references `strategy.rng`. Doc-comment mentions don't
+ *  opt a file in — only real usage. */
+function collectStrategyRngFiles(dir: string): string[] {
+  if (!statSync(dir, { throwIfNoEntry: false })?.isDirectory()) return [];
+  const results: string[] = [];
+  for (const entry of readdirSync(dir)) {
+    const full = join(dir, entry);
+    if (statSync(full).isDirectory()) {
+      results.push(...collectStrategyRngFiles(full));
+      continue;
+    }
+    if (!entry.endsWith(".ts") || entry.endsWith(".d.ts")) continue;
+    const stripped = stripStringsAndComments(readFileSync(full, "utf-8"));
+    if (STRATEGY_RNG.test(stripped)) results.push(full);
   }
   return results;
 }
