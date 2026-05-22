@@ -32,7 +32,7 @@ import {
   tickCastleBuildAnimation,
 } from "./runtime-castle-build.ts";
 import { type RuntimeState, setMode } from "./runtime-state.ts";
-import { isRemotePlayer } from "./runtime-tick-context.ts";
+import { advancePhaseTimer, isRemotePlayer } from "./runtime-tick-context.ts";
 import type { CameraSystem, RuntimeSelection } from "./runtime-types.ts";
 import {
   ACCUM_SELECT,
@@ -298,15 +298,17 @@ export function createSelectionSystem(
     const { state, accum, selection } = runtimeState;
     const remotePlayerSlots = runtimeState.frameMeta.remotePlayerSlots;
 
-    // Advance announcement / selection timer (blessed mutation site — see MutableAccums)
-    const mutAccum = accum as MutableAccums;
+    // Two-stage timer: BANNER_SELECT announcement window (no visible
+    // countdown) → selection countdown. Phase A holds `state.timer` at 0
+    // so the UI shows the banner instead of a counter; Phase B drives the
+    // standard `timer = SELECT_TIMER - elapsed` countdown via the shared
+    // helper that every other phase tick uses.
     if (accum.selectAnnouncement < SELECT_ANNOUNCEMENT_DURATION) {
-      mutAccum.selectAnnouncement += dt;
+      (accum as MutableAccums).selectAnnouncement += dt;
       runtimeState.frame.announcement = BANNER_SELECT;
       state.timer = 0;
     } else {
-      mutAccum.select += dt;
-      state.timer = Math.max(0, SELECT_TIMER - accum.select);
+      advancePhaseTimer(accum, ACCUM_SELECT, state, dt, SELECT_TIMER);
     }
 
     // Block selection until announcement finishes — same gate on every
