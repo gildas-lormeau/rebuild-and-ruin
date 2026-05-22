@@ -554,6 +554,9 @@ function enumerateCandidates(
   interiorExcludingGaps: Set<TileKey>,
 ): Candidate[] {
   const candidates: Candidate[] = [];
+  const bonusKeys = new Set<TileKey>();
+  for (const bonus of state.bonusSquares)
+    bonusKeys.add(packTile(bonus.row, bonus.col));
   let rotated = piece;
   for (let rotation = 0; rotation < 4; rotation++) {
     for (let r = 0; r < GRID_ROWS - rotated.height + 1; r++) {
@@ -598,12 +601,7 @@ function enumerateCandidates(
           const pr = r + dr,
             pc = c + dc;
           if (hasAliveHouseAt(state, pr, pc)) housesHit++;
-          if (
-            state.bonusSquares.some(
-              (bonus) => bonus.row === pr && bonus.col === pc,
-            )
-          )
-            bonusHit++;
+          if (bonusKeys.has(packTile(pr, pc))) bonusHit++;
         }
         // Every offset on an alive house means zero walls will be laid
         // (applyPiecePlacement filters house tiles out of wallKeys) and

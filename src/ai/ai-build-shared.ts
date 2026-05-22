@@ -86,12 +86,15 @@ export function pickFallbackPlacement(
     createsSmallEnclosure(candidate, walls, outside, state, aliveHouseKeys),
   );
 
+  // Union once instead of probing each player's interior per offset.
+  const anyInterior = new Set<TileKey>();
+  for (const player of state.players) {
+    for (const key of getInterior(player)) anyInterior.add(key);
+  }
   const insideEnclosure = (candidate: Candidate): boolean => {
     for (const [dr, dc] of candidate.piece.offsets) {
-      const key = packTile(candidate.row + dr, candidate.col + dc);
-      for (const player of state.players) {
-        if (getInterior(player).has(key)) return true;
-      }
+      if (anyInterior.has(packTile(candidate.row + dr, candidate.col + dc)))
+        return true;
     }
     return false;
   };
