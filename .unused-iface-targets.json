@@ -35,7 +35,6 @@
       "label": "Per-subsystem dep-injection contracts (XxxDeps) and system handles",
       "targets": [
         { "file": "src/runtime/runtime-phase-ticks.ts", "interface": "PhaseTicksSystem" },
-        { "file": "src/runtime/subsystems/upgrade-pick.ts", "interface": "UpgradePickSystem" },
         { "file": "src/shared/ui/input-deps.ts", "interface": "OverlayActionDeps" },
         { "file": "src/shared/ui/input-deps.ts", "interface": "DpadDeps" },
         { "file": "src/shared/ui/input-deps.ts", "interface": "QuitButtonDeps" },

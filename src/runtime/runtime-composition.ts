@@ -657,10 +657,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       : undefined,
     onBeginBattle: IS_TOUCH_DEVICE ? applyBattleTarget : undefined,
     upgradePick: {
-      tryShow: (onDone) => upgradePick.tryShow(onDone),
-      prepare: () => upgradePick.prepare(),
-      getDialog: () => upgradePick.get(),
-      clear: () => upgradePick.set(null),
+      tryShow: upgradePick.tryShow,
+      prepare: upgradePick.prepare,
     },
     endGame: lifecycle.endGame,
     beginUntilt: camera.beginUntilt,

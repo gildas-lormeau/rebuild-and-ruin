@@ -709,6 +709,9 @@
       "pair": "ParapetParams@src/render/3d/sprites/tower-scene.ts ↔ SailParams@src/render/3d/sprites/supply-ship-scene.ts"
     },
     {
+      "pair": "PhaseTicksDeps@src/runtime/runtime-phase-ticks.ts ↔ PhaseTransitionCtx@src/runtime/runtime-phase-machine.ts"
+    },
+    {
       "pair": "PhaseTicksDeps@src/runtime/runtime-phase-ticks.ts ↔ RuntimeLoopDeps@src/runtime/runtime-main-loop.ts"
     },
     {

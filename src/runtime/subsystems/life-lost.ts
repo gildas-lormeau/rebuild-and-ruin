@@ -89,7 +89,9 @@ interface LifeLostSystemDeps {
  *  the caller (phase machine) eliminates abandoned players and routes the
  *  next transition based on `continuing`. The subsystem deliberately does
  *  NOT call `eliminatePlayers` itself — mirrors how upgrade-pick hands the
- *  applied effect back to its `*-done.mutate` transition. */
+ *  resolved dialog back via `OnUpgradePickResolved` and lets the phase
+ *  machine's `runPickerModalThenDispatch` apply the picks. Both
+ *  subsystems produce resolutions; the phase machine applies them. */
 type OnLifeLostResolved = (
   continuing: readonly ValidPlayerId[],
   abandoned: readonly ValidPlayerId[],

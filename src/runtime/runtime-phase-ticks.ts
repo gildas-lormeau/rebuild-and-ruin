@@ -156,24 +156,22 @@ interface PhaseTicksDeps extends Pick<RuntimeConfig, "log"> {
   saveBattleCrosshair?: () => void;
   /** Called after beginBattle completes (crosshair override, etc.). */
   onBeginBattle?: () => void;
-  /** Upgrade-pick hook bag — all four functions are wired together or not
+  /** Upgrade-pick hook bag — both functions are wired together or not
    *  at all. Grouping them into a single optional field encodes that
    *  invariant at the type level, so the `upgradePick` ctx object can be
    *  assembled without non-null assertions.
-   *  - `tryShow`: show upgrade pick overlay. Returns true if shown (caller
-   *    should defer Mode.GAME). `onDone` fires when all picks are resolved.
    *  - `prepare`: pre-create the dialog for progressive reveal during banner.
-   *  - `getDialog`: read the live dialog state — the machine passes resolved
-   *    picks into `applyUpgradePicks`.
-   *  - `clear`: tear down the dialog. Called from `upgrade-pick-done.mutate`
-   *    right after the picks are applied, keeping dialog lifetime scoped to
-   *    the UPGRADE_PICK phase. Watcher wiring in `online-phase-transitions.ts`
-   *    routes to `runtime.upgradePick.set(null)`. */
+   *  - `tryShow`: show upgrade pick overlay. Returns true if shown (caller
+   *    should defer Mode.GAME). `onResolved(resolved)` fires when all
+   *    picks are resolved, carrying the finalized dialog snapshot. The
+   *    subsystem clears its own dialog state before invoking the
+   *    callback; the phase machine applies the picks against the
+   *    snapshot. Mirrors `lifeLost.show`'s callback-driven resolution. */
   upgradePick?: {
-    tryShow: (onDone: () => void) => boolean;
     prepare: () => boolean;
-    getDialog: () => UpgradePickDialogState | null;
-    clear: () => void;
+    tryShow: (
+      onResolved: (resolved: UpgradePickDialogState) => void,
+    ) => boolean;
   };
   /** End-game side effects (set game-over frame, stop sound, switch to
    *  Mode.STOPPED, arm demo timer). Wired to `lifecycle.endGame` from
@@ -370,8 +368,6 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
         ? {
             prepare: deps.upgradePick.prepare,
             tryShow: deps.upgradePick.tryShow,
-            getDialog: deps.upgradePick.getDialog,
-            clear: deps.upgradePick.clear,
           }
         : undefined,
       ceasefireSkipBattle: () => enterBuildSkippingBattle(runtimeState.state),
