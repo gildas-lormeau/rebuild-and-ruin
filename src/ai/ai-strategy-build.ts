@@ -65,6 +65,7 @@ import type {
   AiPlacement,
   Candidate,
   EnclosureAnalysis,
+  FallbackContext,
   PlacementOptions,
   Scored,
   ScoringContext,
@@ -459,11 +460,30 @@ function selectBestPlacement(
     }
   }
 
-  const {
-    bestCandidate,
-    bestScore,
-    evaluated: bestCandidateEvaluated,
-  } = scoreTopCandidates(topCandidates, scoringCtx);
+  const scoreResult = scoreTopCandidates(topCandidates, scoringCtx);
+
+  const fallbackBuildCtx: FallbackContext = {
+    walls: player.walls,
+    outside,
+    playerInterior: getInterior(player),
+    castle,
+    castleMargin: extras.castleMargin,
+    homeWasBroken: scoringCtx.homeWasBroken,
+    unenclosedTowers: extras.unenclosedTowers,
+    caresAboutHouses,
+    caresAboutBonuses,
+    aliveHouseKeys,
+  };
+
+  // No candidate evaluated (empty batch or every candidate hard-rejected):
+  // fall through to discard/extension. noBuildTargets still suppresses to null.
+  if (!scoreResult.evaluated) {
+    if (noBuildTargets) return null;
+    return pickFallbackPlacement(sortedScored, state, fallbackBuildCtx)
+      .placement;
+  }
+
+  const { bestCandidate, bestScore } = scoreResult;
 
   // All enclosed, no gaps, no towers to build toward — still allow
   // expansion if scoring found a positive placement (new large enclosure).
@@ -473,11 +493,9 @@ function selectBestPlacement(
 
   // Gap-filling was the priority but territory gain was ≤ 0 — still use the
   // best gap-filler by first-pass score (closing the ring IS the goal).
-  // Only if we actually evaluated a candidate (fat-wall-only sets get skipped
-  // entirely and should fall through to discard/extension instead).
   // Reject fat walls even here — a gap-fill that creates 2×2 blocks without
   // enclosing territory is wasteful.
-  if (bestScore <= 0 && restrictedToGapFillers && bestCandidateEvaluated) {
+  if (bestScore <= 0 && restrictedToGapFillers) {
     if (fatBlockCountFor(bestCandidate) === 0) {
       return candidateToPlacement(bestCandidate);
     }
@@ -500,17 +518,8 @@ function selectBestPlacement(
 
   // If no territory gain: discard or build toward unenclosed towers
   if (bestScore <= 0) {
-    return pickFallbackPlacement(sortedScored, state, {
-      walls: player.walls,
-      outside,
-      playerInterior: getInterior(player),
-      castle,
-      castleMargin: extras.castleMargin,
-      homeWasBroken: scoringCtx.homeWasBroken,
-      unenclosedTowers: extras.unenclosedTowers,
-      caresAboutHouses,
-      caresAboutBonuses,
-    }).placement;
+    return pickFallbackPlacement(sortedScored, state, fallbackBuildCtx)
+      .placement;
   }
 
   return {

@@ -116,6 +116,9 @@ export interface FallbackContext {
   unenclosedTowers: readonly Tower[];
   caresAboutHouses: boolean;
   caresAboutBonuses: boolean;
+  /** Pre-computed alive-house tile keys — threaded in from pickPlacement so
+   *  this fallback path doesn't re-walk `state.map.houses`. */
+  aliveHouseKeys: ReadonlySet<TileKey>;
 }
 
 /** Per-candidate computed values for the scoring pipeline. Built once per

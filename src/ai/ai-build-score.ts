@@ -39,6 +39,14 @@ import type {
 import { floodPocket } from "./ai-castle-rect.ts";
 import { SMALL_POCKET_MAX_SIZE, TINY_POCKET_MAX_SIZE } from "./ai-constants.ts";
 
+/** Result of scoring a top-candidate batch. Discriminated by `evaluated`:
+ *  `true` carries a real winner; `false` means every candidate was hard-rejected
+ *  by SCORING_RULES (or the batch was empty), and callers should fall through
+ *  to the no-territory-gain path. */
+type ScoreTopResult =
+  | { evaluated: true; bestCandidate: Candidate; bestScore: number }
+  | { evaluated: false };
+
 /** Starting bonus for gap-filling placements before useful-gain reduction. */
 const GAP_BONUS_BASE = 5;
 /** Minimum gap bonus after useful-gain reduction (floor). */
@@ -327,14 +335,13 @@ export function checkFatWall(
 export function scoreTopCandidates(
   topCandidates: readonly Scored[],
   ctx: ScoringContext,
-): { bestCandidate: Candidate; bestScore: number; evaluated: boolean } {
+): ScoreTopResult {
   const batchHasWallAdjacent = topCandidates.some(
     (sc) => sc.candidate.wallAdjacent > 0 || sc.candidate.connectedTiles > 0,
   );
 
-  let bestCandidate = topCandidates[0]!.candidate;
+  let bestCandidate: Candidate | undefined;
   let bestScore = -Infinity;
-  let evaluated = false;
 
   for (const {
     candidate,
@@ -366,16 +373,17 @@ export function scoreTopCandidates(
     if (rejected) continue;
 
     if (
+      bestCandidate === undefined ||
       score > bestScore ||
       (score === bestScore && candidate.gapsFilled > bestCandidate.gapsFilled)
     ) {
       bestScore = score;
       bestCandidate = candidate;
-      evaluated = true;
     }
   }
 
-  return { bestCandidate, bestScore, evaluated };
+  if (bestCandidate === undefined) return { evaluated: false };
+  return { evaluated: true, bestCandidate, bestScore };
 }
 
 function computeGapBonus(gapsFilled: number, usefulGain: number): number {

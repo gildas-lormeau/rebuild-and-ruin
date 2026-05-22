@@ -6,14 +6,13 @@
  * bottom-right corner of the tower's footprint.
  */
 
-import type { BurningPit } from "../shared/core/battle-types.ts";
 import {
   hasAliveHouseAt,
   hasEnemyWallAt,
   hasGruntAt,
 } from "../shared/core/board-occupancy.ts";
 import { TOWER_SIZE } from "../shared/core/game-constants.ts";
-import type { House, TileRect, Tower } from "../shared/core/geometry-types.ts";
+import type { TileRect, Tower } from "../shared/core/geometry-types.ts";
 import {
   GRID_COLS,
   GRID_ROWS,
@@ -67,15 +66,7 @@ export function computeFillableGaps(
 ): Set<TileKey> {
   const gaps = findReachableRingGaps(rect, walls, state, interior);
   // Pit and alive-house plugs always needed; water plugs only when bankHugging
-  addBankPlugGaps(
-    gaps,
-    rect,
-    walls,
-    state.map.tiles,
-    state.burningPits,
-    state.map.houses,
-    bankHugging,
-  );
+  addBankPlugGaps(gaps, rect, walls, state, bankHugging);
   return gaps;
 }
 
@@ -521,9 +512,7 @@ function addBankPlugGaps(
   gaps: Set<TileKey>,
   rect: TileRect,
   walls: ReadonlySet<TileKey>,
-  tiles: readonly (readonly Tile[])[],
-  burningPits?: readonly BurningPit[],
-  houses?: readonly House[],
+  state: BuildViewState,
   includeWater = true,
 ): void {
   const ringTop = rect.top - 1,
@@ -531,6 +520,7 @@ function addBankPlugGaps(
   const ringLeft = rect.left - 1,
     ringRight = rect.right + 1;
   const unfillableRing: TileKey[] = [];
+  const tiles = state.map.tiles;
   for (let r = ringTop; r <= ringBot; r++) {
     for (let c = ringLeft; c <= ringRight; c++) {
       if (!inBounds(r, c)) continue;
@@ -539,12 +529,8 @@ function addBankPlugGaps(
       const key = packTile(r, c);
       if (walls.has(key)) continue;
       const onWater = includeWater && isWater(tiles, r, c);
-      const onPit = burningPits != null && hasPitAt(burningPits, r, c);
-      const onHouse =
-        houses != null &&
-        houses.some(
-          (house) => house.alive && house.row === r && house.col === c,
-        );
+      const onPit = hasPitAt(state.burningPits, r, c);
+      const onHouse = hasAliveHouseAt(state, r, c);
       if (onWater || onPit || onHouse) {
         unfillableRing.push(key);
       }
