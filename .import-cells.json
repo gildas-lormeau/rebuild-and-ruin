@@ -730,7 +730,6 @@
     "role": "AI brain assembly + build decision helpers",
     "files": [
       "src/ai/ai-build-score.ts",
-      "src/ai/ai-build-target.ts",
       "src/ai/ai-strategy-types.ts"
     ]
   },
@@ -790,6 +789,7 @@
     "files": [
       "src/ai/ai-brain-types.ts",
       "src/ai/ai-build-shared.ts",
+      "src/ai/ai-build-target.ts",
       "src/ai/ai-phase-battle.ts",
       "src/ai/ai-phase-build.ts",
       "src/ai/ai-phase-cannon.ts",
