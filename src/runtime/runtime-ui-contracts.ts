@@ -49,6 +49,7 @@ import type {
   BannerUi,
   GameOverOverlay,
   LoupeHandle,
+  PhantomOverlay,
   RendererInterface,
   RenderOverlay,
 } from "../shared/ui/overlay-types.ts";
@@ -78,7 +79,7 @@ export interface UIContext {
   lobby: LobbyState;
   getFrame: () => { announcement?: string };
   getLobbyRemaining: () => number;
-  isOnline?: boolean;
+  isOnline: boolean;
   /** True when all player-supplied Rampart sound files are in IndexedDB, so the
    *  "Sound" row in the options screen can render status at a glance. */
   getSoundReady: () => boolean;
@@ -314,7 +315,7 @@ export interface RegisterOnlineInputDeps {
   getState: () => GameState | undefined;
   getMode: () => Mode;
   setMode: (mode: Mode) => void;
-  isOnline?: boolean;
+  isOnline: boolean;
   settings: {
     keyBindings: KeyBindings[];
     seedMode: SeedMode;
@@ -429,10 +430,7 @@ export interface TouchControlsDeps {
    *  `runtimeState.overlay.phantoms` (assembled from the union of each
    *  controller's `currentBuildPhantoms` / `currentCannonPhantom` + the
    *  runtime's remote slot). */
-  phantoms: {
-    piecePhantoms?: readonly { playerId: ValidPlayerId; valid: boolean }[];
-    cannonPhantoms?: readonly { playerId: ValidPlayerId; valid: boolean }[];
-  };
+  phantoms: Pick<PhantomOverlay, "piecePhantoms" | "cannonPhantoms">;
   leftHanded: boolean;
   pointerPlayer: () => (PlayerController & InputReceiver) | null;
   dpad: Dpad | null;
