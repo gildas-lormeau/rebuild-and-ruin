@@ -23,7 +23,42 @@ import {
   toggleLifeLostFocus,
 } from "./runtime-life-lost-core.ts";
 import { type RuntimeState, setMode } from "./runtime-state.ts";
-import type { RuntimeLifeLost } from "./runtime-types.ts";
+
+/** Public life-lost dialog handle exposed on `GameRuntime`. Tick scope:
+ *  gated on `Mode.LIFE_LOST` (the runtime ticks this when the popup is
+ *  active). Sibling dialog handle in `RuntimeUpgradePick`. */
+export interface RuntimeLifeLost {
+  /** Read current dialog state. Used by watcher-mode to sync overlay display. */
+  get: () => LifeLostDialogState | null;
+  /** Replace dialog state. Used by watcher-mode to apply host-broadcast state.
+   *  Passing `null` also clears any pending `onResolved` callback so a
+   *  force-clear (rematch, host-promote) can't fire it later. */
+  set: (d: LifeLostDialogState | null) => void;
+  /** Drive the life-lost flow to completion: create the dialog, either
+   *  resolve immediately (all pre-resolved — only eliminations) or
+   *  show the modal and wait for `tick` to resolve every entry. The
+   *  `onResolved(continuing, abandoned)` callback fires exactly once.
+   *  The CALLER eliminates abandoned players and routes the next phase
+   *  (game-over / reselect / continue) — see the ROUND_END postDisplay
+   *  in the phase machine. PoV auto-zoom side effects still happen
+   *  inside this flow.
+   *
+   *  Wire-arrived choices that landed before the dialog was built are
+   *  drained inside `show()` via `OnlineDialogDrains.drainLifeLost`
+   *  (online wiring only).
+   *
+   *  Returns true when a dialog was actually shown. */
+  show: (
+    needsReselect: readonly ValidPlayerId[],
+    eliminated: readonly ValidPlayerId[],
+    onResolved: (
+      continuing: readonly ValidPlayerId[],
+      abandoned: readonly ValidPlayerId[],
+    ) => void,
+  ) => boolean;
+  tick: (dt: number) => void;
+  panelPos: (playerId: ValidPlayerId) => { px: number; py: number };
+}
 
 interface LifeLostSystemDeps {
   runtimeState: RuntimeState;

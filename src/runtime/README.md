@@ -59,11 +59,13 @@ exempt from the cross-domain restriction).
   **Only edit this file if you need a new subsystem, a new cross-domain
   wire, or a new wiring primitive. Otherwise leave it alone.**
 
-### State + types (2 files — start here if you're new)
+### State + types (3 files — start here if you're new)
 - **`runtime-state.ts`** — The `RuntimeState` interface + factory.
-- **`runtime-types.ts`** — `RuntimeConfig`, `GameRuntime`, sub-system
-  deps interfaces, `NetworkApi`, `TimingApi`, the modal dialog lifecycle
-  contract.
+- **`runtime-types.ts`** — `RuntimeConfig`, sub-system deps interfaces,
+  `NetworkApi`, `TimingApi`, the modal dialog lifecycle contract.
+- **`runtime-handle.ts`** — `GameRuntime`, the public composition return.
+  Separated from `runtime-types.ts` because it sits ABOVE every subsystem
+  in the import graph (one-way: handle imports types, not the reverse).
 
 ### Sub-system factories (one `createXSystem(deps)` each)
 Each of these exports a `createXSystem(deps)` factory that takes a

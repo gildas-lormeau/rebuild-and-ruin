@@ -11,8 +11,8 @@ import {
   ensureAiModulesLoaded,
   rollAiPersonality,
 } from "../runtime/runtime-bootstrap.ts";
+import type { GameRuntime } from "../runtime/runtime-handle.ts";
 import { setMode } from "../runtime/runtime-state.ts";
-import type { GameRuntime } from "../runtime/runtime-types.ts";
 import type { BalloonFlight } from "../shared/core/battle-types.ts";
 import { Phase } from "../shared/core/game-phase.ts";
 import type { PlayerId } from "../shared/core/player-slot.ts";

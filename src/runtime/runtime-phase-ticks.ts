@@ -56,6 +56,7 @@ import {
   recordBattleVisualEvents,
   tickBalloonFlights,
 } from "./runtime-battle-anim.ts";
+import type { RuntimeLifeLost } from "./runtime-life-lost.ts";
 import {
   type PhaseTransitionCtx,
   runTransition,
@@ -71,11 +72,7 @@ import {
   localControllers,
   tickGruntsIfDue,
 } from "./runtime-tick-context.ts";
-import type {
-  OnlinePhaseTicks,
-  RuntimeConfig,
-  RuntimeLifeLost,
-} from "./runtime-types.ts";
+import type { OnlinePhaseTicks, RuntimeConfig } from "./runtime-types.ts";
 import {
   ACCUM_BATTLE,
   ACCUM_BUILD,
@@ -200,6 +197,13 @@ interface PhaseTicksDeps extends Pick<RuntimeConfig, "log"> {
   /** Start the build→battle tilt. Called from `proceedToBattle` at
    *  battle-banner end. */
   beginTilt: () => void;
+}
+
+/** Public phase-ticks handle exposed on `GameRuntime`. Narrow surface —
+ *  most callers go through the orchestrator, not the handle. */
+export interface RuntimePhaseTicks {
+  dispatchAdvanceToCannon: () => void;
+  beginBattle: () => void;
 }
 
 export interface PhaseTicksSystem {

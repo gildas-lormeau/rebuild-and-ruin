@@ -28,6 +28,19 @@ import type {
   UIContext,
 } from "./runtime-ui-contracts.ts";
 
+/** Public lobby handle exposed on `GameRuntime`. Drives the pre-game
+ *  lobby (player joining, seed entry, mode selection). */
+export interface RuntimeLobby {
+  /** Runtime-internal lobby reset: clear joined/active/timer/map, clear
+   *  quit + options state, mark the frame dirty, flip mode to LOBBY.
+   *  Hosts call this from their `RuntimeConfig.showLobby` callback and
+   *  add their own platform extras (browser: title music start).
+   *  Headless tests bind `showLobby` straight to this. */
+  show: () => void;
+  /** Mark a slot joined and request a re-render of the lobby. */
+  markJoined: (pid: ValidPlayerId) => void;
+}
+
 interface LobbySystemDeps {
   runtimeState: RuntimeState;
   uiCtx: UIContext;

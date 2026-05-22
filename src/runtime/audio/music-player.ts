@@ -29,17 +29,18 @@ import {
   type XmiFileKey,
 } from "./music-assets.ts";
 
-export interface MusicSubsystem {
-  /** Pre-warm the AudioContext + decode every cached PCM track into
-   *  AudioBuffers, inside a user-gesture handler (the home-page "Play"
-   *  button click). Returns once buffers are ready. Idempotent — repeat
-   *  calls short-circuit. Silent if no PCM is cached (user hasn't
-   *  uploaded their Rampart files yet, or the upload-time render
-   *  hasn't completed). */
+/** Narrow music handle exposed on `GameRuntime`. Subset of `MusicSubsystem`
+ *  surfaced for the app shell — lets the home-page "Play" button pre-warm
+ *  the music synth from a user-gesture click, and the lobby entry start
+ *  the title track, both before any game bus exists. */
+export interface RuntimeMusic {
   activate(): Promise<void>;
-  /** Start the RXMI_TITLE.xmi track. Called from the lobby entry point so
-   *  music covers the pre-game screen. Idempotent per instance. */
   startTitle(): Promise<void>;
+}
+
+export interface MusicSubsystem extends RuntimeMusic {
+  // Inherits `activate` + `startTitle` from `RuntimeMusic` (the narrow
+  // public surface). The methods below are internal to composition.
   /** Hard-stop the bg track + every in-flight fanfare and clear the
    *  caller's `wantsTitle` intent. Called on quit-to-menu so neither a
    *  looped bg track nor a one-shot TETRIS fanfare outlives the game.

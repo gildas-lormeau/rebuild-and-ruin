@@ -25,12 +25,9 @@ import type {
 } from "../shared/ui/overlay-types.ts";
 import { OPT_CONTROLS, OPT_SOUND } from "../shared/ui/settings-defs.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
+import type { CameraSystem } from "./runtime-camera.ts";
 import { type RuntimeState, safeState, setMode } from "./runtime-state.ts";
-import type {
-  CameraSystem,
-  NetworkApi,
-  OnlineActions,
-} from "./runtime-types.ts";
+import type { NetworkApi, OnlineActions } from "./runtime-types.ts";
 import type {
   CreateDpadFn,
   CreateFloatingActionsFn,

@@ -4,21 +4,22 @@
     {
       "label": "Top-level facade returned by createGameRuntime",
       "targets": [
-        { "file": "src/runtime/runtime-types.ts", "interface": "GameRuntime" }
+        { "file": "src/runtime/runtime-handle.ts", "interface": "GameRuntime" }
       ]
     },
     {
       "label": "Sub-system handles surfaced on GameRuntime",
       "targets": [
-        { "file": "src/runtime/runtime-types.ts", "interface": "RuntimeSelection" },
-        { "file": "src/runtime/runtime-types.ts", "interface": "RuntimeLifeLost" },
-        { "file": "src/runtime/runtime-types.ts", "interface": "RuntimeUpgradePick" },
-        { "file": "src/runtime/runtime-types.ts", "interface": "RuntimeLobby" },
-        { "file": "src/runtime/runtime-types.ts", "interface": "RuntimeLifecycle" },
-        { "file": "src/runtime/runtime-types.ts", "interface": "RuntimePhaseTicks" },
-        { "file": "src/runtime/runtime-types.ts", "interface": "RuntimeMusic" },
-        { "file": "src/runtime/runtime-types.ts", "interface": "RuntimeSfx" },
-        { "file": "src/runtime/runtime-types.ts", "interface": "CameraSystem" }
+        { "file": "src/runtime/runtime-selection.ts", "interface": "RuntimeSelection" },
+        { "file": "src/runtime/runtime-life-lost.ts", "interface": "RuntimeLifeLost" },
+        { "file": "src/runtime/subsystems/upgrade-pick.ts", "interface": "RuntimeUpgradePick" },
+        { "file": "src/runtime/subsystems/score-deltas.ts", "interface": "RuntimeScoreDelta" },
+        { "file": "src/runtime/runtime-lobby.ts", "interface": "RuntimeLobby" },
+        { "file": "src/runtime/runtime-game-lifecycle.ts", "interface": "RuntimeLifecycle" },
+        { "file": "src/runtime/runtime-phase-ticks.ts", "interface": "RuntimePhaseTicks" },
+        { "file": "src/runtime/audio/music-player.ts", "interface": "RuntimeMusic" },
+        { "file": "src/runtime/audio/sfx-player.ts", "interface": "RuntimeSfx" },
+        { "file": "src/runtime/runtime-camera.ts", "interface": "CameraSystem" }
       ]
     },
     {

@@ -450,10 +450,12 @@
     "role": "runtime cores: state, tick context, dialog cores, haptics & overlay registry",
     "files": [
       "src/runtime/modifier-reveal-overlay-registry.ts",
+      "src/runtime/runtime-camera.ts",
       "src/runtime/runtime-haptics.ts",
       "src/runtime/runtime-life-lost-core.ts",
       "src/runtime/runtime-state.ts",
       "src/runtime/runtime-tick-context.ts",
+      "src/runtime/runtime-types.ts",
       "src/runtime/runtime-upgrade-pick-core.ts"
     ]
   },
@@ -580,8 +582,10 @@
     "files": [
       "src/runtime/modifier-reveal-time.ts",
       "src/runtime/runtime-battle-anim.ts",
+      "src/runtime/runtime-input-actions.ts",
+      "src/runtime/runtime-life-lost.ts",
       "src/runtime/runtime-main-loop.ts",
-      "src/runtime/runtime-types.ts",
+      "src/runtime/runtime-tick-consumers.ts",
       "src/runtime/runtime-ui-contracts.ts"
     ]
   },
@@ -595,6 +599,7 @@
       "src/runtime/subsystems/banner.ts",
       "src/runtime/subsystems/cannon-animator.ts",
       "src/runtime/subsystems/pointer-player.ts",
+      "src/runtime/subsystems/score-deltas.ts",
       "src/runtime/subsystems/upgrade-pick.ts"
     ]
   },
@@ -686,7 +691,6 @@
     "domain": "online",
     "role": "online runtime websocket",
     "files": [
-      "src/online/online-phase-transitions.ts",
       "src/online/online-runtime-ws.ts"
     ]
   },
@@ -722,26 +726,12 @@
     "domain": "runtime",
     "role": "runtime subsystems (camera, input, render, lobby, life-lost, options) + lifecycle, castle-build, phase-machine, tick-consumers",
     "files": [
-      "src/runtime/runtime-camera.ts",
       "src/runtime/runtime-castle-build.ts",
-      "src/runtime/runtime-game-lifecycle.ts",
-      "src/runtime/runtime-input-actions.ts",
       "src/runtime/runtime-input.ts",
-      "src/runtime/runtime-life-lost.ts",
       "src/runtime/runtime-lobby.ts",
       "src/runtime/runtime-options.ts",
       "src/runtime/runtime-phase-machine.ts",
-      "src/runtime/runtime-render.ts",
-      "src/runtime/runtime-tick-consumers.ts"
-    ]
-  },
-  {
-    "layer": 8,
-    "domain": "runtime",
-    "subdomain": "subsystems",
-    "role": "subsystem factories importing runtime contracts",
-    "files": [
-      "src/runtime/subsystems/score-deltas.ts"
+      "src/runtime/runtime-render.ts"
     ]
   },
   {
@@ -846,6 +836,14 @@
     ]
   },
   {
+    "layer": 10,
+    "domain": "runtime",
+    "role": "runtime tick consumers & lifecycle integration",
+    "files": [
+      "src/runtime/runtime-game-lifecycle.ts"
+    ]
+  },
+  {
     "layer": 11,
     "domain": "ai",
     "role": "AI brain + build strategy + derived tactic planners (pocket destruction, structural hit)",
@@ -882,6 +880,14 @@
     ]
   },
   {
+    "layer": 11,
+    "domain": "runtime",
+    "role": "GameRuntime handle — composition return type",
+    "files": [
+      "src/runtime/runtime-handle.ts"
+    ]
+  },
+  {
     "layer": 12,
     "domain": "ai",
     "role": "AI strategy orchestrator",
@@ -904,6 +910,14 @@
     "files": [
       "src/game/battle-system.ts",
       "src/game/build-system.ts"
+    ]
+  },
+  {
+    "layer": 12,
+    "domain": "online",
+    "role": "online phase-transition wire receivers",
+    "files": [
+      "src/online/online-phase-transitions.ts"
     ]
   },
   {

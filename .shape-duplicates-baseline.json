@@ -355,13 +355,13 @@
       "pair": "BurstHost@src/render/3d/effects/modifier-reveal-burst.ts ↔ ThawHost@src/render/3d/effects/thawing.ts"
     },
     {
-      "pair": "CameraSystem@src/runtime/runtime-types.ts ↔ PhaseTicksDeps@src/runtime/runtime-phase-ticks.ts"
+      "pair": "CameraSystem@src/runtime/runtime-camera.ts ↔ PhaseTicksDeps@src/runtime/runtime-phase-ticks.ts"
     },
     {
-      "pair": "CameraSystem@src/runtime/runtime-types.ts ↔ PhaseTransitionCtx@src/runtime/runtime-phase-machine.ts"
+      "pair": "CameraSystem@src/runtime/runtime-camera.ts ↔ PhaseTransitionCtx@src/runtime/runtime-phase-machine.ts"
     },
     {
-      "pair": "CameraSystem@src/runtime/runtime-types.ts ↔ ZoomButtonDeps@src/shared/ui/input-deps.ts"
+      "pair": "CameraSystem@src/runtime/runtime-camera.ts ↔ ZoomButtonDeps@src/shared/ui/input-deps.ts"
     },
     {
       "pair": "Cannon@src/shared/core/battle-types.ts ↔ SerializedCannon@src/protocol/checkpoint-data.ts"

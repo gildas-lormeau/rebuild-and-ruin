@@ -7,12 +7,13 @@ import {
   createBrowserRuntimeBindings,
   createGameRuntime,
 } from "../runtime/runtime-composition.ts";
+import type { GameRuntime } from "../runtime/runtime-handle.ts";
 import { setMode } from "../runtime/runtime-state.ts";
 import {
   isHostInContext,
   tickPersistentAnnouncement,
 } from "../runtime/runtime-tick-context.ts";
-import type { GameRuntime, NetworkApi } from "../runtime/runtime-types.ts";
+import type { NetworkApi } from "../runtime/runtime-types.ts";
 import { DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS } from "../shared/core/action-schedule.ts";
 import { isHuman } from "../shared/core/controller-guards.ts";
 import {

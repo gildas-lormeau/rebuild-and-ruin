@@ -16,19 +16,16 @@ import {
 } from "../shared/ui/interaction-types.ts";
 import type { GameOverOverlay } from "../shared/ui/overlay-types.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
+import type { CameraSystem } from "./runtime-camera.ts";
+import type { RuntimeLifeLost } from "./runtime-life-lost.ts";
+import type { RuntimeSelection } from "./runtime-selection.ts";
 import {
   type RuntimeState,
   resetTransientState,
   setMode,
 } from "./runtime-state.ts";
-import type {
-  CameraSystem,
-  RuntimeConfig,
-  RuntimeLifecycle,
-  RuntimeLifeLost,
-  RuntimeSelection,
-  RuntimeUpgradePick,
-} from "./runtime-types.ts";
+import type { RuntimeConfig } from "./runtime-types.ts";
+import type { RuntimeUpgradePick } from "./subsystems/upgrade-pick.ts";
 import type { TimingApi } from "./timing-api.ts";
 
 interface GameLifecycleDeps {
@@ -75,6 +72,32 @@ interface GameLifecycleDeps {
   ) => GameOverFocus | null;
   readonly getGameOverFocused: () => GameOverFocus;
   readonly isTouchDevice: boolean;
+}
+
+/** Public lifecycle handle exposed on `GameRuntime`. Owns game start
+ *  (bootstrap), rematch, reset paths shared between endGame and
+ *  returnToLobby. */
+export interface RuntimeLifecycle {
+  startGame: () => Promise<void>;
+  /** Full reset + fresh bootstrap — production-equivalent to the rematch
+   *  button on the game-over screen. Clears game-over / demo-timer state,
+   *  then calls `startGame`. Tests use this via `sc.rematch()` to drive
+   *  the "finish game 1, start game 2 on the same runtime" path. */
+  rematch: () => void | Promise<void>;
+  resetUIState: () => void;
+  /** Per-session reset matrix shared by `endGame` and `returnToLobby`.
+   *  Exposed so the online watcher's game-over handler can run the same
+   *  cleanup before flipping Mode.STOPPED — without it, watchers see
+   *  lingering score deltas, life-lost dialogs, and stale camera zoom
+   *  on the game-over screen. */
+  teardownSession: () => void;
+  /** Shared game-over terminal sequence: caller-supplied frame paint →
+   *  teardown → render → Mode.STOPPED. Used by the host's `endGame`, the
+   *  watcher's MESSAGE.GAME_OVER handler (paints from authoritative
+   *  scores), and the watcher's local last-player-standing detection
+   *  (paints nothing — the message will overwrite when it arrives).
+   *  Idempotent. */
+  finalizeGameOver: (setFrame: () => void) => void;
 }
 
 interface GameLifecycleSystem extends RuntimeLifecycle {

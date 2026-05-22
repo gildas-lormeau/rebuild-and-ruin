@@ -67,7 +67,114 @@ import {
   screenToWorld as projectScreenToWorld,
   worldToScreen as projectWorldToScreen,
 } from "./camera-projection.ts";
-import type { CameraSystem } from "./runtime-types.ts";
+
+/** Public camera handle exposed on `GameRuntime`. Consumed via `Pick<>`
+ *  by sub-systems that need a slice (selection, input, game-lifecycle);
+ *  the full surface is for the composition root only. */
+export interface CameraSystem {
+  // Per-frame lifecycle
+  tickCamera: () => void;
+  updateViewport: () => Viewport | undefined;
+
+  // Coordinate conversion
+  /** Read the current viewport. Used by `dev/e2e-bridge.ts` to observe
+   *  zoom state from tests; not consumed in the runtime hot path
+   *  (which uses `updateViewport`'s return value directly). */
+  getViewport: () => Viewport | undefined;
+  /** Current camera pitch in radians (animated on phase transitions). 3D mode
+   *  only — 2D mode always returns 0. */
+  getPitch: () => number;
+  /** Maximum pitch the camera reaches when fully tilted into the 3D
+   *  battle view. Constant for the lifetime of the runtime; exposed so
+   *  the renderer can normalize `getPitch()` into a `[0, 1]` tilt
+   *  progress without duplicating the constant cross-domain. 2D mode
+   *  returns 0. */
+  getPitchMax: () => number;
+  /** Request an immediate pitch=0 ease. Idempotent. Used for "untilt
+   *  without unzoom" (pitch only). The transition path already flattens
+   *  pitch via `unzoomForOverlays` on `shouldUnzoom`. */
+  beginUntilt: () => void;
+  /** Start the build→battle tilt animation. Called explicitly at
+   *  battle-banner end so the tilt plays unzoomed, before balloons /
+   *  "ready" / auto-zoom into the battle zone. 2D mode: no-op. */
+  beginTilt: () => void;
+  /** Pitch-animation state machine value. `"flat"` / `"tilted"` are
+   *  resting states; `"tilting"` / `"untilting"` indicate an in-progress
+   *  ease. 2D mode always returns `"flat"`. Subscribers that want the
+   *  settle edge (not the polled state) should listen for
+   *  `GAME_EVENT.PITCH_SETTLED` instead. */
+  getPitchState: () => "flat" | "tilting" | "tilted" | "untilting";
+  screenToWorld: (x: number, y: number) => WorldPos;
+  /** Like `screenToWorld` but returns the world position of the first
+   *  elevated-geometry hit under battle tilt (walls/towers/etc). At
+   *  pitch=0 this is identical to `screenToWorld`. */
+  pickHitWorld: (x: number, y: number) => WorldPos;
+  worldToScreen: (wx: number, wy: number) => { sx: number; sy: number };
+  pixelToTile: (x: number, y: number) => { row: number; col: number };
+
+  // Pinch gesture handlers
+  onPinchStart: (midX: number, midY: number) => void;
+  onPinchUpdate: (midX: number, midY: number, scale: number) => void;
+  onPinchEnd: () => void;
+
+  /** Snap the camera so `(wx, wy)` is at the viewport center (current zoom
+   *  preserved). Used by touch handlers on single-finger touchstart so a
+   *  tap re-centers wherever the player pressed. */
+  centerCameraOnTap: (wx: number, wy: number) => void;
+
+  // Zone queries
+  povPlayerId: () => number;
+  getEnemyZones: () => ZoneId[];
+
+  // Zoom state
+  getCameraZone: () => ZoneId | undefined;
+  /** The zone the user is visually looking at — explicit zone target if set,
+   *  otherwise the zone at the pinch viewport center, or undefined when on
+   *  full map / over a river. Drives the touch zone-cycle button preview. */
+  getViewedZone: () => ZoneId | undefined;
+  setCameraZone: (zone: ZoneId) => void;
+
+  // Lifecycle commands
+  /** Run `cb` once the next-rendered frame is at fullMap AND pitch is at
+   *  0. Fires synchronously when both already hold. Flattens the pitch
+   *  target as part of the call. Does NOT trigger the viewport unzoom —
+   *  `unzoomForOverlays` (driven by `shouldUnzoom`, which includes
+   *  `isTransition`) owns that. Pair with `setMode(Mode.TRANSITION)`
+   *  before the call. `captureScene()` called inside `cb` reads full-map
+   *  flat pixels. */
+  awaitCameraFlat: (callback: () => void) => void;
+  /** Run `cb` once the in-flight pitch animation completes (in either
+   *  direction — `flat` and `tilted` both count as settled). Fires
+   *  synchronously when pitch is already settled, including the headless
+   *  `cameraTiltEnabled === false` case. Used by the phase machine's
+   *  battle-banner postDisplay to gate balloon-anim / battle-mode entry
+   *  behind the build→battle tilt-in. Caller-overwrite semantics. */
+  awaitPitchSettled: (callback: () => void) => void;
+  /** Post-render hook — called by the render loop after drawFrame.
+   *  Fires any pending `awaitCameraFlat` callback when the viewport has
+   *  converged to fullMapVp and pitch is settled. */
+  onRenderedFrame: () => void;
+  /** Full unzoom: clear all zoom state for returnToLobby/endGame. */
+  clearAllZoomState: () => void;
+  /** Full reset for rematch. */
+  resetCamera: () => void;
+
+  // Castle build viewport
+  setSelectionViewport: (towerRow: number, towerCol: number) => void;
+  setCastleBuildViewport: (playerId: ValidPlayerId) => void;
+  clearCastleBuildViewport: () => void;
+
+  // Mobile zoom
+  enableMobileZoom: () => void;
+  isMobileAutoZoom: () => boolean;
+
+  // Touch battle targeting
+  /** Compute target position for human crosshair at battle start (touch devices).
+   *  Returns null when no target is applicable. Caller applies to controller. */
+  computeBattleTarget: () => { x: number; y: number } | null;
+  /** Store a crosshair position for restoration at the next battle start. */
+  saveBattleCrosshair: (pos: { x: number; y: number }) => void;
+}
 
 /** EXCEPTION: CameraDeps uses all-getter pattern (late binding) because camera state
  *  can change during host migration. Other sub-systems destructure runtimeState directly. */

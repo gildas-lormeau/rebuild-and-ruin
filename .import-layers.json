@@ -194,10 +194,12 @@
       "src/runtime/audio/music-player.ts",
       "src/runtime/audio/sfx-player.ts",
       "src/runtime/modifier-reveal-overlay-registry.ts",
+      "src/runtime/runtime-camera.ts",
       "src/runtime/runtime-haptics.ts",
       "src/runtime/runtime-life-lost-core.ts",
       "src/runtime/runtime-state.ts",
       "src/runtime/runtime-tick-context.ts",
+      "src/runtime/runtime-types.ts",
       "src/runtime/runtime-upgrade-pick-core.ts",
       "src/shared/core/controller-guards.ts",
       "src/shared/core/occupancy-queries.ts",
@@ -240,13 +242,16 @@
       "src/render/3d/terrain.ts",
       "src/runtime/modifier-reveal-time.ts",
       "src/runtime/runtime-battle-anim.ts",
+      "src/runtime/runtime-input-actions.ts",
+      "src/runtime/runtime-life-lost.ts",
       "src/runtime/runtime-main-loop.ts",
-      "src/runtime/runtime-types.ts",
+      "src/runtime/runtime-tick-consumers.ts",
       "src/runtime/runtime-ui-contracts.ts",
       "src/runtime/subsystems/audio.ts",
       "src/runtime/subsystems/banner.ts",
       "src/runtime/subsystems/cannon-animator.ts",
       "src/runtime/subsystems/pointer-player.ts",
+      "src/runtime/subsystems/score-deltas.ts",
       "src/runtime/subsystems/upgrade-pick.ts",
       "src/shared/core/board-occupancy.ts"
     ]
@@ -270,7 +275,6 @@
       "src/input/input-touch-canvas.ts",
       "src/input/input-touch-ui.ts",
       "src/input/input-touch-update.ts",
-      "src/online/online-phase-transitions.ts",
       "src/online/online-runtime-ws.ts",
       "src/render/3d/effects/cannon-burns.ts",
       "src/render/3d/effects/dust-storm.ts",
@@ -284,18 +288,12 @@
       "src/render/render-ui-overlays.ts",
       "src/render/render-ui-screens.ts",
       "src/render/render-ui-settings.ts",
-      "src/runtime/runtime-camera.ts",
       "src/runtime/runtime-castle-build.ts",
-      "src/runtime/runtime-game-lifecycle.ts",
-      "src/runtime/runtime-input-actions.ts",
       "src/runtime/runtime-input.ts",
-      "src/runtime/runtime-life-lost.ts",
       "src/runtime/runtime-lobby.ts",
       "src/runtime/runtime-options.ts",
       "src/runtime/runtime-phase-machine.ts",
-      "src/runtime/runtime-render.ts",
-      "src/runtime/runtime-tick-consumers.ts",
-      "src/runtime/subsystems/score-deltas.ts"
+      "src/runtime/runtime-render.ts"
     ]
   },
   {
@@ -334,7 +332,8 @@
       "src/game/cannon-system.ts",
       "src/game/wall-impact.ts",
       "src/render/3d/effects/modifier-effect-registry.ts",
-      "src/render/render-map.ts"
+      "src/render/render-map.ts",
+      "src/runtime/runtime-game-lifecycle.ts"
     ]
   },
   {
@@ -347,7 +346,8 @@
       "src/controllers/controller-ai.ts",
       "src/game/grunt-system.ts",
       "src/render/3d/scene.ts",
-      "src/render/render-canvas.ts"
+      "src/render/render-canvas.ts",
+      "src/runtime/runtime-handle.ts"
     ]
   },
   {
@@ -357,6 +357,7 @@
       "src/controllers/controller-ai-assisted-human.ts",
       "src/game/battle-system.ts",
       "src/game/build-system.ts",
+      "src/online/online-phase-transitions.ts",
       "src/render/3d/renderer.ts"
     ]
   },

@@ -70,6 +70,7 @@ import {
   buildLifecycleDeps,
   createGameLifecycle,
 } from "./runtime-game-lifecycle.ts";
+import type { GameRuntime } from "./runtime-handle.ts";
 import { createHapticsSubsystem } from "./runtime-haptics.ts";
 import { createInputSystem, type TouchHandles } from "./runtime-input.ts";
 import { createLocalInputActions } from "./runtime-input-actions.ts";
@@ -94,11 +95,7 @@ import {
   setMode,
   setVisibilityHidden,
 } from "./runtime-state.ts";
-import type {
-  GameRuntime,
-  NetworkApi,
-  RuntimeConfig,
-} from "./runtime-types.ts";
+import type { NetworkApi, RuntimeConfig } from "./runtime-types.ts";
 import type { UIContext } from "./runtime-ui-contracts.ts";
 import { createAudioOrchestrator } from "./subsystems/audio.ts";
 import { createBannerSystem } from "./subsystems/banner.ts";

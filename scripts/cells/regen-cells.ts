@@ -200,11 +200,13 @@ const LABELS: Record<string, string> = {
   "11::controllers": "AI controller (host wrapper around injected brain)",
   "11::game": "grunt system",
   "11::render": "frame renderers",
+  "11::runtime": "GameRuntime handle — composition return type",
 
   // L12 — phase orchestration
   "12::ai": "AI strategy orchestrator",
   "12::controllers": "AI assisted-human controller variant",
   "12::game": "battle & build system orchestration",
+  "12::online": "online phase-transition wire receivers",
   "12::render": "3D renderer entry",
 
   // L13 — wiring

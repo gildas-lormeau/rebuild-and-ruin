@@ -37,6 +37,7 @@ const SUBSYSTEMS_DIR = join(RUNTIME_DIR, "subsystems");
 /** Files that are part of the runtime layer but are NOT sub-systems. */
 const EXEMPT = new Set([
   "runtime-composition.ts",
+  "runtime-handle.ts", // GameRuntime interface (composition return type), pure type file
   "runtime-types.ts",
   "runtime-state.ts",
   "runtime-banner-state.ts", // BannerState type + null-init constructor, not a factory sub-system
@@ -59,6 +60,7 @@ const EXEMPT_PREFIXES = ["online-runtime-"];
  *  are not gated here — `lint-restricted-imports.ts` handles cross-domain rules. */
 const ALLOWED_RUNTIME_BASENAMES = new Set([
   "runtime-types.ts",
+  "runtime-handle.ts", // GameRuntime interface (pure type file)
   "runtime-state.ts",
   "runtime-ui-contracts.ts", // UI contracts (overlay/screen factories, hit tests, touch handles, input-handler registration)
   "runtime-banner-state.ts", // BannerState type + null-init constructor
@@ -262,6 +264,11 @@ function getSubSystemFiles(): string[] {
 function getImports(content: string): string[] {
   const imports: string[] = [];
   for (const line of content.split("\n")) {
+    // Skip type-only imports — they're erased at compile time and create
+    // no runtime coupling between sub-systems. Sub-systems are free to
+    // reference each other's public interface contracts (the `RuntimeXxx`
+    // types co-located with each subsystem file).
+    if (line.match(/^\s*import\s+type\b/)) continue;
     const m = line.match(/from\s+"(\.[^"]+)"/);
     if (m) imports.push(m[1]!);
   }

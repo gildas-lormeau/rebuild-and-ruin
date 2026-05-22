@@ -11,10 +11,31 @@ import { emitGameEvent, GAME_EVENT } from "../../shared/core/game-event-bus.ts";
 import { TILE_SIZE } from "../../shared/core/grid.ts";
 import { towerCenterPx } from "../../shared/core/spatial.ts";
 import type { RuntimeState } from "../runtime-state.ts";
-import type { RuntimeScoreDelta } from "../runtime-types.ts";
 
 interface ScoreDeltaDeps {
   readonly runtimeState: RuntimeState;
+}
+
+/** Public score-delta animation handle exposed on `GameRuntime`. Tick
+ *  scope: mode-independent (the timer counts down regardless of mode,
+ *  including during banner/castle-build animations). Driven by `tick(dt)`
+ *  from the main loop; visibility is on the runtime's overlay state. */
+export interface RuntimeScoreDelta {
+  /** Snapshot current player scores before the build phase starts. */
+  capturePreScores: () => void;
+  /** Set pre-scores directly (online watcher receives them from host). */
+  setPreScores: (scores: readonly number[]) => void;
+  /** Show animated score deltas. `onDone` fires once when animation finishes
+   *  (or immediately if no positive deltas exist). */
+  show: (onDone: () => void) => void;
+  /** Tick the display timer (called every frame from mainLoop). */
+  tick: (dt: number) => void;
+  /** Animation progress 0→1 (0 = just started, 1 = done). */
+  progress: () => number;
+  /** Clear all score delta state (timer, deltas, pending callback). Safe to
+   *  call at any time — host-promote relies on this to drop a stale
+   *  `runDisplay` callback when promotion lands mid-overlay. */
+  reset: () => void;
 }
 
 export function createScoreDeltaSystem(

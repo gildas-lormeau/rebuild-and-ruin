@@ -27,18 +27,43 @@ import type { ZoneId } from "../shared/core/zone-id.ts";
 import type { RenderOverlay } from "../shared/ui/overlay-types.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
 import { BANNER_SELECT } from "./banner-messages.ts";
+import type { CameraSystem } from "./runtime-camera.ts";
 import {
   createCastleBuildState,
   tickCastleBuildAnimation,
 } from "./runtime-castle-build.ts";
 import { type RuntimeState, setMode } from "./runtime-state.ts";
 import { advancePhaseTimer, isRemotePlayer } from "./runtime-tick-context.ts";
-import type { CameraSystem, RuntimeSelection } from "./runtime-types.ts";
 import {
   ACCUM_SELECT,
   type MutableAccums,
   resetAccum,
 } from "./timer-accums.ts";
+
+/** Public selection handle exposed on `GameRuntime`. Drives the CASTLE_SELECT
+ *  phase (initial cycle + reselect cycle) and the castle-build animation. */
+export interface RuntimeSelection {
+  getStates: () => Map<ValidPlayerId, SelectionState>;
+  /** Enter CASTLE_SELECT. Omit `queue` for the initial cycle (bootstrap
+   *  path: round 1 / watcher SELECT_START); pass an explicit queue for
+   *  the lifeLostRoute reselect cycle. */
+  enter: (queue?: readonly ValidPlayerId[]) => void;
+  syncOverlay: () => void;
+  highlight: (idx: TowerIdx, zone: ZoneId, pid: ValidPlayerId) => void;
+  confirmAndStartBuild: (
+    pid: ValidPlayerId,
+    source?: "local" | "network",
+    applyAt?: number,
+  ) => boolean;
+  allConfirmed: () => boolean;
+  isReady: () => boolean;
+  tick: (dt: number) => void;
+  finish: () => void;
+  advanceToCannonPhase: () => void;
+  tickCastleBuild: (dt: number) => void;
+  /** Full reset for game restart / rematch. */
+  reset: () => void;
+}
 
 interface SelectionSystemDeps {
   runtimeState: RuntimeState;

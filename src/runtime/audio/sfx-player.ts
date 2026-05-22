@@ -27,10 +27,16 @@ import {
 } from "../../shared/platform/sound-rsc.ts";
 import type { MusicAssets } from "./music-assets.ts";
 
-export interface SfxSubsystem {
-  /** Prime the AudioContext inside a user-gesture handler. Safe to call
-   *  repeatedly; later calls are no-ops. */
+/** Narrow SFX handle exposed on `GameRuntime`. Subset of `SfxSubsystem`
+ *  surfaced for the app shell — lets the home-page "Play" button pre-warm
+ *  the SFX AudioContext at the same time as the music synth. */
+export interface RuntimeSfx {
   activate(): Promise<void>;
+}
+
+export interface SfxSubsystem extends RuntimeSfx {
+  // Inherits `activate` from `RuntimeSfx` (the narrow public surface).
+  // The methods below are internal to composition.
   /** Play a named SOUND.RSC sample once. Resolves with the
    *  `AudioBufferSourceNode` driving playback (so callers can chain
    *  `onended`) or undefined when the sample or context isn't available.

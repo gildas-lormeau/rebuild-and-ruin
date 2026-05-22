@@ -31,6 +31,17 @@ import {
   tickUpgradePickDialog,
 } from "../runtime-upgrade-pick-core.ts";
 
+/** Public upgrade-pick dialog handle exposed on `GameRuntime`. Tick scope:
+ *  gated on `Mode.UPGRADE_PICK`. Sibling dialog handle is `RuntimeLifeLost`. */
+export interface RuntimeUpgradePick {
+  /** Read current dialog state. Symmetric with `RuntimeLifeLost.get` —
+   *  prefer this over `runtimeState.dialogs.upgradePick` when doing a
+   *  single targeted read from outside the owning subsystem. */
+  get: () => UpgradePickDialogState | null;
+  /** Replace dialog state. Used by watcher-mode to apply host-broadcast state. */
+  set: (dialog: UpgradePickDialogState | null) => void;
+}
+
 interface UpgradePickSystemDeps {
   readonly runtimeState: RuntimeState;
   readonly log: (msg: string) => void;
