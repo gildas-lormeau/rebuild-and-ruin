@@ -336,6 +336,7 @@ export function findOuterRingHoles(
           if (
             !isGrass(state.map.tiles, ir, ic) ||
             hasPitAt(state.burningPits, ir, ic) ||
+            hasAliveHouseAt(state, ir, ic) ||
             interior.has(packTile(ir, ic))
           ) {
             allFillable = false;
@@ -720,12 +721,15 @@ function tryRepairHomeCastle(ctx: TargetContext): TargetResult {
 
     for (const key of gaps) {
       const { row, col } = unpackTile(key);
-      // Only expand for temporary blockers (grunts, burning pits).
-      // Water is permanent terrain — expanding just creates more water gaps.
+      // Only expand for temporary blockers (grunts, burning pits, alive
+      // houses — house tiles turn placed walls into grunts, so the gap
+      // doesn't actually close). Water is permanent terrain — expanding
+      // just creates more water gaps.
       if (!isGrass(state.map.tiles, row, col)) continue;
       const blocked =
         hasGruntAt(state.grunts, row, col) ||
-        hasPitAt(state.burningPits, row, col);
+        hasPitAt(state.burningPits, row, col) ||
+        hasAliveHouseAt(state, row, col);
       if (!blocked) continue;
 
       if (

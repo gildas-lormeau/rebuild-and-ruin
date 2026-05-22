@@ -7,9 +7,13 @@
  */
 
 import type { BurningPit } from "../shared/core/battle-types.ts";
-import { hasEnemyWallAt, hasGruntAt } from "../shared/core/board-occupancy.ts";
+import {
+  hasAliveHouseAt,
+  hasEnemyWallAt,
+  hasGruntAt,
+} from "../shared/core/board-occupancy.ts";
 import { TOWER_SIZE } from "../shared/core/game-constants.ts";
-import type { TileRect, Tower } from "../shared/core/geometry-types.ts";
+import type { House, TileRect, Tower } from "../shared/core/geometry-types.ts";
 import {
   GRID_COLS,
   GRID_ROWS,
@@ -52,7 +56,7 @@ const OBSTRUCTION_PENALTY = 60;
 
 /**
  * Compute the fillable gap set for a castle rect: reachable ring gaps plus
- * bank/pit plug gaps for diagonal-leak sealing.
+ * bank/pit/house plug gaps for diagonal-leak sealing.
  */
 export function computeFillableGaps(
   rect: TileRect,
@@ -62,13 +66,14 @@ export function computeFillableGaps(
   bankHugging: boolean,
 ): Set<TileKey> {
   const gaps = findReachableRingGaps(rect, walls, state, interior);
-  // Pit plugs always needed; water plugs only when bankHugging
+  // Pit and alive-house plugs always needed; water plugs only when bankHugging
   addBankPlugGaps(
     gaps,
     rect,
     walls,
     state.map.tiles,
     state.burningPits,
+    state.map.houses,
     bankHugging,
   );
   return gaps;
@@ -154,7 +159,10 @@ export function findReachableRingGaps(
   return gaps;
 }
 
-/** Remove gaps that can't be filled (non-grass, burning pit, cannon, tower, inside interior). */
+/** Remove gaps that can't be filled (non-grass, burning pit, alive house,
+ *  cannon, tower, inside interior). Alive house tiles are excluded because
+ *  placing a wall on a house tile spawns a grunt instead of a wall — the
+ *  ring gap doesn't actually close. */
 export function filterUnfillableGaps(
   gaps: Set<TileKey>,
   state: BuildViewState,
@@ -165,6 +173,7 @@ export function filterUnfillableGaps(
     if (
       !isGrass(state.map.tiles, row, col) ||
       hasPitAt(state.burningPits, row, col) ||
+      hasAliveHouseAt(state, row, col) ||
       hasCannonAt(state, row, col) ||
       hasTowerAt(state, row, col) ||
       interior.has(key)
@@ -501,9 +510,12 @@ function shrinkCornersForWater(
 }
 
 /**
- * When a ring gap is unfillable (water or burning pit), the 8-dir flood can
- * still leak through it diagonally into the rect interior.  Add "plug" gaps —
- * grass tiles just inside the rect that, once walled, seal the diagonal leak.
+ * When a ring gap is unfillable (water, burning pit, or alive house), the
+ * 8-dir flood can still leak through it diagonally into the rect interior.
+ * Add "plug" gaps — grass tiles just inside the rect that, once walled, seal
+ * the diagonal leak. Houses don't block flood-fill (only walls/cannons/towers
+ * do), and a wall placed on a house tile spawns a grunt instead of a wall,
+ * so houses leak diagonally the same way pits do.
  */
 function addBankPlugGaps(
   gaps: Set<TileKey>,
@@ -511,13 +523,13 @@ function addBankPlugGaps(
   walls: ReadonlySet<TileKey>,
   tiles: readonly (readonly Tile[])[],
   burningPits?: readonly BurningPit[],
+  houses?: readonly House[],
   includeWater = true,
 ): void {
   const ringTop = rect.top - 1,
     ringBot = rect.bottom + 1;
   const ringLeft = rect.left - 1,
     ringRight = rect.right + 1;
-  // Find unfillable tiles on the ring (water and/or burning pits)
   const unfillableRing: TileKey[] = [];
   for (let r = ringTop; r <= ringBot; r++) {
     for (let c = ringLeft; c <= ringRight; c++) {
@@ -528,7 +540,12 @@ function addBankPlugGaps(
       if (walls.has(key)) continue;
       const onWater = includeWater && isWater(tiles, r, c);
       const onPit = burningPits != null && hasPitAt(burningPits, r, c);
-      if (onWater || onPit) {
+      const onHouse =
+        houses != null &&
+        houses.some(
+          (house) => house.alive && house.row === r && house.col === c,
+        );
+      if (onWater || onPit || onHouse) {
         unfillableRing.push(key);
       }
     }
@@ -612,6 +629,10 @@ function countCastleRectObstructions(
         continue;
       }
       if (hasPitAt(state.burningPits, r, c)) {
+        obstructions++;
+        continue;
+      }
+      if (hasAliveHouseAt(state, r, c)) {
         obstructions++;
         continue;
       }
