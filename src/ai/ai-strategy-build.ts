@@ -411,12 +411,23 @@ function selectBestPlacement(
       createsSmallEnclosure(candidate, walls, outside, state, aliveHouseKeys),
     );
 
-    const open = allCandidates.filter(
-      (c) =>
-        c.wallAdjacent === 0 &&
-        fatBlockCountFor(c) === 0 &&
-        !isSmallEnclosure(c),
-    );
+    // Bucket candidates into descending-preference tiers in a single pass.
+    // Each tier subsumes the next's qualification (open ⊂ noFatNotOpen ⊂ rest).
+    // We only sort the tier we end up returning from.
+    const open: Candidate[] = [];
+    const noFatNotOpen: Candidate[] = [];
+    const rest: Candidate[] = [];
+    for (const candidate of allCandidates) {
+      const cleanFat = fatBlockCountFor(candidate) === 0;
+      const cleanShape = cleanFat && !isSmallEnclosure(candidate);
+      if (cleanShape && candidate.wallAdjacent === 0) {
+        open.push(candidate);
+      } else if (cleanShape) {
+        noFatNotOpen.push(candidate);
+      } else {
+        rest.push(candidate);
+      }
+    }
     if (open.length > 0) {
       open.sort(
         (a, b) =>
@@ -425,21 +436,17 @@ function selectBestPlacement(
       );
       return candidateToPlacement(open[0]!);
     }
-    // Allow fat-free first, fall back to least fat — still reject small enclosures
-    const noFat = allCandidates.filter(
-      (c) => fatBlockCountFor(c) === 0 && !isSmallEnclosure(c),
-    );
-    if (noFat.length > 0) {
-      return candidateToPlacement(noFat[0]!);
+    if (noFatNotOpen.length > 0) {
+      return candidateToPlacement(noFatNotOpen[0]!);
     }
-    // Last resort: least fat, prefer no small enclosure
-    const least = [...allCandidates].sort((a, b) => {
+    // Last resort: prefer no small enclosure, then fewer fat blocks
+    rest.sort((a, b) => {
       const aEncloses = isSmallEnclosure(a) ? 1 : 0;
       const bEncloses = isSmallEnclosure(b) ? 1 : 0;
       if (aEncloses !== bEncloses) return aEncloses - bEncloses;
       return fatBlockCountFor(a) - fatBlockCountFor(b);
     });
-    return candidateToPlacement(least[0]!);
+    return candidateToPlacement(rest[0]!);
   }
 
   const sortedScored = [...scored].sort((a, b) => b.score - a.score);
