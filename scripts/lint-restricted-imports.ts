@@ -84,13 +84,13 @@ const TILE_VALUE_ALLOWLIST = new Set([
  *  `runtime/` root or under `runtime/subsystems/`. */
 const RUNTIME_SUBSYSTEMS = new Set([
   "banner.ts",
+  "life-lost.ts",
   "pointer-player.ts",
   "score-deltas.ts",
   "upgrade-pick.ts",
   "runtime-camera.ts",
   "runtime-game-lifecycle.ts",
   "runtime-input.ts",
-  "runtime-life-lost.ts",
   "runtime-lobby.ts",
   "runtime-options.ts",
   "runtime-phase-ticks.ts",

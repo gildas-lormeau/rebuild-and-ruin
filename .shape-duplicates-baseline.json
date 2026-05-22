@@ -172,7 +172,7 @@
       "pair": "BallParams@src/render/3d/sprites/cannonball-scene.ts ↔ PieceDims@src/render/3d/sprites/debris-scene.ts"
     },
     {
-      "pair": "BannerSystemDeps@src/runtime/subsystems/banner.ts ↔ LifeLostSystemDeps@src/runtime/runtime-life-lost.ts"
+      "pair": "BannerSystemDeps@src/runtime/subsystems/banner.ts ↔ LifeLostSystemDeps@src/runtime/subsystems/life-lost.ts"
     },
     {
       "pair": "BannerSystemDeps@src/runtime/subsystems/banner.ts ↔ LobbySystemDeps@src/runtime/runtime-lobby.ts"
@@ -661,13 +661,13 @@
       "pair": "LifecycleWiringDeps@src/runtime/runtime-game-lifecycle.ts ↔ RuntimeLoopDeps@src/runtime/runtime-main-loop.ts"
     },
     {
-      "pair": "LifeLostSystemDeps@src/runtime/runtime-life-lost.ts ↔ LobbySystemDeps@src/runtime/runtime-lobby.ts"
+      "pair": "LifeLostSystemDeps@src/runtime/subsystems/life-lost.ts ↔ LobbySystemDeps@src/runtime/runtime-lobby.ts"
     },
     {
-      "pair": "LifeLostSystemDeps@src/runtime/runtime-life-lost.ts ↔ SelectionSystemDeps@src/runtime/runtime-selection.ts"
+      "pair": "LifeLostSystemDeps@src/runtime/subsystems/life-lost.ts ↔ SelectionSystemDeps@src/runtime/runtime-selection.ts"
     },
     {
-      "pair": "LifeLostSystemDeps@src/runtime/runtime-life-lost.ts ↔ UpgradePickSystemDeps@src/runtime/subsystems/upgrade-pick.ts"
+      "pair": "LifeLostSystemDeps@src/runtime/subsystems/life-lost.ts ↔ UpgradePickSystemDeps@src/runtime/subsystems/upgrade-pick.ts"
     },
     {
       "pair": "LobbySystemDeps@src/runtime/runtime-lobby.ts ↔ OptionsSystemDeps@src/runtime/runtime-options.ts"

@@ -365,7 +365,7 @@ export interface UpgradePickController {
  *
  *  The dialog state (timer, per-entry autoTimer, focus) lives on
  *  `LifeLostEntry`; the controller decides whether to commit and what to
- *  pick. The orchestrator (`runtime-life-lost.ts`) iterates entries each
+ *  pick. The orchestrator (`subsystems/life-lost.ts`) iterates entries each
  *  tick and calls `tickLifeLost` on auto-resolving controllers; the
  *  max-timer fallback in `tickLifeLostDialog` picks ABANDON directly. */
 export interface LifeLostController {

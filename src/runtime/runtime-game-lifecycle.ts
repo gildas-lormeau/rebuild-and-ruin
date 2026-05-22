@@ -17,7 +17,6 @@ import {
 import type { GameOverOverlay } from "../shared/ui/overlay-types.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
 import type { CameraSystem } from "./runtime-camera.ts";
-import type { RuntimeLifeLost } from "./runtime-life-lost.ts";
 import type { RuntimeSelection } from "./runtime-selection.ts";
 import {
   type RuntimeState,
@@ -25,6 +24,7 @@ import {
   setMode,
 } from "./runtime-state.ts";
 import type { RuntimeConfig } from "./runtime-types.ts";
+import type { RuntimeLifeLost } from "./subsystems/life-lost.ts";
 import type { RuntimeUpgradePick } from "./subsystems/upgrade-pick.ts";
 import type { TimingApi } from "./timing-api.ts";
 

@@ -56,7 +56,6 @@ import {
   recordBattleVisualEvents,
   tickBalloonFlights,
 } from "./runtime-battle-anim.ts";
-import type { RuntimeLifeLost } from "./runtime-life-lost.ts";
 import {
   type PhaseTransitionCtx,
   runTransition,
@@ -73,6 +72,7 @@ import {
   tickGruntsIfDue,
 } from "./runtime-tick-context.ts";
 import type { OnlinePhaseTicks, RuntimeConfig } from "./runtime-types.ts";
+import type { RuntimeLifeLost } from "./subsystems/life-lost.ts";
 import {
   ACCUM_BATTLE,
   ACCUM_BUILD,

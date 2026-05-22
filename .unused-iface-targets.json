@@ -11,7 +11,7 @@
       "label": "Sub-system handles surfaced on GameRuntime",
       "targets": [
         { "file": "src/runtime/runtime-selection.ts", "interface": "RuntimeSelection" },
-        { "file": "src/runtime/runtime-life-lost.ts", "interface": "RuntimeLifeLost" },
+        { "file": "src/runtime/subsystems/life-lost.ts", "interface": "RuntimeLifeLost" },
         { "file": "src/runtime/subsystems/upgrade-pick.ts", "interface": "RuntimeUpgradePick" },
         { "file": "src/runtime/subsystems/score-deltas.ts", "interface": "RuntimeScoreDelta" },
         { "file": "src/runtime/runtime-lobby.ts", "interface": "RuntimeLobby" },

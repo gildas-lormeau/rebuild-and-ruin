@@ -1,16 +1,16 @@
-import { DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS } from "../shared/core/action-schedule.ts";
+import { DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS } from "../../shared/core/action-schedule.ts";
 import {
   LIFE_LOST_AUTO_DELAY,
   LIFE_LOST_MAX_TIMER,
-} from "../shared/core/game-constants.ts";
-import type { ValidPlayerId } from "../shared/core/player-slot.ts";
+} from "../../shared/core/game-constants.ts";
+import type { ValidPlayerId } from "../../shared/core/player-slot.ts";
 import {
   LifeLostChoice,
   type LifeLostDialogState,
   type LifeLostEntry,
   type ResolvedChoice,
-} from "../shared/ui/interaction-types.ts";
-import { Mode } from "../shared/ui/ui-mode.ts";
+} from "../../shared/ui/interaction-types.ts";
+import { Mode } from "../../shared/ui/ui-mode.ts";
 import {
   abandonedPlayers,
   applyLifeLostChoice,
@@ -21,8 +21,8 @@ import {
   isLifeLostAllResolved,
   tickLifeLostDialog,
   toggleLifeLostFocus,
-} from "./runtime-life-lost-core.ts";
-import { type RuntimeState, setMode } from "./runtime-state.ts";
+} from "../runtime-life-lost-core.ts";
+import { type RuntimeState, setMode } from "../runtime-state.ts";
 
 /** Public life-lost dialog handle exposed on `GameRuntime`. Tick scope:
  *  gated on `Mode.LIFE_LOST` (the runtime ticks this when the popup is

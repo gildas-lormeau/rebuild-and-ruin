@@ -11,11 +11,11 @@ import type { RuntimeMusic } from "./audio/music-player.ts";
 import type { RuntimeSfx } from "./audio/sfx-player.ts";
 import type { CameraSystem } from "./runtime-camera.ts";
 import type { RuntimeLifecycle } from "./runtime-game-lifecycle.ts";
-import type { RuntimeLifeLost } from "./runtime-life-lost.ts";
 import type { RuntimeLobby } from "./runtime-lobby.ts";
 import type { RuntimePhaseTicks } from "./runtime-phase-ticks.ts";
 import type { RuntimeSelection } from "./runtime-selection.ts";
 import type { RuntimeState } from "./runtime-state.ts";
+import type { RuntimeLifeLost } from "./subsystems/life-lost.ts";
 import type { RuntimeScoreDelta } from "./subsystems/score-deltas.ts";
 import type { RuntimeUpgradePick } from "./subsystems/upgrade-pick.ts";
 

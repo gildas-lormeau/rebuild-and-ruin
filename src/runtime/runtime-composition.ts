@@ -74,10 +74,6 @@ import type { GameRuntime } from "./runtime-handle.ts";
 import { createHapticsSubsystem } from "./runtime-haptics.ts";
 import { createInputSystem, type TouchHandles } from "./runtime-input.ts";
 import { createLocalInputActions } from "./runtime-input-actions.ts";
-import {
-  createLifeLostSystem,
-  type LifeLostSystem,
-} from "./runtime-life-lost.ts";
 import { createLobbySystem } from "./runtime-lobby.ts";
 import { createRuntimeLoop } from "./runtime-main-loop.ts";
 import { createOptionsSystem } from "./runtime-options.ts";
@@ -100,6 +96,10 @@ import type { UIContext } from "./runtime-ui-contracts.ts";
 import { createAudioOrchestrator } from "./subsystems/audio.ts";
 import { createBannerSystem } from "./subsystems/banner.ts";
 import { createCannonAnimator } from "./subsystems/cannon-animator.ts";
+import {
+  createLifeLostSystem,
+  type LifeLostSystem,
+} from "./subsystems/life-lost.ts";
 import { createPointerPlayerLookup } from "./subsystems/pointer-player.ts";
 import { createScoreDeltaSystem } from "./subsystems/score-deltas.ts";
 import {
@@ -561,7 +561,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   );
 
   // -------------------------------------------------------------------------
-  // Life-lost sub-system (delegated to runtime-life-lost.ts)
+  // Life-lost sub-system (delegated to subsystems/life-lost.ts)
   // -------------------------------------------------------------------------
 
   const lifeLost: LifeLostSystem = createLifeLostSystem({
