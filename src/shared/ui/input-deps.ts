@@ -16,6 +16,7 @@ import type {
 import type { GameState, SelectionState } from "../core/types.ts";
 import type { ZoneId } from "../core/zone-id.ts";
 import type { Action } from "./input-action.ts";
+import type { QuitState } from "./interaction-types.ts";
 import type { Mode } from "./ui-mode.ts";
 
 /** Run `action` with the pointer (local human) controller. Returns `true`
@@ -138,10 +139,8 @@ export interface ZoomButtonDeps {
 }
 
 export interface QuitButtonDeps {
-  getQuitPending: () => boolean;
-  setQuitPending: (quitPending: boolean) => void;
-  setQuitTimer: (quitTimer: number) => void;
-  setQuitMessage: (msg: string) => void;
+  getQuit: () => QuitState;
+  setQuit: (quit: QuitState) => void;
   showLobby: () => void;
   getControllers: () => PlayerController[];
   isHuman: (ctrl: PlayerController) => boolean;

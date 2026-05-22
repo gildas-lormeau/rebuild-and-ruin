@@ -109,10 +109,8 @@ export function createQuitButton(
   function handleQuit() {
     dispatchQuit(
       {
-        getPending: deps.getQuitPending,
-        setPending: deps.setQuitPending,
-        setTimer: deps.setQuitTimer,
-        setMessage: deps.setQuitMessage,
+        getQuit: deps.getQuit,
+        setQuit: deps.setQuit,
         showLobby: deps.showLobby,
         getControllers: deps.getControllers,
         isHuman: deps.isHuman,

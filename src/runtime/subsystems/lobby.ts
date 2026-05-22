@@ -212,7 +212,7 @@ export function createLobbySystem(deps: LobbySystemDeps): LobbySystem {
     runtimeState.lobby.active = true;
     runtimeState.lobby.timerAccum = 0;
     runtimeState.lobby.map = null; // force fresh seed + map preview
-    runtimeState.quit.pending = false;
+    runtimeState.quit = { pending: false };
     runtimeState.optionsUI.returnMode = null;
     deps.requestRender();
     setMode(runtimeState, Mode.LOBBY);

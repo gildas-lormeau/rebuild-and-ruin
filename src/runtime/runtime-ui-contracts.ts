@@ -43,6 +43,7 @@ import type {
   ControlsState,
   GameOverFocus,
   LifeLostDialogState,
+  QuitState,
   UpgradePickDialogState,
 } from "../shared/ui/interaction-types.ts";
 import type {
@@ -414,10 +415,8 @@ export interface RegisterOnlineInputDeps {
 
   // --- Quit flow ---
   quit: {
-    getPending: () => boolean;
-    setPending: (value: boolean) => void;
-    setTimer: (seconds: number) => void;
-    setMessage: (text: string) => void;
+    getQuit: () => QuitState;
+    setQuit: (quit: QuitState) => void;
   };
 }
 

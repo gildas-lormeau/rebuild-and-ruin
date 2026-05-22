@@ -32,6 +32,7 @@ import type {
   GameActionDeps,
   OverlayActionDeps,
   PointerMoveDeps,
+  QuitButtonDeps,
 } from "../shared/ui/input-deps.ts";
 import type {
   ControlsState,
@@ -39,16 +40,6 @@ import type {
   UpgradePickDialogState,
 } from "../shared/ui/interaction-types.ts";
 import { isInteractiveMode, Mode } from "../shared/ui/ui-mode.ts";
-
-interface QuitFlowDeps {
-  getPending: () => boolean;
-  setPending: (pending: boolean) => void;
-  setTimer: (seconds: number) => void;
-  setMessage: (msg: string) => void;
-  showLobby: () => void;
-  getControllers: () => PlayerController[];
-  isHuman: (ctrl: PlayerController) => boolean;
-}
 
 const TOUCH_CLICK_SUPPRESS_MS = 500;
 /** Seconds to wait before second ESC/✕ actually quits.
@@ -65,14 +56,19 @@ let lastTouchTime = Number.NEGATIVE_INFINITY;
 
 /** Shared quit flow: if no humans or already pending → quit immediately, else show warning.
  *  Used by both keyboard ESC and touch ✕ button to ensure identical behavior. */
-export function dispatchQuit(deps: QuitFlowDeps, warningMessage: string): void {
+export function dispatchQuit(
+  deps: QuitButtonDeps,
+  warningMessage: string,
+): void {
   const hasHumans = deps.getControllers().some((c) => deps.isHuman(c));
-  if (!hasHumans || deps.getPending()) {
+  if (!hasHumans || deps.getQuit().pending) {
     deps.showLobby();
   } else {
-    deps.setPending(true);
-    deps.setTimer(QUIT_WARNING_SECONDS);
-    deps.setMessage(warningMessage);
+    deps.setQuit({
+      pending: true,
+      timer: QUIT_WARNING_SECONDS,
+      message: warningMessage,
+    });
   }
 }
 

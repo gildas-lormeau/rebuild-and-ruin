@@ -475,15 +475,9 @@ function buildQuitDeps(
   runtimeState: RuntimeState,
 ): RegisterOnlineInputDeps["quit"] {
   return {
-    getPending: () => runtimeState.quit.pending,
-    setPending: (quitPending: boolean) => {
-      runtimeState.quit.pending = quitPending;
-    },
-    setTimer: (quitTimer: number) => {
-      runtimeState.quit.timer = quitTimer;
-    },
-    setMessage: (quitMessage: string) => {
-      runtimeState.quit.message = quitMessage;
+    getQuit: () => runtimeState.quit,
+    setQuit: (quit) => {
+      runtimeState.quit = quit;
     },
   };
 }
@@ -597,15 +591,9 @@ function setupZoomButtons(
 
   touch.quitButton = deps.touchFactories.createQuitButton(
     {
-      getQuitPending: () => runtimeState.quit.pending,
-      setQuitPending: (quitPending: boolean) => {
-        runtimeState.quit.pending = quitPending;
-      },
-      setQuitTimer: (quitTimer: number) => {
-        runtimeState.quit.timer = quitTimer;
-      },
-      setQuitMessage: (msg: string) => {
-        runtimeState.quit.message = msg;
+      getQuit: () => runtimeState.quit,
+      setQuit: (quit) => {
+        runtimeState.quit = quit;
       },
       showLobby: deps.lifecycle.returnToLobby,
       getControllers: () => runtimeState.controllers,

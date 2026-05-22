@@ -2,6 +2,17 @@ import type { TileKey } from "../core/grid.ts";
 import type { PlayerId, ValidPlayerId } from "../core/player-slot.ts";
 import type { UpgradeId } from "../core/upgrade-defs.ts";
 
+/** ESC/✕ double-tap-to-quit countdown. Armed = first press waiting for a
+ *  confirming second press; otherwise idle. Discriminated so `timer` and
+ *  `message` are only reachable while armed. */
+export type QuitState =
+  | { readonly pending: false }
+  | {
+      readonly pending: true;
+      readonly timer: number;
+      readonly message: string;
+    };
+
 export enum LifeLostChoice {
   PENDING = "pending",
   CONTINUE = "continue",

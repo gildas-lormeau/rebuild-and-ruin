@@ -12,7 +12,10 @@ import {
   type ValidPlayerId,
 } from "../shared/core/player-slot.ts";
 import type { FrameContext } from "../shared/core/types.ts";
-import { LifeLostChoice } from "../shared/ui/interaction-types.ts";
+import {
+  LifeLostChoice,
+  type QuitState,
+} from "../shared/ui/interaction-types.ts";
 import {
   isGameplayMode,
   isTransitionMode,
@@ -215,15 +218,10 @@ export function createRuntimeLoop(deps: RuntimeLoopDeps): {
       dt,
       mode: deps.runtimeState.mode,
       paused: isPaused(deps.runtimeState),
-      quitPending: deps.runtimeState.quit.pending,
-      quitTimer: deps.runtimeState.quit.timer,
-      quitMessage: deps.runtimeState.quit.message,
+      quit: deps.runtimeState.quit,
       frame: deps.runtimeState.frame,
-      setQuitPending: (quitPending: boolean) => {
-        deps.runtimeState.quit.pending = quitPending;
-      },
-      setQuitTimer: (quitTimer: number) => {
-        deps.runtimeState.quit.timer = quitTimer;
+      setQuit: (quit) => {
+        deps.runtimeState.quit = quit;
       },
       requestRender: deps.requestRender,
       tickMode: deps.tickMode,
@@ -269,25 +267,26 @@ function tickMainLoop(params: {
   readonly dt: number;
   readonly mode: Mode;
   readonly paused: boolean;
-  readonly quitPending: boolean;
-  readonly quitTimer: number;
-  readonly quitMessage?: string;
+  readonly quit: QuitState;
   readonly frame: { announcement?: string };
-  readonly setQuitPending: (quitPending: boolean) => void;
-  readonly setQuitTimer: (quitTimer: number) => void;
+  readonly setQuit: (quit: QuitState) => void;
   readonly requestRender: () => void;
   readonly tickMode: TickDispatch;
 }): void {
   const { dt, mode, frame, tickMode } = params;
 
   // Tick ESC-to-quit countdown
-  if (params.quitPending) {
-    const next = params.quitTimer - dt;
+  if (params.quit.pending) {
+    const next = params.quit.timer - dt;
     if (next <= 0) {
-      params.setQuitPending(false);
+      params.setQuit({ pending: false });
     } else {
-      params.setQuitTimer(next);
-      if (params.quitMessage) frame.announcement = params.quitMessage;
+      params.setQuit({
+        pending: true,
+        timer: next,
+        message: params.quit.message,
+      });
+      frame.announcement = params.quit.message;
     }
   }
 

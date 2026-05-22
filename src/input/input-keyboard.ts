@@ -144,10 +144,8 @@ function handleKeyEscape(
     return false;
   dispatchQuit(
     {
-      getPending: deps.quit.getPending,
-      setPending: deps.quit.setPending,
-      setTimer: deps.quit.setTimer,
-      setMessage: deps.quit.setMessage,
+      getQuit: deps.quit.getQuit,
+      setQuit: deps.quit.setQuit,
       showLobby: deps.showLobby,
       getControllers: deps.getControllers,
       isHuman: deps.isHuman,

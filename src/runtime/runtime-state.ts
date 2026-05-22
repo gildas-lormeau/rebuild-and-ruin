@@ -18,6 +18,7 @@ import {
   type CastleBuildState,
   type ControlsState,
   type LifeLostDialogState,
+  type QuitState,
   type UpgradePickDialogState,
 } from "../shared/ui/interaction-types.ts";
 import type { FrameData, RenderOverlay } from "../shared/ui/overlay-types.ts";
@@ -43,12 +44,6 @@ export interface ScoreDisplayState {
   }[];
   deltaTimer: number;
   preScores: readonly number[];
-}
-
-export interface QuitState {
-  pending: boolean;
-  timer: number;
-  message: string;
 }
 
 export interface OptionsUIState {
@@ -235,9 +230,7 @@ export function resetTransientState(runtimeState: RuntimeState): void {
   runtimeState.accum = createTimerAccums();
   runtimeState.pausedBy = "none";
   runtimeState.speedMultiplier = 1;
-  runtimeState.quit.pending = false;
-  runtimeState.quit.timer = 0;
-  runtimeState.quit.message = "";
+  runtimeState.quit = { pending: false };
   runtimeState.optionsUI.returnMode = null;
   runtimeState.actionSchedule.reset();
   runtimeState.modifierRevealPlayStartMs = undefined;
@@ -285,7 +278,7 @@ export function createRuntimeState(): RuntimeState {
 
     mode: Mode.STOPPED,
     pausedBy: "none",
-    quit: { pending: false, timer: 0, message: "" },
+    quit: { pending: false },
     optionsUI: { returnMode: null, cursor: 0 },
 
     settings: loadSettings(),
