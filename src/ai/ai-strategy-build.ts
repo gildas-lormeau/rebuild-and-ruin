@@ -435,17 +435,11 @@ function selectBestPlacement(
   // Threshold matches canPieceFillAnyGap — if the piece CAN fill a gap, it SHOULD.
   let restrictedToGapFillers = false;
   if (hasManageableGaps) {
-    const allGapFillers = scored.filter(
+    const sortedGapFillers = sortedScored.filter(
       (score) => score.candidate.gapsFilled > 0,
     );
-    const topGapFillers = topCandidates.filter(
-      (score) => score.candidate.gapsFilled > 0,
-    );
-    if (topGapFillers.length > 0) {
-      topCandidates = topGapFillers;
-      restrictedToGapFillers = true;
-    } else if (allGapFillers.length > 0) {
-      topCandidates = allGapFillers.slice(0, scoringCtx.skill.topCandidates);
+    if (sortedGapFillers.length > 0) {
+      topCandidates = sortedGapFillers.slice(0, scoringCtx.skill.topCandidates);
       restrictedToGapFillers = true;
     }
   }
