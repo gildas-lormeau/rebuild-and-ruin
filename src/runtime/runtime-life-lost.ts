@@ -1,4 +1,5 @@
 import { eliminatePlayers } from "../game/index.ts";
+import { DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS } from "../shared/core/action-schedule.ts";
 import {
   LIFE_LOST_AUTO_DELAY,
   LIFE_LOST_MAX_TIMER,
@@ -14,9 +15,10 @@ import { Mode } from "../shared/ui/ui-mode.ts";
 import {
   abandonedPlayers,
   applyLifeLostChoice,
-  confirmLifeLostFocusedChoice,
+  applyLifeLostChoiceToDialog,
   continuingPlayers,
   createLifeLostDialogState,
+  focusedLifeLostChoice,
   isLifeLostAllResolved,
   tickLifeLostDialog,
   toggleLifeLostFocus,
@@ -27,7 +29,11 @@ import type { RuntimeLifeLost } from "./runtime-types.ts";
 interface LifeLostSystemDeps {
   runtimeState: RuntimeState;
 
-  sendLifeLostChoice: (choice: ResolvedChoice, playerId: ValidPlayerId) => void;
+  sendLifeLostChoice: (
+    choice: ResolvedChoice,
+    playerId: ValidPlayerId,
+    applyAt: number,
+  ) => void;
   log: (msg: string) => void;
 
   requestRender: () => void;
@@ -51,7 +57,11 @@ type OnLifeLostResolved = (continuing: readonly ValidPlayerId[]) => void;
 
 /** Extended return type: RuntimeLifeLost + extras for game-runtime wiring. */
 export type LifeLostSystem = RuntimeLifeLost & {
-  sendLifeLostChoice: (choice: ResolvedChoice, playerId: ValidPlayerId) => void;
+  sendLifeLostChoice: (
+    choice: ResolvedChoice,
+    playerId: ValidPlayerId,
+    applyAt: number,
+  ) => void;
   /** Toggle continue/abandon focus for a player's pending entry. */
   toggleFocus: (playerId: ValidPlayerId) => void;
   /** Confirm the currently focused choice for a player (applies the focused option). */
@@ -170,18 +180,43 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
   }
 
   function confirmChoice(playerId: ValidPlayerId): void {
-    withPendingEntry(playerId, (entry) => {
-      const choice = confirmLifeLostFocusedChoice(entry);
-      deps.sendLifeLostChoice(choice, entry.playerId);
-    });
+    const entry = findPendingEntry(playerId);
+    if (!entry) return;
+    scheduleOrApplyChoice(playerId, focusedLifeLostChoice(entry));
   }
 
   /** Apply a direct choice (e.g. from a mouse click on a specific button).
    *  Unlike confirmChoice, this sets the choice directly without reading focus. */
   function applyChoice(playerId: ValidPlayerId, choice: ResolvedChoice): void {
-    withPendingEntry(playerId, (entry) => {
-      applyLifeLostChoice(entry, choice);
-      deps.sendLifeLostChoice(choice, playerId);
+    if (!findPendingEntry(playerId)) return;
+    scheduleOrApplyChoice(playerId, choice);
+  }
+
+  /** Lockstep-when-online: in local play, mutate `entry.choice` immediately;
+   *  in online play, broadcast with `applyAt` and schedule the local apply
+   *  at the same `applyAt` so every peer's mutation lands at the same logical
+   *  tick. `applyEarlyChoices` is the online-signal (undefined in local). */
+  function scheduleOrApplyChoice(
+    playerId: ValidPlayerId,
+    choice: ResolvedChoice,
+  ): void {
+    if (deps.applyEarlyChoices === undefined) {
+      withPendingEntry(playerId, (entry) => applyLifeLostChoice(entry, choice));
+      return;
+    }
+    const applyAt =
+      runtimeState.state.simTick + DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS;
+    deps.sendLifeLostChoice(choice, playerId, applyAt);
+    runtimeState.actionSchedule.schedule({
+      applyAt,
+      playerId,
+      apply: () => {
+        applyLifeLostChoiceToDialog(
+          playerId,
+          choice,
+          runtimeState.dialogs.lifeLost,
+        );
+      },
     });
   }
 

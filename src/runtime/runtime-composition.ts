@@ -575,8 +575,13 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
 
   const lifeLost: LifeLostSystem = createLifeLostSystem({
     runtimeState,
-    sendLifeLostChoice: (choice, playerId) =>
-      config.network.send({ type: "lifeLostChoice", choice, playerId }),
+    sendLifeLostChoice: (choice, playerId, applyAt) =>
+      config.network.send({
+        type: "lifeLostChoice",
+        choice,
+        playerId,
+        applyAt,
+      }),
     log: config.log,
     requestRender,
     panelPos: (pid) =>

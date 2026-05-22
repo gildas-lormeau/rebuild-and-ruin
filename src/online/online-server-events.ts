@@ -7,6 +7,7 @@ import { applyPiecePlacement } from "../game/build-system.ts";
 import { applyCannonAtDrain } from "../game/cannon-system.ts";
 import { canPlacePiece, highlightTowerSelection } from "../game/index.ts";
 import { MESSAGE, type ServerMessage } from "../protocol/protocol.ts";
+import { applyLifeLostChoiceToDialog } from "../runtime/runtime-life-lost-core.ts";
 import {
   isHostInContext,
   isRemotePlayer,
@@ -23,19 +24,11 @@ import type { PlayerController } from "../shared/core/system-interfaces.ts";
 import { type GameState, type SelectionState } from "../shared/core/types.ts";
 import {
   LifeLostChoice,
+  type LifeLostDialogState,
   type ResolvedChoice,
 } from "../shared/ui/interaction-types.ts";
 import type { OnlineSession } from "./online-session.ts";
 import { type RemoteCrosshairTargets } from "./online-types.ts";
-
-interface LifeLostChoiceEntry {
-  playerId: ValidPlayerId;
-  choice: LifeLostChoice;
-}
-
-interface LifeLostChoiceDialog {
-  entries: LifeLostChoiceEntry[];
-}
 
 interface UpgradePickChoiceEntry {
   playerId: ValidPlayerId;
@@ -73,7 +66,7 @@ export interface HandleServerIncrementalDeps {
     applyAt?: number,
   ) => void;
   allSelectionsConfirmed: () => boolean;
-  getLifeLostDialog: () => LifeLostChoiceDialog | null;
+  getLifeLostDialog: () => LifeLostDialogState | null;
   getUpgradePickDialog: () => UpgradePickChoiceDialog | null;
 }
 
@@ -383,32 +376,44 @@ function handleCannonPhantom(
   return APPLIED;
 }
 
-/** Apply a remote slot's life-lost choice. Same clone-everywhere shape
- *  as `handleUpgradePick`: runs on host AND watcher because a real human's
- *  controller has no local AI brain to fill `entry.choice`. AI / assisted
- *  controllers fill `entry.choice` deterministically from state on every
- *  peer (see `aiChooseLifeLost`), so a wire-arrived duplicate is silently
- *  dropped by the `entry.choice === LifeLostChoice.PENDING` guard below. */
+/** Apply a remote slot's life-lost choice via the lockstep action queue.
+ *  Same clone-everywhere shape as `handleUpgradePick`: runs on host AND
+ *  watcher because a real human's controller has no local AI brain to fill
+ *  `entry.choice`. AI / assisted controllers fill `entry.choice`
+ *  deterministically from state on every peer (see `aiChooseLifeLost`), so
+ *  a wire-arrived duplicate is silently dropped by the
+ *  `entry.choice === LifeLostChoice.PENDING` guard inside
+ *  `applyLifeLostChoiceToDialog`.
+ *
+ *  Lockstep `applyAt`: originator stamps `applyAt = senderSimTick +
+ *  SAFETY` and schedules its own apply for the same tick; this receiver
+ *  schedules an identical apply at `msg.applyAt`. `Mode.LIFE_LOST` is a
+ *  gameplay mode (simTick + schedule drain run during the dialog), so the
+ *  apply fires at the same logical tick on every peer — `dialogResolved`
+ *  + `eliminatePlayers` (which mutates `state.players[pid].lives`) land in
+ *  lockstep. */
 function handleLifeLostChoice(
   msg: LifeLostChoiceMsg,
   deps: HandleServerIncrementalDeps,
 ): HandleResult {
   deps.log(
-    `life_lost_choice from P${msg.playerId}: ${msg.choice} (dialog=${deps.getLifeLostDialog() ? "active" : "null"})`,
+    `life_lost_choice from P${msg.playerId}: ${msg.choice} applyAt=${msg.applyAt} (dialog=${deps.getLifeLostDialog() ? "active" : "null"})`,
   );
   const validated = parseLifeLostChoice(msg.choice);
   if (validated === null) return DROPPED;
-  const dialog = deps.getLifeLostDialog();
-  if (dialog) {
-    const entry = dialog.entries.find((e) => e.playerId === msg.playerId);
-    if (entry && entry.choice === LifeLostChoice.PENDING) {
-      entry.choice = validated;
-      return APPLIED;
-    }
-    return DROPPED;
-  }
-  // Dialog not yet created — queue choice for when it appears
-  deps.session.earlyLifeLostChoices.set(msg.playerId, validated);
+  const playerId = msg.playerId;
+  deps.schedule({
+    applyAt: msg.applyAt,
+    playerId,
+    apply: () => {
+      applyLifeLostChoiceToDialog(
+        playerId,
+        validated,
+        deps.getLifeLostDialog(),
+        deps.session.earlyLifeLostChoices,
+      );
+    },
+  });
   return APPLIED;
 }
 

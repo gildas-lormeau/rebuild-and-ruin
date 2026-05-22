@@ -119,23 +119,42 @@ export function toggleLifeLostFocus(entry: LifeLostEntry): void {
       : LIFE_LOST_FOCUS_CONTINUE;
 }
 
-export function confirmLifeLostFocusedChoice(
-  entry: LifeLostEntry,
-): ResolvedChoice {
-  const choice =
-    entry.focusedButton === LIFE_LOST_FOCUS_CONTINUE
-      ? LifeLostChoice.CONTINUE
-      : LifeLostChoice.ABANDON;
-  entry.choice = choice;
-  return choice;
-}
-
 /** Apply a direct choice (e.g. from a spatial click on a specific button). */
 export function applyLifeLostChoice(
   entry: LifeLostEntry,
   choice: ResolvedChoice,
 ): void {
   entry.choice = choice;
+}
+
+/** Read the focused button as a resolved choice without mutating the entry.
+ *  Used by the lockstep schedule path — the mutation happens later in the
+ *  scheduled `apply` closure, not at click time. */
+export function focusedLifeLostChoice(entry: LifeLostEntry): ResolvedChoice {
+  return entry.focusedButton === LIFE_LOST_FOCUS_CONTINUE
+    ? LifeLostChoice.CONTINUE
+    : LifeLostChoice.ABANDON;
+}
+
+/** Apply a lockstep-scheduled life-lost choice to whichever peer's dialog
+ *  state is live at drain time. If the dialog isn't open yet (wire arrived
+ *  before the local sim built the dialog), queue the choice for the
+ *  early-drain on `show()`. Shared between originator and receiver so the
+ *  apply behaves identically on every peer. */
+export function applyLifeLostChoiceToDialog(
+  playerId: ValidPlayerId,
+  choice: ResolvedChoice,
+  dialog: LifeLostDialogState | null,
+  earlyChoices?: Map<ValidPlayerId, ResolvedChoice>,
+): void {
+  if (!dialog) {
+    earlyChoices?.set(playerId, choice);
+    return;
+  }
+  const entry = dialog.entries.find((e) => e.playerId === playerId);
+  if (entry && entry.choice === LifeLostChoice.PENDING) {
+    entry.choice = choice;
+  }
 }
 
 /** Dispatch the continue / reselect branch after the life-lost dialog

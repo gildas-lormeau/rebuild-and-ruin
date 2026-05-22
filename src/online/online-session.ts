@@ -26,7 +26,7 @@ import {
   SPECTATOR_SLOT,
   type ValidPlayerId,
 } from "../shared/core/player-slot.ts";
-import type { LifeLostChoice } from "../shared/ui/interaction-types.ts";
+import type { ResolvedChoice } from "../shared/ui/interaction-types.ts";
 
 export interface OnlineSession {
   socket: WebSocket | null;
@@ -60,7 +60,7 @@ export interface OnlineSession {
   roomGameMode: GameMode;
   keepaliveTimer: ReturnType<typeof setInterval> | null;
   lobbyStartTime: number;
-  earlyLifeLostChoices: Map<ValidPlayerId, LifeLostChoice>;
+  earlyLifeLostChoices: Map<ValidPlayerId, ResolvedChoice>;
   earlyUpgradePickChoices: Map<ValidPlayerId, string>;
 }
 

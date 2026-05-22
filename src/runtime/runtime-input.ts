@@ -121,6 +121,7 @@ interface InputSystemDeps {
     sendLifeLostChoice: (
       choice: ResolvedChoice,
       playerId: ValidPlayerId,
+      applyAt: number,
     ) => void;
     toggleFocus: (playerId: ValidPlayerId) => void;
     confirmChoice: (playerId: ValidPlayerId) => void;

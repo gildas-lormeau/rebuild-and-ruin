@@ -52,7 +52,7 @@ interface AssistedSenders {
   sendCannonPlaced: (payload: CannonPlacedPayload) => void;
   sendCannonFired: (msg: CannonFiredMessage) => void;
   sendUpgradePick: (choice: UpgradeId) => void;
-  sendLifeLostChoice: (choice: ResolvedChoice) => void;
+  sendLifeLostChoice: (choice: ResolvedChoice, applyAt: number) => void;
 }
 
 interface AssistedControllerOptions {
@@ -222,7 +222,14 @@ export class AiAssistedHumanController
     const wasPending = entry.choice === LifeLostChoice.PENDING;
     super.tickLifeLost(entry, dt, autoDelaySeconds, state);
     if (wasPending && entry.choice !== LifeLostChoice.PENDING) {
-      this.senders.sendLifeLostChoice(entry.choice);
+      // Local mutation already landed via `super.tickLifeLost`. The wire
+      // payload carries `applyAt` for protocol uniformity — receivers
+      // schedule the apply, which no-ops via the PENDING guard since
+      // their own deterministic local tick has already set `entry.choice`.
+      this.senders.sendLifeLostChoice(
+        entry.choice,
+        state.simTick + this.safetyTicks,
+      );
     }
   }
 

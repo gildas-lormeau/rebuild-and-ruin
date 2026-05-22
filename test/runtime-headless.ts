@@ -584,8 +584,13 @@ function buildAssistedControllerFactory(
         sendCannonFired: (msg) => send(msg),
         sendUpgradePick: (choice) =>
           send({ type: MESSAGE.UPGRADE_PICK, playerId: slot, choice }),
-        sendLifeLostChoice: (choice) =>
-          send({ type: MESSAGE.LIFE_LOST_CHOICE, playerId: slot, choice }),
+        sendLifeLostChoice: (choice, applyAt) =>
+          send({
+            type: MESSAGE.LIFE_LOST_CHOICE,
+            playerId: slot,
+            choice,
+            applyAt,
+          }),
       },
       schedule: (action) => getSchedule()(action),
       safetyTicks,

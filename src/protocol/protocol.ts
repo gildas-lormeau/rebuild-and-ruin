@@ -64,6 +64,7 @@ export type ClientMessage =
       type: "lifeLostChoice";
       choice: ResolvedChoice;
       playerId?: ValidPlayerId;
+      applyAt: number;
     }
   | { type: "upgradePick"; playerId: ValidPlayerId; choice: string }
   | { type: "ping" };
@@ -366,11 +367,20 @@ export interface OpponentCannonPhaseDoneMessage {
   applyAt: number;
 }
 
-/** Life-lost choice forwarded from a non-host client to the host. */
+/** Life-lost choice forwarded from a non-host client to the host.
+ *
+ *  Lockstep `applyAt`: originator stamps `applyAt = senderSimTick + SAFETY`
+ *  and schedules its own `entry.choice = validated` for that tick; receiver
+ *  schedules the same apply at the same tick. `Mode.LIFE_LOST` is a
+ *  gameplay mode (simTick advances + action schedule drains during the
+ *  dialog), so the scheduled apply fires on every peer at the same logical
+ *  tick — `dialogResolved` + `eliminatePlayers` (which mutates
+ *  `state.players[pid].lives`) land in lockstep. */
 export interface LifeLostChoiceForwardedMessage {
   type: "lifeLostChoice";
   playerId: ValidPlayerId;
   choice: ResolvedChoice;
+  applyAt: number;
 }
 
 /** Upgrade pick choice forwarded from a non-host client to the host. */
