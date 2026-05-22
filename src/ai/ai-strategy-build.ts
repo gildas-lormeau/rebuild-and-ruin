@@ -704,7 +704,6 @@ function tryRepairHomeCastle(ctx: TargetContext): TargetResult {
     EXPANSION_TIERS.find((tier) => freeRatio > tier.minFreeRatio)?.maxExpand ??
     EXPANSION_DEFAULT_MAX;
 
-  let targetGaps: Set<TileKey> = new Set();
   for (let attempt = 0; attempt < MAX_EXPAND; attempt++) {
     const gaps = findGapTiles({ top, bottom, left, right }, player.walls);
     const wallRingTop = top - 1,
@@ -760,13 +759,10 @@ function tryRepairHomeCastle(ctx: TargetContext): TargetResult {
       }
     }
 
-    if (!expanded) {
-      targetGaps = gaps;
-      break;
-    }
+    if (!expanded) break;
   }
   const targetRect: TileRect = { top, bottom, left, right };
-  targetGaps = findReachableRingGaps(
+  const targetGaps = findReachableRingGaps(
     targetRect,
     player.walls,
     state,
