@@ -89,12 +89,12 @@ export class DefaultStrategy implements AiStrategy {
   private _homeWasBroken = false;
   /** Phase-stable snapshot of outer-ring hole tiles for repair targeting.
    *  Captured on the first pickPlacement() call of each build phase and
-   *  reused for every subsequent call until `state.round` ticks over,
-   *  preventing pseudo-gaps formed by newly-placed walls from polluting
-   *  the target set and dispersing the AI's focus. */
-  private _outerRingHolesSnapshot:
-    | { round: number; holes: ReadonlySet<TileKey> }
-    | undefined = undefined;
+   *  reused for every subsequent call until `assessBuildEnd` clears it at
+   *  end of WALL_BUILD, preventing pseudo-gaps formed by newly-placed walls
+   *  from polluting the target set and dispersing the AI's focus. Keyed on
+   *  build-phase lifecycle (not state.round) so future paths that lose a
+   *  life or rebuild without advancing the round stay correct. */
+  private _outerRingHolesSnapshot: ReadonlySet<TileKey> | undefined = undefined;
 
   /** Seeded PRNG — log rng.seed to reproduce this AI's behavior. */
   readonly rng: Rng;
@@ -172,32 +172,32 @@ export class DefaultStrategy implements AiStrategy {
     });
   }
 
-  /** Lazily snapshot outer-ring breach tiles on the first build-phase tick
-   *  of each round. Invalidates when state.round changes. Empty set when
-   *  the player has no walls/castle yet — findOuterRingHoles is cheap on
-   *  an empty wall set, so we always return a real set rather than
-   *  threading an undefined sentinel through the build pipeline. */
+  /** Lazily snapshot outer-ring breach tiles on the first build-phase tick.
+   *  Cleared by `assessBuildEnd` at the close of WALL_BUILD so the next build
+   *  phase recaptures fresh. Empty set when the player has no walls/castle
+   *  yet — findOuterRingHoles is cheap on an empty wall set, so we always
+   *  return a real set rather than threading an undefined sentinel through
+   *  the build pipeline. */
   private ensureOuterRingHolesSnapshot(
     state: BuildViewState,
     playerId: ValidPlayerId,
   ): ReadonlySet<TileKey> {
-    if (this._outerRingHolesSnapshot?.round === state.round) {
-      return this._outerRingHolesSnapshot.holes;
-    }
+    if (this._outerRingHolesSnapshot) return this._outerRingHolesSnapshot;
     const player = state.players[playerId]!;
     const holes = findOuterRingHoles(player.walls, state, getInterior(player));
-    this._outerRingHolesSnapshot = { round: state.round, holes };
+    this._outerRingHolesSnapshot = holes;
     return holes;
   }
 
-  /** Assess home tower enclosure at END of build phase. The result is stale
-   *  by design — `_homeWasBroken` is consumed during the NEXT build phase's
-   *  pickPlacement(), reflecting last round's outcome, not real-time state. */
+  /** End-of-WALL_BUILD bookkeeping: stash home-broken status for the next
+   *  build phase's pickPlacement (consumed as `_homeWasBroken`), and drop the
+   *  outer-ring holes snapshot so the next build phase recaptures fresh. */
   assessBuildEnd(state: GameViewState, playerId: ValidPlayerId): void {
     const player = state.players[playerId]!;
     this._homeWasBroken =
       player.homeTower !== null &&
       !player.ownedTowers.includes(player.homeTower);
+    this._outerRingHolesSnapshot = undefined;
   }
 
   // -----------------------------------------------------------------------
