@@ -40,7 +40,7 @@ interface BannerSystem {
   hideBanner: () => void;
   /** Silent reset for teardown paths (rematch, quit-to-lobby). Does not
    *  emit BANNER_HIDDEN — teardown isn't a narrative banner-end beat. */
-  resetBannerState: () => void;
+  reset: () => void;
   tickBanner: (dt: number) => void;
 }
 
@@ -128,7 +128,7 @@ export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
     onDone = undefined;
   }
 
-  function resetBannerState(): void {
+  function reset(): void {
     runtimeState.banner = createBannerState();
     onDone = undefined;
   }
@@ -152,5 +152,5 @@ export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
     requestRender();
   }
 
-  return { showBanner, hideBanner, resetBannerState, tickBanner };
+  return { showBanner, hideBanner, reset, tickBanner };
 }

@@ -118,6 +118,7 @@ interface LifecycleWiringDeps {
   // Subsystems needed for reset/cleanup
   readonly selection: Pick<RuntimeSelection, "reset">;
   readonly banner: { reset: () => void };
+  readonly cannonAnimator: { reset: () => void };
   readonly camera: Pick<CameraSystem, "clearAllZoomState" | "resetCamera">;
   readonly getLifeLost: () => Pick<RuntimeLifeLost, "set">;
   readonly getUpgradePick: () => Pick<RuntimeUpgradePick, "set">;
@@ -282,6 +283,7 @@ export function buildLifecycleDeps(
     resetAll: () => {
       wiringDeps.selection.reset();
       wiringDeps.banner.reset();
+      wiringDeps.cannonAnimator.reset();
       resetTransientState(runtimeState);
       wiringDeps.getLifeLost().set(null);
       wiringDeps.getUpgradePick().set(null);

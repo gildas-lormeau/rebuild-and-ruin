@@ -406,14 +406,18 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   // Banner sub-system (delegated to subsystems/banner.ts)
   // -------------------------------------------------------------------------
 
-  const { showBanner, hideBanner, resetBannerState, tickBanner } =
-    createBannerSystem({
-      runtimeState,
-      log: config.log,
-      requestRender,
-      rendererCaptureScene: () => renderer.captureScene(),
-      captureSceneOffscreen: () => captureSceneOffscreen(),
-    });
+  const {
+    showBanner,
+    hideBanner,
+    reset: resetBanner,
+    tickBanner,
+  } = createBannerSystem({
+    runtimeState,
+    log: config.log,
+    requestRender,
+    rendererCaptureScene: () => renderer.captureScene(),
+    captureSceneOffscreen: () => captureSceneOffscreen(),
+  });
 
   // -------------------------------------------------------------------------
   // Selection sub-system (delegated to runtime-selection.ts)
@@ -541,7 +545,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
           config.getUrlModeOverride,
         ),
       selection,
-      banner: { reset: resetBannerState },
+      banner: { reset: resetBanner },
+      cannonAnimator,
       camera,
       getLifeLost: () => lifeLost,
       getUpgradePick: () => upgradePick,
