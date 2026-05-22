@@ -3,12 +3,10 @@
   "specifiers": {
     "jsr:@std/assert@^1.0.19": "1.0.19",
     "jsr:@std/internal@^1.0.12": "1.0.12",
-    "npm:@types/three@0.160": "0.160.0",
     "npm:jsfxr@*": "1.4.0",
     "npm:libadlmidi-js@2": "2.0.0",
     "npm:madge@8.0.0": "8.0.0_typescript@5.9.3",
-    "npm:qrcode-generator@^2.0.4": "2.0.4",
-    "npm:ts-morph@^27.0.2": "27.0.2"
+    "npm:qrcode-generator@^2.0.4": "2.0.4"
   },
   "jsr": {
     "@std/assert@1.0.19": {
@@ -2632,7 +2630,7 @@
       "dependencies": [
         "npm:@biomejs/biome@^2.4.15",
         "npm:@types/node@^25.9.1",
-        "npm:@types/three@0.160",
+        "npm:@types/three@~0.184.1",
         "npm:@typescript-eslint/eslint-plugin@^8.59.4",
         "npm:@typescript-eslint/parser@^8.59.4",
         "npm:eslint@^10.4.0",
@@ -2643,10 +2641,10 @@
         "npm:madge@8.0.0",
         "npm:playwright@^1.60.0",
         "npm:qrcode-generator@^2.0.4",
-        "npm:three@~0.160.1",
-        "npm:ts-morph@^27.0.2",
-        "npm:typescript@^5.9.3",
-        "npm:vite@^7.3.3"
+        "npm:three@0.184",
+        "npm:ts-morph@28",
+        "npm:typescript@^6.0.3",
+        "npm:vite@^8.0.14"
       ]
     }
   }

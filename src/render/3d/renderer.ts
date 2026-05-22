@@ -6,6 +6,7 @@
  * prev/new-scene snapshots.
  */
 
+import type { ShadowMaterial } from "three";
 import type { GameMap, Viewport } from "../../shared/core/geometry-types.ts";
 import {
   CANVAS_H,
@@ -266,8 +267,7 @@ export function createRender3d(
     const blend = sunBlendFromPitch(pitch, pitchMax);
     setSunBlend(ctx.ambient, ctx.sun, blend);
     updateSunDirection(ctx.sun, sunT, blend);
-    const overlayMaterial = ctx.groundShadowOverlay
-      .material as THREE.ShadowMaterial;
+    const overlayMaterial = ctx.groundShadowOverlay.material as ShadowMaterial;
     overlayMaterial.opacity = SHADOW_OVERLAY_PEAK_OPACITY * blend;
     applyShadowFlags(ctx.scene);
     updateLightDebug(ctx.scene, ctx.ambient, ctx.sun, sunT, blend);

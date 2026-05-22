@@ -226,7 +226,6 @@ export function createFogManager(scene: THREE.Scene): FogManager {
     fragmentShader: FRAGMENT_SHADER,
     transparent: true,
     depthWrite: false,
-    extensions: { derivatives: true },
   });
   const bandMaterial = new THREE.ShaderMaterial({
     uniforms: bandUniforms,
@@ -234,7 +233,6 @@ export function createFogManager(scene: THREE.Scene): FogManager {
     fragmentShader: FRAGMENT_SHADER,
     transparent: true,
     depthWrite: false,
-    extensions: { derivatives: true },
   });
   const filletMaterial = new THREE.ShaderMaterial({
     uniforms: filletUniforms,
@@ -242,7 +240,6 @@ export function createFogManager(scene: THREE.Scene): FogManager {
     fragmentShader: FILLET_FRAGMENT_SHADER,
     transparent: true,
     depthWrite: false,
-    extensions: { derivatives: true },
   });
 
   let baseMesh: THREE.InstancedMesh | undefined;
