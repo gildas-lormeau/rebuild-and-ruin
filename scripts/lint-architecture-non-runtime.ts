@@ -42,13 +42,13 @@ const rules: BoundaryRule[] = [
   {
     name: "online-runtime-subsystems",
     matchesImported: (file) =>
-      file.startsWith("src/online/online-runtime-") &&
-      file !== "src/online/online-runtime-deps.ts" &&
-      file !== "src/online/online-runtime-game.ts",
+      file.startsWith("src/online/runtime/") &&
+      file !== "src/online/runtime/deps.ts" &&
+      file !== "src/online/runtime/game.ts",
     isAllowedImporter: (file) =>
-      file === "src/online/online-runtime-game.ts" ||
-      file === "src/online/online-runtime-deps.ts" ||
-      file === "src/online/online-runtime-lobby.ts",
+      file === "src/online/runtime/game.ts" ||
+      file === "src/online/runtime/deps.ts" ||
+      file === "src/online/runtime/lobby.ts",
   },
   {
     name: "input-subsystems",
@@ -69,7 +69,7 @@ const rules: BoundaryRule[] = [
       startsWithAny(file, ["src/render/"]) ||
       file === "src/runtime/composition.ts" ||
       file === "src/main.ts" ||
-      file === "src/online/online-runtime-lobby.ts",
+      file === "src/online/runtime/lobby.ts",
   },
 ];
 const project = new Project({

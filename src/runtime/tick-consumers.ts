@@ -9,43 +9,43 @@ import type { OnlinePhaseTicks } from "./types.ts";
 
 export const ONLINE_PHASE_TICKS_CONSUMERS = {
   broadcastCannonStart: {
-    "wire:prod": "src/online/online-runtime-game.ts",
+    "wire:prod": "src/online/runtime/game.ts",
     "wire:test-host": "test/network-setup.ts",
     "wire:test-stub": "test/runtime-headless.ts",
   },
   broadcastBattleStart: {
-    "wire:prod": "src/online/online-runtime-game.ts",
+    "wire:prod": "src/online/runtime/game.ts",
     "wire:test-host": "test/network-setup.ts",
     "wire:test-stub": "test/runtime-headless.ts",
   },
   broadcastBuildStart: {
-    "wire:prod": "src/online/online-runtime-game.ts",
+    "wire:prod": "src/online/runtime/game.ts",
     "wire:test-host": "test/network-setup.ts",
     "wire:test-stub": "test/runtime-headless.ts",
   },
   broadcastBuildEnd: {
-    "wire:prod": "src/online/online-runtime-game.ts",
+    "wire:prod": "src/online/runtime/game.ts",
     "wire:test-host": "test/network-setup.ts",
     "wire:test-stub": "test/runtime-headless.ts",
   },
   broadcastLocalCrosshair: {
-    "wire:prod": "src/online/online-runtime-game.ts",
+    "wire:prod": "src/online/runtime/game.ts",
     "wire:test-stub": "test/runtime-headless.ts",
   },
   shouldSendCannonPhantom: {
-    "wire:prod": "src/online/online-runtime-game.ts",
+    "wire:prod": "src/online/runtime/game.ts",
   },
   shouldSendPiecePhantom: {
-    "wire:prod": "src/online/online-runtime-game.ts",
+    "wire:prod": "src/online/runtime/game.ts",
   },
   extendCrosshairs: {
-    "wire:prod": "src/online/online-runtime-game.ts",
+    "wire:prod": "src/online/runtime/game.ts",
     "wire:test-host": "test/network-setup.ts",
     "wire:test-watcher": "test/network-setup.ts",
     "wire:test-stub": "test/runtime-headless.ts",
   },
   tickMigrationAnnouncement: {
-    "wire:prod": "src/online/online-runtime-game.ts",
+    "wire:prod": "src/online/runtime/game.ts",
     "wire:test-host": "test/network-setup.ts",
     "wire:test-watcher": "test/network-setup.ts",
     "wire:test-stub": "test/runtime-headless.ts",

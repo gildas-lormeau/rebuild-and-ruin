@@ -17,10 +17,10 @@ import {
   joinCodeInput,
   joinError,
   pageOnline,
-} from "./online-dom.ts";
-import { initLobbyUi } from "./online-lobby-ui.ts";
-import { connect } from "./online-runtime-ws.ts";
-import { defaultClient } from "./online-stores.ts";
+} from "../online-dom.ts";
+import { initLobbyUi } from "../online-lobby-ui.ts";
+import { defaultClient } from "../online-stores.ts";
+import { connect } from "./ws.ts";
 
 const lobbyElements = {
   btnCreateConfirm,

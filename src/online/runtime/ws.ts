@@ -4,16 +4,16 @@
  * `initPromote` and `initDeps`); `connect()` throws if called first.
  */
 
-import type { ServerMessage } from "../protocol/protocol.ts";
-import { isHostInContext } from "../runtime/tick-context.ts";
-import { Mode } from "../shared/ui/ui-mode.ts";
-import { computeWsUrl } from "./online-config.ts";
-import { connectWebSocket } from "./online-session.ts";
+import type { ServerMessage } from "../../protocol/protocol.ts";
+import { isHostInContext } from "../../runtime/tick-context.ts";
+import { Mode } from "../../shared/ui/ui-mode.ts";
+import { computeWsUrl } from "../online-config.ts";
+import { connectWebSocket } from "../online-session.ts";
 import {
   MAX_RECONNECT_ATTEMPTS,
   type OnlineClient,
   RECONNECT_BASE_DELAY_MS,
-} from "./online-stores.ts";
+} from "../online-stores.ts";
 
 // ── Types ──────────────────────────────────────────────────────────
 interface WsRuntimeDeps {
@@ -36,7 +36,7 @@ const ANNOUNCEMENT_DISCONNECTED = "Disconnected from server";
 let _rt: WsRuntimeDeps;
 let _client: OnlineClient;
 
-/** Bind runtime-dependent callbacks. Called once from online-runtime-game.ts
+/** Bind runtime-dependent callbacks. Called once from online/runtime/game.ts
  *  after the GameRuntime is created. */
 export function initWs(deps: WsRuntimeDeps, client: OnlineClient): void {
   _rt = deps;

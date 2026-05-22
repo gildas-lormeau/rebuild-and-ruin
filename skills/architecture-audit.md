@@ -240,7 +240,7 @@ sufficient for LLM agents to follow correctly.
     and line 48 has an inline comment explaining the ×1000 conversion.
 
 16. **Late-binding closure pattern (initDeps/initPromote/initWs)** —
-    online/online-runtime-deps.ts:56-60 documents the 3-step pattern (declare, init, guard) and
+    online/runtime/deps.ts:56-60 documents the 3-step pattern (declare, init, guard) and
     explains it avoids circular imports. All three init files follow the same structure.
 
 17. **Mode-setting timing in watcher phase transitions** — online/online-phase-transitions.ts:53-61
@@ -460,12 +460,12 @@ sufficient for LLM agents to follow correctly.
     codebase (CROSSHAIR_SPRINT_MULTIPLIER, CURSOR_PROXIMITY_MULTIPLIER, etc.).
 
 69. **`ctx` shorthand destructuring from defaultClient is documented** —
-    online/online-runtime-game.ts:67-69 comment explains the five destructured names
+    online/runtime/game.ts:67-69 comment explains the five destructured names
     reference the same defaultClient singleton used throughout the module.
 
 70. **Lobby timer: local uses accumulator, online uses wall-clock subtraction** —
     main.ts:43-45 documents the local path (timerAccum counting up). The online
-    path (online/online-runtime-game.ts:135-141) uses server-provided countdown minus a
+    path (online/runtime/game.ts:135-141) uses server-provided countdown minus a
     -1 grace offset to prevent UI/server race.
 
 71. **Coordinate space divergence between options and lobby hit-tests is documented** —
@@ -529,7 +529,7 @@ sufficient for LLM agents to follow correctly.
 
 83. **Controllers return intent objects, orchestrators execute mutations** —
     `BattleController.fire()` returns `FireIntent | null` (not void). `InputReceiver.tryPlacePiece()`
-    returns `PlacePieceIntent | null` (not boolean). The orchestrator (runtime-composition.ts, online-runtime-game.ts,
+    returns `PlacePieceIntent | null` (not boolean). The orchestrator (runtime-composition.ts, runtime/game.ts,
     controller-ai.ts battleTick) calls `fireNextReadyCannon()` or `placePiece()` with mutable GameState.
     `tryPlaceCannon` does NOT follow this pattern — `placeCannon` already accepts structural types.
     Do not add mutation calls inside controller methods.
@@ -543,7 +543,7 @@ sufficient for LLM agents to follow correctly.
 85. **`advanceBag` must be called by the orchestrator after `tryPlacePiece`** —
     HumanController.tryPlacePiece() returns intent without advancing the bag.
     The orchestrator calls `ctrl.advanceBag(true)` after confirming placement via `placePiece()`.
-    All three execution sites (runtime-composition.ts, online-runtime-game.ts, ai-phase-build.ts) do this.
+    All three execution sites (runtime-composition.ts, runtime/game.ts, ai-phase-build.ts) do this.
 
 86. **`FreshInterior` and `Player` live in `player-types.ts`, not `types.ts`** —
     Extracted to break the system-interfaces → types.ts coupling chain. `types.ts` re-imports
@@ -578,8 +578,8 @@ sufficient for LLM agents to follow correctly.
     game/phase-setup.ts:360-363 JSDoc documents it removes grunts, houses, pits, bonuses,
     reverts sinkholes, and revives towers for an eliminated zone.
 
-94. **Late-binding init order in online-runtime-game.ts is documented** —
-    online/online-runtime-game.ts:207-215 ORDERING INVARIANT comment documents the
+94. **Late-binding init order in runtime/game.ts is documented** —
+    online/runtime/game.ts:207-215 ORDERING INVARIANT comment documents the
     required call order: initWs → initPromote → initDeps.
 
 95. **Phase transitions are a pure data-driven state machine** —
@@ -619,9 +619,9 @@ sufficient for LLM agents to follow correctly.
     `Partial<Record<MessageType, ...>>` for the same reason.
 
 101. **initWs → initPromote → initDeps ordering invariant is documented in all
-    three online-runtime init modules** — online-runtime-ws.ts, online-runtime-promote.ts,
-    online-runtime-deps.ts all have matching ORDERING INVARIANT JSDoc at their
-    module headers. online-runtime-game.ts:initOnlineRuntime() is the sole caller
+    three online/runtime/ init modules** — runtime/ws.ts, runtime/promote.ts,
+    runtime/deps.ts all have matching ORDERING INVARIANT JSDoc at their
+    module headers. runtime/game.ts:initOnlineRuntime() is the sole caller
     that sequences them. Refactoring any init module without reading the others'
     invariant is a bug risk.
 

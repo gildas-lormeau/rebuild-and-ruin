@@ -4,7 +4,7 @@
  * `src/online/online-dom.ts` evaluates `document.getElementById(...)` at
  * module-load time for ~10 elements (canvas, lobby selects, error
  * containers, ...). In Deno there is no `document`, so any test file that
- * transitively imports `online-runtime-deps.ts` would crash on import.
+ * transitively imports `online/runtime/deps.ts` would crash on import.
  *
  * The dispatcher path (`handleServerIncrementalMessage`,
  * `handleServerLifecycleMessage`) never touches any of those elements — it

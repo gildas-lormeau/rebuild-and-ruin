@@ -122,7 +122,7 @@ export const noopNetworkSend: (msg: GameMessage) => void = () => {};
  * Browser-side bindings for `RuntimeConfig`.
  *
  * Both production entry points (local: src/main.ts; online:
- * src/online/online-runtime-game.ts) need to wire the same three
+ * src/online/runtime/game.ts) need to wire the same three
  * browser primitives into `createGameRuntime`: a canvas renderer,
  * a `TimingApi` backed by `performance.now`/`requestAnimationFrame`,
  * and the document as the keyboard event source. This factory is
@@ -164,7 +164,7 @@ export function createBrowserRuntimeBindings(
  * of silently dropping every message. Callers can override `onMessage`
  * (e.g. headless in-memory loopback) and `remotePlayerSlots` (e.g.
  * headless simulating a peer machine). Online play
- * (src/online/online-runtime-game.ts) does NOT use this factory — it
+ * (src/online/runtime/game.ts) does NOT use this factory — it
  * builds its own `NetworkApi` backed by the WebSocket client session.
  */
 export function createLocalNetworkApi(opts: {
@@ -882,8 +882,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     sfx: { activate: audio.sfx.activate },
 
     // Shared quit-to-menu cleanup. Called from both local (main.ts) and
-    // online (online-runtime-game.ts GAME_EXIT_EVENT, plus the imperative
-    // online "leave" path in online-runtime-session.showLobby) — they
+    // online (online/runtime/game.ts GAME_EXIT_EVENT, plus the imperative
+    // online "leave" path in online/runtime/session.showLobby) — they
     // each layer their own session/navigation resets on top.
     shutdown: (): void => {
       setMode(runtimeState, Mode.STOPPED);

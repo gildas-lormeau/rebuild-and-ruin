@@ -276,7 +276,7 @@
       "src/input/input-touch-canvas.ts",
       "src/input/input-touch-ui.ts",
       "src/input/input-touch-update.ts",
-      "src/online/online-runtime-ws.ts",
+      "src/online/runtime/ws.ts",
       "src/render/3d/effects/cannon-burns.ts",
       "src/render/3d/effects/dust-storm.ts",
       "src/render/3d/effects/grunt-burns.ts",
@@ -305,7 +305,7 @@
       "src/ai/ai-strategy-types.ts",
       "src/game/modifier-system.ts",
       "src/game/upgrade-system.ts",
-      "src/online/online-runtime-lobby.ts",
+      "src/online/runtime/lobby.ts",
       "src/render/3d/effects/grass-emergence.ts",
       "src/render/3d/effects/ground-collapse.ts",
       "src/render/3d/effects/ice-formation.ts",
@@ -385,20 +385,20 @@
     "name": "L15",
     "files": [
       "src/online/online-rehydrate.ts",
-      "src/online/online-runtime-promote.ts"
+      "src/online/runtime/promote.ts"
     ]
   },
   {
     "name": "L16",
     "files": [
-      "src/online/online-runtime-deps.ts",
-      "src/online/online-runtime-session.ts"
+      "src/online/runtime/deps.ts",
+      "src/online/runtime/session.ts"
     ]
   },
   {
     "name": "L17",
     "files": [
-      "src/online/online-runtime-game.ts"
+      "src/online/runtime/game.ts"
     ]
   },
   {

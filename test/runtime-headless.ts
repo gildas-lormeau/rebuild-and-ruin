@@ -325,8 +325,8 @@ export async function createHeadlessRuntime(
       remotePlayerSlots,
       amHost: opts.amHost,
     }),
-    // No ai wiring here (nor in main.ts / online-runtime-game.ts) — the
-    // composition root `src/runtime/runtime-composition.ts` imports the ai functions
+    // No ai wiring here (nor in main.ts / online/runtime/game.ts) — the
+    // composition root `src/runtime/composition.ts` imports the ai functions
     // directly and wires them into the dialog subsystems. Headless plays
     // the real game and observes picks via bus events, same as production.
     log: log ? (msg: string) => console.log(`[headless] ${msg}`) : () => {},
@@ -598,7 +598,7 @@ function buildAssistedControllerFactory(
 
 /** Build an `OnlinePhaseTicks` for headless host mode. Phase-checkpoint
  *  broadcasts are forwarded to `send` (matching production wiring in
- *  `online-runtime-game.ts`); other hooks are no-ops. No watcher fields
+ *  `online/runtime/game.ts`); other hooks are no-ops. No watcher fields
  *  are set — this is host-only. */
 function buildHeadlessHostPhaseTicks(
   send: (msg: GameMessage) => void,

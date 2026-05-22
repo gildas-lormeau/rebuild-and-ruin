@@ -2,42 +2,42 @@ import {
   type InitMessage,
   MESSAGE,
   type ServerMessage,
-} from "../protocol/protocol.ts";
+} from "../../protocol/protocol.ts";
 import {
   createBrowserRuntimeBindings,
   createGameRuntime,
-} from "../runtime/composition.ts";
-import type { GameRuntime } from "../runtime/handle.ts";
-import { setMode } from "../runtime/state.ts";
+} from "../../runtime/composition.ts";
+import type { GameRuntime } from "../../runtime/handle.ts";
+import { setMode } from "../../runtime/state.ts";
 import {
   isHostInContext,
   tickPersistentAnnouncement,
-} from "../runtime/tick-context.ts";
-import type { NetworkApi } from "../runtime/types.ts";
-import { DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS } from "../shared/core/action-schedule.ts";
-import { isHuman } from "../shared/core/controller-guards.ts";
+} from "../../runtime/tick-context.ts";
+import type { NetworkApi } from "../../runtime/types.ts";
+import { DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS } from "../../shared/core/action-schedule.ts";
+import { isHuman } from "../../shared/core/controller-guards.ts";
 import {
   DIFFICULTY_NORMAL,
   DIFFICULTY_PARAMS,
   SELECT_TIMER,
-} from "../shared/core/game-constants.ts";
-import type { ValidPlayerId } from "../shared/core/player-slot.ts";
-import type { UpgradeId } from "../shared/core/upgrade-defs.ts";
-import type { ResolvedChoice } from "../shared/ui/interaction-types.ts";
-import { MAX_PLAYERS, PLAYER_NAMES } from "../shared/ui/player-config.ts";
-import { canvas, worldCanvas } from "./online-dom.ts";
+} from "../../shared/core/game-constants.ts";
+import type { ValidPlayerId } from "../../shared/core/player-slot.ts";
+import type { UpgradeId } from "../../shared/core/upgrade-defs.ts";
+import type { ResolvedChoice } from "../../shared/ui/interaction-types.ts";
+import { MAX_PLAYERS, PLAYER_NAMES } from "../../shared/ui/player-config.ts";
+import { canvas, worldCanvas } from "../online-dom.ts";
 import {
   broadcastLocalCrosshair as broadcastLocalCrosshairImpl,
   extendWithRemoteCrosshairs,
-} from "./online-remote-crosshairs.ts";
-import { GAME_EXIT_EVENT } from "./online-router.ts";
-import { handleServerMessage, initDeps } from "./online-runtime-deps.ts";
-import { initPromote } from "./online-runtime-promote.ts";
-import { createOnlineRuntimeSessionHelpers } from "./online-runtime-session.ts";
-import { initWs } from "./online-runtime-ws.ts";
-import { createOnlineSendActions } from "./online-send-actions.ts";
-import { createGameOverPayload } from "./online-serialize.ts";
-import { defaultClient, RESET_SCOPE_NEW_GAME } from "./online-stores.ts";
+} from "../online-remote-crosshairs.ts";
+import { GAME_EXIT_EVENT } from "../online-router.ts";
+import { createOnlineSendActions } from "../online-send-actions.ts";
+import { createGameOverPayload } from "../online-serialize.ts";
+import { defaultClient, RESET_SCOPE_NEW_GAME } from "../online-stores.ts";
+import { handleServerMessage, initDeps } from "./deps.ts";
+import { initPromote } from "./promote.ts";
+import { createOnlineRuntimeSessionHelpers } from "./session.ts";
+import { initWs } from "./ws.ts";
 
 // ── Client shorthand ───────────────────────────────────────────────
 // Destructured from defaultClient singleton for brevity. All five names

@@ -700,7 +700,7 @@
     "domain": "online",
     "role": "online runtime websocket",
     "files": [
-      "src/online/online-runtime-ws.ts"
+      "src/online/runtime/ws.ts"
     ]
   },
   {
@@ -775,7 +775,7 @@
     "domain": "online",
     "role": "online runtime lobby",
     "files": [
-      "src/online/online-runtime-lobby.ts"
+      "src/online/runtime/lobby.ts"
     ]
   },
   {
@@ -1018,7 +1018,7 @@
     "role": "online runtime transitions",
     "files": [
       "src/online/online-rehydrate.ts",
-      "src/online/online-runtime-promote.ts"
+      "src/online/runtime/promote.ts"
     ]
   },
   {
@@ -1026,8 +1026,8 @@
     "domain": "online",
     "role": "online deps wiring",
     "files": [
-      "src/online/online-runtime-deps.ts",
-      "src/online/online-runtime-session.ts"
+      "src/online/runtime/deps.ts",
+      "src/online/runtime/session.ts"
     ]
   },
   {
@@ -1035,7 +1035,7 @@
     "domain": "online",
     "role": "online runtime composition",
     "files": [
-      "src/online/online-runtime-game.ts"
+      "src/online/runtime/game.ts"
     ]
   },
   {

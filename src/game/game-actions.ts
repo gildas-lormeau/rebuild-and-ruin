@@ -3,7 +3,7 @@
  * to game state and update the controller's bookkeeping on success.
  *
  * Shared by both local play (runtime/composition.ts) and online play
- * (online-runtime-game.ts via online-send-actions.ts callbacks).
+ * (online/runtime/game.ts via online-send-actions.ts callbacks).
  */
 
 import type { Cannonball } from "../shared/core/battle-types.ts";

@@ -1,4 +1,4 @@
-/** Injected timing primitives. Production callers (main.ts, online-runtime-game.ts)
+/** Injected timing primitives. Production callers (main.ts, online/runtime/game.ts)
  *  bind to `performance.now`, `setTimeout`, `clearTimeout`, `requestAnimationFrame`.
  *  Tests pass deterministic stubs or Deno's natives. Following the project's
  *  "DOM/global helpers as deps" rule — no runtime sub-system should reach for

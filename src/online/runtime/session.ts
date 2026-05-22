@@ -6,28 +6,28 @@
  * and snapshot recovery after disconnect/migration).
  */
 
-import { generateMap } from "../game/index.ts";
-import type { FullStateMessage, InitMessage } from "../protocol/protocol.ts";
-import { ROUTE_ONLINE } from "../protocol/routes.ts";
-import { clearBalloonFlights } from "../runtime/battle-anim.ts";
-import { bootstrapGame } from "../runtime/bootstrap.ts";
-import type { GameRuntime } from "../runtime/handle.ts";
-import { setMode, setRuntimeGameState } from "../runtime/state.ts";
-import type { TimingApi } from "../runtime/timing-api.ts";
-import type { GameMode } from "../shared/core/game-constants.ts";
-import { Phase } from "../shared/core/game-phase.ts";
-import { Rng } from "../shared/platform/rng.ts";
-import { MAX_PLAYERS } from "../shared/ui/player-config.ts";
-import { Mode } from "../shared/ui/ui-mode.ts";
-import { pageOnline } from "./online-dom.ts";
+import { generateMap } from "../../game/index.ts";
+import type { FullStateMessage, InitMessage } from "../../protocol/protocol.ts";
+import { ROUTE_ONLINE } from "../../protocol/routes.ts";
+import { clearBalloonFlights } from "../../runtime/battle-anim.ts";
+import { bootstrapGame } from "../../runtime/bootstrap.ts";
+import type { GameRuntime } from "../../runtime/handle.ts";
+import { setMode, setRuntimeGameState } from "../../runtime/state.ts";
+import type { TimingApi } from "../../runtime/timing-api.ts";
+import type { GameMode } from "../../shared/core/game-constants.ts";
+import { Phase } from "../../shared/core/game-phase.ts";
+import { Rng } from "../../shared/platform/rng.ts";
+import { MAX_PLAYERS } from "../../shared/ui/player-config.ts";
+import { Mode } from "../../shared/ui/ui-mode.ts";
+import { pageOnline } from "../online-dom.ts";
 import {
   buildRoomCodeOverlay,
   hideRoomCodeOverlay,
-} from "./online-lobby-ui.ts";
-import { resolveModeAfterFullState } from "./online-rehydrate.ts";
-import { GAME_CONTAINER_ACTIVE, navigateTo } from "./online-router.ts";
-import { restoreFullStateSnapshot } from "./online-serialize.ts";
-import type { OnlineSession } from "./online-session.ts";
+} from "../online-lobby-ui.ts";
+import { resolveModeAfterFullState } from "../online-rehydrate.ts";
+import { GAME_CONTAINER_ACTIVE, navigateTo } from "../online-router.ts";
+import { restoreFullStateSnapshot } from "../online-serialize.ts";
+import type { OnlineSession } from "../online-session.ts";
 
 interface OnlineRuntimeSessionDeps {
   getRuntime: () => GameRuntime;

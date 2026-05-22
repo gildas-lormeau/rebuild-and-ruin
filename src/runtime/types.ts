@@ -148,7 +148,7 @@ export interface OnlineDialogDrains {
  *  Production wiring:
  *    - Local play (main.ts): no-op `send` and `onMessage`, always host,
  *      spectator slot, empty remote set.
- *    - Online (online-runtime-game.ts): WebSocket `send`, fan-out
+ *    - Online (online/runtime/game.ts): WebSocket `send`, fan-out
  *      `onMessage`, host/slot/remote state read from `ctx.session`.
  *    - Tests (test/runtime-headless.ts): no-op send + spectator slot today.
  *      A future "machines" abstraction will wire multiple NetworkApi
@@ -244,7 +244,7 @@ export interface RuntimeConfig {
   /** Test-only sub-system observers. Threaded from the test scenario
    *  through `createHeadlessRuntime` so tests can capture intents
    *  (haptics, render) without monkey-patching module state.
-   *  Production callers (`main.ts`, `online-runtime-game.ts`) omit
+   *  Production callers (`main.ts`, `online/runtime/game.ts`) omit
    *  this entirely. */
   observers?: {
     haptics?: HapticsObserver;

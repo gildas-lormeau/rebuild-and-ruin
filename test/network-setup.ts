@@ -26,7 +26,7 @@
  * `deliverMessage` between ticks.
  */
 
-// MUST be first — installs `document` global before online-runtime-deps.ts
+// MUST be first — installs `document` global before runtime/deps.ts
 // transitively evaluates online-dom.ts.
 
 import "./online-dom-shim.ts";
@@ -35,7 +35,7 @@ import {
   createMessageHandler,
   handleServerMessage,
   initDeps,
-} from "../src/online/online-runtime-deps.ts";
+} from "../src/online/runtime/deps.ts";
 import {
   createDedupMaps,
   createSession,

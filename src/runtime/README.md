@@ -106,7 +106,7 @@ src/runtime/
   sub-system and wires them together. Also exports
   `createBrowserRuntimeBindings(canvas)` and `createLocalNetworkApi()`
   as wiring primitives shared by all three callers (`src/main.ts`,
-  `src/online/online-runtime-game.ts`, `test/runtime-headless.ts`).
+  `src/online/runtime/game.ts`, `test/runtime-headless.ts`).
   **Only edit this file if you need a new subsystem, a new cross-domain
   wire, or a new wiring primitive. Otherwise leave it alone.**
 

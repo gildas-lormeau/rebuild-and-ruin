@@ -11,27 +11,27 @@ import {
   createAiController,
   ensureAiModulesLoaded,
   rollAiPersonality,
-} from "../runtime/bootstrap.ts";
-import type { GameRuntime } from "../runtime/handle.ts";
-import { setMode } from "../runtime/state.ts";
-import { assertNever } from "../shared/platform/utils.ts";
-import { Mode } from "../shared/ui/ui-mode.ts";
+} from "../../runtime/bootstrap.ts";
+import type { GameRuntime } from "../../runtime/handle.ts";
+import { setMode } from "../../runtime/state.ts";
+import { assertNever } from "../../shared/platform/utils.ts";
+import { Mode } from "../../shared/ui/ui-mode.ts";
 import {
   rebuildControllersForPhase,
   skipCastleBuildAnimation,
   syncAccumulatorsFromTimer,
-} from "./online-host-promotion.ts";
-import { createFullStateMessage } from "./online-serialize.ts";
+} from "../online-host-promotion.ts";
+import { createFullStateMessage } from "../online-serialize.ts";
 import {
   type OnlineClient,
   RESET_SCOPE_HOST_PROMOTION,
-} from "./online-stores.ts";
+} from "../online-stores.ts";
 
 // ── Late-bound state ───────────────────────────────────────────────
 let _runtime: GameRuntime;
 let _client: OnlineClient;
 
-/** Bind the GameRuntime reference. Called once from online-runtime-game.ts
+/** Bind the GameRuntime reference. Called once from online/runtime/game.ts
  *  after the GameRuntime is created. */
 export function initPromote(runtime: GameRuntime, client: OnlineClient): void {
   _runtime = runtime;

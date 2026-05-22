@@ -45,7 +45,7 @@ If you hold those three in mind, the file structure makes sense.
    the online layer, including `WatcherState`, `OnlineContext`, dedup
    channel types, and `toCannonMode()` string parsing.
 
-3. **[online-runtime-game.ts](./online-runtime-game.ts)** — Top-level
+3. **[runtime/game.ts](./runtime/game.ts)** — Top-level
    wiring for the online client. This is the online equivalent of
    `src/main.ts`: it creates renderer/timing/network, wires everything
    through `createGameRuntime()` from `runtime-composition.ts`, and
@@ -78,13 +78,13 @@ If you hold those three in mind, the file structure makes sense.
   `defaultClient` singleton. Every client has its own session, dedup,
   watcher, reconnect state. Tests build isolated clients via
   `test/online-headless.ts`.
-- **`online-runtime-game.ts`** — Top-level online client wiring.
+- **`runtime/game.ts`** — Top-level online client wiring.
   Creates runtime via `createGameRuntime(config)` with the
   `onlinePhaseTicks` + `onlineActions` bags filled in.
-- **`online-runtime-deps.ts`** — `initDeps()` — builds the deps bags
+- **`runtime/deps.ts`** — `initDeps()` — builds the deps bags
   consumed by server-lifecycle and server-events, and contains the
   server message dispatcher `handleServerMessage()`.
-- **`online-runtime-ws.ts`** — `initWs()` — WebSocket connection
+- **`runtime/ws.ts`** — `initWs()` — WebSocket connection
   lifecycle, reconnect logic. Decoupled from game runtime via
   dependency injection to avoid init-order coupling.
 
@@ -119,8 +119,8 @@ If you hold those three in mind, the file structure makes sense.
 ### Host migration (2 files)
 - **`online-host-promotion.ts`** — Helpers for controller rebuild +
   accumulator sync when this client gets promoted. Called from
-  `online-runtime-promote.ts`.
-- **`online-runtime-promote.ts`** — `initPromote()` + `promoteToHost()`
+  `runtime/promote.ts`.
+- **`runtime/promote.ts`** — `initPromote()` + `promoteToHost()`
   — orchestration around `online-host-promotion.ts`. Resets networking,
   rebuilds controllers, broadcasts FULL_STATE. Called when `HOST_LEFT`
   arrives and this client is the new host.
@@ -138,10 +138,10 @@ If you hold those three in mind, the file structure makes sense.
   a lint failure.
 
 ### Runtime helpers (2 files)
-- **`online-runtime-session.ts`** — `createOnlineRuntimeSessionHelpers()`
+- **`runtime/session.ts`** — `createOnlineRuntimeSessionHelpers()`
   — session reset, show-lobby, show-waiting-room, init-from-server,
   restore-full-state.
-- **`online-runtime-lobby.ts`** — Online lobby DOM bootstrap + init.
+- **`runtime/lobby.ts`** — Online lobby DOM bootstrap + init.
   Exports `lobbyReady` — the single public API consumed by `entry.ts`.
 
 ### Presence + UI + plumbing (4 files)
@@ -191,7 +191,7 @@ stale entries after a promotion will suppress legitimate sends.
 1. Add the interface to `src/protocol/protocol.ts` + the `MESSAGE.*`
    constant.
 2. Add to the `ServerMessage` union in the same file.
-3. Add a handler in `online-runtime-deps.ts` `handleServerMessage()`
+3. Add a handler in `runtime/deps.ts` `handleServerMessage()`
    (or the appropriate delegate in `online-server-lifecycle.ts` /
    `online-server-events.ts`).
 4. If it's a lifecycle event that affects session slot state, add
@@ -204,7 +204,7 @@ transitions from its own tick — there is no separate watcher apply
 path. Touch `phase-setup.ts` (local-side phase entry) and, if the
 host needs to broadcast a marker, add a factory in
 `online-serialize.ts` and wire it into the `broadcastXxx` callbacks
-in `online-runtime-game.ts:onlinePhaseTicks`. Watchers get the marker
+in `runtime/game.ts:onlinePhaseTicks`. Watchers get the marker
 via `online-server-lifecycle.ts` and just acknowledge — their own
 local tick has already advanced state.
 
@@ -259,7 +259,7 @@ for them so tests can drive them via injected messages.
   `OnlineContext` (session + dedup + presence + reconnect). Read the
   callback's type precisely.
 
-- **`online-runtime-game.ts` uses `defaultClient`, tests use a fresh
+- **`runtime/game.ts` uses `defaultClient`, tests use a fresh
   one.** Do not reuse `defaultClient` across tests — `initDeps`
   re-assigns module-level state on each call, and test isolation
   matters. `test/online-headless.ts` builds a fresh

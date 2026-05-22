@@ -36,7 +36,7 @@ export function tickBalloonFlights(
  *  `clearImpacts` / `ageImpacts` shape in `battle-types.ts`: a single
  *  helper for the underlying field mutation so call sites read as
  *  intent, not assignment. Used both per-frame (tick completion) and on
- *  full-state restore (online-runtime-session). */
+ *  full-state restore (online/runtime/session). */
 export function clearBalloonFlights(
   battleAnim: Pick<BattleAnimState, "flights">,
 ): void {

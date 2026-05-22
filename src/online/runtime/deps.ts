@@ -11,25 +11,25 @@ import type {
   FullStateMessage,
   InitMessage,
   ServerMessage,
-} from "../protocol/protocol.ts";
-import type { GameRuntime } from "../runtime/handle.ts";
-import { setMode } from "../runtime/state.ts";
-import { MIGRATION_ANNOUNCEMENT_DURATION } from "../shared/core/game-constants.ts";
-import type { ValidPlayerId } from "../shared/core/player-slot.ts";
-import { PLAYER_NAMES } from "../shared/ui/player-config.ts";
-import { Mode } from "../shared/ui/ui-mode.ts";
-import { createError, joinError } from "./online-dom.ts";
-import { handleGameOverTransition } from "./online-phase-transitions.ts";
-import { promoteToHost } from "./online-runtime-promote.ts";
+} from "../../protocol/protocol.ts";
+import type { GameRuntime } from "../../runtime/handle.ts";
+import { setMode } from "../../runtime/state.ts";
+import { MIGRATION_ANNOUNCEMENT_DURATION } from "../../shared/core/game-constants.ts";
+import type { ValidPlayerId } from "../../shared/core/player-slot.ts";
+import { PLAYER_NAMES } from "../../shared/ui/player-config.ts";
+import { Mode } from "../../shared/ui/ui-mode.ts";
+import { createError, joinError } from "../online-dom.ts";
+import { handleGameOverTransition } from "../online-phase-transitions.ts";
 import {
   type HandleServerIncrementalDeps,
   handleServerIncrementalMessage,
-} from "./online-server-events.ts";
+} from "../online-server-events.ts";
 import {
   type HandleServerLifecycleDeps,
   handleServerLifecycleMessage,
-} from "./online-server-lifecycle.ts";
-import type { OnlineClient } from "./online-stores.ts";
+} from "../online-server-lifecycle.ts";
+import type { OnlineClient } from "../online-stores.ts";
+import { promoteToHost } from "./promote.ts";
 
 // ── Types ──────────────────────────────────────────────────────────
 interface DepsInit {
@@ -47,7 +47,7 @@ interface DepsInit {
 let _handler: ((msg: ServerMessage) => Promise<void>) | undefined;
 
 /** Bind runtime-dependent values and build the singleton message
- *  handler. Called once from online-runtime-game.ts. */
+ *  handler. Called once from online/runtime/game.ts. */
 export function initDeps(init: DepsInit): void {
   _handler = createMessageHandler(init);
 }
@@ -156,7 +156,7 @@ function buildUiDeps(init: DepsInit, client: OnlineClient) {
       // Route through the subsystem boundary, matching the phase-transition
       // path (host: `runtime-composition.ts:clearUpgradePickDialog`,
       // watcher: `online-phase-transitions.ts:clearUpgradePickDialog`)
-      // and the host-promotion path (`online-runtime-promote.ts`).
+      // and the host-promotion path (`online/runtime/promote.ts`).
       init.runtime.upgradePick.set(null);
     },
     isUpgradePickMode: () =>

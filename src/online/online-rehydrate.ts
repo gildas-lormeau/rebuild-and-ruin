@@ -81,7 +81,7 @@ export async function applyMidGameCheckpoint(
 }
 
 /** Map a restored phase to the runtime Mode the main loop should dispatch.
- *  Exported so the watcher path (`online-runtime-session.ts:restoreFullState`)
+ *  Exported so the watcher path (`online/runtime/session.ts:restoreFullState`)
  *  uses the same logic without duplicating it. */
 export function resolveModeAfterFullState(
   phase: Phase,
