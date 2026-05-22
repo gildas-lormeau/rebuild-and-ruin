@@ -2,7 +2,7 @@ import {
   isBalloonCannon,
   isCannonAlive,
 } from "../../shared/core/battle-types.ts";
-import { isSessionLive, type RuntimeState } from "../runtime-state.ts";
+import { isSessionLive, type RuntimeState } from "../state.ts";
 
 interface FacingState {
   displayed: number;

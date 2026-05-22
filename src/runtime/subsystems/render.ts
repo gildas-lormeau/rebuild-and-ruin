@@ -2,7 +2,7 @@
  * Render sub-system — builds the per-frame overlay, draws the frame,
  * and updates touch UI controls.
  *
- * Extracted from runtime-composition.ts to reduce composition-root fan-out.
+ * Extracted from runtime/composition.ts to reduce composition-root fan-out.
  */
 
 import { Phase } from "../../shared/core/game-phase.ts";
@@ -27,16 +27,13 @@ import type {
 } from "../../shared/ui/overlay-types.ts";
 import { PLAYER_COLORS, PLAYER_NAMES } from "../../shared/ui/player-config.ts";
 import { Mode } from "../../shared/ui/ui-mode.ts";
-import { deriveRevealOverlayFields } from "../modifier-reveal-overlay-registry.ts";
+import { deriveRevealOverlayFields } from "../modifier-effects/registry.ts";
 import {
   revealTimeFor,
   tickModifierRevealClock,
-} from "../modifier-reveal-time.ts";
-import {
-  isPaused,
-  isStateInstalled,
-  type RuntimeState,
-} from "../runtime-state.ts";
+} from "../modifier-effects/reveal-time.ts";
+import { isPaused, isStateInstalled, type RuntimeState } from "../state.ts";
+import type { TimingApi } from "../timing-api.ts";
 import type {
   CreateBannerUiFn,
   CreateOnlineOverlayFn,
@@ -45,8 +42,7 @@ import type {
   QuitButton,
   TouchControlsDeps,
   ZoomButton,
-} from "../runtime-ui-contracts.ts";
-import type { TimingApi } from "../timing-api.ts";
+} from "../ui-contracts.ts";
 
 interface RenderSystemDeps {
   readonly runtimeState: RuntimeState;

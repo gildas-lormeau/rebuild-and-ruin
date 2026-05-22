@@ -21,7 +21,7 @@ import {
   FROSTBITE_REVEAL_RAMP_DURATION_MS,
   FROSTBITE_REVEAL_WAVE_PEAK_AMPLITUDE,
   FROSTBITE_REVEAL_WAVE_PERIOD_MS,
-} from "../src/runtime/frostbite-reveal-overlay.ts";
+} from "../src/runtime/modifier-effects/frostbite.ts";
 import { GAME_EVENT } from "../src/shared/core/game-event-bus.ts";
 import { loadSeed } from "./scenario.ts";
 

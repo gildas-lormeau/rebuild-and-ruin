@@ -9,10 +9,10 @@
 import { generateMap } from "../game/index.ts";
 import type { FullStateMessage, InitMessage } from "../protocol/protocol.ts";
 import { ROUTE_ONLINE } from "../protocol/routes.ts";
-import { clearBalloonFlights } from "../runtime/runtime-battle-anim.ts";
-import { bootstrapGame } from "../runtime/runtime-bootstrap.ts";
-import type { GameRuntime } from "../runtime/runtime-handle.ts";
-import { setMode, setRuntimeGameState } from "../runtime/runtime-state.ts";
+import { clearBalloonFlights } from "../runtime/battle-anim.ts";
+import { bootstrapGame } from "../runtime/bootstrap.ts";
+import type { GameRuntime } from "../runtime/handle.ts";
+import { setMode, setRuntimeGameState } from "../runtime/state.ts";
 import type { TimingApi } from "../runtime/timing-api.ts";
 import type { GameMode } from "../shared/core/game-constants.ts";
 import { Phase } from "../shared/core/game-phase.ts";

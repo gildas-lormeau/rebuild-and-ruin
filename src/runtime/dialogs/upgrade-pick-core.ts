@@ -4,17 +4,17 @@
  * timers, per-entry resolution), not game rules. The rules
  * (applyUpgradePicks, generateUpgradeOffers, resetPlayerUpgrades) stay in
  * game/upgrade-pick.ts since they mutate game state based on resolved
- * choices. Consumed by runtime-upgrade-pick.ts.
+ * choices. Consumed by subsystems/upgrade-pick.ts.
  */
 
-import type { GameState } from "../shared/core/types.ts";
-import type { UpgradeId } from "../shared/core/upgrade-defs.ts";
+import type { GameState } from "../../shared/core/types.ts";
+import type { UpgradeId } from "../../shared/core/upgrade-defs.ts";
 import {
   type AutoResolveDeps,
   shouldAutoResolve,
   type UpgradePickDialogState,
   type UpgradePickEntry,
-} from "../shared/ui/interaction-types.ts";
+} from "../../shared/ui/interaction-types.ts";
 import { tickDialogWithFallback } from "./dialog-tick.ts";
 
 interface CreateUpgradePickDeps extends AutoResolveDeps {

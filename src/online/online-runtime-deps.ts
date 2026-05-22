@@ -12,8 +12,8 @@ import type {
   InitMessage,
   ServerMessage,
 } from "../protocol/protocol.ts";
-import type { GameRuntime } from "../runtime/runtime-handle.ts";
-import { setMode } from "../runtime/runtime-state.ts";
+import type { GameRuntime } from "../runtime/handle.ts";
+import { setMode } from "../runtime/state.ts";
 import { MIGRATION_ANNOUNCEMENT_DURATION } from "../shared/core/game-constants.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import { PLAYER_NAMES } from "../shared/ui/player-config.ts";

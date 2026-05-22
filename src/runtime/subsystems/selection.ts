@@ -30,9 +30,9 @@ import { BANNER_SELECT } from "../banner-messages.ts";
 import {
   createCastleBuildState,
   tickCastleBuildAnimation,
-} from "../runtime-castle-build.ts";
-import { type RuntimeState, setMode } from "../runtime-state.ts";
-import { advancePhaseTimer, isRemotePlayer } from "../runtime-tick-context.ts";
+} from "../castle-build.ts";
+import { type RuntimeState, setMode } from "../state.ts";
+import { advancePhaseTimer, isRemotePlayer } from "../tick-context.ts";
 import {
   ACCUM_SELECT,
   type MutableAccums,

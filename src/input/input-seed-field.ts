@@ -1,4 +1,4 @@
-import type { SeedField } from "../runtime/runtime-ui-contracts.ts";
+import type { SeedField } from "../runtime/ui-contracts.ts";
 
 export function createSeedField(
   maxLength: number,

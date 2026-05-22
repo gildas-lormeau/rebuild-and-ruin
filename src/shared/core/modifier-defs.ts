@@ -276,7 +276,7 @@ export const MODIFIER_CONSUMERS = {
   grunt_surge: {
     impl: "src/game/modifiers/grunt-surge.ts",
     behavior_spawn: "src/game/grunt-system.ts",
-    reveal: "src/runtime/grunt-surge-reveal-overlay.ts",
+    reveal: "src/runtime/modifier-effects/grunt-surge.ts",
     aiStrategy: "src/ai/ai-strategy-battle.ts",
   },
   frozen_river: {
@@ -305,11 +305,11 @@ export const MODIFIER_CONSUMERS = {
     impl: "src/game/modifiers/dust-storm.ts",
     behavior_battle: "src/game/battle-system.ts",
     render: "src/render/3d/effects/dust-storm.ts",
-    reveal: "src/runtime/dust-storm-reveal-overlay.ts",
+    reveal: "src/runtime/modifier-effects/dust-storm.ts",
   },
   rubble_clearing: {
     impl: "src/game/modifiers/rubble-clearing.ts",
-    reveal: "src/runtime/rubble-clearing-overlay.ts",
+    reveal: "src/runtime/modifier-effects/rubble-clearing.ts",
   },
   low_water: {
     impl: "src/game/modifiers/low-water.ts",
@@ -325,7 +325,7 @@ export const MODIFIER_CONSUMERS = {
   fog_of_war: {
     impl: "src/game/modifiers/fog-of-war.ts",
     render: "src/render/3d/effects/fog.ts",
-    reveal: "src/runtime/fog-reveal-overlay.ts",
+    reveal: "src/runtime/modifier-effects/fog.ts",
   },
   frostbite: {
     impl: "src/game/modifiers/frostbite.ts",
@@ -333,12 +333,12 @@ export const MODIFIER_CONSUMERS = {
     behavior_movement: "src/game/grunt-movement.ts",
     behavior_attack: "src/game/grunt-system.ts",
     behavior_battle: "src/game/battle-system.ts",
-    reveal: "src/runtime/frostbite-reveal-overlay.ts",
+    reveal: "src/runtime/modifier-effects/frostbite.ts",
   },
   sapper: {
     impl: "src/game/modifiers/sapper.ts",
     behavior_attack: "src/game/grunt-system.ts",
-    reveal: "src/runtime/sapper-reveal-overlay.ts",
+    reveal: "src/runtime/modifier-effects/sapper.ts",
   },
   // AI ignores supply ships by design — no aiStrategy entry. The modifier
   // favors human players (free bonus when AI skips the moving target).

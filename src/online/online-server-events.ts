@@ -7,11 +7,8 @@ import { applyPiecePlacement } from "../game/build-system.ts";
 import { applyCannonAtDrain } from "../game/cannon-system.ts";
 import { canPlacePiece, highlightTowerSelection } from "../game/index.ts";
 import { MESSAGE, type ServerMessage } from "../protocol/protocol.ts";
-import { applyLifeLostChoiceToDialog } from "../runtime/runtime-life-lost-core.ts";
-import {
-  isHostInContext,
-  isRemotePlayer,
-} from "../runtime/runtime-tick-context.ts";
+import { applyLifeLostChoiceToDialog } from "../runtime/dialogs/life-lost-core.ts";
+import { isHostInContext, isRemotePlayer } from "../runtime/tick-context.ts";
 import type { ScheduledAction } from "../shared/core/action-schedule.ts";
 import {
   CANNON_MODE_IDS,

@@ -3,7 +3,7 @@
  * sound modal, and the mute rule. Created once per runtime, lives for the
  * page lifetime. The composition root wires this into lifecycle/render/UI
  * deps and the `visibilitychange` listener — that listener also calls
- * `setVisibilityHidden` (runtime-state), since `pausedBy` is not an audio
+ * `setVisibilityHidden` (runtime/state.ts), since `pausedBy` is not an audio
  * responsibility.
  */
 
@@ -15,7 +15,7 @@ import {
 } from "../audio/music-player.ts";
 import { createSfxSubsystem, type SfxSubsystem } from "../audio/sfx-player.ts";
 import { createSoundModal } from "../audio/sound-modal.ts";
-import { type RuntimeState, safeState } from "../runtime-state.ts";
+import { type RuntimeState, safeState } from "../state.ts";
 
 interface AudioOrchestratorDeps {
   runtimeState: RuntimeState;

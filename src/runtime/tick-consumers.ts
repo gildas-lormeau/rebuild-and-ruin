@@ -5,7 +5,7 @@
  *  `wire:prod` is effectively required (every hook is wired there today).
  *  Test fixtures opt in only when their scenario needs the behavior. */
 
-import type { OnlinePhaseTicks } from "./runtime-types.ts";
+import type { OnlinePhaseTicks } from "./types.ts";
 
 export const ONLINE_PHASE_TICKS_CONSUMERS = {
   broadcastCannonStart: {

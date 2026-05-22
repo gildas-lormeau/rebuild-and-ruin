@@ -26,7 +26,7 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
-import { ONLINE_PHASE_TICKS_CONSUMERS } from "../src/runtime/runtime-tick-consumers.ts";
+import { ONLINE_PHASE_TICKS_CONSUMERS } from "../src/runtime/tick-consumers.ts";
 import { BATTLE_EVENT_CONSUMERS } from "../src/shared/core/battle-events.ts";
 import { CANNON_MODE_CONSUMERS } from "../src/shared/core/cannon-mode-defs.ts";
 import { FEATURE_CONSUMERS } from "../src/shared/core/feature-defs.ts";

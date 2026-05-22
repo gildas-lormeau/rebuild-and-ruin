@@ -13,7 +13,7 @@ export interface OnlinePresenceState extends RemoteCrosshairTargets {
    *  latest `remoteCrosshairs` target — what the renderer displays. */
   smoothedCrosshairPos: Map<ValidPlayerId, PixelPos>;
   /** Host-migration announcement: survives frame clears for the duration, then self-clears.
-   *  Driven through `tickPersistentAnnouncement` from runtime-tick-context. */
+   *  Driven through `tickPersistentAnnouncement` from runtime/tick-context. */
   migrationBanner: { timer: number; text: string };
 }
 

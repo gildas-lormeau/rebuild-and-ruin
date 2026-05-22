@@ -51,27 +51,19 @@ import type { GameState } from "../../shared/core/types.ts";
 import { WALL_DESTROY_ANIM_DURATION } from "../../shared/core/wall-destroy-anim.ts";
 import type { UpgradePickDialogState } from "../../shared/ui/interaction-types.ts";
 import { Mode } from "../../shared/ui/ui-mode.ts";
-import type { BannerShow } from "../runtime-banner-state.ts";
+import type { BannerShow } from "../banner-state.ts";
 import {
   recordBattleVisualEvents,
   tickBalloonFlights,
-} from "../runtime-battle-anim.ts";
-import {
-  type PhaseTransitionCtx,
-  runTransition,
-} from "../runtime-phase-machine.ts";
-import {
-  assertStateInstalled,
-  type RuntimeState,
-  setMode,
-} from "../runtime-state.ts";
+} from "../battle-anim.ts";
+import { type PhaseTransitionCtx, runTransition } from "../phase-machine.ts";
+import { assertStateInstalled, type RuntimeState, setMode } from "../state.ts";
 import {
   advancePhaseTimer,
   isRemotePlayer,
   localControllers,
   tickGruntsIfDue,
-} from "../runtime-tick-context.ts";
-import type { OnlinePhaseTicks, RuntimeConfig } from "../runtime-types.ts";
+} from "../tick-context.ts";
 import {
   ACCUM_BATTLE,
   ACCUM_BUILD,
@@ -81,6 +73,7 @@ import {
   resetAccum,
 } from "../timer-accums.ts";
 import type { TimingApi } from "../timing-api.ts";
+import type { OnlinePhaseTicks, RuntimeConfig } from "../types.ts";
 import type { RuntimeLifeLost } from "./life-lost.ts";
 
 interface PhaseTicksDeps extends Pick<RuntimeConfig, "log"> {

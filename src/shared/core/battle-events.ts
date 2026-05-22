@@ -311,7 +311,7 @@ export const BATTLE_EVENT_CONSUMERS = {
     stateApply: "src/game/battle-system.ts",
     networkHandle: "src/online/online-server-events.ts",
     networkRelay: "server/game-room.ts",
-    vfx: "src/runtime/runtime-battle-anim.ts",
+    vfx: "src/runtime/battle-anim.ts",
   },
   towerKilled: {
     stateApply: "src/game/battle-system.ts",

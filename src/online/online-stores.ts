@@ -7,7 +7,7 @@
  */
 
 import type { GameMessage } from "../protocol/protocol.ts";
-import { isHostInContext } from "../runtime/runtime-tick-context.ts";
+import { isHostInContext } from "../runtime/tick-context.ts";
 import {
   isActivePlayer,
   type ValidPlayerId,

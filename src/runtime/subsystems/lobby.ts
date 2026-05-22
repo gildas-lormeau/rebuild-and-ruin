@@ -19,14 +19,14 @@ import {
   MAX_PLAYERS,
 } from "../../shared/ui/player-config.ts";
 import { Mode } from "../../shared/ui/ui-mode.ts";
-import { type RuntimeState, setMode } from "../runtime-state.ts";
+import { type RuntimeState, setMode } from "../state.ts";
 import type {
   ComputeLobbyLayoutFn,
   CreateLobbyOverlayFn,
   LobbyClickHitTestFn,
   LobbyHit,
   UIContext,
-} from "../runtime-ui-contracts.ts";
+} from "../ui-contracts.ts";
 
 /** Public lobby handle exposed on `GameRuntime`. Drives the pre-game
  *  lobby (player joining, seed entry, mode selection). */

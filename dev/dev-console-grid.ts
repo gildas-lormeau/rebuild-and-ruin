@@ -1,7 +1,7 @@
 /**
  * Debug / diagnostic utilities — game-domain interpretation for dev tools.
  *
- * Consumed only by dev-console.ts and runtime-e2e-bridge.ts. Lives in
+ * Consumed only by dev-console.ts and e2e-bridge.ts. Lives in
  * runtime/ because it's dev tooling, not gameplay — moved out of game/
  * to keep the game public surface free of debug concerns.
  */

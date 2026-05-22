@@ -1,5 +1,5 @@
-import type { ValidPlayerId } from "../shared/core/player-slot.ts";
-import type { GameState } from "../shared/core/types.ts";
+import type { ValidPlayerId } from "../../shared/core/player-slot.ts";
+import type { GameState } from "../../shared/core/types.ts";
 import {
   type AutoResolveDeps,
   LIFE_LOST_FOCUS_ABANDON,
@@ -9,7 +9,7 @@ import {
   type LifeLostEntry,
   type ResolvedChoice,
   shouldAutoResolve,
-} from "../shared/ui/interaction-types.ts";
+} from "../../shared/ui/interaction-types.ts";
 import { tickDialogWithFallback } from "./dialog-tick.ts";
 
 interface CreateLifeLostDialogDeps extends AutoResolveDeps {

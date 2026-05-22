@@ -15,7 +15,7 @@ import {
   SAPPER_REVEAL_PEAK_INTENSITY,
   SAPPER_REVEAL_PULSE_PERIOD_MS,
   SAPPER_REVEAL_RAMP_DURATION_MS,
-} from "../src/runtime/sapper-reveal-overlay.ts";
+} from "../src/runtime/modifier-effects/sapper.ts";
 import { GAME_EVENT } from "../src/shared/core/game-event-bus.ts";
 import { loadSeed } from "./scenario.ts";
 

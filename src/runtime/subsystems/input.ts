@@ -25,8 +25,8 @@ import type {
 } from "../../shared/ui/overlay-types.ts";
 import { OPT_CONTROLS, OPT_SOUND } from "../../shared/ui/settings-defs.ts";
 import { Mode } from "../../shared/ui/ui-mode.ts";
-import { type RuntimeState, safeState, setMode } from "../runtime-state.ts";
-import type { NetworkApi, OnlineActions } from "../runtime-types.ts";
+import { type RuntimeState, safeState, setMode } from "../state.ts";
+import type { NetworkApi, OnlineActions } from "../types.ts";
 import type {
   CreateDpadFn,
   CreateFloatingActionsFn,
@@ -38,7 +38,7 @@ import type {
   RegisterMouseHandlersFn,
   RegisterOnlineInputDeps,
   RegisterTouchHandlersFn,
-} from "../runtime-ui-contracts.ts";
+} from "../ui-contracts.ts";
 import type { RuntimeCamera } from "./camera.ts";
 
 type DpadHandle = ReturnType<CreateDpadFn>;
@@ -81,7 +81,7 @@ interface InputSystemDeps {
 
   // Action surface — same shape online and offline. Online wrappers
   // broadcast inside each adapter (see online-send-actions.ts); local
-  // play uses `createLocalInputActions` (see ../runtime-input-actions.ts).
+  // play uses `createLocalInputActions` (see ../input-actions.ts).
   // NOT NetworkApi — named `actions` rather than `network` because the
   // dispatcher treats both modes uniformly.
   readonly actions: OnlineActions;

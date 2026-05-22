@@ -1,7 +1,7 @@
 /**
  * Local play entry point.
  *
- * All game logic lives in runtime-composition.ts (shared with online-client.ts).
+ * All game logic lives in runtime/composition.ts (shared with online-client.ts).
  * This file only provides the local-specific config: no networking, canvas
  * lobby with direct slot joining.
  */
@@ -19,8 +19,8 @@ import {
   createGameRuntime,
   createLocalNetworkApi,
   noopNetworkSend,
-} from "./runtime/runtime-composition.ts";
-import { setMode } from "./runtime/runtime-state.ts";
+} from "./runtime/composition.ts";
+import { setMode } from "./runtime/state.ts";
 import { LOBBY_TIMER } from "./shared/core/game-constants.ts";
 import { IS_DEV } from "./shared/platform/platform.ts";
 import { Mode } from "./shared/ui/ui-mode.ts";
@@ -108,7 +108,7 @@ asciiRenderer?.setStateGetter(() => runtime.runtimeState.state);
 
 // Back-button / hash navigation away from /play: stop the active bg
 // track + any in-flight SFX, set mode to STOPPED. Shared with the
-// online entry — see runtime.shutdown in runtime-composition.ts.
+// online entry — see runtime.shutdown in runtime/composition.ts.
 document.addEventListener(GAME_EXIT_EVENT, runtime.shutdown);
 
 function showLobby(): void {

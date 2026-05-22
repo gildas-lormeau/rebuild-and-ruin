@@ -1,4 +1,4 @@
-import type { TimingApi } from "./timing-api.ts";
+import type { TimingApi } from "../timing-api.ts";
 
 export function createBrowserTimingApi(): TimingApi {
   return {

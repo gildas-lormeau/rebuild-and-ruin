@@ -7,7 +7,7 @@
  * - Right panel: quit + zoom + rotate + confirm
  */
 
-import type { FloatingActionsHandle } from "../runtime/runtime-ui-contracts.ts";
+import type { FloatingActionsHandle } from "../runtime/ui-contracts.ts";
 import {
   isPlacementPhase,
   isSelectionPhase,

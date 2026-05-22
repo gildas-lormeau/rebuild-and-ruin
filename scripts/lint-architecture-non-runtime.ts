@@ -55,7 +55,7 @@ const rules: BoundaryRule[] = [
     matchesImported: (file) =>
       file.startsWith("src/input/input-") && file !== "src/input/input.ts",
     isAllowedImporter: (file) =>
-      file === "src/runtime/runtime-composition.ts" ||
+      file === "src/runtime/composition.ts" ||
       startsWithAny(file, ["src/input/"]),
   },
   {
@@ -67,7 +67,7 @@ const rules: BoundaryRule[] = [
       file !== "src/render/render-layout.ts",
     isAllowedImporter: (file) =>
       startsWithAny(file, ["src/render/"]) ||
-      file === "src/runtime/runtime-composition.ts" ||
+      file === "src/runtime/composition.ts" ||
       file === "src/main.ts" ||
       file === "src/online/online-runtime-lobby.ts",
   },

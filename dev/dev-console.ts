@@ -7,10 +7,7 @@ import {
   setPerfHudEnabled,
 } from "../src/render/3d/perf-hud.ts";
 import type { MusicSubsystem } from "../src/runtime/audio/music-player.ts";
-import {
-  isStateInstalled,
-  type RuntimeState,
-} from "../src/runtime/runtime-state.ts";
+import { isStateInstalled, type RuntimeState } from "../src/runtime/state.ts";
 import { GRID_COLS, GRID_ROWS } from "../src/shared/core/grid.ts";
 import type { GameState } from "../src/shared/core/types.ts";
 import type { ZoneId } from "../src/shared/core/zone-id.ts";

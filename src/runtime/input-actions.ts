@@ -12,8 +12,8 @@ import {
   executePlaceCannon,
   executePlacePiece,
 } from "../game/index.ts";
-import type { RuntimeState } from "./runtime-state.ts";
-import type { OnlineActions } from "./runtime-types.ts";
+import type { RuntimeState } from "./state.ts";
+import type { OnlineActions } from "./types.ts";
 
 export function createLocalInputActions(
   runtimeState: RuntimeState,

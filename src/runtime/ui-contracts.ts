@@ -3,7 +3,7 @@
  * handle interfaces, and input-handler registration signatures. The
  * cross-cutting types that runtime/, render/, and input/ all need to agree
  * on. Per-component deps live in shared/ui/input-deps.ts; banner callback
- * types live in runtime-banner-state.ts.
+ * types live in banner-state.ts.
  */
 
 import type {
@@ -62,7 +62,7 @@ import type {
 } from "../shared/ui/player-config.ts";
 import type { RGB } from "../shared/ui/theme.ts";
 import type { Mode } from "../shared/ui/ui-mode.ts";
-import type { RevealOverlayBattleFields } from "./modifier-reveal-overlay-registry.ts";
+import type { RevealOverlayBattleFields } from "./modifier-effects/registry.ts";
 
 export interface UIContext {
   getState: () => GameState | undefined;

@@ -59,9 +59,9 @@ import {
   BANNER_UPGRADE_PICK,
   BANNER_UPGRADE_PICK_SUB,
 } from "./banner-messages.ts";
-import type { BannerShow } from "./runtime-banner-state.ts";
-import { resolveAfterLifeLost } from "./runtime-life-lost-core.ts";
-import type { RuntimeState } from "./runtime-state.ts";
+import type { BannerShow } from "./banner-state.ts";
+import { resolveAfterLifeLost } from "./dialogs/life-lost-core.ts";
+import type { RuntimeState } from "./state.ts";
 import type { TimingApi } from "./timing-api.ts";
 
 type TransitionId =

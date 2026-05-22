@@ -1,7 +1,4 @@
-import type {
-  LobbyHit,
-  OnlineOverlayParams,
-} from "../runtime/runtime-ui-contracts.ts";
+import type { LobbyHit, OnlineOverlayParams } from "../runtime/ui-contracts.ts";
 import type { BalloonFlight, Cannonball } from "../shared/core/battle-types.ts";
 import {
   LIFE_LOST_MAX_TIMER,

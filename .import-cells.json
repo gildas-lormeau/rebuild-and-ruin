@@ -71,9 +71,9 @@
     "files": [
       "src/runtime/banner-messages.ts",
       "src/runtime/bell-pulse.ts",
-      "src/runtime/dialog-tick.ts",
-      "src/runtime/modifier-reveal-ramp.ts",
-      "src/runtime/runtime-browser-dom.ts",
+      "src/runtime/browser/dom.ts",
+      "src/runtime/dialogs/dialog-tick.ts",
+      "src/runtime/modifier-effects/ramp.ts",
       "src/runtime/timer-accums.ts",
       "src/runtime/timing-api.ts",
       "src/runtime/waved-ramp.ts"
@@ -166,13 +166,13 @@
     "domain": "runtime",
     "role": "modifier reveal overlays & browser timing",
     "files": [
-      "src/runtime/dust-storm-reveal-overlay.ts",
-      "src/runtime/fog-reveal-overlay.ts",
-      "src/runtime/frostbite-reveal-overlay.ts",
-      "src/runtime/grunt-surge-reveal-overlay.ts",
-      "src/runtime/rubble-clearing-overlay.ts",
-      "src/runtime/runtime-browser-timing.ts",
-      "src/runtime/sapper-reveal-overlay.ts"
+      "src/runtime/browser/timing.ts",
+      "src/runtime/modifier-effects/dust-storm.ts",
+      "src/runtime/modifier-effects/fog.ts",
+      "src/runtime/modifier-effects/frostbite.ts",
+      "src/runtime/modifier-effects/grunt-surge.ts",
+      "src/runtime/modifier-effects/rubble-clearing.ts",
+      "src/runtime/modifier-effects/sapper.ts"
     ]
   },
   {
@@ -328,7 +328,7 @@
     "domain": "runtime",
     "role": "runtime banner state",
     "files": [
-      "src/runtime/runtime-banner-state.ts"
+      "src/runtime/banner-state.ts"
     ]
   },
   {
@@ -450,12 +450,12 @@
     "domain": "runtime",
     "role": "runtime cores: state, tick context, dialog cores & overlay registry",
     "files": [
-      "src/runtime/modifier-reveal-overlay-registry.ts",
-      "src/runtime/runtime-life-lost-core.ts",
-      "src/runtime/runtime-state.ts",
-      "src/runtime/runtime-tick-context.ts",
-      "src/runtime/runtime-types.ts",
-      "src/runtime/runtime-upgrade-pick-core.ts"
+      "src/runtime/dialogs/life-lost-core.ts",
+      "src/runtime/dialogs/upgrade-pick-core.ts",
+      "src/runtime/modifier-effects/registry.ts",
+      "src/runtime/state.ts",
+      "src/runtime/tick-context.ts",
+      "src/runtime/types.ts"
     ]
   },
   {
@@ -589,12 +589,12 @@
     "domain": "runtime",
     "role": "main loop + runtime contracts + battle-anim & timing translators",
     "files": [
-      "src/runtime/modifier-reveal-time.ts",
-      "src/runtime/runtime-battle-anim.ts",
-      "src/runtime/runtime-input-actions.ts",
-      "src/runtime/runtime-main-loop.ts",
-      "src/runtime/runtime-tick-consumers.ts",
-      "src/runtime/runtime-ui-contracts.ts"
+      "src/runtime/battle-anim.ts",
+      "src/runtime/input-actions.ts",
+      "src/runtime/main-loop.ts",
+      "src/runtime/modifier-effects/reveal-time.ts",
+      "src/runtime/tick-consumers.ts",
+      "src/runtime/ui-contracts.ts"
     ]
   },
   {
@@ -735,8 +735,8 @@
     "domain": "runtime",
     "role": "runtime primitives at this depth: castle-build, phase-machine, tick-consumers",
     "files": [
-      "src/runtime/runtime-castle-build.ts",
-      "src/runtime/runtime-phase-machine.ts"
+      "src/runtime/castle-build.ts",
+      "src/runtime/phase-machine.ts"
     ]
   },
   {
@@ -805,7 +805,7 @@
     "domain": "runtime",
     "role": "runtime types & main loop",
     "files": [
-      "src/runtime/runtime-bootstrap.ts"
+      "src/runtime/bootstrap.ts"
     ]
   },
   {
@@ -910,7 +910,7 @@
     "domain": "runtime",
     "role": "GameRuntime handle — composition return type",
     "files": [
-      "src/runtime/runtime-handle.ts"
+      "src/runtime/handle.ts"
     ]
   },
   {
@@ -985,7 +985,7 @@
     "domain": "runtime",
     "role": "runtime composition",
     "files": [
-      "src/runtime/runtime-composition.ts"
+      "src/runtime/composition.ts"
     ]
   },
   {

@@ -40,15 +40,15 @@ import { Mode } from "../src/shared/ui/ui-mode.ts";
 import {
   createGameRuntime,
   createLocalNetworkApi,
-} from "../src/runtime/runtime-composition.ts";
+} from "../src/runtime/composition.ts";
 import {
   DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS,
   type ScheduledAction,
 } from "../src/shared/core/action-schedule.ts";
-import { setMode } from "../src/runtime/runtime-state.ts";
+import { setMode } from "../src/runtime/state.ts";
 import { createStubElement } from "./stub-dom.ts";
-import type { GameRuntime } from "../src/runtime/runtime-handle.ts";
-import type { OnlinePhaseTicks } from "../src/runtime/runtime-types.ts";
+import type { GameRuntime } from "../src/runtime/handle.ts";
+import type { OnlinePhaseTicks } from "../src/runtime/types.ts";
 import type { TimingApi } from "../src/runtime/timing-api.ts";
 
 /** Test observer for the headless `network.send` seam. Receives every

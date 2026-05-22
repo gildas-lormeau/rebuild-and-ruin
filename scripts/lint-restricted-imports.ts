@@ -29,7 +29,7 @@
  *    assertInteriorFresh, getInterior, getBattleInterior, isTileOwnedByPlayer,
  *    hasWallAt, …) and snapshotters (snapshotAllWalls, buildOccupancyCache,
  *    collectOccupiedTiles, …) remain allowed. A single allowlist entry —
- *    `runtime-castle-build.ts` importing `addPlayerWall` — is documented:
+ *    `runtime/castle-build.ts` importing `addPlayerWall` — is documented:
  *    the castle-build animation IS the wall placement, so the runtime drives
  *    it tile-by-tile. All other mutators are zero-hit today and this rule is
  *    a tripwire against future leaks.
@@ -41,9 +41,9 @@
  *    flags. Zero-hit today; tripwire for future leaks.
  *
  * 6. Files in `src/controllers/` may only be imported by an explicit
- *    composition-root allowlist (`runtime-bootstrap.ts`) plus other files
+ *    composition-root allowlist (`runtime/bootstrap.ts`) plus other files
  *    inside `src/controllers/` itself. All other code — including online
- *    promotion + rehydrate — routes through `runtime-bootstrap.ts`'s
+ *    promotion + rehydrate — routes through `runtime/bootstrap.ts`'s
  *    re-exports of the controller-factory surface, so online never
  *    crosses the `online → controllers` boundary directly.
  *
@@ -119,7 +119,7 @@ const RUNTIME_FORBIDDEN_MUTATORS: Record<string, Set<string>> = {
  *  the runtime drives it tile-by-tile via `addPlayerWall`. */
 const RUNTIME_MUTATOR_ALLOWLIST: Record<string, Record<string, Set<string>>> = {
   "board-occupancy.ts": {
-    "src/runtime/runtime-castle-build.ts": new Set(["addPlayerWall"]),
+    "src/runtime/castle-build.ts": new Set(["addPlayerWall"]),
   },
 };
 /** Narrow allowlist of (importer → source → symbols) tuples that may bypass
@@ -156,9 +156,7 @@ const MODIFIER_REVEAL_TIME_IMPORTER = "src/runtime/subsystems/render.ts";
  *  files that need controller construction must accept a deps bag from
  *  their caller (see online-host-promotion.ts:AiPromotionDeps for the
  *  pattern). New roots must be justified in the import allowlist comment. */
-const CONTROLLER_IMPORT_ALLOWLIST = new Set([
-  "src/runtime/runtime-bootstrap.ts",
-]);
+const CONTROLLER_IMPORT_ALLOWLIST = new Set(["src/runtime/bootstrap.ts"]);
 
 main();
 

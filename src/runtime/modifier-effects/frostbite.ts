@@ -6,8 +6,8 @@
  * round via the binary `frostbite` flag.
  */
 
-import { deriveModifierRamp } from "./modifier-reveal-ramp.ts";
-import { wavedRamp } from "./waved-ramp.ts";
+import { wavedRamp } from "../waved-ramp.ts";
+import { deriveModifierRamp } from "./ramp.ts";
 
 /** Intensity held during the snapshot — grunts faintly cooling. */
 export const FROSTBITE_REVEAL_FLOOR = 0.2;

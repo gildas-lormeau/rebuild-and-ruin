@@ -1,15 +1,15 @@
 /**
  * Public composition return type. `GameRuntime` lives in its own file —
- * not `runtime-types.ts` — because it sits ABOVE every subsystem in the
+ * not `types.ts` — because it sits ABOVE every subsystem in the
  * import graph (it pulls in every `RuntimeXxx` interface). Keeping it
- * separate lets `runtime-types.ts` stay a low-layer contract file holding
+ * separate lets `types.ts` stay a low-layer contract file holding
  * `RuntimeConfig` / `NetworkApi` / online-mode types that subsystems read.
  */
 
 import type { GameMap } from "../shared/core/geometry-types.ts";
 import type { RuntimeMusic } from "./audio/music-player.ts";
 import type { RuntimeSfx } from "./audio/sfx-player.ts";
-import type { RuntimeState } from "./runtime-state.ts";
+import type { RuntimeState } from "./state.ts";
 import type { RuntimeCamera } from "./subsystems/camera.ts";
 import type { RuntimeLifecycle } from "./subsystems/game-lifecycle.ts";
 import type { RuntimeLifeLost } from "./subsystems/life-lost.ts";

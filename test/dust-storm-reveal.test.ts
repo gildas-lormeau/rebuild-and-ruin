@@ -24,7 +24,7 @@ import { assert, assertAlmostEquals } from "@std/assert";
 import {
   DUST_STORM_REVEAL_DURATION_MS,
   DUST_STORM_REVEAL_PEAK_AMPLITUDE,
-} from "../src/runtime/dust-storm-reveal-overlay.ts";
+} from "../src/runtime/modifier-effects/dust-storm.ts";
 import { GAME_EVENT } from "../src/shared/core/game-event-bus.ts";
 import { Phase } from "../src/shared/core/game-phase.ts";
 import { loadSeed } from "./scenario.ts";

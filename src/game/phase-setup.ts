@@ -241,7 +241,7 @@ export function prepareNextRound(state: GameState): void {
   // lockout, plus any future hooks wired into onBuildPhaseStart).
   onBuildPhaseStart(state);
   // `state.timer` for the upcoming build phase is anchored in
-  // `enter-wall-build.mutate` (runtime-phase-machine.ts) — AFTER
+  // `enter-wall-build.mutate` (runtime/phase-machine.ts) — AFTER
   // `applyUpgradePicks` has applied THIS round's picks. Setting it here
   // would freeze the value at the previous round's upgrade set, so
   // Double Time / Master Builder bonuses applied this round would not

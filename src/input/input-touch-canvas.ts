@@ -6,7 +6,7 @@
  * preventing ghost taps on release.
  */
 
-import type { RegisterOnlineInputDeps } from "../runtime/runtime-ui-contracts.ts";
+import type { RegisterOnlineInputDeps } from "../runtime/ui-contracts.ts";
 import {
   isPlacementPhase,
   isSelectionPhase,

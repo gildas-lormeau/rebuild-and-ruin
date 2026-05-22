@@ -1,8 +1,8 @@
 /**
- * Public interfaces for the runtime factory (split from runtime-composition
+ * Public interfaces for the runtime factory (split from composition.ts
  * so consumers import types only). Convention: `createXxxSystem(deps)`
  * destructures runtimeState at top; deps use getters for late binding;
- * sub-systems import only runtime-types/runtime-state. Overlay updates:
+ * sub-systems import only runtime/types + runtime/state. Overlay updates:
  * PERSISTENT / TRANSIENT / INPUT-DELEGATED. Pre-init code must guard reads
  * via safeState / isStateInstalled / isSessionLive.
  */
@@ -93,7 +93,7 @@ export interface OnlinePhaseTicks {
 /** Action surface for the input dispatcher. The same shape is wired both
  *  online and offline: online wrappers broadcast after a successful apply
  *  (see `online-send-actions.ts`), local wrappers execute against state
- *  directly (see `runtime-input-actions.ts`). The dispatcher consumes one
+ *  directly (see `input-actions.ts`). The dispatcher consumes one
  *  surface regardless of mode. */
 export interface OnlineActions {
   /** Send aim_update for the local pointer's crosshair (deduped). */

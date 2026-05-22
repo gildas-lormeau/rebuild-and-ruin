@@ -13,7 +13,7 @@ import {
   type RoomSettings,
   type ServerMessage,
 } from "../protocol/protocol.ts";
-import { isHostInContext } from "../runtime/runtime-tick-context.ts";
+import { isHostInContext } from "../runtime/tick-context.ts";
 import {
   GAME_MODE_MODERN,
   type GameMode,

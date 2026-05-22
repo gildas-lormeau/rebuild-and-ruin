@@ -59,15 +59,15 @@ import type { RendererInterface } from "../shared/ui/overlay-types.ts";
 import { MAX_SEED_LENGTH, SEED_CUSTOM } from "../shared/ui/player-config.ts";
 import { cycleOption } from "../shared/ui/settings-ui.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
-import { bootstrapNewGameFromSettings } from "./runtime-bootstrap.ts";
+import { bootstrapNewGameFromSettings } from "./bootstrap.ts";
 import {
   createCachedContainerHeight,
   createVisibilityListener,
-} from "./runtime-browser-dom.ts";
-import { createBrowserTimingApi } from "./runtime-browser-timing.ts";
-import type { GameRuntime } from "./runtime-handle.ts";
-import { createLocalInputActions } from "./runtime-input-actions.ts";
-import { createRuntimeLoop } from "./runtime-main-loop.ts";
+} from "./browser/dom.ts";
+import { createBrowserTimingApi } from "./browser/timing.ts";
+import type { GameRuntime } from "./handle.ts";
+import { createLocalInputActions } from "./input-actions.ts";
+import { createRuntimeLoop } from "./main-loop.ts";
 import {
   createRuntimeState,
   isPaused,
@@ -75,9 +75,7 @@ import {
   safeState,
   setMode,
   setVisibilityHidden,
-} from "./runtime-state.ts";
-import type { NetworkApi, RuntimeConfig } from "./runtime-types.ts";
-import type { UIContext } from "./runtime-ui-contracts.ts";
+} from "./state.ts";
 import { createAudioOrchestrator } from "./subsystems/audio.ts";
 import { createBannerSystem } from "./subsystems/banner.ts";
 import { createCameraSystem } from "./subsystems/camera.ts";
@@ -107,6 +105,8 @@ import {
   type UpgradePickSystem,
 } from "./subsystems/upgrade-pick.ts";
 import type { TimingApi } from "./timing-api.ts";
+import type { NetworkApi, RuntimeConfig } from "./types.ts";
+import type { UIContext } from "./ui-contracts.ts";
 
 /** Singleton empty set so repeated calls with no remotes return the same
  *  instance — runtime sub-systems read this through the `NetworkApi.remotePlayerSlots`
@@ -200,7 +200,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   const isOnline = !!config.onlinePhaseTicks;
 
   // -------------------------------------------------------------------------
-  // Mutable state (shared bag — see runtime-state.ts)
+  // Mutable state (shared bag — see state.ts)
   // -------------------------------------------------------------------------
 
   const runtimeState = createRuntimeState();

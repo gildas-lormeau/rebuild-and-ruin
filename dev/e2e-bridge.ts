@@ -8,11 +8,8 @@
  */
 
 import { computeLetterboxLayout } from "../src/render/render-layout.ts";
-import {
-  isStateInstalled,
-  type RuntimeState,
-} from "../src/runtime/runtime-state.ts";
-import type { RuntimeConfig } from "../src/runtime/runtime-types.ts";
+import { isStateInstalled, type RuntimeState } from "../src/runtime/state.ts";
+import type { RuntimeConfig } from "../src/runtime/types.ts";
 import type { Crosshair } from "../src/shared/core/battle-types.ts";
 import { isHuman } from "../src/shared/core/controller-guards.ts";
 import type {
@@ -284,7 +281,7 @@ let subscribedBus: GameEventBus | undefined;
  *  Called once per frame from the main loop (dev-only). */
 export function exposeE2EBridge(deps: E2EBridgeDeps): void {
   if (typeof window === "undefined") return;
-  // Defence in depth — the call site (runtime-composition.ts) already
+  // Defence in depth — the call site (runtime/composition.ts) already
   // gates this on IS_DEV, but a second guard ensures the bridge never
   // ships its internal-state capture surface to production even if
   // tree-shaking fails or the call site is later edited carelessly.

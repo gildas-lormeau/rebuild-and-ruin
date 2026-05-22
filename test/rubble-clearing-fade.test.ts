@@ -19,7 +19,7 @@ import {
   RUBBLE_CLEARING_RAMP_DURATION_MS,
   RUBBLE_CLEARING_WAVE_PEAK_AMPLITUDE,
   RUBBLE_CLEARING_WAVE_PERIOD_MS,
-} from "../src/runtime/rubble-clearing-overlay.ts";
+} from "../src/runtime/modifier-effects/rubble-clearing.ts";
 import { GAME_EVENT } from "../src/shared/core/game-event-bus.ts";
 import { loadSeed } from "./scenario.ts";
 

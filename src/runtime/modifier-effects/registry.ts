@@ -7,17 +7,20 @@
  * registry (`MODIFIER_EFFECT_FACTORIES` + `overlay.ui.modifierReveal`).
  */
 
-import { MODIFIER_ID, type ModifierId } from "../shared/core/game-constants.ts";
-import type { BattleOverlay } from "../shared/ui/overlay-types.ts";
+import {
+  MODIFIER_ID,
+  type ModifierId,
+} from "../../shared/core/game-constants.ts";
+import type { BattleOverlay } from "../../shared/ui/overlay-types.ts";
 import {
   deriveDustStormSwayAmplitude,
   deriveDustStormSwayPhaseRad,
-} from "./dust-storm-reveal-overlay.ts";
-import { deriveFogRevealOpacity } from "./fog-reveal-overlay.ts";
-import { deriveFrostbiteRevealProgress } from "./frostbite-reveal-overlay.ts";
-import { deriveGruntSurgeRevealIntensity } from "./grunt-surge-reveal-overlay.ts";
-import { deriveRubbleClearingFade } from "./rubble-clearing-overlay.ts";
-import { deriveSapperRevealIntensity } from "./sapper-reveal-overlay.ts";
+} from "./dust-storm.ts";
+import { deriveFogRevealOpacity } from "./fog.ts";
+import { deriveFrostbiteRevealProgress } from "./frostbite.ts";
+import { deriveGruntSurgeRevealIntensity } from "./grunt-surge.ts";
+import { deriveRubbleClearingFade } from "./rubble-clearing.ts";
+import { deriveSapperRevealIntensity } from "./sapper.ts";
 
 export type RevealOverlayBattleFields = Pick<
   BattleOverlay,

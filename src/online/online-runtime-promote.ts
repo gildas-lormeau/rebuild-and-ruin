@@ -11,9 +11,9 @@ import {
   createAiController,
   ensureAiModulesLoaded,
   rollAiPersonality,
-} from "../runtime/runtime-bootstrap.ts";
-import type { GameRuntime } from "../runtime/runtime-handle.ts";
-import { setMode } from "../runtime/runtime-state.ts";
+} from "../runtime/bootstrap.ts";
+import type { GameRuntime } from "../runtime/handle.ts";
+import { setMode } from "../runtime/state.ts";
 import { assertNever } from "../shared/platform/utils.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
 import {

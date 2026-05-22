@@ -29,7 +29,7 @@ import {
   CANNON_HP_OPTIONS,
   ROUNDS_OPTIONS,
 } from "../shared/ui/settings-defs.ts";
-import { type RuntimeState, setRuntimeGameState } from "./runtime-state.ts";
+import { type RuntimeState, setRuntimeGameState } from "./state.ts";
 
 // Re-export AI loading helpers so online code routes through runtime/
 // instead of importing controllers/ directly. Keeps online's domain
@@ -96,7 +96,7 @@ export function createAiController(
 }
 
 /** High-level bootstrap: resolves settings → params, then calls bootstrapGame.
- *  Used by the composition root (runtime-composition.ts) for local startGame. */
+ *  Used by the composition root (composition.ts) for local startGame. */
 export async function bootstrapNewGameFromSettings(
   runtimeState: RuntimeState,
   log: (msg: string) => void,

@@ -5,7 +5,7 @@
  */
 
 import type { ServerMessage } from "../protocol/protocol.ts";
-import { isHostInContext } from "../runtime/runtime-tick-context.ts";
+import { isHostInContext } from "../runtime/tick-context.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
 import { computeWsUrl } from "./online-config.ts";
 import { connectWebSocket } from "./online-session.ts";

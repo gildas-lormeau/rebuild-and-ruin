@@ -14,7 +14,7 @@ import {
   GRUNT_SURGE_REVEAL_PEAK_INTENSITY,
   GRUNT_SURGE_REVEAL_PULSE_PERIOD_MS,
   GRUNT_SURGE_REVEAL_RAMP_DURATION_MS,
-} from "../src/runtime/grunt-surge-reveal-overlay.ts";
+} from "../src/runtime/modifier-effects/grunt-surge.ts";
 import { GAME_EVENT } from "../src/shared/core/game-event-bus.ts";
 import { loadSeed } from "./scenario.ts";
 

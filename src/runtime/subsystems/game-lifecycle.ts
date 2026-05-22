@@ -16,13 +16,9 @@ import {
 } from "../../shared/ui/interaction-types.ts";
 import type { GameOverOverlay } from "../../shared/ui/overlay-types.ts";
 import { Mode } from "../../shared/ui/ui-mode.ts";
-import {
-  type RuntimeState,
-  resetTransientState,
-  setMode,
-} from "../runtime-state.ts";
-import type { RuntimeConfig } from "../runtime-types.ts";
+import { type RuntimeState, resetTransientState, setMode } from "../state.ts";
 import type { TimingApi } from "../timing-api.ts";
+import type { RuntimeConfig } from "../types.ts";
 import type { RuntimeCamera } from "./camera.ts";
 import type { RuntimeLifeLost } from "./life-lost.ts";
 import type { RuntimeSelection } from "./selection.ts";
@@ -210,7 +206,7 @@ export function createGameLifecycle(
     // session reads as inactive regardless of `zoomActivated`'s value.
     teardownSession();
     // Defensive: lobby.map should already be null here — bootstrapNewGame
-    // consumed it at game-start (see runtime-bootstrap.ts ownership transfer)
+    // consumed it at game-start (see bootstrap.ts ownership transfer)
     // so in-game tile/house mutations couldn't leak via the cached reference.
     // We re-null anyway in case a future path re-populates lobby.map during
     // play; cheaper than auditing every callsite.

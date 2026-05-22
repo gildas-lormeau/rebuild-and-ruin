@@ -5,10 +5,7 @@
  * hit-test logic consumed by runtime/subsystems/options.ts.
  */
 
-import type {
-  ControlsHit,
-  OptionsHit,
-} from "../runtime/runtime-ui-contracts.ts";
+import type { ControlsHit, OptionsHit } from "../runtime/ui-contracts.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import type {
   ControlsPlayer,

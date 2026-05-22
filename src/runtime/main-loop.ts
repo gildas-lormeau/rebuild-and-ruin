@@ -21,7 +21,7 @@ import {
   isTransitionMode,
   Mode,
 } from "../shared/ui/ui-mode.ts";
-import { isPaused, isSessionLive, type RuntimeState } from "./runtime-state.ts";
+import { isPaused, isSessionLive, type RuntimeState } from "./state.ts";
 import type { TimingApi } from "./timing-api.ts";
 
 /** Modes that have tick handlers. STOPPED is handled by early-return. */
@@ -172,7 +172,7 @@ export function createRuntimeLoop(deps: RuntimeLoopDeps): {
     // Mirrors the povPlayerId derivation inside computeFrameContext:
     // online → myId, local → pointer slot, demo → 0. Keeps the dialog
     // membership check off the lifeLost types tier (interaction-types
-    // is a leaf, runtime-state shouldn't import it) by computing here.
+    // is a leaf, runtime/state shouldn't import it) by computing here.
     const povSlot: ValidPlayerId = isActivePlayer(myId)
       ? myId
       : ((pointer?.playerId ?? 0) as ValidPlayerId);

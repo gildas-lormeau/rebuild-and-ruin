@@ -225,8 +225,8 @@ function nameSignal(
     };
   }
   // -bootstrap intentionally NOT flagged: helper functions called by the
-  // composition root are also commonly named *-bootstrap (e.g. runtime-bootstrap
-  // is a sub-system invoked from runtime-composition). The "-composition" suffix
+  // composition root are also commonly named *-bootstrap (e.g. runtime/bootstrap
+  // is a sub-system invoked from runtime/composition). The "-composition" suffix
   // is the stronger signal for roots-tier files.
   if (/-(types|defs|pool|interfaces)\.ts$/.test(base)) {
     if (!onlyTypeExports) {
@@ -238,7 +238,7 @@ function nameSignal(
     // Pure-type files genuinely sit one tier above the types they compose
     // (e.g. a Pick<> of an L4 type lands at L5 — mechanically unavoidable).
     // Logic tier is accepted as "structural types-of-types". Some domains'
-    // types files climb further: `runtime-types.ts` (RuntimeState references
+    // types files climb further: `runtime/types.ts` (RuntimeState references
     // GameState at L5) and the AI types chain (`ai-build-types` L6 →
     // `ai-strategy-types` L7 → `ai-brain-types` L8, each composing the
     // previous) both floor at systems tier without parameterizing every

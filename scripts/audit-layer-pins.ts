@@ -33,9 +33,9 @@ const layerGroups: LayerGroup[] = JSON.parse(
 const fileToLayer = new Map<string, number>();
 const fileToTier = new Map<string, string>();
 const DEFAULTS = [
-  "src/runtime/runtime-composition.ts",
+  "src/runtime/composition.ts",
   "src/controllers/controller-types.ts",
-  "src/runtime/runtime-types.ts",
+  "src/runtime/types.ts",
 ];
 const targets =
   process.argv.slice(2).length > 0 ? process.argv.slice(2) : DEFAULTS;

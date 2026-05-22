@@ -20,16 +20,12 @@ import type {
 } from "../../shared/ui/interaction-types.ts";
 import { Mode } from "../../shared/ui/ui-mode.ts";
 import {
-  assertStateInstalled,
-  type RuntimeState,
-  setMode,
-} from "../runtime-state.ts";
-import {
   createUpgradePickDialog,
   moveUpgradePickFocus,
   resolveUpgradePickEntry,
   tickUpgradePickDialog,
-} from "../runtime-upgrade-pick-core.ts";
+} from "../dialogs/upgrade-pick-core.ts";
+import { assertStateInstalled, type RuntimeState, setMode } from "../state.ts";
 
 /** Public upgrade-pick dialog handle exposed on `GameRuntime`. Tick scope:
  *  gated on `Mode.UPGRADE_PICK`. Sibling dialog handle is `RuntimeLifeLost`. */

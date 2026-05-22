@@ -22,7 +22,7 @@ import {
 } from "../../shared/ui/settings-defs.ts";
 import type { CycleOptionFn } from "../../shared/ui/settings-ui.ts";
 import { isInteractiveMode, Mode } from "../../shared/ui/ui-mode.ts";
-import { type RuntimeState, safeState } from "../runtime-state.ts";
+import { type RuntimeState, safeState } from "../state.ts";
 import type {
   ControlsScreenHitTestFn,
   CreateControlsOverlayFn,
@@ -31,7 +31,7 @@ import type {
   SeedField,
   UIContext,
   VisibleOptionsFn,
-} from "../runtime-ui-contracts.ts";
+} from "../ui-contracts.ts";
 
 interface OptionsSystemDeps {
   runtimeState: RuntimeState;

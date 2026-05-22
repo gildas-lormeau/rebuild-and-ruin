@@ -48,7 +48,7 @@ import {
   type OnlinePresenceState,
 } from "../src/online/online-presence-state.ts";
 import type { ValidPlayerId } from "../src/shared/core/player-slot.ts";
-import type { OnlinePhaseTicks } from "../src/runtime/runtime-types.ts";
+import type { OnlinePhaseTicks } from "../src/runtime/types.ts";
 import {
   createHeadlessRuntime,
   type HeadlessRuntime,

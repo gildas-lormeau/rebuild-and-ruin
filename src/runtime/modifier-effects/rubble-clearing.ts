@@ -7,8 +7,8 @@
  * "rubble fading away" feel — swells converging on zero, not a slider.
  */
 
-import { deriveModifierRamp } from "./modifier-reveal-ramp.ts";
-import { wavedRamp } from "./waved-ramp.ts";
+import { wavedRamp } from "../waved-ramp.ts";
+import { deriveModifierRamp } from "./ramp.ts";
 
 export const RUBBLE_CLEARING_RAMP_DURATION_MS = 1100;
 export const RUBBLE_CLEARING_WAVE_PERIOD_MS = 320;

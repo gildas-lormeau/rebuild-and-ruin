@@ -5,7 +5,7 @@
  * Consumed by subsystems via DI (composition root injects these).
  */
 
-import type { UIContext } from "../runtime/runtime-ui-contracts.ts";
+import type { UIContext } from "../runtime/ui-contracts.ts";
 import { GAME_MODE_MODERN } from "../shared/core/game-constants.ts";
 import type { GameMap } from "../shared/core/geometry-types.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";

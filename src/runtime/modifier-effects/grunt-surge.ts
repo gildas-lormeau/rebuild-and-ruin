@@ -6,8 +6,8 @@
  * tint). Time gating via `deriveModifierRamp` driven by `revealTimeMs`.
  */
 
-import { bellPulse } from "./bell-pulse.ts";
-import { deriveModifierRamp } from "./modifier-reveal-ramp.ts";
+import { bellPulse } from "../bell-pulse.ts";
+import { deriveModifierRamp } from "./ramp.ts";
 
 export const GRUNT_SURGE_REVEAL_PULSE_PERIOD_MS = 280;
 /** Peak tint mix at the bell's apex; lower values = subtler tint. */

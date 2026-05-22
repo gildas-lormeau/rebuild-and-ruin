@@ -142,7 +142,7 @@ export interface SelectStartMessage {
 
 /** Start of cannon placement phase — phase-marker signal. Watcher runs the
  *  source-phase prefix + `enterCannonPhase` locally on receipt; no payload.
- *  See `CANNON_ENTRY_WATCHER_STEP` in `runtime-phase-machine.ts`. */
+ *  See `CANNON_ENTRY_WATCHER_STEP` in `runtime/phase-machine.ts`. */
 export interface CannonStartMessage {
   type: "cannonStart";
 }

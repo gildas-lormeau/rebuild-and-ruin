@@ -14,12 +14,8 @@ import {
   type ActiveBannerState,
   type BannerShowOpts,
   createBannerState,
-} from "../runtime-banner-state.ts";
-import {
-  assertStateInstalled,
-  type RuntimeState,
-  setMode,
-} from "../runtime-state.ts";
+} from "../banner-state.ts";
+import { assertStateInstalled, type RuntimeState, setMode } from "../state.ts";
 
 interface BannerSystemDeps {
   readonly runtimeState: RuntimeState;

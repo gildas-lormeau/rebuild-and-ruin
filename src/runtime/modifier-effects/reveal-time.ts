@@ -7,9 +7,9 @@
  * `compute(0)`.
  */
 
-import type { ModifierId } from "../shared/core/game-constants.ts";
-import { Phase } from "../shared/core/game-phase.ts";
-import type { RuntimeState } from "./runtime-state.ts";
+import type { ModifierId } from "../../shared/core/game-constants.ts";
+import { Phase } from "../../shared/core/game-phase.ts";
+import type { RuntimeState } from "../state.ts";
 
 export function tickModifierRevealClock(
   runtimeState: RuntimeState,

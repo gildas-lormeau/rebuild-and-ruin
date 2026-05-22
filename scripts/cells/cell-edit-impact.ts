@@ -9,7 +9,7 @@
  *
  * Usage:
  *   deno run -A scripts/cells/cell-edit-impact.ts src/controllers/controller-types.ts
- *   deno run -A scripts/cells/cell-edit-impact.ts src/runtime/runtime-types.ts --json
+ *   deno run -A scripts/cells/cell-edit-impact.ts src/runtime/types.ts --json
  *
  * The script loads all files in src/ + server/ via ts-morph, builds a
  * full reverse-import map once, and answers the query against it. Run

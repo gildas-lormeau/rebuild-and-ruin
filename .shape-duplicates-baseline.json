@@ -1,7 +1,7 @@
 {
   "overlaps": [
     {
-      "pair": "ActiveBannerState@src/runtime/runtime-banner-state.ts ↔ BannerUi@src/shared/ui/overlay-types.ts"
+      "pair": "ActiveBannerState@src/runtime/banner-state.ts ↔ BannerUi@src/shared/ui/overlay-types.ts"
     },
     {
       "pair": "ArmParams@src/render/3d/sprites/grunt-scene.ts ↔ BarrelParams@src/render/3d/sprites/grunt-scene.ts"
@@ -100,7 +100,7 @@
       "pair": "FlameSpec@src/render/3d/sprites/pit-scene.ts ↔ MastParams@src/render/3d/sprites/supply-ship-scene.ts"
     },
     {
-      "pair": "GameState@src/shared/core/types.ts ↔ ResolvedGameConfig@src/runtime/runtime-bootstrap.ts"
+      "pair": "GameState@src/shared/core/types.ts ↔ ResolvedGameConfig@src/runtime/bootstrap.ts"
     },
     {
       "pair": "GruntOverride@test/phase-tests/types.ts ↔ SerializedGrunt@src/protocol/checkpoint-data.ts"
@@ -145,7 +145,7 @@
   "inline": [],
   "sharedSubsets": [
     {
-      "pair": "ActiveBannerState@src/runtime/runtime-banner-state.ts ↔ BannerUi@src/shared/ui/overlay-types.ts"
+      "pair": "ActiveBannerState@src/runtime/banner-state.ts ↔ BannerUi@src/shared/ui/overlay-types.ts"
     },
     {
       "pair": "AiPersonality@src/shared/core/ai-personality.ts ↔ AiStrategy@src/ai/ai-strategy-types.ts"
@@ -160,7 +160,7 @@
       "pair": "AutoResolveDeps@src/shared/ui/interaction-types.ts ↔ FrameContext@src/shared/core/types.ts"
     },
     {
-      "pair": "AutoResolveDeps@src/shared/ui/interaction-types.ts ↔ FrameContextInputs@src/runtime/runtime-main-loop.ts"
+      "pair": "AutoResolveDeps@src/shared/ui/interaction-types.ts ↔ FrameContextInputs@src/runtime/main-loop.ts"
     },
     {
       "pair": "BallisticTrajectory@src/shared/core/battle-events.ts ↔ OverlayCannonball@src/shared/ui/overlay-types.ts"
@@ -541,7 +541,7 @@
       "pair": "DoorPlacement@src/render/3d/sprites/house-scene.ts ↔ WindowPlacement@src/render/3d/sprites/tower-scene.ts"
     },
     {
-      "pair": "DpadDeps@src/shared/ui/input-deps.ts ↔ RegisterOnlineInputDeps@src/runtime/runtime-ui-contracts.ts"
+      "pair": "DpadDeps@src/shared/ui/input-deps.ts ↔ RegisterOnlineInputDeps@src/runtime/ui-contracts.ts"
     },
     {
       "pair": "DustHost@src/render/3d/effects/wall-dust.ts ↔ SmokePuff@src/render/3d/effects/fire-burst.ts"
@@ -586,13 +586,13 @@
       "pair": "FlameSpec@src/render/3d/sprites/pit-scene.ts ↔ TurretParams@src/render/3d/sprites/grunt-scene.ts"
     },
     {
-      "pair": "FloatingActionsDeps@src/shared/ui/input-deps.ts ↔ RegisterOnlineInputDeps@src/runtime/runtime-ui-contracts.ts"
+      "pair": "FloatingActionsDeps@src/shared/ui/input-deps.ts ↔ RegisterOnlineInputDeps@src/runtime/ui-contracts.ts"
     },
     {
-      "pair": "FrameContext@src/shared/core/types.ts ↔ FrameContextInputs@src/runtime/runtime-main-loop.ts"
+      "pair": "FrameContext@src/shared/core/types.ts ↔ FrameContextInputs@src/runtime/main-loop.ts"
     },
     {
-      "pair": "FrameContext@src/shared/core/types.ts ↔ OnlineOverlayParams@src/runtime/runtime-ui-contracts.ts"
+      "pair": "FrameContext@src/shared/core/types.ts ↔ OnlineOverlayParams@src/runtime/ui-contracts.ts"
     },
     {
       "pair": "GameState@src/shared/core/types.ts ↔ GameViewState@src/shared/core/system-interfaces.ts"
@@ -601,7 +601,7 @@
       "pair": "GameState@src/shared/core/types.ts ↔ RenderViewShared@src/shared/core/render-view.ts"
     },
     {
-      "pair": "GameState@src/shared/core/types.ts ↔ ResolvedGameConfig@src/runtime/runtime-bootstrap.ts"
+      "pair": "GameState@src/shared/core/types.ts ↔ ResolvedGameConfig@src/runtime/bootstrap.ts"
     },
     {
       "pair": "GameState@src/shared/core/types.ts ↔ Sample@test/dead-zone-grunt-cleanup.test.ts"
@@ -649,7 +649,7 @@
       "pair": "HullParams@src/render/3d/sprites/supply-ship-scene.ts ↔ WindowParams@src/render/3d/sprites/house-scene.ts"
     },
     {
-      "pair": "LifecycleWiringDeps@src/runtime/subsystems/game-lifecycle.ts ↔ RuntimeLoopDeps@src/runtime/runtime-main-loop.ts"
+      "pair": "LifecycleWiringDeps@src/runtime/subsystems/game-lifecycle.ts ↔ RuntimeLoopDeps@src/runtime/main-loop.ts"
     },
     {
       "pair": "LifeLostSystemDeps@src/runtime/subsystems/life-lost.ts ↔ LobbySystemDeps@src/runtime/subsystems/lobby.ts"
@@ -664,7 +664,7 @@
       "pair": "LobbySystemDeps@src/runtime/subsystems/lobby.ts ↔ OptionsSystemDeps@src/runtime/subsystems/options.ts"
     },
     {
-      "pair": "LobbySystemDeps@src/runtime/subsystems/lobby.ts ↔ RuntimeConfig@src/runtime/runtime-types.ts"
+      "pair": "LobbySystemDeps@src/runtime/subsystems/lobby.ts ↔ RuntimeConfig@src/runtime/types.ts"
     },
     {
       "pair": "LobbySystemDeps@src/runtime/subsystems/lobby.ts ↔ SelectionSystemDeps@src/runtime/subsystems/selection.ts"
@@ -688,7 +688,7 @@
       "pair": "MusicSubsystem@src/runtime/audio/music-player.ts ↔ SfxSubsystem@src/runtime/audio/sfx-player.ts"
     },
     {
-      "pair": "NetworkApi@src/runtime/runtime-types.ts ↔ RuntimeLoopDeps@src/runtime/runtime-main-loop.ts"
+      "pair": "NetworkApi@src/runtime/types.ts ↔ RuntimeLoopDeps@src/runtime/main-loop.ts"
     },
     {
       "pair": "OverlaySupplyShip@src/shared/ui/overlay-types.ts ↔ SupplyShip@src/shared/core/modifier-defs.ts"
@@ -700,16 +700,16 @@
       "pair": "ParapetParams@src/render/3d/sprites/tower-scene.ts ↔ SailParams@src/render/3d/sprites/supply-ship-scene.ts"
     },
     {
-      "pair": "PhaseTicksDeps@src/runtime/subsystems/phase-ticks.ts ↔ PhaseTransitionCtx@src/runtime/runtime-phase-machine.ts"
+      "pair": "PhaseTicksDeps@src/runtime/subsystems/phase-ticks.ts ↔ PhaseTransitionCtx@src/runtime/phase-machine.ts"
     },
     {
       "pair": "PhaseTicksDeps@src/runtime/subsystems/phase-ticks.ts ↔ RuntimeCamera@src/runtime/subsystems/camera.ts"
     },
     {
-      "pair": "PhaseTicksDeps@src/runtime/subsystems/phase-ticks.ts ↔ RuntimeLoopDeps@src/runtime/runtime-main-loop.ts"
+      "pair": "PhaseTicksDeps@src/runtime/subsystems/phase-ticks.ts ↔ RuntimeLoopDeps@src/runtime/main-loop.ts"
     },
     {
-      "pair": "PhaseTransitionCtx@src/runtime/runtime-phase-machine.ts ↔ RuntimeCamera@src/runtime/subsystems/camera.ts"
+      "pair": "PhaseTransitionCtx@src/runtime/phase-machine.ts ↔ RuntimeCamera@src/runtime/subsystems/camera.ts"
     },
     {
       "pair": "PieceDims@src/render/3d/sprites/debris-scene.ts ↔ PolePlatformParams@src/render/3d/sprites/tower-scene.ts"
@@ -826,7 +826,7 @@
       "pair": "RampartVariant@src/render/3d/sprites/rampart-scene.ts ↔ VariantDescriptor@src/render/3d/sprites/wall-scene.ts"
     },
     {
-      "pair": "RegisterOnlineInputDeps@src/runtime/runtime-ui-contracts.ts ↔ RuntimeConfig@src/runtime/runtime-types.ts"
+      "pair": "RegisterOnlineInputDeps@src/runtime/ui-contracts.ts ↔ RuntimeConfig@src/runtime/types.ts"
     },
     {
       "pair": "RenderViewShared@src/shared/core/render-view.ts ↔ UpgradePickViewState@src/shared/core/system-interfaces.ts"
@@ -850,7 +850,7 @@
       "pair": "RuntimeCamera@src/runtime/subsystems/camera.ts ↔ ZoomButtonDeps@src/shared/ui/input-deps.ts"
     },
     {
-      "pair": "RuntimeState@src/runtime/runtime-state.ts ↔ UIContext@src/runtime/runtime-ui-contracts.ts"
+      "pair": "RuntimeState@src/runtime/state.ts ↔ UIContext@src/runtime/ui-contracts.ts"
     },
     {
       "pair": "SailParams@src/render/3d/sprites/supply-ship-scene.ts ↔ SlabParams@src/render/3d/sprites/cannon-scene.ts"

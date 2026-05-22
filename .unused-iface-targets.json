@@ -4,7 +4,7 @@
     {
       "label": "Top-level facade returned by createGameRuntime",
       "targets": [
-        { "file": "src/runtime/runtime-handle.ts", "interface": "GameRuntime" }
+        { "file": "src/runtime/handle.ts", "interface": "GameRuntime" }
       ]
     },
     {
@@ -25,10 +25,10 @@
     {
       "label": "Online-only contracts wired from outside the runtime package",
       "targets": [
-        { "file": "src/runtime/runtime-types.ts", "interface": "OnlinePhaseTicks" },
-        { "file": "src/runtime/runtime-types.ts", "interface": "OnlineActions" },
-        { "file": "src/runtime/runtime-types.ts", "interface": "OnlineDialogDrains" },
-        { "file": "src/runtime/runtime-types.ts", "interface": "NetworkApi" }
+        { "file": "src/runtime/types.ts", "interface": "OnlinePhaseTicks" },
+        { "file": "src/runtime/types.ts", "interface": "OnlineActions" },
+        { "file": "src/runtime/types.ts", "interface": "OnlineDialogDrains" },
+        { "file": "src/runtime/types.ts", "interface": "NetworkApi" }
       ]
     },
     {
@@ -40,15 +40,15 @@
         { "file": "src/shared/ui/input-deps.ts", "interface": "QuitButtonDeps" },
         { "file": "src/shared/ui/input-deps.ts", "interface": "ZoomButtonDeps" },
         { "file": "src/shared/ui/input-deps.ts", "interface": "FloatingActionsDeps" },
-        { "file": "src/runtime/runtime-ui-contracts.ts", "interface": "FloatingActionsHandle" },
-        { "file": "src/runtime/runtime-ui-contracts.ts", "interface": "RegisterOnlineInputDeps" },
+        { "file": "src/runtime/ui-contracts.ts", "interface": "FloatingActionsHandle" },
+        { "file": "src/runtime/ui-contracts.ts", "interface": "RegisterOnlineInputDeps" },
         { "file": "src/shared/ui/input-deps.ts", "interface": "GameActionDeps" },
         { "file": "src/shared/ui/input-deps.ts", "interface": "PointerMoveDeps" },
-        { "file": "src/runtime/runtime-ui-contracts.ts", "interface": "TouchControlsDeps" },
+        { "file": "src/runtime/ui-contracts.ts", "interface": "TouchControlsDeps" },
         { "file": "src/runtime/timing-api.ts", "interface": "TimingApi" },
-        { "file": "src/runtime/runtime-ui-contracts.ts", "interface": "SeedField" },
+        { "file": "src/runtime/ui-contracts.ts", "interface": "SeedField" },
         { "file": "src/render/render-map.ts", "interface": "RenderMapDeps" },
-        { "file": "src/runtime/runtime-phase-machine.ts", "interface": "PhaseTransitionCtx" },
+        { "file": "src/runtime/phase-machine.ts", "interface": "PhaseTransitionCtx" },
         { "file": "src/online/online-server-lifecycle.ts", "interface": "HandleServerLifecycleDeps" },
         { "file": "src/online/online-server-events.ts", "interface": "HandleServerIncrementalDeps" }
       ]
@@ -81,7 +81,7 @@
       "label": "Online composition root + battle-phase lifecycle facade",
       "targets": [
         { "file": "src/online/online-stores.ts", "interface": "OnlineClient" },
-        { "file": "src/runtime/runtime-phase-machine.ts", "interface": "BattleLifecycle" }
+        { "file": "src/runtime/phase-machine.ts", "interface": "BattleLifecycle" }
       ]
     },
     {
@@ -94,7 +94,7 @@
     {
       "label": "Runtime composition config — extension-hook shape",
       "targets": [
-        { "file": "src/runtime/runtime-types.ts", "interface": "RuntimeConfig" }
+        { "file": "src/runtime/types.ts", "interface": "RuntimeConfig" }
       ]
     },
     {

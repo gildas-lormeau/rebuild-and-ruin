@@ -14,7 +14,7 @@ import {
   type PlayerController,
 } from "../../shared/core/system-interfaces.ts";
 import type { WithPointerPlayer } from "../../shared/ui/input-deps.ts";
-import { isSessionLive, type RuntimeState } from "../runtime-state.ts";
+import { isSessionLive, type RuntimeState } from "../state.ts";
 
 interface PointerPlayerLookup {
   /** Return the human controller that owns mouse/touch input, or null in demo mode. */

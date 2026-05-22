@@ -21,8 +21,8 @@ import {
   isLifeLostAllResolved,
   tickLifeLostDialog,
   toggleLifeLostFocus,
-} from "../runtime-life-lost-core.ts";
-import { type RuntimeState, setMode } from "../runtime-state.ts";
+} from "../dialogs/life-lost-core.ts";
+import { type RuntimeState, setMode } from "../state.ts";
 
 /** Public life-lost dialog handle exposed on `GameRuntime`. Tick scope:
  *  gated on `Mode.LIFE_LOST` (the runtime ticks this when the popup is

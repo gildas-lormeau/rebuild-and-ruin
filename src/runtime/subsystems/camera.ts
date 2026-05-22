@@ -1,5 +1,5 @@
 /**
- * Camera / zoom system — extracted from runtime-composition.ts.
+ * Camera / zoom system — extracted from runtime/composition.ts.
  *
  * Owns all viewport state (zone bounds, pinch zoom, auto-zoom, lerp)
  * and exposes a pure API for the runtime to call.
@@ -183,7 +183,7 @@ interface CameraDeps {
   getCtx: () => FrameContext;
   /** "Is a human player driving the pointer right now?" — the gate inside
    *  `mobileAutoZoomActive()`. Must be cache-independent because the
-   *  predicate runs both from `runtime-main-loop.ts` while `FrameContext` is itself
+   *  predicate runs both from `main-loop.ts` while `FrameContext` is itself
    *  being assembled (`frameMeta` may still be null on the first tick) and
    *  from between-frame paths (bootstrap → enterTowerSelection →
    *  setSelectionViewport on lobby expiry, where the per-frame

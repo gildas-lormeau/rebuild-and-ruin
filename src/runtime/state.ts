@@ -29,7 +29,7 @@ import {
   MAX_PLAYERS,
 } from "../shared/ui/player-config.ts";
 import { isGameplayMode, Mode } from "../shared/ui/ui-mode.ts";
-import { type BannerState, createBannerState } from "./runtime-banner-state.ts";
+import { type BannerState, createBannerState } from "./banner-state.ts";
 import { createTimerAccums, type TimerAccums } from "./timer-accums.ts";
 
 /** Discriminant for pause source. See `RuntimeState.pausedBy`. */
@@ -121,7 +121,7 @@ export interface RuntimeState {
   /** Lockstep scheduled-actions queue — every wire-broadcast input that
    *  mutates GameState is enqueued (on both originator and receiver) and
    *  drained once per sim tick at the top of `runOneSubStep`. See
-   *  `runtime-action-schedule.ts`. */
+   *  `shared/core/action-schedule.ts`. */
   actionSchedule: ActionSchedule<GameState>;
 
   // Timers / accumulators

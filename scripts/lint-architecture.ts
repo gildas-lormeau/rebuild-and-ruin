@@ -10,12 +10,11 @@
  *    (create*) or entry function (update*).
  * 2. That factory/entry must accept a single deps/config parameter
  *    (not loose args).
- * 3. Sub-system files must not import from other sub-system files (peer
- *    imports detected by `subsystems/` path or by `runtime-` peer paths
- *    legacy-style — the second form should never appear after the partition
- *    but we keep the check defensive). They may import from the runtime
- *    primitives listed in `ALLOWED_RUNTIME_BASENAMES`.
- * 4. Only runtime-composition.ts may import from sub-system files.
+ * 3. Sub-system files must not import from other sub-system files. They may
+ *    import from runtime/ root primitives listed in `ALLOWED_RUNTIME_BASENAMES`,
+ *    or from approved sub-folders (`browser/`, `dialogs/`, `modifier-effects/`,
+ *    `audio/`) — those are primitive/effect clusters, not sub-systems.
+ * 4. Only composition.ts may import from sub-system files.
  * 5. Inverse rule — no file at `runtime/` root may export a
  *    `create*System|Subsystem|Orchestrator|Animator|Lookup` factory: those
  *    are sub-systems and must live in `subsystems/`. This is the
@@ -40,24 +39,33 @@ interface Violation {
 const SRC = join(process.cwd(), "src");
 const RUNTIME_DIR = join(SRC, "runtime");
 const SUBSYSTEMS_DIR = join(RUNTIME_DIR, "subsystems");
-/** Runtime-root primitives that sub-systems may import. Everything else
- *  inside `runtime/` (composition root, other `runtime-*` files, the
- *  modifier-reveal cluster, etc.) is either covered explicitly or sits
- *  outside the sub-system boundary. Cross-domain rules live in
- *  `lint-restricted-imports.ts`. */
+/** Runtime-root primitive files (direct children of `runtime/`) that
+ *  sub-systems may import. Sub-folders (`browser/`, `dialogs/`,
+ *  `modifier-effects/`, `audio/`) are blanket-allowed via path check below.
+ *  Cross-domain rules live in `lint-restricted-imports.ts`. */
 const ALLOWED_RUNTIME_BASENAMES = new Set([
-  "runtime-types.ts",
-  "runtime-handle.ts", // GameRuntime interface (pure type file)
-  "runtime-state.ts",
-  "runtime-ui-contracts.ts", // UI contracts (overlay/screen factories, hit tests, touch handles, input-handler registration)
-  "runtime-banner-state.ts", // BannerState type + null-init constructor
-  "runtime-tick-context.ts", // shared tick state primitives
-  "runtime-bootstrap.ts", // consumed by subsystems/selection
-  "runtime-phase-machine.ts", // pure data-driven state machine, consumed by subsystems/phase-ticks
-  "runtime-castle-build.ts", // pure animation primitives, consumed by subsystems/selection
-  "runtime-battle-anim.ts", // pure battle-event-to-render-anim translation, consumed by subsystems/phase-ticks
-  "runtime-life-lost-core.ts", // pure dialog primitives, consumed by subsystems/life-lost
-  "runtime-upgrade-pick-core.ts", // pure dialog primitives, consumed by subsystems/upgrade-pick
+  "types.ts",
+  "handle.ts", // GameRuntime interface (pure type file)
+  "state.ts",
+  "ui-contracts.ts", // UI contracts (overlay/screen factories, hit tests, touch handles, input-handler registration)
+  "banner-state.ts", // BannerState type + null-init constructor
+  "tick-context.ts", // shared tick state primitives
+  "bootstrap.ts", // consumed by subsystems/selection
+  "phase-machine.ts", // pure data-driven state machine, consumed by subsystems/phase-ticks
+  "castle-build.ts", // pure animation primitives, consumed by subsystems/selection
+  "battle-anim.ts", // pure battle-event-to-render-anim translation, consumed by subsystems/phase-ticks
+  "banner-messages.ts", // phase transition banner string constants
+  "camera-projection.ts", // pure camera-projection math, consumed by subsystems/camera
+  "timer-accums.ts", // pure phase-timer accumulator helpers, consumed by subsystems/phase-ticks + selection
+]);
+/** Sub-folders inside `runtime/` containing primitives/clusters that
+ *  sub-systems may import freely. Listed as path segments (no trailing
+ *  slash) and matched by resolved import path. */
+const ALLOWED_RUNTIME_SUBDIRS = new Set([
+  "browser",
+  "dialogs",
+  "modifier-effects",
+  "audio",
 ]);
 /** Regex matching factory-export names that mark a file as a sub-system.
  *  Used by Check 5 (the inverse-drift rule). */
@@ -167,11 +175,18 @@ function checkSubSystem(file: string, violations: Violation[]): void {
       });
       continue;
     }
+    // Only audit imports that resolve inside RUNTIME_DIR. Cross-domain
+    // imports are handled by lint-domain-boundaries.ts.
+    if (!resolved.startsWith(RUNTIME_DIR + "/")) continue;
+    // Sub-folder primitive clusters (browser/, dialogs/, modifier-effects/,
+    // audio/) are blanket-allowed; explicit allowlist is for direct children.
+    const rel = resolved.slice(RUNTIME_DIR.length + 1);
+    const firstSegment = rel.split("/")[0]!;
+    if (rel.includes("/") && ALLOWED_RUNTIME_SUBDIRS.has(firstSegment)) {
+      continue;
+    }
     const importBase = basename(imp);
-    if (
-      importBase.startsWith("runtime-") &&
-      !ALLOWED_RUNTIME_BASENAMES.has(importBase)
-    ) {
+    if (!rel.includes("/") && !ALLOWED_RUNTIME_BASENAMES.has(importBase)) {
       violations.push({
         file,
         message:
@@ -206,14 +221,14 @@ function getExportedFunctions(
 }
 
 function checkConsumers(violations: Violation[]): void {
-  // Check 4: Only runtime-composition.ts may import from sub-system files.
+  // Check 4: Only composition.ts may import from sub-system files.
   // Resolve each import to an absolute path and check directory membership
   // — basename matching would false-positive on same-named files in other
   // domains (e.g. src/input/input.ts, src/render/3d/camera.ts).
   const allTs = collectAllTsFiles(SRC);
   for (const filePath of allTs) {
     const base = basename(filePath);
-    if (base === "runtime-composition.ts") continue;
+    if (base === "composition.ts") continue;
     if (filePath.startsWith(SUBSYSTEMS_DIR)) continue;
 
     const content = readFileSync(filePath, "utf-8");
@@ -227,7 +242,7 @@ function checkConsumers(violations: Violation[]): void {
           file: relPath,
           message:
             `Imports from sub-system ${basename(imp)} — only ` +
-            `runtime-composition.ts should import sub-systems`,
+            `composition.ts should import sub-systems`,
         });
       }
     }
@@ -252,7 +267,7 @@ function checkNoFactoriesAtRoot(violations: Violation[]): void {
   if (!statSync(RUNTIME_DIR, { throwIfNoEntry: false })?.isDirectory()) return;
   for (const f of readdirSync(RUNTIME_DIR)) {
     if (!f.endsWith(".ts")) continue;
-    if (f === "runtime-composition.ts") continue;
+    if (f === "composition.ts") continue;
     const content = readFileSync(join(RUNTIME_DIR, f), "utf-8");
     const m = content.match(SUBSYSTEM_FACTORY_RE);
     if (m) {
