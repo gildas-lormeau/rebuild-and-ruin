@@ -20,6 +20,7 @@
       "src/render/render-layout.ts",
       "src/runtime/audio/music-assets.ts",
       "src/runtime/banner-messages.ts",
+      "src/runtime/bell-pulse.ts",
       "src/runtime/dialog-tick.ts",
       "src/runtime/modifier-reveal-ramp.ts",
       "src/runtime/runtime-browser-dom.ts",

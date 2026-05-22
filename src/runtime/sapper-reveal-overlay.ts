@@ -7,12 +7,13 @@
  * targeted walls flash a few times within a smooth peak-and-fade window.
  */
 
+import { bellPulse } from "./bell-pulse.ts";
 import { deriveModifierRamp } from "./modifier-reveal-ramp.ts";
 
-export const SAPPER_REVEAL_RAMP_DURATION_MS = 1100;
 export const SAPPER_REVEAL_PULSE_PERIOD_MS = 280;
 /** Peak tint mix at the bell's apex; lower values = subtler tint. */
 export const SAPPER_REVEAL_PEAK_INTENSITY = 0.85;
+export const SAPPER_REVEAL_RAMP_DURATION_MS = 1100;
 
 export function deriveSapperRevealIntensity(
   revealTimeMs: number | undefined,
@@ -20,14 +21,12 @@ export function deriveSapperRevealIntensity(
   return deriveModifierRamp({
     revealTimeMs,
     durationMs: SAPPER_REVEAL_RAMP_DURATION_MS,
-    compute: (elapsedMs) => {
-      const progress = elapsedMs / SAPPER_REVEAL_RAMP_DURATION_MS;
-      const envelope = Math.sin(progress * Math.PI);
-      const pulse =
-        0.5 +
-        0.5 *
-          Math.sin((elapsedMs / SAPPER_REVEAL_PULSE_PERIOD_MS) * Math.PI * 2);
-      return SAPPER_REVEAL_PEAK_INTENSITY * envelope * pulse;
-    },
+    compute: (elapsedMs) =>
+      bellPulse({
+        elapsed: elapsedMs,
+        durationMs: SAPPER_REVEAL_RAMP_DURATION_MS,
+        pulsePeriodMs: SAPPER_REVEAL_PULSE_PERIOD_MS,
+        peak: SAPPER_REVEAL_PEAK_INTENSITY,
+      }),
   });
 }

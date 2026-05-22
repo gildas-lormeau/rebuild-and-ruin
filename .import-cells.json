@@ -70,6 +70,7 @@
     "role": "runtime leaf utilities & banner ramps",
     "files": [
       "src/runtime/banner-messages.ts",
+      "src/runtime/bell-pulse.ts",
       "src/runtime/dialog-tick.ts",
       "src/runtime/modifier-reveal-ramp.ts",
       "src/runtime/runtime-browser-dom.ts",
