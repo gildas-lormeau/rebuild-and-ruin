@@ -476,7 +476,6 @@ const CEASEFIRE: Transition = {
   // BUILD_START as a sync marker.
   mutate: (ctx) => {
     ctx.log(`ceasefire: skipping battle (round=${ctx.state.round})`);
-    ctx.scoreDelta.reset?.();
     ctx.ceasefireSkipBattle?.();
     ctx.broadcast?.buildStart?.();
     return EMPTY_TRANSITION_RESULT;
