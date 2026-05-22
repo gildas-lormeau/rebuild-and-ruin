@@ -191,6 +191,16 @@ Key points that confuse first-time readers:
   the composition root via the `deps` object. This is enforced by
   `lint-architecture.ts`.
 
+  **The "no cross-imports" rule is about CODE, not STATE.** Sub-systems
+  share state via the `runtimeState` bag by design — every sub-system
+  reads fields owned by others (render reads `dialogs.lifeLost`,
+  main-loop reads `scoreDisplay.deltas`, input reads `dialogs.upgradePick`,
+  …). Reads are unrestricted; **writes are owned** (one sub-system per
+  field, identifiable by name). For type-narrowed targeted reads,
+  prefer the owning subsystem's `get()` handle method
+  (e.g. `lifeLost.get()`); use the bag directly when aggregating many
+  fields. See the `RuntimeState` docstring in `runtime-state.ts`.
+
 - **Destructuring is intentionally non-uniform.** Each factory
   destructures only what it uses frequently; rare deps stay as
   `deps.X`. Don't try to normalize this — it reflects actual usage.

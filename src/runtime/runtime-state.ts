@@ -76,6 +76,22 @@ export interface SelectionRuntimeState {
 
 /** Mutable runtime state bag for the game loop.
  *
+ *  SHARED BAG CONTRACT: every sub-system has a reference to this. **Reads
+ *  are unrestricted across sub-systems; writes are owned.** The README rule
+ *  "sub-systems must not import each other" is about CODE DEPENDENCIES
+ *  (no `import` between `createXSystem` files); state sharing via this bag
+ *  is explicit design — `state`, `frame`, `overlay`, `mode`, `dialogs.*`,
+ *  `battleAnim`, `scoreDisplay`, etc. are read by N subsystems and written
+ *  by 1. The owning subsystem is identifiable by the field name (e.g.
+ *  `dialogs.lifeLost` ↔ life-lost subsystem, `selection` ↔ selection
+ *  subsystem, `scoreDisplay` ↔ score-delta subsystem) — writes from a
+ *  non-owner are the actual contract violation, not reads.
+ *
+ *  For type-narrowed reads, every owning subsystem exposes a `get()` on
+ *  its handle (`RuntimeLifeLost.get()`, `RuntimeUpgradePick.get()`, …).
+ *  Prefer the handle for a single targeted read; use the bag directly
+ *  when aggregating many fields (render, frame-context derivation).
+ *
  *  READINESS GUARDS: `state` and `frameMeta` are typed as their real types but
  *  hold placeholder values until `startGame()` / the first mainLoop tick runs.
  *  Two predicates carve up the lifecycle:

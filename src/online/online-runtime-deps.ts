@@ -151,7 +151,7 @@ function buildUiDeps(init: DepsInit, client: OnlineClient) {
       init.runtime.lifeLost.set(null);
     },
     isLifeLostMode: () => init.runtime.runtimeState.mode === Mode.LIFE_LOST,
-    getUpgradePickDialog: () => init.runtime.runtimeState.dialogs.upgradePick,
+    getUpgradePickDialog: () => init.runtime.upgradePick.get(),
     clearUpgradePickDialog: () => {
       // Route through the subsystem boundary, matching the phase-transition
       // path (host: `runtime-composition.ts:clearUpgradePickDialog`,
