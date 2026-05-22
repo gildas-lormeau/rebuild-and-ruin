@@ -109,23 +109,23 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.4.8",
-    "@types/node": "^25.5.2",
+    "@types/node": "^25.9.1",
     "@types/three": "^0.160.0",
-    "@typescript-eslint/eslint-plugin": "^8.57.2",
-    "@typescript-eslint/parser": "^8.57.2",
-    "eslint": "^10.1.0",
+    "@typescript-eslint/eslint-plugin": "^8.59.4",
+    "@typescript-eslint/parser": "^8.59.4",
+    "eslint": "^10.4.0",
     "jscpd": "4.0.8",
     "knip": "6.0.3",
     "madge": "8.0.0",
-    "playwright": "^1.58.2",
+    "playwright": "^1.60.0",
     "ts-morph": "^27.0.2",
-    "typescript": "^5",
-    "vite": "^7.3.1"
+    "typescript": "^5.9.3",
+    "vite": "^7.3.3"
   },
   "dependencies": {
-    "fflate": "^0.8.2",
+    "fflate": "^0.8.3",
     "libadlmidi-js": "^2.0.0",
     "qrcode-generator": "^2.0.4",
-    "three": "^0.160.0"
+    "three": "^0.160.1"
   }
 }
