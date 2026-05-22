@@ -37,10 +37,11 @@ const DUST_HAZE_ALPHA = 0.1;
  *  low so the rivers read as faint wind-borne hints rather than stripes. */
 const DUST_STREAK_ALPHA = 0.12;
 /** Battle steady-state oscillation period in seconds. The wind reverses
- *  direction every PERIOD/2 seconds; one full back-and-forth cycle
- *  takes PERIOD seconds. Chosen so the swing reads as a slow, ominous
- *  gust rather than a frantic shake. */
-const DUST_SWAY_PERIOD_SEC = 3.2;
+ *  direction every PERIOD/2 seconds; one full back-and-forth cycle takes
+ *  PERIOD seconds. Slow + ominous, not a frantic shake. Mirrored in
+ *  `runtime/dust-storm-reveal-overlay.ts` (reveal sweeps phase at the
+ *  same angular speed for a continuous handoff) — keep in sync. */
+const DUST_STORM_SWAY_PERIOD_SEC = 3.2;
 /** Peak X-displacement applied to streak peaks at full sway amplitude
  *  (sway = 1), in pixels. Matches the band-wander scale so X and Y
  *  motion read as one coherent gust. */
@@ -166,7 +167,8 @@ export function createDustStormManager(scene: THREE.Scene): EffectManager {
   // varies (held near 0 across the BATTLE-banner snapshot, ramped to 1
   // once battle is live). Both are manager-owned so the streaks
   // animate continuously without depending on wall-clock time.
-  const swayAngularSpeed = (2 * Math.PI) / DUST_SWAY_PERIOD_SEC;
+  const swayAngularSpeed = (2 * Math.PI) / DUST_STORM_SWAY_PERIOD_SEC;
+
   let swayPhaseRad = 0;
   let currentSwayAmp = 0;
   let lastNowMs: number | undefined;
