@@ -79,7 +79,7 @@ export interface UpgradePickCard {
   readonly pulseAge: number;
 }
 
-export interface UpgradePickPlayerEntry {
+interface UpgradePickPlayerEntry {
   readonly playerName: string;
   readonly color: RGB;
   readonly cards: UpgradePickCard[];
@@ -120,7 +120,7 @@ export interface LifeLostDialogOverlay {
 }
 
 /** Castle selection phase — tower highlighting and confirmation. */
-export interface SelectionOverlay {
+interface SelectionOverlay {
   /** Tower index in map.towers to highlight (cursor hover). */
   highlighted: TowerIdx | null;
   /** Tower index in map.towers that is selected (confirmed). */
@@ -134,7 +134,7 @@ export interface SelectionOverlay {
 }
 
 /** Map entities — present in all phases. */
-export interface EntityOverlay {
+interface EntityOverlay {
   grunts?: readonly Grunt[];
   towerAlive?: readonly boolean[];
   burningPits?: readonly BurningPit[];

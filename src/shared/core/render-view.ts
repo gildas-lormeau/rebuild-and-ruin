@@ -69,27 +69,27 @@ interface RenderViewShared {
   readonly modern: RenderModernSlice | null;
 }
 
-export interface SelectionRenderView extends RenderViewShared {
+interface SelectionRenderView extends RenderViewShared {
   readonly phase: Phase.CASTLE_SELECT;
 }
 
-export interface BuildRenderView extends RenderViewShared {
+interface BuildRenderView extends RenderViewShared {
   readonly phase: Phase.WALL_BUILD;
 }
 
-export interface CannonRenderView extends RenderViewShared {
+interface CannonRenderView extends RenderViewShared {
   readonly phase: Phase.CANNON_PLACE;
 }
 
-export interface BattleRenderView extends RenderViewShared {
+interface BattleRenderView extends RenderViewShared {
   readonly phase: Phase.BATTLE;
 }
 
-export interface ModifierRevealRenderView extends RenderViewShared {
+interface ModifierRevealRenderView extends RenderViewShared {
   readonly phase: Phase.MODIFIER_REVEAL;
 }
 
-export interface UpgradePickRenderView extends RenderViewShared {
+interface UpgradePickRenderView extends RenderViewShared {
   readonly phase: Phase.UPGRADE_PICK;
 }
 

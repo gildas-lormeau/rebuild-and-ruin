@@ -172,7 +172,7 @@ export interface ControllerIdentity {
 }
 
 /** Tower selection phase. */
-export interface SelectionController {
+interface SelectionController {
   /** Pick a tower for the player's home castle. Used for both the round-1
    *  initial cycle and the round > 1 reselect cycle (after losing a life,
    *  the player picks a new home tower because their previous territory
@@ -329,7 +329,7 @@ export interface BattleController {
  *  `resolveAndSend` path). AiController overrides to animate + commit
  *  via `aiPickUpgrade`. AssistedHumanController extends AiController and
  *  broadcasts the committed pick over the wire for protocol testing. */
-export interface UpgradePickController {
+interface UpgradePickController {
   /** True if this controller's entry auto-resolves (AI-driven commit).
    *  False if it waits for local UI input. Queried at dialog-create time
    *  to populate `UpgradePickEntry.autoResolve`. */
@@ -368,7 +368,7 @@ export interface UpgradePickController {
  *  pick. The orchestrator (`subsystems/life-lost.ts`) iterates entries each
  *  tick and calls `tickLifeLost` on auto-resolving controllers; the
  *  max-timer fallback in `tickLifeLostDialog` picks ABANDON directly. */
-export interface LifeLostController {
+interface LifeLostController {
   /** True if this controller's entry auto-resolves (AI-driven commit).
    *  False if it waits for local UI input. Queried at dialog-create time
    *  to populate `LifeLostEntry.autoResolve`. */

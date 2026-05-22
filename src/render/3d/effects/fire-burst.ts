@@ -96,7 +96,7 @@ export interface FireBurstConfig {
  *  manager-shared `FlamePool`. No `THREE.Mesh` is created per flame —
  *  every flame across every active host on a manager renders in a
  *  single instanced draw. */
-export interface FlameDescriptor {
+interface FlameDescriptor {
   /** Local offset within the host group's frame. */
   offsetX: number;
   offsetY: number;
@@ -112,7 +112,7 @@ export interface FlameDescriptor {
   phase: number;
 }
 
-export interface SmokePuff {
+interface SmokePuff {
   sprite: THREE.Sprite;
   material: THREE.SpriteMaterial;
   delay: number;
@@ -126,7 +126,7 @@ export interface SmokePuff {
   scaleGrowth: number;
 }
 
-export interface SparkMesh {
+interface SparkMesh {
   sprite: THREE.Sprite;
   material: THREE.SpriteMaterial;
   velocityX: number;

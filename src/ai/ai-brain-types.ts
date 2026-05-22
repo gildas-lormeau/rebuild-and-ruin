@@ -31,13 +31,13 @@ import type {
   SelectionHost,
 } from "./ai-strategy-types.ts";
 
-export interface AiBrainSelection {
+interface AiBrainSelection {
   init(host: SelectionHost, state: GameViewState, zone: ZoneId): void;
   tick(host: SelectionHost, state?: GameViewState): boolean;
   reset(): void;
 }
 
-export interface AiBrainBuild {
+interface AiBrainBuild {
   init(host: BuildHost, state: BuildViewState): void;
   tick(host: BuildHost, state: BuildViewState): BuildTickResult;
   /** Resolve the DWELLING state after the controller commits the intent
@@ -52,7 +52,7 @@ export interface AiBrainBuild {
   cursorSpeedFor(cursorSkill: 1 | 2 | 3): number;
 }
 
-export interface AiBrainCannon {
+interface AiBrainCannon {
   init(host: CannonHost, state: CannonViewState, maxSlots: number): void;
   tick(host: CannonHost, state: CannonViewState): CannonTickResult;
   /** Plan all remaining placements at end-of-phase. Yields intents one
@@ -74,7 +74,7 @@ export interface AiBrainCannon {
   cursorSpeedFor(cursorSkill: 1 | 2 | 3): number;
 }
 
-export interface AiBrainBattle {
+interface AiBrainBattle {
   init(host: BattleHost, state?: BattleViewState): void;
   tick(host: BattleHost, state: BattleViewState): BattleTickResult;
   /** Resolve the (CHAIN_)DWELLING state after the controller commits the

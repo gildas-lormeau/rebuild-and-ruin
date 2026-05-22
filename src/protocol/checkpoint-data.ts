@@ -10,7 +10,7 @@
 import type { TowerIdx } from "../shared/core/geometry-types.ts";
 import type { ZoneId } from "../shared/core/zone-id.ts";
 
-export interface SerializedCannon {
+interface SerializedCannon {
   row: number;
   col: number;
   hp: number;

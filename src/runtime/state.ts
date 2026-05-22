@@ -33,9 +33,9 @@ import { type BannerState, createBannerState } from "./banner-state.ts";
 import { createTimerAccums, type TimerAccums } from "./timer-accums.ts";
 
 /** Discriminant for pause source. See `RuntimeState.pausedBy`. */
-export type PauseReason = "none" | "user" | "visibility";
+type PauseReason = "none" | "user" | "visibility";
 
-export interface ScoreDisplayState {
+interface ScoreDisplayState {
   deltas: {
     playerId: ValidPlayerId;
     delta: number;
@@ -47,22 +47,22 @@ export interface ScoreDisplayState {
   preScores: readonly number[];
 }
 
-export interface OptionsUIState {
+interface OptionsUIState {
   context: OptionsContext;
   cursor: number;
 }
 
-export interface InputTrackingState {
+interface InputTrackingState {
   /** Player slot joined by mouse/trackpad, or null if none joined yet. */
   mouseJoinedSlot: ValidPlayerId | null;
 }
 
-export interface DialogRuntimeState {
+interface DialogRuntimeState {
   lifeLost: LifeLostDialogState | null;
   upgradePick: UpgradePickDialogState | null;
 }
 
-export interface SelectionRuntimeState {
+interface SelectionRuntimeState {
   states: Map<ValidPlayerId, SelectionState>;
   castleBuilds: CastleBuildState[];
 }

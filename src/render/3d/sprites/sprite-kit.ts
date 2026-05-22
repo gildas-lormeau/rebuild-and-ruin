@@ -14,7 +14,7 @@
 
 import * as THREE from "three";
 
-export type MaterialSide = keyof typeof SIDE_MAP_KEYS;
+type MaterialSide = keyof typeof SIDE_MAP_KEYS;
 
 export interface MaterialSpec {
   kind: "standard" | "basic";
@@ -42,18 +42,18 @@ export interface BoxShapeParams<M extends MaterialSpec = MaterialSpec> {
   material: M;
 }
 
+// THREE side constants keyed by authoring alias. The factory below
+// resolves `spec.side: 'front'|'back'|'double'` to THREE.FrontSide etc.
+const SIDE_MAP_KEYS = {
+  front: "FrontSide",
+  back: "BackSide",
+  double: "DoubleSide",
+} as const;
 // World authoring scale: 1 cell = 0.125 world units. Sprite grids,
 // tower/house layouts and cannon bounds are all authored in cells so
 // downsampling to the target canvas size stays pixel-aligned.
 export const CELL = 0.125;
 export const cells = (n: number): number => n * CELL;
-// THREE side constants keyed by authoring alias. The factory below
-// resolves `spec.side: 'front'|'back'|'double'` to THREE.FrontSide etc.
-export const SIDE_MAP_KEYS = {
-  front: "FrontSide",
-  back: "BackSide",
-  double: "DoubleSide",
-} as const;
 
 /**
  * Build a THREE material from a MaterialSpec. Superset of every

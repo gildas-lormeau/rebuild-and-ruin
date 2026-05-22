@@ -125,7 +125,7 @@ export interface OnlineActions {
  *  Each drain is called once when the corresponding subsystem makes the
  *  dialog interactable; it iterates its session queue, calls `apply` for
  *  each pending entry, then clears the queue. */
-export interface OnlineDialogDrains {
+interface OnlineDialogDrains {
   drainLifeLost: (
     apply: (playerId: ValidPlayerId, choice: ResolvedChoice) => boolean,
   ) => void;

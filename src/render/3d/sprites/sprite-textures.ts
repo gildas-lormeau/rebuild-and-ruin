@@ -11,7 +11,7 @@ import type * as THREE from "three";
 import { createTiledCanvasTexture } from "./procedural-texture.ts";
 import { createMaterial, type MaterialSpec } from "./sprite-kit.ts";
 
-export type TextureId =
+type TextureId =
   | "wall_stone"
   | "wall_top"
   | "tower_stone"

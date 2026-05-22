@@ -2,6 +2,5 @@
   "entry": ["src/main.ts", "src/online-client.ts", "src/input/input-recorder.ts", "dev/sprite-viewer-page.ts", "dev/ascii-renderer.ts", "server/server.ts", "test/**/*.ts", "scripts/**/*.ts"],
   "project": ["src/**/*.ts", "dev/**/*.ts", "server/**/*.ts", "test/**/*.ts", "scripts/**/*.ts"],
   "ignore": ["test/**"],
-  "ignoreExportsUsedInFile": true,
   "bun": false
 }

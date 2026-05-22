@@ -37,7 +37,7 @@ import {
   type TileInspection,
 } from "./dev-console-grid.ts";
 
-export interface E2EBannerSnapshot {
+interface E2EBannerSnapshot {
   text: string;
   /** Top edge of the banner strip in map-pixel coords (integer-rounded).
    *  Rises from negative values during the sweep-in and falls past
@@ -50,7 +50,7 @@ export interface E2EBannerSnapshot {
   paletteKey: string | null;
 }
 
-export interface E2EBattleSnapshot {
+interface E2EBattleSnapshot {
   cannonballs: number;
   impacts: number;
   destroyedWalls: number;
@@ -60,7 +60,7 @@ export interface E2EBattleSnapshot {
   crosshairs: Pick<Crosshair, "x" | "y" | "playerId">[];
 }
 
-export interface E2EUISnapshot {
+interface E2EUISnapshot {
   statusBar: {
     round: string;
     phase: string;
@@ -76,7 +76,7 @@ export interface E2EUISnapshot {
   } | null;
 }
 
-export interface E2EControllerSnapshot {
+interface E2EControllerSnapshot {
   buildCursor: { row: number; col: number } | null;
   cannonCursor: { row: number; col: number } | null;
   cannonMode: string | null;
@@ -173,7 +173,7 @@ interface E2EBridge extends E2EBridgeSnapshot {
  *  monotonic index across all event types; `_tMs` is the emit time in
  *  `performance.now()` ms (browser monotonic clock); `capture` is
  *  populated for entries matching a `captureOn` filter. */
-export interface E2EEntryMeta {
+interface E2EEntryMeta {
   _seq: number;
   /** Emit time on the browser's monotonic clock (`performance.now()`).
    *  Used by `sc.perf.writeEventLog()` to correlate game events with
@@ -209,7 +209,7 @@ type AnyFn = (...args: never[]) => unknown;
  *  - functions and class instances with method shapes are dropped
  *    (keys whose value extends `AnyFn` are filtered out)
  *  - plain arrays / objects are walked recursively */
-export type Serialized<T> =
+type Serialized<T> =
   T extends ReadonlyMap<infer K, infer V>
     ? (readonly [K, Serialized<V>])[]
     : T extends ReadonlySet<infer U>

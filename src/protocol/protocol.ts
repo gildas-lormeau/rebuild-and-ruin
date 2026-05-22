@@ -85,7 +85,7 @@ export interface InitMessage {
 }
 
 /** Sent when a player joins and is assigned a slot. */
-export interface JoinedMessage {
+interface JoinedMessage {
   type: "joined";
   playerId: ValidPlayerId;
   /** Slot the player occupied before this selection, or undefined if this is
@@ -94,7 +94,7 @@ export interface JoinedMessage {
   previousPlayerId?: ValidPlayerId;
 }
 
-export interface RoomCreatedMessage {
+interface RoomCreatedMessage {
   type: "roomCreated";
   code: string;
   settings: RoomSettings;
@@ -102,7 +102,7 @@ export interface RoomCreatedMessage {
 }
 
 /** Player successfully joined a room. */
-export interface RoomJoinedMessage {
+interface RoomJoinedMessage {
   type: "roomJoined";
   code: string;
   players: { playerId: ValidPlayerId; name: string }[];
@@ -114,7 +114,7 @@ export interface RoomJoinedMessage {
   elapsedSec: number;
 }
 
-export interface PlayerJoinedMessage {
+interface PlayerJoinedMessage {
   type: "playerJoined";
   playerId: ValidPlayerId;
   name: string;
@@ -123,19 +123,19 @@ export interface PlayerJoinedMessage {
   previousPlayerId?: ValidPlayerId;
 }
 
-export interface PlayerLeftMessage {
+interface PlayerLeftMessage {
   type: "playerLeft";
   playerId: ValidPlayerId;
 }
 
 /** Lobby error (room not found, full, etc.). */
-export interface RoomErrorMessage {
+interface RoomErrorMessage {
   type: "roomError";
   message: string;
 }
 
 /** Start tower selection (first round or reselection after life loss). */
-export interface SelectStartMessage {
+interface SelectStartMessage {
   type: "selectStart";
   timer: number;
 }
@@ -143,19 +143,19 @@ export interface SelectStartMessage {
 /** Start of cannon placement phase — phase-marker signal. Watcher runs the
  *  source-phase prefix + `enterCannonPhase` locally on receipt; no payload.
  *  See `CANNON_ENTRY_WATCHER_STEP` in `runtime/phase-machine.ts`. */
-export interface CannonStartMessage {
+interface CannonStartMessage {
   type: "cannonStart";
 }
 
 /** Start of battle — phase-marker signal. Watcher runs
  *  `prepareBattle` locally on receipt; no payload. */
-export interface BattleStartMessage {
+interface BattleStartMessage {
   type: "battleStart";
 }
 
 /** Start of build phase — phase-marker signal. Watcher runs
  *  `finalizeBattle` + `prepareNextRound` locally on receipt; no payload. */
-export interface BuildStartMessage {
+interface BuildStartMessage {
   type: "buildStart";
 }
 
@@ -172,18 +172,18 @@ export interface BuildStartMessage {
  *  happen later, in `resolveAfterLifeLost` (postDisplay of round-end),
  *  after the life-lost dialog resolves and before the game-over check —
  *  every peer dispatches the same way. */
-export interface BuildEndMessage {
+interface BuildEndMessage {
   type: "buildEnd";
 }
 
-export interface GameOverMessage {
+interface GameOverMessage {
   type: "gameOver";
   winner: string;
   scores: { name: string; score: number; eliminated: boolean }[];
 }
 
 /** Host disconnected — server tells all clients who the new host is. */
-export interface HostLeftMessage {
+interface HostLeftMessage {
   type: "hostLeft";
   /** PlayerId of the promoted player, or null if no human available (watcher fallback). */
   newHostPlayerId: ValidPlayerId | null;
@@ -309,29 +309,29 @@ export interface FullStateMessage extends SerializedModifierTiles {
  *  tick fires the action schedule at the matching tick on every peer, so
  *  the order-sensitive `recheckTerritory → removeEnclosedGruntsAndRespawn`
  *  cascade consumes RNG identically across peers. */
-export interface OpponentPiecePlacedMessage extends PiecePlacedPayload {
+interface OpponentPiecePlacedMessage extends PiecePlacedPayload {
   type: "opponentPiecePlaced";
 }
 
 /** An opponent's phantom piece position (for rendering ghost). */
-export interface OpponentPhantomMessage extends PiecePhantomPayload {
+interface OpponentPhantomMessage extends PiecePhantomPayload {
   type: "opponentPhantom";
 }
 
 /** An opponent (AI) placed a cannon. The inherited `applyAt` lockstep tick
  *  aligns cannon-slot occupancy and the consequent `cannonPlaceDone`
  *  checkpointing across peers. */
-export interface OpponentCannonPlacedMessage extends CannonPlacedPayload {
+interface OpponentCannonPlacedMessage extends CannonPlacedPayload {
   type: "opponentCannonPlaced";
 }
 
 /** An opponent's phantom cannon position (for rendering ghost). */
-export interface OpponentCannonPhantomMessage extends CannonPhantomPayload {
+interface OpponentCannonPhantomMessage extends CannonPhantomPayload {
   type: "opponentCannonPhantom";
 }
 
 /** An opponent confirmed their tower selection. */
-export interface OpponentTowerSelectedMessage {
+interface OpponentTowerSelectedMessage {
   type: "opponentTowerSelected";
   playerId: ValidPlayerId;
   towerIdx: TowerIdx;
@@ -361,7 +361,7 @@ export interface OpponentTowerSelectedMessage {
  *  wireDelay, opening a window where one peer exits CANNON_PLACE while
  *  the other is still in it — drifting subsequent RNG draws (modifier
  *  roll, AI upgrade-pick, grunt spawn) by exactly that gap. */
-export interface OpponentCannonPhaseDoneMessage {
+interface OpponentCannonPhaseDoneMessage {
   type: "opponentCannonPhaseDone";
   playerId: ValidPlayerId;
   applyAt: number;
@@ -376,7 +376,7 @@ export interface OpponentCannonPhaseDoneMessage {
  *  dialog), so the scheduled apply fires on every peer at the same logical
  *  tick — `dialogResolved` + `eliminatePlayers` (which mutates
  *  `state.players[pid].lives`) land in lockstep. */
-export interface LifeLostChoiceForwardedMessage {
+interface LifeLostChoiceForwardedMessage {
   type: "lifeLostChoice";
   playerId: ValidPlayerId;
   choice: ResolvedChoice;
@@ -384,14 +384,14 @@ export interface LifeLostChoiceForwardedMessage {
 }
 
 /** Upgrade pick choice forwarded from a non-host client to the host. */
-export interface UpgradePickForwardedMessage {
+interface UpgradePickForwardedMessage {
   type: "upgradePick";
   playerId: ValidPlayerId;
   choice: string;
 }
 
 /** Crosshair position update (for spectator rendering, not validated). */
-export interface AimUpdateMessage {
+interface AimUpdateMessage {
   type: "aimUpdate";
   playerId: ValidPlayerId;
   x: number;

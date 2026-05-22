@@ -150,7 +150,7 @@ export interface WallShieldedMessage {
 /** A Shield-Battery-protected cannon absorbed a direct cannonball impact
  *  (cannon HP unchanged — purely cosmetic; the `cannon.shielded` flag is
  *  set once at battle start and stays for the round). */
-export interface CannonShieldedMessage {
+interface CannonShieldedMessage {
   type: "cannonShielded";
   playerId: ValidPlayerId;
   cannonIdx: CannonIdx;
@@ -174,7 +174,7 @@ export interface TowerKilledMessage {
 /** A supply ship was hit by a cannonball. `shipId` is stable across
  *  ticks; `shooterId` is the scoring player (cannonball.scoringPlayerId
  *  for captured-cannon fires, else cannonball.playerId). */
-export interface ShipHitMessage {
+interface ShipHitMessage {
   type: "shipHit";
   shipId: number;
   shooterId: ValidPlayerId;
@@ -187,7 +187,7 @@ export interface ShipHitMessage {
  *  Awarded `bonus` queues for the last-hitter (`shooterId`) via
  *  `pendingSupplyBonuses`; consumption happens at the relevant
  *  phase-entry hook. */
-export interface ShipSunkMessage {
+interface ShipSunkMessage {
   type: "shipSunk";
   shipId: number;
   shooterId: ValidPlayerId;

@@ -11,7 +11,7 @@ import { unzipSync } from "fflate";
 
 export type XmiFileKey = (typeof XMI_FILE_KEYS)[number];
 
-export type AssetKey = "RAMP.AD" | "SOUND.RSC" | XmiFileKey;
+type AssetKey = "RAMP.AD" | "SOUND.RSC" | XmiFileKey;
 
 export interface MusicAssets {
   readonly rampAd: Uint8Array;
@@ -82,6 +82,13 @@ const RSC_XMI_NAME_MAP: Readonly<Record<string, XmiFileKey>> = {
 };
 const RAMP_AD_KEY = "RAMP.AD" as const;
 const SOUND_RSC_KEY = "SOUND.RSC" as const;
+const XMI_FILE_KEYS = [
+  "RXMI_TITLE.xmi",
+  "RXMI_BATTLE.xmi",
+  "RXMI_CANNON.xmi",
+  "RXMI_TETRIS.xmi",
+  "RXMI_SCORE.xmi",
+] as const;
 /** Bg + one-shot tracks rendered at upload time. Music-player references
  *  them by id; the renderer iterates them at upload time. */
 export const PRERENDER_BG_TRACKS: readonly PrerenderSpec[] = [
@@ -98,13 +105,6 @@ export const PRERENDER_BG_TRACKS: readonly PrerenderSpec[] = [
 export const PRERENDER_FANFARE_SONGS: readonly number[] = [4, 5, 6];
 export const DEFAULT_ARCHIVE_URL =
   "https://cors.archive.org/cors/msdos_Rampart_1992/Rampart_1992.zip";
-export const XMI_FILE_KEYS = [
-  "RXMI_TITLE.xmi",
-  "RXMI_BATTLE.xmi",
-  "RXMI_CANNON.xmi",
-  "RXMI_TETRIS.xmi",
-  "RXMI_SCORE.xmi",
-] as const;
 
 /** Shared fanfare-cache id format used by writer (renderer) and reader
  *  (player). Changing the format requires re-rendering all caches. */

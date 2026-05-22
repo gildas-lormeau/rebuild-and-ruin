@@ -26,7 +26,7 @@ export type BannerKind =
   | "cannon-place"
   | "upgrade-pick";
 
-export type LifecycleEvent =
+type LifecycleEvent =
   | { type: "phaseStart"; phase: Phase; round: number }
   | { type: "phaseEnd"; phase: Phase; round: number }
   | { type: "roundStart"; round: number }
@@ -188,7 +188,7 @@ export type LifecycleEvent =
    *  which is a networked game-state ImpactEvent. */
   | { type: "houseCrushed"; row: number; col: number };
 
-export type EntityEvent =
+type EntityEvent =
   | {
       type: "castlePlaced";
       playerId: ValidPlayerId;
@@ -248,7 +248,7 @@ export type EntityEvent =
       count: number;
     };
 
-export type ModernEvent =
+type ModernEvent =
   | {
       type: "modifierApplied";
       modifierId: ModifierId;
@@ -265,7 +265,7 @@ export type ModernEvent =
  *  entity change). Consumers are typically feedback subsystems (haptics,
  *  future sound) that react to "the user just tapped a control" without
  *  the control itself knowing about the feedback subsystem. */
-export type InteractionEvent = { type: "uiTap" };
+type InteractionEvent = { type: "uiTap" };
 
 /** Origin annotation on `cameraTarget` events — fixture readability and
  *  test-side filtering. Drives no game logic. */
@@ -276,7 +276,7 @@ export type CameraTargetSource =
   | "lifeLostHold"
   | "followCrosshair";
 
-export type GameEvent =
+type GameEvent =
   | BattleEvent
   | LifecycleEvent
   | EntityEvent
@@ -309,7 +309,7 @@ export type GameEventHandler<K extends keyof GameEventMap> = (
 ) => void;
 
 /** Catch-all handler for logging, debugging, replay. */
-export type AnyEventHandler = (
+type AnyEventHandler = (
   type: keyof GameEventMap,
   event: GameEventMap[keyof GameEventMap],
 ) => void;

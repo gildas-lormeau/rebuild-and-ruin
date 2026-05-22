@@ -392,7 +392,7 @@ export interface FrameContext {
 }
 
 /** Result shape returned by every modifier's apply function. */
-export interface ModifierApplyResult {
+interface ModifierApplyResult {
   readonly changedTiles: readonly TileKey[];
   readonly gruntsSpawned: number;
   /** Optional grunt-spawn requests for the orchestrator to execute AFTER
@@ -413,7 +413,7 @@ export interface ModifierSpawnRequest {
 }
 
 /** Hooks shared across all lifecycle variants. */
-export interface ModifierImplBase {
+interface ModifierImplBase {
   /** Apply the modifier at battle start. */
   apply(state: GameState): ModifierApplyResult;
   /** Opt-out flag: set `true` ONLY when the modifier provably leaves
@@ -438,7 +438,7 @@ export interface ModifierImplBase {
 
 /** Instant modifier: side effects flow through normal game state at
  *  apply-time. No persistent modifier-owned state to clean up. */
-export interface InstantModifier extends ModifierImplBase {
+interface InstantModifier extends ModifierImplBase {
   readonly lifecycle: "instant";
 }
 
@@ -447,7 +447,7 @@ export interface InstantModifier extends ModifierImplBase {
  *  because the watcher rebuilds the map from seed and must reapply the
  *  mutation. Modifiers are global — life loss / zone teardown does not
  *  touch their state. */
-export interface PermanentModifier extends ModifierImplBase {
+interface PermanentModifier extends ModifierImplBase {
   readonly lifecycle: "permanent";
   /** Restore tile-mutating state from checkpoint data and re-apply tile
    *  mutations on a map regenerated from seed. */
@@ -457,7 +457,7 @@ export interface PermanentModifier extends ModifierImplBase {
 /** Round-scoped modifier: active from this round's BATTLE through next
  *  CANNON_PLACE, cleared just before the next modifier rolls. Global —
  *  life loss / zone teardown does not touch their state. */
-export interface RoundScopedModifier extends ModifierImplBase {
+interface RoundScopedModifier extends ModifierImplBase {
   readonly lifecycle: "round-scoped";
   /** Revert per-modifier state at next round's CANNON_PLACE-done.
    *  Idempotent. */
