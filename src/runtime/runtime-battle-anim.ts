@@ -14,6 +14,35 @@ import { getCannon } from "../shared/core/occupancy-queries.ts";
 import { cannonSize, packTile } from "../shared/core/spatial.ts";
 import type { GameState } from "../shared/core/types.ts";
 
+/** Advance each in-flight balloon by `dt / duration` and clear the
+ *  collection once all have reached `progress >= 1`. Returns whether the
+ *  collection is now empty so callers can sequence what comes next
+ *  (BALLOON_ANIM_END + battle start). */
+export function tickBalloonFlights(
+  battleAnim: Pick<BattleAnimState, "flights">,
+  dt: number,
+  duration: number,
+): { readonly allDone: boolean } {
+  let allDone = true;
+  for (const entry of battleAnim.flights) {
+    entry.progress = Math.min(1, entry.progress + dt / duration);
+    if (entry.progress < 1) allDone = false;
+  }
+  if (allDone) clearBalloonFlights(battleAnim);
+  return { allDone };
+}
+
+/** Drop all in-flight balloons from the battleAnim snapshot. Mirrors the
+ *  `clearImpacts` / `ageImpacts` shape in `battle-types.ts`: a single
+ *  helper for the underlying field mutation so call sites read as
+ *  intent, not assignment. Used both per-frame (tick completion) and on
+ *  full-state restore (online-runtime-session). */
+export function clearBalloonFlights(
+  battleAnim: Pick<BattleAnimState, "flights">,
+): void {
+  battleAnim.flights = [];
+}
+
 /** Push impact-position + ice-thaw + destruction-burst entries from a
  *  combat result into the render-anim buffers. All entries push with
  *  `age: 0` so the renderer fades them in from frame 0. `state` is read

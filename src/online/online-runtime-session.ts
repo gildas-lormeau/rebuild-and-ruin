@@ -9,6 +9,7 @@
 import { generateMap } from "../game/index.ts";
 import type { FullStateMessage, InitMessage } from "../protocol/protocol.ts";
 import { ROUTE_ONLINE } from "../protocol/routes.ts";
+import { clearBalloonFlights } from "../runtime/runtime-battle-anim.ts";
 import { bootstrapGame } from "../runtime/runtime-bootstrap.ts";
 import { setMode, setRuntimeGameState } from "../runtime/runtime-state.ts";
 import type { GameRuntime } from "../runtime/runtime-types.ts";
@@ -133,7 +134,8 @@ export function createOnlineRuntimeSessionHelpers(
     runtime.runtimeState.selection.castleBuilds = [];
     runtime.lifeLost.set(null);
     runtime.runtimeState.frame.announcement = undefined;
-    runtime.runtimeState.battleAnim.flights = inBattle ? flights : [];
+    if (inBattle) runtime.runtimeState.battleAnim.flights = flights;
+    else clearBalloonFlights(runtime.runtimeState.battleAnim);
     // Phase timer / battle countdown read straight from `state` — both
     // peers now use dt-based decrement, no separate wall-clock anchor.
   }

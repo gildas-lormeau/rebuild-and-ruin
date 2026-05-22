@@ -52,7 +52,10 @@ import { WALL_DESTROY_ANIM_DURATION } from "../shared/core/wall-destroy-anim.ts"
 import type { UpgradePickDialogState } from "../shared/ui/interaction-types.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
 import type { BannerShow } from "./runtime-banner-state.ts";
-import { recordBattleVisualEvents } from "./runtime-battle-anim.ts";
+import {
+  recordBattleVisualEvents,
+  tickBalloonFlights,
+} from "./runtime-battle-anim.ts";
 import {
   type PhaseTransitionCtx,
   runTransition,
@@ -403,18 +406,13 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
   }
 
   function tickBalloonAnim(dt: number) {
-    const { battleAnim } = runtimeState;
-    let allDone = true;
-    for (const flight of battleAnim.flights) {
-      flight.progress = Math.min(
-        1,
-        flight.progress + dt / BALLOON_FLIGHT_DURATION,
-      );
-      if (flight.progress < 1) allDone = false;
-    }
+    const { allDone } = tickBalloonFlights(
+      runtimeState.battleAnim,
+      dt,
+      BALLOON_FLIGHT_DURATION,
+    );
     deps.requestRender();
     if (allDone) {
-      battleAnim.flights = [];
       emitGameEvent(runtimeState.state.bus, GAME_EVENT.BALLOON_ANIM_END, {
         round: runtimeState.state.round,
       });
