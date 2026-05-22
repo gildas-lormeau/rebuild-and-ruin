@@ -10,6 +10,7 @@
 import type { GameOverReason } from "../game/index.ts";
 import {
   applyUpgradePicks,
+  eliminatePlayers,
   emitGameEnd,
   emitRoundStart,
   enterBattlePhase,
@@ -206,15 +207,19 @@ export interface PhaseTransitionCtx {
    *
    *  `show` drives the dialog to completion. It either resolves
    *  immediately (no entries needed input) or shows the modal and
-   *  ticks it to resolution. Either way, `onResolved(continuing)` fires
-   *  once with the list of players who chose CONTINUE. The step sets
-   *  `result.continuing` from this list; `ROUND_END`'s postDisplay
-   *  reads it and routes via `resolveAfterLifeLost` + `ctx.lifeLostRoute`. */
+   *  ticks it to resolution. Either way, `onResolved(continuing,
+   *  abandoned)` fires once. `runLifeLostDialogStep`'s wrapper calls
+   *  `eliminatePlayers(state, abandoned)` and stashes `continuing` on
+   *  `result`; `ROUND_END`'s postDisplay reads it and routes via
+   *  `resolveAfterLifeLost` + `ctx.lifeLostRoute`. */
   readonly lifeLost?: {
     readonly show: (
       needsReselect: readonly ValidPlayerId[],
       eliminated: readonly ValidPlayerId[],
-      onResolved: (continuing: readonly ValidPlayerId[]) => void,
+      onResolved: (
+        continuing: readonly ValidPlayerId[],
+        abandoned: readonly ValidPlayerId[],
+      ) => void,
     ) => boolean;
   };
   /** Post-life-lost dispatch bundle. `ROUND_END`'s postDisplay runs
@@ -1160,7 +1165,14 @@ function runLifeLostDialogStep(
   for (const pid of [...needsReselect, ...eliminated]) {
     ctx.notifyLifeLost?.(pid);
   }
-  const finish = (continuing: readonly ValidPlayerId[]): void => {
+  const finish = (
+    continuing: readonly ValidPlayerId[],
+    abandoned: readonly ValidPlayerId[],
+  ): void => {
+    // Mirrors how `upgrade-pick-done.mutate` applies the upgrade picks
+    // after the subsystem hands them back — the dialog subsystem produces
+    // resolutions, the phase-machine applies them.
+    if (abandoned.length > 0) eliminatePlayers(ctx.state, abandoned);
     result.continuing = continuing;
     onDone();
   };
@@ -1169,7 +1181,7 @@ function runLifeLostDialogStep(
     (needsReselect.length === 0 && eliminated.length === 0)
   ) {
     if (ctx.lifeLost) ctx.lifeLost.show([], [], finish);
-    else finish([]);
+    else finish([], []);
     return;
   }
   // Spec: `max time of build phase → scores → zoom → life lost popup`.

@@ -422,11 +422,11 @@ export interface RuntimeLifeLost {
   /** Drive the life-lost flow to completion: create the dialog, either
    *  resolve immediately (all pre-resolved — only eliminations) or
    *  show the modal and wait for `tick` to resolve every entry. The
-   *  `onResolved(continuing)` callback fires exactly once, with the
-   *  list of players who chose CONTINUE. Elimination + PoV auto-zoom
-   *  side effects happen inside this flow; routing the next phase
-   *  (game-over / reselect / continue) is the CALLER's responsibility
-   *  (see the ROUND_END postDisplay in the phase machine).
+   *  `onResolved(continuing, abandoned)` callback fires exactly once.
+   *  The CALLER eliminates abandoned players and routes the next phase
+   *  (game-over / reselect / continue) — see the ROUND_END postDisplay
+   *  in the phase machine. PoV auto-zoom side effects still happen
+   *  inside this flow.
    *
    *  Wire-arrived choices that landed before the dialog was built are
    *  drained inside `show()` via `OnlineDialogDrains.drainLifeLost`
@@ -436,7 +436,10 @@ export interface RuntimeLifeLost {
   show: (
     needsReselect: readonly ValidPlayerId[],
     eliminated: readonly ValidPlayerId[],
-    onResolved: (continuing: readonly ValidPlayerId[]) => void,
+    onResolved: (
+      continuing: readonly ValidPlayerId[],
+      abandoned: readonly ValidPlayerId[],
+    ) => void,
   ) => boolean;
   tick: (dt: number) => void;
   panelPos: (playerId: ValidPlayerId) => { px: number; py: number };

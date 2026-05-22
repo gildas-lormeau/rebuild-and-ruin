@@ -1,4 +1,3 @@
-import { eliminatePlayers } from "../game/index.ts";
 import { DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS } from "../shared/core/action-schedule.ts";
 import {
   LIFE_LOST_AUTO_DELAY,
@@ -51,9 +50,15 @@ interface LifeLostSystemDeps {
 }
 
 /** Callback signature used by every resolution path (immediate skip
- *  or dialog-tick). Receives the list of players who chose CONTINUE;
- *  the caller (phase machine) routes the next transition based on it. */
-type OnLifeLostResolved = (continuing: readonly ValidPlayerId[]) => void;
+ *  or dialog-tick). Receives the lists of CONTINUE and ABANDON resolutions;
+ *  the caller (phase machine) eliminates abandoned players and routes the
+ *  next transition based on `continuing`. The subsystem deliberately does
+ *  NOT call `eliminatePlayers` itself — mirrors how upgrade-pick hands the
+ *  applied effect back to its `*-done.mutate` transition. */
+type OnLifeLostResolved = (
+  continuing: readonly ValidPlayerId[],
+  abandoned: readonly ValidPlayerId[],
+) => void;
 
 /** Extended return type: RuntimeLifeLost + extras for game-runtime wiring. */
 export type LifeLostSystem = RuntimeLifeLost & {
@@ -76,14 +81,13 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
   /** Set when a dialog is shown; cleared once resolution fires. The
    *  tick loop reads it to invoke the caller's onResolved callback.
    *  Tick is gated on Mode.LIFE_LOST. */
-  let onResolvedCb:
-    | ((continuing: readonly ValidPlayerId[]) => void)
-    | undefined;
+  let onResolvedCb: OnLifeLostResolved | undefined;
 
   /** Drive the life-lost flow to completion. Either resolves
-   *  immediately (nothing to show) and calls `onResolved([])`, or
-   *  shows the modal dialog and calls `onResolved(continuing)` once
-   *  the dialog's tick loop resolves every entry.
+   *  immediately (nothing to show) and calls `onResolved([], [])`, or
+   *  shows the modal dialog and calls `onResolved(continuing, abandoned)`
+   *  once the dialog's tick loop resolves every entry. The caller is
+   *  responsible for eliminating abandoned players.
    *
    *  Drains queued early-arrived wire choices (online only) before
    *  returning, so the dialog's first tick observes them as if they
@@ -112,8 +116,7 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
     // Skip dialog if all entries are already resolved (e.g. only eliminations).
     if (isLifeLostAllResolved(dialog)) {
       deps.log("show lifeLost: all pre-resolved, skipping dialog");
-      eliminatePlayers(runtimeState.state, abandonedPlayers(dialog));
-      onResolved(continuingPlayers(dialog));
+      onResolved(continuingPlayers(dialog), abandonedPlayers(dialog));
       return false;
     }
     runtimeState.dialogs.lifeLost = dialog;
@@ -133,11 +136,12 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
   }
 
   /**
-   * Tick the life-lost dialog; when every entry is resolved, eliminate
-   * abandoned players and fire the caller's onResolved callback with
-   * the continuing list. The callback chain is synchronous: postDisplay
-   * runs inline, dispatches the next transition, and that transition's
-   * setMode call overwrites Mode.LIFE_LOST before any frame renders.
+   * Tick the life-lost dialog; when every entry is resolved, hand the
+   * continuing + abandoned lists back through `onResolved` so the caller
+   * can eliminate abandoned players and route the next transition. The
+   * callback chain is synchronous: postDisplay runs inline, dispatches
+   * the next transition, and that transition's setMode call overwrites
+   * Mode.LIFE_LOST before any frame renders.
    */
   function tickLifeLostDialogSystem(dt: number) {
     const dialog = runtimeState.dialogs.lifeLost;
@@ -165,14 +169,13 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
       `lifeLostDialog resolved: ${dialog.entries.map((e) => `P${e.playerId}=${e.choice}(auto=${e.autoResolve})`).join(", ")} timer=${dialog.timer.toFixed(1)}s`,
     );
 
-    eliminatePlayers(runtimeState.state, abandonedPlayers(dialog));
-
     const continuing = continuingPlayers(dialog);
+    const abandoned = abandonedPlayers(dialog);
     runtimeState.dialogs.lifeLost = null;
 
     const callback = onResolvedCb;
     onResolvedCb = undefined;
-    callback?.(continuing);
+    callback?.(continuing, abandoned);
   }
 
   function toggleFocus(playerId: ValidPlayerId): void {
