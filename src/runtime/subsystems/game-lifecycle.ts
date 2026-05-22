@@ -23,7 +23,7 @@ import {
 } from "../runtime-state.ts";
 import type { RuntimeConfig } from "../runtime-types.ts";
 import type { TimingApi } from "../timing-api.ts";
-import type { CameraSystem } from "./camera.ts";
+import type { RuntimeCamera } from "./camera.ts";
 import type { RuntimeLifeLost } from "./life-lost.ts";
 import type { RuntimeSelection } from "./selection.ts";
 import type { RuntimeUpgradePick } from "./upgrade-pick.ts";
@@ -119,7 +119,7 @@ interface LifecycleWiringDeps {
   readonly selection: Pick<RuntimeSelection, "reset">;
   readonly banner: { reset: () => void };
   readonly cannonAnimator: { reset: () => void };
-  readonly camera: Pick<CameraSystem, "clearAllZoomState" | "resetCamera">;
+  readonly camera: Pick<RuntimeCamera, "clearAllZoomState" | "resetCamera">;
   readonly getLifeLost: () => Pick<RuntimeLifeLost, "set">;
   readonly getUpgradePick: () => Pick<RuntimeUpgradePick, "set">;
   readonly scoreDelta: { reset: () => void };

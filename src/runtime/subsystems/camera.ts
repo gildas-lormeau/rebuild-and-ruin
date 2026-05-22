@@ -71,7 +71,7 @@ import {
 /** Public camera handle exposed on `GameRuntime`. Consumed via `Pick<>`
  *  by sub-systems that need a slice (selection, input, game-lifecycle);
  *  the full surface is for the composition root only. */
-export interface CameraSystem {
+export interface RuntimeCamera {
   // Per-frame lifecycle
   tickCamera: () => void;
   updateViewport: () => Viewport | undefined;
@@ -239,7 +239,7 @@ const TILT_BATTLE_PITCH = Math.PI / 6;
 /** Pitch animation duration (seconds). CSS `transition: Xms ease-out` equivalent. */
 const PITCH_DURATION = 0.6;
 
-export function createCameraSystem(deps: CameraDeps): CameraSystem {
+export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
   // --- Internal state ---
   //
   // CAMERA STATE MACHINE

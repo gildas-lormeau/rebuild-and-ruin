@@ -116,7 +116,7 @@ export interface E2EBridgeSnapshot {
     enemyTargets: { x: number; y: number }[];
   };
   /** Camera state — observable from tests. Mirrors the handful of
-   *  observational methods on `CameraSystem` that tests actually
+   *  observational methods on `RuntimeCamera` that tests actually
    *  assert on (zoom target, pitch, viewport presence, auto-zoom flag).
    *  Reset tests verify these match across quit / rematch boundaries;
    *  multi-phase tests can check zoom engagement at specific phases. */

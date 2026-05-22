@@ -10,7 +10,7 @@ import type { GameMap } from "../shared/core/geometry-types.ts";
 import type { RuntimeMusic } from "./audio/music-player.ts";
 import type { RuntimeSfx } from "./audio/sfx-player.ts";
 import type { RuntimeState } from "./runtime-state.ts";
-import type { CameraSystem } from "./subsystems/camera.ts";
+import type { RuntimeCamera } from "./subsystems/camera.ts";
 import type { RuntimeLifecycle } from "./subsystems/game-lifecycle.ts";
 import type { RuntimeLifeLost } from "./subsystems/life-lost.ts";
 import type { RuntimeLobby } from "./subsystems/lobby.ts";
@@ -42,7 +42,7 @@ export interface GameRuntime {
    *  observe zoom/pitch state — the underlying camera value is already
    *  constructed inside `createGameRuntime`, this just surfaces it on
    *  the public handle. */
-  camera: CameraSystem;
+  camera: RuntimeCamera;
 
   // --- Cross-cutting orchestration ---
   mainLoop: (now: number) => void;

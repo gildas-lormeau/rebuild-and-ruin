@@ -355,15 +355,6 @@
       "pair": "BurstHost@src/render/3d/effects/modifier-reveal-burst.ts ↔ ThawHost@src/render/3d/effects/thawing.ts"
     },
     {
-      "pair": "CameraSystem@src/runtime/subsystems/camera.ts ↔ PhaseTicksDeps@src/runtime/subsystems/phase-ticks.ts"
-    },
-    {
-      "pair": "CameraSystem@src/runtime/subsystems/camera.ts ↔ PhaseTransitionCtx@src/runtime/runtime-phase-machine.ts"
-    },
-    {
-      "pair": "CameraSystem@src/runtime/subsystems/camera.ts ↔ ZoomButtonDeps@src/shared/ui/input-deps.ts"
-    },
-    {
       "pair": "Cannon@src/shared/core/battle-types.ts ↔ SerializedCannon@src/protocol/checkpoint-data.ts"
     },
     {
@@ -712,7 +703,13 @@
       "pair": "PhaseTicksDeps@src/runtime/subsystems/phase-ticks.ts ↔ PhaseTransitionCtx@src/runtime/runtime-phase-machine.ts"
     },
     {
+      "pair": "PhaseTicksDeps@src/runtime/subsystems/phase-ticks.ts ↔ RuntimeCamera@src/runtime/subsystems/camera.ts"
+    },
+    {
       "pair": "PhaseTicksDeps@src/runtime/subsystems/phase-ticks.ts ↔ RuntimeLoopDeps@src/runtime/runtime-main-loop.ts"
+    },
+    {
+      "pair": "PhaseTransitionCtx@src/runtime/runtime-phase-machine.ts ↔ RuntimeCamera@src/runtime/subsystems/camera.ts"
     },
     {
       "pair": "PieceDims@src/render/3d/sprites/debris-scene.ts ↔ PolePlatformParams@src/render/3d/sprites/tower-scene.ts"
@@ -848,6 +845,9 @@
     },
     {
       "pair": "RoofPlacement@src/render/3d/sprites/tower-scene.ts ↔ SailParams@src/render/3d/sprites/supply-ship-scene.ts"
+    },
+    {
+      "pair": "RuntimeCamera@src/runtime/subsystems/camera.ts ↔ ZoomButtonDeps@src/shared/ui/input-deps.ts"
     },
     {
       "pair": "RuntimeState@src/runtime/runtime-state.ts ↔ UIContext@src/runtime/runtime-ui-contracts.ts"

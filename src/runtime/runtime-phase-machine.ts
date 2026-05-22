@@ -189,7 +189,7 @@ export interface PhaseTransitionCtx {
    *  `shouldUnzoom` true) then calls this; `cb` fires on the first
    *  fullMapVp + flat-pitch frame so every mutate + display step runs
    *  against a full-map viewport. Fires synchronously when both already
-   *  hold. See `CameraSystem.awaitCameraFlat`. */
+   *  hold. See `RuntimeCamera.awaitCameraFlat`. */
   readonly awaitCameraFlat: (callback: () => void) => void;
   readonly setMode: (m: Mode) => void;
   readonly log: (msg: string) => void;
@@ -253,7 +253,7 @@ export interface PhaseTransitionCtx {
    *  until the build→battle tilt completes. Fires synchronously when
    *  pitch is already settled (including headless `cameraTiltEnabled` =
    *  false), so callers don't need a separate gate. See
-   *  `CameraSystem.awaitPitchSettled`. Optional so headless contexts
+   *  `RuntimeCamera.awaitPitchSettled`. Optional so headless contexts
    *  that don't own a camera can skip wiring it. */
   readonly awaitPitchSettled?: (callback: () => void) => void;
   /** Start the build→battle tilt at battle-banner end. Called inside

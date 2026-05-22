@@ -38,7 +38,7 @@ import {
   type MutableAccums,
   resetAccum,
 } from "../timer-accums.ts";
-import type { CameraSystem } from "./camera.ts";
+import type { RuntimeCamera } from "./camera.ts";
 
 /** Public selection handle exposed on `GameRuntime`. Drives the CASTLE_SELECT
  *  phase (initial cycle + reselect cycle) and the castle-build animation. */
@@ -80,7 +80,10 @@ interface SelectionSystemDeps {
   sendSelectStart: (timer: number) => void;
   log: (msg: string) => void;
 
-  camera: Pick<CameraSystem, "setCastleBuildViewport" | "setSelectionViewport">;
+  camera: Pick<
+    RuntimeCamera,
+    "setCastleBuildViewport" | "setSelectionViewport"
+  >;
   /** Render-domain: sync overlay highlights from selectionStates (injected from composition root). */
   syncSelectionOverlay: (
     overlay: RenderOverlay,

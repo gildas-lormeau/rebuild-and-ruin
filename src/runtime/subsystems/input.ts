@@ -39,7 +39,7 @@ import type {
   RegisterOnlineInputDeps,
   RegisterTouchHandlersFn,
 } from "../runtime-ui-contracts.ts";
-import type { CameraSystem } from "./camera.ts";
+import type { RuntimeCamera } from "./camera.ts";
 
 type DpadHandle = ReturnType<CreateDpadFn>;
 
@@ -127,7 +127,7 @@ interface InputSystemDeps {
     isReady: () => boolean;
   };
   readonly camera: Pick<
-    CameraSystem,
+    RuntimeCamera,
     | "pixelToTile"
     | "screenToWorld"
     | "pickHitWorld"

@@ -19,7 +19,7 @@
         { "file": "src/runtime/subsystems/phase-ticks.ts", "interface": "RuntimePhaseTicks" },
         { "file": "src/runtime/audio/music-player.ts", "interface": "RuntimeMusic" },
         { "file": "src/runtime/audio/sfx-player.ts", "interface": "RuntimeSfx" },
-        { "file": "src/runtime/subsystems/camera.ts", "interface": "CameraSystem" }
+        { "file": "src/runtime/subsystems/camera.ts", "interface": "RuntimeCamera" }
       ]
     },
     {

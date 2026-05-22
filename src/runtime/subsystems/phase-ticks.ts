@@ -118,12 +118,12 @@ interface PhaseTicksDeps extends Pick<RuntimeConfig, "log"> {
   /** Run `cb` after the camera has converged to fullMapVp with pitch
    *  flat — threaded through to `PhaseTransitionCtx` so `runTransition`
    *  can gate every mutate + display step on convergence. See
-   *  `CameraSystem.awaitCameraFlat`. */
+   *  `RuntimeCamera.awaitCameraFlat`. */
   awaitCameraFlat: (callback: () => void) => void;
   /** Run `cb` after the in-flight pitch animation completes — threaded
    *  through to `PhaseTransitionCtx` so `proceedToBattle`'s postDisplay
    *  can gate balloon-anim entry on the build→battle tilt-in completing.
-   *  See `CameraSystem.awaitPitchSettled`. */
+   *  See `RuntimeCamera.awaitPitchSettled`. */
   awaitPitchSettled: (callback: () => void) => void;
   /** Show a full-screen banner. `onDone` fires once when the sweep
    *  completes. Sequencing banners is the phase machine's job — each
