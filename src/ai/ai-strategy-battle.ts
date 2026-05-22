@@ -68,7 +68,7 @@ export type BattleTargetMemory = {
 
 /** Packed `(playerId, cannonIdx)` key for the per-cannon shot counter map.
  *  Branded so a raw `number` can't be mistakenly fed into shotCounts.get(). */
-export type ShotKey = number & { readonly __brand: "ShotKey" };
+export type ShotKey = number & { readonly __shotKey: true };
 
 type StructuralHitCandidate = {
   tiles: TilePos[];

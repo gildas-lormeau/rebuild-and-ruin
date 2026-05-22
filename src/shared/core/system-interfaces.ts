@@ -49,6 +49,10 @@ export interface GameViewState {
   readonly players: readonly Player[];
   readonly map: GameMap;
   readonly bus: GameEventBus;
+  /** Grass tiles temporarily blocked by burning pits (3-round duration).
+   *  Universal across phases — every phase view reads them for placement /
+   *  movement / obstacle checks. */
+  readonly burningPits: readonly BurningPit[];
 }
 
 /** Build-phase state slice.  10 fields (vs 25 on GameState).
@@ -61,7 +65,6 @@ export interface BuildViewState extends GameViewState {
   readonly rng: Rng;
   readonly timer: number;
   readonly towerAlive: readonly boolean[];
-  readonly burningPits: readonly BurningPit[];
   readonly bonusSquares: readonly BonusSquare[];
   readonly grunts: readonly Grunt[];
   readonly modern: {
@@ -73,7 +76,6 @@ export interface BuildViewState extends GameViewState {
 export interface CannonViewState extends GameViewState {
   readonly cannonLimits: readonly number[];
   readonly capturedCannons: readonly CapturedCannon[];
-  readonly burningPits: readonly BurningPit[];
   readonly cannonMaxHp: number;
   readonly gameMode: GameMode;
   /** Per-player slot-cost counter for scheduled-but-not-yet-drained cannon
@@ -92,7 +94,6 @@ export interface UpgradePickViewState extends GameViewState {
   readonly round: number;
   readonly towerAlive: readonly boolean[];
   readonly grunts: readonly Grunt[];
-  readonly burningPits: readonly BurningPit[];
 }
 
 /** Battle-phase state slice.  15 fields.
@@ -107,7 +108,6 @@ export interface BattleViewState extends GameViewState {
   readonly cannonballs: readonly Cannonball[];
   readonly cannonMaxHp: number;
   readonly capturedCannons: readonly CapturedCannon[];
-  readonly burningPits: readonly BurningPit[];
   readonly playerZones: readonly ZoneId[];
   /** Cannons whose fire has been scheduled on this peer but not yet
    *  drained. See `GameState.pendingCannonFires`. Read by `canFireOwnCannon`

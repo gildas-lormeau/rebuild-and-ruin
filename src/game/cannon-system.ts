@@ -1,5 +1,4 @@
 import {
-  type BurningPit,
   type Cannon,
   CannonMode,
   isBalloonCannon,
@@ -61,7 +60,6 @@ const CANNON_SNAP_RADIUS = 2;
  *  skipped placement. Picks evenly spaced valid interior positions. */
 export function autoPlaceRound1Cannons(
   state: GameViewState & {
-    readonly burningPits: readonly BurningPit[];
     readonly cannonMaxHp: number;
     readonly pendingCannonSlotCost: readonly number[];
     readonly round?: number;
@@ -114,7 +112,6 @@ export function placeCannon(
   maxCannons: number,
   mode: CannonMode,
   state: GameViewState & {
-    readonly burningPits: readonly BurningPit[];
     readonly cannonMaxHp: number;
     readonly pendingCannonSlotCost: readonly number[];
   },
@@ -188,7 +185,6 @@ export function isCannonPlacementLegal(
   mode: CannonMode,
   maxCannons: number,
   state: GameViewState & {
-    readonly burningPits: readonly BurningPit[];
     readonly pendingCannonSlotCost: readonly number[];
   },
 ): boolean {
@@ -349,7 +345,7 @@ function applyCannonPlacement(
 function findLegalCannonPlacements(
   player: Player,
   mode: CannonMode,
-  state: GameViewState & { readonly burningPits: readonly BurningPit[] },
+  state: GameViewState,
 ): TilePos[] {
   const interior = getInterior(player);
   const candidates: TilePos[] = [];
@@ -398,7 +394,7 @@ function findNearestValidCannonPlacement(
   row: number,
   col: number,
   mode: CannonMode,
-  state: GameViewState & { readonly burningPits: readonly BurningPit[] },
+  state: GameViewState,
 ): { row: number; col: number } | undefined {
   // Check origin first — if valid, no snapping needed
   if (canPlaceCannon(player, row, col, mode, state)) {
@@ -434,7 +430,7 @@ export function canPlaceCannon(
   row: number,
   col: number,
   mode: CannonMode,
-  state: GameViewState & { readonly burningPits: readonly BurningPit[] },
+  state: GameViewState,
 ): boolean {
   const interior = getInterior(player);
   const size = cannonSize(mode);

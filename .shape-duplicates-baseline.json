@@ -61,9 +61,6 @@
       "pair": "BuildViewState@src/shared/core/system-interfaces.ts ↔ UpgradePickViewState@src/shared/core/system-interfaces.ts"
     },
     {
-      "pair": "Cannon@src/shared/core/battle-types.ts ↔ SerializedCannon@src/protocol/checkpoint-data.ts"
-    },
-    {
       "pair": "CannonHost@src/ai/ai-strategy-types.ts ↔ SelectionHost@src/ai/ai-strategy-types.ts"
     },
     {
@@ -103,9 +100,6 @@
       "pair": "FlameSpec@src/render/3d/sprites/pit-scene.ts ↔ MastParams@src/render/3d/sprites/supply-ship-scene.ts"
     },
     {
-      "pair": "GameState@src/shared/core/types.ts ↔ GameViewState@src/shared/core/system-interfaces.ts"
-    },
-    {
       "pair": "GameState@src/shared/core/types.ts ↔ ResolvedGameConfig@src/runtime/runtime-bootstrap.ts"
     },
     {
@@ -119,9 +113,6 @@
     },
     {
       "pair": "MastParams@src/render/3d/sprites/supply-ship-scene.ts ↔ TurretParams@src/render/3d/sprites/grunt-scene.ts"
-    },
-    {
-      "pair": "OverlayBalloon@src/shared/ui/overlay-types.ts ↔ OverlayCannonball@src/shared/ui/overlay-types.ts"
     },
     {
       "pair": "OverlaySupplyShip@src/shared/ui/overlay-types.ts ↔ TouchPoint@src/input/input-recorder.ts"
@@ -347,9 +338,6 @@
     },
     {
       "pair": "BubbleSprite@src/render/3d/effects/supply-ship.ts ↔ FlameDescriptor@src/render/3d/effects/fire-burst.ts"
-    },
-    {
-      "pair": "BuildViewState@src/shared/core/system-interfaces.ts ↔ EntityOverlay@src/shared/ui/overlay-types.ts"
     },
     {
       "pair": "BuildViewState@src/shared/core/system-interfaces.ts ↔ GameState@src/shared/core/types.ts"
@@ -580,9 +568,6 @@
       "pair": "EntityOverlay@src/shared/ui/overlay-types.ts ↔ RenderViewShared@src/shared/core/render-view.ts"
     },
     {
-      "pair": "EntityOverlay@src/shared/ui/overlay-types.ts ↔ UpgradePickViewState@src/shared/core/system-interfaces.ts"
-    },
-    {
       "pair": "FixtureFile@test/phase-tests/types.ts ↔ ScenarioOptions@test/scenario.ts"
     },
     {
@@ -635,6 +620,9 @@
     },
     {
       "pair": "GameState@src/shared/core/types.ts ↔ UpgradePickViewState@src/shared/core/system-interfaces.ts"
+    },
+    {
+      "pair": "GameViewState@src/shared/core/system-interfaces.ts ↔ RenderViewShared@src/shared/core/render-view.ts"
     },
     {
       "pair": "Grunt@src/shared/core/battle-types.ts ↔ SerializedGrunt@src/protocol/checkpoint-data.ts"

@@ -1,9 +1,4 @@
-import {
-  type BurningPit,
-  type Cannon,
-  type Grunt,
-  isBalloonCannon,
-} from "./battle-types.ts";
+import { type Cannon, type Grunt, isBalloonCannon } from "./battle-types.ts";
 import type { BonusSquare, TowerIdx } from "./geometry-types.ts";
 import type { TileKey } from "./grid.ts";
 import { hasCannonAt, hasTowerAt } from "./occupancy-queries.ts";
@@ -70,7 +65,6 @@ export function isTileOwnedByPlayer(player: Player, key: TileKey): boolean {
 
 export function collectOccupiedTiles(
   state: GameViewState & {
-    readonly burningPits: readonly BurningPit[];
     readonly bonusSquares: readonly BonusSquare[];
     readonly grunts: readonly Grunt[];
   },
@@ -223,7 +217,7 @@ export function findLivingTowerIndexAt(
 }
 
 export function computeCardinalObstacleMask(
-  state: GameViewState & { readonly burningPits: readonly BurningPit[] },
+  state: GameViewState,
   row: number,
   col: number,
   options?: { excludeBalloonCannons?: boolean },
@@ -269,7 +263,6 @@ export function computeCardinalObstacleMask(
 export function buildOccupancyCache(
   state: GameViewState & {
     readonly grunts: readonly Grunt[];
-    readonly burningPits: readonly BurningPit[];
   },
 ): OccupancyCache {
   const towerKeys = new Set<TileKey>();

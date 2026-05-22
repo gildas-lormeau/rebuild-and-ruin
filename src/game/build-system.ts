@@ -5,7 +5,6 @@
  */
 
 import {
-  type BurningPit,
   CannonMode,
   type Grunt,
   isCannonAlive,
@@ -125,7 +124,6 @@ export function placePiece(
 export function canPlacePiece(
   state: GameViewState & {
     readonly grunts: readonly Grunt[];
-    readonly burningPits: readonly BurningPit[];
     readonly modern?: {
       readonly activeModifier: ModifierId | null;
       readonly exposedRiverbedTiles?: ReadonlySet<TileKey> | null;
