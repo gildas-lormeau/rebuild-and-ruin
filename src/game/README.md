@@ -241,7 +241,7 @@ See `src/game/upgrades/` for examples. Pattern:
   Flood-fill rules, grunt movement constraints, interior caching,
   gap detection pitfalls. **Read this before touching grunt or
   territory code.**
-- **[docs/protocol.md](../../docs/protocol.md)** — Wire protocol,
+- **[src/protocol/README.md](../protocol/README.md)** — Wire protocol,
   checkpoint shapes, event relay behavior. Useful if you're debugging
   a "local works, online doesn't" issue.
 - **[skills/debug.md](../../skills/debug.md)** — Debugging workflow

@@ -276,11 +276,10 @@ for them so tests can drive them via injected messages.
 
 ## Related reading
 
-- **[docs/protocol.md](../../docs/protocol.md)** — Wire protocol
+- **[src/protocol/README.md](../protocol/README.md)** — Wire protocol
   reference: message types, checkpoint shapes, serialization details.
-- **[src/protocol/](../protocol/)** — Wire protocol types
-  (`protocol.ts`), checkpoint data (`checkpoint-data.ts`), routes
-  (`routes.ts`).
+  Lives alongside the types in `src/protocol/`
+  (`protocol.ts`, `checkpoint-data.ts`, `routes.ts`).
 - **[src/shared/core/phantom-types.ts](../shared/core/phantom-types.ts)** —
   `DedupChannel` definition (the `shouldSend` primitive).
 - **[src/runtime/runtime-tick-context.ts](../runtime/runtime-tick-context.ts)** —

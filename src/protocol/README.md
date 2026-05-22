@@ -2,7 +2,7 @@
 
 ## Architecture
 
-**Trusted host model.** One client (the host) runs all game logic. The server is a pure relay — it forwards messages between connected sockets with basic anti-cheat validation. All other clients (players and watchers) render from the events they receive.
+**Trusted host model.** The host owns the canonical state for cross-peer mutations driven by human input (piece/cannon placements, fires, tower confirmations, dialog choices); watchers apply those at the lockstep `applyAt` tick. Everything else — AI decisions, modifier rolls, grunt spawns, castle wall plans, bonus square placement — every peer mirror-simulates locally from synced `state.rng` using the same engine functions. The server is a pure relay with anti-cheat validation; it does not run game logic.
 
 ```
 Host ──WebSocket──> Server (relay) ──WebSocket──> Players / Watchers
@@ -13,8 +13,7 @@ Host ──WebSocket──> Server (relay) ──WebSocket──> Players / Watc
 
 ### Key Principles
 - **Deterministic from seed**: all clients derive the map, towers, zones, and houses from the seed. The `init` message only carries the seed + settings — no map data.
-- **Bare-marker phase checkpoints**: `buildStart`, `cannonStart`, `buildEnd` carry no payload. The watcher runs the same engine fn locally on receipt (`enterBuildPhase`, source-prefix + `enterCannonPhase`, `finalizeBuildPhase`). Watcher and host produce byte-identical state from synced RNG.
-- **One RNG resync per round**: `battleStart` carries only `rngState` — the host's pre-`prepareBattle` RNG. The watcher applies `setState(rngState)` then runs the same setup locally (modifier roll, balloon resolution, grunt wall-attack flags, captured cannons, combo tracker). Drift over a full round is caught here as a defense-in-depth round-trip check.
+- **Bare-marker phase checkpoints**: `cannonStart`, `battleStart`, `buildStart`, `buildEnd` carry no payload. The watcher runs the same engine fn locally on receipt (source-phase prefix + `enterCannonPhase`, `prepareBattle`, `finalizeBattle` + `prepareNextRound`, `finalizeRound`). Watcher and host produce byte-identical state from synced RNG. The only payload-bearing wire snapshot of RNG state is `fullState`, used during host-migration / late-join recovery.
 - **Events during phases**: incremental updates (piece placed, cannon fired, wall destroyed) streamed in real-time.
 - **Lockstep apply scheduling**: every state-mutating originator-driven message (`opponentPiecePlaced`, `opponentCannonPlaced`, `opponentTowerSelected` confirmed, `opponentCannonPhaseDone`, `cannonFired`) carries `applyAt = senderSimTick + SAFETY`. Both originator and receiver enqueue the apply for that tick; the queue drains at the top of each sim tick keyed off the shared `state.simTick` counter, so mutations and their RNG-consuming cascades fire at the same logical tick across peers — closing within-phase divergences (recheckTerritory grunt-respawn drift, AI cannon-fire grunt-spawn drift, castle-wall clumsy-builder drift) that wire delay would otherwise open.
 - **Local AI on every peer**: AI selections, castle wall plans, modifier tiles, bonus square placement, and grunt spawns all advance from `state.rng`. Watchers run the same code paths as host — no wire payload needed for any of these.
@@ -85,19 +84,19 @@ Sent inside `createRoom`, `roomCreated`, and `roomJoined`:
 
 ### Host → All (Phase Transitions / Checkpoints)
 
-Bare-marker checkpoints carry only `{ type }` — the watcher runs the matching engine fn locally on receipt, deriving every mutation from synced state + RNG. The only payload-carrying checkpoint is `battleStart`, which ships the host's pre-`prepareBattle` `rngState` so the watcher can resync once per round.
+All four phase-marker checkpoints (`cannonStart`, `battleStart`, `buildStart`, `buildEnd`) carry only `{ type }` — the watcher runs the matching engine fn locally on receipt, deriving every mutation from synced state + RNG. `init`, `selectStart`, and `gameOver` carry bootstrap / phase-entry / terminal-frame payloads but no derived game state.
 
 | Message | When | Payload | Watcher action |
 |---------|------|---------|----------------|
 | `init` | Game start | `seed`, `playerCount`, `settings` (`maxRounds`, `cannonMaxHp`, `buildTimer`, `cannonPlaceTimer`, `firstRoundCannons`, `gameMode`) | Bootstrap from seed |
-| `selectStart` | Tower selection begins | `timer` | Run `enterTowerSelection` |
+| `selectStart` | Tower selection begins (initial + reselect) | `timer` | `enterSelectionPhase` (cycle type derived from `state.round` + `freshCastlePlayers`) |
 | `cannonStart` | CASTLE_SELECT / WALL_BUILD → CANNON_PLACE | _none_ | Source-phase prefix (`finalizeRoundCleanup` for `round > 1` / `finalizeFreshCastles` / `finalizeCastleConstruction`) + `enterCannonPhase` |
-| `battleStart` | CANNON_PLACE → BATTLE | `rngState` (host's pre-`prepareBattle` RNG) | `state.rng.setState(rngState)` then `prepareBattle` (modifier roll, balloon resolution, grunt wall-attack flags, combo tracker) |
-| `buildStart` | BATTLE → WALL_BUILD | _none_ | `enterBuildPhase` (combo bonuses, battle cleanup, grunt spawn, upgrade offers, modifier rotation, round increment, piece bag init) |
-| `buildEnd` | End of build phase | _none_ | `finalizeBuildPhase` (territory finalize, life penalties, score) |
+| `battleStart` | CANNON_PLACE → BATTLE | _none_ | `prepareBattle` (modifier roll, balloon resolution, grunt wall-attack flags, combo tracker) — RNG already synced from prior wire history |
+| `buildStart` | BATTLE → WALL_BUILD | _none_ | `finalizeBattle` + `prepareNextRound` (combo bonuses, battle cleanup, grunt spawn, upgrade offers, modifier rotation, round increment, piece bag init) |
+| `buildEnd` | End of build phase / round-end barrier | _none_ | `finalizeRound` (territory finalize, life penalties, score, `ROUND_END` emit) |
 | `gameOver` | Game ends | `winner`, `scores[]` | Render terminal frame |
 
-**Drift detection**: a watcher whose state ever desynced from host will fail the `state.rng` round-trip when the next `battleStart` arrives — the local RNG must already match `rngState` before `setState` is applied. In practice this is a soft check (`setState` always wins) but it surfaces in determinism tests that assert byte-for-byte parity.
+**Drift detection**: there is no in-band drift check on the normal path — peers stay synced by mirror-simulating from the same `state.rng` seed and applying every cross-peer mutation at a lockstep `applyAt` tick. Determinism tests (`npm run test:determinism`) assert byte-for-byte event-log parity across replays. If a watcher desyncs in production it stays desynced until the next `fullState` (host migration / reconnect).
 
 #### Serialized Shapes
 
@@ -107,7 +106,7 @@ The `SerializedPlayer` / `SerializedHouse` / `SerializedGrunt` / `SerializedBonu
 
 ### Host → All (Incremental Events)
 
-Streamed during gameplay phases. Battle impact events (`wallDestroyed` through `towerKilled`) are **host-only** — only the host can send them.
+Streamed during gameplay phases. The 12 battle impact events (`wallDestroyed`, `wallAbsorbed`, `wallShielded`, `cannonDamaged`, `cannonShielded`, `houseDestroyed`, `gruntKilled`, `gruntChipped`, `gruntSpawned`, `pitCreated`, `iceThawed`, `towerKilled`) are **host-only** — server rejects them from any other socket.
 
 Messages marked **(lockstep)** carry an `applyAt` field — see [Lockstep Apply Scheduling](#lockstep-apply-scheduling) below. The originator stamps `applyAt = state.simTick + SAFETY` and enqueues a local apply for that tick; receivers enqueue for the same tick. Validation runs inside the apply closure (not at receive time) so it sees cross-peer-identical state.
 
@@ -119,11 +118,15 @@ Messages marked **(lockstep)** carry an `applyAt` field — see [Lockstep Apply 
 | `opponentCannonPhantom` | CANNON_PLACE | Ghost cannon position — cosmetic, no `applyAt` |
 | `opponentCannonPhaseDone` | CANNON_PLACE | **(lockstep)** **Human** player finished placing cannons. Schedules `state.cannonPlaceDone.add(playerId)` for `applyAt` so the phase-exit predicate (`allCannonPlaceDone`) flips at identical sim ticks across peers. Originator marks via transient `state.pendingCannonPlaceDone` so the detect loop doesn't re-broadcast in the SAFETY window. AI controllers don't broadcast (clone-everywhere, lockstep already). |
 | `opponentTowerSelected` | SELECTION | **(lockstep when confirmed)** **Human** player browsing/confirming tower. Highlight-only messages (`confirmed: false`) are immediate; confirmation messages (`confirmed: true`) carry `applyAt` so castle-wall RNG consumption (`prepareCastleWallsForPlayer` — clumsy builders + ring ordering) fires at the same simTick on every peer. AI selections derived locally on every peer from synced `strategy.rng` — never sent over the wire. |
-| `cannonFired` | BATTLE | **(lockstep)** A cannon fired a cannonball. The ball-push, `state.shotsFired++`, and bus emit fire at `applyAt`. Originator tracks pending fires in `state.pendingCannonFires` so its AI doesn't double-fire the same cannon during the SAFETY window. |
+| `cannonFired` | BATTLE | **(lockstep)** A cannon fired a cannonball. Carries the originator-pinned `BallisticTrajectory` (including `scoringPlayerId` for captured-cannon credit) so receivers spawn an identical parametric flight. The ball-push, `state.shotsFired++`, and bus emit fire at `applyAt`. Originator tracks pending fires in `state.pendingCannonFires` so its AI doesn't double-fire during the SAFETY window. `applyAt` is optional in the type — wire sends always set it, local-only emits (bus replay, host fanout) leave it undefined. |
 | `wallDestroyed` | BATTLE | A wall tile was destroyed (host-only) |
+| `wallAbsorbed` | BATTLE | Reinforced wall absorbed a hit — wall survives marked `damagedWalls` (host-only) |
+| `wallShielded` | BATTLE | Rampart shielded an adjacent wall — wall survives, rampart loses 1 shield HP (host-only) |
 | `cannonDamaged` | BATTLE | A cannon took damage (host-only) |
-| `gruntKilled` | BATTLE | A grunt was killed (host-only) |
+| `cannonShielded` | BATTLE | Shield-Battery cannon absorbed a direct impact — cosmetic, HP unchanged (host-only) |
 | `houseDestroyed` | BATTLE | A house was destroyed (host-only) |
+| `gruntKilled` | BATTLE | A grunt was killed (host-only) |
+| `gruntChipped` | BATTLE | Frosted grunt absorbed first hit (ice chip) — survives marked `grunt.chipped` (host-only) |
 | `gruntSpawned` | BATTLE | A grunt was spawned (host-only) |
 | `pitCreated` | BATTLE | Burning pit from incendiary shot (host-only) |
 | `iceThawed` | BATTLE | Frozen water tile thawed by cannonball (host-only) |
@@ -136,8 +139,8 @@ Messages marked **(lockstep)** carry an `applyAt` field — see [Lockstep Apply 
 
 The battle impact messages are grouped into type aliases in `src/shared/core/battle-events.ts` for type-safe handling:
 
-- **`ImpactEvent`** = `wallDestroyed` | `wallAbsorbed` | `wallShielded` | `cannonDamaged` | `houseDestroyed` | `gruntKilled` | `gruntChipped` | `gruntSpawned` | `pitCreated` | `iceThawed` — host-only effects from cannonball impacts and secondary consequences.
-- **`BattleEvent`** = `cannonFired` | `towerKilled` | `ImpactEvent` — all events emitted during battle. Discriminated on `type`.
+- **`ImpactEvent`** = `wallDestroyed` | `wallAbsorbed` | `wallShielded` | `cannonDamaged` | `cannonShielded` | `houseDestroyed` | `gruntKilled` | `gruntChipped` | `gruntSpawned` | `pitCreated` | `iceThawed` — host-only effects from cannonball impacts and secondary consequences.
+- **`BattleEvent`** = `cannonFired` | `towerKilled` | `shipHit` | `shipSunk` | `ImpactEvent` — every event emitted on the in-battle bus. Discriminated on `type`. Note: `shipHit` and `shipSunk` are local-only (no `networkRelay` in `BATTLE_EVENT_CONSUMERS`) — supply-ship positions and HP are mirror-simulated on every peer, so the events fire on each peer's bus from `tryHitSupplyShip` and are observed by sound/haptics only.
 
 ## Lockstep Apply Scheduling
 
@@ -154,15 +157,20 @@ The same precompute idea covers any AI decision drawn from `state.rng` whose loc
 ## Game Phases
 
 ```
-CASTLE_SELECT ──> CANNON_PLACE ──> BATTLE ──> WALL_BUILD ──┐
-      ↑                                                     │
-      └──── (life lost → CASTLE_SELECT reselect cycle) ─────┘
-      └──── (no reselect) ──> CANNON_PLACE ──> ...
+Round 1: CASTLE_SELECT ──> CANNON_PLACE ──> BATTLE ──> WALL_BUILD ──┐
+                                                                     │
+Round N≥2:                  CANNON_PLACE ──> BATTLE ──> WALL_BUILD ──┤
+                                  ↑                                  │
+                                  └─ (no life lost) ─────────────────┤
+                                                                     │
+                            CASTLE_SELECT (reselect, life lost) ─────┘
 ```
 
-The reselect cycle re-enters CASTLE_SELECT (same phase tag) — only the players who lost a life participate. Cycle type is derived from `state.round` (1 vs >1), not a separate phase value. Castle wall construction is animated inline during `CASTLE_SELECT` (initial or reselect) — every peer derives wall plans locally via `prepareCastleWallsForPlayer` (consumes `state.rng` for clumsy builders + ring ordering) on each tower confirmation. No separate `CASTLE_BUILD` phase, no `castleWalls` wire message.
+Round 1 is special: CASTLE_SELECT auto-builds the initial castle walls inline, then flows into CANNON_PLACE (no opening WALL_BUILD). Round N≥2 normally loops CANNON_PLACE → BATTLE → WALL_BUILD; when a player loses lives at end-of-WALL_BUILD, the next round re-enters CASTLE_SELECT (reselect cycle, same phase tag) for the eliminated towers. Cycle type is derived from `state.round` (1 vs >1) and `state.freshCastlePlayers`, not a separate phase value. Castle wall construction is animated inline during `CASTLE_SELECT` — every peer derives wall plans locally via `prepareCastleWallsForPlayer` (consumes `state.rng` for clumsy builders + ring ordering) on each tower confirmation. No separate `CASTLE_BUILD` phase, no `castleWalls` wire message.
 
-Modern mode inserts an upgrade draft/pick between battle end and build banner (from round 3). Upgrade offers are generated locally on every peer inside `enterBuildFromBattle` (synced RNG); players respond with `upgradePick` messages, which the host applies and re-broadcasts.
+**Modern mode** adds two conditional phases (both gated by `hasFeature`):
+- **MODIFIER_REVEAL** between CANNON_PLACE and BATTLE — entered only when a modifier rolled during `prepareBattleState`. 2s banner + dwell, then BATTLE.
+- **UPGRADE_PICK** between BATTLE and WALL_BUILD — entered from round 3 when upgrade offers are present. Upgrade offers are generated locally on every peer inside `prepareNextRound` (synced RNG); players respond with `upgradePick` messages which the host applies and re-broadcasts.
 
 Each transition is marked by a bare-marker checkpoint from the host. Watchers run the matching engine fn locally on receipt and render incremental events until the next checkpoint.
 
@@ -173,15 +181,15 @@ When the host disconnects mid-game, the server promotes another player (lowest s
 | Message | Sender | Description |
 |---------|--------|-------------|
 | `hostLeft` | Server → All | `newHostPlayerId`, `disconnectedPlayerId`. `null` if no human available (watcher fallback). |
-| `fullState` | New Host → All | Comprehensive snapshot sent after promotion for peer reconciliation. Includes `migrationSeq?`, `phase`, `round`, `timer`, `battleCountdown`, `maxRounds`, `simTick`, `shotsFired`, `rngState`, `gameMode`, `activeModifier`, `activeModifierChangedTiles[]`, `lastModifierId`, `pendingUpgradeOffers?`, `precomputedUpgradePicks?`, `precomputedDustStormJitters?`, `masterBuilderLockout?`, `masterBuilderOwners?`, `frozenTiles`, `highTideTiles?`, `sinkholeTiles?`, `players[]`, `grunts[]`, `houses[]`, `bonusSquares[]`, `towerAlive[]`, `burningPits[]`, `cannonLimits[]`, `cannonPlaceDone[]`, `salvageSlots?`, `playerZones[]`, `towerPendingRevive[]`, `capturedCannons[]`, `cannonballs[]`, `balloonFlights?`. The full shape lives in `FullStateMessage` in `src/protocol/protocol.ts` — the lint script `scripts/lint-checkpoint-fields.ts` enforces that every `GameState`/`ModernState` field is referenced in `online-serialize.ts` (or carries a documented exclusion reason for per-peer transient fields like `pendingCannonFires` / `pendingCannonSlotCost` / `pendingCannonPlaceDone`) so additions can't silently drift. |
+| `fullState` | New Host → All | Comprehensive snapshot sent after promotion for peer reconciliation. Includes `migrationSeq?`, `phase`, `round`, `timer`, `battleCountdown`, `maxRounds`, `shotsFired`, `rngState`, `simTick`, `players[]`, `grunts[]`, `gruntSpawnSeq`, `gruntSpawnUsedTiles?`, `houses[]`, `bonusSquares[]`, `towerAlive[]`, `burningPits[]`, `cannonLimits[]`, `cannonPlaceDone[]`, `salvageSlots?`, `playerZones[]`, `gameMode`, `activeModifier`, `activeModifierChangedTiles[]`, `lastModifierId`, `pendingUpgradeOffers?`, `precomputedDustStormJitters?`, `masterBuilderLockout?`, `masterBuilderOwners?`, `comboTracker?`, modifier-tile sets (`frozenTiles`, `sinkholeTiles`, `exposedRiverbedTiles` — all `number[] \| null`, via `extends SerializedModifierTiles`), `rubbleClearingHeld?`, `supplyShips?`, `pendingSupplyBonuses?`, `towerPendingRevive[]`, `capturedCannons[]`, `cannonballs[]` (with `x`/`y`/`elapsed`/`altitude` cursor), `balloonFlights?`. **Not serialized** (mirror-simulated cross-peer): `interior`, `ownedTowers`, `pendingCannonFires`, `pendingCannonSlotCost`, `pendingCannonPlaceDone`, and `highTideTiles` (recomputed via `computeFloodedTiles`). The full shape lives in `FullStateMessage` in `src/protocol/protocol.ts` — the lint script `scripts/lint-checkpoint-fields.ts` enforces that every `GameState`/`ModernState` field is either referenced in `online-serialize.ts` or carries a documented exclusion reason, so additions can't silently drift. |
 
 ## Anti-Cheat (Server-Side)
 
 The relay server validates without running game logic:
 
-- **Host-only enforcement**: only the host socket can send checkpoints (`init`, `selectStart`, `cannonStart`, `battleStart`, `buildStart`, `buildEnd`, `gameOver`, `fullState`) and battle impact events (`wallDestroyed`, `wallAbsorbed`, `wallShielded`, `cannonDamaged`, `houseDestroyed`, `gruntKilled`, `gruntChipped`, `gruntSpawned`, `pitCreated`, `iceThawed`, `towerKilled`)
+- **Host-only enforcement**: only the host socket can send checkpoints (`init`, `selectStart`, `cannonStart`, `battleStart`, `buildStart`, `buildEnd`, `gameOver`, `fullState`) and the 12 battle impact events (`wallDestroyed`, `wallAbsorbed`, `wallShielded`, `cannonDamaged`, `cannonShielded`, `houseDestroyed`, `gruntKilled`, `gruntChipped`, `gruntSpawned`, `pitCreated`, `iceThawed`, `towerKilled`). The seed array satisfies `readonly MessageType[]`, so a renamed/removed `MESSAGE` entry is a compile error in `server/game-room.ts`.
 - **Identity**: players can only send messages with their own `playerId` (host exempt — sends on behalf of AI players)
-- **Phase gating**: `cannonFired` and `aimUpdate` rejected outside BATTLE, `opponentPiecePlaced` and `opponentPhantom` rejected outside WALL_BUILD, `opponentCannonPlaced` and `opponentCannonPhantom` rejected outside CANNON_PLACE, `opponentTowerSelected` rejected outside CASTLE_SELECT
+- **Phase gating**: `cannonFired` and `aimUpdate` rejected outside BATTLE; `opponentPiecePlaced` and `opponentPhantom` rejected outside WALL_BUILD; `opponentCannonPlaced`, `opponentCannonPhantom`, and `opponentCannonPhaseDone` rejected outside CANNON_PLACE; `opponentTowerSelected` rejected outside CASTLE_SELECT
 - **Rate limiting**: cosmetic messages (`opponentPhantom`, `opponentCannonPhantom`, `aimUpdate`) capped at 100/s per socket per message type. Game-state messages (`opponentPiecePlaced`, `opponentCannonPlaced`, `cannonFired`, `opponentTowerSelected`, `lifeLostChoice`, `upgradePick`) are **not** rate-limited — they are low-frequency and must never be silently dropped
 - **Payload validation**: bounds-checking on `playerId`, grid coordinates, pixel coordinates, cannon modes, piece offsets, tower index, and choice values
 
@@ -192,11 +200,10 @@ Per watcher, ~1 KB/s average. 100 rooms × 3 players ≈ 3 Mbps combined. Domina
 ## Watcher Rendering
 
 Watchers receive the same messages as players. They:
-1. Run the same engine fn locally at each phase-marker checkpoint (`enterBuildPhase`, `enterCannonPhase`, `finalizeBuildPhase`, etc.) — derive every state mutation from synced RNG instead of reading wire payloads
-2. Resync RNG once per round at `battleStart` before running `prepareBattle`
-3. Apply incremental events (piece placed, cannon placed, cannon fired, wall destroyed, etc.) as they arrive
-4. Interpolate crosshair positions from `aimUpdate` messages
-5. Tick grunts locally (deterministic movement from shared state)
-6. Use sim-time accumulators with the mock clock in tests, wall-clock timers in production (immune to RAF throttling when tab is backgrounded)
+1. Run the same engine fn locally at each phase-marker checkpoint (`enterCannonPhase`, `prepareBattle`, `prepareNextRound`, `finalizeRound`, etc.) — derive every state mutation from synced RNG instead of reading wire payloads
+2. Apply incremental events (piece placed, cannon placed, cannon fired, wall destroyed, etc.) as they arrive — state-mutating messages enqueue at the lockstep `applyAt` tick; cosmetic ones (phantoms, aim) apply immediately
+3. Interpolate crosshair positions from `aimUpdate` messages
+4. Tick grunts locally (deterministic movement from shared state)
+5. Use sim-time accumulators with the mock clock in tests, wall-clock timers in production (immune to RAF throttling when tab is backgrounded)
 
 Late-joining watchers (mid-game) and post-host-migration watchers receive `fullState` instead, which carries the complete serialized state.
