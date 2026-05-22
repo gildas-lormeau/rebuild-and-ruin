@@ -18,6 +18,7 @@ import {
   type CastleBuildState,
   type ControlsState,
   type LifeLostDialogState,
+  type OptionsContext,
   type QuitState,
   type UpgradePickDialogState,
 } from "../shared/ui/interaction-types.ts";
@@ -47,10 +48,7 @@ export interface ScoreDisplayState {
 }
 
 export interface OptionsUIState {
-  /** If non-null, options screen is open during gameplay and settings are read-only.
-   *  Value is the Mode to return to when options close.
-   *  null = options opened from lobby (settings are editable). */
-  returnMode: Mode | null;
+  context: OptionsContext;
   cursor: number;
 }
 
@@ -231,7 +229,7 @@ export function resetTransientState(runtimeState: RuntimeState): void {
   runtimeState.pausedBy = "none";
   runtimeState.speedMultiplier = 1;
   runtimeState.quit = { pending: false };
-  runtimeState.optionsUI.returnMode = null;
+  runtimeState.optionsUI.context = { kind: "lobby" };
   runtimeState.actionSchedule.reset();
   runtimeState.modifierRevealPlayStartMs = undefined;
 }
@@ -279,7 +277,7 @@ export function createRuntimeState(): RuntimeState {
     mode: Mode.STOPPED,
     pausedBy: "none",
     quit: { pending: false },
-    optionsUI: { returnMode: null, cursor: 0 },
+    optionsUI: { context: { kind: "lobby" }, cursor: 0 },
 
     settings: loadSettings(),
     controlsState: {

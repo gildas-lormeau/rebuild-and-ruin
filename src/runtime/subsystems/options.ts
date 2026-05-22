@@ -96,7 +96,7 @@ export function createOptionsSystem(deps: OptionsSystemDeps): OptionsSystem {
 
   function focusSeedInput(): void {
     if (!IS_TOUCH_DEVICE || deps.isOnline) return;
-    if (runtimeState.optionsUI.returnMode !== null) return; // read-only in-game
+    if (runtimeState.optionsUI.context.kind === "gameplay") return; // read-only in-game
     runtimeState.settings.seedMode = SEED_CUSTOM;
     deps.seedField.focus(runtimeState.settings.seed);
   }
@@ -136,7 +136,7 @@ export function createOptionsSystem(deps: OptionsSystemDeps): OptionsSystem {
       dir,
       idx,
       runtimeState.settings,
-      runtimeState.optionsUI.returnMode,
+      runtimeState.optionsUI.context,
       safeState(runtimeState) ?? null,
       deps.isOnline,
     );
@@ -158,14 +158,10 @@ export function createOptionsSystem(deps: OptionsSystemDeps): OptionsSystem {
 
   function closeOptions(): void {
     blurSeedInput();
-    // Canonical source of truth is runtimeState.optionsUI.returnMode.
-    // closeControls below reads the same field directly — keep both sites
-    // consistent so a future reader does not infer that uiCtx getter and the
-    // state field can disagree.
-    const returnMode = runtimeState.optionsUI.returnMode;
-    if (returnMode !== null) {
-      uiCtx.setMode(returnMode);
-      uiCtx.setOptionsReturnMode(null);
+    const context = runtimeState.optionsUI.context;
+    if (context.kind === "gameplay") {
+      uiCtx.setMode(context.returnMode);
+      uiCtx.setOptionsContext({ kind: "lobby" });
     } else {
       uiCtx.setMode(Mode.LOBBY);
       saveSettings(uiCtx.settings);
@@ -191,7 +187,7 @@ export function createOptionsSystem(deps: OptionsSystemDeps): OptionsSystem {
   }
 
   function closeControls(): void {
-    if (runtimeState.optionsUI.returnMode !== null) {
+    if (runtimeState.optionsUI.context.kind === "gameplay") {
       for (const ctrl of runtimeState.controllers) {
         const keyBindings = runtimeState.settings.keyBindings[ctrl.playerId];
         if (keyBindings) ctrl.updateBindings(keyBindings);

@@ -96,7 +96,7 @@ async function handleKeyF1(
   } else if (mode === Mode.CONTROLS) {
     deps.options.closeControls();
   } else if (isGameplayMode(mode)) {
-    deps.options.setReturnMode(mode);
+    deps.options.setContext({ kind: "gameplay", returnMode: mode });
     await deps.options.show();
   } else {
     // Unlisted modes (e.g. STOPPED): consume F1 without action or preventDefault
@@ -217,7 +217,7 @@ function handleKeyOptionsSeedMode(
   deps: RegisterOnlineInputDeps,
 ): boolean {
   const { options, settings } = deps;
-  const isSeedEditDisabled = options.getReturnMode() !== null;
+  const isSeedEditDisabled = options.getContext().kind === "gameplay";
   if (isSeedEditDisabled || deps.isOnline || options.getRealIdx() !== 4)
     return false;
 

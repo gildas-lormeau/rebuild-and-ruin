@@ -5,6 +5,7 @@
 
 import { GAME_MODE_CLASSIC, GAME_MODE_MODERN } from "../core/game-constants.ts";
 import { KEY_DOWN, KEY_LEFT, KEY_RIGHT, KEY_UP } from "../platform/platform.ts";
+import type { OptionsContext } from "./interaction-types.ts";
 import { type GameSettings } from "./player-config.ts";
 import {
   CANNON_HP_OPTIONS,
@@ -18,13 +19,12 @@ import {
   OPT_ROUNDS,
   ROUNDS_OPTIONS,
 } from "./settings-defs.ts";
-import type { Mode } from "./ui-mode.ts";
 
 export type CycleOptionFn = (
   dir: number,
   optionsCursor: number,
   settings: GameSettings,
-  optionsReturnMode: Mode | null,
+  optionsContext: OptionsContext,
   state: { round: number; maxRounds: number } | null,
   isOnline?: boolean,
 ) => void;
@@ -39,18 +39,19 @@ export function formatKeyName(key: string): string {
   return key;
 }
 
-/** Cycle a settings option value left/right.
- *  @param optionsReturnMode — null = lobby (editable), non-null = in-game (read-only for some options). */
+/** Cycle a settings option value left/right. Some rows are locked when the
+ *  options screen was opened during gameplay (`optionsContext.kind === "gameplay"`). */
 export function cycleOption(
   dir: number,
   optionsCursor: number,
   settings: GameSettings,
-  optionsReturnMode: Mode | null,
+  optionsContext: OptionsContext,
   state: { round: number; maxRounds: number } | null,
   isOnline?: boolean,
 ): void {
+  const inGame = optionsContext.kind === "gameplay";
   if (optionsCursor === OPT_DIFFICULTY) {
-    if (optionsReturnMode !== null) return; // locked in-game
+    if (inGame) return; // locked in-game
     settings.difficulty =
       (settings.difficulty + dir + DIFFICULTY_LABELS.length) %
       DIFFICULTY_LABELS.length;
@@ -59,7 +60,7 @@ export function cycleOption(
     let next =
       (settings.rounds + dir + ROUNDS_OPTIONS.length) % ROUNDS_OPTIONS.length;
     // In-game: only allow values >= current round (so players can shorten, not extend past current)
-    if (optionsReturnMode !== null && state) {
+    if (inGame && state) {
       const minRound = state.round;
       // Skip options whose value is > 0 (not "To The Death") and < current round
       for (let attempts = 0; attempts < ROUNDS_OPTIONS.length; attempts++) {
@@ -70,12 +71,12 @@ export function cycleOption(
     }
     settings.rounds = next;
     // Apply immediately to the live game
-    if (optionsReturnMode !== null && state) {
+    if (inGame && state) {
       const val = ROUNDS_OPTIONS[settings.rounds]!.value;
       state.maxRounds = val > 0 ? val : Infinity;
     }
   } else if (optionsCursor === OPT_CANNON_HP) {
-    if (optionsReturnMode !== null || isOnline) return; // locked in-game and online
+    if (inGame || isOnline) return; // locked in-game and online
     settings.cannonHp =
       (settings.cannonHp + dir + CANNON_HP_OPTIONS.length) %
       CANNON_HP_OPTIONS.length;
@@ -85,7 +86,7 @@ export function cycleOption(
   } else if (optionsCursor === OPT_DPAD) {
     settings.leftHanded = !settings.leftHanded;
   } else if (optionsCursor === OPT_GAME_MODE) {
-    if (optionsReturnMode !== null || isOnline) return; // locked in-game and online
+    if (inGame || isOnline) return; // locked in-game and online
     settings.gameMode =
       settings.gameMode === GAME_MODE_MODERN
         ? GAME_MODE_CLASSIC

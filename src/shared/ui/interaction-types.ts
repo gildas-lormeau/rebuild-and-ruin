@@ -1,6 +1,14 @@
 import type { TileKey } from "../core/grid.ts";
 import type { PlayerId, ValidPlayerId } from "../core/player-slot.ts";
 import type { UpgradeId } from "../core/upgrade-defs.ts";
+import type { Mode } from "./ui-mode.ts";
+
+/** Where the options screen was opened from. Drives editable-vs-read-only
+ *  behavior across the settings UI and determines what mode to restore on
+ *  close. `returnMode` is only reachable when opened during gameplay. */
+export type OptionsContext =
+  | { readonly kind: "lobby" }
+  | { readonly kind: "gameplay"; readonly returnMode: Mode };
 
 /** ESC/✕ double-tap-to-quit countdown. Armed = first press waiting for a
  *  confirming second press; otherwise idle. Discriminated so `timer` and

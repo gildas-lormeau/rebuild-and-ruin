@@ -122,7 +122,7 @@ const runtime: GameRuntime = createGameRuntime({
     send({ type: MESSAGE.SELECT_SLOT, playerId: pid });
   },
   onCloseOptions: () => {
-    if (runtime.runtimeState.optionsUI.returnMode === null) {
+    if (runtime.runtimeState.optionsUI.context.kind === "lobby") {
       ctx.session.lobbyStartTime = performance.now();
     }
   },

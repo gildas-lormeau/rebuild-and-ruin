@@ -365,9 +365,9 @@ function buildOptionsDeps(
     getCount: visibleOptionCount,
     getRealIdx: options.visibleToActualOptionIdx,
     confirmOption: () => confirmCurrentOption(options),
-    getReturnMode: () => runtimeState.optionsUI.returnMode,
-    setReturnMode: (mode: number | null) => {
-      runtimeState.optionsUI.returnMode = mode as Mode | null;
+    getContext: () => runtimeState.optionsUI.context,
+    setContext: (context) => {
+      runtimeState.optionsUI.context = context;
     },
     changeValue: options.changeOption,
     togglePause: options.togglePause,

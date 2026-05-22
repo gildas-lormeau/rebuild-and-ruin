@@ -43,6 +43,7 @@ import type {
   ControlsState,
   GameOverFocus,
   LifeLostDialogState,
+  OptionsContext,
   QuitState,
   UpgradePickDialogState,
 } from "../shared/ui/interaction-types.ts";
@@ -75,8 +76,8 @@ export interface UIContext {
   setPaused: (paused: boolean) => void;
   optionsCursor: { value: number };
   controlsState: ControlsState;
-  getOptionsReturnMode: () => Mode | null;
-  setOptionsReturnMode: (mode: Mode | null) => void;
+  getOptionsContext: () => OptionsContext;
+  setOptionsContext: (context: OptionsContext) => void;
   lobby: LobbyState;
   getFrame: () => { announcement?: string };
   getLobbyRemaining: () => number;
@@ -375,8 +376,8 @@ export interface RegisterOnlineInputDeps {
     getRealIdx: () => number;
     /** Confirm the current option: shows controls if on that row, else closes. */
     confirmOption: () => void;
-    getReturnMode: () => number | null;
-    setReturnMode: (mode: number | null) => void;
+    getContext: () => OptionsContext;
+    setContext: (context: OptionsContext) => void;
     changeValue: (dir: number) => void;
     togglePause: () => boolean;
     getControlsState: () => ControlsState;

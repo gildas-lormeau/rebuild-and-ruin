@@ -213,7 +213,7 @@ export function createLobbySystem(deps: LobbySystemDeps): LobbySystem {
     runtimeState.lobby.timerAccum = 0;
     runtimeState.lobby.map = null; // force fresh seed + map preview
     runtimeState.quit = { pending: false };
-    runtimeState.optionsUI.returnMode = null;
+    runtimeState.optionsUI.context = { kind: "lobby" };
     deps.requestRender();
     setMode(runtimeState, Mode.LOBBY);
   }

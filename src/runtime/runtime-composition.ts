@@ -701,9 +701,9 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       },
     },
     controlsState: runtimeState.controlsState,
-    getOptionsReturnMode: () => runtimeState.optionsUI.returnMode,
-    setOptionsReturnMode: (mode) => {
-      runtimeState.optionsUI.returnMode = mode;
+    getOptionsContext: () => runtimeState.optionsUI.context,
+    setOptionsContext: (context) => {
+      runtimeState.optionsUI.context = context;
     },
     lobby: runtimeState.lobby,
     getFrame: () => runtimeState.frame,

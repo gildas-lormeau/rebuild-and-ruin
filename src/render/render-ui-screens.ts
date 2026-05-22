@@ -53,7 +53,7 @@ export function createOptionsOverlay(frameCtx: UIContext): {
   overlay: RenderOverlay;
 } {
   const lobbyMap = frameCtx.lobby.map!;
-  const readOnly = frameCtx.getOptionsReturnMode() !== null;
+  const readOnly = frameCtx.getOptionsContext().kind === "gameplay";
   const visible = visibleOptions(frameCtx);
   const options: OptionEntry[] = visible.map((i) => {
     // Seed is typed, Controls opens a sub-screen — no left/right cycling.
@@ -231,7 +231,7 @@ function optionValue(frameCtx: UIContext, idx: number): string {
   if (idx === OPT_DIFFICULTY) return DIFFICULTY_LABELS[settings.difficulty]!;
   if (idx === OPT_ROUNDS) {
     const opt = ROUNDS_OPTIONS[settings.rounds]!;
-    if (frameCtx.getOptionsReturnMode() !== null && state) {
+    if (frameCtx.getOptionsContext().kind === "gameplay" && state) {
       return `${opt.label} (round ${state.round})`;
     }
     return opt.label;
@@ -243,7 +243,7 @@ function optionValue(frameCtx: UIContext, idx: number): string {
       const display = frameCtx.lobby.roomSeedDisplay;
       return display === null ? "—" : String(display);
     }
-    if (frameCtx.getOptionsReturnMode() !== null && state) {
+    if (frameCtx.getOptionsContext().kind === "gameplay" && state) {
       return String(state.rng.seed);
     }
     return settings.seedMode === SEED_CUSTOM ? settings.seed || "_" : "Random";
