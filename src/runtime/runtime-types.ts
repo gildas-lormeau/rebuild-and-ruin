@@ -102,13 +102,11 @@ export interface OnlinePhaseTicks {
   tickMigrationAnnouncement?: (dt: number) => void;
 }
 
-/** Online-only action wrappers that send-on-success. Each function executes
- *  the local action AND broadcasts the result to peers if applicable.
- *
- *  When this is undefined (local play), the input system installs local
- *  fallbacks inline at `runtime-composition.ts`'s `inputActions` object,
- *  which just execute the action without sending — the "AndSend" suffix
- *  is a misnomer in that case but kept for symmetry with the online versions. */
+/** Action surface for the input dispatcher. The same shape is wired both
+ *  online and offline: online wrappers broadcast after a successful apply
+ *  (see `online-send-actions.ts`), local wrappers execute against state
+ *  directly (see `runtime-input-actions.ts`). The dispatcher consumes one
+ *  surface regardless of mode. */
 export interface OnlineActions {
   /** Send aim_update for the local pointer's crosshair (deduped). */
   maybeSendAimUpdate: (x: number, y: number) => void;
@@ -244,8 +242,8 @@ export interface RuntimeConfig {
    *  See `OnlinePhaseTicks`. Presence on RuntimeConfig implies online mode. */
   onlinePhaseTicks?: OnlinePhaseTicks;
   /** Online-only action wrappers consumed by the input dispatcher.
-   *  See `OnlineActions`. When undefined, local fallbacks are installed
-   *  inline in `runtime-composition.ts`'s `inputActions` object. */
+   *  See `OnlineActions`. When undefined, composition uses
+   *  `createLocalInputActions` to produce the same shape. */
   onlineActions?: OnlineActions;
   /** Online-only drain hooks for wire-arrived dialog choices that landed
    *  before the local sim made the dialog interactable. See

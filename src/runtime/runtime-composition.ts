@@ -9,7 +9,6 @@
 
 import { exposeDevConsole } from "../../dev/dev-console.ts";
 import { exposeE2EBridge } from "../../dev/e2e-bridge.ts";
-import { executeCannonFire, executePlacePiece } from "../game/index.ts";
 import { dispatchPointerMove } from "../input/input-dispatch.ts";
 import { registerKeyboardHandlers } from "../input/input-keyboard.ts";
 import { registerMouseHandlers } from "../input/input-mouse.ts";
@@ -54,12 +53,6 @@ import {
   type ValidPlayerId,
 } from "../shared/core/player-slot.ts";
 import { selectRenderView, sunTFromState } from "../shared/core/render-view.ts";
-import type {
-  BattleViewState,
-  BuildViewState,
-  InputReceiver,
-  PlayerController,
-} from "../shared/core/system-interfaces.ts";
 import { IS_DEV, IS_TOUCH_DEVICE } from "../shared/platform/platform.ts";
 import { assertNever } from "../shared/platform/utils.ts";
 import type { RendererInterface } from "../shared/ui/overlay-types.ts";
@@ -79,6 +72,7 @@ import {
 } from "./runtime-game-lifecycle.ts";
 import { createHapticsSubsystem } from "./runtime-haptics.ts";
 import { createInputSystem, type TouchHandles } from "./runtime-input.ts";
+import { createLocalInputActions } from "./runtime-input-actions.ts";
 import {
   createLifeLostSystem,
   type LifeLostSystem,
@@ -603,7 +597,9 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   });
 
   // -------------------------------------------------------------------------
-  // Touch battle targeting (shared by phase-ticks onBeginBattle + GameRuntime)
+  // Touch battle targeting — seeds the pointer-player's crosshair from the
+  // saved camera target when BATTLE phase begins. Consumed by phase-ticks
+  // `onBeginBattle` (touch only).
   // -------------------------------------------------------------------------
 
   function applyBattleTarget(): void {
@@ -715,27 +711,11 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     isOnline,
     getSoundReady: audio.getSoundReady,
   };
-  // Action adapters: online overrides local where present, local fallback
-  // otherwise. The wrapping makes offline + online callers share the same
-  // surface — online callers also broadcast inside their adapter.
-  const inputActions = {
-    maybeSendAimUpdate: config.onlineActions?.maybeSendAimUpdate,
-    tryPlaceCannon: config.onlineActions?.tryPlaceCannon,
-    tryPlacePiece:
-      config.onlineActions?.tryPlacePiece ??
-      ((ctrl: PlayerController & InputReceiver, gameState: BuildViewState) => {
-        const intent = ctrl.tryPlacePiece(gameState);
-        if (!intent) return false;
-        return executePlacePiece(runtimeState.state, intent, ctrl);
-      }),
-    fire:
-      config.onlineActions?.fire ??
-      ((ctrl: PlayerController, gameState: BattleViewState) => {
-        const intent = ctrl.fire(gameState);
-        if (!intent) return;
-        executeCannonFire(runtimeState.state, intent, ctrl);
-      }),
-  };
+  // Action surface: online wrappers when present (broadcast inside each
+  // adapter), local executors otherwise. Both sides match `OnlineActions`,
+  // so the input dispatcher consumes one shape regardless of mode.
+  const inputActions =
+    config.onlineActions ?? createLocalInputActions(runtimeState);
   const optionsDeps = {
     runtimeState,
     uiCtx,

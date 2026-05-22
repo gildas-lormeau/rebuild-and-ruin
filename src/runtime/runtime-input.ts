@@ -4,7 +4,6 @@ import { GRID_PORTRAIT_LAUNCHED } from "../shared/core/grid.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import { zoneTowerCenterPx } from "../shared/core/spatial.ts";
 import {
-  type BattleViewState,
   type BuildViewState,
   type CannonViewState,
   type InputReceiver,
@@ -27,7 +26,11 @@ import type {
 import { OPT_CONTROLS, OPT_SOUND } from "../shared/ui/settings-defs.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
 import { type RuntimeState, safeState, setMode } from "./runtime-state.ts";
-import type { CameraSystem, NetworkApi } from "./runtime-types.ts";
+import type {
+  CameraSystem,
+  NetworkApi,
+  OnlineActions,
+} from "./runtime-types.ts";
 import type {
   CreateDpadFn,
   CreateFloatingActionsFn,
@@ -79,23 +82,12 @@ interface InputSystemDeps {
    *  same NetworkApi the rest of the runtime uses. No duplication. */
   readonly network: Pick<NetworkApi, "amHost">;
 
-  // Action surface (online action wrappers + local fallbacks).
-  // NOT NetworkApi — named `actions` rather than `network` because
-  // offline games use the same surface; the wrappers collapse to
-  // local-only fallbacks when `RuntimeConfig.onlineActions` is absent.
-  readonly actions: {
-    readonly maybeSendAimUpdate?: (x: number, y: number) => void;
-    readonly tryPlaceCannon?: (
-      ctrl: PlayerController & InputReceiver,
-      gameState: CannonViewState,
-      max: number,
-    ) => boolean;
-    readonly tryPlacePiece: (
-      ctrl: PlayerController & InputReceiver,
-      gameState: BuildViewState,
-    ) => boolean;
-    readonly fire: (ctrl: PlayerController, gameState: BattleViewState) => void;
-  };
+  // Action surface — same shape online and offline. Online wrappers
+  // broadcast inside each adapter (see online-send-actions.ts); local
+  // play uses `createLocalInputActions` (see runtime-input-actions.ts).
+  // NOT NetworkApi — named `actions` rather than `network` because the
+  // dispatcher treats both modes uniformly.
+  readonly actions: OnlineActions;
 
   // Sub-systems (inline signatures to avoid cross-sub-system imports)
   readonly lobby: {
@@ -225,13 +217,7 @@ export function createInputSystem(deps: InputSystemDeps): InputSystem {
   const { camera, lobby, selection } = deps;
 
   // ── Placement handlers (raw — placed-piece feedback via dispatch) ──
-  const placeCannon =
-    deps.actions.tryPlaceCannon ??
-    ((
-      ctrl: PlayerController & InputReceiver,
-      gameState: CannonViewState,
-      max: number,
-    ) => ctrl.tryPlaceCannon(gameState, max));
+  const placeCannon = deps.actions.tryPlaceCannon;
   const placePieceRaw = deps.actions.tryPlacePiece;
 
   const coordsDeps: RegisterOnlineInputDeps["coords"] = {
@@ -326,7 +312,7 @@ function buildInputDeps(
     withPointerPlayer,
     showLobby: deps.lifecycle.returnToLobby,
     rematch: deps.lifecycle.rematch,
-    maybeSendAimUpdate: deps.actions.maybeSendAimUpdate ?? (() => {}),
+    maybeSendAimUpdate: deps.actions.maybeSendAimUpdate,
     coords: coordsDeps,
     lobby: lobbyDeps,
     options: buildOptionsDeps(

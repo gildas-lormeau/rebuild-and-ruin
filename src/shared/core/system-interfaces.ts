@@ -135,7 +135,7 @@ export interface PlacePieceIntent {
   readonly col: number;
 }
 
-/** Intent to place a cannon — returned by CannonController.tryPlaceCannon
+/** Intent to place a cannon — returned by InputReceiver.tryPlaceCannon
  *  for the orchestrator to validate and either apply locally (offline) or
  *  schedule + broadcast (online). Distinct from `CannonPlacedPayload`,
  *  which carries the lockstep `applyAt` stamp added at schedule time. */
@@ -451,7 +451,13 @@ export interface InputReceiver {
    *  mutation via placePiece() then calls advancePlayerBag(player, true). */
   tryPlacePiece(state: BuildViewState): PlacePieceIntent | null;
 
-  tryPlaceCannon(state: CannonViewState, maxSlots: number): boolean;
+  /** Compute a place-cannon intent at the cursor.
+   *  Returns null if the controller has no current placement to commit
+   *  (eliminated, no current selection). The orchestrator executes the
+   *  mutation via executePlaceCannon(), which also handles validation
+   *  (slot budget, occupied tile, etc.) and the eventual `applyAt`
+   *  scheduling on the online path. */
+  tryPlaceCannon(state: CannonViewState): PlaceCannonIntent | null;
 
   /** Cycle cannon placement mode (normal/super/balloon). */
   cycleCannonMode(state: CannonViewState, maxSlots: number): void;

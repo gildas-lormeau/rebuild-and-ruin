@@ -4,7 +4,6 @@ import {
   canPlaceCannon,
   canPlacePiece,
   effectivePlacementCost,
-  executePlaceCannon,
 } from "../game/index.ts";
 import { CannonMode } from "../shared/core/battle-types.ts";
 import { cannonModesForGame } from "../shared/core/cannon-mode-defs.ts";
@@ -28,9 +27,9 @@ import {
   type GameViewState,
   type InputReceiver,
   type PiecePlacementPreview,
+  type PlaceCannonIntent,
   type PlacePieceIntent,
 } from "../shared/core/system-interfaces.ts";
-import type { GameState } from "../shared/core/types.ts";
 import { Action } from "../shared/ui/input-action.ts";
 import type { KeyBindings } from "../shared/ui/player-config.ts";
 import { BaseController } from "./controller-base.ts";
@@ -256,30 +255,21 @@ export class HumanController extends BaseController implements InputReceiver {
       this.crosshair.x = Math.min(MAP_PX_W, this.crosshair.x + speed);
   }
 
-  /** Try to place a cannon at the current cursor position. Returns `true` on
-   *  success, `false` on validation failure. Builds a `PlaceCannonIntent`
-   *  from the human's cursor + selected mode and routes through the same
-   *  `executePlaceCannon` entry point as AI placements, so every immediate-
-   *  apply cannon commit funnels through one validator (and one lint-audited
-   *  return value). */
-  tryPlaceCannon(state: CannonViewState, maxSlots: number): boolean {
-    return executePlaceCannon(
-      state as GameState,
-      {
-        playerId: this.playerId,
-        row: this.cannonCursor.row,
-        col: this.cannonCursor.col,
-        mode: this.cannonPlaceMode,
-      },
-      maxSlots,
-    );
+  /** Build a `PlaceCannonIntent` from the human's cursor + selected mode.
+   *  Returns the intent unconditionally — the orchestrator (`executePlaceCannon`)
+   *  validates slot budget and tile occupancy on apply. */
+  tryPlaceCannon(_state: CannonViewState): PlaceCannonIntent {
+    return {
+      playerId: this.playerId,
+      row: this.cannonCursor.row,
+      col: this.cannonCursor.col,
+      mode: this.cannonPlaceMode,
+    };
   }
 
   /** Compute a place-piece intent at the build cursor.
    *  Returns null if placement is invalid. The orchestrator executes the
-   *  mutation via placePiece() then calls ctrl.advanceBag(true).
-   *  Contrast with tryPlaceCannon above, which is intentionally boolean — see
-   *  its JSDoc for why cannon placement never adopted the intent pattern. */
+   *  mutation via placePiece() then calls ctrl.advanceBag(true). */
   tryPlacePiece(state: BuildViewState): PlacePieceIntent | null {
     const player = state.players[this.playerId];
     if (!player?.currentPiece || !player.bag) return null;

@@ -64,18 +64,15 @@ export function createOnlineSendActions(deps: OnlineSendActionsDeps) {
    *  every peer. */
   function tryPlaceCannon(
     ctrl: ControllerIdentity & CannonController & InputReceiver,
-    _gameState: CannonViewState,
+    gameState: CannonViewState,
     max: number,
   ): boolean {
+    const intent = ctrl.tryPlaceCannon(gameState);
+    if (!intent) return false;
     const stamped = scheduleCannonPlacement({
       schedule,
       state: getState(),
-      intent: {
-        playerId: ctrl.playerId,
-        row: ctrl.cannonCursor.row,
-        col: ctrl.cannonCursor.col,
-        mode: ctrl.getCannonPlaceMode(),
-      },
+      intent,
       maxSlots: max,
       safetyTicks,
     });

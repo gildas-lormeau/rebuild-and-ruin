@@ -246,8 +246,8 @@ export class AiAssistedHumanController
   tryPlacePiece(_state: BuildViewState): null {
     return null;
   }
-  tryPlaceCannon(_state: CannonViewState, _maxSlots: number): boolean {
-    return false;
+  tryPlaceCannon(_state: CannonViewState): null {
+    return null;
   }
   cycleCannonMode(_state: CannonViewState, _maxSlots: number): void {}
   getCannonPlaceMode(): CannonMode {
