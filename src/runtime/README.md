@@ -44,7 +44,7 @@ exempt from the cross-domain restriction).
 
 3. **[runtime-composition.ts](./runtime-composition.ts)** — The wiring.
    Creates every sub-system, threads their deps, and returns a
-   `GameRuntime` handle. ~680 lines of factory calls in a deliberate
+   `GameRuntime` handle. ~900 lines of factory calls in a deliberate
    order (one sub-system depends on another's exports). Read this
    last — it's easier to understand once you know what's being wired.
 
@@ -116,7 +116,7 @@ exempt from the "sub-systems must not import from each other" rule.
   browser globals into a `TimingApi`. Entry-point binding only.
 - **`runtime-castle-build.ts`** — Castle wall animation primitives
   (consumed by selection).
-- **`runtime-contracts.ts`** — Sub-system interface aggregator:
+- **`runtime-ui-contracts.ts`** — Sub-system interface aggregator:
   `UIContext`, `BannerState`, `BannerShow`, and every `XSystem` /
   `XDeps` type shared across the composition root. Also exports
   `createBannerState()` — a trivial factory intentionally placed here
@@ -130,17 +130,28 @@ exempt from the "sub-systems must not import from each other" rule.
 - **`runtime-life-lost-core.ts`** — Pure dialog state helpers for the
   life-lost system (separated from the factory for testability).
 - **`runtime-upgrade-pick-core.ts`** — Same pattern for upgrade-pick.
+- **`dialog-tick.ts`** — Shared auto-resolve + force-resolve loop used
+  by both `tickLifeLostDialog` and `tickUpgradePickDialog`. Pure
+  helper, no factory.
 - **`runtime-phase-machine.ts`** — Pure data-driven phase-transition
   state machine. The `TRANSITIONS` table declares each transition's
-  mutate (host vs watcher), display steps (banner / score-overlay /
-  life-lost-dialog / upgrade-pick), and postDisplay side-effects.
-  `runTransition(id, ctx)` is the single entry point — captures the
-  scene, runs mutate, walks the display, fires postDisplay. Both host
-  ([`runtime-phase-ticks.ts`](runtime-phase-ticks.ts):`buildHostPhaseCtx`)
-  and watcher
-  ([`../online/online-phase-transitions.ts`](../online/online-phase-transitions.ts):`buildWatcherPhaseCtx`)
-  build the `PhaseTransitionCtx`; the machine picks the role-specific
-  fn off `ctx.role`.
+  mutate, display steps (banner / score-overlay / life-lost-dialog /
+  upgrade-pick), and postDisplay side-effects. `runTransition(id, ctx)`
+  is the single entry point — captures the scene, runs mutate, walks
+  the display, fires postDisplay. The actual model is clone-everywhere:
+  the only `PhaseTransitionCtx` builder is `buildHostPhaseCtx` in
+  [`runtime-phase-ticks.ts`](runtime-phase-ticks.ts), used on every
+  peer; role differences (host has wire `broadcast`, watcher doesn't)
+  live in optional `ctx` fields populated only where they apply, not in
+  a separate watcher builder. `online/online-phase-transitions.ts` is
+  a thin GAME_OVER receiver, not a watcher ctx factory.
+- **`modifier-reveal-time.ts`** + **`modifier-reveal-overlay-registry.ts`**
+  \+ **`{dust-storm,fog,frostbite,grunt-surge,sapper}-reveal-overlay.ts`**
+  — Modifier 3D-effect helper cluster. The registry maps `ModifierId →
+  effect-deriver`; each `*-reveal-overlay.ts` is one such deriver.
+  Single external consumer (`runtime-render.ts`), parallel structure to
+  the audio cluster. Internal cross-imports between these files are
+  legitimate.
 - **`banner-messages.ts`** — Phase transition banner string constants.
 - **`runtime-main-loop.ts`** — `createRuntimeLoop(deps)`: the rAF main
   loop, sub-stepping, frame-context derivation. Called once by the

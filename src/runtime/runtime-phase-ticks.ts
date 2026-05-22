@@ -749,10 +749,12 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     // Render reads them via `buildPiecePhantomsUnion`.
 
     // Grunt movement runs AFTER local controllers place walls so host and
-    // watcher see the same wall set when grunts step. The watcher applies
-    // wire-received placements before its own `tickGruntsIfDue` (see
-    // online-watcher-tick.ts); the host must mirror that order or grunts
-    // diverge by one frame, drifting state-dependent RNG draws.
+    // watcher see the same wall set when grunts step. Under the clone-
+    // everywhere model both peers run this same `tickGruntsIfDue`; wire-
+    // received placements are applied via `actionSchedule.drainUpTo` at
+    // the top of `runOneSubStep`, before phase ticks fire. The drain-
+    // before-grunts ordering is what keeps state-dependent RNG draws
+    // (recheckTerritory → grunt enclosure) identical across peers.
     tickGruntsIfDue(accum, dt, state, moveGrunts);
 
     deps.requestRender();

@@ -326,7 +326,7 @@ const EMPTY_TRANSITION_RESULT: TransitionResult = {
   modifierDiff: null,
   flights: [],
 };
-/** Discriminator values for `DisplayStep.kind` / `PhaseTransitionCtx.role`. */
+/** Discriminator values for `DisplayStep.kind`. */
 const STEP_BANNER = "banner" as const;
 const STEP_SCORE_OVERLAY = "score-overlay" as const;
 const STEP_LIFE_LOST_DIALOG = "life-lost-dialog" as const;
