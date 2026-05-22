@@ -451,6 +451,24 @@ export interface RuntimeUpgradePick {
   set: (dialog: UpgradePickDialogState | null) => void;
 }
 
+export interface RuntimeScoreDelta {
+  /** Snapshot current player scores before the build phase starts. */
+  capturePreScores: () => void;
+  /** Set pre-scores directly (online watcher receives them from host). */
+  setPreScores: (scores: readonly number[]) => void;
+  /** Show animated score deltas. `onDone` fires once when animation finishes
+   *  (or immediately if no positive deltas exist). */
+  show: (onDone: () => void) => void;
+  /** Tick the display timer (called every frame from mainLoop). */
+  tick: (dt: number) => void;
+  /** Animation progress 0→1 (0 = just started, 1 = done). */
+  progress: () => number;
+  /** Clear all score delta state (timer, deltas, pending callback). Safe to
+   *  call at any time — host-promote relies on this to drop a stale
+   *  `runDisplay` callback when promotion lands mid-overlay. */
+  reset: () => void;
+}
+
 export interface RuntimeLobby {
   /** Runtime-internal lobby reset: clear joined/active/timer/map, clear
    *  quit + options state, mark the frame dirty, flip mode to LOBBY.
@@ -519,6 +537,7 @@ export interface GameRuntime {
   // --- Sub-system handles ---
   selection: RuntimeSelection;
   lifeLost: RuntimeLifeLost;
+  scoreDelta: RuntimeScoreDelta;
   upgradePick: RuntimeUpgradePick;
   lobby: RuntimeLobby;
   lifecycle: RuntimeLifecycle;

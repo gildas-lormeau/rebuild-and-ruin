@@ -859,6 +859,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     // Sub-system handles
     selection,
     lifeLost,
+    scoreDelta,
     lobby: {
       show: lobby.show,
       markJoined: lobby.markJoined,

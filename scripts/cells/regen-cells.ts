@@ -162,6 +162,7 @@ const LABELS: Record<string, string> = {
     "AI strategy primitives (build types, castle rect) + wall-demolition tactic planner",
   "8::controllers": "controller factory",
   "8::entry": "server entry",
+  "8::runtime/subsystems": "subsystem factories importing runtime contracts",
   "8::game": "core subsystems (castle gen, grunt movement)",
   "8::game/modifiers": "modifier implementations",
   "8::game/upgrades": "upgrade implementation (erosion)",

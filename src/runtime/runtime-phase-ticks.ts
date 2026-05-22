@@ -153,7 +153,6 @@ interface PhaseTicksDeps extends Pick<RuntimeConfig, "log"> {
   scoreDelta: {
     capturePreScores: () => void;
     show: (onDone: () => void) => void;
-    isActive: () => boolean;
     reset: () => void;
   };
   /** Save human crosshair at end of battle so it can be restored next battle. */
@@ -698,10 +697,6 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
   }
 
   function tickBuildPhase(dt: number): boolean {
-    if (deps.scoreDelta.isActive()) {
-      deps.requestRender();
-      return false;
-    }
     const remotePlayerSlots = runtimeState.frameMeta.remotePlayerSlots;
     const { state, accum } = runtimeState;
     const local = localControllers(runtimeState.controllers, remotePlayerSlots);

@@ -11,30 +11,15 @@ import { emitGameEvent, GAME_EVENT } from "../../shared/core/game-event-bus.ts";
 import { TILE_SIZE } from "../../shared/core/grid.ts";
 import { towerCenterPx } from "../../shared/core/spatial.ts";
 import type { RuntimeState } from "../runtime-state.ts";
+import type { RuntimeScoreDelta } from "../runtime-types.ts";
 
 interface ScoreDeltaDeps {
   readonly runtimeState: RuntimeState;
 }
 
-interface ScoreDeltaSystem {
-  /** Snapshot current player scores before the build phase starts. */
-  capturePreScores: () => void;
-  /** Set pre-scores directly (online watcher receives them from host). */
-  setPreScores: (scores: readonly number[]) => void;
-  /** Show animated score deltas. `onDone` fires once when animation finishes
-   *  (or immediately if no positive deltas exist). */
-  show: (onDone: () => void) => void;
-  /** Tick the display timer (called every frame from mainLoop). */
-  tick: (dt: number) => void;
-  /** Animation progress 0→1 (0 = just started, 1 = done). */
-  progress: () => number;
-  /** True while the score delta animation is playing (blocks build phase tick). */
-  isActive: () => boolean;
-  /** Clear all score delta state. Safe to call at any time. */
-  reset: () => void;
-}
-
-export function createScoreDeltaSystem(deps: ScoreDeltaDeps): ScoreDeltaSystem {
+export function createScoreDeltaSystem(
+  deps: ScoreDeltaDeps,
+): RuntimeScoreDelta {
   const { runtimeState } = deps;
 
   /** Fires when the delta animation finishes. */
@@ -107,10 +92,6 @@ export function createScoreDeltaSystem(deps: ScoreDeltaDeps): ScoreDeltaSystem {
     return 1 - deltaTimer / SCORE_DELTA_DISPLAY_TIME;
   }
 
-  function isActive(): boolean {
-    return runtimeState.scoreDisplay.deltaTimer > 0;
-  }
-
   function reset(): void {
     runtimeState.scoreDisplay.deltas = [];
     runtimeState.scoreDisplay.deltaTimer = 0;
@@ -124,7 +105,6 @@ export function createScoreDeltaSystem(deps: ScoreDeltaDeps): ScoreDeltaSystem {
     show,
     tick,
     progress,
-    isActive,
     reset,
   };
 }

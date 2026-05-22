@@ -595,7 +595,6 @@
       "src/runtime/subsystems/banner.ts",
       "src/runtime/subsystems/cannon-animator.ts",
       "src/runtime/subsystems/pointer-player.ts",
-      "src/runtime/subsystems/score-deltas.ts",
       "src/runtime/subsystems/upgrade-pick.ts"
     ]
   },
@@ -734,6 +733,15 @@
       "src/runtime/runtime-phase-machine.ts",
       "src/runtime/runtime-render.ts",
       "src/runtime/runtime-tick-consumers.ts"
+    ]
+  },
+  {
+    "layer": 8,
+    "domain": "runtime",
+    "subdomain": "subsystems",
+    "role": "subsystem factories importing runtime contracts",
+    "files": [
+      "src/runtime/subsystems/score-deltas.ts"
     ]
   },
   {

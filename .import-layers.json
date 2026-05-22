@@ -247,7 +247,6 @@
       "src/runtime/subsystems/banner.ts",
       "src/runtime/subsystems/cannon-animator.ts",
       "src/runtime/subsystems/pointer-player.ts",
-      "src/runtime/subsystems/score-deltas.ts",
       "src/runtime/subsystems/upgrade-pick.ts",
       "src/shared/core/board-occupancy.ts"
     ]
@@ -295,7 +294,8 @@
       "src/runtime/runtime-options.ts",
       "src/runtime/runtime-phase-machine.ts",
       "src/runtime/runtime-render.ts",
-      "src/runtime/runtime-tick-consumers.ts"
+      "src/runtime/runtime-tick-consumers.ts",
+      "src/runtime/subsystems/score-deltas.ts"
     ]
   },
   {

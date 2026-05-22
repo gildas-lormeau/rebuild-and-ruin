@@ -198,7 +198,6 @@ export interface PhaseTransitionCtx {
     readonly setPreScores?: (scores: readonly number[]) => void;
     readonly show: (onDone: () => void) => void;
     readonly reset: () => void;
-    readonly isActive: () => boolean;
   };
 
   /** Life-lost dialog hooks. Only required for transitions whose `display`
