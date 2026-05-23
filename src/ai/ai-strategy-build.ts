@@ -455,10 +455,25 @@ function selectBestPlacement(
     aliveHouseKeys,
   };
 
-  // No candidate evaluated (empty batch or every candidate hard-rejected):
-  // fall through to discard/extension. noBuildTargets still suppresses to null.
+  // No candidate evaluated (empty batch or every top candidate hard-rejected
+  // by SCORING_RULES — typically rejectIsolatedGapTiles / rejectFatWalls /
+  // rejectTinyPockets). The hard-rejects guard against imperfect placements
+  // (isolated bridges, fat walls without usefulGain, tiny trapped pockets);
+  // they're meant to nudge the AI toward cleaner choices, not to block it
+  // from ever building when there's a real target. When the AI has a target
+  // with gap-fillers available but every one fails a hard-reject, falling to
+  // `pickFallbackPlacement` (which scans the FULL candidate pool — gap-fillers
+  // and non-gap-fillers alike) scatters walls across the map and the target
+  // never closes, recurring tick after tick. Prefer the highest-pre-score
+  // gap-filler from `sortedScored` instead: closing the ring is more valuable
+  // than the cosmetics the hard-rejects were optimizing for. Falls back to
+  // `pickFallbackPlacement` only when no gap-filler exists at all.
   if (!scoreResult.evaluated) {
     if (noBuildTargets) return null;
+    const topGapFiller = sortedScored.find(
+      (entry) => entry.candidate.gapsFilled > 0,
+    );
+    if (topGapFiller) return candidateToPlacement(topGapFiller.candidate);
     return pickFallbackPlacement(sortedScored, state, fallbackBuildCtx)
       .placement;
   }

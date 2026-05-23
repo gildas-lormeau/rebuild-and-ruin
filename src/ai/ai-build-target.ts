@@ -70,7 +70,74 @@ export function selectTarget(ctx: TargetContext): TargetResult {
   const secondary = trySecondaryTower(ctx);
   if (secondary.targetGaps.size > 0) return secondary;
   // Phase 3: expand territory when all towers are enclosed
-  return tryExpandTerritory(ctx);
+  const expand = tryExpandTerritory(ctx);
+  if (expand.targetGaps.size > 0) return expand;
+  // All three phases bailed — typically because every tower's `canFillAfter-
+  // Plugging` gate fired (current piece doesn't fit any gap this tick). Without
+  // a target the orchestrator can't restrict to gap-fillers and the scattered
+  // fallback in `pickFallbackPlacement` takes over, dispersing walls across
+  // the map without closing any ring. When the player still has unenclosed
+  // towers, keep the strategic target — the home castle ring (or top secondary
+  // if home is being skipped) with its raw gap set — so scoring still rewards
+  // gap-adjacent and wall-adjacent placements. Future pieces will close the
+  // gap; this tick's placement at least lands near the ring instead of in
+  // arbitrary corners of the board.
+  return strategicFallbackTarget(ctx);
+}
+
+/** Strategic fallback when every selectTarget phase bailed. Returns the home
+ *  castle rect with its raw gap set (or the top-scored secondary's rect if
+ *  home is being skipped). Bypasses the `canFillAfterPlugging` gate — that
+ *  gate is per-tick optimization, not strategic gating. */
+function strategicFallbackTarget(ctx: TargetContext): TargetResult {
+  const { state, player, castle, castleMargin, bankHugging, cursorPos } = ctx;
+  if (ctx.unenclosedTowers.length === 0) return NO_TARGET;
+  if (!ctx.effectiveSkipHome && player.homeTower) {
+    const gaps = findReachableRingGaps(
+      castle,
+      player.walls,
+      state,
+      getInterior(player),
+    );
+    if (gaps.size > 0) return { targetGaps: gaps, targetRect: castle };
+  }
+  // Home unavailable — pick the best-scored secondary tower's rect, raw gaps.
+  const candidatePool = ctx.effectiveSkipHome
+    ? ctx.otherUnenclosed
+    : ctx.unenclosedTowers;
+  if (candidatePool.length === 0) return NO_TARGET;
+  const currentRow = cursorPos?.row ?? castle.tower.row;
+  const currentCol = cursorPos?.col ?? castle.tower.col;
+  const sorted = candidatePool
+    .map((tower) =>
+      scoreBuildTowerTarget(
+        tower,
+        state,
+        player,
+        currentRow,
+        currentCol,
+        castleMargin,
+        bankHugging,
+      ),
+    )
+    .sort(compareByNumericScoreDesc);
+  for (const { tower } of sorted) {
+    const rect = castleRect(
+      tower,
+      state.map.tiles,
+      state.map.towers,
+      castleMargin,
+      !bankHugging,
+    );
+    const gaps = findReachableRingGaps(
+      rect,
+      player.walls,
+      state,
+      getInterior(player),
+    );
+    if (gaps.size > 0) return { targetGaps: gaps, targetRect: rect };
+  }
+  return NO_TARGET;
 }
 
 /** Phase 1: repair the home castle ring, expanding around temporary blockers.
