@@ -192,72 +192,7 @@ function tryRepairHomeCastle(ctx: TargetContext): TargetResult {
   // modifier (e.g. high_tide) clears, the recomputed rect drifts to the
   // natural-shoreline shape — repair scoring may chase phantom gaps on the
   // wider side. Bounded suboptimality, never cross-peer desync.
-  const homeRect = castle;
-  let { top, bottom, left, right } = homeRect;
-
-  const freeRatio = computeInteriorFreeRatio(homeRect, player, state);
-  const MAX_EXPAND =
-    EXPANSION_TIERS.find((tier) => freeRatio > tier.minFreeRatio)?.maxExpand ??
-    EXPANSION_DEFAULT_MAX;
-
-  for (let attempt = 0; attempt < MAX_EXPAND; attempt++) {
-    const gaps = findGapTiles({ top, bottom, left, right }, player.walls);
-    const wallRingTop = top - 1,
-      wallRingBottom = bottom + 1,
-      wallRingLeft = left - 1,
-      wallRingRight = right + 1;
-    let expanded = false;
-
-    for (const key of gaps) {
-      const { row, col } = unpackTile(key);
-      // Only expand for temporary blockers (grunts, burning pits, alive
-      // houses — house tiles turn placed walls into grunts, so the gap
-      // doesn't actually close). Water is permanent terrain — expanding
-      // just creates more water gaps.
-      if (!isGrass(state.map.tiles, row, col)) continue;
-      const blocked =
-        hasGruntAt(state.grunts, row, col) ||
-        hasPitAt(state.burningPits, row, col) ||
-        hasAliveHouseAt(state, row, col);
-      if (!blocked) continue;
-
-      if (
-        row === wallRingTop &&
-        top - 1 >= homeRect.top - MAX_EXPAND &&
-        top - 1 >= 1
-      ) {
-        top--;
-        expanded = true;
-      }
-      if (
-        row === wallRingBottom &&
-        bottom + 1 <= homeRect.bottom + MAX_EXPAND &&
-        bottom + 1 < GRID_ROWS - 1
-      ) {
-        bottom++;
-        expanded = true;
-      }
-      if (
-        col === wallRingLeft &&
-        left - 1 >= homeRect.left - MAX_EXPAND &&
-        left - 1 >= 1
-      ) {
-        left--;
-        expanded = true;
-      }
-      if (
-        col === wallRingRight &&
-        right + 1 <= homeRect.right + MAX_EXPAND &&
-        right + 1 < GRID_COLS - 1
-      ) {
-        right++;
-        expanded = true;
-      }
-    }
-
-    if (!expanded) break;
-  }
-  const targetRect: TileRect = { top, bottom, left, right };
+  const targetRect = expandRectAroundBlockers(castle, state, player);
   const targetGaps = findReachableRingGaps(
     targetRect,
     player.walls,
@@ -351,31 +286,6 @@ function computeWallsInteriorBox(walls: ReadonlySet<TileKey>): TileRect | null {
   };
 }
 
-/** Fraction of interior tiles that are unoccupied (no wall, tower, cannon, or water). */
-function computeInteriorFreeRatio(
-  rect: TileRect,
-  player: Player,
-  state: BuildViewState,
-): number {
-  let total = 0;
-  let occupied = 0;
-  for (let row = rect.top; row <= rect.bottom; row++) {
-    for (let col = rect.left; col <= rect.right; col++) {
-      total++;
-      const key = packTile(row, col);
-      if (
-        player.walls.has(key) ||
-        !isGrass(state.map.tiles, row, col) ||
-        hasTowerAt(state, row, col) ||
-        hasCannonAt(state, row, col)
-      ) {
-        occupied++;
-      }
-    }
-  }
-  return total > 0 ? 1 - occupied / total : 1;
-}
-
 /** Phase 2: score unenclosed towers and pick the best one the current piece can fill. */
 function trySecondaryTower(ctx: TargetContext): TargetResult {
   const {
@@ -401,12 +311,16 @@ function trySecondaryTower(ctx: TargetContext): TargetResult {
   if (lastTargetTowerIndex !== undefined) {
     const cached = buildTowers.find((t) => t.index === lastTargetTowerIndex);
     if (cached) {
-      const cachedRect = castleRect(
-        cached,
-        state.map.tiles,
-        state.map.towers,
-        castleMargin,
-        !bankHugging,
+      const cachedRect = expandRectAroundBlockers(
+        castleRect(
+          cached,
+          state.map.tiles,
+          state.map.towers,
+          castleMargin,
+          !bankHugging,
+        ),
+        state,
+        player,
       );
       const cachedGaps = computeFillableGaps(
         cachedRect,
@@ -447,12 +361,16 @@ function trySecondaryTower(ctx: TargetContext): TargetResult {
   towerScores.sort(compareByNumericScoreDesc);
 
   for (const { tower: bestTower } of towerScores) {
-    const rect = castleRect(
-      bestTower,
-      state.map.tiles,
-      state.map.towers,
-      castleMargin,
-      !bankHugging,
+    const rect = expandRectAroundBlockers(
+      castleRect(
+        bestTower,
+        state.map.tiles,
+        state.map.towers,
+        castleMargin,
+        !bankHugging,
+      ),
+      state,
+      player,
     );
     const totalGaps = findGapTiles(rect, player.walls).size;
     const gaps = computeFillableGaps(
@@ -490,6 +408,99 @@ function trySecondaryTower(ctx: TargetContext): TargetResult {
     }
   }
   return NO_TARGET;
+}
+
+/** Expand a castle rect outward to route around temporary blockers (grunts,
+ *  burning pits, alive houses) on the wall ring. Only grows along directions
+ *  that have a blocker on the ring; water/permanent terrain doesn't trigger.
+ *  Used by tryRepairHomeCastle and trySecondaryTower so secondaries also get
+ *  the Mode #4 escape. */
+function expandRectAroundBlockers(
+  initialRect: TileRect,
+  state: BuildViewState,
+  player: Player,
+): TileRect {
+  let { top, bottom, left, right } = initialRect;
+  const freeRatio = computeInteriorFreeRatio(initialRect, player, state);
+  const MAX_EXPAND =
+    EXPANSION_TIERS.find((tier) => freeRatio > tier.minFreeRatio)?.maxExpand ??
+    EXPANSION_DEFAULT_MAX;
+  for (let attempt = 0; attempt < MAX_EXPAND; attempt++) {
+    const gaps = findGapTiles({ top, bottom, left, right }, player.walls);
+    const wallRingTop = top - 1,
+      wallRingBottom = bottom + 1,
+      wallRingLeft = left - 1,
+      wallRingRight = right + 1;
+    let expanded = false;
+    for (const key of gaps) {
+      const { row, col } = unpackTile(key);
+      if (!isGrass(state.map.tiles, row, col)) continue;
+      const blocked =
+        hasGruntAt(state.grunts, row, col) ||
+        hasPitAt(state.burningPits, row, col) ||
+        hasAliveHouseAt(state, row, col);
+      if (!blocked) continue;
+      if (
+        row === wallRingTop &&
+        top - 1 >= initialRect.top - MAX_EXPAND &&
+        top - 1 >= 1
+      ) {
+        top--;
+        expanded = true;
+      }
+      if (
+        row === wallRingBottom &&
+        bottom + 1 <= initialRect.bottom + MAX_EXPAND &&
+        bottom + 1 < GRID_ROWS - 1
+      ) {
+        bottom++;
+        expanded = true;
+      }
+      if (
+        col === wallRingLeft &&
+        left - 1 >= initialRect.left - MAX_EXPAND &&
+        left - 1 >= 1
+      ) {
+        left--;
+        expanded = true;
+      }
+      if (
+        col === wallRingRight &&
+        right + 1 <= initialRect.right + MAX_EXPAND &&
+        right + 1 < GRID_COLS - 1
+      ) {
+        right++;
+        expanded = true;
+      }
+    }
+    if (!expanded) break;
+  }
+  return { top, bottom, left, right };
+}
+
+/** Fraction of interior tiles that are unoccupied (no wall, tower, cannon, or water). */
+function computeInteriorFreeRatio(
+  rect: TileRect,
+  player: Player,
+  state: BuildViewState,
+): number {
+  let total = 0;
+  let occupied = 0;
+  for (let row = rect.top; row <= rect.bottom; row++) {
+    for (let col = rect.left; col <= rect.right; col++) {
+      total++;
+      const key = packTile(row, col);
+      if (
+        player.walls.has(key) ||
+        !isGrass(state.map.tiles, row, col) ||
+        hasTowerAt(state, row, col) ||
+        hasCannonAt(state, row, col)
+      ) {
+        occupied++;
+      }
+    }
+  }
+  return total > 0 ? 1 - occupied / total : 1;
 }
 
 /** Phase 3: all towers enclosed — expand territory outward.
