@@ -23,175 +23,104 @@
  * The life-lost filter survives the new metric: when a player loses a life,
  * applyLifePenalties resets the zone — that's a separate concern, not a
  * build-strategy stall.
+ *
+ * Parallelism: each seed is independent CPU-bound work, so the suite fans out
+ * across a Deno worker pool (size = navigator.hardwareConcurrency, override
+ * via AI_SURVIVAL_WORKERS env). Workers are spawned eagerly at module load;
+ * each Deno.test just awaits its seed's pre-dispatched result. Per-seed
+ * Deno.test entries are preserved so `--filter "seed 42"` still works and
+ * failures are individually named.
  */
 
 import { assert } from "@std/assert";
-import { createScenario, waitForEvent } from "./scenario.ts";
-import { Phase } from "../src/shared/core/game-phase.ts";
-import { GAME_EVENT } from "../src/shared/core/game-event-bus.ts";
-import type { ValidPlayerId } from "../src/shared/core/player-slot.ts";
+import { SEEDS, type SeedResult } from "./ai-build-survival-runner.ts";
+import type {
+  WorkerRequest,
+  WorkerResponse,
+} from "./ai-build-survival-worker.ts";
 
-interface RoundRow {
-  walls: number;
-  enclosures: number;
-  unownedAliveZoneTowers: number;
-  lostLifeThisRound: boolean;
-  livesAtRoundEnd: number;
+interface Deferred<T> {
+  promise: Promise<T>;
+  resolve: (value: T) => void;
+  reject: (error: unknown) => void;
 }
 
-interface SeedFindings {
-  stalls: string[];
-  perPlayer: Array<{ enclosures: number; livesEnd: number; activeRounds: number }>;
-}
+const POOL_SIZE = Math.max(
+  1,
+  Number(Deno.env.get("AI_SURVIVAL_WORKERS")) ||
+    (navigator.hardwareConcurrency ?? 4),
+);
+const seedDeferreds = new Map<number, Deferred<SeedResult>>();
+const pendingSeeds: number[] = [...SEEDS];
+const poolCount = Math.min(POOL_SIZE, SEEDS.length);
 
-const SEEDS = [
-  42, 100, 203607, 314159, 409946, 510296, 555555, 634446, 700000, 833681,
-  921118, 1234567, 1992148, 3020266, 3480269, 6959185, 7082653, 7126930,
-  7414600, 7777777, 8055250, 8815892, 9142064, 9364665, 9468552, 9862896,
-] as const;
-const ROUNDS_TO_PLAY = 30;
-/** Wall-placement volume that signals the AI was actively building (~one
- *  full piece bag for a round). */
-const STALL_WALL_THRESHOLD = 25;
-/** Sim-ms budget for 30 rounds (~70s/round × safety margin). */
-const RUN_BUDGET_MS = 5_500_000;
-const PLAYER_NAMES = ["RED", "BLUE", "GOLD"] as const;
+for (const seed of SEEDS) seedDeferreds.set(seed, defer<SeedResult>());
+
+for (let i = 0; i < poolCount; i++) startWorker();
 
 for (const seed of SEEDS) {
-  Deno.test(`AI build survival: seed ${seed}`, runOneSeed(seed));
-}
-
-function runOneSeed(seed: number) {
-  return async () => {
-    const perRound = await runSeed(seed);
-    const findings = analyzeSeed(seed, perRound);
-    const rounds = [...perRound.keys()].sort((a, b) => a - b);
-    const lastRound = rounds[rounds.length - 1] ?? 0;
-    console.log(
-      `seed=${seed} rounds=${rounds.length}/${ROUNDS_TO_PLAY} (last=r${lastRound}) ${PLAYER_NAMES.map((n, i) => `${n}:enc=${findings.perPlayer[i]!.enclosures} lives=${findings.perPlayer[i]!.livesEnd} active=${findings.perPlayer[i]!.activeRounds}`).join(" | ")}`,
-    );
-    if (findings.stalls.length > 0) {
-      console.log("Stalls:");
-      for (const stall of findings.stalls) console.log(`  ${stall}`);
-    }
+  Deno.test(`AI build survival: seed ${seed}`, async () => {
+    const result = await seedDeferreds.get(seed)!.promise;
     assert(
-      findings.stalls.length === 0,
-      `Detected ${findings.stalls.length} stall round(s) for seed ${seed}. See log for details.`,
+      result.findings.stalls.length === 0,
+      `Detected ${result.findings.stalls.length} stall round(s) for seed ${seed}. See log for details.`,
     );
-  };
+  });
 }
 
-async function runSeed(seed: number): Promise<Map<number, RoundRow[]>> {
-  const sc = await createScenario({
-    seed,
-    mode: "modern",
-    rounds: ROUNDS_TO_PLAY + 1,
+function defer<T>(): Deferred<T> {
+  let resolve!: (value: T) => void;
+  let reject!: (error: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
   });
-
-  const perRound = new Map<number, RoundRow[]>();
-  const getRow = (round: number): RoundRow[] => {
-    let row = perRound.get(round);
-    if (!row) {
-      row = [0, 1, 2].map(() => ({
-        walls: 0,
-        enclosures: 0,
-        unownedAliveZoneTowers: 0,
-        lostLifeThisRound: false,
-        livesAtRoundEnd: 0,
-      }));
-      perRound.set(round, row);
-    }
-    return row;
-  };
-
-  sc.bus.on(GAME_EVENT.WALL_PLACED, (ev) => {
-    getRow(sc.state.round)[ev.playerId]!.walls += ev.tileKeys.length;
-  });
-  sc.bus.on(GAME_EVENT.TOWER_ENCLOSED, (ev) => {
-    getRow(sc.state.round)[ev.playerId]!.enclosures += 1;
-  });
-  sc.bus.on(GAME_EVENT.LIFE_LOST, (ev) => {
-    getRow(ev.round)[ev.playerId]!.lostLifeThisRound = true;
-  });
-  // ROUND_END fires inside finalizeRound, AFTER finalizeTerritoryWithScoring
-  // but also AFTER applyLifePenalties — so for life-losing players the zone
-  // has already been reset and ownedTowers is empty. Capture unowned-alive
-  // count here; the analyzer filters life-lost rounds separately.
-  sc.bus.on(GAME_EVENT.ROUND_END, (ev) => {
-    const row = getRow(ev.round);
-    for (let pid = 0 as ValidPlayerId; pid < 3; pid = (pid + 1) as ValidPlayerId) {
-      const player = sc.state.players[pid];
-      if (!player) continue;
-      row[pid]!.livesAtRoundEnd = player.lives;
-      const home = player.homeTower;
-      if (!home) {
-        row[pid]!.unownedAliveZoneTowers = 0;
-        continue;
-      }
-      const ownedSet = new Set(player.ownedTowers.map((tower) => tower.index));
-      let unownedAlive = 0;
-      for (const tower of sc.state.map.towers) {
-        if (tower.zone !== home.zone) continue;
-        if (!sc.state.towerAlive[tower.index]) continue;
-        if (ownedSet.has(tower.index)) continue;
-        unownedAlive++;
-      }
-      row[pid]!.unownedAliveZoneTowers = unownedAlive;
-    }
-  });
-
-  try {
-    waitForEvent(
-      sc,
-      GAME_EVENT.PHASE_START,
-      (ev) =>
-        ev.phase === Phase.WALL_BUILD && sc.state.round === ROUNDS_TO_PLAY,
-      { timeoutMs: RUN_BUDGET_MS, label: `seed=${seed} r${ROUNDS_TO_PLAY} WB` },
-    );
-    waitForEvent(
-      sc,
-      GAME_EVENT.ROUND_END,
-      (ev) => ev.round === ROUNDS_TO_PLAY,
-      { timeoutMs: 90_000, label: `seed=${seed} r${ROUNDS_TO_PLAY} end` },
-    );
-  } catch {
-    // Game may have ended early via last-player-standing — partial data fine.
-  }
-  return perRound;
+  return { promise, resolve, reject };
 }
 
-function analyzeSeed(
-  seed: number,
-  perRound: Map<number, RoundRow[]>,
-): SeedFindings {
-  const rounds = [...perRound.keys()].sort((a, b) => a - b);
-  const stalls: string[] = [];
-  const perPlayer = [0, 1, 2].map(() => ({
-    enclosures: 0,
-    livesEnd: 0,
-    activeRounds: 0,
-  }));
-  for (let pid = 0; pid < 3; pid++) {
-    for (const round of rounds) {
-      const row = perRound.get(round)![pid]!;
-      perPlayer[pid]!.enclosures += row.enclosures;
-      if (row.walls > 0) perPlayer[pid]!.activeRounds += 1;
-      perPlayer[pid]!.livesEnd = row.livesAtRoundEnd;
-      // Stall: built actively, fired no enclosure this round despite having
-      // ≥1 alive unowned tower available to enclose, didn't lose a life
-      // (zone reset would clear ownedTowers and confuse the metric).
-      if (
-        row.walls >= STALL_WALL_THRESHOLD &&
-        row.enclosures === 0 &&
-        row.unownedAliveZoneTowers >= 1 &&
-        !row.lostLifeThisRound &&
-        row.livesAtRoundEnd > 0
-      ) {
-        stalls.push(
-          `seed=${seed} r${round} ${PLAYER_NAMES[pid]}: ${row.walls} walls placed, 0 enclosures fired, ${row.unownedAliveZoneTowers} alive unowned tower(s) available, lives=${row.livesAtRoundEnd}`,
+function startWorker(): void {
+  const worker = new Worker(
+    import.meta.resolve("./ai-build-survival-worker.ts"),
+    { type: "module" },
+  );
+
+  let currentSeed: number | null = null;
+
+  const dispatchNext = (): void => {
+    const next = pendingSeeds.shift();
+    if (next === undefined) {
+      currentSeed = null;
+      worker.terminate();
+      return;
+    }
+    currentSeed = next;
+    const request: WorkerRequest = { seed: next };
+    worker.postMessage(request);
+  };
+
+  worker.onmessage = (event: MessageEvent<WorkerResponse>) => {
+    const response = event.data;
+    const seed = response.ok ? response.result.seed : response.seed;
+    const deferred = seedDeferreds.get(seed);
+    if (deferred) {
+      if (response.ok) deferred.resolve(response.result);
+      else
+        deferred.reject(
+          new Error(`worker error (seed=${seed}): ${response.error}`),
         );
-      }
     }
-  }
-  return { stalls, perPlayer };
+    dispatchNext();
+  };
+
+  worker.onerror = (event) => {
+    if (currentSeed !== null) {
+      const deferred = seedDeferreds.get(currentSeed);
+      deferred?.reject(
+        new Error(`worker crashed (seed=${currentSeed}): ${event.message}`),
+      );
+    }
+    worker.terminate();
+  };
+
+  dispatchNext();
 }
