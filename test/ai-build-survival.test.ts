@@ -1,10 +1,10 @@
 /**
- * Behavioral suite for AI build-phase placement: 26 seeds × 30 rounds each,
- * one Deno.test per seed so failures are individually diagnosable. The seed
- * set is the original 11 (hand-picked over earlier debugging) plus 15 random
- * seeds added to increase mode-frequency confidence — at 11-seed scale GOLD
- * looked over-represented in stalls (~33%), but at 26-seed scale it normalizes
- * to ~30% and Mode #2 (per-tick target churn) dominates at ~73% of stalls.
+ * Behavioral suite for AI build-phase placement: 40 seeds × 30 rounds each,
+ * one Deno.test per seed so failures are individually diagnosable. Seed set
+ * grew in three rounds: original 11 (hand-picked over earlier debugging), +15
+ * random (debunked GOLD over-representation at 11-seed scale), +14 random
+ * (tighten confidence on post-persistence-fix BLUE over-representation and
+ * hot-seed patterns like 7082653 BLUE's 5-stall cluster).
  *
  * Background: pre-fix to the selectTarget strategic fallback +
  * scoreTopCandidates hard-reject escape (ai-strategy-build.ts /
