@@ -7,6 +7,9 @@
  * here so the Deno test harness never has to resolve them.
  */
 
+/// <reference path="../../vite-env.d.ts" />
+/// <reference path="../../libadlmidi-js.d.ts" />
+
 import coreUrl from "libadlmidi-js/dist/libadlmidi.dosbox.slim.core.js?url";
 import wasmUrl from "libadlmidi-js/dist/libadlmidi.dosbox.slim.core.wasm?url";
 import { ailToWopl } from "../../shared/platform/ail-to-wopl.ts";
