@@ -12,6 +12,7 @@ import type {
   PixelPos,
   TilePos,
   Tower,
+  TowerIdx,
 } from "../shared/core/geometry-types.ts";
 import type { TileKey } from "../shared/core/grid.ts";
 import type { PieceShape } from "../shared/core/pieces.ts";
@@ -95,6 +96,12 @@ export class DefaultStrategy implements AiStrategy {
    *  build-phase lifecycle (not state.round) so future paths that lose a
    *  life or rebuild without advancing the round stay correct. */
   private _outerRingHolesSnapshot: ReadonlySet<TileKey> | undefined = undefined;
+  /** Secondary-tower target committed to on the previous build tick.
+   *  trySecondaryTower reuses this without re-scoring as long as the
+   *  cached tower remains alive, has manageable gaps, and is
+   *  piece-feasible — eliminating per-tick churn (Mode #2). Cleared in
+   *  assessBuildEnd so each build phase starts fresh. */
+  private _lastTargetTowerIndex: TowerIdx | undefined = undefined;
 
   /** Seeded PRNG — log rng.seed to reproduce this AI's behavior. */
   readonly rng: Rng;
@@ -160,7 +167,7 @@ export class DefaultStrategy implements AiStrategy {
     cursorPos?: TilePos,
   ): AiPlacement | null {
     const snapshot = this.ensureOuterRingHolesSnapshot(state, playerId);
-    return pickPlacement(state, playerId, piece, {
+    const result = pickPlacement(state, playerId, piece, {
       cursorPos,
       homeWasBroken: this._homeWasBroken,
       castleMargin: this.castleMargin,
@@ -169,7 +176,10 @@ export class DefaultStrategy implements AiStrategy {
       caresAboutBonuses: this.caresAboutBonuses,
       buildSkill: this.buildSkill,
       outerRingHolesSnapshot: snapshot,
+      lastTargetTowerIndex: this._lastTargetTowerIndex,
     });
+    this._lastTargetTowerIndex = result.chosenTowerIndex;
+    return result.placement;
   }
 
   /** Lazily snapshot outer-ring breach tiles on the first build-phase tick.
@@ -198,6 +208,7 @@ export class DefaultStrategy implements AiStrategy {
       player.homeTower !== null &&
       !player.ownedTowers.includes(player.homeTower);
     this._outerRingHolesSnapshot = undefined;
+    this._lastTargetTowerIndex = undefined;
   }
 
   // -----------------------------------------------------------------------
@@ -413,5 +424,6 @@ export class DefaultStrategy implements AiStrategy {
     this.onLifeLost();
     this.shotCounts = new Map<ShotKey, number>();
     this._outerRingHolesSnapshot = undefined;
+    this._lastTargetTowerIndex = undefined;
   }
 }

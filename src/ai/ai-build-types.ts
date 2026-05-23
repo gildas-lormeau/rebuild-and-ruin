@@ -12,6 +12,7 @@ import type {
   TilePos,
   TileRect,
   Tower,
+  TowerIdx,
 } from "../shared/core/geometry-types.ts";
 import type { TileKey } from "../shared/core/grid.ts";
 import type { PieceShape } from "../shared/core/pieces.ts";
@@ -35,6 +36,13 @@ export interface EnclosureAnalysis {
 export type TargetResult = {
   targetGaps: Set<TileKey>;
   targetRect: TileRect | null;
+  /** Set only when `trySecondaryTower` committed to a tower that meets ALL
+   *  cache-write invariants (alive, manageable gap count, piece-feasible).
+   *  Threaded back to the strategy so the next tick can short-circuit the
+   *  per-tick re-decision and avoid Mode #2 churn. Never set by home repair,
+   *  expand-territory, or strategicFallbackTarget — those are "best of bad
+   *  options" not commitments worth persisting. */
+  chosenTowerIndex?: TowerIdx;
 };
 
 /** Context for the target-selection pipeline (home repair → secondary → expand). */
@@ -53,6 +61,11 @@ export interface TargetContext {
   unenclosedTowers: Tower[];
   otherUnenclosed: Tower[];
   outerRingHolesSnapshot: ReadonlySet<TileKey>;
+  /** Tower the strategy committed to on the previous tick (from a prior
+   *  `trySecondaryTower` cache write). `trySecondaryTower` checks this at
+   *  entry and short-circuits when the cached tower remains piece-feasible,
+   *  skipping the per-tick re-scoring that drives Mode #2 churn. */
+  lastTargetTowerIndex: TowerIdx | undefined;
   /** Occupancy cache built once per pickPlacement to skip rebuilding inside
    *  every canPlacePiece sweep called by selectTarget's sub-helpers. */
   cache: OccupancyCache;
@@ -77,6 +90,9 @@ export interface PlacementOptions {
    *  up "phantom" gaps formed by newly-placed walls pairing with existing
    *  walls, which would otherwise disperse the AI's focus. */
   outerRingHolesSnapshot: ReadonlySet<TileKey>;
+  /** Secondary-tower commitment carried over from the previous build tick
+   *  (if any). Threaded into `selectTarget` for the short-circuit. */
+  lastTargetTowerIndex: TowerIdx | undefined;
 }
 
 /** Result of a single AI placement decision. null = no valid placement. */

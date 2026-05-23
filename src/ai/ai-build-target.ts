@@ -388,9 +388,46 @@ function trySecondaryTower(ctx: TargetContext): TargetResult {
     effectiveSkipHome,
     unenclosedTowers,
     otherUnenclosed,
+    lastTargetTowerIndex,
   } = ctx;
   const buildTowers = effectiveSkipHome ? otherUnenclosed : unenclosedTowers;
   if (buildTowers.length === 0) return NO_TARGET;
+
+  // Persistence short-circuit: if last tick committed to a tower that's
+  // still alive, manageable, and piece-feasible right now, reuse it without
+  // re-scoring. Skips the cursor-driven per-tick re-decision that drives
+  // Mode #2 churn while preserving Modes #1/#3/#4 guards (the cache was
+  // only written when those invariants held).
+  if (lastTargetTowerIndex !== undefined) {
+    const cached = buildTowers.find((t) => t.index === lastTargetTowerIndex);
+    if (cached) {
+      const cachedRect = castleRect(
+        cached,
+        state.map.tiles,
+        state.map.towers,
+        castleMargin,
+        !bankHugging,
+      );
+      const cachedGaps = computeFillableGaps(
+        cachedRect,
+        player.walls,
+        getInterior(player),
+        state,
+        bankHugging,
+      );
+      if (
+        cachedGaps.size > 0 &&
+        cachedGaps.size <= MANAGEABLE_GAP_LIMIT &&
+        canFillAfterPlugging(ctx, cachedGaps, cachedRect)
+      ) {
+        return {
+          targetGaps: cachedGaps,
+          targetRect: cachedRect,
+          chosenTowerIndex: cached.index,
+        };
+      }
+    }
+  }
 
   const currentRow = cursorPos?.row ?? castle.tower.row;
   const currentCol = cursorPos?.col ?? castle.tower.col;
@@ -435,7 +472,21 @@ function trySecondaryTower(ctx: TargetContext): TargetResult {
       ) {
         continue;
       }
-      return { targetGaps: gaps, targetRect: rect };
+      // Cache only when ALL persistence invariants hold: tower is alive,
+      // gaps are manageable, and the piece-feasibility check just passed
+      // (implicit from getting here without the `continue`). Caching a
+      // ring with > MANAGEABLE_GAP_LIMIT gaps risks lock-in on Modes
+      // #3/#4 (structurally unsealable rings); caching a dead tower
+      // amplifies Mode #1 preemption.
+      const cacheable =
+        gaps.size > 0 &&
+        gaps.size <= MANAGEABLE_GAP_LIMIT &&
+        state.towerAlive[bestTower.index];
+      return {
+        targetGaps: gaps,
+        targetRect: rect,
+        chosenTowerIndex: cacheable ? bestTower.index : undefined,
+      };
     }
   }
   return NO_TARGET;

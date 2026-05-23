@@ -17,7 +17,7 @@ import {
   hasAliveHouseAt,
   type OccupancyCache,
 } from "../shared/core/board-occupancy.ts";
-import type { Castle, Tower } from "../shared/core/geometry-types.ts";
+import type { Castle, Tower, TowerIdx } from "../shared/core/geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, type TileKey } from "../shared/core/grid.ts";
 import { type PieceShape, rotateCW } from "../shared/core/pieces.ts";
 import { getInterior } from "../shared/core/player-interior.ts";
@@ -66,6 +66,15 @@ import type {
 import { findGapTiles, hasMeaningfulHomeRingGaps } from "./ai-castle-rect.ts";
 
 type BuildSkillConfig = (typeof BUILD_SKILL_TABLE)[number];
+
+export interface PickPlacementResult {
+  placement: AiPlacement | null;
+  /** Tower committed to by trySecondaryTower this tick (undefined for home
+   *  repair, expand-territory, or any path that didn't cache). The caller
+   *  (DefaultStrategy) stores this and passes it back via PlacementOptions
+   *  on the next tick to drive the persistence short-circuit. */
+  chosenTowerIndex: TowerIdx | undefined;
+}
 
 /** Max gap tiles before AI deprioritizes home tower in favor of other unenclosed towers. */
 const HOME_GAP_REPAIR_THRESHOLD = 5;
@@ -124,7 +133,7 @@ export function pickPlacement(
   playerId: ValidPlayerId,
   piece: PieceShape,
   options: PlacementOptions,
-): AiPlacement | null {
+): PickPlacementResult {
   const {
     cursorPos,
     homeWasBroken,
@@ -134,9 +143,12 @@ export function pickPlacement(
     caresAboutBonuses,
     buildSkill,
     outerRingHolesSnapshot,
+    lastTargetTowerIndex,
   } = options;
   const maybePlayer = state.players[playerId];
-  if (!maybePlayer || maybePlayer.castleWallTiles.size === 0) return null;
+  if (!maybePlayer || maybePlayer.castleWallTiles.size === 0) {
+    return { placement: null, chosenTowerIndex: undefined };
+  }
   const player = maybePlayer;
   // Recompute the home castle rect on demand. Selection used the same
   // algorithm against the modifier-projected tiles; passing
@@ -144,7 +156,9 @@ export function pickPlacement(
   // actual walls while the same modifier is active. After a modifier
   // clears between selection and now, the recomputed rect drifts to the
   // natural-shoreline shape — bounded suboptimality, never desync.
-  if (!player.homeTower) return null;
+  if (!player.homeTower) {
+    return { placement: null, chosenTowerIndex: undefined };
+  }
   const castle = createCastle(
     player.homeTower,
     effectivePlanTiles(state),
@@ -177,12 +191,12 @@ export function pickPlacement(
   // State is read-only during pickPlacement so memoization is safe.
   const cache = buildOccupancyCache(state);
   const placementCtx = buildPlacementContext(state, playerId);
-  if (!placementCtx) return null;
+  if (!placementCtx) return { placement: null, chosenTowerIndex: undefined };
 
   // Step 1: determine which rectangle to build/repair.
   // Pipeline: tryRepairHomeCastle → trySecondaryTower → tryExpandTerritory
   // Each phase only runs if the previous one found no gaps.
-  const { targetGaps, targetRect } = selectTarget({
+  const { targetGaps, targetRect, chosenTowerIndex } = selectTarget({
     state,
     playerId,
     player,
@@ -197,6 +211,7 @@ export function pickPlacement(
     unenclosedTowers,
     otherUnenclosed,
     outerRingHolesSnapshot,
+    lastTargetTowerIndex,
     cache,
     placementCtx,
   });
@@ -223,7 +238,9 @@ export function pickPlacement(
     placementCtx,
     interiorExcludingGaps,
   );
-  if (allCandidates.length === 0) return null;
+  if (allCandidates.length === 0) {
+    return { placement: null, chosenTowerIndex };
+  }
 
   // Step 3: pick best using territory gain
   const baselinePocketWaste = countSmallPocketTiles(
@@ -261,7 +278,7 @@ export function pickPlacement(
     aliveHouseKeys,
   };
 
-  return selectBestPlacement(scored, allCandidates, scoringCtx, {
+  const placement = selectBestPlacement(scored, allCandidates, scoringCtx, {
     player,
     castle,
     castleMargin,
@@ -270,6 +287,7 @@ export function pickPlacement(
     hasManageableGaps:
       targetGaps.size > 0 && targetGaps.size <= MANAGEABLE_GAP_LIMIT,
   });
+  return { placement, chosenTowerIndex };
 }
 
 /** Identify real breach points by scanning for short non-wall runs between
