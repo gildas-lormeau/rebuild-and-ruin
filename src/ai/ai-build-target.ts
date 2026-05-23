@@ -42,6 +42,19 @@ import {
   scoreBuildTowerTarget,
 } from "./ai-castle-rect.ts";
 
+/** Which branch of `selectTarget` produced the result this tick. Used by the
+ *  AI build-survival test runner to classify stall rounds by their path-mix
+ *  signature (HOME-dominant = home-ring repair, SEC-dominant = persistence
+ *  commitment, EXP-dominant = all towers enclosed and expanding territory,
+ *  STRAT_RECT = strategic fallback found a rect, STRAT_NONE = nothing at all).
+ *  Production code never sets the hook; it stays null and the check costs
+ *  one branch per call. */
+export type SelectTargetPathHook = (
+  playerId: ValidPlayerId,
+  round: number,
+  path: "HOME" | "SEC" | "EXP" | "STRAT_RECT" | "STRAT_NONE",
+) => void;
+
 /** How far the castle rect can expand to route around blocked tiles.
  *  Indexed by interior utilization: >60% → 2, >30% → 3, >10% → 4, else 5. */
 const EXPANSION_TIERS: readonly { minFreeRatio: number; maxExpand: number }[] =
@@ -59,19 +72,36 @@ const NO_TARGET: TargetResult = { targetGaps: new Set(), targetRect: null };
 /** Max gap tiles the AI considers evaluable in a single build turn. Beyond this, the target is skipped. */
 export const MANAGEABLE_GAP_LIMIT = 8;
 
+let selectTargetPathHook: SelectTargetPathHook | undefined = undefined;
+
+export function setSelectTargetPathHook(
+  hook: SelectTargetPathHook | undefined,
+): void {
+  selectTargetPathHook = hook;
+}
+
 /** Select which rectangle to build/repair.
  *  Pipeline: tryRepairHomeCastle → trySecondaryTower → tryExpandTerritory.
  *  Each phase only runs if the previous one found no gaps. */
 export function selectTarget(ctx: TargetContext): TargetResult {
   // Phase 1: repair home castle ring
   const home = tryRepairHomeCastle(ctx);
-  if (home.targetGaps.size > 0) return home;
+  if (home.targetGaps.size > 0) {
+    selectTargetPathHook?.(ctx.playerId, ctx.state.round, "HOME");
+    return home;
+  }
   // Phase 2: build toward best unenclosed secondary tower
   const secondary = trySecondaryTower(ctx);
-  if (secondary.targetGaps.size > 0) return secondary;
+  if (secondary.targetGaps.size > 0) {
+    selectTargetPathHook?.(ctx.playerId, ctx.state.round, "SEC");
+    return secondary;
+  }
   // Phase 3: expand territory when all towers are enclosed
   const expand = tryExpandTerritory(ctx);
-  if (expand.targetGaps.size > 0) return expand;
+  if (expand.targetGaps.size > 0) {
+    selectTargetPathHook?.(ctx.playerId, ctx.state.round, "EXP");
+    return expand;
+  }
   // All three phases bailed — typically because every tower's `canFillAfter-
   // Plugging` gate fired (current piece doesn't fit any gap this tick). Without
   // a target the orchestrator can't restrict to gap-fillers and the scattered
@@ -82,7 +112,13 @@ export function selectTarget(ctx: TargetContext): TargetResult {
   // gap-adjacent and wall-adjacent placements. Future pieces will close the
   // gap; this tick's placement at least lands near the ring instead of in
   // arbitrary corners of the board.
-  return strategicFallbackTarget(ctx);
+  const fallback = strategicFallbackTarget(ctx);
+  selectTargetPathHook?.(
+    ctx.playerId,
+    ctx.state.round,
+    fallback.targetGaps.size > 0 ? "STRAT_RECT" : "STRAT_NONE",
+  );
+  return fallback;
 }
 
 /** Strategic fallback when every selectTarget phase bailed. Returns the home

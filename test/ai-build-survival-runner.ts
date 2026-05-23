@@ -8,7 +8,16 @@
 import { createScenario, waitForEvent } from "./scenario.ts";
 import { Phase } from "../src/shared/core/game-phase.ts";
 import { GAME_EVENT } from "../src/shared/core/game-event-bus.ts";
+import { setSelectTargetPathHook } from "../src/ai/ai-build-target.ts";
 import type { ValidPlayerId } from "../src/shared/core/player-slot.ts";
+
+export interface PathCounts {
+  HOME: number;
+  SEC: number;
+  EXP: number;
+  STRAT_RECT: number;
+  STRAT_NONE: number;
+}
 
 export interface RoundRow {
   walls: number;
@@ -16,6 +25,7 @@ export interface RoundRow {
   unownedAliveZoneTowers: number;
   lostLifeThisRound: boolean;
   livesAtRoundEnd: number;
+  pathCounts: PathCounts;
 }
 
 export interface PlayerSummary {
@@ -38,13 +48,19 @@ export interface SeedResult {
   roundsRecorded: number;
 }
 
-export const SEEDS = [
+const DEFAULT_SEEDS = [
   42, 100, 147323, 203607, 314159, 409946, 510296, 550021, 555555, 634446,
   677242, 700000, 833681, 921118, 1234567, 1364287, 1992148, 2468171, 3020266,
   3391887, 3480269, 4514090, 4778786, 5923908, 6959185, 7082653, 7126930,
   7260128, 7414600, 7777777, 8055250, 8114943, 8815892, 9083713, 9142064,
   9364665, 9468552, 9634092, 9862896, 9974133,
 ] as const;
+/** Active seed set. Overridable via `AI_SURVIVAL_SEEDS=42,100,9142064` —
+ *  restricts BOTH the worker dispatch and the Deno.test registration, so
+ *  filter-style runs (`AI_SURVIVAL_SEEDS=9142064 npm test`) actually skip the
+ *  other seeds rather than running them and discarding results. Necessary
+ *  for capturing trace logs without multi-seed interleaving. */
+export const SEEDS: readonly number[] = parseSeedsFromEnv() ?? DEFAULT_SEEDS;
 export const ROUNDS_TO_PLAY = 30;
 /** Wall-placement volume that signals the AI was actively building (~one
  *  full piece bag for a round). */
@@ -70,6 +86,23 @@ export function formatSummaryLine(result: SeedResult): string {
   return `seed=${seed} rounds=${roundsRecorded}/${ROUNDS_TO_PLAY} (last=r${lastRound}) ${perPlayer}`;
 }
 
+function parseSeedsFromEnv(): readonly number[] | null {
+  const env = Deno.env.get("AI_SURVIVAL_SEEDS");
+  if (!env || env.trim() === "") return null;
+  const seeds = env
+    .split(",")
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0)
+    .map((s) => {
+      const n = Number(s);
+      if (!Number.isFinite(n) || !Number.isInteger(n) || n < 0) {
+        throw new Error(`Invalid seed in AI_SURVIVAL_SEEDS: "${s}"`);
+      }
+      return n;
+    });
+  return seeds.length > 0 ? seeds : null;
+}
+
 async function runSeed(seed: number): Promise<Map<number, RoundRow[]>> {
   const sc = await createScenario({
     seed,
@@ -81,17 +114,24 @@ async function runSeed(seed: number): Promise<Map<number, RoundRow[]>> {
   const getRow = (round: number): RoundRow[] => {
     let row = perRound.get(round);
     if (!row) {
-      row = [0, 1, 2].map(() => ({
-        walls: 0,
-        enclosures: 0,
-        unownedAliveZoneTowers: 0,
-        lostLifeThisRound: false,
-        livesAtRoundEnd: 0,
-      }));
+      row = [0, 1, 2].map(
+        (): RoundRow => ({
+          walls: 0,
+          enclosures: 0,
+          unownedAliveZoneTowers: 0,
+          lostLifeThisRound: false,
+          livesAtRoundEnd: 0,
+          pathCounts: { HOME: 0, SEC: 0, EXP: 0, STRAT_RECT: 0, STRAT_NONE: 0 },
+        }),
+      );
       perRound.set(round, row);
     }
     return row;
   };
+
+  setSelectTargetPathHook((playerId, round, path) => {
+    getRow(round)[playerId]!.pathCounts[path]++;
+  });
 
   sc.bus.on(GAME_EVENT.WALL_PLACED, (ev) => {
     getRow(sc.state.round)[ev.playerId]!.walls += ev.tileKeys.length;
@@ -145,6 +185,8 @@ async function runSeed(seed: number): Promise<Map<number, RoundRow[]>> {
     );
   } catch {
     // Game may have ended early via last-player-standing — partial data fine.
+  } finally {
+    setSelectTargetPathHook(undefined);
   }
   return perRound;
 }
@@ -176,11 +218,47 @@ function analyzeSeed(
         !row.lostLifeThisRound &&
         row.livesAtRoundEnd > 0
       ) {
+        const cls = classifyStall(row.pathCounts);
+        const pc = row.pathCounts;
         stalls.push(
-          `seed=${seed} r${round} ${PLAYER_NAMES[pid]}: ${row.walls} walls placed, 0 enclosures fired, ${row.unownedAliveZoneTowers} alive unowned tower(s) available, lives=${row.livesAtRoundEnd}`,
+          `seed=${seed} r${round} ${PLAYER_NAMES[pid]}: ${row.walls} walls placed, 0 enclosures fired, ${row.unownedAliveZoneTowers} alive unowned tower(s) available, lives=${row.livesAtRoundEnd} | paths H=${pc.HOME} S=${pc.SEC} E=${pc.EXP} SR=${pc.STRAT_RECT} SN=${pc.STRAT_NONE} → ${cls.kind} (${cls.detail})`,
         );
       }
     }
   }
   return { stalls, perPlayer };
+}
+
+/** Classify a stall round by its selectTarget path-mix:
+ *  - LOCK: one path took >70% of calls (AI was committed to one rect type).
+ *  - CHURN: EXP fired >10% (state oscillated around fully-enclosed, AI flipped modes).
+ *  - HYBRID: neither — multiple paths fire but EXP didn't get much.
+ *  Reflects the lock-vs-churn taxonomy from the v4-A architectural investigation. */
+function classifyStall(counts: PathCounts): {
+  kind: "LOCK" | "CHURN" | "HYBRID";
+  detail: string;
+} {
+  const total =
+    counts.HOME +
+    counts.SEC +
+    counts.EXP +
+    counts.STRAT_RECT +
+    counts.STRAT_NONE;
+  if (total === 0) return { kind: "HYBRID", detail: "no calls" };
+  const entries = (
+    ["HOME", "SEC", "EXP", "STRAT_RECT", "STRAT_NONE"] as const
+  ).map((k) => ({ key: k, count: counts[k], pct: (counts[k] * 100) / total }));
+  const top = entries.reduce((a, b) => (a.count > b.count ? a : b));
+  if (top.pct > 70)
+    return { kind: "LOCK", detail: `${top.key} ${top.pct.toFixed(0)}%` };
+  const expPct = (counts.EXP * 100) / total;
+  if (expPct > 10)
+    return { kind: "CHURN", detail: `EXP ${expPct.toFixed(0)}%` };
+  return {
+    kind: "HYBRID",
+    detail: entries
+      .filter((e) => e.count > 0)
+      .map((e) => `${e.key}=${e.count}`)
+      .join("+"),
+  };
 }
