@@ -493,6 +493,12 @@ export interface RendererInterface {
   /** Pre-compute terrain image caches so the first render of a new map
    *  doesn't stall the frame. Call after generating/receiving a map. */
   warmMapCache(map: GameMap): void;
+  /** Pre-compile the shadow-pass permutation of every visible material so
+   *  the BATTLE-entry `castShadow` flip doesn't trigger a blocking
+   *  shader recompile on the critical frame. Optional — only the 3D
+   *  renderer implements it. Returns when the GPU finishes linking
+   *  (KHR_parallel_shader_compile on modern Chrome/Firefox). */
+  warmShadowPermutations?(): Promise<void>;
   /** Convert pointer event client coordinates (MouseEvent.clientX/Y) to
    *  surface world-pixel coordinates (tile grid at TILE_SIZE scale).
    *  Accounts for canvas position, letterboxing, and DPR. */

@@ -280,6 +280,26 @@ export function createRender3d(
     ctx.renderer.setRenderTarget(null);
   }
 
+  /** Pre-compile the shadow-pass permutation of every entity material.
+   *  At rest, `sun.castShadow = false` so three.js builds materials
+   *  WITHOUT `USE_SHADOWMAP`. The first BATTLE frame flips `castShadow`
+   *  ON (camera tilts in → `setSunBlend(blend > 0)`), which triggers a
+   *  blocking recompile of every caster material on the critical frame
+   *  (~84ms cold). Calling this once before BATTLE entry — when no one's
+   *  watching frame times — seeds the permutation so the BATTLE-entry
+   *  flip is a no-op. Idempotent: subsequent calls return immediately
+   *  because programs are already linked. */
+  async function warmShadowPermutations(): Promise<void> {
+    const wasOn = ctx.sun.castShadow;
+    ctx.sun.castShadow = true;
+    applyShadowFlags(ctx.scene);
+    try {
+      await ctx.renderer.compileAsync(ctx.scene, ctx.camera);
+    } finally {
+      ctx.sun.castShadow = wasOn;
+    }
+  }
+
   return {
     warmMapCache: (map) => {
       canvas2d.warmMapCache(map);
@@ -289,6 +309,7 @@ export function createRender3d(
       // shader uniforms + the SDF / tile-data textures.
       ctx.terrainSdfTexture.ensureBuilt(map);
     },
+    warmShadowPermutations,
     drawFrame: (
       map,
       overlay,

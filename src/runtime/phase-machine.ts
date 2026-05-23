@@ -320,6 +320,16 @@ export interface PhaseTransitionCtx {
    *  and the entry struct doesn't need to thread through ctx. */
   readonly initLocalCannonControllers?: () => void;
 
+  /** Fire-and-forget: pre-compile the shadow-pass permutation of every
+   *  entity material on the renderer. Called from `cannonEntryPostDisplay`
+   *  so the GPU links shadow programs in the background during the
+   *  cannon-place banner — by the time the camera tilts into BATTLE
+   *  (which flips `sun.castShadow` on), three.js finds the programs
+   *  already linked and skips the ~84ms blocking recompile that would
+   *  otherwise hit the critical frame. Idempotent across calls.
+   *  Renderers without a 3D pipeline (2D, headless stub) omit it. */
+  readonly warmShadowPermutations?: () => Promise<void>;
+
   // ── Game-over hooks ──
 
   /** End-game side effects (set game-over frame, stop sound, switch to
@@ -576,6 +586,11 @@ const ENTER_WALL_BUILD: Transition = {
 const cannonEntryPostDisplay: PostDisplayFn = (ctx) => {
   ctx.initLocalCannonControllers?.();
   ctx.setMode(Mode.GAME);
+  // Fire-and-forget: the renderer's program cache makes repeat calls
+  // ~free, so we don't need an explicit once-per-session guard. By the
+  // time the camera tilts in to BATTLE the GPU has linked the shadow
+  // permutation, so the BATTLE-entry frame doesn't pay for it.
+  void ctx.warmShadowPermutations?.();
 };
 const cannonEntryDisplay: readonly DisplayStep[] = [
   {

@@ -188,6 +188,12 @@ interface PhaseTicksDeps extends Pick<RuntimeConfig, "log"> {
   /** Start the build→battle tilt. Called from `proceedToBattle` at
    *  battle-banner end. */
   beginTilt: () => void;
+  /** Fire-and-forget renderer hook to pre-link shadow-pass shader
+   *  programs. Threaded through to `PhaseTransitionCtx.warmShadowPermutations`
+   *  and called from `cannonEntryPostDisplay`. Undefined for renderers
+   *  without a 3D pipeline (2D, headless stub). See the comment on the
+   *  ctx field for the BATTLE-entry hitch this avoids. */
+  warmShadowPermutations?: () => Promise<void>;
 }
 
 /** Public phase-ticks handle exposed on `GameRuntime`. Narrow surface —
@@ -371,6 +377,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       saveBattleCrosshair: deps.saveBattleCrosshair,
       awaitPitchSettled: deps.awaitPitchSettled,
       beginTilt: deps.beginTilt,
+      warmShadowPermutations: deps.warmShadowPermutations,
       lifeLost: {
         show: deps.lifeLost.show,
       },

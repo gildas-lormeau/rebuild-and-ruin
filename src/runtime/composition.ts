@@ -670,6 +670,9 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     getPitchState: camera.getPitchState,
     cannonRotationSettled: () => cannonAnimator.allSettled(),
     beginTilt: camera.beginTilt,
+    warmShadowPermutations: renderer.warmShadowPermutations
+      ? () => renderer.warmShadowPermutations!()
+      : undefined,
   });
 
   // -------------------------------------------------------------------------
