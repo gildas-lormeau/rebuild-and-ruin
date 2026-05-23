@@ -36,6 +36,30 @@ import { PLAYER_NAMES } from "../src/shared/ui/player-config.ts";
 
 export type MapLayer = "all" | "terrain" | "walls";
 
+/** Options accepted by `asciiSnapshot` (and the test-facing wrappers
+ *  `AsciiRenderer.snapshot` + E2E `sc.asciiSnapshot`). One canonical
+ *  shape so headless tests, E2E tests, and the dev console all speak
+ *  the same vocabulary. */
+export interface AsciiSnapshotOptions {
+  /** Which layers to paint. `"terrain"` stops after base + frozen.
+   *  `"walls"` adds interior + walls. `"all"` (default) adds bonuses,
+   *  pits, houses, towers, cannons, grunts, cannonballs. */
+  layer?: MapLayer;
+  /** Wrap the grid with row/col coordinate margins. Defaults differ by
+   *  caller — headless = `false` (pattern-matching tests), E2E = `true`
+   *  (so agents can cite tiles by index). */
+  coords?: boolean;
+  /** Show only this player's interior, walls, and cannons. Other
+   *  players' colored layers render as plain terrain — combine with
+   *  `cropTo` for genuinely compact single-player snapshots. */
+  playerFilter?: ValidPlayerId;
+  /** Crop the grid to a rectangular region. Pass a `ValidPlayerId` to
+   *  crop to that player's zone bounds (1-tile padded via `zoneBounds`),
+   *  or a `Rect` directly. Absolute row/col labels are preserved when
+   *  `coords: true`, so agents can still reason about tile positions. */
+  cropTo?: ValidPlayerId | Rect;
+}
+
 export const enum CellKind {
   Grass,
   Water,
@@ -112,54 +136,6 @@ const NO_OWNER = -1 as PlayerId;
 /** Default layer for map-rendering helpers — shows every layer stacked. */
 export const DEFAULT_MAP_LAYER: MapLayer = "all";
 
-export function buildGrid(
-  state: GameState,
-  layer: MapLayer,
-  playerFilter: number | undefined,
-): Cell[][] {
-  const grid = paintBase(state);
-  paintFrozenTiles(grid, state);
-  if (layer === "terrain") return grid;
-  paintTerritoryAndWalls(grid, state, playerFilter);
-  if (layer === "walls") return grid;
-  paintBonusSquares(grid, state);
-  paintBurningPits(grid, state);
-  paintHouses(grid, state);
-  paintTowers(grid, state);
-  paintCannons(grid, state, playerFilter);
-  paintGrunts(grid, state);
-  paintCannonballs(grid, state);
-  return grid;
-}
-
-export function zoneBounds(state: GameState, zone: ZoneId): Rect | undefined {
-  let minRow = GRID_ROWS;
-  let maxRow = 0;
-  let minCol = GRID_COLS;
-  let maxCol = 0;
-  for (let row = 0; row < GRID_ROWS; row++) {
-    for (let col = 0; col < GRID_COLS; col++) {
-      if (state.map.zones[row]![col] === zone) {
-        if (row < minRow) minRow = row;
-        if (row > maxRow) maxRow = row;
-        if (col < minCol) minCol = col;
-        if (col > maxCol) maxCol = col;
-      }
-    }
-  }
-  if (minRow > maxRow) {
-    console.log(`Zone ${zone} not found on this map.`);
-    return undefined;
-  }
-  // Pad by 1 tile for context, clamped to grid
-  return {
-    minRow: Math.max(0, minRow - 1),
-    maxRow: Math.min(GRID_ROWS - 1, maxRow + 1),
-    minCol: Math.max(0, minCol - 1),
-    maxCol: Math.min(GRID_COLS - 1, maxCol + 1),
-  };
-}
-
 /** Structured read of everything that lives at a single tile. Used by the
  *  test-facing `tileAt(row, col)` so agents can assert on occupancy
  *  without counting characters in an ASCII dump. */
@@ -231,27 +207,91 @@ export function inspectTile(
   };
 }
 
+/** Render a `GameState` as an ASCII snapshot — the single entry point
+ *  for headless `AsciiRenderer.snapshot`, the E2E bridge, and the dev
+ *  console. Accepts the full `AsciiSnapshotOptions` shape (layer,
+ *  coords, playerFilter, cropTo). */
+export function asciiSnapshot(
+  state: GameState,
+  opts: AsciiSnapshotOptions = {},
+): string {
+  const layer = opts.layer ?? DEFAULT_MAP_LAYER;
+  const grid = buildGrid(state, layer, opts.playerFilter);
+  return formatGrid(grid, buildLegend(state), {
+    coords: opts.coords ?? false,
+    crop: resolveCropRect(state, opts.cropTo),
+  });
+}
+
+export function buildGrid(
+  state: GameState,
+  layer: MapLayer,
+  playerFilter: number | undefined,
+): Cell[][] {
+  const grid = paintBase(state);
+  paintFrozenTiles(grid, state);
+  if (layer === "terrain") return grid;
+  paintTerritoryAndWalls(grid, state, playerFilter);
+  if (layer === "walls") return grid;
+  paintBonusSquares(grid, state);
+  paintBurningPits(grid, state);
+  paintHouses(grid, state);
+  paintTowers(grid, state);
+  paintCannons(grid, state, playerFilter);
+  paintGrunts(grid, state);
+  paintCannonballs(grid, state);
+  return grid;
+}
+
 /** Render a `Cell[][]` grid as an ASCII string, optionally with coordinate
- *  margins. Factored out of `AsciiRenderer.snapshot` / E2E `asciiSnapshot`
- *  so both call sites can opt into margins uniformly. */
+ *  margins and an optional crop rect. Factored out of
+ *  `AsciiRenderer.snapshot` / E2E `asciiSnapshot` so both call sites
+ *  share the same format. Row/col labels are absolute (not relative to
+ *  the crop) so agents can cite tiles by their map position. */
 export function formatGrid(
   cells: readonly (readonly Cell[])[],
   legend: string,
-  opts?: { coords?: boolean },
+  opts?: { coords?: boolean; crop?: Rect },
 ): string {
-  const lines = cells.map((row) => row.map((cell) => cell.char).join(""));
+  const rect = opts?.crop ?? {
+    minRow: 0,
+    maxRow: cells.length - 1,
+    minCol: 0,
+    maxCol: (cells[0]?.length ?? 1) - 1,
+  };
+  const lines: string[] = [];
+  for (let row = rect.minRow; row <= rect.maxRow; row++) {
+    const rowCells = cells[row];
+    if (!rowCells) continue;
+    let line = "";
+    for (let col = rect.minCol; col <= rect.maxCol; col++) {
+      line += rowCells[col]?.char ?? " ";
+    }
+    lines.push(line);
+  }
   if (!opts?.coords) return `${legend}\n${lines.join("\n")}`;
 
-  const cols = cells[0]?.length ?? 0;
+  const cols = rect.maxCol - rect.minCol + 1;
   const rowLabelW = String(cells.length - 1).length;
   const pad = " ".repeat(rowLabelW);
-  const tensHeader = `${pad}  ${buildTensHeader(cols)}`;
-  const onesHeader = `${pad}  ${buildOnesHeader(cols)}`;
+  const tensHeader = `${pad}  ${buildTensHeader(cols, rect.minCol)}`;
+  const onesHeader = `${pad}  ${buildOnesHeader(cols, rect.minCol)}`;
   const border = `${pad} +${"-".repeat(cols)}+`;
-  const body = lines.map(
-    (row, index) => `${String(index).padStart(rowLabelW, " ")} |${row}|`,
-  );
+  const body = lines.map((row, index) => {
+    const rowIndex = rect.minRow + index;
+    return `${String(rowIndex).padStart(rowLabelW, " ")} |${row}|`;
+  });
   return [legend, tensHeader, onesHeader, border, ...body].join("\n");
+}
+
+/** Normalize the back-compat `MapLayer | AsciiSnapshotOptions` shape
+ *  accepted by the test-facing `snapshot()` / `asciiSnapshot()` calls. */
+export function resolveAsciiOpts(
+  arg: MapLayer | AsciiSnapshotOptions | undefined,
+): AsciiSnapshotOptions {
+  if (arg === undefined) return {};
+  if (typeof arg === "string") return { layer: arg };
+  return arg;
 }
 
 /** Diff two ASCII snapshots (with or without coord margins) and return a
@@ -452,18 +492,63 @@ function extractGridLines(snapshot: string): string[] {
   return lines.slice(LEGEND_LINE_COUNT).filter((line) => line.length > 0);
 }
 
-function buildTensHeader(cols: number): string {
+function buildTensHeader(cols: number, startCol: number): string {
   let line = "";
-  for (let col = 0; col < cols; col++) {
+  for (let i = 0; i < cols; i++) {
+    const col = startCol + i;
     line += col >= 10 && col % 10 === 0 ? String(Math.floor(col / 10)) : " ";
   }
   return line;
 }
 
-function buildOnesHeader(cols: number): string {
+function buildOnesHeader(cols: number, startCol: number): string {
   let line = "";
-  for (let col = 0; col < cols; col++) line += String(col % 10);
+  for (let i = 0; i < cols; i++) line += String((startCol + i) % 10);
   return line;
+}
+
+/** Resolve `cropTo` to a `Rect`. `ValidPlayerId` → that player's zone
+ *  bounds (1-tile padded). Returns `undefined` (no crop) when the
+ *  player has no assigned zone or the zone has no cells. */
+function resolveCropRect(
+  state: GameState,
+  cropTo: ValidPlayerId | Rect | undefined,
+): Rect | undefined {
+  if (cropTo === undefined) return undefined;
+  if (typeof cropTo === "number") {
+    const zone = state.playerZones[cropTo];
+    if (zone === undefined) return undefined;
+    return zoneBounds(state, zone);
+  }
+  return cropTo;
+}
+
+export function zoneBounds(state: GameState, zone: ZoneId): Rect | undefined {
+  let minRow = GRID_ROWS;
+  let maxRow = 0;
+  let minCol = GRID_COLS;
+  let maxCol = 0;
+  for (let row = 0; row < GRID_ROWS; row++) {
+    for (let col = 0; col < GRID_COLS; col++) {
+      if (state.map.zones[row]![col] === zone) {
+        if (row < minRow) minRow = row;
+        if (row > maxRow) maxRow = row;
+        if (col < minCol) minCol = col;
+        if (col > maxCol) maxCol = col;
+      }
+    }
+  }
+  if (minRow > maxRow) {
+    console.log(`Zone ${zone} not found on this map.`);
+    return undefined;
+  }
+  // Pad by 1 tile for context, clamped to grid
+  return {
+    minRow: Math.max(0, minRow - 1),
+    maxRow: Math.min(GRID_ROWS - 1, maxRow + 1),
+    minCol: Math.max(0, minCol - 1),
+    maxCol: Math.min(GRID_COLS - 1, maxCol + 1),
+  };
 }
 
 function setCell(

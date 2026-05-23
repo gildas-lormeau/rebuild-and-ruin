@@ -28,12 +28,11 @@ import type { ZoneId } from "../src/shared/core/zone-id.ts";
 import { IS_DEV } from "../src/shared/platform/platform.ts";
 import { Mode } from "../src/shared/ui/ui-mode.ts";
 import {
-  buildGrid,
-  buildLegend,
-  DEFAULT_MAP_LAYER,
-  formatGrid,
+  type AsciiSnapshotOptions,
+  asciiSnapshot,
   inspectTile,
   type MapLayer,
+  resolveAsciiOpts,
   type TileInspection,
 } from "./dev-console-grid.ts";
 
@@ -139,12 +138,11 @@ interface E2EBridge extends E2EBridgeSnapshot {
   /** Text-grid snapshot of the map — identical output to the headless
    *  ASCII renderer (`AsciiRenderer.snapshot()`), produced on demand
    *  from the live `GameState`. Returns null before state is ready.
-   *  Accepts a bare `MapLayer` for back-compat or an options object.
-   *  Coordinate margins default ON for E2E (so agents can cite tiles
-   *  by index without character-counting). */
-  asciiSnapshot: (
-    opts?: MapLayer | { layer?: MapLayer; coords?: boolean },
-  ) => string | null;
+   *  Accepts a bare `MapLayer` for back-compat or an `AsciiSnapshotOptions`
+   *  object (layer / coords / playerFilter / cropTo). Coordinate margins
+   *  default ON for E2E (so agents can cite tiles by index without
+   *  character-counting). */
+  asciiSnapshot: (opts?: MapLayer | AsciiSnapshotOptions) => string | null;
   /** Structured read of everything at a single tile — terrain, wall,
    *  tower, cannon, grunt, burning pit, interior ownership, zone.
    *  Returns null before state is ready. Cheaper than rendering the
@@ -625,22 +623,10 @@ function serializeGameState(state: GameState): SerializedGameState {
  *  match on the raw grid). */
 function renderAscii(
   state: GameState,
-  opts: MapLayer | { layer?: MapLayer; coords?: boolean } | undefined,
+  opts: MapLayer | AsciiSnapshotOptions | undefined,
 ): string {
-  const { layer, coords } = normalizeAsciiOpts(opts);
-  const grid = buildGrid(state, layer, undefined);
-  return formatGrid(grid, buildLegend(state), { coords });
-}
-
-function normalizeAsciiOpts(
-  opts: MapLayer | { layer?: MapLayer; coords?: boolean } | undefined,
-): { layer: MapLayer; coords: boolean } {
-  if (opts === undefined) return { layer: DEFAULT_MAP_LAYER, coords: true };
-  if (typeof opts === "string") return { layer: opts, coords: true };
-  return {
-    layer: opts.layer ?? DEFAULT_MAP_LAYER,
-    coords: opts.coords ?? true,
-  };
+  const resolved = resolveAsciiOpts(opts);
+  return asciiSnapshot(state, { ...resolved, coords: resolved.coords ?? true });
 }
 
 /** JSON.stringify replacer that converts Sets/Maps to JSON-safe arrays,

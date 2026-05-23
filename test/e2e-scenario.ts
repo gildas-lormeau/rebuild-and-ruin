@@ -23,6 +23,7 @@ import type {
   SerializedGameState,
 } from "../dev/e2e-bridge.ts";
 import type {
+  AsciiSnapshotOptions,
   MapLayer,
   TileInspection,
 } from "../dev/dev-console-grid.ts";
@@ -138,9 +139,12 @@ export interface E2EScenario extends AsyncDisposable {
    *      console.log(await sc.asciiSnapshot());
    *
    *  Coordinate margins default ON (set `coords: false` to match the
-   *  headless format). Accepts a bare `MapLayer` for back-compat. */
+   *  headless format). `playerFilter` hides other players' colored
+   *  layers; `cropTo` (a `ValidPlayerId` or `Rect`) restricts the grid
+   *  to one zone — pair both to keep snapshots small for agents.
+   *  Accepts a bare `MapLayer` for back-compat. */
   asciiSnapshot(
-    opts?: MapLayer | { layer?: MapLayer; coords?: boolean },
+    opts?: MapLayer | AsciiSnapshotOptions,
   ): Promise<string | null>;
   /** Structured read of a single tile — mirrors the headless
    *  `Scenario.tileAt(row, col)`. Returns null before state is ready. */
@@ -918,14 +922,12 @@ export async function createE2EScenario(
 
     asciiSnapshot: (opts) =>
       page.evaluate(
-        (arg: MapLayer | { layer?: MapLayer; coords?: boolean } | undefined) => {
+        (arg: MapLayer | AsciiSnapshotOptions | undefined) => {
           const e2e = (globalThis as unknown as Record<string, unknown>)
             .__e2e as
             | {
                 asciiSnapshot?: (
-                  opts?:
-                    | MapLayer
-                    | { layer?: MapLayer; coords?: boolean },
+                  opts?: MapLayer | AsciiSnapshotOptions,
                 ) => string | null;
               }
             | undefined;

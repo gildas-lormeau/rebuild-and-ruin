@@ -85,6 +85,56 @@ Deno.test("scenario: diffAsciiSnapshots lists tile changes across phases", async
   );
 });
 
+Deno.test("scenario: asciiSnapshot supports playerFilter + cropTo for compact agent snapshots", async () => {
+  const sc = await createScenario({ seed: 42, rounds: 3, renderer: "ascii" });
+  const ascii = sc.renderer!;
+  waitForPhase(sc, Phase.BATTLE);
+
+  const player = sc.state.players.find(
+    (p) => p.walls.size > 0 && p.interior.size > 0,
+  );
+  assert(player !== undefined, "expected a player with walls + interior");
+
+  const otherWalls = sc.state.players
+    .filter((current) => current.id !== player.id)
+    .reduce((sum, current) => sum + current.walls.size, 0);
+  assertGreater(otherWalls, 0, "test needs at least one other player with walls");
+
+  // Compare grid-body '#' counts before/after filtering. Filtering by
+  // player should drop exactly the OTHER players' wall chars; the legend
+  // also contains a literal '#', so we compare the diff rather than
+  // absolute totals.
+  const full = ascii.snapshot({ layer: "walls" });
+  const filtered = ascii.snapshot({ layer: "walls", playerFilter: player.id });
+  const fullWallChars = (full.match(/#/g) ?? []).length;
+  const filteredWallChars = (filtered.match(/#/g) ?? []).length;
+  assertEquals(
+    fullWallChars - filteredWallChars,
+    otherWalls,
+    "playerFilter should drop exactly the OTHER players' wall chars",
+  );
+
+  // cropTo: token-savings goal. The cropped snapshot is strictly smaller
+  // and still preserves absolute row indices in coord mode so agents can
+  // cite tiles by position.
+  const cropped = ascii.snapshot({
+    layer: "walls",
+    coords: true,
+    playerFilter: player.id,
+    cropTo: player.id,
+  });
+  assert(
+    cropped.length < full.length,
+    `cropTo should shrink the snapshot (cropped=${cropped.length}, full=${full.length})`,
+  );
+  const wallTileKey = player.walls.values().next().value as TileKey;
+  const { row } = unpackTile(wallTileKey);
+  assert(
+    cropped.includes(` ${row} |`) || cropped.includes(`${row} |`),
+    `cropped snapshot should retain absolute row label for row ${row}`,
+  );
+});
+
 Deno.test("scenario: tileAt inspects a walled-in interior tile", async () => {
   const sc = await createScenario({ seed: 42, rounds: 3 });
   waitForPhase(sc, Phase.BATTLE);

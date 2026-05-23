@@ -13,10 +13,10 @@
  */
 
 import {
-  buildGrid,
-  buildLegend,
-  formatGrid,
+  type AsciiSnapshotOptions,
+  asciiSnapshot,
   type MapLayer,
+  resolveAsciiOpts,
 } from "../dev/dev-console-grid.ts";
 import { createStubElement } from "./stub-dom.ts";
 import type { GameMap, Viewport } from "../src/shared/core/geometry-types.ts";
@@ -26,13 +26,7 @@ import type {
 } from "../src/shared/ui/overlay-types.ts";
 import type { GameState } from "../src/shared/core/types.ts";
 
-export interface AsciiSnapshotOptions {
-  layer?: MapLayer;
-  /** Wrap the grid with row/col coordinate margins. Defaults to `false`
-   *  on headless to keep existing tests (which grep on the raw grid)
-   *  working; E2E defaults to `true`. */
-  coords?: boolean;
-}
+export type { AsciiSnapshotOptions } from "../dev/dev-console-grid.ts";
 
 export interface AsciiRenderer {
   /** All captured frames as text. */
@@ -60,17 +54,7 @@ export function createAsciiRenderer(): AsciiRendererInternal {
 
   function renderState(opts: AsciiSnapshotOptions = {}): string {
     if (!getState) throw new Error("AsciiRenderer not bound — call bind() first");
-    const state = getState();
-    const grid = buildGrid(state, opts.layer ?? "all", undefined);
-    return formatGrid(grid, buildLegend(state), { coords: opts.coords ?? false });
-  }
-
-  function resolveOpts(
-    arg: MapLayer | AsciiSnapshotOptions | undefined,
-  ): AsciiSnapshotOptions {
-    if (arg === undefined) return {};
-    if (typeof arg === "string") return { layer: arg };
-    return arg;
+    return asciiSnapshot(getState(), opts);
   }
 
   return {
@@ -100,7 +84,7 @@ export function createAsciiRenderer(): AsciiRendererInternal {
       return frames.length > 0 ? frames[frames.length - 1]! : "";
     },
     snapshot(opts?: MapLayer | AsciiSnapshotOptions) {
-      return renderState(resolveOpts(opts));
+      return renderState(resolveAsciiOpts(opts));
     },
     bind(stateGetter: () => GameState) {
       getState = stateGetter;
