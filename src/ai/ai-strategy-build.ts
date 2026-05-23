@@ -63,12 +63,7 @@ import type {
   Scored,
   ScoringContext,
 } from "./ai-build-types.ts";
-import {
-  castleRect,
-  findGapTiles,
-  findReachableRingGaps,
-  hasMeaningfulHomeRingGaps,
-} from "./ai-castle-rect.ts";
+import { findGapTiles, hasMeaningfulHomeRingGaps } from "./ai-castle-rect.ts";
 
 type BuildSkillConfig = (typeof BUILD_SKILL_TABLE)[number];
 
@@ -172,14 +167,7 @@ export function pickPlacement(
     allCastlesEnclosed,
     effectiveSkipHome,
     homeHasRingGaps,
-  } = analyzeEnclosures(
-    state,
-    player,
-    castle,
-    castleMargin,
-    bankHugging,
-    homeWasBroken,
-  );
+  } = analyzeEnclosures(state, player, castle, homeWasBroken);
   const walls = player.walls;
 
   // Build the occupancy cache + placement context once per pickPlacement.
@@ -655,8 +643,6 @@ function analyzeEnclosures(
   state: BuildViewState,
   player: Player,
   castle: Castle,
-  castleMargin: number,
-  bankHugging: boolean,
   homeWasBroken: boolean,
 ): EnclosureAnalysis {
   const zoneTowers = state.map.towers.filter(
@@ -675,30 +661,20 @@ function analyzeEnclosures(
   // border without crossing walls.
   const unenclosedTowers = zoneTowers.filter((tower) => {
     if (!ownedTowerSet.has(tower.index)) {
-      // 8-dir flood says not enclosed. But if 4-dir BFS can't reach the
-      // map border, the tower only has diagonal leaks — walls form a
-      // complete orthogonal ring. Treat as enclosed to avoid building a
-      // full castleRect that creates fat walls around the existing ring.
-      // But first: if the expected ring has fillable gaps, the tower
-      // genuinely needs repair (e.g. a single missing corner — 4-dir BFS
-      // can't escape through the diagonal but the gap is real).
-      if (!towerReachesOutsideCardinal(tower, player.walls)) {
-        const rect = castleRect(
-          tower,
-          state.map.tiles,
-          state.map.towers,
-          castleMargin,
-          !bankHugging,
-        );
-        const ringGaps = findReachableRingGaps(
-          rect,
-          player.walls,
-          state,
-          getInterior(player),
-        );
-        if (ringGaps.size > 0) return true; // real gaps need filling
-        return false;
-      }
+      // 8-dir flood says not enclosed but 4-dir BFS can't reach the map
+      // border — the tower has a diagonal-only leak (e.g. two walls form
+      // a diagonal step where 8-dir flood passes between them, but no
+      // single ring tile is open). The ideal castle rect's
+      // findReachableRingGaps will report zero gaps in this case (no ring
+      // tile to fill), but the tower is genuinely leaking and territory
+      // isn't being counted. Include it in unenclosedTowers anyway so
+      // `noBuildTargets` doesn't fire and the AI's normal scoring (via
+      // `usefulGainRule`, which rewards placements that shrink `outside`)
+      // can find the plug tile — usually a single interior cell that
+      // blocks the diagonal step. Previously this branch returned `false`
+      // to "treat as enclosed", which left the AI idle for the whole build
+      // phase: no target, noBuildTargets=true, fat-wall candidates pruned
+      // by prescoreCandidates, scored.length=0, placement=null.
       return true;
     }
     // 8-directional flood says enclosed, but diagonal wall connections can

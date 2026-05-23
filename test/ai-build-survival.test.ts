@@ -41,7 +41,8 @@ interface SeedFindings {
 }
 
 const SEEDS = [
-  42, 100, 203607, 314159, 555555, 700000, 833681, 921118, 1234567, 7777777,
+  42, 100, 203607, 314159, 555555, 634446, 700000, 833681, 921118, 1234567,
+  7777777,
 ] as const;
 const ROUNDS_TO_PLAY = 20;
 /** Wall-placement volume that signals the AI was actively building (~one
