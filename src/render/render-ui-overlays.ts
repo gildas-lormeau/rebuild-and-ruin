@@ -10,6 +10,7 @@ import { Phase } from "../shared/core/game-phase.ts";
 import type { TowerIdx } from "../shared/core/geometry-types.ts";
 import {
   GRID_COLS,
+  GRID_PORTRAIT_LAUNCHED,
   GRID_ROWS,
   MAP_PX_H,
   MAP_PX_W,
@@ -104,9 +105,13 @@ export const UPGRADE_ROW_GAP = 8;
 export const GAMEOVER_ROW_H = 14;
 export const GAMEOVER_HEADER_H = 36;
 export const GAMEOVER_BTN_H = 20;
-/** Card layout constants — canonical source; render-ui.ts imports these. */
-export const UPGRADE_CARD_W = 120;
-export const UPGRADE_CARD_H = 100;
+/** Card layout constants — canonical source; render-ui.ts imports these.
+ *  Width grows in landscape (room to spare on the wider canvas), height
+ *  grows in portrait (vertical space is generous, lets 2-line labels
+ *  breathe). Both orientations are sized for a 2-line label + descrip-
+ *  tion worst case; the label only actually wraps when it has to. */
+export const UPGRADE_CARD_W = GRID_PORTRAIT_LAUNCHED ? 120 : 150;
+export const UPGRADE_CARD_H = GRID_PORTRAIT_LAUNCHED ? 140 : 100;
 export const UPGRADE_CARD_GAP = 10;
 export const UPGRADE_ROW_W =
   UPGRADE_CARDS_PER_ROW * UPGRADE_CARD_W +

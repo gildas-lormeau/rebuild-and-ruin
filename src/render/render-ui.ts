@@ -3,7 +3,7 @@ import {
   UPGRADE_PICK_PULSE_DURATION,
 } from "../shared/core/game-constants.ts";
 import type { GameMap } from "../shared/core/geometry-types.ts";
-import { TILE_SIZE } from "../shared/core/grid.ts";
+import { GRID_PORTRAIT_LAUNCHED, TILE_SIZE } from "../shared/core/grid.ts";
 import type { SupplyBonusId } from "../shared/core/modifier-defs.ts";
 import { isPlayerEliminated } from "../shared/core/player-types.ts";
 import { towerCenterPx } from "../shared/core/spatial.ts";
@@ -1038,36 +1038,55 @@ function drawUpgradeCard(
   ctx.textAlign = TEXT_ALIGN_CENTER;
   ctx.fillText(card.category.toUpperCase(), cardCx, cy + 12);
 
-  // Upgrade name
+  // Upgrade name — capped at 2 lines so a long label like "Territorial
+  // Ambition" wraps instead of overflowing into the neighbor card. Line
+  // height is 16 (FONT_BODY is 14px, needs more breathing room than the
+  // 12-px line height used for FONT_SMALL descriptions).
   ctx.font = FONT_BODY;
   ctx.fillStyle = card.focused || card.picked ? TEXT_WHITE : GOLD_LIGHT;
-  ctx.fillText(card.label, cardCx, cy + 30);
+  const maxTextW = cardW - INSET_X2;
+  const labelLines = wrapToLines(ctx, card.label, maxTextW, 2);
+  for (let lineIdx = 0; lineIdx < labelLines.length; lineIdx++) {
+    ctx.fillText(labelLines[lineIdx]!, cardCx, cy + 30 + lineIdx * 16);
+  }
 
-  // Description (word-wrapped)
+  // Description (word-wrapped). Starts one label-line lower when the
+  // label wrapped, so the gap above descriptions stays the same. In
+  // portrait an extra gap visually separates the label block from the
+  // description (vertical room to spare); landscape is too tight.
   ctx.font = FONT_SMALL;
   ctx.fillStyle = card.focused ? GOLD_LIGHT : TEXT_MUTED;
-  const maxTextW = cardW - INSET_X2;
-  const words = card.description.split(" ");
+  const labelDescGap = GRID_PORTRAIT_LAUNCHED ? 8 : 0;
+  const descStartY = cy + 46 + (labelLines.length - 1) * 16 + labelDescGap;
+  const descLines = wrapToLines(ctx, card.description, maxTextW);
+  for (let lineIdx = 0; lineIdx < descLines.length; lineIdx++) {
+    ctx.fillText(descLines[lineIdx]!, cardCx, descStartY + lineIdx * 12);
+  }
+}
+
+function wrapToLines(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  maxW: number,
+  maxLines: number = Infinity,
+): string[] {
+  const words = text.split(" ");
   const lines: string[] = [];
   let line = "";
-  for (const word of words) {
+  for (let i = 0; i < words.length; i++) {
+    const word = words[i]!;
     const test = line ? `${line} ${word}` : word;
-    if (ctx.measureText(test).width > maxTextW) {
+    if (ctx.measureText(test).width > maxW && line) {
       lines.push(line);
+      if (lines.length >= maxLines - 1) {
+        lines.push(words.slice(i).join(" "));
+        return lines;
+      }
       line = word;
     } else {
       line = test;
     }
   }
   if (line) lines.push(line);
-  for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
-    ctx.fillText(lines[lineIdx]!, cardCx, cy + 46 + lineIdx * 12);
-  }
-
-  // Checkmark for picked card
-  if (card.picked) {
-    ctx.font = FONT_BODY;
-    ctx.fillStyle = rgb(playerColor);
-    ctx.fillText("\u2713", cardCx, cy + cardH - 10);
-  }
+  return lines;
 }
