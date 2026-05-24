@@ -20,6 +20,7 @@ import type { ValidPlayerId } from "../src/shared/core/player-slot.ts";
 import { ALL_PIECE_SHAPES, type PieceShape } from "../src/shared/core/pieces.ts";
 import type { TileRect } from "../src/shared/core/geometry-types.ts";
 import {
+  classifyIsolatedGapBlame,
   countIsolatedGaps,
   countNarrowPieces,
   solveWinnable,
@@ -668,9 +669,21 @@ function evaluateWinnability(
     snapshot.initialGrass,
     pieces,
   );
-  if (result.result === true) return " | win=WINNABLE";
+  const initialFocalWalls = snapshot.initialWalls.get(pid) ?? new Set();
+  const blame = classifyIsolatedGapBlame(
+    remainingGaps,
+    focalWalls,
+    initialFocalWalls,
+    blocked,
+    snapshot.initialGrass,
+  );
+  const blameStr =
+    blame.self + blame.mixed + blame.pre > 0
+      ? ` blame=self/mix/pre=${blame.self}/${blame.mixed}/${blame.pre}`
+      : "";
+  if (result.result === true) return ` | win=WINNABLE${blameStr}`;
   if (result.result === "TIMEOUT")
-    return ` | win=TIMEOUT nodes=${result.nodes}`;
+    return ` | win=TIMEOUT nodes=${result.nodes}${blameStr}`;
   const iso = countIsolatedGaps(
     remainingGaps,
     focalWalls,
@@ -678,7 +691,7 @@ function evaluateWinnability(
     snapshot.initialGrass,
   );
   const narrow = countNarrowPieces(pieceNames);
-  return ` | win=UNWINNABLE iso=${iso} narrow=${narrow}`;
+  return ` | win=UNWINNABLE iso=${iso} narrow=${narrow}${blameStr}`;
 }
 
 /** Find the plateau-start trajectory index for a LATE_PLATEAU stall — walks

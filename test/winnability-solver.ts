@@ -61,21 +61,59 @@ export function countIsolatedGaps(
 ): number {
   let count = 0;
   for (const gapKey of gaps) {
+    if (isIsolatedGap(gapKey, walls, blocked, grass)) count++;
+  }
+  return count;
+}
+
+/** Per-isolated-gap blame attribution: how many of the 4 cardinal "blocker"
+ *  cells (walls/blockers/oob/non-grass) come from the focal player's
+ *  THIS-ROUND walls vs preexisting state (initial walls + enemy walls +
+ *  static blockers + oob/non-grass)?
+ *
+ *  Buckets:
+ *  - self: all blockers are this-round focal-player walls (AI is fully
+ *    responsible for the isolation)
+ *  - mixed: at least one this-round focal-player wall + at least one
+ *    preexisting blocker
+ *  - pre: zero this-round focal walls — geometry forced the isolation
+ *    (preexisting walls / enemy walls / map edge / static obstacles)
+ *
+ *  Sums to the total isolated-gap count for the input set. */
+export function classifyIsolatedGapBlame(
+  gaps: ReadonlySet<TileKey>,
+  focalWalls: ReadonlySet<TileKey>,
+  initialFocalWalls: ReadonlySet<TileKey>,
+  blocked: ReadonlySet<TileKey>,
+  grass: ReadonlySet<TileKey>,
+): { self: number; mixed: number; pre: number } {
+  let self = 0;
+  let mixed = 0;
+  let pre = 0;
+  for (const gapKey of gaps) {
+    if (!isIsolatedGap(gapKey, focalWalls, blocked, grass)) continue;
     const { row, col } = unpackTile(gapKey);
-    let openNeighbors = 0;
+    let thisRound = 0;
+    let preexisting = 0;
     for (const [dr, dc] of CARDINAL_DIRS) {
       const nr = row + dr;
       const nc = col + dc;
-      if (nr < 0 || nr >= GRID_ROWS || nc < 0 || nc >= GRID_COLS) continue;
+      if (nr < 0 || nr >= GRID_ROWS || nc < 0 || nc >= GRID_COLS) {
+        preexisting++;
+        continue;
+      }
       const nkey = packTile(nr, nc);
-      if (!grass.has(nkey)) continue;
-      if (blocked.has(nkey)) continue;
-      if (walls.has(nkey)) continue;
-      openNeighbors++;
+      if (focalWalls.has(nkey) && !initialFocalWalls.has(nkey)) {
+        thisRound++;
+      } else {
+        preexisting++;
+      }
     }
-    if (openNeighbors === 0) count++;
+    if (thisRound > 0 && preexisting === 0) self++;
+    else if (thisRound > 0) mixed++;
+    else pre++;
   }
-  return count;
+  return { self, mixed, pre };
 }
 
 export function solveWinnable(
@@ -189,6 +227,26 @@ export function solveWinnable(
   const won = search(0);
   if (timedOut) return { result: "TIMEOUT", nodes };
   return { result: won, nodes };
+}
+
+function isIsolatedGap(
+  gapKey: TileKey,
+  walls: ReadonlySet<TileKey>,
+  blocked: ReadonlySet<TileKey>,
+  grass: ReadonlySet<TileKey>,
+): boolean {
+  const { row, col } = unpackTile(gapKey);
+  for (const [dr, dc] of CARDINAL_DIRS) {
+    const nr = row + dr;
+    const nc = col + dc;
+    if (nr < 0 || nr >= GRID_ROWS || nc < 0 || nc >= GRID_COLS) continue;
+    const nkey = packTile(nr, nc);
+    if (!grass.has(nkey)) continue;
+    if (blocked.has(nkey)) continue;
+    if (walls.has(nkey)) continue;
+    return false;
+  }
+  return true;
 }
 
 function shapeKey(piece: PieceShape): string {
