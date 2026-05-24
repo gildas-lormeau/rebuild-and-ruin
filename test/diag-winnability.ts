@@ -31,6 +31,11 @@ import {
 import { packTile, unpackTile } from "../src/shared/core/spatial.ts";
 import type { TileRect } from "../src/shared/core/geometry-types.ts";
 import type { ValidPlayerId } from "../src/shared/core/player-slot.ts";
+import {
+  countIsolatedGaps,
+  countNarrowPieces,
+  solveWinnable,
+} from "./winnability-solver.ts";
 
 interface TickRecord {
   trajIdx: number;
@@ -100,11 +105,6 @@ interface SubModeResult {
   endRectKey: string;
 }
 
-interface SolverResult {
-  result: boolean | "TIMEOUT";
-  nodes: number;
-}
-
 const DEFAULT_SEEDS = [
   42, 100, 147323, 203607, 314159, 409946, 510296, 550021, 555555, 634446,
   677242, 700000, 833681, 921118, 1234567, 1364287, 1992148, 2468171, 3020266,
@@ -116,11 +116,6 @@ const ROUNDS_TO_PLAY = 30;
 const PLAYER_NAMES = ["RED", "BLUE", "GOLD"] as const;
 const STALL_WALL_THRESHOLD = 25;
 const RUN_BUDGET_MS = 5_500_000;
-/** Solver search-tree budget. LATE_PLATEAU stalls have small gap counts
- *  (median 1-5 by sub-mode classifier construction) so the branching is
- *  bounded — this cap is a safety net to keep one pathological stall from
- *  hanging the run. UNWINNABLE_TIMEOUT in output signals the budget hit. */
-const SOLVER_NODE_BUDGET = 500_000;
 
 await main();
 
@@ -491,7 +486,10 @@ function solveStall(
       let cur = piece;
       const seenRot = new Set<string>();
       for (let rotIdx = 0; rotIdx < 4; rotIdx++) {
-        const sk = shapeKey(cur);
+        const sk = [...cur.offsets]
+          .map(([r, c]) => `${r},${c}`)
+          .sort()
+          .join(";");
         if (seenRot.has(sk)) {
           cur = rotateCW(cur);
           continue;
@@ -537,35 +535,16 @@ function solveStall(
     cap.initialGrass,
     pieces,
   );
-  // Compute corroborating stats: isolated gap count + narrow piece count.
-  // Both are static signals (no search needed) — useful for cross-cutting
-  // even when the solver result alone is the headline number.
-  let isolatedGapCount = 0;
-  for (const gk of remainingGaps) {
-    const { row, col } = unpackTile(gk);
-    let openNeighbors = 0;
-    for (const [dr, dc] of [
-      [-1, 0],
-      [1, 0],
-      [0, -1],
-      [0, 1],
-    ]) {
-      const nr = row + dr;
-      const nc = col + dc;
-      if (nr < 0 || nr >= GRID_ROWS || nc < 0 || nc >= GRID_COLS) continue;
-      const nkey = packTile(nr, nc);
-      if (!cap.initialGrass.has(nkey)) continue;
-      if (blocked.has(nkey)) continue;
-      if (focalWalls.has(nkey)) continue;
-      openNeighbors++;
-    }
-    if (openNeighbors === 0) isolatedGapCount++;
-  }
-  let narrowPieceCount = 0;
-  for (const name of pieceNames) {
-    if (name === "1x1" || name === "1x2" || name === "1x3" || name === "Corner")
-      narrowPieceCount++;
-  }
+  // Corroborating stats: isolated gap count + narrow piece count. Both are
+  // static signals (no search needed) — useful for cross-cutting even when
+  // the solver result alone is the headline number.
+  const isolatedGapCount = countIsolatedGaps(
+    remainingGaps,
+    focalWalls,
+    blocked,
+    cap.initialGrass,
+  );
+  const narrowPieceCount = countNarrowPieces(pieceNames);
   return {
     seed,
     round: cap.round,
@@ -582,148 +561,6 @@ function solveStall(
     isolatedGapCount,
     narrowPieceCount,
   };
-}
-
-function solveWinnable(
-  initialGaps: ReadonlySet<TileKey>,
-  initialWalls: ReadonlySet<TileKey>,
-  blocked: ReadonlySet<TileKey>,
-  grass: ReadonlySet<TileKey>,
-  pieces: readonly PieceShape[],
-): SolverResult {
-  const walls = new Set<TileKey>(initialWalls);
-  const gaps = new Set<TileKey>(initialGaps);
-  let nodes = 0;
-  let timedOut = false;
-
-  // Precompute rotation sets per shape (deduped by canonical key).
-  const rotationCache = new Map<string, PieceShape[]>();
-  const rotationsOf = (piece: PieceShape): PieceShape[] => {
-    const key = piece.name;
-    const cached = rotationCache.get(key);
-    if (cached) return cached;
-    const out: PieceShape[] = [];
-    const seen = new Set<string>();
-    let current = piece;
-    for (let i = 0; i < 4; i++) {
-      const k = shapeKey(current);
-      if (!seen.has(k)) {
-        seen.add(k);
-        out.push(current);
-      }
-      current = rotateCW(current);
-    }
-    rotationCache.set(key, out);
-    return out;
-  };
-
-  // Enumerate placements of `piece` covering ≥1 cell of `gaps`, given current
-  // walls + blockers. Anchors derived from each (gap, piece-offset) pair
-  // (anchor = gap - offset) — bounds the candidate count to |gaps| × |offsets|
-  // per rotation instead of GRID_ROWS × GRID_COLS.
-  const enumerate = (
-    piece: PieceShape,
-  ): { cells: TileKey[]; coverCount: number }[] => {
-    const seen = new Set<string>();
-    const out: { cells: TileKey[]; coverCount: number }[] = [];
-    for (const gapKey of gaps) {
-      const { row: gr, col: gc } = unpackTile(gapKey);
-      for (const [dr, dc] of piece.offsets) {
-        const ar = gr - dr;
-        const ac = gc - dc;
-        const cells: TileKey[] = [];
-        let ok = true;
-        let cover = 0;
-        for (const [odr, odc] of piece.offsets) {
-          const r = ar + odr;
-          const c = ac + odc;
-          if (r < 0 || r >= GRID_ROWS || c < 0 || c >= GRID_COLS) {
-            ok = false;
-            break;
-          }
-          const key = packTile(r, c);
-          if (!grass.has(key)) {
-            ok = false;
-            break;
-          }
-          if (blocked.has(key)) {
-            ok = false;
-            break;
-          }
-          if (walls.has(key)) {
-            ok = false;
-            break;
-          }
-          cells.push(key);
-          if (gaps.has(key)) cover++;
-        }
-        if (!ok || cover === 0) continue;
-        const sig = [...cells].sort().join(",");
-        if (seen.has(sig)) continue;
-        seen.add(sig);
-        out.push({ cells, coverCount: cover });
-      }
-    }
-    out.sort((a, b) => b.coverCount - a.coverCount);
-    return out;
-  };
-
-  const search = (pieceIdx: number): boolean => {
-    if (gaps.size === 0) return true;
-    if (pieceIdx >= pieces.length) return false;
-    nodes++;
-    if (nodes >= SOLVER_NODE_BUDGET) {
-      timedOut = true;
-      return false;
-    }
-    // Lower bound: we need at least |gaps| cells covered (and each piece
-    // covers ≤ piece.offsets.length cells in gaps). If remaining pieces'
-    // max coverage can't reach |gaps|, prune.
-    let maxRemainingCover = 0;
-    for (let i = pieceIdx; i < pieces.length; i++) {
-      maxRemainingCover += pieces[i]!.offsets.length;
-    }
-    if (maxRemainingCover < gaps.size) return false;
-
-    const piece = pieces[pieceIdx]!;
-    for (const rot of rotationsOf(piece)) {
-      const candidates = enumerate(rot);
-      for (const cand of candidates) {
-        // Try this placement.
-        const removed: TileKey[] = [];
-        for (const cell of cand.cells) {
-          walls.add(cell);
-          if (gaps.delete(cell)) removed.push(cell);
-        }
-        const ok = search(pieceIdx + 1);
-        // Restore.
-        for (const cell of cand.cells) walls.delete(cell);
-        for (const cell of removed) gaps.add(cell);
-        if (ok) return true;
-        if (timedOut) return false;
-      }
-    }
-    // Option: skip this piece (in case it can't reach any gap usefully).
-    return search(pieceIdx + 1);
-  };
-
-  const won = search(0);
-  if (timedOut) return { result: "TIMEOUT", nodes };
-  return { result: won, nodes };
-}
-
-function shapeKey(piece: PieceShape): string {
-  let minR = Infinity;
-  let minC = Infinity;
-  for (const [r, c] of piece.offsets) {
-    if (r < minR) minR = r;
-    if (c < minC) minC = c;
-  }
-  return [...piece.offsets]
-    .map(([r, c]): [number, number] => [r - minR, c - minC])
-    .sort((a, b) => a[0] - b[0] || a[1] - b[1])
-    .map(([r, c]) => `${r},${c}`)
-    .join(";");
 }
 
 function printReport(r: StallReport): void {

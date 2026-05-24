@@ -8,10 +8,22 @@
 import { createScenario, waitForEvent } from "./scenario.ts";
 import { Phase } from "../src/shared/core/game-phase.ts";
 import { GAME_EVENT } from "../src/shared/core/game-event-bus.ts";
-import { GRID_COLS, GRID_ROWS, type TileKey } from "../src/shared/core/grid.ts";
+import {
+  GRID_COLS,
+  GRID_ROWS,
+  Tile,
+  type TileKey,
+} from "../src/shared/core/grid.ts";
 import { DIRS_4, packTile, unpackTile } from "../src/shared/core/spatial.ts";
 import { setAiBuildDiagHook } from "../src/ai/ai-build-diag.ts";
 import type { ValidPlayerId } from "../src/shared/core/player-slot.ts";
+import { ALL_PIECE_SHAPES, type PieceShape } from "../src/shared/core/pieces.ts";
+import type { TileRect } from "../src/shared/core/geometry-types.ts";
+import {
+  countIsolatedGaps,
+  countNarrowPieces,
+  solveWinnable,
+} from "./winnability-solver.ts";
 
 export interface PathCounts {
   HOME: number;
@@ -28,6 +40,15 @@ export interface PathCounts {
 export interface TrajectoryTick {
   path: "HOME" | "SEC" | "EXP" | "STRAT_RECT" | "STRAT_NONE";
   rectKey: string;
+  /** Full rect dimensions from the target-selected event. Needed by the
+   *  winnability solver to identify the plateau-start target rect and
+   *  reconstruct its ring-gap set. Null when path is STRAT_NONE. */
+  rect: TileRect | null;
+  /** Snapshot of `event.targetGaps` at this tick — the solver consumes the
+   *  plateau-start gap set directly (minus cells the focal player has
+   *  already walled by plateau-start). Stored as the TileKey array form
+   *  to avoid boxing a Set into structured-clone for worker postMessage. */
+  gapKeys: readonly TileKey[];
   gaps: number;
   /** Piece-shape name from the target-selected event — drives flip-cause
    *  derivation (piece-changed vs score-rerank). */
@@ -39,6 +60,14 @@ export interface TrajectoryTick {
    *  blocked (dead tower, > MANAGEABLE_GAP_LIMIT gaps). Used to derive
    *  cache-lifetime / invalidation aggregates per stall. */
   chosenTowerIndex: number | undefined;
+  /** Monotonic event ordinal shared across target-selected + wall-placed
+   *  events. Lets the solver reconstruct focal/enemy walls AS-OF plateau
+   *  start: scan all placements with eventOrd < plateauTick.eventOrd. */
+  eventOrd: number;
+  /** Piece-shape names in the player's bag queue at this tick, in draw
+   *  order (queue.reverse() applied — bag.queue is pop-ordered). Empty
+   *  when the queue has no pieces left or the player slot has no bag. */
+  bagQueue: readonly string[];
 }
 
 /** Per-stall flip-cause record. A flip = a tick where the target rect
@@ -64,6 +93,12 @@ export interface FlipEvent {
  *  "where do fallback walls actually go?" diagnostic. */
 export interface PlacementRecord {
   cellCount: number;
+  /** Actual cells written by this placement. Needed by the winnability
+   *  solver to reconstruct walls AS-OF plateau start (focal player's own
+   *  walls + enemy walls placed before the plateau-tick eventOrd). */
+  cells: readonly TileKey[];
+  /** Monotonic event ordinal shared with TrajectoryTick.eventOrd. */
+  eventOrd: number;
   hitTargetGap: boolean;
   cellsInGap: number;
   adjToExistingWall: boolean;
@@ -103,6 +138,17 @@ export interface RoundRow {
    *  analyzer answer: "of stall ticks where the AI committed to a tower, how
    *  often was a better-fit alternative available?" */
   altCompare: { chosenBagFit: number; bestAltBagFit: number; denom: number }[];
+}
+
+/** Per-round shared snapshot captured at WALL_BUILD entry. The winnability
+ *  solver needs the focal player's wall set + a blocker set (enemy walls,
+ *  towers, cannons, alive houses, pits) + the grass set (placeable tiles).
+ *  Grass is map-static within a round but cannons/houses evolve across
+ *  rounds, so a per-round capture keeps the cost bounded and the data fresh. */
+export interface RoundSnapshot {
+  initialWalls: Map<ValidPlayerId, ReadonlySet<TileKey>>;
+  initialBlocked: ReadonlySet<TileKey>;
+  initialGrass: ReadonlySet<TileKey>;
 }
 
 export interface PlayerSummary {
@@ -151,8 +197,8 @@ export const RUN_BUDGET_MS = 5_500_000;
 export const PLAYER_NAMES = ["RED", "BLUE", "GOLD"] as const;
 
 export async function runAndAnalyze(seed: number): Promise<SeedResult> {
-  const perRound = await runSeed(seed);
-  const findings = analyzeSeed(seed, perRound);
+  const { perRound, perRoundSnapshot } = await runSeed(seed);
+  const findings = analyzeSeed(seed, perRound, perRoundSnapshot);
   const rounds = [...perRound.keys()].sort((a, b) => a - b);
   const lastRound = rounds[rounds.length - 1] ?? 0;
   return { seed, findings, lastRound, roundsRecorded: rounds.length };
@@ -184,7 +230,10 @@ function parseSeedsFromEnv(): readonly number[] | null {
   return seeds.length > 0 ? seeds : null;
 }
 
-async function runSeed(seed: number): Promise<Map<number, RoundRow[]>> {
+async function runSeed(seed: number): Promise<{
+  perRound: Map<number, RoundRow[]>;
+  perRoundSnapshot: Map<number, RoundSnapshot>;
+}> {
   const sc = await createScenario({
     seed,
     mode: "modern",
@@ -214,20 +263,39 @@ async function runSeed(seed: number): Promise<Map<number, RoundRow[]>> {
     }
     return row;
   };
+  // Per-round shared snapshot taken at WALL_BUILD entry. Houses can die
+  // across rounds and walls accumulate per player, so each round needs its
+  // own snapshot to feed the offline winnability solver.
+  const perRoundSnapshot = new Map<number, RoundSnapshot>();
+
+  let eventOrd = 0;
 
   setAiBuildDiagHook((event) => {
     if (event.kind === "target-selected") {
       const row = getRow(event.round)[event.playerId]!;
       row.pathCounts[event.path]++;
       const rect = event.targetRect;
+      // bag.queue is pop-ordered (.pop() returns last); reverse for draw
+      // order so the solver sees the same sequence the AI will consume.
+      const player = sc.state.players[event.playerId];
+      const bagQueue = player?.bag
+        ? player.bag.queue
+            .slice()
+            .reverse()
+            .map((p) => p.name)
+        : [];
       row.trajectory.push({
         path: event.path,
         rectKey: rect
           ? `${rect.top},${rect.left}-${rect.bottom},${rect.right}`
           : "",
+        rect,
+        gapKeys: [...event.targetGaps],
         gaps: event.targetGaps.size,
         pieceShapeName: event.currentPieceShapeName,
         chosenTowerIndex: event.chosenTowerIndex,
+        eventOrd: eventOrd++,
+        bagQueue,
       });
       if (event.upcomingPieceFitsTarget.length > 0) {
         const fits = event.upcomingPieceFitsTarget.filter((b) => b).length;
@@ -275,12 +343,17 @@ async function runSeed(seed: number): Promise<Map<number, RoundRow[]>> {
           walls,
           event.cellsOnRingPerimeter,
           event.pieceShapeName,
+          eventOrd++,
         ),
       );
       return;
     }
   });
 
+  sc.bus.on(GAME_EVENT.PHASE_START, (ev) => {
+    if (ev.phase !== Phase.WALL_BUILD) return;
+    perRoundSnapshot.set(sc.state.round, captureRoundSnapshot(sc.state));
+  });
   sc.bus.on(GAME_EVENT.WALL_PLACED, (ev) => {
     getRow(sc.state.round)[ev.playerId]!.walls += ev.tileKeys.length;
   });
@@ -336,7 +409,56 @@ async function runSeed(seed: number): Promise<Map<number, RoundRow[]>> {
   } finally {
     setAiBuildDiagHook(undefined);
   }
-  return perRound;
+  return { perRound, perRoundSnapshot };
+}
+
+function captureRoundSnapshot(state: {
+  map: {
+    tiles: readonly (readonly Tile[])[];
+    towers: readonly { row: number; col: number }[];
+    houses: readonly { row: number; col: number; alive: boolean }[];
+  };
+  players: readonly ({ walls: ReadonlySet<TileKey>; cannons: readonly { row: number; col: number }[] } | null)[];
+  burningPits: readonly { row: number; col: number }[];
+}): RoundSnapshot {
+  const initialWalls = new Map<ValidPlayerId, ReadonlySet<TileKey>>();
+  for (let pid = 0 as ValidPlayerId; pid < 3; pid = (pid + 1) as ValidPlayerId) {
+    const player = state.players[pid];
+    if (player) initialWalls.set(pid, new Set(player.walls));
+  }
+  const blocked = new Set<TileKey>();
+  // Towers + cannons are 2x2; houses + pits are 1x1.
+  for (const tower of state.map.towers) {
+    for (let dr = 0; dr < 2; dr++) {
+      for (let dc = 0; dc < 2; dc++) {
+        blocked.add(packTile(tower.row + dr, tower.col + dc));
+      }
+    }
+  }
+  for (const house of state.map.houses) {
+    if (house.alive) blocked.add(packTile(house.row, house.col));
+  }
+  for (let pid = 0 as ValidPlayerId; pid < 3; pid = (pid + 1) as ValidPlayerId) {
+    const player = state.players[pid];
+    if (!player) continue;
+    for (const cannon of player.cannons) {
+      for (let dr = 0; dr < 2; dr++) {
+        for (let dc = 0; dc < 2; dc++) {
+          blocked.add(packTile(cannon.row + dr, cannon.col + dc));
+        }
+      }
+    }
+  }
+  for (const pit of state.burningPits) {
+    blocked.add(packTile(pit.row, pit.col));
+  }
+  const grass = new Set<TileKey>();
+  for (let r = 0; r < GRID_ROWS; r++) {
+    for (let c = 0; c < GRID_COLS; c++) {
+      if (state.map.tiles[r]![c] === Tile.Grass) grass.add(packTile(r, c));
+    }
+  }
+  return { initialWalls, initialBlocked: blocked, initialGrass: grass };
 }
 
 /** Classify an AI placement against the active targetGaps + existing walls.
@@ -350,6 +472,7 @@ function classifyPlacement(
   walls: ReadonlySet<TileKey>,
   cellsOnRingPerimeter: number,
   pieceShapeName: string,
+  eventOrd: number,
 ): PlacementRecord {
   let cellsInGap = 0;
   let adjToExistingWall = false;
@@ -368,6 +491,8 @@ function classifyPlacement(
   }
   return {
     cellCount: cells.length,
+    cells: [...cells],
+    eventOrd,
     hitTargetGap: cellsInGap > 0,
     cellsInGap,
     adjToExistingWall,
@@ -380,6 +505,7 @@ function classifyPlacement(
 function analyzeSeed(
   seed: number,
   perRound: Map<number, RoundRow[]>,
+  perRoundSnapshot: Map<number, RoundSnapshot>,
 ): SeedFindings {
   const rounds = [...perRound.keys()].sort((a, b) => a - b);
   const stalls: string[] = [];
@@ -393,6 +519,9 @@ function analyzeSeed(
   const bagFitPcts: number[] = [];
   const altBetterPcts: number[] = [];
   let totalFlips = 0;
+  let winnableCount = 0;
+  let unwinnableCount = 0;
+  let timeoutCount = 0;
   for (let pid = 0; pid < 3; pid++) {
     for (const round of rounds) {
       const row = perRound.get(round)![pid]!;
@@ -425,8 +554,24 @@ function analyzeSeed(
         const altStr = formatAltCompareSummary(row.altCompare);
         const altBetterPct = computeAltBetterPct(row.altCompare);
         const cacheStr = formatCacheSummary(row.trajectory);
+        // Run the bag-coverage solver for LATE_PLATEAU stalls (the only
+        // sub-mode with a well-defined plateau-start tick). The tag tells
+        // future readers whether the stall was mechanically losable from
+        // plateau start (UNWINNABLE — no placement sequence closes the
+        // ring), recoverable (WINNABLE — addressable signal), or
+        // search-budget-bound (TIMEOUT).
+        const winStr = evaluateWinnability(
+          row,
+          perRound.get(round)!,
+          pid as ValidPlayerId,
+          perRoundSnapshot.get(round),
+          sub.kind,
+        );
+        if (winStr === " | win=WINNABLE") winnableCount++;
+        else if (winStr.startsWith(" | win=UNWINNABLE")) unwinnableCount++;
+        else if (winStr.startsWith(" | win=TIMEOUT")) timeoutCount++;
         stalls.push(
-          `seed=${seed} r${round} ${PLAYER_NAMES[pid]}: ${row.walls} walls placed, 0 enclosures fired, ${row.unownedAliveZoneTowers} alive unowned tower(s) available, lives=${row.livesAtRoundEnd} | paths H=${pc.HOME} S=${pc.SEC} E=${pc.EXP} SR=${pc.STRAT_RECT} SN=${pc.STRAT_NONE} → ${cls.kind} (${cls.detail}) | sub-mode ${sub.kind} (${sub.detail})\n  diag: walls ${walls}${bagFitStr}${altStr}${cacheStr} | flips ${flipStr}`,
+          `seed=${seed} r${round} ${PLAYER_NAMES[pid]}: ${row.walls} walls placed, 0 enclosures fired, ${row.unownedAliveZoneTowers} alive unowned tower(s) available, lives=${row.livesAtRoundEnd} | paths H=${pc.HOME} S=${pc.SEC} E=${pc.EXP} SR=${pc.STRAT_RECT} SN=${pc.STRAT_NONE} → ${cls.kind} (${cls.detail}) | sub-mode ${sub.kind} (${sub.detail})${winStr}\n  diag: walls ${walls}${bagFitStr}${altStr}${cacheStr} | flips ${flipStr}`,
         );
         if (row.placements.length > 0) {
           const hits = row.placements.filter((p) => p.hitTargetGap).length;
@@ -440,11 +585,122 @@ function analyzeSeed(
   }
   const bagFitMedianStr =
     bagFitPcts.length > 0 ? ` | bag-fit median ${median(bagFitPcts)}%` : "";
+  const winMedianStr =
+    winnableCount + unwinnableCount + timeoutCount > 0
+      ? ` | win W=${winnableCount} U=${unwinnableCount} T=${timeoutCount}`
+      : "";
   const diagSummary =
     stalls.length > 0
-      ? `DIAG seed=${seed}: ${stalls.length} stalls | gap-hit median ${median(gapHitPcts)}% | flips total ${totalFlips}${bagFitMedianStr}${altBetterPcts.length > 0 ? ` | alt-better median ${median(altBetterPcts)}%` : ""}`
+      ? `DIAG seed=${seed}: ${stalls.length} stalls | gap-hit median ${median(gapHitPcts)}% | flips total ${totalFlips}${bagFitMedianStr}${winMedianStr}${altBetterPcts.length > 0 ? ` | alt-better median ${median(altBetterPcts)}%` : ""}`
       : "";
   return { stalls, perPlayer, diagSummary };
+}
+
+/** Run the bag-coverage solver for a LATE_PLATEAU stall and format the
+ *  result as a stall-message tag (` | win=WINNABLE` / ` | win=UNWINNABLE
+ *  iso=N narrow=N` / ` | win=TIMEOUT`). Returns an empty string for non-
+ *  LATE_PLATEAU sub-modes or when the snapshot is missing (e.g. the run
+ *  ended before WALL_BUILD entered for this round). */
+function evaluateWinnability(
+  row: RoundRow,
+  allPlayerRows: readonly RoundRow[],
+  pid: ValidPlayerId,
+  snapshot: RoundSnapshot | undefined,
+  subModeKind: string,
+): string {
+  if (subModeKind !== "LATE_PLATEAU") return "";
+  if (!snapshot) return "";
+  const traj = row.trajectory;
+  const plateauIdx = findPlateauStartIdx(traj);
+  const plateauTick = traj[plateauIdx];
+  if (!plateauTick || !plateauTick.rect) return "";
+  const plateauEventOrd = plateauTick.eventOrd;
+
+  // Reconstruct focal walls and enemy walls AS-OF plateau-start by replaying
+  // placements with eventOrd < plateauEventOrd from the matching player row.
+  const focalWalls = new Set<TileKey>(snapshot.initialWalls.get(pid) ?? []);
+  const enemyWalls = new Set<TileKey>();
+  for (let otherPid = 0 as ValidPlayerId; otherPid < 3; otherPid = (otherPid + 1) as ValidPlayerId) {
+    if (otherPid === pid) continue;
+    const initial = snapshot.initialWalls.get(otherPid);
+    if (initial) for (const cell of initial) enemyWalls.add(cell);
+  }
+  for (let otherPid = 0 as ValidPlayerId; otherPid < 3; otherPid = (otherPid + 1) as ValidPlayerId) {
+    const otherRow = allPlayerRows[otherPid];
+    if (!otherRow) continue;
+    for (const place of otherRow.placements) {
+      if (place.eventOrd >= plateauEventOrd) continue;
+      const target = otherPid === pid ? focalWalls : enemyWalls;
+      for (const cell of place.cells) target.add(cell);
+    }
+  }
+
+  // Remaining gaps = the plateau tick's gap set minus cells the focal player
+  // has already walled (edge case: ring closed but the runner still flagged a
+  // stall).
+  const remainingGaps = new Set<TileKey>();
+  for (const key of plateauTick.gapKeys) {
+    if (!focalWalls.has(key)) remainingGaps.add(key);
+  }
+  if (remainingGaps.size === 0) return " | win=WINNABLE";
+
+  // Pieces available from plateau-start onward: current piece + bag queue,
+  // capped at remaining ticks (each tick consumes ≤ 1 piece).
+  const ticksRemaining = traj.length - plateauIdx;
+  const pieceNames = [plateauTick.pieceShapeName, ...plateauTick.bagQueue].slice(
+    0,
+    ticksRemaining,
+  );
+  const pieces = pieceNames
+    .map((name) => ALL_PIECE_SHAPES.find((s) => s.name === name))
+    .filter((s): s is PieceShape => s !== undefined);
+
+  // Blocked set = static blockers + enemy walls (overlap-not-allowed in
+  // modern Rampart without upgrades; the focal player's own walls live in
+  // `walls` inside the solver).
+  const blocked = new Set<TileKey>(snapshot.initialBlocked);
+  for (const cell of enemyWalls) blocked.add(cell);
+
+  const result = solveWinnable(
+    remainingGaps,
+    focalWalls,
+    blocked,
+    snapshot.initialGrass,
+    pieces,
+  );
+  if (result.result === true) return " | win=WINNABLE";
+  if (result.result === "TIMEOUT")
+    return ` | win=TIMEOUT nodes=${result.nodes}`;
+  const iso = countIsolatedGaps(
+    remainingGaps,
+    focalWalls,
+    blocked,
+    snapshot.initialGrass,
+  );
+  const narrow = countNarrowPieces(pieceNames);
+  return ` | win=UNWINNABLE iso=${iso} narrow=${narrow}`;
+}
+
+/** Find the plateau-start trajectory index for a LATE_PLATEAU stall — walks
+ *  backwards from the end of the trajectory while consecutive ticks share
+ *  the same rectKey AND don't drop in gap count. Returns the index of the
+ *  tick BEFORE the stuck-tail (i.e. the last tick that made progress, OR 0
+ *  if the whole trajectory plateaued). Mirrors the logic in
+ *  `diag-winnability.ts::classifySubMode` but extracted here so the runner
+ *  can find the plateau without re-running the full classifier. */
+function findPlateauStartIdx(traj: readonly TrajectoryTick[]): number {
+  if (traj.length === 0) return 0;
+  let plateauStartIdx = traj.length;
+  for (let i = traj.length - 1; i > 0; i--) {
+    const sameRect = traj[i]!.rectKey === traj[i - 1]!.rectKey;
+    const gapDropped = traj[i]!.gaps < traj[i - 1]!.gaps;
+    if (sameRect && !gapDropped) {
+      plateauStartIdx = i - 1;
+    } else {
+      break;
+    }
+  }
+  return plateauStartIdx;
 }
 
 /** Format the per-stall alt-compare aggregator into a continuation-line
