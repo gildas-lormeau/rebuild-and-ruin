@@ -203,6 +203,14 @@
   },
   {
     "layer": 2,
+    "domain": "ai",
+    "role": "AI build-phase diagnostic hook (test-only event surface)",
+    "files": [
+      "src/ai/ai-build-diag.ts"
+    ]
+  },
+  {
+    "layer": 2,
     "domain": "entry",
     "role": "boot entry",
     "files": [

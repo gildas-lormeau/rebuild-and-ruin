@@ -8,7 +8,7 @@
 import { createScenario, waitForEvent } from "./scenario.ts";
 import { Phase } from "../src/shared/core/game-phase.ts";
 import { GAME_EVENT } from "../src/shared/core/game-event-bus.ts";
-import { setSelectTargetPathHook } from "../src/ai/ai-build-target.ts";
+import { setAiBuildDiagHook } from "../src/ai/ai-build-diag.ts";
 import type { ValidPlayerId } from "../src/shared/core/player-slot.ts";
 
 export interface PathCounts {
@@ -141,16 +141,17 @@ async function runSeed(seed: number): Promise<Map<number, RoundRow[]>> {
     return row;
   };
 
-  setSelectTargetPathHook((playerId, round, path, result) => {
-    const row = getRow(round)[playerId]!;
-    row.pathCounts[path]++;
-    const rect = result?.targetRect;
+  setAiBuildDiagHook((event) => {
+    if (event.kind !== "target-selected") return;
+    const row = getRow(event.round)[event.playerId]!;
+    row.pathCounts[event.path]++;
+    const rect = event.targetRect;
     row.trajectory.push({
-      path,
+      path: event.path,
       rectKey: rect
         ? `${rect.top},${rect.left}-${rect.bottom},${rect.right}`
         : "",
-      gaps: result?.targetGaps?.size ?? 0,
+      gaps: event.targetGaps.size,
     });
   });
 
@@ -207,7 +208,7 @@ async function runSeed(seed: number): Promise<Map<number, RoundRow[]>> {
   } catch {
     // Game may have ended early via last-player-standing — partial data fine.
   } finally {
-    setSelectTargetPathHook(undefined);
+    setAiBuildDiagHook(undefined);
   }
   return perRound;
 }

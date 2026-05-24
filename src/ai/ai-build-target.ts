@@ -32,6 +32,10 @@ import {
   unpackTile,
 } from "../shared/core/spatial.ts";
 import type { BuildViewState } from "../shared/core/system-interfaces.ts";
+import {
+  emitTargetSelectedDiag,
+  type SelectTargetPath,
+} from "./ai-build-diag.ts";
 import { compareByNumericScoreDesc } from "./ai-build-score.ts";
 import type { TargetContext, TargetResult } from "./ai-build-types.ts";
 import {
@@ -43,20 +47,6 @@ import {
   findReachableRingGaps,
   scoreBuildTowerTarget,
 } from "./ai-castle-rect.ts";
-
-/** Which branch of `selectTarget` produced the result this tick. Used by the
- *  AI build-survival test runner to classify stall rounds by their path-mix
- *  signature (HOME-dominant = home-ring repair, SEC-dominant = persistence
- *  commitment, EXP-dominant = all towers enclosed and expanding territory,
- *  STRAT_RECT = strategic fallback found a rect, STRAT_NONE = nothing at all).
- *  Production code never sets the hook; it stays null and the check costs
- *  one branch per call. */
-export type SelectTargetPathHook = (
-  playerId: ValidPlayerId,
-  round: number,
-  path: "HOME" | "SEC" | "EXP" | "STRAT_RECT" | "STRAT_NONE",
-  result?: TargetResult,
-) => void;
 
 /** How far the castle rect can expand to route around blocked tiles.
  *  Indexed by interior utilization: >60% → 2, >30% → 3, >10% → 4, else 5. */
@@ -75,14 +65,6 @@ const NO_TARGET: TargetResult = { targetGaps: new Set(), targetRect: null };
 /** Max gap tiles the AI considers evaluable in a single build turn. Beyond this, the target is skipped. */
 export const MANAGEABLE_GAP_LIMIT = 8;
 
-let selectTargetPathHook: SelectTargetPathHook | undefined = undefined;
-
-export function setSelectTargetPathHook(
-  hook: SelectTargetPathHook | undefined,
-): void {
-  selectTargetPathHook = hook;
-}
-
 /** Select which rectangle to build/repair.
  *  Pipeline: tryRepairHomeCastle → trySecondaryTower → tryExpandTerritory.
  *  Each phase only runs if the previous one found no gaps. */
@@ -90,19 +72,19 @@ export function selectTarget(ctx: TargetContext): TargetResult {
   // Phase 1: repair home castle ring
   const home = tryRepairHomeCastle(ctx);
   if (home.targetGaps.size > 0) {
-    selectTargetPathHook?.(ctx.playerId, ctx.state.round, "HOME", home);
+    emitTargetSelected(ctx, "HOME", home);
     return home;
   }
   // Phase 2: build toward best unenclosed secondary tower
   const secondary = trySecondaryTower(ctx);
   if (secondary.targetGaps.size > 0) {
-    selectTargetPathHook?.(ctx.playerId, ctx.state.round, "SEC", secondary);
+    emitTargetSelected(ctx, "SEC", secondary);
     return secondary;
   }
   // Phase 3: expand territory when all towers are enclosed
   const expand = tryExpandTerritory(ctx);
   if (expand.targetGaps.size > 0) {
-    selectTargetPathHook?.(ctx.playerId, ctx.state.round, "EXP", expand);
+    emitTargetSelected(ctx, "EXP", expand);
     return expand;
   }
   // All three phases bailed — typically because every tower's `canFillAfter-
@@ -116,13 +98,31 @@ export function selectTarget(ctx: TargetContext): TargetResult {
   // gap; this tick's placement at least lands near the ring instead of in
   // arbitrary corners of the board.
   const fallback = strategicFallbackTarget(ctx);
-  selectTargetPathHook?.(
-    ctx.playerId,
-    ctx.state.round,
+  emitTargetSelected(
+    ctx,
     fallback.targetGaps.size > 0 ? "STRAT_RECT" : "STRAT_NONE",
     fallback,
   );
   return fallback;
+}
+
+/** Bridge from selectTarget's per-branch context to the diag module's typed
+ *  emit helper. Extracts the playerId/round/piece-name fields from `ctx` so
+ *  the diag module stays decoupled from TargetContext. */
+function emitTargetSelected(
+  ctx: TargetContext,
+  path: SelectTargetPath,
+  result: TargetResult,
+): void {
+  emitTargetSelectedDiag(
+    ctx.playerId,
+    ctx.state.round,
+    path,
+    result.targetRect,
+    result.targetGaps,
+    result.chosenTowerIndex,
+    ctx.piece.name,
+  );
 }
 
 /** Strategic fallback when every selectTarget phase bailed. Returns the home

@@ -84,6 +84,7 @@
   {
     "name": "L2",
     "files": [
+      "src/ai/ai-build-diag.ts",
       "src/entry.ts",
       "src/online/online-types.ts",
       "src/protocol/checkpoint-data.ts",

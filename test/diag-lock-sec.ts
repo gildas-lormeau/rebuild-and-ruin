@@ -26,9 +26,7 @@ async function main() {
   const targetPlayer = Number(playerArg);
 
   const { createScenario, waitForEvent } = await import("./scenario.ts");
-  const { setSelectTargetPathHook } = await import(
-    "../src/ai/ai-build-target.ts"
-  );
+  const { setAiBuildDiagHook } = await import("../src/ai/ai-build-diag.ts");
   const { Phase } = await import("../src/shared/core/game-phase.ts");
   const { GAME_EVENT } = await import(
     "../src/shared/core/game-event-bus.ts"
@@ -53,14 +51,14 @@ async function main() {
   let tickIdx = 0;
 
   let firstTickSnapshot: string | null = null;
-  setSelectTargetPathHook((playerId, round, path, result) => {
-    if (round !== targetRound || playerId !== targetPlayer) return;
-    const r = result;
-    const gapKeys: string[] = r?.targetGaps
-      ? [...r.targetGaps].map((k) => String(k)).sort()
-      : [];
-    if (firstTickSnapshot === null && r?.targetRect && sc.renderer) {
-      const rect = r.targetRect;
+  setAiBuildDiagHook((event) => {
+    if (event.kind !== "target-selected") return;
+    if (event.round !== targetRound || event.playerId !== targetPlayer) return;
+    const gapKeys: string[] = [...event.targetGaps]
+      .map((k) => String(k))
+      .sort();
+    if (firstTickSnapshot === null && event.targetRect && sc.renderer) {
+      const rect = event.targetRect;
       firstTickSnapshot = sc.renderer.snapshot({
         coords: true,
         cropTo: {
@@ -73,11 +71,11 @@ async function main() {
     }
     ticks.push({
       tick: tickIdx++,
-      path,
-      chosen: r?.chosenTowerIndex,
-      gaps: r?.targetGaps?.size,
-      rect: r?.targetRect
-        ? `[${r.targetRect.top},${r.targetRect.left}-${r.targetRect.bottom},${r.targetRect.right}]`
+      path: event.path,
+      chosen: event.chosenTowerIndex,
+      gaps: event.targetGaps.size,
+      rect: event.targetRect
+        ? `[${event.targetRect.top},${event.targetRect.left}-${event.targetRect.bottom},${event.targetRect.right}]`
         : undefined,
       gapKeys,
     });
@@ -109,7 +107,7 @@ async function main() {
   } catch {
     // Game may end early - partial data still useful
   } finally {
-    setSelectTargetPathHook(undefined);
+    setAiBuildDiagHook(undefined);
   }
 
   console.log(`\n=== seed=${seed} r${targetRound} player=${targetPlayer} ===`);
