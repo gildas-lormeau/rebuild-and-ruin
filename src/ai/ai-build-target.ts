@@ -24,7 +24,9 @@ import { getInterior } from "../shared/core/player-interior.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import type { FreshInterior, Player } from "../shared/core/player-types.ts";
 import {
+  DIRS_4,
   hasPitAt,
+  inBounds,
   isGrass,
   packTile,
   unpackTile,
@@ -410,7 +412,6 @@ function trySecondaryTower(ctx: TargetContext): TargetResult {
       state,
       player,
     );
-    const totalGaps = findGapTiles(rect, player.walls).size;
     const gaps = computeFillableGaps(
       rect,
       player.walls,
@@ -418,11 +419,9 @@ function trySecondaryTower(ctx: TargetContext): TargetResult {
       state,
       bankHugging,
     );
-    // Accept if there are fillable gaps, or if the ring was already complete
-    if (gaps.size > 0 || totalGaps === 0) {
+    if (gaps.size > 0) {
       // If the current piece can't fill this tower's gaps, try the next tower
       if (
-        gaps.size > 0 &&
         gaps.size <= MANAGEABLE_GAP_LIMIT &&
         !canFillAfterPlugging(ctx, gaps, rect)
       ) {
@@ -435,17 +434,80 @@ function trySecondaryTower(ctx: TargetContext): TargetResult {
       // #3/#4 (structurally unsealable rings); caching a dead tower
       // amplifies Mode #1 preemption.
       const cacheable =
-        gaps.size > 0 &&
-        gaps.size <= MANAGEABLE_GAP_LIMIT &&
-        state.towerAlive[bestTower.index];
+        gaps.size <= MANAGEABLE_GAP_LIMIT && state.towerAlive[bestTower.index];
       return {
         targetGaps: gaps,
         targetRect: rect,
         chosenTowerIndex: cacheable ? bestTower.index : undefined,
       };
     }
+    // Mode #3 plug-target synthesis (map-edge scoped): when the rect's wall
+    // ring sits at the map boundary (row 0, row GRID_ROWS-1, col 0, or col
+    // GRID_COLS-1), `findGapTiles` can enumerate fewer gaps than would exist
+    // for an interior rect (the off-map positions don't exist) AND
+    // `filterUnfillableGaps` can strip the remaining ring tiles if they're
+    // structurally unfillable. In those cases the AI bails to strategicFallback
+    // and locks on an unfillable rect (canonical 7082653 BLUE cluster). Map-
+    // edge scoping catches that geometry without firing in seeds where filter-
+    // stripping signals "this tower isn't currently a build target."
+    const wallRingTouchesEdge =
+      rect.left <= 1 ||
+      rect.right >= GRID_COLS - 2 ||
+      rect.top <= 1 ||
+      rect.bottom >= GRID_ROWS - 2;
+    if (!wallRingTouchesEdge) continue;
+    const plugGaps = findInteriorPlugTargets(rect, player.walls, state);
+    if (plugGaps.size === 0) continue;
+    if (!canFillAfterPlugging(ctx, plugGaps, rect)) continue;
+    return {
+      targetGaps: plugGaps,
+      targetRect: rect,
+      chosenTowerIndex: state.towerAlive[bestTower.index]
+        ? bestTower.index
+        : undefined,
+    };
   }
   return NO_TARGET;
+}
+
+/** Synthesize interior plug-target gaps for a tower whose wall ring sits at
+ *  the map boundary and has zero fillable gaps via the standard path. Returns
+ *  grass cells INSIDE the rect adjacent to existing walls — placing walls
+ *  there extends the structure inward toward the tower and can seal the
+ *  4-dir leak path keeping it in `unenclosedTowers`. Capped at
+ *  MANAGEABLE_GAP_LIMIT so the downstream gap-filler restriction stays
+ *  active. */
+function findInteriorPlugTargets(
+  rect: TileRect,
+  walls: ReadonlySet<TileKey>,
+  state: BuildViewState,
+): Set<TileKey> {
+  const plugs = new Set<TileKey>();
+  for (let r = rect.top; r <= rect.bottom; r++) {
+    for (let c = rect.left; c <= rect.right; c++) {
+      if (!isGrass(state.map.tiles, r, c)) continue;
+      const key = packTile(r, c);
+      if (walls.has(key)) continue;
+      if (hasTowerAt(state, r, c)) continue;
+      if (hasCannonAt(state, r, c)) continue;
+      if (hasPitAt(state.burningPits, r, c)) continue;
+      if (hasAliveHouseAt(state, r, c)) continue;
+      let adjacentToWall = false;
+      for (const [dr, dc] of DIRS_4) {
+        const nr = r + dr;
+        const nc = c + dc;
+        if (!inBounds(nr, nc)) continue;
+        if (walls.has(packTile(nr, nc))) {
+          adjacentToWall = true;
+          break;
+        }
+      }
+      if (!adjacentToWall) continue;
+      plugs.add(key);
+      if (plugs.size >= MANAGEABLE_GAP_LIMIT) return plugs;
+    }
+  }
+  return plugs;
 }
 
 /** Expand a castle rect outward to route around temporary blockers (grunts,
