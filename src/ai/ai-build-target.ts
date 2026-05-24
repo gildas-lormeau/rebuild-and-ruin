@@ -34,6 +34,8 @@ import {
 import type { BuildViewState } from "../shared/core/system-interfaces.ts";
 import {
   emitTargetSelectedDiag,
+  type GateReason,
+  isAiBuildDiagHookActive,
   type SelectTargetPath,
 } from "./ai-build-diag.ts";
 import { compareByNumericScoreDesc } from "./ai-build-score.ts";
@@ -70,21 +72,28 @@ export const MANAGEABLE_GAP_LIMIT = 8;
  *  Each phase only runs if the previous one found no gaps. */
 export function selectTarget(ctx: TargetContext): TargetResult {
   // Phase 1: repair home castle ring
-  const home = tryRepairHomeCastle(ctx);
+  // Allocate the gate-reason accumulator only when a diag hook is installed.
+  // Sub-helpers no-op the push when undefined; selectTarget threads the same
+  // array through all three phases so the target-selected event carries the
+  // full set of gate decisions made this tick.
+  const reasons: GateReason[] | undefined = isAiBuildDiagHookActive()
+    ? []
+    : undefined;
+  const home = tryRepairHomeCastle(ctx, reasons);
   if (home.targetGaps.size > 0) {
-    emitTargetSelected(ctx, "HOME", home);
+    emitTargetSelected(ctx, "HOME", home, reasons);
     return home;
   }
   // Phase 2: build toward best unenclosed secondary tower
-  const secondary = trySecondaryTower(ctx);
+  const secondary = trySecondaryTower(ctx, reasons);
   if (secondary.targetGaps.size > 0) {
-    emitTargetSelected(ctx, "SEC", secondary);
+    emitTargetSelected(ctx, "SEC", secondary, reasons);
     return secondary;
   }
   // Phase 3: expand territory when all towers are enclosed
-  const expand = tryExpandTerritory(ctx);
+  const expand = tryExpandTerritory(ctx, reasons);
   if (expand.targetGaps.size > 0) {
-    emitTargetSelected(ctx, "EXP", expand);
+    emitTargetSelected(ctx, "EXP", expand, reasons);
     return expand;
   }
   // All three phases bailed — typically because every tower's `canFillAfter-
@@ -98,11 +107,9 @@ export function selectTarget(ctx: TargetContext): TargetResult {
   // gap; this tick's placement at least lands near the ring instead of in
   // arbitrary corners of the board.
   const fallback = strategicFallbackTarget(ctx);
-  emitTargetSelected(
-    ctx,
-    fallback.targetGaps.size > 0 ? "STRAT_RECT" : "STRAT_NONE",
-    fallback,
-  );
+  const resultPath = fallback.targetGaps.size > 0 ? "STRAT_RECT" : "STRAT_NONE";
+  reasons?.push({ gate: "strategicFallbackInvoked", resultPath });
+  emitTargetSelected(ctx, resultPath, fallback, reasons);
   return fallback;
 }
 
@@ -113,6 +120,7 @@ function emitTargetSelected(
   ctx: TargetContext,
   path: SelectTargetPath,
   result: TargetResult,
+  reasons: readonly GateReason[] | undefined,
 ): void {
   emitTargetSelectedDiag(
     ctx.playerId,
@@ -121,6 +129,7 @@ function emitTargetSelected(
     result.targetRect,
     result.targetGaps,
     result.chosenTowerIndex,
+    reasons ?? [],
     ctx.piece.name,
   );
 }
@@ -183,7 +192,10 @@ function strategicFallbackTarget(ctx: TargetContext): TargetResult {
 /** Phase 1: repair the home castle ring, expanding around temporary blockers.
  *  Tries the player's existing outer wall ring first (preserves territory),
  *  then falls back to the ideal small castle ring. */
-function tryRepairHomeCastle(ctx: TargetContext): TargetResult {
+function tryRepairHomeCastle(
+  ctx: TargetContext,
+  reasons: GateReason[] | undefined,
+): TargetResult {
   const {
     state,
     playerId,
@@ -208,9 +220,8 @@ function tryRepairHomeCastle(ctx: TargetContext): TargetResult {
   // for one tick still pursues "enclose the tower" — next piece may help
   // the outer ring instead.
   const outer = tryRepairOuterRing(ctx);
-  if (
-    outer.targetGaps.size > 0 &&
-    canPieceFillAnyGap(
+  if (outer.targetGaps.size > 0) {
+    const passed = canPieceFillAnyGap(
       state,
       playerId,
       piece,
@@ -219,9 +230,9 @@ function tryRepairHomeCastle(ctx: TargetContext): TargetResult {
       null,
       cache,
       placementCtx,
-    )
-  ) {
-    return outer;
+    );
+    reasons?.push({ gate: "canPieceFillAnyGap", passed, site: "home" });
+    if (passed) return outer;
   }
   if (castle.top > castle.bottom || castle.left > castle.right)
     return NO_TARGET;
@@ -241,12 +252,10 @@ function tryRepairHomeCastle(ctx: TargetContext): TargetResult {
   );
 
   // Verify the piece can actually fill these gaps (try plugging if needed)
-  if (
-    targetGaps.size > 0 &&
-    targetGaps.size <= MANAGEABLE_GAP_LIMIT &&
-    !canFillAfterPlugging(ctx, targetGaps, targetRect)
-  ) {
-    return NO_TARGET;
+  if (targetGaps.size > 0 && targetGaps.size <= MANAGEABLE_GAP_LIMIT) {
+    const passed = canFillAfterPlugging(ctx, targetGaps, targetRect);
+    reasons?.push({ gate: "canFillAfterPlugging", passed, site: "home" });
+    if (!passed) return NO_TARGET;
   }
   return { targetGaps, targetRect };
 }
@@ -327,7 +336,10 @@ function computeWallsInteriorBox(walls: ReadonlySet<TileKey>): TileRect | null {
 }
 
 /** Phase 2: score unenclosed towers and pick the best one the current piece can fill. */
-function trySecondaryTower(ctx: TargetContext): TargetResult {
+function trySecondaryTower(
+  ctx: TargetContext,
+  reasons: GateReason[] | undefined,
+): TargetResult {
   const {
     state,
     player,
@@ -369,16 +381,21 @@ function trySecondaryTower(ctx: TargetContext): TargetResult {
         state,
         bankHugging,
       );
-      if (
-        cachedGaps.size > 0 &&
-        cachedGaps.size <= MANAGEABLE_GAP_LIMIT &&
-        canFillAfterPlugging(ctx, cachedGaps, cachedRect)
-      ) {
-        return {
-          targetGaps: cachedGaps,
-          targetRect: cachedRect,
-          chosenTowerIndex: cached.index,
-        };
+      if (cachedGaps.size > 0 && cachedGaps.size <= MANAGEABLE_GAP_LIMIT) {
+        const passed = canFillAfterPlugging(ctx, cachedGaps, cachedRect);
+        reasons?.push({
+          gate: "canFillAfterPlugging",
+          passed,
+          site: "sec",
+          towerIdx: cached.index,
+        });
+        if (passed) {
+          return {
+            targetGaps: cachedGaps,
+            targetRect: cachedRect,
+            chosenTowerIndex: cached.index,
+          };
+        }
       }
     }
   }
@@ -421,11 +438,25 @@ function trySecondaryTower(ctx: TargetContext): TargetResult {
     );
     if (gaps.size > 0) {
       // If the current piece can't fill this tower's gaps, try the next tower
-      if (
-        gaps.size <= MANAGEABLE_GAP_LIMIT &&
-        !canFillAfterPlugging(ctx, gaps, rect)
-      ) {
-        continue;
+      if (gaps.size <= MANAGEABLE_GAP_LIMIT) {
+        const passed = canFillAfterPlugging(ctx, gaps, rect);
+        reasons?.push({
+          gate: "canFillAfterPlugging",
+          passed,
+          site: "sec",
+          towerIdx: bestTower.index,
+        });
+        if (!passed) continue;
+      } else {
+        // gaps > MANAGEABLE_GAP_LIMIT: canFillAfterPlugging gate bypassed,
+        // tower accepted unconditionally. This is the Mode #8 amplifier —
+        // wide gap sets disable the orchestrator's gap-filler restriction.
+        reasons?.push({
+          gate: "manageableGapLimitBypass",
+          site: "sec",
+          gapCount: gaps.size,
+          towerIdx: bestTower.index,
+        });
       }
       // Cache only when ALL persistence invariants hold: tower is alive,
       // gaps are manageable, and the piece-feasibility check just passed
@@ -458,7 +489,14 @@ function trySecondaryTower(ctx: TargetContext): TargetResult {
     if (!wallRingTouchesEdge) continue;
     const plugGaps = findInteriorPlugTargets(rect, player.walls, state);
     if (plugGaps.size === 0) continue;
-    if (!canFillAfterPlugging(ctx, plugGaps, rect)) continue;
+    const plugPassed = canFillAfterPlugging(ctx, plugGaps, rect);
+    reasons?.push({
+      gate: "canFillAfterPlugging",
+      passed: plugPassed,
+      site: "sec",
+      towerIdx: bestTower.index,
+    });
+    if (!plugPassed) continue;
     return {
       targetGaps: plugGaps,
       targetRect: rect,
@@ -606,7 +644,10 @@ function computeInteriorFreeRatio(
 /** Phase 3: all towers enclosed — expand territory outward.
  *  Compute bounding box of existing walls, expand by 2, and treat
  *  the expanded ring as gaps to fill over multiple rounds. */
-function tryExpandTerritory(ctx: TargetContext): TargetResult {
+function tryExpandTerritory(
+  ctx: TargetContext,
+  reasons: GateReason[] | undefined,
+): TargetResult {
   const { state, player, bankHugging, allCastlesEnclosed } = ctx;
   if (!allCastlesEnclosed) return NO_TARGET;
 
@@ -636,11 +677,10 @@ function tryExpandTerritory(ctx: TargetContext): TargetResult {
   // sweep against expand gaps even when the current piece can't help, which
   // forces pickFallbackPlacement to call createsSmallEnclosure on hundreds of
   // candidates per tick. Mirrors the gate trySecondaryTower applies.
-  if (
-    gaps.size <= MANAGEABLE_GAP_LIMIT &&
-    !canFillAfterPlugging(ctx, gaps, expandRect)
-  ) {
-    return NO_TARGET;
+  if (gaps.size <= MANAGEABLE_GAP_LIMIT) {
+    const passed = canFillAfterPlugging(ctx, gaps, expandRect);
+    reasons?.push({ gate: "canFillAfterPlugging", passed, site: "expand" });
+    if (!passed) return NO_TARGET;
   }
   return { targetGaps: gaps, targetRect: expandRect };
 }

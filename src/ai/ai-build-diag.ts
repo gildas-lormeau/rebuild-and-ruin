@@ -16,9 +16,11 @@ export type SelectTargetPath =
   | "STRAT_NONE";
 
 /** Per-tick record of which gates fired inside the selectTarget pipeline.
- *  Internal for commit 1 — exported once commit 2 plumbs values from the
- *  sub-helpers and ai-build-target.ts needs to construct GateReason values. */
-type GateReason =
+ *  Sub-helpers push to an optional accumulator threaded through; selectTarget
+ *  attaches the accumulated list to the target-selected event. Runner groups
+ *  these into GateFireCounts to surface which architectural lever is binding
+ *  for each stall sub-mode. */
+export type GateReason =
   | { gate: "canPieceFillAnyGap"; passed: boolean; site: "home" | "expand" }
   | {
       gate: "canFillAfterPlugging";
@@ -78,9 +80,14 @@ export function setAiBuildDiagHook(hook: AiBuildDiagHook | undefined): void {
   diagHook = hook;
 }
 
+/** Returns whether a diag hook is installed. Callers gate accumulator-array
+ *  allocation behind this to avoid production cost when nobody listens. */
+export function isAiBuildDiagHookActive(): boolean {
+  return diagHook !== undefined;
+}
+
 /** Emit a target-selected event. Constructs the event object only when a
- *  hook is installed — production callers pay one branch and no allocation.
- *  gateReasons stays empty until commit 2 wires the sub-helper accumulator. */
+ *  hook is installed — production callers pay one branch and no allocation. */
 export function emitTargetSelectedDiag(
   playerId: ValidPlayerId,
   round: number,
@@ -88,6 +95,7 @@ export function emitTargetSelectedDiag(
   targetRect: TileRect | null,
   targetGaps: ReadonlySet<TileKey>,
   chosenTowerIndex: TowerIdx | undefined,
+  gateReasons: readonly GateReason[],
   pieceShapeName: string,
 ): void {
   if (!diagHook) return;
@@ -99,7 +107,7 @@ export function emitTargetSelectedDiag(
     targetRect,
     targetGaps,
     chosenTowerIndex,
-    gateReasons: [],
+    gateReasons,
     currentPieceShapeName: pieceShapeName,
   });
 }

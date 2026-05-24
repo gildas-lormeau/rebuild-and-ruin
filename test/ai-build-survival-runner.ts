@@ -8,7 +8,10 @@
 import { createScenario, waitForEvent } from "./scenario.ts";
 import { Phase } from "../src/shared/core/game-phase.ts";
 import { GAME_EVENT } from "../src/shared/core/game-event-bus.ts";
-import { setAiBuildDiagHook } from "../src/ai/ai-build-diag.ts";
+import {
+  type GateReason,
+  setAiBuildDiagHook,
+} from "../src/ai/ai-build-diag.ts";
 import type { ValidPlayerId } from "../src/shared/core/player-slot.ts";
 
 export interface PathCounts {
@@ -29,6 +32,20 @@ export interface TrajectoryTick {
   gaps: number;
 }
 
+/** Per-round count of each gate decision inside selectTarget. The gate keys
+ *  mirror the GateReason discriminator from ai-build-diag.ts; runner-side
+ *  aggregation feeds the gate-fire histogram in the suite summary, so a stall
+ *  population can be characterized by which gate fired most. */
+export interface GateFireCounts {
+  canPieceFillAnyGap_passed: number;
+  canPieceFillAnyGap_failed: number;
+  canFillAfterPlugging_passed: number;
+  canFillAfterPlugging_failed: number;
+  manageableGapBypass: number;
+  strategicFallback_rect: number;
+  strategicFallback_none: number;
+}
+
 export interface RoundRow {
   walls: number;
   enclosures: number;
@@ -37,6 +54,7 @@ export interface RoundRow {
   livesAtRoundEnd: number;
   pathCounts: PathCounts;
   trajectory: TrajectoryTick[];
+  gateFires: GateFireCounts;
 }
 
 export interface PlayerSummary {
@@ -134,6 +152,15 @@ async function runSeed(seed: number): Promise<Map<number, RoundRow[]>> {
           livesAtRoundEnd: 0,
           pathCounts: { HOME: 0, SEC: 0, EXP: 0, STRAT_RECT: 0, STRAT_NONE: 0 },
           trajectory: [],
+          gateFires: {
+            canPieceFillAnyGap_passed: 0,
+            canPieceFillAnyGap_failed: 0,
+            canFillAfterPlugging_passed: 0,
+            canFillAfterPlugging_failed: 0,
+            manageableGapBypass: 0,
+            strategicFallback_rect: 0,
+            strategicFallback_none: 0,
+          },
         }),
       );
       perRound.set(round, row);
@@ -153,6 +180,7 @@ async function runSeed(seed: number): Promise<Map<number, RoundRow[]>> {
         : "",
       gaps: event.targetGaps.size,
     });
+    for (const reason of event.gateReasons) accumulateGateReason(row, reason);
   });
 
   sc.bus.on(GAME_EVENT.WALL_PLACED, (ev) => {
@@ -213,6 +241,27 @@ async function runSeed(seed: number): Promise<Map<number, RoundRow[]>> {
   return perRound;
 }
 
+/** Increment the matching GateFireCounts bucket for a GateReason. The reason
+ *  union is wider than the bucket set (we collapse home/sec/expand sites into
+ *  shared counters and ignore strategicFallbackInvoked since it's redundant
+ *  with the existing pathCounts). Suite report can split by site later if a
+ *  per-site breakdown becomes interesting. */
+function accumulateGateReason(row: RoundRow, reason: GateReason): void {
+  const fires = row.gateFires;
+  if (reason.gate === "canPieceFillAnyGap") {
+    if (reason.passed) fires.canPieceFillAnyGap_passed++;
+    else fires.canPieceFillAnyGap_failed++;
+  } else if (reason.gate === "canFillAfterPlugging") {
+    if (reason.passed) fires.canFillAfterPlugging_passed++;
+    else fires.canFillAfterPlugging_failed++;
+  } else if (reason.gate === "manageableGapLimitBypass") {
+    fires.manageableGapBypass++;
+  } else if (reason.gate === "strategicFallbackInvoked") {
+    if (reason.resultPath === "STRAT_RECT") fires.strategicFallback_rect++;
+    else fires.strategicFallback_none++;
+  }
+}
+
 function analyzeSeed(
   seed: number,
   perRound: Map<number, RoundRow[]>,
@@ -243,13 +292,40 @@ function analyzeSeed(
         const cls = classifyStall(row.pathCounts);
         const sub = classifySubMode(row.trajectory);
         const pc = row.pathCounts;
+        const gates = formatGateFireSummary(row.gateFires);
         stalls.push(
-          `seed=${seed} r${round} ${PLAYER_NAMES[pid]}: ${row.walls} walls placed, 0 enclosures fired, ${row.unownedAliveZoneTowers} alive unowned tower(s) available, lives=${row.livesAtRoundEnd} | paths H=${pc.HOME} S=${pc.SEC} E=${pc.EXP} SR=${pc.STRAT_RECT} SN=${pc.STRAT_NONE} → ${cls.kind} (${cls.detail}) | sub-mode ${sub.kind} (${sub.detail})`,
+          `seed=${seed} r${round} ${PLAYER_NAMES[pid]}: ${row.walls} walls placed, 0 enclosures fired, ${row.unownedAliveZoneTowers} alive unowned tower(s) available, lives=${row.livesAtRoundEnd} | paths H=${pc.HOME} S=${pc.SEC} E=${pc.EXP} SR=${pc.STRAT_RECT} SN=${pc.STRAT_NONE} → ${cls.kind} (${cls.detail}) | sub-mode ${sub.kind} (${sub.detail})\n  diag: gates ${gates}`,
         );
       }
     }
   }
   return { stalls, perPlayer };
+}
+
+function formatGateFireSummary(fires: GateFireCounts): string {
+  const parts: string[] = [];
+  if (fires.canPieceFillAnyGap_failed > 0 || fires.canPieceFillAnyGap_passed > 0) {
+    parts.push(
+      `cPFAG+=${fires.canPieceFillAnyGap_passed}/-=${fires.canPieceFillAnyGap_failed}`,
+    );
+  }
+  if (
+    fires.canFillAfterPlugging_failed > 0 ||
+    fires.canFillAfterPlugging_passed > 0
+  ) {
+    parts.push(
+      `cFAP+=${fires.canFillAfterPlugging_passed}/-=${fires.canFillAfterPlugging_failed}`,
+    );
+  }
+  if (fires.manageableGapBypass > 0) {
+    parts.push(`mGB=${fires.manageableGapBypass}`);
+  }
+  if (fires.strategicFallback_rect > 0 || fires.strategicFallback_none > 0) {
+    parts.push(
+      `sFB=${fires.strategicFallback_rect}/0=${fires.strategicFallback_none}`,
+    );
+  }
+  return parts.length > 0 ? parts.join(" ") : "no-gates";
 }
 
 /** Classify a stall round by its gap-trajectory shape — distinct from
