@@ -36,6 +36,7 @@ import {
   emitTargetSelectedDiag,
   isAiBuildDiagHookActive,
   type SelectTargetPath,
+  type TargetAlternative,
 } from "./ai-build-diag.ts";
 import { compareByNumericScoreDesc } from "./ai-build-score.ts";
 import type { TargetContext, TargetResult } from "./ai-build-types.ts";
@@ -110,16 +111,21 @@ export function selectTarget(ctx: TargetContext): TargetResult {
 }
 
 /** Bridge from selectTarget's per-branch context to the diag module's typed
- *  emit helper. Computes upcoming-piece fit when a diag hook is active —
- *  read-only bag peek that never triggers a refill (would advance state.rng). */
+ *  emit helper. Computes upcoming-piece fit + per-tower alternatives snapshot
+ *  when a diag hook is active — both are read-only bag peeks that never
+ *  trigger a refill (would advance state.rng). */
 function emitTargetSelected(
   ctx: TargetContext,
   path: SelectTargetPath,
   result: TargetResult,
 ): void {
-  const { upcomingPieces, upcomingPieceFitsTarget } = isAiBuildDiagHookActive()
+  const hookActive = isAiBuildDiagHookActive();
+  const { upcomingPieces, upcomingPieceFitsTarget } = hookActive
     ? collectUpcomingPieceFit(ctx, result)
     : EMPTY_UPCOMING_FIT;
+  const alternatives: readonly TargetAlternative[] = hookActive
+    ? collectAlternatives(ctx)
+    : [];
   emitTargetSelectedDiag(
     ctx.playerId,
     ctx.state.round,
@@ -129,8 +135,105 @@ function emitTargetSelected(
     result.chosenTowerIndex,
     upcomingPieces,
     upcomingPieceFitsTarget,
+    alternatives,
     ctx.piece.name,
   );
+}
+
+/** Snapshot every secondary-tower candidate the AI could have committed to
+ *  this tick — for each, compute (score, gapCount, bagFit). Mirrors
+ *  trySecondaryTower's candidate enumeration so the runner can compare the
+ *  chosen tower against alternatives. Test-only: only invoked when a diag
+ *  hook is installed. */
+function collectAlternatives(ctx: TargetContext): TargetAlternative[] {
+  const {
+    state,
+    player,
+    castle,
+    castleMargin,
+    bankHugging,
+    cursorPos,
+    effectiveSkipHome,
+    unenclosedTowers,
+    otherUnenclosed,
+  } = ctx;
+  const candidatePool = effectiveSkipHome ? otherUnenclosed : unenclosedTowers;
+  if (candidatePool.length === 0) return [];
+  const currentRow = cursorPos?.row ?? castle.tower.row;
+  const currentCol = cursorPos?.col ?? castle.tower.col;
+  const bag = player.bag;
+  const interior = getInterior(player);
+  const peekCount =
+    bag && bag.queue.length > 0
+      ? Math.min(UPCOMING_PIECE_LOOKAHEAD, bag.queue.length)
+      : 0;
+  const upcomingPiecesArr =
+    peekCount > 0 && bag
+      ? Array.from(
+          { length: peekCount },
+          (_, i) => bag.queue[bag.queue.length - 1 - i]!,
+        )
+      : [];
+  const alternatives: TargetAlternative[] = [];
+  for (const tower of candidatePool) {
+    const scored = scoreBuildTowerTarget(
+      tower,
+      state,
+      player,
+      currentRow,
+      currentCol,
+      castleMargin,
+      bankHugging,
+    );
+    const rect = expandRectAroundBlockers(
+      castleRect(
+        tower,
+        state.map.tiles,
+        state.map.towers,
+        castleMargin,
+        !bankHugging,
+      ),
+      state,
+      player,
+    );
+    const gaps = computeFillableGaps(
+      rect,
+      player.walls,
+      interior,
+      state,
+      bankHugging,
+    );
+    let bagFit = -1;
+    if (gaps.size > 0 && upcomingPiecesArr.length > 0) {
+      const adjusted = adjustInterior(interior, gaps, rect);
+      let fit = 0;
+      for (const piece of upcomingPiecesArr) {
+        if (
+          canAnyRotationFillGap(
+            [piece],
+            gaps,
+            adjusted,
+            ctx.state,
+            ctx.playerId,
+            ctx.cache,
+            ctx.placementCtx,
+          )
+        ) {
+          fit++;
+        }
+      }
+      bagFit = fit;
+    }
+    alternatives.push({
+      towerIdx: tower.index,
+      score: scored.score,
+      gapCount: gaps.size,
+      bagFit,
+      bagFitDenom: upcomingPiecesArr.length,
+    });
+  }
+  alternatives.sort((a, b) => b.score - a.score);
+  return alternatives;
 }
 
 /** Peek the next UPCOMING_PIECE_LOOKAHEAD pieces from the AI's bag queue

@@ -88,6 +88,14 @@ export interface RoundRow {
   upcomingFitNumerator: number;
   upcomingFitDenominator: number;
   placements: PlacementRecord[];
+  /** Per-tick comparison: did any alternative secondary-tower candidate have a
+   *  strictly higher bag-fit than the chosen tower? Captured only on ticks
+   *  where chosenTowerIndex is set AND alternatives is non-empty (i.e. SEC
+   *  path with a real candidate enumeration). Each entry records the chosen
+   *  tower's bag-fit ratio and the best alternative's bag-fit ratio. Lets the
+   *  analyzer answer: "of stall ticks where the AI committed to a tower, how
+   *  often was a better-fit alternative available?" */
+  altCompare: { chosenBagFit: number; bestAltBagFit: number; denom: number }[];
 }
 
 export interface PlayerSummary {
@@ -192,6 +200,7 @@ async function runSeed(seed: number): Promise<Map<number, RoundRow[]>> {
           upcomingFitNumerator: 0,
           upcomingFitDenominator: 0,
           placements: [],
+          altCompare: [],
         }),
       );
       perRound.set(round, row);
@@ -216,6 +225,35 @@ async function runSeed(seed: number): Promise<Map<number, RoundRow[]>> {
         const fits = event.upcomingPieceFitsTarget.filter((b) => b).length;
         row.upcomingFitNumerator += fits;
         row.upcomingFitDenominator += event.upcomingPieceFitsTarget.length;
+      }
+      // Per-tick chosen-vs-alternatives capture. Only meaningful when the AI
+      // actually committed to a secondary (chosenTowerIndex set) AND the
+      // alternatives snapshot is non-empty. The best alternative excludes
+      // the chosen tower itself so the comparison answers "could a different
+      // tower have done better?" rather than self-comparison.
+      if (
+        event.chosenTowerIndex !== undefined &&
+        event.alternatives.length > 0
+      ) {
+        const chosenAlt = event.alternatives.find(
+          (a) => a.towerIdx === event.chosenTowerIndex,
+        );
+        const denom = chosenAlt?.bagFitDenom ?? 0;
+        if (chosenAlt && denom > 0 && chosenAlt.bagFit >= 0) {
+          let bestAlt = -1;
+          for (const a of event.alternatives) {
+            if (a.towerIdx === event.chosenTowerIndex) continue;
+            if (a.bagFitDenom !== denom) continue;
+            if (a.bagFit > bestAlt) bestAlt = a.bagFit;
+          }
+          if (bestAlt >= 0) {
+            row.altCompare.push({
+              chosenBagFit: chosenAlt.bagFit,
+              bestAltBagFit: bestAlt,
+              denom,
+            });
+          }
+        }
       }
       return;
     }
@@ -345,6 +383,7 @@ function analyzeSeed(
   // Per-stall aggregates for the seed-level diag summary line.
   const gapHitPcts: number[] = [];
   const bagFitPcts: number[] = [];
+  const altBetterPcts: number[] = [];
   let totalFlips = 0;
   for (let pid = 0; pid < 3; pid++) {
     for (const round of rounds) {
@@ -374,10 +413,11 @@ function analyzeSeed(
                 (100 * row.upcomingFitNumerator) / row.upcomingFitDenominator,
               )
             : -1;
-        const bagFitStr =
-          bagFitPct >= 0 ? ` | bag-fit=${bagFitPct}%` : "";
+        const bagFitStr = bagFitPct >= 0 ? ` | bag-fit=${bagFitPct}%` : "";
+        const altStr = formatAltCompareSummary(row.altCompare);
+        const altBetterPct = computeAltBetterPct(row.altCompare);
         stalls.push(
-          `seed=${seed} r${round} ${PLAYER_NAMES[pid]}: ${row.walls} walls placed, 0 enclosures fired, ${row.unownedAliveZoneTowers} alive unowned tower(s) available, lives=${row.livesAtRoundEnd} | paths H=${pc.HOME} S=${pc.SEC} E=${pc.EXP} SR=${pc.STRAT_RECT} SN=${pc.STRAT_NONE} → ${cls.kind} (${cls.detail}) | sub-mode ${sub.kind} (${sub.detail})\n  diag: walls ${walls}${bagFitStr} | flips ${flipStr}`,
+          `seed=${seed} r${round} ${PLAYER_NAMES[pid]}: ${row.walls} walls placed, 0 enclosures fired, ${row.unownedAliveZoneTowers} alive unowned tower(s) available, lives=${row.livesAtRoundEnd} | paths H=${pc.HOME} S=${pc.SEC} E=${pc.EXP} SR=${pc.STRAT_RECT} SN=${pc.STRAT_NONE} → ${cls.kind} (${cls.detail}) | sub-mode ${sub.kind} (${sub.detail})\n  diag: walls ${walls}${bagFitStr}${altStr} | flips ${flipStr}`,
         );
         if (row.placements.length > 0) {
           const hits = row.placements.filter((p) => p.hitTargetGap).length;
@@ -385,6 +425,7 @@ function analyzeSeed(
         }
         totalFlips += flips.length;
         if (bagFitPct >= 0) bagFitPcts.push(bagFitPct);
+        if (altBetterPct >= 0) altBetterPcts.push(altBetterPct);
       }
     }
   }
@@ -392,9 +433,54 @@ function analyzeSeed(
     bagFitPcts.length > 0 ? ` | bag-fit median ${median(bagFitPcts)}%` : "";
   const diagSummary =
     stalls.length > 0
-      ? `DIAG seed=${seed}: ${stalls.length} stalls | gap-hit median ${median(gapHitPcts)}% | flips total ${totalFlips}${bagFitMedianStr}`
+      ? `DIAG seed=${seed}: ${stalls.length} stalls | gap-hit median ${median(gapHitPcts)}% | flips total ${totalFlips}${bagFitMedianStr}${altBetterPcts.length > 0 ? ` | alt-better median ${median(altBetterPcts)}%` : ""}`
       : "";
   return { stalls, perPlayer, diagSummary };
+}
+
+/** Format the per-stall alt-compare aggregator into a continuation-line
+ *  fragment: `| alt: chosen-bf=X% best-alt-bf=Y% better=Z/N`. Empty when no
+ *  per-tick alt comparisons were captured (no chosenTowerIndex set during
+ *  this stall, or alternatives were empty every tick — e.g. a stall that
+ *  spent all ticks in STRATEGIC_RECT path without committing to a SEC tower).
+ *  X = median chosen bag-fit% across compared ticks. Y = median best-alt
+ *  bag-fit% across compared ticks. Z = number of ticks where best-alt
+ *  strictly beat chosen. N = total compared ticks. */
+function formatAltCompareSummary(
+  compares: readonly {
+    chosenBagFit: number;
+    bestAltBagFit: number;
+    denom: number;
+  }[],
+): string {
+  if (compares.length === 0) return "";
+  const chosenPcts: number[] = [];
+  const bestAltPcts: number[] = [];
+  let betterCount = 0;
+  for (const c of compares) {
+    chosenPcts.push(Math.round((100 * c.chosenBagFit) / c.denom));
+    bestAltPcts.push(Math.round((100 * c.bestAltBagFit) / c.denom));
+    if (c.bestAltBagFit > c.chosenBagFit) betterCount++;
+  }
+  return ` | alt: chosen-bf=${median(chosenPcts)}% best-alt-bf=${median(bestAltPcts)}% better=${betterCount}/${compares.length}`;
+}
+
+/** Per-stall "what fraction of compared ticks had a strictly better
+ *  alternative?" as a percentage. -1 when no compared ticks (no chosen-vs-
+ *  alternatives data for this stall). */
+function computeAltBetterPct(
+  compares: readonly {
+    chosenBagFit: number;
+    bestAltBagFit: number;
+    denom: number;
+  }[],
+): number {
+  if (compares.length === 0) return -1;
+  let better = 0;
+  for (const c of compares) {
+    if (c.bestAltBagFit > c.chosenBagFit) better++;
+  }
+  return Math.round((100 * better) / compares.length);
 }
 
 /** Sample median across an array. Empty array → 0 (the diagSummary line

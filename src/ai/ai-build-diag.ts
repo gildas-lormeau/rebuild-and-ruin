@@ -17,6 +17,28 @@ export type SelectTargetPath =
   | "STRAT_RECT"
   | "STRAT_NONE";
 
+/** Snapshot of one secondary-tower candidate the AI considered this tick.
+ *  Captured even for towers the score loop never reached (bag-fit alone can
+ *  surface "candidate Y would have closed but chosen X couldn't"). The runner
+ *  correlates this against `chosenTowerIndex` to surface the
+ *  "wrong rect selected" failure class. */
+export interface TargetAlternative {
+  towerIdx: TowerIdx;
+  /** scoreBuildTowerTarget result for this tower at decision time. Higher
+   *  = stronger AI preference. */
+  score: number;
+  /** Fillable gaps on the expanded rect after `expandRectAroundBlockers` +
+   *  `computeFillableGaps`. -1 when not computed (rect collapsed or tower
+   *  geometry invalid). */
+  gapCount: number;
+  /** Count of upcoming bag pieces that could fill ≥1 gap on this rect (any
+   *  rotation). -1 when gapCount === 0 or bag queue empty. */
+  bagFit: number;
+  /** Total upcoming pieces peeked when computing `bagFit` — denominator
+   *  for the fit ratio. 0 implies bagFit is meaningless. */
+  bagFitDenom: number;
+}
+
 type AiBuildDiagEvent =
   | {
       kind: "target-selected";
@@ -38,6 +60,12 @@ type AiBuildDiagEvent =
        *  this as `bag-fit=X%` per stall — distinguishes "bag will solve
        *  this target" from "bag can't help current ring." */
       upcomingPieceFitsTarget: readonly boolean[];
+      /** All secondary-tower candidates the AI could have committed to this
+       *  tick, with per-candidate (score, gapCount, bagFit). Empty when no
+       *  hook is installed (production), or when the path is HOME/EXP/
+       *  STRAT_* (no candidate enumeration). Sorted by score descending so
+       *  the AI's top-ranked alternative is first. */
+      alternatives: readonly TargetAlternative[];
       currentPieceShapeName: string;
     }
   | {
@@ -110,6 +138,7 @@ export function emitTargetSelectedDiag(
   chosenTowerIndex: TowerIdx | undefined,
   upcomingPieces: readonly string[],
   upcomingPieceFitsTarget: readonly boolean[],
+  alternatives: readonly TargetAlternative[],
   pieceShapeName: string,
 ): void {
   if (!diagHook) return;
@@ -123,6 +152,7 @@ export function emitTargetSelectedDiag(
     chosenTowerIndex,
     upcomingPieces,
     upcomingPieceFitsTarget,
+    alternatives,
     currentPieceShapeName: pieceShapeName,
   });
 }
