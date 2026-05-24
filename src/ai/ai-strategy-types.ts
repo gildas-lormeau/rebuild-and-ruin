@@ -20,7 +20,6 @@ import type {
   CannonPlacementPreview,
   CannonViewState,
   FireIntent,
-  GameViewState,
   PiecePlacementPreview,
   PlaceCannonIntent,
   PlacePieceIntent,
@@ -168,7 +167,7 @@ export interface AiStrategy {
   ): AiPlacement | null;
 
   /** Called at the end of the build phase — assess home tower status. */
-  assessBuildEnd(state: GameViewState, playerId: ValidPlayerId): void;
+  assessBuildEnd(state: BuildViewState, playerId: ValidPlayerId): void;
 
   /** Initialize per-phase cannon-placement context — pre-rolls the
    *  probabilistic super/rampart/balloon decisions so subsequent

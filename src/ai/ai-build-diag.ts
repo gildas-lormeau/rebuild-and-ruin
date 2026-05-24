@@ -86,6 +86,26 @@ export function isAiBuildDiagHookActive(): boolean {
   return diagHook !== undefined;
 }
 
+/** Emit a build-phase-end event. Carries the AI's last computed target
+ *  (rect + gap set) so the runner can run piece-shape coverage analysis
+ *  against the un-closed gaps at end of phase. Fires once per player per
+ *  WALL_BUILD phase from assessBuildEnd. */
+export function emitBuildPhaseEndDiag(
+  playerId: ValidPlayerId,
+  round: number,
+  finalRect: TileRect | null,
+  finalGaps: ReadonlySet<TileKey>,
+): void {
+  if (!diagHook) return;
+  diagHook({
+    kind: "build-phase-end",
+    playerId,
+    round,
+    finalRect,
+    finalGaps,
+  });
+}
+
 /** Emit a wall-placed event. The event carries the active targetGaps +
  *  targetRect at the moment the AI chose this placement, so the runner can
  *  classify the placement as gap-hit / wall-adjacent / isolated. Bus

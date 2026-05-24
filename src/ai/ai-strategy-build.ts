@@ -17,7 +17,12 @@ import {
   hasAliveHouseAt,
   type OccupancyCache,
 } from "../shared/core/board-occupancy.ts";
-import type { Castle, Tower, TowerIdx } from "../shared/core/geometry-types.ts";
+import type {
+  Castle,
+  TileRect,
+  Tower,
+  TowerIdx,
+} from "../shared/core/geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, type TileKey } from "../shared/core/grid.ts";
 import { type PieceShape, rotateCW } from "../shared/core/pieces.ts";
 import { getInterior } from "../shared/core/player-interior.ts";
@@ -75,8 +80,23 @@ export interface PickPlacementResult {
    *  (DefaultStrategy) stores this and passes it back via PlacementOptions
    *  on the next tick to drive the persistence short-circuit. */
   chosenTowerIndex: TowerIdx | undefined;
+  /** Final selectTarget result this tick — the rect the AI was trying to
+   *  close and the un-closed gaps on it. DefaultStrategy stashes these so
+   *  build-phase-end can carry the AI's last target into the diag event
+   *  for piece-shape coverage analysis. */
+  targetGaps: ReadonlySet<TileKey>;
+  targetRect: TileRect | null;
 }
 
+/** Reusable empty return for the early bails in pickPlacement (no player,
+ *  no homeTower, no placement context). Centralized so adding new diag
+ *  fields to PickPlacementResult doesn't touch every bail site. */
+const NO_PLACEMENT: PickPlacementResult = {
+  placement: null,
+  chosenTowerIndex: undefined,
+  targetGaps: new Set(),
+  targetRect: null,
+};
 /** Max gap tiles before AI deprioritizes home tower in favor of other unenclosed towers. */
 const HOME_GAP_REPAIR_THRESHOLD = 5;
 /** Score weight per gap tile filled by a placement. */
@@ -148,7 +168,7 @@ export function pickPlacement(
   } = options;
   const maybePlayer = state.players[playerId];
   if (!maybePlayer || maybePlayer.castleWallTiles.size === 0) {
-    return { placement: null, chosenTowerIndex: undefined };
+    return NO_PLACEMENT;
   }
   const player = maybePlayer;
   // Recompute the home castle rect on demand. Selection used the same
@@ -158,7 +178,7 @@ export function pickPlacement(
   // clears between selection and now, the recomputed rect drifts to the
   // natural-shoreline shape — bounded suboptimality, never desync.
   if (!player.homeTower) {
-    return { placement: null, chosenTowerIndex: undefined };
+    return NO_PLACEMENT;
   }
   const castle = createCastle(
     player.homeTower,
@@ -192,7 +212,7 @@ export function pickPlacement(
   // State is read-only during pickPlacement so memoization is safe.
   const cache = buildOccupancyCache(state);
   const placementCtx = buildPlacementContext(state, playerId);
-  if (!placementCtx) return { placement: null, chosenTowerIndex: undefined };
+  if (!placementCtx) return NO_PLACEMENT;
 
   // Step 1: determine which rectangle to build/repair.
   // Pipeline: tryRepairHomeCastle → trySecondaryTower → tryExpandTerritory
@@ -240,7 +260,7 @@ export function pickPlacement(
     interiorExcludingGaps,
   );
   if (allCandidates.length === 0) {
-    return { placement: null, chosenTowerIndex };
+    return { placement: null, chosenTowerIndex, targetGaps, targetRect };
   }
 
   // Step 3: pick best using territory gain
@@ -300,7 +320,7 @@ export function pickPlacement(
       placement.piece.name,
     );
   }
-  return { placement, chosenTowerIndex };
+  return { placement, chosenTowerIndex, targetGaps, targetRect };
 }
 
 /** Identify real breach points by scanning for short non-wall runs between

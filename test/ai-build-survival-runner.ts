@@ -9,6 +9,7 @@ import { createScenario, waitForEvent } from "./scenario.ts";
 import { Phase } from "../src/shared/core/game-phase.ts";
 import { GAME_EVENT } from "../src/shared/core/game-event-bus.ts";
 import { GRID_COLS, GRID_ROWS, type TileKey } from "../src/shared/core/grid.ts";
+import { ALL_PIECE_SHAPES, type PieceShape, rotateCW } from "../src/shared/core/pieces.ts";
 import { DIRS_4, packTile, unpackTile } from "../src/shared/core/spatial.ts";
 import {
   type GateReason,
@@ -63,6 +64,14 @@ export interface PlacementRecord {
   pieceShapeName: string;
 }
 
+/** End-of-build snapshot from build-phase-end diag event. Empty/null when
+ *  the AI never reached finalize (player eliminated mid-phase). Piece-shape
+ *  coverage analysis runs against finalGaps for stall rounds. */
+export interface EndOfBuildState {
+  finalGaps: ReadonlySet<TileKey>;
+  finalGapCount: number;
+}
+
 export interface RoundRow {
   walls: number;
   enclosures: number;
@@ -73,6 +82,7 @@ export interface RoundRow {
   trajectory: TrajectoryTick[];
   gateFires: GateFireCounts;
   placements: PlacementRecord[];
+  endOfBuild: EndOfBuildState | null;
 }
 
 export interface PlayerSummary {
@@ -180,6 +190,7 @@ async function runSeed(seed: number): Promise<Map<number, RoundRow[]>> {
             strategicFallback_none: 0,
           },
           placements: [],
+          endOfBuild: null,
         }),
       );
       perRound.set(round, row);
@@ -208,6 +219,14 @@ async function runSeed(seed: number): Promise<Map<number, RoundRow[]>> {
       row.placements.push(
         classifyPlacement(event.cells, event.targetGaps, walls, event.pieceShapeName),
       );
+      return;
+    }
+    if (event.kind === "build-phase-end") {
+      const row = getRow(event.round)[event.playerId]!;
+      row.endOfBuild = {
+        finalGaps: event.finalGaps,
+        finalGapCount: event.finalGaps.size,
+      };
       return;
     }
   });
@@ -359,13 +378,67 @@ function analyzeSeed(
         const pc = row.pathCounts;
         const gates = formatGateFireSummary(row.gateFires);
         const walls = formatPlacementSummary(row.placements);
+        const cov = row.endOfBuild
+          ? computeGeometricPieceCoverage(row.endOfBuild.finalGaps)
+          : null;
+        const covStr =
+          cov && row.endOfBuild
+            ? ` | end-gaps=${row.endOfBuild.finalGapCount} piece-cov ${cov.fittingShapeNames.length}/${cov.totalShapes} (${cov.fittingShapeNames.join(",") || "none"})`
+            : "";
         stalls.push(
-          `seed=${seed} r${round} ${PLAYER_NAMES[pid]}: ${row.walls} walls placed, 0 enclosures fired, ${row.unownedAliveZoneTowers} alive unowned tower(s) available, lives=${row.livesAtRoundEnd} | paths H=${pc.HOME} S=${pc.SEC} E=${pc.EXP} SR=${pc.STRAT_RECT} SN=${pc.STRAT_NONE} → ${cls.kind} (${cls.detail}) | sub-mode ${sub.kind} (${sub.detail})\n  diag: walls ${walls} | gates ${gates}`,
+          `seed=${seed} r${round} ${PLAYER_NAMES[pid]}: ${row.walls} walls placed, 0 enclosures fired, ${row.unownedAliveZoneTowers} alive unowned tower(s) available, lives=${row.livesAtRoundEnd} | paths H=${pc.HOME} S=${pc.SEC} E=${pc.EXP} SR=${pc.STRAT_RECT} SN=${pc.STRAT_NONE} → ${cls.kind} (${cls.detail}) | sub-mode ${sub.kind} (${sub.detail})\n  diag: walls ${walls} | gates ${gates}${covStr}`,
         );
       }
     }
   }
   return { stalls, perPlayer };
+}
+
+/** Coverage = how many of the 13 distinct piece shapes have at least one
+ *  rotation × anchor placement that (a) is fully in-bounds and (b) has at
+ *  least one cell landing on a finalGaps tile. Geometric-only: doesn't
+ *  account for grass/wall/tower terrain. A shape that fails this check
+ *  is structurally incapable of filling any gap; one that passes may
+ *  still be blocked by terrain at the actual placement. */
+function computeGeometricPieceCoverage(
+  finalGaps: ReadonlySet<TileKey>,
+): { fittingShapeNames: string[]; totalShapes: number } {
+  const fitting: string[] = [];
+  for (const shape of ALL_PIECE_SHAPES) {
+    if (shapeFitsAnyGap(shape, finalGaps)) fitting.push(shape.name);
+  }
+  return { fittingShapeNames: fitting, totalShapes: ALL_PIECE_SHAPES.length };
+}
+
+function shapeFitsAnyGap(
+  shape: PieceShape,
+  gaps: ReadonlySet<TileKey>,
+): boolean {
+  let rotated = shape;
+  for (let rot = 0; rot < 4; rot++) {
+    for (const gapKey of gaps) {
+      const { row: gapRow, col: gapCol } = unpackTile(gapKey);
+      // For each shape cell, try anchoring the piece such that that cell
+      // lands on gapRow,gapCol. If all other shape cells are in-bounds the
+      // shape geometrically fits this gap.
+      for (const [anchorDr, anchorDc] of rotated.offsets) {
+        const anchorR = gapRow - anchorDr;
+        const anchorC = gapCol - anchorDc;
+        let allInBounds = true;
+        for (const [dr, dc] of rotated.offsets) {
+          const r = anchorR + dr;
+          const c = anchorC + dc;
+          if (r < 0 || r >= GRID_ROWS || c < 0 || c >= GRID_COLS) {
+            allInBounds = false;
+            break;
+          }
+        }
+        if (allInBounds) return true;
+      }
+    }
+    rotated = rotateCW(rotated);
+  }
+  return false;
 }
 
 /** Wall-placement distribution as a "X%/Y%/Z% (gap/adj/iso)" string. Sums
