@@ -75,10 +75,15 @@ Deno.test("phase-test: AI repairs the outer ring with EXTRA holes (4 per player)
   // existing one" rather than repair the outer perimeter. This test asserts
   // the same invariants as the basic 1-2-hole variant.
   //
-  // KNOWN FAILING (2026-05-24): player interiors collapse to ~35 tiles when
-  // the AI retreats. Documents the gap so a future fix has a regression
-  // target — phase tests aren't in pre-commit (CLAUDE.md fast-test list),
-  // so this stays red without blocking commits until fixed.
+  // KNOWN FAILING (2026-05-24): root cause investigation (see memory
+  // `project_ai_build_stall_investigation`) confirmed two compounding
+  // issues — (a) `findOuterRingHoles` cardinal-pair scan misses diagonal-
+  // step corner breaches (single removed corner wall orphans cardinally-
+  // distant ring walls), so (9,11) is undetected; (b) attempts to add
+  // diagonal-pair detection regressed the survival suite by +22 stalls
+  // because the detection fires on isolated diamond patterns + AI-placed
+  // wall clusters elsewhere. Phase tests aren't in pre-commit fast-tests
+  // so this red state doesn't block work.
   const sc = await createPhaseScenario(
     roundTwoWholeZoneMoreHoles as unknown as FixtureFile,
   );
