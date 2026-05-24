@@ -117,6 +117,16 @@ export interface RoundRow {
    *  Keys: `"home"`, `"none"` (STRAT_NONE), or a `TowerIdx` rendered as
    *  `"tower-N"`. */
   fallbackTowerHits: Map<string, number>;
+  /** Aggregator for the upcoming-piece × target-fit signal. Each tick adds
+   *  the count of upcoming pieces that COULD fill the current target to
+   *  the numerator, and the total upcoming-piece count to the denominator.
+   *  Round-level fit fraction = numerator / denominator. Zero
+   *  denominator = no upcoming pieces ever peeked this round (target was
+   *  null/empty every tick, or bag was empty). Distinguishes "the bag will
+   *  solve this ring eventually" (high fit) from "no near-term piece can
+   *  help" (low fit, NEAR_MISS signature). */
+  upcomingFitNumerator: number;
+  upcomingFitDenominator: number;
   placements: PlacementRecord[];
   endOfBuild: EndOfBuildState | null;
 }
@@ -231,6 +241,8 @@ async function runSeed(seed: number): Promise<Map<number, RoundRow[]>> {
           },
           ticksWithNoGatePass: 0,
           fallbackTowerHits: new Map(),
+          upcomingFitNumerator: 0,
+          upcomingFitDenominator: 0,
           placements: [],
           endOfBuild: null,
         }),
@@ -254,6 +266,11 @@ async function runSeed(seed: number): Promise<Map<number, RoundRow[]>> {
         pieceShapeName: event.currentPieceShapeName,
       });
       if (!event.anyGatePassed) row.ticksWithNoGatePass++;
+      if (event.upcomingPieceFitsTarget.length > 0) {
+        const fits = event.upcomingPieceFitsTarget.filter((b) => b).length;
+        row.upcomingFitNumerator += fits;
+        row.upcomingFitDenominator += event.upcomingPieceFitsTarget.length;
+      }
       for (const reason of event.gateReasons) accumulateGateReason(row, reason);
       return;
     }
@@ -423,6 +440,7 @@ function analyzeSeed(
   const gapHitPcts: number[] = [];
   const pieceCovs: number[] = [];
   const noGateTickCounts: number[] = [];
+  const bagFitPcts: number[] = [];
   let totalFlips = 0;
   for (let pid = 0; pid < 3; pid++) {
     for (const round of rounds) {
@@ -457,8 +475,16 @@ function analyzeSeed(
         const totalTicks = row.trajectory.length;
         const noGateStr = `no-gate-ticks=${row.ticksWithNoGatePass}/${totalTicks}`;
         const fbStr = formatFallbackTowerSummary(row.fallbackTowerHits);
+        const bagFitPct =
+          row.upcomingFitDenominator > 0
+            ? Math.round(
+                (100 * row.upcomingFitNumerator) / row.upcomingFitDenominator,
+              )
+            : -1;
+        const bagFitStr =
+          bagFitPct >= 0 ? ` | bag-fit=${bagFitPct}%` : "";
         stalls.push(
-          `seed=${seed} r${round} ${PLAYER_NAMES[pid]}: ${row.walls} walls placed, 0 enclosures fired, ${row.unownedAliveZoneTowers} alive unowned tower(s) available, lives=${row.livesAtRoundEnd} | paths H=${pc.HOME} S=${pc.SEC} E=${pc.EXP} SR=${pc.STRAT_RECT} SN=${pc.STRAT_NONE} → ${cls.kind} (${cls.detail}) | sub-mode ${sub.kind} (${sub.detail})\n  diag: walls ${walls} | gates ${gates} | ${noGateStr} | flips ${flipStr}${fbStr}${covStr}`,
+          `seed=${seed} r${round} ${PLAYER_NAMES[pid]}: ${row.walls} walls placed, 0 enclosures fired, ${row.unownedAliveZoneTowers} alive unowned tower(s) available, lives=${row.livesAtRoundEnd} | paths H=${pc.HOME} S=${pc.SEC} E=${pc.EXP} SR=${pc.STRAT_RECT} SN=${pc.STRAT_NONE} → ${cls.kind} (${cls.detail}) | sub-mode ${sub.kind} (${sub.detail})\n  diag: walls ${walls} | gates ${gates} | ${noGateStr}${bagFitStr} | flips ${flipStr}${fbStr}${covStr}`,
         );
         // Aggregate per-stall metrics for the seed-level summary.
         if (row.placements.length > 0) {
@@ -468,12 +494,15 @@ function analyzeSeed(
         if (cov) pieceCovs.push(cov.fittingShapeNames.length);
         totalFlips += flips.length;
         noGateTickCounts.push(row.ticksWithNoGatePass);
+        if (bagFitPct >= 0) bagFitPcts.push(bagFitPct);
       }
     }
   }
+  const bagFitMedianStr =
+    bagFitPcts.length > 0 ? ` | bag-fit median ${median(bagFitPcts)}%` : "";
   const diagSummary =
     stalls.length > 0
-      ? `DIAG seed=${seed}: ${stalls.length} stalls | gap-hit median ${median(gapHitPcts)}% | piece-cov median ${median(pieceCovs)}/${ALL_PIECE_SHAPES.length} | flips total ${totalFlips} | no-gate-ticks median ${median(noGateTickCounts)}`
+      ? `DIAG seed=${seed}: ${stalls.length} stalls | gap-hit median ${median(gapHitPcts)}% | piece-cov median ${median(pieceCovs)}/${ALL_PIECE_SHAPES.length} | flips total ${totalFlips} | no-gate-ticks median ${median(noGateTickCounts)}${bagFitMedianStr}`
       : "";
   return { stalls, perPlayer, diagSummary };
 }

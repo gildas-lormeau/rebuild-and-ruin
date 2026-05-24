@@ -69,6 +69,18 @@ type AiBuildDiagEvent =
        *  (no `passed` field) is NOT counted — it represents the Mode #8
        *  amplifier path, distinct from a clean gate-pass. */
       anyGatePassed: boolean;
+      /** PieceShape.name for each of the next N pieces in the AI's bag
+       *  queue (excluding the current piece). Read-only peek — never
+       *  triggers a bag refill (would advance state.rng and break
+       *  determinism). Variable length: empty when queue has fewer than
+       *  one piece left; capped at N=3 by the diag emit site. */
+      upcomingPieces: readonly string[];
+      /** For each `upcomingPieces[i]`, true iff at least one orientation
+       *  could fill at least one of `targetGaps`. Pre-computed at the
+       *  emit site (test-only, no production cost). The runner aggregates
+       *  this as `bag-fit=X%` per stall — distinguishes "bag will solve
+       *  this target" from "bag can't help current ring." */
+      upcomingPieceFitsTarget: readonly boolean[];
       currentPieceShapeName: string;
     }
   | {
@@ -167,6 +179,8 @@ export function emitTargetSelectedDiag(
   chosenTowerIndex: TowerIdx | undefined,
   gateReasons: readonly GateReason[],
   anyGatePassed: boolean,
+  upcomingPieces: readonly string[],
+  upcomingPieceFitsTarget: readonly boolean[],
   pieceShapeName: string,
 ): void {
   if (!diagHook) return;
@@ -180,6 +194,8 @@ export function emitTargetSelectedDiag(
     chosenTowerIndex,
     gateReasons,
     anyGatePassed,
+    upcomingPieces,
+    upcomingPieceFitsTarget,
     currentPieceShapeName: pieceShapeName,
   });
 }

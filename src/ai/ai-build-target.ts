@@ -64,6 +64,14 @@ const EXPANSION_DEFAULT_MAX = 5;
  *  walls is the bbox itself; this is the *outward* growth budget on top. */
 const TERRITORY_EXPAND_RING = 2;
 const NO_TARGET: TargetResult = { targetGaps: new Set(), targetRect: null };
+/** Default lookahead depth for the upcoming-pieces × target-fillability diag
+ *  signal. 3 covers ~2-3 ticks between piece arrivals; if the bag queue has
+ *  fewer pieces left, the emitted array is shorter. */
+const UPCOMING_PIECE_LOOKAHEAD = 3;
+const EMPTY_UPCOMING_FIT: {
+  upcomingPieces: readonly string[];
+  upcomingPieceFitsTarget: readonly boolean[];
+} = { upcomingPieces: [], upcomingPieceFitsTarget: [] };
 /** Max gap tiles the AI considers evaluable in a single build turn. Beyond this, the target is skipped. */
 export const MANAGEABLE_GAP_LIMIT = 8;
 
@@ -116,7 +124,9 @@ export function selectTarget(ctx: TargetContext): TargetResult {
  *  emit helper. Extracts the playerId/round/piece-name fields from `ctx` so
  *  the diag module stays decoupled from TargetContext. Derives
  *  `anyGatePassed` from the accumulated reasons (true iff any GateReason
- *  with a `passed` discriminator evaluated true). */
+ *  with a `passed` discriminator evaluated true). Computes upcoming-piece
+ *  fit when a diag hook is active — read-only bag peek that never triggers
+ *  a refill (would advance state.rng). */
 function emitTargetSelected(
   ctx: TargetContext,
   path: SelectTargetPath,
@@ -125,6 +135,9 @@ function emitTargetSelected(
 ): void {
   const anyGatePassed =
     reasons?.some((r) => "passed" in r && r.passed) ?? false;
+  const { upcomingPieces, upcomingPieceFitsTarget } = isAiBuildDiagHookActive()
+    ? collectUpcomingPieceFit(ctx, result)
+    : EMPTY_UPCOMING_FIT;
   emitTargetSelectedDiag(
     ctx.playerId,
     ctx.state.round,
@@ -134,8 +147,53 @@ function emitTargetSelected(
     result.chosenTowerIndex,
     reasons ?? [],
     anyGatePassed,
+    upcomingPieces,
+    upcomingPieceFitsTarget,
     ctx.piece.name,
   );
+}
+
+/** Peek the next UPCOMING_PIECE_LOOKAHEAD pieces from the AI's bag queue
+ *  without mutating it, and check whether each can fill at least one cell
+ *  of the chosen target. Returns parallel arrays. When the queue has fewer
+ *  pieces left than the lookahead window, the arrays are shorter — never
+ *  triggers a refill (which would advance state.rng and break determinism).
+ *  When the target is null or empty, returns empty arrays. */
+function collectUpcomingPieceFit(
+  ctx: TargetContext,
+  result: TargetResult,
+): {
+  upcomingPieces: readonly string[];
+  upcomingPieceFitsTarget: readonly boolean[];
+} {
+  const bag = ctx.player.bag;
+  if (!bag || bag.queue.length === 0) return EMPTY_UPCOMING_FIT;
+  if (result.targetGaps.size === 0) return EMPTY_UPCOMING_FIT;
+  const peekCount = Math.min(UPCOMING_PIECE_LOOKAHEAD, bag.queue.length);
+  const pieces: string[] = [];
+  const fits: boolean[] = [];
+  const interior = getInterior(ctx.player);
+  const adjusted = adjustInterior(
+    interior,
+    result.targetGaps,
+    result.targetRect,
+  );
+  for (let i = 0; i < peekCount; i++) {
+    const piece = bag.queue[bag.queue.length - 1 - i]!;
+    pieces.push(piece.name);
+    fits.push(
+      canAnyRotationFillGap(
+        [piece],
+        result.targetGaps,
+        adjusted,
+        ctx.state,
+        ctx.playerId,
+        ctx.cache,
+        ctx.placementCtx,
+      ),
+    );
+  }
+  return { upcomingPieces: pieces, upcomingPieceFitsTarget: fits };
 }
 
 /** Strategic fallback when every selectTarget phase bailed. Returns the home
