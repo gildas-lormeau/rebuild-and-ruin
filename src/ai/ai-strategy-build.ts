@@ -26,12 +26,9 @@ import type { Player } from "../shared/core/player-types.ts";
 import {
   computeOutside,
   DIRS_4,
-  hasPitAt,
   inBounds,
-  isGrass,
   packTile,
   towerReachesOutsideCardinal,
-  unpackTile,
 } from "../shared/core/spatial.ts";
 import type { BuildViewState } from "../shared/core/system-interfaces.ts";
 import { emitWallPlacedDiag } from "./ai-build-diag.ts";
@@ -126,12 +123,6 @@ const BUILD_SKILL_TABLE = [
     tinyPocketReject: true,
   },
 ] as const;
-/** Identify the real breach points in the player's wall ring by scanning
- *  for short non-wall runs between paired walls — works regardless of
- *  whether the ring is rectangular or stair-stepped, and catches holes
- *  inside the bounding box that the perimeter-only findGapTiles can't see.
- *  K_HOLE = max width of a closeable gap (1-tile, 2-tile, or 3-tile holes). */
-const HOLE_MAX_WIDTH = 3;
 
 export function pickPlacement(
   state: BuildViewState,
@@ -327,68 +318,6 @@ export function pickPlacement(
   return { placement, chosenTowerIndex };
 }
 
-/** Identify real breach points by scanning for short non-wall runs between
- *  paired *ring* walls. A "ring wall" is a wall whose outer face touches the
- *  exterior — i.e. has at least one 4-dir neighbor in computeOutside. The
- *  ring-wall filter prevents the pair-scan from inventing pseudo-gaps
- *  between newly-placed walls inside the enclosure as the AI fills holes. */
-export function findOuterRingHoles(
-  walls: ReadonlySet<TileKey>,
-  state: BuildViewState,
-  interior: ReadonlySet<TileKey>,
-): Set<TileKey> {
-  const outside = computeOutside(walls);
-  const isRingWall = (key: TileKey): boolean => {
-    const { row, col } = unpackTile(key);
-    for (const [dr, dc] of DIRS_4) {
-      const nr = row + dr;
-      const nc = col + dc;
-      if (!inBounds(nr, nc)) continue;
-      if (outside.has(packTile(nr, nc))) return true;
-    }
-    return false;
-  };
-  const holes = new Set<TileKey>();
-  for (const wallKey of walls) {
-    if (!isRingWall(wallKey)) continue;
-    const { row: wr, col: wc } = unpackTile(wallKey);
-    for (const [dr, dc] of DIRS_4) {
-      for (let step = 2; step <= HOLE_MAX_WIDTH + 1; step++) {
-        const nr = wr + dr * step;
-        const nc = wc + dc * step;
-        if (nr < 0 || nr >= GRID_ROWS || nc < 0 || nc >= GRID_COLS) break;
-        let allFillable = true;
-        for (let inner = 1; inner < step; inner++) {
-          const ir = wr + dr * inner;
-          const ic = wc + dc * inner;
-          if (walls.has(packTile(ir, ic))) {
-            allFillable = false;
-            break;
-          }
-          if (
-            !isGrass(state.map.tiles, ir, ic) ||
-            hasPitAt(state.burningPits, ir, ic) ||
-            hasAliveHouseAt(state, ir, ic) ||
-            interior.has(packTile(ir, ic))
-          ) {
-            allFillable = false;
-            break;
-          }
-        }
-        if (!allFillable) continue;
-        const farKey = packTile(nr, nc);
-        if (walls.has(farKey) && isRingWall(farKey)) {
-          for (let inner = 1; inner < step; inner++) {
-            holes.add(packTile(wr + dr * inner, wc + dc * inner));
-          }
-          break;
-        }
-      }
-    }
-  }
-  return holes;
-}
-
 /** Pick the best placement from scored candidates, with gap-filler priority and fallback. */
 function selectBestPlacement(
   scored: readonly Scored[],
@@ -419,50 +348,12 @@ function selectBestPlacement(
   );
 
   if (scored.length === 0) {
-    // When everything is enclosed with no gaps, don't force-place fat walls
-    if (noBuildTargets) {
-      return null;
-    }
-    const isSmallEnclosure = memoize((candidate: Candidate) =>
-      createsSmallEnclosure(candidate, walls, outside, state, aliveHouseKeys),
+    return selectFromEmptyScored(
+      allCandidates,
+      scoringCtx,
+      noBuildTargets,
+      fatBlockCountFor,
     );
-
-    // Bucket candidates into descending-preference tiers in a single pass.
-    // Each tier subsumes the next's qualification (open ⊂ noFatNotOpen ⊂ rest).
-    // We only sort the tier we end up returning from.
-    const open: Candidate[] = [];
-    const noFatNotOpen: Candidate[] = [];
-    const rest: Candidate[] = [];
-    for (const candidate of allCandidates) {
-      const cleanFat = fatBlockCountFor(candidate) === 0;
-      const cleanShape = cleanFat && !isSmallEnclosure(candidate);
-      if (cleanShape && candidate.wallAdjacent === 0) {
-        open.push(candidate);
-      } else if (cleanShape) {
-        noFatNotOpen.push(candidate);
-      } else {
-        rest.push(candidate);
-      }
-    }
-    if (open.length > 0) {
-      open.sort(
-        (a, b) =>
-          candidateObstacleHits(a, caresAboutHouses, caresAboutBonuses) -
-          candidateObstacleHits(b, caresAboutHouses, caresAboutBonuses),
-      );
-      return candidateToPlacement(open[0]!);
-    }
-    if (noFatNotOpen.length > 0) {
-      return candidateToPlacement(noFatNotOpen[0]!);
-    }
-    // Last resort: prefer no small enclosure, then fewer fat blocks
-    rest.sort((a, b) => {
-      const aEncloses = isSmallEnclosure(a) ? 1 : 0;
-      const bEncloses = isSmallEnclosure(b) ? 1 : 0;
-      if (aEncloses !== bEncloses) return aEncloses - bEncloses;
-      return fatBlockCountFor(a) - fatBlockCountFor(b);
-    });
-    return candidateToPlacement(rest[0]!);
   }
 
   const sortedScored = [...scored].sort((a, b) => b.score - a.score);
@@ -565,6 +456,71 @@ function selectBestPlacement(
     row: bestCandidate.row,
     col: bestCandidate.col,
   };
+}
+
+/** Fallback when prescoreCandidates yielded zero scored entries (every
+ *  candidate was filtered for fat walls under noTargetGaps). Bucket into
+ *  open / no-fat-not-open / rest tiers and return the best of the first
+ *  non-empty tier. Mutually exclusive with the territory-gain path — this
+ *  branch only fires when there's nothing legitimate to score. */
+function selectFromEmptyScored(
+  allCandidates: readonly Candidate[],
+  scoringCtx: ScoringContext,
+  noBuildTargets: boolean,
+  fatBlockCountFor: (candidate: Candidate) => number,
+): AiPlacement | null {
+  const {
+    walls,
+    outside,
+    state,
+    caresAboutHouses,
+    caresAboutBonuses,
+    aliveHouseKeys,
+  } = scoringCtx;
+  // When everything is enclosed with no gaps, don't force-place fat walls
+  if (noBuildTargets) {
+    return null;
+  }
+  const isSmallEnclosure = memoize((candidate: Candidate) =>
+    createsSmallEnclosure(candidate, walls, outside, state, aliveHouseKeys),
+  );
+
+  // Bucket candidates into descending-preference tiers in a single pass.
+  // Each tier subsumes the next's qualification (open ⊂ noFatNotOpen ⊂ rest).
+  // We only sort the tier we end up returning from.
+  const open: Candidate[] = [];
+  const noFatNotOpen: Candidate[] = [];
+  const rest: Candidate[] = [];
+  for (const candidate of allCandidates) {
+    const cleanFat = fatBlockCountFor(candidate) === 0;
+    const cleanShape = cleanFat && !isSmallEnclosure(candidate);
+    if (cleanShape && candidate.wallAdjacent === 0) {
+      open.push(candidate);
+    } else if (cleanShape) {
+      noFatNotOpen.push(candidate);
+    } else {
+      rest.push(candidate);
+    }
+  }
+  if (open.length > 0) {
+    open.sort(
+      (a, b) =>
+        candidateObstacleHits(a, caresAboutHouses, caresAboutBonuses) -
+        candidateObstacleHits(b, caresAboutHouses, caresAboutBonuses),
+    );
+    return candidateToPlacement(open[0]!);
+  }
+  if (noFatNotOpen.length > 0) {
+    return candidateToPlacement(noFatNotOpen[0]!);
+  }
+  // Last resort: prefer no small enclosure, then fewer fat blocks
+  rest.sort((a, b) => {
+    const aEncloses = isSmallEnclosure(a) ? 1 : 0;
+    const bEncloses = isSmallEnclosure(b) ? 1 : 0;
+    if (aEncloses !== bEncloses) return aEncloses - bEncloses;
+    return fatBlockCountFor(a) - fatBlockCountFor(b);
+  });
+  return candidateToPlacement(rest[0]!);
 }
 
 /** Look up skill config by 1-based buildSkill level (1=clumsy, 5=clean). */

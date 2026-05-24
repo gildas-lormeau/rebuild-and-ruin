@@ -27,6 +27,7 @@ import type {
 import type { ZoneId } from "../shared/core/zone-id.ts";
 import { Rng } from "../shared/platform/rng.ts";
 import type { AiPlacement } from "./ai-build-types.ts";
+import { findOuterRingHoles } from "./ai-castle-rect.ts";
 import { CHAIN, type ChainType } from "./ai-chain.ts";
 import { planCharitySweep } from "./ai-plan-charity-sweep.ts";
 import { planGruntSweep } from "./ai-plan-grunt-sweep.ts";
@@ -42,7 +43,7 @@ import {
   type ShotKey,
   trackShot,
 } from "./ai-strategy-battle.ts";
-import { findOuterRingHoles, pickPlacement } from "./ai-strategy-build.ts";
+import { pickPlacement } from "./ai-strategy-build.ts";
 import {
   autoSelectTower,
   createCannonPlacementContext,

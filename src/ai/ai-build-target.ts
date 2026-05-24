@@ -12,7 +12,11 @@ import {
   hasGruntAt,
   type OccupancyCache,
 } from "../shared/core/board-occupancy.ts";
-import type { TileBounds, TileRect } from "../shared/core/geometry-types.ts";
+import type {
+  TileBounds,
+  TileRect,
+  Tower,
+} from "../shared/core/geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, type TileKey } from "../shared/core/grid.ts";
 import { hasCannonAt, hasTowerAt } from "../shared/core/occupancy-queries.ts";
 import {
@@ -146,21 +150,10 @@ function emitTargetSelected(
  *  chosen tower against alternatives. Test-only: only invoked when a diag
  *  hook is installed. */
 function collectAlternatives(ctx: TargetContext): TargetAlternative[] {
-  const {
-    state,
-    player,
-    castle,
-    castleMargin,
-    bankHugging,
-    cursorPos,
-    effectiveSkipHome,
-    unenclosedTowers,
-    otherUnenclosed,
-  } = ctx;
-  const candidatePool = effectiveSkipHome ? otherUnenclosed : unenclosedTowers;
+  const { state, player, castleMargin, bankHugging } = ctx;
+  const candidatePool = getBuildTowerPool(ctx);
   if (candidatePool.length === 0) return [];
-  const currentRow = cursorPos?.row ?? castle.tower.row;
-  const currentCol = cursorPos?.col ?? castle.tower.col;
+  const { row: currentRow, col: currentCol } = currentCursorAnchor(ctx);
   const bag = player.bag;
   const interior = getInterior(player);
   const peekCount =
@@ -185,24 +178,7 @@ function collectAlternatives(ctx: TargetContext): TargetAlternative[] {
       castleMargin,
       bankHugging,
     );
-    const rect = expandRectAroundBlockers(
-      castleRect(
-        tower,
-        state.map.tiles,
-        state.map.towers,
-        castleMargin,
-        !bankHugging,
-      ),
-      state,
-      player,
-    );
-    const gaps = computeFillableGaps(
-      rect,
-      player.walls,
-      interior,
-      state,
-      bankHugging,
-    );
+    const { rect, gaps } = evaluateTowerCandidate(tower, ctx);
     let bagFit = -1;
     if (gaps.size > 0 && upcomingPiecesArr.length > 0) {
       const adjusted = adjustInterior(interior, gaps, rect);
@@ -284,7 +260,7 @@ function collectUpcomingPieceFit(
  *  home is being skipped). Bypasses the `canFillAfterPlugging` gate — that
  *  gate is per-tick optimization, not strategic gating. */
 function strategicFallbackTarget(ctx: TargetContext): TargetResult {
-  const { state, player, castle, castleMargin, bankHugging, cursorPos } = ctx;
+  const { state, player, castle, castleMargin, bankHugging } = ctx;
   if (ctx.unenclosedTowers.length === 0) return NO_TARGET;
   if (!ctx.effectiveSkipHome && player.homeTower) {
     const gaps = findReachableRingGaps(
@@ -296,12 +272,9 @@ function strategicFallbackTarget(ctx: TargetContext): TargetResult {
     if (gaps.size > 0) return { targetGaps: gaps, targetRect: castle };
   }
   // Home unavailable — pick the best-scored secondary tower's rect, raw gaps.
-  const candidatePool = ctx.effectiveSkipHome
-    ? ctx.otherUnenclosed
-    : ctx.unenclosedTowers;
+  const candidatePool = getBuildTowerPool(ctx);
   if (candidatePool.length === 0) return NO_TARGET;
-  const currentRow = cursorPos?.row ?? castle.tower.row;
-  const currentCol = cursorPos?.col ?? castle.tower.col;
+  const { row: currentRow, col: currentCol } = currentCursorAnchor(ctx);
   const sorted = candidatePool
     .map((tower) =>
       scoreBuildTowerTarget(
@@ -476,19 +449,9 @@ function computeWallsInteriorBox(walls: ReadonlySet<TileKey>): TileRect | null {
 
 /** Phase 2: score unenclosed towers and pick the best one the current piece can fill. */
 function trySecondaryTower(ctx: TargetContext): TargetResult {
-  const {
-    state,
-    player,
-    castle,
-    castleMargin,
-    bankHugging,
-    cursorPos,
-    effectiveSkipHome,
-    unenclosedTowers,
-    otherUnenclosed,
-    lastTargetTowerIndex,
-  } = ctx;
-  const buildTowers = effectiveSkipHome ? otherUnenclosed : unenclosedTowers;
+  const { state, player, castleMargin, bankHugging, lastTargetTowerIndex } =
+    ctx;
+  const buildTowers = getBuildTowerPool(ctx);
   if (buildTowers.length === 0) return NO_TARGET;
 
   // Persistence short-circuit: if last tick committed to a tower that's
@@ -499,23 +462,9 @@ function trySecondaryTower(ctx: TargetContext): TargetResult {
   if (lastTargetTowerIndex !== undefined) {
     const cached = buildTowers.find((t) => t.index === lastTargetTowerIndex);
     if (cached) {
-      const cachedRect = expandRectAroundBlockers(
-        castleRect(
-          cached,
-          state.map.tiles,
-          state.map.towers,
-          castleMargin,
-          !bankHugging,
-        ),
-        state,
-        player,
-      );
-      const cachedGaps = computeFillableGaps(
-        cachedRect,
-        player.walls,
-        getInterior(player),
-        state,
-        bankHugging,
+      const { rect: cachedRect, gaps: cachedGaps } = evaluateTowerCandidate(
+        cached,
+        ctx,
       );
       if (cachedGaps.size > 0 && cachedGaps.size <= MANAGEABLE_GAP_LIMIT) {
         if (canFillAfterPlugging(ctx, cachedGaps, cachedRect)) {
@@ -529,8 +478,7 @@ function trySecondaryTower(ctx: TargetContext): TargetResult {
     }
   }
 
-  const currentRow = cursorPos?.row ?? castle.tower.row;
-  const currentCol = cursorPos?.col ?? castle.tower.col;
+  const { row: currentRow, col: currentCol } = currentCursorAnchor(ctx);
 
   // Score all towers, then try them in order — skip towers whose ring is unfillable
   const towerScores = buildTowers.map((tower) =>
@@ -547,24 +495,7 @@ function trySecondaryTower(ctx: TargetContext): TargetResult {
   towerScores.sort(compareByNumericScoreDesc);
 
   for (const { tower: bestTower } of towerScores) {
-    const rect = expandRectAroundBlockers(
-      castleRect(
-        bestTower,
-        state.map.tiles,
-        state.map.towers,
-        castleMargin,
-        !bankHugging,
-      ),
-      state,
-      player,
-    );
-    const gaps = computeFillableGaps(
-      rect,
-      player.walls,
-      getInterior(player),
-      state,
-      bankHugging,
-    );
+    const { rect, gaps } = evaluateTowerCandidate(bestTower, ctx);
     if (gaps.size > 0) {
       // If the current piece can't fill this tower's gaps, try the next tower.
       // gaps > MANAGEABLE_GAP_LIMIT bypasses the canFillAfterPlugging gate —
@@ -616,6 +547,27 @@ function trySecondaryTower(ctx: TargetContext): TargetResult {
   return NO_TARGET;
 }
 
+/** Towers eligible to be a secondary build target this tick. When the home
+ *  ring is being deprioritized (`effectiveSkipHome`), the home tower itself
+ *  drops out of consideration. Mirrored by `trySecondaryTower`, `strategicFallbackTarget`,
+ *  and `collectAlternatives` — single accessor keeps them in lockstep. */
+function getBuildTowerPool(ctx: TargetContext): readonly Tower[] {
+  return ctx.effectiveSkipHome ? ctx.otherUnenclosed : ctx.unenclosedTowers;
+}
+
+/** Anchor for distance-from-cursor scoring: the AI's last cursor position
+ *  this tick, falling back to the home tower's top-left when there's no
+ *  cursor yet (first-tick of a build phase). */
+function currentCursorAnchor(ctx: TargetContext): {
+  row: number;
+  col: number;
+} {
+  return {
+    row: ctx.cursorPos?.row ?? ctx.castle.tower.row,
+    col: ctx.cursorPos?.col ?? ctx.castle.tower.col,
+  };
+}
+
 /** Synthesize interior plug-target gaps for a tower whose wall ring sits at
  *  the map boundary and has zero fillable gaps via the standard path. Returns
  *  grass cells INSIDE the rect adjacent to existing walls — placing walls
@@ -654,6 +606,37 @@ function findInteriorPlugTargets(
     }
   }
   return plugs;
+}
+
+/** Build the canonical (rect, gaps) tuple the AI uses to evaluate a candidate
+ *  tower: ideal castleRect → expanded around blockers → compute fillable gaps.
+ *  Single source for trySecondaryTower's cache short-circuit, its main score
+ *  loop, and collectAlternatives' diag mirror — keeping them aligned avoids
+ *  the "diag drifts from real path" hazard. */
+function evaluateTowerCandidate(
+  tower: Tower,
+  ctx: TargetContext,
+): { rect: TileRect; gaps: Set<TileKey> } {
+  const { state, player, castleMargin, bankHugging } = ctx;
+  const rect = expandRectAroundBlockers(
+    castleRect(
+      tower,
+      state.map.tiles,
+      state.map.towers,
+      castleMargin,
+      !bankHugging,
+    ),
+    state,
+    player,
+  );
+  const gaps = computeFillableGaps(
+    rect,
+    player.walls,
+    getInterior(player),
+    state,
+    bankHugging,
+  );
+  return { rect, gaps };
 }
 
 /** Expand a castle rect outward to route around temporary blockers (grunts,

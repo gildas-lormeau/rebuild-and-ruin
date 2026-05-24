@@ -23,6 +23,7 @@ import { hasCannonAt, hasTowerAt } from "../shared/core/occupancy-queries.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import type { FreshInterior } from "../shared/core/player-types.ts";
 import {
+  computeOutside,
   DIRS_4,
   DIRS_8,
   DIRS_DIAG,
@@ -48,6 +49,12 @@ interface MarginCtx {
 // Scoring weights for scoreBuildTowerTarget — tower ranking during build targeting.
 /** Weight given to wall-ring completion progress when ranking towers to build. */
 const TOWER_PROGRESS_WEIGHT = 100;
+/** Identify the real breach points in the player's wall ring by scanning
+ *  for short non-wall runs between paired walls — works regardless of
+ *  whether the ring is rectangular or stair-stepped, and catches holes
+ *  inside the bounding box that the perimeter-only findGapTiles can't see.
+ *  K_HOLE = max width of a closeable gap (1-tile, 2-tile, or 3-tile holes). */
+const HOLE_MAX_WIDTH = 3;
 /** Score penalty applied to dead towers — prefer live towers but still consider dead ones. */
 const DEAD_TOWER_PENALTY = 50;
 /** Max penalty for a fully obstructed castle rect (grunts, pits, enemy walls). */
@@ -359,6 +366,68 @@ export function castleRect(
     left: tower.col - growthLeft,
     right: tower.col + TOWER_SIZE - 1 + growthRight,
   };
+}
+
+/** Identify real breach points by scanning for short non-wall runs between
+ *  paired *ring* walls. A "ring wall" is a wall whose outer face touches the
+ *  exterior — i.e. has at least one 4-dir neighbor in computeOutside. The
+ *  ring-wall filter prevents the pair-scan from inventing pseudo-gaps
+ *  between newly-placed walls inside the enclosure as the AI fills holes. */
+export function findOuterRingHoles(
+  walls: ReadonlySet<TileKey>,
+  state: BuildViewState,
+  interior: ReadonlySet<TileKey>,
+): Set<TileKey> {
+  const outside = computeOutside(walls);
+  const isRingWall = (key: TileKey): boolean => {
+    const { row, col } = unpackTile(key);
+    for (const [dr, dc] of DIRS_4) {
+      const nr = row + dr;
+      const nc = col + dc;
+      if (!inBounds(nr, nc)) continue;
+      if (outside.has(packTile(nr, nc))) return true;
+    }
+    return false;
+  };
+  const holes = new Set<TileKey>();
+  for (const wallKey of walls) {
+    if (!isRingWall(wallKey)) continue;
+    const { row: wr, col: wc } = unpackTile(wallKey);
+    for (const [dr, dc] of DIRS_4) {
+      for (let step = 2; step <= HOLE_MAX_WIDTH + 1; step++) {
+        const nr = wr + dr * step;
+        const nc = wc + dc * step;
+        if (nr < 0 || nr >= GRID_ROWS || nc < 0 || nc >= GRID_COLS) break;
+        let allFillable = true;
+        for (let inner = 1; inner < step; inner++) {
+          const ir = wr + dr * inner;
+          const ic = wc + dc * inner;
+          if (walls.has(packTile(ir, ic))) {
+            allFillable = false;
+            break;
+          }
+          if (
+            !isGrass(state.map.tiles, ir, ic) ||
+            hasPitAt(state.burningPits, ir, ic) ||
+            hasAliveHouseAt(state, ir, ic) ||
+            interior.has(packTile(ir, ic))
+          ) {
+            allFillable = false;
+            break;
+          }
+        }
+        if (!allFillable) continue;
+        const farKey = packTile(nr, nc);
+        if (walls.has(farKey) && isRingWall(farKey)) {
+          for (let inner = 1; inner < step; inner++) {
+            holes.add(packTile(wr + dr * inner, wc + dc * inner));
+          }
+          break;
+        }
+      }
+    }
+  }
+  return holes;
 }
 
 /** Max margin a side can expand to before hitting water, map edge, or another
