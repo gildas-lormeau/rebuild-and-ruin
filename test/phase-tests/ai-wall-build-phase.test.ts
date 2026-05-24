@@ -8,6 +8,9 @@ import roundTwoWithEdgeGrunts from "./fixtures/wall-build/round2-with-edge-grunt
 import roundTwoWholeZoneWithHoles from "./fixtures/wall-build/round2-whole-zone-with-holes-castles.json" with {
   type: "json",
 };
+import roundTwoWholeZoneMoreHoles from "./fixtures/wall-build/round2-whole-zone-more-holes.json" with {
+  type: "json",
+};
 import { Phase } from "../../src/shared/core/game-phase.ts";
 import { packTile } from "../../src/shared/core/spatial.ts";
 import { createPhaseScenario } from "./loader.ts";
@@ -60,6 +63,55 @@ Deno.test("phase-test: 10 fixture-authored edge grunts move during WALL_BUILD", 
   // Sanity: at least one authored tile got vacated. Otherwise "0 stuck"
   // could mask a regression where authoring stops working.
   assertGreater(vacatedAuthoredTiles, 0, "no authored tile was vacated");
+});
+
+Deno.test("phase-test: AI repairs the outer ring with EXTRA holes (4 per player) — KNOWN FAILING", async () => {
+  // Variant of the whole-zone fixture with 4 additional perimeter holes per
+  // player ring (vs the original 1-2). Mirrors the post-demolition + minor
+  // battle damage scenario: the demolition upgrade strips inner walls (only
+  // outer shell remains) and battle then punches a handful of holes in that
+  // shell. With 3+ unowned-alive towers inside each player's interior, the
+  // AI's trySecondaryTower can be tempted to build "small castles inside the
+  // existing one" rather than repair the outer perimeter. This test asserts
+  // the same invariants as the basic 1-2-hole variant.
+  //
+  // KNOWN FAILING (2026-05-24): player interiors collapse to ~35 tiles when
+  // the AI retreats. Documents the gap so a future fix has a regression
+  // target — phase tests aren't in pre-commit (CLAUDE.md fast-test list),
+  // so this stays red without blocking commits until fixed.
+  const sc = await createPhaseScenario(
+    roundTwoWholeZoneMoreHoles as unknown as FixtureFile,
+  );
+
+  const wallsBefore = sc.state.players.map((player) => player.walls.size);
+  waitForPhase(sc, Phase.CANNON_PLACE, { timeoutMs: 60_000 });
+  assertEquals(sc.state.round, 3);
+
+  for (const player of sc.state.players) {
+    if (player.eliminated) continue;
+    const homeTower = player.homeTower;
+    if (!homeTower) {
+      throw new Error(`player ${player.id} should have a home tower`);
+    }
+    assert(
+      player.ownedTowers.includes(homeTower),
+      `player ${player.id} home tower should be re-enclosed after WALL_BUILD`,
+    );
+    assertGreater(
+      player.interior.size,
+      80,
+      `player ${player.id} interior=${player.interior.size} — AI retreated ` +
+        `to an inner castle instead of repairing the outer ring (+4 holes variant)`,
+    );
+    const before = wallsBefore[player.id]!;
+    const retained = player.walls.size / before;
+    assertGreater(
+      retained,
+      0.8,
+      `player ${player.id} retained ${player.walls.size}/${before} walls — ` +
+        `AI abandoned the outer ring and the sweep destroyed it (+4 holes variant)`,
+    );
+  }
 });
 
 Deno.test("phase-test: AI repairs the existing outer ring instead of retreating to an inner castle", async () => {
