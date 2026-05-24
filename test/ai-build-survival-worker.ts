@@ -31,6 +31,9 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
     if (result.findings.stalls.length > 0) {
       console.log(`Stalls (seed=${seed}):`);
       for (const stall of result.findings.stalls) console.log(`  ${stall}`);
+      if (result.findings.diagSummary) {
+        console.log(result.findings.diagSummary);
+      }
     }
     const response: WorkerResponse = { ok: true, result };
     self.postMessage(response);

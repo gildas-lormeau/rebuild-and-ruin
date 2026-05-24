@@ -33,6 +33,24 @@ export interface TrajectoryTick {
   path: "HOME" | "SEC" | "EXP" | "STRAT_RECT" | "STRAT_NONE";
   rectKey: string;
   gaps: number;
+  /** Piece-shape name from the target-selected event — drives flip-cause
+   *  derivation (piece-changed vs score-rerank). */
+  pieceShapeName: string;
+}
+
+/** Per-stall flip-cause record. A flip = a tick where the target rect
+ *  differs from the previous tick. Cause classification:
+ *  - phase-switch: prev OR current path was STRAT_NONE (no target either way)
+ *  - piece-changed: piece shape rolled in this tick triggered the re-decision
+ *  - score-rerank: same piece, different rect — proximity scoring re-ranked
+ *    towers (classic Mode #2 churn signal). */
+export type FlipCause = "piece-changed" | "score-rerank" | "phase-switch";
+
+export interface FlipEvent {
+  tick: number;
+  cause: FlipCause;
+  from: string;
+  to: string;
 }
 
 /** Per-round count of each gate decision inside selectTarget. The gate keys
@@ -94,6 +112,10 @@ export interface PlayerSummary {
 export interface SeedFindings {
   stalls: string[];
   perPlayer: PlayerSummary[];
+  /** One-line aggregate per seed for eyeball-diff between runs. Sums + medians
+   *  of the diagnostic signals across this seed's stalls. Empty when no
+   *  stalls — the aggregates are uninteresting for clean seeds. */
+  diagSummary: string;
 }
 
 export interface SeedResult {
@@ -209,6 +231,7 @@ async function runSeed(seed: number): Promise<Map<number, RoundRow[]>> {
           ? `${rect.top},${rect.left}-${rect.bottom},${rect.right}`
           : "",
         gaps: event.targetGaps.size,
+        pieceShapeName: event.currentPieceShapeName,
       });
       for (const reason of event.gateReasons) accumulateGateReason(row, reason);
       return;
@@ -357,6 +380,10 @@ function analyzeSeed(
     livesEnd: 0,
     activeRounds: 0,
   }));
+  // Per-stall aggregates for the seed-level diag summary line.
+  const gapHitPcts: number[] = [];
+  const pieceCovs: number[] = [];
+  let totalFlips = 0;
   for (let pid = 0; pid < 3; pid++) {
     for (const round of rounds) {
       const row = perRound.get(round)![pid]!;
@@ -378,6 +405,8 @@ function analyzeSeed(
         const pc = row.pathCounts;
         const gates = formatGateFireSummary(row.gateFires);
         const walls = formatPlacementSummary(row.placements);
+        const flips = deriveFlips(row.trajectory);
+        const flipStr = formatFlipSummary(flips);
         const cov = row.endOfBuild
           ? computeGeometricPieceCoverage(row.endOfBuild.finalGaps)
           : null;
@@ -386,12 +415,72 @@ function analyzeSeed(
             ? ` | end-gaps=${row.endOfBuild.finalGapCount} piece-cov ${cov.fittingShapeNames.length}/${cov.totalShapes} (${cov.fittingShapeNames.join(",") || "none"})`
             : "";
         stalls.push(
-          `seed=${seed} r${round} ${PLAYER_NAMES[pid]}: ${row.walls} walls placed, 0 enclosures fired, ${row.unownedAliveZoneTowers} alive unowned tower(s) available, lives=${row.livesAtRoundEnd} | paths H=${pc.HOME} S=${pc.SEC} E=${pc.EXP} SR=${pc.STRAT_RECT} SN=${pc.STRAT_NONE} → ${cls.kind} (${cls.detail}) | sub-mode ${sub.kind} (${sub.detail})\n  diag: walls ${walls} | gates ${gates}${covStr}`,
+          `seed=${seed} r${round} ${PLAYER_NAMES[pid]}: ${row.walls} walls placed, 0 enclosures fired, ${row.unownedAliveZoneTowers} alive unowned tower(s) available, lives=${row.livesAtRoundEnd} | paths H=${pc.HOME} S=${pc.SEC} E=${pc.EXP} SR=${pc.STRAT_RECT} SN=${pc.STRAT_NONE} → ${cls.kind} (${cls.detail}) | sub-mode ${sub.kind} (${sub.detail})\n  diag: walls ${walls} | gates ${gates} | flips ${flipStr}${covStr}`,
         );
+        // Aggregate per-stall metrics for the seed-level summary.
+        if (row.placements.length > 0) {
+          const hits = row.placements.filter((p) => p.hitTargetGap).length;
+          gapHitPcts.push(Math.round((100 * hits) / row.placements.length));
+        }
+        if (cov) pieceCovs.push(cov.fittingShapeNames.length);
+        totalFlips += flips.length;
       }
     }
   }
-  return { stalls, perPlayer };
+  const diagSummary =
+    stalls.length > 0
+      ? `DIAG seed=${seed}: ${stalls.length} stalls | gap-hit median ${median(gapHitPcts)}% | piece-cov median ${median(pieceCovs)}/${ALL_PIECE_SHAPES.length} | flips total ${totalFlips}`
+      : "";
+  return { stalls, perPlayer, diagSummary };
+}
+
+/** Sample median across an array. Empty array → 0 (the diagSummary line
+ *  only includes the median when stalls exist, so an empty array means the
+ *  caller didn't collect any samples). */
+function median(arr: readonly number[]): number {
+  if (arr.length === 0) return 0;
+  const sorted = [...arr].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 0
+    ? Math.round((sorted[mid - 1]! + sorted[mid]!) / 2)
+    : sorted[mid]!;
+}
+
+/** Derive the flip-event list from a trajectory. A flip is any tick whose
+ *  rectKey differs from the previous tick's. Cause classification follows
+ *  the priority order specified in the design: phase-switch (no target on
+ *  either side) → piece-changed (new bag piece this tick) → score-rerank
+ *  (same piece, different rect — Mode #2 churn). */
+function deriveFlips(traj: readonly TrajectoryTick[]): FlipEvent[] {
+  const flips: FlipEvent[] = [];
+  for (let i = 1; i < traj.length; i++) {
+    const prev = traj[i - 1]!;
+    const cur = traj[i]!;
+    if (prev.rectKey === cur.rectKey) continue;
+    let cause: FlipCause;
+    if (prev.path === "STRAT_NONE" || cur.path === "STRAT_NONE") {
+      cause = "phase-switch";
+    } else if (prev.pieceShapeName !== cur.pieceShapeName) {
+      cause = "piece-changed";
+    } else {
+      cause = "score-rerank";
+    }
+    flips.push({ tick: i, cause, from: prev.rectKey, to: cur.rectKey });
+  }
+  return flips;
+}
+
+function formatFlipSummary(flips: readonly FlipEvent[]): string {
+  if (flips.length === 0) return "no-flips";
+  let piece = 0;
+  let rerank = 0;
+  let phase = 0;
+  for (const flip of flips) {
+    if (flip.cause === "piece-changed") piece++;
+    else if (flip.cause === "score-rerank") rerank++;
+    else phase++;
+  }
+  return `${flips.length} (piece=${piece} rerank=${rerank} phase=${phase})`;
 }
 
 /** Coverage = how many of the 13 distinct piece shapes have at least one
