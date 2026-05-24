@@ -1,7 +1,9 @@
 /**
  * AI build-phase diagnostic hook — test-only instrumentation surface.
- * See docs/superpowers/specs/2026-05-24-ai-build-phase-diagnostics-design.md
- * for the three diagnostic angles and the production-cost contract.
+ * Two event kinds: `target-selected` (path + rect + bag-fit lookahead) and
+ * `wall-placed` (per-placement gap-hit/adj/iso classification + on-ring
+ * perimeter count). The hook is installed by the survival-suite runner and
+ * by single-stall trace scripts; production callers pay one branch.
  */
 
 import type { TileRect, TowerIdx } from "../shared/core/geometry-types.ts";
@@ -15,42 +17,6 @@ export type SelectTargetPath =
   | "STRAT_RECT"
   | "STRAT_NONE";
 
-/** Per-tick record of which gates fired inside the selectTarget pipeline.
- *  Sub-helpers push to an optional accumulator threaded through; selectTarget
- *  attaches the accumulated list to the target-selected event. Runner groups
- *  these into GateFireCounts to surface which architectural lever is binding
- *  for each stall sub-mode. */
-export type GateReason =
-  | { gate: "canPieceFillAnyGap"; passed: boolean; site: "home" | "expand" }
-  | {
-      gate: "canFillAfterPlugging";
-      passed: boolean;
-      site: "home" | "sec" | "expand";
-      towerIdx?: TowerIdx;
-    }
-  | {
-      gate: "manageableGapLimitBypass";
-      site: "sec";
-      gapCount: number;
-      towerIdx: TowerIdx;
-    }
-  | {
-      gate: "effectiveSkipHome";
-      reason: "home-dead" | "home-enclosed" | "home-gap-overflow";
-    }
-  | {
-      gate: "strategicFallbackInvoked";
-      resultPath: "STRAT_RECT" | "STRAT_NONE";
-      /** Which tower the fallback chose. `"home"` when fallback returned the
-       *  home castle rect; `TowerIdx` when it returned a secondary; `null`
-       *  when `resultPath === "STRAT_NONE"` (no target at all). Used by the
-       *  runner to distinguish "fallback locked on home" (Mode #6 canonical)
-       *  from "fallback chose a different secondary than the cache" — both
-       *  show up as LOCK STRAT_RECT in the path-mix but have distinct fix
-       *  shapes. */
-      chosenTowerIdx: TowerIdx | "home" | null;
-    };
-
 type AiBuildDiagEvent =
   | {
       kind: "target-selected";
@@ -60,15 +26,6 @@ type AiBuildDiagEvent =
       targetRect: TileRect | null;
       targetGaps: ReadonlySet<TileKey>;
       chosenTowerIndex: TowerIdx | undefined;
-      gateReasons: readonly GateReason[];
-      /** True iff at least one GateReason with a `passed` discriminator
-       *  evaluated `passed: true` this tick. Distinguishes "AI found a
-       *  target via the strict gate machinery" from "AI fell to fallback
-       *  or used a bypass." Cheaper for the runner than re-scanning
-       *  `gateReasons` per tick. Strict semantic: `manageableGapLimitBypass`
-       *  (no `passed` field) is NOT counted — it represents the Mode #8
-       *  amplifier path, distinct from a clean gate-pass. */
-      anyGatePassed: boolean;
       /** PieceShape.name for each of the next N pieces in the AI's bag
        *  queue (excluding the current piece). Read-only peek — never
        *  triggers a bag refill (would advance state.rng and break
@@ -97,13 +54,6 @@ type AiBuildDiagEvent =
        *  — the existing gap/adj/iso classification conflates them. */
       cellsOnRingPerimeter: number;
       pieceShapeName: string;
-    }
-  | {
-      kind: "build-phase-end";
-      playerId: ValidPlayerId;
-      round: number;
-      finalRect: TileRect | null;
-      finalGaps: ReadonlySet<TileKey>;
     };
 
 export type AiBuildDiagHook = (event: AiBuildDiagEvent) => void;
@@ -114,30 +64,11 @@ export function setAiBuildDiagHook(hook: AiBuildDiagHook | undefined): void {
   diagHook = hook;
 }
 
-/** Returns whether a diag hook is installed. Callers gate accumulator-array
- *  allocation behind this to avoid production cost when nobody listens. */
+/** Returns whether a diag hook is installed. Callers gate diag-only
+ *  computations (e.g. upcoming-piece-fit peek) behind this to avoid
+ *  production cost when nobody listens. */
 export function isAiBuildDiagHookActive(): boolean {
   return diagHook !== undefined;
-}
-
-/** Emit a build-phase-end event. Carries the AI's last computed target
- *  (rect + gap set) so the runner can run piece-shape coverage analysis
- *  against the un-closed gaps at end of phase. Fires once per player per
- *  WALL_BUILD phase from assessBuildEnd. */
-export function emitBuildPhaseEndDiag(
-  playerId: ValidPlayerId,
-  round: number,
-  finalRect: TileRect | null,
-  finalGaps: ReadonlySet<TileKey>,
-): void {
-  if (!diagHook) return;
-  diagHook({
-    kind: "build-phase-end",
-    playerId,
-    round,
-    finalRect,
-    finalGaps,
-  });
 }
 
 /** Emit a wall-placed event. The event carries the active targetGaps +
@@ -177,8 +108,6 @@ export function emitTargetSelectedDiag(
   targetRect: TileRect | null,
   targetGaps: ReadonlySet<TileKey>,
   chosenTowerIndex: TowerIdx | undefined,
-  gateReasons: readonly GateReason[],
-  anyGatePassed: boolean,
   upcomingPieces: readonly string[],
   upcomingPieceFitsTarget: readonly boolean[],
   pieceShapeName: string,
@@ -192,8 +121,6 @@ export function emitTargetSelectedDiag(
     targetRect,
     targetGaps,
     chosenTowerIndex,
-    gateReasons,
-    anyGatePassed,
     upcomingPieces,
     upcomingPieceFitsTarget,
     currentPieceShapeName: pieceShapeName,

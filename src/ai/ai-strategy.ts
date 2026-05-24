@@ -11,7 +11,6 @@ import type {
   GameMap,
   PixelPos,
   TilePos,
-  TileRect,
   Tower,
   TowerIdx,
 } from "../shared/core/geometry-types.ts";
@@ -27,7 +26,6 @@ import type {
 } from "../shared/core/system-interfaces.ts";
 import type { ZoneId } from "../shared/core/zone-id.ts";
 import { Rng } from "../shared/platform/rng.ts";
-import { emitBuildPhaseEndDiag } from "./ai-build-diag.ts";
 import type { AiPlacement } from "./ai-build-types.ts";
 import { CHAIN, type ChainType } from "./ai-chain.ts";
 import { planCharitySweep } from "./ai-plan-charity-sweep.ts";
@@ -103,11 +101,6 @@ export class DefaultStrategy implements AiStrategy {
    *  piece-feasible — eliminating per-tick churn (Mode #2). Cleared in
    *  assessBuildEnd so each build phase starts fresh. */
   private _lastTargetTowerIndex: TowerIdx | undefined = undefined;
-  /** Last (targetGaps, targetRect) computed by pickPlacement this build phase.
-   *  Empty until the first tick; assessBuildEnd reads them to fire the
-   *  build-phase-end diag event (piece-shape coverage analysis input). */
-  private _lastTargetGaps: ReadonlySet<TileKey> = new Set();
-  private _lastTargetRect: TileRect | undefined = undefined;
 
   /** Seeded PRNG — log rng.seed to reproduce this AI's behavior. */
   readonly rng: Rng;
@@ -185,8 +178,6 @@ export class DefaultStrategy implements AiStrategy {
       lastTargetTowerIndex: this._lastTargetTowerIndex,
     });
     this._lastTargetTowerIndex = result.chosenTowerIndex;
-    this._lastTargetGaps = result.targetGaps;
-    this._lastTargetRect = result.targetRect ?? undefined;
     return result.placement;
   }
 
@@ -215,16 +206,8 @@ export class DefaultStrategy implements AiStrategy {
     this._homeWasBroken =
       player.homeTower !== null &&
       !player.ownedTowers.includes(player.homeTower);
-    emitBuildPhaseEndDiag(
-      playerId,
-      state.round,
-      this._lastTargetRect ?? null,
-      this._lastTargetGaps,
-    );
     this._outerRingHolesSnapshot = undefined;
     this._lastTargetTowerIndex = undefined;
-    this._lastTargetGaps = new Set();
-    this._lastTargetRect = undefined;
   }
 
   // -----------------------------------------------------------------------
