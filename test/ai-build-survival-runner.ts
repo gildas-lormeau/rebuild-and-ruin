@@ -19,6 +19,16 @@ export interface PathCounts {
   STRAT_NONE: number;
 }
 
+/** One selectTarget call captured from the per-player trajectory: which path
+ *  fired, which rect was returned (key is a compact "t,l-b,r" string), and
+ *  how many gaps the result asked the AI to close. Used post-round to
+ *  classify the stall sub-mode (PLATEAU / SWITCH / PROGRESS / etc.). */
+export interface TrajectoryTick {
+  path: "HOME" | "SEC" | "EXP" | "STRAT_RECT" | "STRAT_NONE";
+  rectKey: string;
+  gaps: number;
+}
+
 export interface RoundRow {
   walls: number;
   enclosures: number;
@@ -26,6 +36,7 @@ export interface RoundRow {
   lostLifeThisRound: boolean;
   livesAtRoundEnd: number;
   pathCounts: PathCounts;
+  trajectory: TrajectoryTick[];
 }
 
 export interface PlayerSummary {
@@ -122,6 +133,7 @@ async function runSeed(seed: number): Promise<Map<number, RoundRow[]>> {
           lostLifeThisRound: false,
           livesAtRoundEnd: 0,
           pathCounts: { HOME: 0, SEC: 0, EXP: 0, STRAT_RECT: 0, STRAT_NONE: 0 },
+          trajectory: [],
         }),
       );
       perRound.set(round, row);
@@ -129,8 +141,17 @@ async function runSeed(seed: number): Promise<Map<number, RoundRow[]>> {
     return row;
   };
 
-  setSelectTargetPathHook((playerId, round, path) => {
-    getRow(round)[playerId]!.pathCounts[path]++;
+  setSelectTargetPathHook((playerId, round, path, result) => {
+    const row = getRow(round)[playerId]!;
+    row.pathCounts[path]++;
+    const rect = result?.targetRect;
+    row.trajectory.push({
+      path,
+      rectKey: rect
+        ? `${rect.top},${rect.left}-${rect.bottom},${rect.right}`
+        : "",
+      gaps: result?.targetGaps?.size ?? 0,
+    });
   });
 
   sc.bus.on(GAME_EVENT.WALL_PLACED, (ev) => {
@@ -219,14 +240,102 @@ function analyzeSeed(
         row.livesAtRoundEnd > 0
       ) {
         const cls = classifyStall(row.pathCounts);
+        const sub = classifySubMode(row.trajectory);
         const pc = row.pathCounts;
         stalls.push(
-          `seed=${seed} r${round} ${PLAYER_NAMES[pid]}: ${row.walls} walls placed, 0 enclosures fired, ${row.unownedAliveZoneTowers} alive unowned tower(s) available, lives=${row.livesAtRoundEnd} | paths H=${pc.HOME} S=${pc.SEC} E=${pc.EXP} SR=${pc.STRAT_RECT} SN=${pc.STRAT_NONE} → ${cls.kind} (${cls.detail})`,
+          `seed=${seed} r${round} ${PLAYER_NAMES[pid]}: ${row.walls} walls placed, 0 enclosures fired, ${row.unownedAliveZoneTowers} alive unowned tower(s) available, lives=${row.livesAtRoundEnd} | paths H=${pc.HOME} S=${pc.SEC} E=${pc.EXP} SR=${pc.STRAT_RECT} SN=${pc.STRAT_NONE} → ${cls.kind} (${cls.detail}) | sub-mode ${sub.kind} (${sub.detail})`,
         );
       }
     }
   }
   return { stalls, perPlayer };
+}
+
+/** Classify a stall round by its gap-trajectory shape — distinct from
+ *  `classifyStall` which only looks at the path-mix histogram. The trajectory
+ *  view exposes plateaus (rect picked tick after tick with no gap drop) vs
+ *  near-misses (a rect dropped to ≤5 gaps then got abandoned) vs progress
+ *  timeouts. The labels are deliberately granular so a fix attempt's effect
+ *  on each sub-mode is visible in the suite diff. Thresholds picked by
+ *  inspecting 12 manually-traced stalls (see project_ai_build_stall_-
+ *  investigation memory); raise them if the suite starts under-classifying. */
+function classifySubMode(traj: readonly TrajectoryTick[]): {
+  kind:
+    | "PLATEAU"
+    | "LATE_PLATEAU"
+    | "MID_PLATEAU"
+    | "NEAR_MISS"
+    | "PROGRESS"
+    | "SWITCH"
+    | "OTHER"
+    | "NO_DATA";
+  detail: string;
+} {
+  if (traj.length === 0) return { kind: "NO_DATA", detail: "" };
+  let longestStuck = 0;
+  let endStuck = 0;
+  for (let i = 1; i < traj.length; i++) {
+    const sameRect = traj[i]!.rectKey === traj[i - 1]!.rectKey;
+    const gapDropped = traj[i]!.gaps < traj[i - 1]!.gaps;
+    if (sameRect && !gapDropped) {
+      endStuck++;
+      if (endStuck > longestStuck) longestStuck = endStuck;
+    } else {
+      endStuck = 0;
+    }
+  }
+  // Per-rect gap range — sum of (max-min) across rects gives "total closing
+  // work done", deduplicated across re-visits to the same rect.
+  const rectGaps = new Map<string, { min: number; max: number }>();
+  for (const tick of traj) {
+    const cur = rectGaps.get(tick.rectKey);
+    if (!cur) rectGaps.set(tick.rectKey, { min: tick.gaps, max: tick.gaps });
+    else {
+      if (tick.gaps < cur.min) cur.min = tick.gaps;
+      if (tick.gaps > cur.max) cur.max = tick.gaps;
+    }
+  }
+  let totalProgress = 0;
+  for (const v of rectGaps.values()) totalProgress += v.max - v.min;
+  const endRect = traj[traj.length - 1]!.rectKey;
+  const endGap = traj[traj.length - 1]!.gaps;
+  const ticks = traj.length;
+
+  if (endStuck >= 8) {
+    if (totalProgress >= 5)
+      return {
+        kind: "LATE_PLATEAU",
+        detail: `${endStuck}t@${endGap}g, prior ${totalProgress}g drop`,
+      };
+    return { kind: "PLATEAU", detail: `${endStuck}t@${endGap}g` };
+  }
+  if (longestStuck >= 8)
+    return { kind: "MID_PLATEAU", detail: `${longestStuck}t stuck mid-round` };
+  // Near-miss abandonment: some rect reached ≤5 gaps but is not the current
+  // rect — AI walked away from a nearly-closed ring. Surface the abandoned
+  // gap count so the seed is easy to find in subsequent investigations.
+  for (const [rectKey, gaps] of rectGaps) {
+    if (rectKey !== endRect && gaps.min <= 5) {
+      return {
+        kind: "NEAR_MISS",
+        detail: `abandoned rect at ${gaps.min}g, now on ${endRect || "?"}@${endGap}g`,
+      };
+    }
+  }
+  if (totalProgress >= 10 && longestStuck < 5)
+    return {
+      kind: "PROGRESS",
+      detail: `${totalProgress}g closed over ${ticks}t (timeout)`,
+    };
+  if (rectGaps.size >= 2)
+    return {
+      kind: "SWITCH",
+      detail: `${rectGaps.size} rects, ${totalProgress}g progress`,
+    };
+  return {
+    kind: "OTHER",
+    detail: `${ticks}t, ${totalProgress}g, stuck=${longestStuck}`,
+  };
 }
 
 /** Classify a stall round by its selectTarget path-mix:
