@@ -86,6 +86,32 @@ export function isAiBuildDiagHookActive(): boolean {
   return diagHook !== undefined;
 }
 
+/** Emit a wall-placed event. The event carries the active targetGaps +
+ *  targetRect at the moment the AI chose this placement, so the runner can
+ *  classify the placement as gap-hit / wall-adjacent / isolated. Bus
+ *  WALL_PLACED already fires for every placement but doesn't carry AI-internal
+ *  context — that distinction lets the bus stay observation-only per
+ *  feedback_bus_observation_only. */
+export function emitWallPlacedDiag(
+  playerId: ValidPlayerId,
+  round: number,
+  cells: readonly TileKey[],
+  targetGaps: ReadonlySet<TileKey>,
+  targetRect: TileRect | null,
+  pieceShapeName: string,
+): void {
+  if (!diagHook) return;
+  diagHook({
+    kind: "wall-placed",
+    playerId,
+    round,
+    cells,
+    targetGaps,
+    targetRect,
+    pieceShapeName,
+  });
+}
+
 /** Emit a target-selected event. Constructs the event object only when a
  *  hook is installed — production callers pay one branch and no allocation. */
 export function emitTargetSelectedDiag(

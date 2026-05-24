@@ -34,6 +34,7 @@ import {
   unpackTile,
 } from "../shared/core/spatial.ts";
 import type { BuildViewState } from "../shared/core/system-interfaces.ts";
+import { emitWallPlacedDiag } from "./ai-build-diag.ts";
 import {
   candidateObstacleHits,
   candidateToPlacement,
@@ -287,6 +288,18 @@ export function pickPlacement(
     hasManageableGaps:
       targetGaps.size > 0 && targetGaps.size <= MANAGEABLE_GAP_LIMIT,
   });
+  if (placement !== null) {
+    emitWallPlacedDiag(
+      playerId,
+      state.round,
+      placement.piece.offsets.map(([dr, dc]) =>
+        packTile(placement.row + dr, placement.col + dc),
+      ),
+      targetGaps,
+      targetRect,
+      placement.piece.name,
+    );
+  }
   return { placement, chosenTowerIndex };
 }
 

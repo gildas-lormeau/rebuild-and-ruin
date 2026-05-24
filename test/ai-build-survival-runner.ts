@@ -8,6 +8,8 @@
 import { createScenario, waitForEvent } from "./scenario.ts";
 import { Phase } from "../src/shared/core/game-phase.ts";
 import { GAME_EVENT } from "../src/shared/core/game-event-bus.ts";
+import { GRID_COLS, GRID_ROWS, type TileKey } from "../src/shared/core/grid.ts";
+import { DIRS_4, packTile, unpackTile } from "../src/shared/core/spatial.ts";
 import {
   type GateReason,
   setAiBuildDiagHook,
@@ -46,6 +48,21 @@ export interface GateFireCounts {
   strategicFallback_none: number;
 }
 
+/** Per-placement record sampled from the wall-placed diag event. cellsInGap
+ *  + adjToExistingWall + isolated split the placement into three buckets that
+ *  shouldn't overlap when summed correctly: a placement either contributes to
+ *  a target gap, sits next to an existing wall, or scatters (none of the
+ *  above). Used in the per-stall continuation line to surface the
+ *  "where do fallback walls actually go?" diagnostic. */
+export interface PlacementRecord {
+  cellCount: number;
+  hitTargetGap: boolean;
+  cellsInGap: number;
+  adjToExistingWall: boolean;
+  isolated: boolean;
+  pieceShapeName: string;
+}
+
 export interface RoundRow {
   walls: number;
   enclosures: number;
@@ -55,6 +72,7 @@ export interface RoundRow {
   pathCounts: PathCounts;
   trajectory: TrajectoryTick[];
   gateFires: GateFireCounts;
+  placements: PlacementRecord[];
 }
 
 export interface PlayerSummary {
@@ -161,6 +179,7 @@ async function runSeed(seed: number): Promise<Map<number, RoundRow[]>> {
             strategicFallback_rect: 0,
             strategicFallback_none: 0,
           },
+          placements: [],
         }),
       );
       perRound.set(round, row);
@@ -169,18 +188,28 @@ async function runSeed(seed: number): Promise<Map<number, RoundRow[]>> {
   };
 
   setAiBuildDiagHook((event) => {
-    if (event.kind !== "target-selected") return;
-    const row = getRow(event.round)[event.playerId]!;
-    row.pathCounts[event.path]++;
-    const rect = event.targetRect;
-    row.trajectory.push({
-      path: event.path,
-      rectKey: rect
-        ? `${rect.top},${rect.left}-${rect.bottom},${rect.right}`
-        : "",
-      gaps: event.targetGaps.size,
-    });
-    for (const reason of event.gateReasons) accumulateGateReason(row, reason);
+    if (event.kind === "target-selected") {
+      const row = getRow(event.round)[event.playerId]!;
+      row.pathCounts[event.path]++;
+      const rect = event.targetRect;
+      row.trajectory.push({
+        path: event.path,
+        rectKey: rect
+          ? `${rect.top},${rect.left}-${rect.bottom},${rect.right}`
+          : "",
+        gaps: event.targetGaps.size,
+      });
+      for (const reason of event.gateReasons) accumulateGateReason(row, reason);
+      return;
+    }
+    if (event.kind === "wall-placed") {
+      const row = getRow(event.round)[event.playerId]!;
+      const walls = sc.state.players[event.playerId]?.walls ?? new Set();
+      row.placements.push(
+        classifyPlacement(event.cells, event.targetGaps, walls, event.pieceShapeName),
+      );
+      return;
+    }
   });
 
   sc.bus.on(GAME_EVENT.WALL_PLACED, (ev) => {
@@ -241,6 +270,42 @@ async function runSeed(seed: number): Promise<Map<number, RoundRow[]>> {
   return perRound;
 }
 
+/** Classify an AI placement against the active targetGaps + existing walls.
+ *  hitTargetGap + adjToExistingWall together expose the "where do fallback
+ *  walls actually go?" diagnostic — a high isolated% on NEAR_MISS stalls
+ *  would point at scatter, while high adj-wall% with low gap-hit% would
+ *  point at scoring chasing existing walls without closing the ring. */
+function classifyPlacement(
+  cells: readonly TileKey[],
+  targetGaps: ReadonlySet<TileKey>,
+  walls: ReadonlySet<TileKey>,
+  pieceShapeName: string,
+): PlacementRecord {
+  let cellsInGap = 0;
+  let adjToExistingWall = false;
+  let adjToTargetGap = false;
+  for (const cell of cells) {
+    if (targetGaps.has(cell)) cellsInGap++;
+    const { row, col } = unpackTile(cell);
+    for (const [dr, dc] of DIRS_4) {
+      const nr = row + dr;
+      const nc = col + dc;
+      if (nr < 0 || nr >= GRID_ROWS || nc < 0 || nc >= GRID_COLS) continue;
+      const nkey = packTile(nr, nc);
+      if (walls.has(nkey)) adjToExistingWall = true;
+      if (targetGaps.has(nkey)) adjToTargetGap = true;
+    }
+  }
+  return {
+    cellCount: cells.length,
+    hitTargetGap: cellsInGap > 0,
+    cellsInGap,
+    adjToExistingWall,
+    isolated: !adjToExistingWall && !adjToTargetGap && cellsInGap === 0,
+    pieceShapeName,
+  };
+}
+
 /** Increment the matching GateFireCounts bucket for a GateReason. The reason
  *  union is wider than the bucket set (we collapse home/sec/expand sites into
  *  shared counters and ignore strategicFallbackInvoked since it's redundant
@@ -293,13 +358,34 @@ function analyzeSeed(
         const sub = classifySubMode(row.trajectory);
         const pc = row.pathCounts;
         const gates = formatGateFireSummary(row.gateFires);
+        const walls = formatPlacementSummary(row.placements);
         stalls.push(
-          `seed=${seed} r${round} ${PLAYER_NAMES[pid]}: ${row.walls} walls placed, 0 enclosures fired, ${row.unownedAliveZoneTowers} alive unowned tower(s) available, lives=${row.livesAtRoundEnd} | paths H=${pc.HOME} S=${pc.SEC} E=${pc.EXP} SR=${pc.STRAT_RECT} SN=${pc.STRAT_NONE} → ${cls.kind} (${cls.detail}) | sub-mode ${sub.kind} (${sub.detail})\n  diag: gates ${gates}`,
+          `seed=${seed} r${round} ${PLAYER_NAMES[pid]}: ${row.walls} walls placed, 0 enclosures fired, ${row.unownedAliveZoneTowers} alive unowned tower(s) available, lives=${row.livesAtRoundEnd} | paths H=${pc.HOME} S=${pc.SEC} E=${pc.EXP} SR=${pc.STRAT_RECT} SN=${pc.STRAT_NONE} → ${cls.kind} (${cls.detail}) | sub-mode ${sub.kind} (${sub.detail})\n  diag: walls ${walls} | gates ${gates}`,
         );
       }
     }
   }
   return { stalls, perPlayer };
+}
+
+/** Wall-placement distribution as a "X%/Y%/Z% (gap/adj/iso)" string. Sums
+ *  may exceed 100% because a single placement can both hit a gap AND be
+ *  adjacent to a wall — buckets are NOT mutually exclusive. The isolated
+ *  bucket IS exclusive (gap-hit=0 AND adj=0 AND no gap-neighbor). */
+function formatPlacementSummary(records: readonly PlacementRecord[]): string {
+  if (records.length === 0) return "no-placements";
+  const n = records.length;
+  let hitGap = 0;
+  let adjWall = 0;
+  let isolated = 0;
+  for (const record of records) {
+    if (record.hitTargetGap) hitGap++;
+    if (record.adjToExistingWall) adjWall++;
+    if (record.isolated) isolated++;
+  }
+  const pct = (count: number): string =>
+    `${Math.round((100 * count) / n)}%`;
+  return `${pct(hitGap)}/${pct(adjWall)}/${pct(isolated)} (gap/adj/iso, n=${n})`;
 }
 
 function formatGateFireSummary(fires: GateFireCounts): string {

@@ -614,3 +614,34 @@ Deno.test(
     );
   },
 );
+
+Deno.test("scenario: ai-build-diag wall-placed hook fires", async () => {
+  // Smoke test for commit 3 of the build-phase diagnostic instrumentation.
+  // Confirms the wall-placed event reaches a subscribed handler with non-empty
+  // cells + a piece-shape name during a real build phase. Doesn't assert
+  // gap-hit rates or counts — those vary per seed; this is a wiring check.
+  const { setAiBuildDiagHook } = await import("../src/ai/ai-build-diag.ts");
+  // Need rounds ≥ 2 so the second round's WALL_BUILD enters; default is 3.
+  const sc = await createScenario({ seed: 42, rounds: 3 });
+  let wallPlaced = 0;
+  let cellsSeen = 0;
+  let sawPieceName = false;
+  setAiBuildDiagHook((event) => {
+    if (event.kind !== "wall-placed") return;
+    wallPlaced++;
+    cellsSeen += event.cells.length;
+    if (event.pieceShapeName.length > 0) sawPieceName = true;
+  });
+  try {
+    // First WALL_BUILD fires at end of round 1 (after the auto-castle +
+    // cannon-place + battle); skip past it to CANNON_PLACE of round 2 to
+    // be sure we observed the entire phase's AI placements.
+    waitForPhase(sc, Phase.WALL_BUILD);
+    waitForPhase(sc, Phase.CANNON_PLACE);
+  } finally {
+    setAiBuildDiagHook(undefined);
+  }
+  assertGreater(wallPlaced, 0, "wall-placed events should fire during build");
+  assertGreater(cellsSeen, 0, "wall-placed events should carry cell tiles");
+  assert(sawPieceName, "wall-placed events should carry piece shape name");
+});
