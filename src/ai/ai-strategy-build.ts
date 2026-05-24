@@ -309,6 +309,25 @@ export function pickPlacement(
       targetGaps.size > 0 && targetGaps.size <= MANAGEABLE_GAP_LIMIT,
   });
   if (placement !== null) {
+    let cellsOnRingPerimeter = 0;
+    if (targetRect !== null) {
+      const ringTop = targetRect.top - 1;
+      const ringBottom = targetRect.bottom + 1;
+      const ringLeft = targetRect.left - 1;
+      const ringRight = targetRect.right + 1;
+      for (const [dr, dc] of placement.piece.offsets) {
+        const r = placement.row + dr;
+        const c = placement.col + dc;
+        const inRingBox =
+          r >= ringTop && r <= ringBottom && c >= ringLeft && c <= ringRight;
+        const onRingEdge =
+          r === ringTop ||
+          r === ringBottom ||
+          c === ringLeft ||
+          c === ringRight;
+        if (inRingBox && onRingEdge) cellsOnRingPerimeter++;
+      }
+    }
     emitWallPlacedDiag(
       playerId,
       state.round,
@@ -317,6 +336,7 @@ export function pickPlacement(
       ),
       targetGaps,
       targetRect,
+      cellsOnRingPerimeter,
       placement.piece.name,
     );
   }

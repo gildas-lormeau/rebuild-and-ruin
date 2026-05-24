@@ -79,6 +79,11 @@ export interface PlacementRecord {
   cellsInGap: number;
   adjToExistingWall: boolean;
   isolated: boolean;
+  /** True if at least one placement cell lay on the target rect's wall-ring
+   *  perimeter. Distinguishes "wall extends the committed ring" from
+   *  "wall lands wall-adjacent elsewhere on the player's wall set" — the
+   *  existing adjToExistingWall conflates them. */
+  onRingPerimeter: boolean;
   pieceShapeName: string;
 }
 
@@ -99,6 +104,19 @@ export interface RoundRow {
   pathCounts: PathCounts;
   trajectory: TrajectoryTick[];
   gateFires: GateFireCounts;
+  /** Count of ticks where no GateReason with a `passed` field evaluated true.
+   *  Distinct from `gateFires.canFillAfterPlugging_failed` (which counts each
+   *  inner-loop callsite invocation): one increment per `selectTarget` call,
+   *  regardless of how many towers were iterated. The denominator-aware view
+   *  of "did the AI find a target via the strict gate machinery this tick?". */
+  ticksWithNoGatePass: number;
+  /** Which tower the strategicFallbackInvoked path chose, when it fired.
+   *  Distinguishes "fallback chose home" (Mode #6 canonical) from "fallback
+   *  chose a secondary different from the cached tower" — both surface as
+   *  LOCK STRAT_RECT in the path-mix histogram but have distinct fix shapes.
+   *  Keys: `"home"`, `"none"` (STRAT_NONE), or a `TowerIdx` rendered as
+   *  `"tower-N"`. */
+  fallbackTowerHits: Map<string, number>;
   placements: PlacementRecord[];
   endOfBuild: EndOfBuildState | null;
 }
@@ -211,6 +229,8 @@ async function runSeed(seed: number): Promise<Map<number, RoundRow[]>> {
             strategicFallback_rect: 0,
             strategicFallback_none: 0,
           },
+          ticksWithNoGatePass: 0,
+          fallbackTowerHits: new Map(),
           placements: [],
           endOfBuild: null,
         }),
@@ -233,6 +253,7 @@ async function runSeed(seed: number): Promise<Map<number, RoundRow[]>> {
         gaps: event.targetGaps.size,
         pieceShapeName: event.currentPieceShapeName,
       });
+      if (!event.anyGatePassed) row.ticksWithNoGatePass++;
       for (const reason of event.gateReasons) accumulateGateReason(row, reason);
       return;
     }
@@ -240,7 +261,13 @@ async function runSeed(seed: number): Promise<Map<number, RoundRow[]>> {
       const row = getRow(event.round)[event.playerId]!;
       const walls = sc.state.players[event.playerId]?.walls ?? new Set();
       row.placements.push(
-        classifyPlacement(event.cells, event.targetGaps, walls, event.pieceShapeName),
+        classifyPlacement(
+          event.cells,
+          event.targetGaps,
+          walls,
+          event.cellsOnRingPerimeter,
+          event.pieceShapeName,
+        ),
       );
       return;
     }
@@ -321,6 +348,7 @@ function classifyPlacement(
   cells: readonly TileKey[],
   targetGaps: ReadonlySet<TileKey>,
   walls: ReadonlySet<TileKey>,
+  cellsOnRingPerimeter: number,
   pieceShapeName: string,
 ): PlacementRecord {
   let cellsInGap = 0;
@@ -344,6 +372,7 @@ function classifyPlacement(
     cellsInGap,
     adjToExistingWall,
     isolated: !adjToExistingWall && !adjToTargetGap && cellsInGap === 0,
+    onRingPerimeter: cellsOnRingPerimeter > 0,
     pieceShapeName,
   };
 }
@@ -366,6 +395,16 @@ function accumulateGateReason(row: RoundRow, reason: GateReason): void {
   } else if (reason.gate === "strategicFallbackInvoked") {
     if (reason.resultPath === "STRAT_RECT") fires.strategicFallback_rect++;
     else fires.strategicFallback_none++;
+    const key =
+      reason.chosenTowerIdx === "home"
+        ? "home"
+        : reason.chosenTowerIdx === null
+          ? "none"
+          : `t${reason.chosenTowerIdx}`;
+    row.fallbackTowerHits.set(
+      key,
+      (row.fallbackTowerHits.get(key) ?? 0) + 1,
+    );
   }
 }
 
@@ -383,6 +422,7 @@ function analyzeSeed(
   // Per-stall aggregates for the seed-level diag summary line.
   const gapHitPcts: number[] = [];
   const pieceCovs: number[] = [];
+  const noGateTickCounts: number[] = [];
   let totalFlips = 0;
   for (let pid = 0; pid < 3; pid++) {
     for (const round of rounds) {
@@ -414,8 +454,11 @@ function analyzeSeed(
           cov && row.endOfBuild
             ? ` | end-gaps=${row.endOfBuild.finalGapCount} piece-cov ${cov.fittingShapeNames.length}/${cov.totalShapes} (${cov.fittingShapeNames.join(",") || "none"})`
             : "";
+        const totalTicks = row.trajectory.length;
+        const noGateStr = `no-gate-ticks=${row.ticksWithNoGatePass}/${totalTicks}`;
+        const fbStr = formatFallbackTowerSummary(row.fallbackTowerHits);
         stalls.push(
-          `seed=${seed} r${round} ${PLAYER_NAMES[pid]}: ${row.walls} walls placed, 0 enclosures fired, ${row.unownedAliveZoneTowers} alive unowned tower(s) available, lives=${row.livesAtRoundEnd} | paths H=${pc.HOME} S=${pc.SEC} E=${pc.EXP} SR=${pc.STRAT_RECT} SN=${pc.STRAT_NONE} → ${cls.kind} (${cls.detail}) | sub-mode ${sub.kind} (${sub.detail})\n  diag: walls ${walls} | gates ${gates} | flips ${flipStr}${covStr}`,
+          `seed=${seed} r${round} ${PLAYER_NAMES[pid]}: ${row.walls} walls placed, 0 enclosures fired, ${row.unownedAliveZoneTowers} alive unowned tower(s) available, lives=${row.livesAtRoundEnd} | paths H=${pc.HOME} S=${pc.SEC} E=${pc.EXP} SR=${pc.STRAT_RECT} SN=${pc.STRAT_NONE} → ${cls.kind} (${cls.detail}) | sub-mode ${sub.kind} (${sub.detail})\n  diag: walls ${walls} | gates ${gates} | ${noGateStr} | flips ${flipStr}${fbStr}${covStr}`,
         );
         // Aggregate per-stall metrics for the seed-level summary.
         if (row.placements.length > 0) {
@@ -424,14 +467,25 @@ function analyzeSeed(
         }
         if (cov) pieceCovs.push(cov.fittingShapeNames.length);
         totalFlips += flips.length;
+        noGateTickCounts.push(row.ticksWithNoGatePass);
       }
     }
   }
   const diagSummary =
     stalls.length > 0
-      ? `DIAG seed=${seed}: ${stalls.length} stalls | gap-hit median ${median(gapHitPcts)}% | piece-cov median ${median(pieceCovs)}/${ALL_PIECE_SHAPES.length} | flips total ${totalFlips}`
+      ? `DIAG seed=${seed}: ${stalls.length} stalls | gap-hit median ${median(gapHitPcts)}% | piece-cov median ${median(pieceCovs)}/${ALL_PIECE_SHAPES.length} | flips total ${totalFlips} | no-gate-ticks median ${median(noGateTickCounts)}`
       : "";
   return { stalls, perPlayer, diagSummary };
+}
+
+/** Format the fallback tower attribution map into a continuation-line
+ *  fragment. Empty when fallback never fired (no entries); otherwise
+ *  `| fb=home:X,t5:Y,none:Z` etc. Sorted by count descending so the
+ *  dominant fallback target reads first. */
+function formatFallbackTowerSummary(hits: Map<string, number>): string {
+  if (hits.size === 0) return "";
+  const sorted = [...hits.entries()].sort((a, b) => b[1] - a[1]);
+  return ` | fb=${sorted.map(([key, count]) => `${key}:${count}`).join(",")}`;
 }
 
 /** Sample median across an array. Empty array → 0 (the diagSummary line
@@ -530,24 +584,30 @@ function shapeFitsAnyGap(
   return false;
 }
 
-/** Wall-placement distribution as a "X%/Y%/Z% (gap/adj/iso)" string. Sums
- *  may exceed 100% because a single placement can both hit a gap AND be
+/** Wall-placement distribution as a "X%/Y%/Z% (gap/adj/iso) on-ring=W%" string.
+ *  Sums may exceed 100% because a single placement can both hit a gap AND be
  *  adjacent to a wall — buckets are NOT mutually exclusive. The isolated
- *  bucket IS exclusive (gap-hit=0 AND adj=0 AND no gap-neighbor). */
+ *  bucket IS exclusive (gap-hit=0 AND adj=0 AND no gap-neighbor). `on-ring`
+ *  is an independent dimension: count of placements with ≥1 cell on the
+ *  target rect's wall-ring perimeter, distinguishing "wall extends the
+ *  committed ring" from "wall lands adjacent elsewhere on the player's wall
+ *  set." */
 function formatPlacementSummary(records: readonly PlacementRecord[]): string {
   if (records.length === 0) return "no-placements";
   const n = records.length;
   let hitGap = 0;
   let adjWall = 0;
   let isolated = 0;
+  let onRing = 0;
   for (const record of records) {
     if (record.hitTargetGap) hitGap++;
     if (record.adjToExistingWall) adjWall++;
     if (record.isolated) isolated++;
+    if (record.onRingPerimeter) onRing++;
   }
   const pct = (count: number): string =>
     `${Math.round((100 * count) / n)}%`;
-  return `${pct(hitGap)}/${pct(adjWall)}/${pct(isolated)} (gap/adj/iso, n=${n})`;
+  return `${pct(hitGap)}/${pct(adjWall)}/${pct(isolated)} (gap/adj/iso, n=${n}) on-ring=${pct(onRing)}`;
 }
 
 function formatGateFireSummary(fires: GateFireCounts): string {

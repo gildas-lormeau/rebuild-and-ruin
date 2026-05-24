@@ -106,22 +106,25 @@ export function selectTarget(ctx: TargetContext): TargetResult {
   // gap-adjacent and wall-adjacent placements. Future pieces will close the
   // gap; this tick's placement at least lands near the ring instead of in
   // arbitrary corners of the board.
-  const fallback = strategicFallbackTarget(ctx);
+  const fallback = strategicFallbackTarget(ctx, reasons);
   const resultPath = fallback.targetGaps.size > 0 ? "STRAT_RECT" : "STRAT_NONE";
-  reasons?.push({ gate: "strategicFallbackInvoked", resultPath });
   emitTargetSelected(ctx, resultPath, fallback, reasons);
   return fallback;
 }
 
 /** Bridge from selectTarget's per-branch context to the diag module's typed
  *  emit helper. Extracts the playerId/round/piece-name fields from `ctx` so
- *  the diag module stays decoupled from TargetContext. */
+ *  the diag module stays decoupled from TargetContext. Derives
+ *  `anyGatePassed` from the accumulated reasons (true iff any GateReason
+ *  with a `passed` discriminator evaluated true). */
 function emitTargetSelected(
   ctx: TargetContext,
   path: SelectTargetPath,
   result: TargetResult,
   reasons: readonly GateReason[] | undefined,
 ): void {
+  const anyGatePassed =
+    reasons?.some((r) => "passed" in r && r.passed) ?? false;
   emitTargetSelectedDiag(
     ctx.playerId,
     ctx.state.round,
@@ -130,6 +133,7 @@ function emitTargetSelected(
     result.targetGaps,
     result.chosenTowerIndex,
     reasons ?? [],
+    anyGatePassed,
     ctx.piece.name,
   );
 }
@@ -137,10 +141,22 @@ function emitTargetSelected(
 /** Strategic fallback when every selectTarget phase bailed. Returns the home
  *  castle rect with its raw gap set (or the top-scored secondary's rect if
  *  home is being skipped). Bypasses the `canFillAfterPlugging` gate — that
- *  gate is per-tick optimization, not strategic gating. */
-function strategicFallbackTarget(ctx: TargetContext): TargetResult {
+ *  gate is per-tick optimization, not strategic gating. Pushes the
+ *  `strategicFallbackInvoked` GateReason directly so `chosenTowerIdx` can be
+ *  recorded with the rect actually returned (home vs. which secondary). */
+function strategicFallbackTarget(
+  ctx: TargetContext,
+  reasons: GateReason[] | undefined,
+): TargetResult {
   const { state, player, castle, castleMargin, bankHugging, cursorPos } = ctx;
-  if (ctx.unenclosedTowers.length === 0) return NO_TARGET;
+  if (ctx.unenclosedTowers.length === 0) {
+    reasons?.push({
+      gate: "strategicFallbackInvoked",
+      resultPath: "STRAT_NONE",
+      chosenTowerIdx: null,
+    });
+    return NO_TARGET;
+  }
   if (!ctx.effectiveSkipHome && player.homeTower) {
     const gaps = findReachableRingGaps(
       castle,
@@ -148,13 +164,27 @@ function strategicFallbackTarget(ctx: TargetContext): TargetResult {
       state,
       getInterior(player),
     );
-    if (gaps.size > 0) return { targetGaps: gaps, targetRect: castle };
+    if (gaps.size > 0) {
+      reasons?.push({
+        gate: "strategicFallbackInvoked",
+        resultPath: "STRAT_RECT",
+        chosenTowerIdx: "home",
+      });
+      return { targetGaps: gaps, targetRect: castle };
+    }
   }
   // Home unavailable — pick the best-scored secondary tower's rect, raw gaps.
   const candidatePool = ctx.effectiveSkipHome
     ? ctx.otherUnenclosed
     : ctx.unenclosedTowers;
-  if (candidatePool.length === 0) return NO_TARGET;
+  if (candidatePool.length === 0) {
+    reasons?.push({
+      gate: "strategicFallbackInvoked",
+      resultPath: "STRAT_NONE",
+      chosenTowerIdx: null,
+    });
+    return NO_TARGET;
+  }
   const currentRow = cursorPos?.row ?? castle.tower.row;
   const currentCol = cursorPos?.col ?? castle.tower.col;
   const sorted = candidatePool
@@ -184,8 +214,20 @@ function strategicFallbackTarget(ctx: TargetContext): TargetResult {
       state,
       getInterior(player),
     );
-    if (gaps.size > 0) return { targetGaps: gaps, targetRect: rect };
+    if (gaps.size > 0) {
+      reasons?.push({
+        gate: "strategicFallbackInvoked",
+        resultPath: "STRAT_RECT",
+        chosenTowerIdx: tower.index,
+      });
+      return { targetGaps: gaps, targetRect: rect };
+    }
   }
+  reasons?.push({
+    gate: "strategicFallbackInvoked",
+    resultPath: "STRAT_NONE",
+    chosenTowerIdx: null,
+  });
   return NO_TARGET;
 }
 

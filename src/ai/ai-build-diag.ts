@@ -41,6 +41,14 @@ export type GateReason =
   | {
       gate: "strategicFallbackInvoked";
       resultPath: "STRAT_RECT" | "STRAT_NONE";
+      /** Which tower the fallback chose. `"home"` when fallback returned the
+       *  home castle rect; `TowerIdx` when it returned a secondary; `null`
+       *  when `resultPath === "STRAT_NONE"` (no target at all). Used by the
+       *  runner to distinguish "fallback locked on home" (Mode #6 canonical)
+       *  from "fallback chose a different secondary than the cache" — both
+       *  show up as LOCK STRAT_RECT in the path-mix but have distinct fix
+       *  shapes. */
+      chosenTowerIdx: TowerIdx | "home" | null;
     };
 
 type AiBuildDiagEvent =
@@ -53,6 +61,14 @@ type AiBuildDiagEvent =
       targetGaps: ReadonlySet<TileKey>;
       chosenTowerIndex: TowerIdx | undefined;
       gateReasons: readonly GateReason[];
+      /** True iff at least one GateReason with a `passed` discriminator
+       *  evaluated `passed: true` this tick. Distinguishes "AI found a
+       *  target via the strict gate machinery" from "AI fell to fallback
+       *  or used a bypass." Cheaper for the runner than re-scanning
+       *  `gateReasons` per tick. Strict semantic: `manageableGapLimitBypass`
+       *  (no `passed` field) is NOT counted — it represents the Mode #8
+       *  amplifier path, distinct from a clean gate-pass. */
+      anyGatePassed: boolean;
       currentPieceShapeName: string;
     }
   | {
@@ -62,6 +78,12 @@ type AiBuildDiagEvent =
       cells: readonly TileKey[];
       targetGaps: ReadonlySet<TileKey>;
       targetRect: TileRect | null;
+      /** Count of `cells` lying on `targetRect`'s wall-ring perimeter (the
+       *  ring of cells at top-1, bottom+1, left-1, right+1 of the interior
+       *  rect). 0 when `targetRect` is null. Distinguishes "wall extends
+       *  the committed ring" from "wall lands wall-adjacent but off-ring"
+       *  — the existing gap/adj/iso classification conflates them. */
+      cellsOnRingPerimeter: number;
       pieceShapeName: string;
     }
   | {
@@ -118,6 +140,7 @@ export function emitWallPlacedDiag(
   cells: readonly TileKey[],
   targetGaps: ReadonlySet<TileKey>,
   targetRect: TileRect | null,
+  cellsOnRingPerimeter: number,
   pieceShapeName: string,
 ): void {
   if (!diagHook) return;
@@ -128,6 +151,7 @@ export function emitWallPlacedDiag(
     cells,
     targetGaps,
     targetRect,
+    cellsOnRingPerimeter,
     pieceShapeName,
   });
 }
@@ -142,6 +166,7 @@ export function emitTargetSelectedDiag(
   targetGaps: ReadonlySet<TileKey>,
   chosenTowerIndex: TowerIdx | undefined,
   gateReasons: readonly GateReason[],
+  anyGatePassed: boolean,
   pieceShapeName: string,
 ): void {
   if (!diagHook) return;
@@ -154,6 +179,7 @@ export function emitTargetSelectedDiag(
     targetGaps,
     chosenTowerIndex,
     gateReasons,
+    anyGatePassed,
     currentPieceShapeName: pieceShapeName,
   });
 }
