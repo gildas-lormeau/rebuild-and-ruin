@@ -509,7 +509,11 @@ function buildOnesHeader(cols: number, startCol: number): string {
 
 /** Resolve `cropTo` to a `Rect`. `ValidPlayerId` → that player's zone
  *  bounds (1-tile padded). Returns `undefined` (no crop) when the
- *  player has no assigned zone or the zone has no cells. */
+ *  player has no assigned zone, the zone has no cells, or the user-
+ *  supplied rect clamps to an empty range. User-supplied rects are
+ *  clamped to grid bounds; without this, out-of-bounds rows/cols
+ *  render as whitespace padding and the coord-header tens/ones digits
+ *  refer to nonexistent tiles. */
 function resolveCropRect(
   state: GameState,
   cropTo: ValidPlayerId | Rect | undefined,
@@ -520,7 +524,12 @@ function resolveCropRect(
     if (zone === undefined) return undefined;
     return zoneBounds(state, zone);
   }
-  return cropTo;
+  const minRow = Math.max(0, cropTo.minRow);
+  const maxRow = Math.min(GRID_ROWS - 1, cropTo.maxRow);
+  const minCol = Math.max(0, cropTo.minCol);
+  const maxCol = Math.min(GRID_COLS - 1, cropTo.maxCol);
+  if (minRow > maxRow || minCol > maxCol) return undefined;
+  return { minRow, maxRow, minCol, maxCol };
 }
 
 export function zoneBounds(state: GameState, zone: ZoneId): Rect | undefined {

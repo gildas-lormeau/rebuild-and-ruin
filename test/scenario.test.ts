@@ -8,7 +8,11 @@ import {
 import { GAME_EVENT } from "../src/shared/core/game-event-bus.ts";
 import { Phase } from "../src/shared/core/game-phase.ts";
 import { packTile, unpackTile } from "../src/shared/core/spatial.ts";
-import type { TileKey } from "../src/shared/core/grid.ts";
+import {
+  GRID_COLS,
+  GRID_ROWS,
+  type TileKey,
+} from "../src/shared/core/grid.ts";
 import { diffAsciiSnapshots } from "../dev/dev-console-grid.ts";
 import { MESSAGE } from "../src/protocol/protocol.ts";
 import type { ValidPlayerId } from "../src/shared/core/player-slot.ts";
@@ -133,6 +137,37 @@ Deno.test("scenario: asciiSnapshot supports playerFilter + cropTo for compact ag
     cropped.includes(` ${row} |`) || cropped.includes(`${row} |`),
     `cropped snapshot should retain absolute row label for row ${row}`,
   );
+});
+
+Deno.test("scenario: cropTo Rect clamps to grid bounds (no whitespace padding past edges)", async () => {
+  // Regression: previously a cropTo rect with maxCol >= GRID_COLS or maxRow >=
+  // GRID_ROWS rendered out-of-bounds cells as whitespace and produced a coord
+  // header with digits for nonexistent tile positions. resolveCropRect now
+  // clamps to [0, GRID-1] before formatting.
+  const sc = await createScenario({ seed: 42, rounds: 2, renderer: "ascii" });
+  const ascii = sc.renderer!;
+  waitForPhase(sc, Phase.BATTLE);
+  const out = ascii.snapshot({
+    coords: true,
+    cropTo: {
+      minRow: 0,
+      maxRow: GRID_ROWS - 1 + 5,
+      minCol: 0,
+      maxCol: GRID_COLS - 1 + 5,
+    },
+  });
+  // After clamping, every body row should be exactly GRID_COLS chars between
+  // the `|` borders (no trailing whitespace from out-of-bounds columns).
+  const bodyRows = out.split("\n").filter((line) => /^\s*\d+ \|/.test(line));
+  assertGreater(bodyRows.length, 0, "expected body rows in coord-mode output");
+  for (const row of bodyRows) {
+    const inner = row.replace(/^\s*\d+ \|/, "").replace(/\|$/, "");
+    assertEquals(
+      inner.length,
+      GRID_COLS,
+      `body row "${row}" should be exactly GRID_COLS=${GRID_COLS} chars after clamp`,
+    );
+  }
 });
 
 Deno.test("scenario: tileAt inspects a walled-in interior tile", async () => {
