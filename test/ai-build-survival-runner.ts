@@ -32,6 +32,13 @@ export interface TrajectoryTick {
   /** Piece-shape name from the target-selected event — drives flip-cause
    *  derivation (piece-changed vs score-rerank). */
   pieceShapeName: string;
+  /** chosenTowerIndex from the target-selected event. Set only when
+   *  trySecondaryTower committed to a tower meeting all persistence-cache
+   *  invariants (alive, manageable gaps, piece-feasible); undefined for
+   *  HOME/EXP/STRAT_* paths AND for SEC paths where the cache write was
+   *  blocked (dead tower, > MANAGEABLE_GAP_LIMIT gaps). Used to derive
+   *  cache-lifetime / invalidation aggregates per stall. */
+  chosenTowerIndex: number | undefined;
 }
 
 /** Per-stall flip-cause record. A flip = a tick where the target rect
@@ -220,6 +227,7 @@ async function runSeed(seed: number): Promise<Map<number, RoundRow[]>> {
           : "",
         gaps: event.targetGaps.size,
         pieceShapeName: event.currentPieceShapeName,
+        chosenTowerIndex: event.chosenTowerIndex,
       });
       if (event.upcomingPieceFitsTarget.length > 0) {
         const fits = event.upcomingPieceFitsTarget.filter((b) => b).length;
@@ -416,8 +424,9 @@ function analyzeSeed(
         const bagFitStr = bagFitPct >= 0 ? ` | bag-fit=${bagFitPct}%` : "";
         const altStr = formatAltCompareSummary(row.altCompare);
         const altBetterPct = computeAltBetterPct(row.altCompare);
+        const cacheStr = formatCacheSummary(row.trajectory);
         stalls.push(
-          `seed=${seed} r${round} ${PLAYER_NAMES[pid]}: ${row.walls} walls placed, 0 enclosures fired, ${row.unownedAliveZoneTowers} alive unowned tower(s) available, lives=${row.livesAtRoundEnd} | paths H=${pc.HOME} S=${pc.SEC} E=${pc.EXP} SR=${pc.STRAT_RECT} SN=${pc.STRAT_NONE} → ${cls.kind} (${cls.detail}) | sub-mode ${sub.kind} (${sub.detail})\n  diag: walls ${walls}${bagFitStr}${altStr} | flips ${flipStr}`,
+          `seed=${seed} r${round} ${PLAYER_NAMES[pid]}: ${row.walls} walls placed, 0 enclosures fired, ${row.unownedAliveZoneTowers} alive unowned tower(s) available, lives=${row.livesAtRoundEnd} | paths H=${pc.HOME} S=${pc.SEC} E=${pc.EXP} SR=${pc.STRAT_RECT} SN=${pc.STRAT_NONE} → ${cls.kind} (${cls.detail}) | sub-mode ${sub.kind} (${sub.detail})\n  diag: walls ${walls}${bagFitStr}${altStr}${cacheStr} | flips ${flipStr}`,
         );
         if (row.placements.length > 0) {
           const hits = row.placements.filter((p) => p.hitTargetGap).length;
@@ -463,6 +472,47 @@ function formatAltCompareSummary(
     if (c.bestAltBagFit > c.chosenBagFit) betterCount++;
   }
   return ` | alt: chosen-bf=${median(chosenPcts)}% best-alt-bf=${median(bestAltPcts)}% better=${betterCount}/${compares.length}`;
+}
+
+/** Persistence-cache lifetime summary across a stall's trajectory. Walks the
+ *  per-tick `chosenTowerIndex` sequence and reports:
+ *  - writes: ticks where chosenTowerIndex is set (cache wrote)
+ *  - holds: max consecutive ticks the cache stayed on the same tower
+ *  - invals: transitions where chosenTowerIndex went from set → undefined
+ *    (cache invalidated AND the next tick didn't immediately re-commit)
+ *  - swaps: transitions where chosenTowerIndex changed from one set value
+ *    to a DIFFERENT set value across consecutive ticks (cache replaced
+ *    target without an undefined gap — implies fresh-score picked a
+ *    different tower in the same tick the cache was invalidated)
+ *  Format: ` | cache writes=W/N holds=H invals=I swaps=S`. Empty when the
+ *  whole stall had zero cache writes (every tick was HOME/EXP/STRAT_*). */
+function formatCacheSummary(traj: readonly TrajectoryTick[]): string {
+  if (traj.length === 0) return "";
+  let writes = 0;
+  let invals = 0;
+  let swaps = 0;
+  let maxHold = 0;
+  let curHold = 0;
+  let prev: number | undefined = undefined;
+  for (const tick of traj) {
+    const cur = tick.chosenTowerIndex;
+    if (cur !== undefined) {
+      writes++;
+      if (prev === cur) {
+        curHold++;
+      } else {
+        if (prev !== undefined) swaps++;
+        curHold = 1;
+      }
+      if (curHold > maxHold) maxHold = curHold;
+    } else {
+      if (prev !== undefined) invals++;
+      curHold = 0;
+    }
+    prev = cur;
+  }
+  if (writes === 0) return "";
+  return ` | cache writes=${writes}/${traj.length} maxhold=${maxHold} invals=${invals} swaps=${swaps}`;
 }
 
 /** Per-stall "what fraction of compared ticks had a strictly better
