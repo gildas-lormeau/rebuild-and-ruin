@@ -53,6 +53,7 @@ export type SelectTargetPathHook = (
   playerId: ValidPlayerId,
   round: number,
   path: "HOME" | "SEC" | "EXP" | "STRAT_RECT" | "STRAT_NONE",
+  result?: TargetResult,
 ) => void;
 
 /** How far the castle rect can expand to route around blocked tiles.
@@ -87,19 +88,19 @@ export function selectTarget(ctx: TargetContext): TargetResult {
   // Phase 1: repair home castle ring
   const home = tryRepairHomeCastle(ctx);
   if (home.targetGaps.size > 0) {
-    selectTargetPathHook?.(ctx.playerId, ctx.state.round, "HOME");
+    selectTargetPathHook?.(ctx.playerId, ctx.state.round, "HOME", home);
     return home;
   }
   // Phase 2: build toward best unenclosed secondary tower
   const secondary = trySecondaryTower(ctx);
   if (secondary.targetGaps.size > 0) {
-    selectTargetPathHook?.(ctx.playerId, ctx.state.round, "SEC");
+    selectTargetPathHook?.(ctx.playerId, ctx.state.round, "SEC", secondary);
     return secondary;
   }
   // Phase 3: expand territory when all towers are enclosed
   const expand = tryExpandTerritory(ctx);
   if (expand.targetGaps.size > 0) {
-    selectTargetPathHook?.(ctx.playerId, ctx.state.round, "EXP");
+    selectTargetPathHook?.(ctx.playerId, ctx.state.round, "EXP", expand);
     return expand;
   }
   // All three phases bailed — typically because every tower's `canFillAfter-
@@ -117,6 +118,7 @@ export function selectTarget(ctx: TargetContext): TargetResult {
     ctx.playerId,
     ctx.state.round,
     fallback.targetGaps.size > 0 ? "STRAT_RECT" : "STRAT_NONE",
+    fallback,
   );
   return fallback;
 }
