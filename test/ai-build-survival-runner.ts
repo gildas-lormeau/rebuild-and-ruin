@@ -9,6 +9,7 @@ import { createScenario, waitForEvent } from "./scenario.ts";
 import { Phase } from "../src/shared/core/game-phase.ts";
 import { GAME_EVENT } from "../src/shared/core/game-event-bus.ts";
 import { GRID_COLS, GRID_ROWS, type TileKey } from "../src/shared/core/grid.ts";
+import type { TileRect } from "../src/shared/core/geometry-types.ts";
 import { ALL_PIECE_SHAPES, type PieceShape, rotateCW } from "../src/shared/core/pieces.ts";
 import { DIRS_4, packTile, unpackTile } from "../src/shared/core/spatial.ts";
 import {
@@ -84,6 +85,12 @@ export interface PlacementRecord {
    *  "wall lands wall-adjacent elsewhere on the player's wall set" — the
    *  existing adjToExistingWall conflates them. */
   onRingPerimeter: boolean;
+  /** True when EVERY placement cell falls inside the target rect (inclusive
+   *  bounds). Diagnostic for the ring-shape-simplification design question:
+   *  when the current piece can't fill any gap, does the AI's "wasted" piece
+   *  land within the committed target or scatter outside it? false when
+   *  targetRect is null. */
+  withinTargetRect: boolean;
   pieceShapeName: string;
 }
 
@@ -283,6 +290,7 @@ async function runSeed(seed: number): Promise<Map<number, RoundRow[]>> {
           event.targetGaps,
           walls,
           event.cellsOnRingPerimeter,
+          event.targetRect,
           event.pieceShapeName,
         ),
       );
@@ -366,14 +374,25 @@ function classifyPlacement(
   targetGaps: ReadonlySet<TileKey>,
   walls: ReadonlySet<TileKey>,
   cellsOnRingPerimeter: number,
+  targetRect: TileRect | null,
   pieceShapeName: string,
 ): PlacementRecord {
   let cellsInGap = 0;
+  let cellsInsideRect = 0;
   let adjToExistingWall = false;
   let adjToTargetGap = false;
   for (const cell of cells) {
     if (targetGaps.has(cell)) cellsInGap++;
     const { row, col } = unpackTile(cell);
+    if (
+      targetRect &&
+      row >= targetRect.top &&
+      row <= targetRect.bottom &&
+      col >= targetRect.left &&
+      col <= targetRect.right
+    ) {
+      cellsInsideRect++;
+    }
     for (const [dr, dc] of DIRS_4) {
       const nr = row + dr;
       const nc = col + dc;
@@ -390,6 +409,7 @@ function classifyPlacement(
     adjToExistingWall,
     isolated: !adjToExistingWall && !adjToTargetGap && cellsInGap === 0,
     onRingPerimeter: cellsOnRingPerimeter > 0,
+    withinTargetRect: targetRect !== null && cellsInsideRect === cells.length,
     pieceShapeName,
   };
 }
@@ -628,15 +648,32 @@ function formatPlacementSummary(records: readonly PlacementRecord[]): string {
   let adjWall = 0;
   let isolated = 0;
   let onRing = 0;
+  let inRect = 0;
+  let noGapFill = 0;
+  let noGapFillInRect = 0;
   for (const record of records) {
     if (record.hitTargetGap) hitGap++;
     if (record.adjToExistingWall) adjWall++;
     if (record.isolated) isolated++;
     if (record.onRingPerimeter) onRing++;
+    if (record.withinTargetRect) inRect++;
+    if (!record.hitTargetGap) {
+      noGapFill++;
+      if (record.withinTargetRect) noGapFillInRect++;
+    }
   }
-  const pct = (count: number): string =>
-    `${Math.round((100 * count) / n)}%`;
-  return `${pct(hitGap)}/${pct(adjWall)}/${pct(isolated)} (gap/adj/iso, n=${n}) on-ring=${pct(onRing)}`;
+  const pct = (count: number, denom: number = n): string =>
+    `${Math.round((100 * count) / denom)}%`;
+  // The "wasted-piece" diag answers the ring-shape-simplification design
+  // question: of the placements where the AI couldn't fill any gap, how many
+  // still landed within the committed target rect? Higher = passive
+  // neutralization (Variant B) already covers the population. Lower = the
+  // wasted pieces scatter outside the rect and Variant B has a real lever.
+  const wastedStr =
+    noGapFill > 0
+      ? ` no-gap-fill-in-rect=${pct(noGapFillInRect, noGapFill)}/n=${noGapFill}`
+      : "";
+  return `${pct(hitGap)}/${pct(adjWall)}/${pct(isolated)} (gap/adj/iso, n=${n}) on-ring=${pct(onRing)} in-rect=${pct(inRect)}${wastedStr}`;
 }
 
 function formatGateFireSummary(fires: GateFireCounts): string {
