@@ -1,0 +1,258 @@
+/**
+ * Narrative observer — subscribes to a scenario's event bus and turns
+ * the resulting event stream into a human-readable play-by-play.
+ *
+ * NOT a renderer. The runtime's RendererInterface is per-frame and only
+ * sees finalized state; this observer hooks the discrete events that
+ * happened between frames (cannon fired, tower killed, walls placed,
+ * etc.) so the narrative reads like a game commentary instead of a
+ * sequence of board diffs.
+ *
+ * Output format favours token-efficiency without sacrificing fidelity:
+ *   - one header line per (round, phase) section instead of repeating
+ *     a `[PHASE]` prefix on every event
+ *   - `WALL_PLACED` events grouped per player per WALL_BUILD phase
+ *     (per-piece coordinates would dominate the output)
+ *   - abbreviated verbs (`X → Y cannon@N hp=H` rather than spelled out)
+ *
+ * Usage:
+ *
+ *   const sc = await createScenario({ seed: 42, mode: "modern" });
+ *   const narrative = createNarrativeObserver();
+ *   narrative.attach(sc);
+ *   // ... advance the game ...
+ *   console.log(narrative.lines.join("\n"));
+ *   narrative.detach();
+ */
+
+import { BATTLE_MESSAGE } from "../src/shared/core/battle-events.ts";
+import {
+  GAME_EVENT,
+  type GameEventMap,
+} from "../src/shared/core/game-event-bus.ts";
+import { Phase } from "../src/shared/core/game-phase.ts";
+import type { Scenario } from "./scenario.ts";
+
+export interface NarrativeObserver {
+  /** Accumulated play-by-play lines in event order. */
+  readonly lines: readonly string[];
+  /** Subscribe to a scenario's bus. Call exactly once per scenario. */
+  attach(sc: Scenario): void;
+  /** Unsubscribe everything. Idempotent. Also flushes any pending wall
+   *  group so its summary line appears in `lines`. */
+  detach(): void;
+}
+
+const PLAYER_NAMES = ["RED", "BLUE", "GOLD"] as const;
+const PLAYER_SHORT = ["R", "B", "G"] as const;
+const playerName = (playerId: number | undefined): string =>
+  playerId === undefined ? "?" : (PLAYER_NAMES[playerId] ?? `P${playerId}`);
+const playerShort = (playerId: number | undefined): string =>
+  playerId === undefined ? "?" : (PLAYER_SHORT[playerId] ?? `P${playerId}`);
+
+export function createNarrativeObserver(): NarrativeObserver {
+  const lines: string[] = [];
+  const subscriptions: Array<() => void> = [];
+  let attached = false;
+
+  /** Round/phase context — emitted as a header line on change, NOT as a
+   *  per-event prefix. Initialised to the implicit pre-game "SETUP" so
+   *  initial castle/enclosure events get attributed cleanly. */
+  let currentRound = 0;
+  let currentPhaseLabel = "SETUP";
+  let lastEmittedHeader = "";
+
+  /** Per-player wall-placement accumulator — flushed when the phase
+   *  changes (or detach fires). One summary line per player instead of
+   *  one line per WALL_PLACED event. */
+  const wallGroup: Map<number, { tiles: number; placements: number }> =
+    new Map();
+
+  function emitHeaderIfNeeded(): void {
+    const header = `── r${currentRound} ${currentPhaseLabel} ──`;
+    if (header === lastEmittedHeader) return;
+    flushWallGroup();
+    lines.push(header);
+    lastEmittedHeader = header;
+  }
+
+  function flushWallGroup(): void {
+    if (wallGroup.size === 0) return;
+    // Stable order: by player index ascending.
+    const ordered = [...wallGroup.entries()].sort((a, b) => a[0] - b[0]);
+    for (const [playerId, agg] of ordered) {
+      lines.push(
+        `  ${playerName(playerId)} placed ${agg.tiles}w in ${agg.placements} pieces`,
+      );
+    }
+    wallGroup.clear();
+  }
+
+  function push(line: string): void {
+    flushWallGroup();
+    emitHeaderIfNeeded();
+    lines.push(`  ${line}`);
+  }
+
+  function on<K extends keyof GameEventMap>(
+    sc: Scenario,
+    eventType: K,
+    handler: (ev: GameEventMap[K]) => void,
+  ): void {
+    sc.bus.on(eventType, handler);
+    subscriptions.push(() => sc.bus.off(eventType, handler));
+  }
+
+  return {
+    get lines() {
+      return lines;
+    },
+
+    attach(sc) {
+      if (attached) throw new Error("narrative observer already attached");
+      attached = true;
+
+      on(sc, GAME_EVENT.ROUND_START, (ev) => {
+        currentRound = ev.round;
+        // Don't emit a header here — PHASE_START fires moments later
+        // with the actual phase label. Avoids a stale "── r2 ?? ──".
+      });
+
+      on(sc, GAME_EVENT.PHASE_START, (ev) => {
+        flushWallGroup();
+        currentRound = ev.round;
+        currentPhaseLabel = Phase[ev.phase];
+        emitHeaderIfNeeded();
+      });
+
+      on(sc, GAME_EVENT.CASTLE_PLACED, (ev) => {
+        push(`${playerName(ev.playerId)} castle (${ev.row},${ev.col})`);
+      });
+
+      on(sc, GAME_EVENT.CANNON_PLACED, (ev) => {
+        push(
+          `${playerName(ev.playerId)} cannon@${ev.cannonIdx} (${ev.row},${ev.col})`,
+        );
+      });
+
+      on(sc, GAME_EVENT.WALL_PLACED, (ev) => {
+        // Defer to the per-player summary instead of one line per event.
+        const slot = wallGroup.get(ev.playerId) ?? {
+          tiles: 0,
+          placements: 0,
+        };
+        slot.tiles += ev.tileKeys.length;
+        slot.placements += 1;
+        wallGroup.set(ev.playerId, slot);
+        emitHeaderIfNeeded();
+      });
+
+      on(sc, GAME_EVENT.TOWER_ENCLOSED, (ev) => {
+        push(`${playerName(ev.playerId)} encloses T${ev.towerIndex}`);
+      });
+
+      on(sc, GAME_EVENT.GRUNTS_ENCLOSED, (ev) => {
+        push(`${playerName(ev.playerId)} traps ${ev.count} grunt(s)`);
+      });
+
+      on(sc, GAME_EVENT.HOUSE_CRUSHED, (ev) => {
+        push(`house@(${ev.row},${ev.col}) crushed by piece`);
+      });
+
+      on(sc, GAME_EVENT.LIFE_LOST, (ev) => {
+        push(
+          `${playerName(ev.playerId)} ✗ life (${ev.livesRemaining}♥ left)`,
+        );
+      });
+
+      on(sc, GAME_EVENT.PLAYER_ELIMINATED, (ev) => {
+        push(`${playerName(ev.playerId)} ELIMINATED`);
+      });
+
+      on(sc, GAME_EVENT.MODIFIER_APPLIED, (ev) => {
+        push(`modifier: ${ev.modifierId}`);
+      });
+
+      on(sc, GAME_EVENT.UPGRADE_PICKED, (ev) => {
+        push(`${playerName(ev.playerId)} upgrade: ${ev.upgradeId}`);
+      });
+
+      on(sc, GAME_EVENT.ROUND_END, (ev) => {
+        flushWallGroup();
+        const players = PLAYER_NAMES.map((_, idx) => {
+          const player = sc.state.players[idx];
+          if (!player) return `${playerShort(idx)}:×`;
+          return `${playerShort(idx)} ${player.lives}♥/${player.score}/${player.walls.size}w/${player.ownedTowers.length}e`;
+        }).join(" | ");
+        lines.push(`r${ev.round} END: ${players}`);
+        // Clear the header so the next round's first event re-emits one.
+        lastEmittedHeader = "";
+      });
+
+      on(sc, GAME_EVENT.GAME_END, (ev) => {
+        flushWallGroup();
+        lines.push(`GAME END r${ev.round}: winner ${playerName(ev.winner)}`);
+        lastEmittedHeader = "";
+      });
+
+      // Battle events — emitted on the same bus via state.bus.emit(...).
+      on(sc, BATTLE_MESSAGE.CANNON_FIRED, (ev) => {
+        const scorer = ev.scoringPlayerId !== undefined &&
+            ev.scoringPlayerId !== ev.playerId
+          ? ` (scoring ${playerName(ev.scoringPlayerId)})`
+          : "";
+        push(
+          `${playerName(ev.playerId)} fires@${ev.cannonIdx} → (${ev.impactRow},${ev.impactCol})${scorer}`,
+        );
+      });
+
+      on(sc, BATTLE_MESSAGE.WALL_DESTROYED, (ev) => {
+        // shooterId is undefined only when a grunt destroyed the wall
+        // (grunt-system emits without a shooter; battle-system always sets
+        // one). Label accordingly so the play-by-play distinguishes
+        // cannon damage from grunt attacks.
+        const shooter = ev.shooterId !== undefined
+          ? playerName(ev.shooterId)
+          : "grunt";
+        push(
+          `${shooter} → ${playerName(ev.playerId)} wall@(${ev.row},${ev.col})`,
+        );
+      });
+
+      on(sc, BATTLE_MESSAGE.CANNON_DAMAGED, (ev) => {
+        const shooter = ev.shooterId !== undefined
+          ? playerName(ev.shooterId)
+          : "?";
+        push(
+          `${shooter} → ${playerName(ev.playerId)} cannon@${ev.cannonIdx} hp=${ev.newHp}`,
+        );
+      });
+
+      on(sc, BATTLE_MESSAGE.TOWER_KILLED, (ev) => {
+        const owner = ev.playerId !== undefined
+          ? `${playerName(ev.playerId)}'s`
+          : "neutral";
+        push(`tower T${ev.towerIdx} (${owner}) destroyed`);
+      });
+
+      on(sc, BATTLE_MESSAGE.HOUSE_DESTROYED, (ev) => {
+        push(`house@(${ev.row},${ev.col}) destroyed`);
+      });
+
+      on(sc, BATTLE_MESSAGE.PIT_CREATED, (ev) => {
+        push(`pit@(${ev.row},${ev.col}) ${ev.roundsLeft}r`);
+      });
+
+      on(sc, BATTLE_MESSAGE.GRUNT_KILLED, (ev) => {
+        push(`grunt@(${ev.row},${ev.col}) killed`);
+      });
+    },
+
+    detach() {
+      flushWallGroup();
+      for (const off of subscriptions) off();
+      subscriptions.length = 0;
+      attached = false;
+    },
+  };
+}
