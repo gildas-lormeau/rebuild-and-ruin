@@ -54,6 +54,23 @@ export function createBuildTraceObserver(
   // on the previous one).
   let lastTargetGapsRemaining = Number.POSITIVE_INFINITY;
   let lastTargetLabel = "";
+  // Tick-level no-placement detection. Each AI build tick fires one
+  // target-selected. A placement on that tick fires one wall-placed
+  // immediately after. So two consecutive target-selected events with no
+  // wall-placed between them means the first tick committed to a target
+  // but couldn't place a piece. We can't tell WHY from the legacy diag
+  // surface — the place stage doesn't emit a rejection event — but the
+  // FACT of a no-placement tick is detectable.
+  let lastEventKind: "TS" | "WP" | undefined;
+  let pendingNoPlaceCount = 0;
+
+  function flushNoPlace(): void {
+    if (pendingNoPlaceCount === 0) return;
+    lines.push(
+      `  (${pendingNoPlaceCount} tick(s) committed but no placement — reason not emitted)`,
+    );
+    pendingNoPlaceCount = 0;
+  }
 
   function maybeEmitAbandon(newTargetGaps: number, newTargetLabel: string): void {
     if (
@@ -81,9 +98,14 @@ export function createBuildTraceObserver(
         if (ev.round !== opts.round || ev.playerId !== opts.playerId) return;
 
         if (ev.kind === "target-selected") {
+          // Two TS in a row means the previous TS yielded no placement.
+          if (lastEventKind === "TS") pendingNoPlaceCount += 1;
+          lastEventKind = "TS";
+
           if (!ev.targetRect) {
             const identity = `${ev.path}|none`;
             if (identity !== lastTargetIdentity) {
+              flushNoPlace();
               maybeEmitAbandon(0, ev.path);
               lastTargetIdentity = identity;
               lastTargetGapsRemaining = 0;
@@ -96,6 +118,7 @@ export function createBuildTraceObserver(
           const rect = ev.targetRect;
           const identity = `${ev.path}|${rect.top},${rect.left}-${rect.bottom},${rect.right}`;
           if (identity === lastTargetIdentity) return;
+          flushNoPlace();
           const towerLabel = ev.chosenTowerIndex !== undefined
             ? ` (T${ev.chosenTowerIndex})`
             : "";
@@ -139,6 +162,9 @@ export function createBuildTraceObserver(
             }
           }
         } else if (ev.kind === "wall-placed") {
+          // The most recent target-selected was followed by a placement —
+          // no no-placement gap to report. Reset and switch event kind.
+          lastEventKind = "WP";
           const gapsBefore = ev.targetGaps.size;
           const filled = countFilled(ev.cells, ev.targetGaps);
           const gapsAfter = Math.max(0, gapsBefore - filled);
@@ -164,6 +190,7 @@ export function createBuildTraceObserver(
 
     detach() {
       if (!attached) return;
+      flushNoPlace();
       setAiBuildDiagHook(undefined);
       attached = false;
       lines.unshift(
