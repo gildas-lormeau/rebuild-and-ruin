@@ -68,6 +68,21 @@ export function createNarrativeObserver(): NarrativeObserver {
   const wallGroup: Map<number, { tiles: number; placements: number }> =
     new Map();
 
+  /** Player IDs that lost a life THIS round. Used to mark their END
+   *  snapshot with `(reset)` — `finalizeRound` runs `resetPlayerBoardState`
+   *  on life-loss, so their `walls.size` / `ownedTowers.length` read 0
+   *  by the time ROUND_END fires. Without the marker the END row's `0w/0e`
+   *  is indistinguishable from a player who genuinely built nothing. */
+  const lifeLostThisRound = new Set<number>();
+
+  /** Per-impact lookup `${shooterId}|${row}|${col}` → cannonIdx, populated
+   *  on CANNON_FIRED so WALL_DESTROYED can attribute the destruction to a
+   *  specific cannon. The WallDestroyedMessage payload itself does NOT
+   *  carry cannonIdx — without this correlation, friendly-fire patterns
+   *  can't be traced to a specific cannon. Cleared on each PHASE_START so
+   *  cross-phase stale entries can't mis-attribute. */
+  const recentImpacts = new Map<string, number>();
+
   function emitHeaderIfNeeded(): void {
     const header = `── r${currentRound} ${currentPhaseLabel} ──`;
     if (header === lastEmittedHeader) return;
@@ -122,6 +137,7 @@ export function createNarrativeObserver(): NarrativeObserver {
         flushWallGroup();
         currentRound = ev.round;
         currentPhaseLabel = Phase[ev.phase];
+        recentImpacts.clear();
         emitHeaderIfNeeded();
       });
 
@@ -160,6 +176,7 @@ export function createNarrativeObserver(): NarrativeObserver {
       });
 
       on(sc, GAME_EVENT.LIFE_LOST, (ev) => {
+        lifeLostThisRound.add(ev.playerId);
         push(
           `${playerName(ev.playerId)} ✗ life (${ev.livesRemaining}♥ left)`,
         );
@@ -182,9 +199,14 @@ export function createNarrativeObserver(): NarrativeObserver {
         const players = PLAYER_NAMES.map((_, idx) => {
           const player = sc.state.players[idx];
           if (!player) return `${playerShort(idx)}:×`;
-          return `${playerShort(idx)} ${player.lives}♥/${player.score}/${player.walls.size}w/${player.ownedTowers.length}e`;
+          // `(reset)` flags a life-loss reset — finalizeRound wipes the
+          // player's walls/towers before this snapshot reads them, so the
+          // `0w/0e` shown is the reset state, not a build failure.
+          const resetMark = lifeLostThisRound.has(idx) ? " (reset)" : "";
+          return `${playerShort(idx)} ${player.lives}♥/${player.score}/${player.walls.size}w/${player.ownedTowers.length}e${resetMark}`;
         }).join(" | ");
         lines.push(`r${ev.round} END: ${players}`);
+        lifeLostThisRound.clear();
         // Clear the header so the next round's first event re-emits one.
         lastEmittedHeader = "";
       });
@@ -197,6 +219,10 @@ export function createNarrativeObserver(): NarrativeObserver {
 
       // Battle events — emitted on the same bus via state.bus.emit(...).
       on(sc, BATTLE_MESSAGE.CANNON_FIRED, (ev) => {
+        recentImpacts.set(
+          `${ev.playerId}|${ev.impactRow}|${ev.impactCol}`,
+          ev.cannonIdx,
+        );
         const scorer = ev.scoringPlayerId !== undefined &&
             ev.scoringPlayerId !== ev.playerId
           ? ` (scoring ${playerName(ev.scoringPlayerId)})`
@@ -211,9 +237,17 @@ export function createNarrativeObserver(): NarrativeObserver {
         // (grunt-system emits without a shooter; battle-system always sets
         // one). Label accordingly so the play-by-play distinguishes
         // cannon damage from grunt attacks.
-        const shooter = ev.shooterId !== undefined
-          ? playerName(ev.shooterId)
-          : "grunt";
+        let shooter: string;
+        if (ev.shooterId === undefined) {
+          shooter = "grunt";
+        } else {
+          const idx = recentImpacts.get(
+            `${ev.shooterId}|${ev.row}|${ev.col}`,
+          );
+          shooter = idx !== undefined
+            ? `${playerName(ev.shooterId)}@${idx}`
+            : playerName(ev.shooterId);
+        }
         push(
           `${shooter} → ${playerName(ev.playerId)} wall@(${ev.row},${ev.col})`,
         );
