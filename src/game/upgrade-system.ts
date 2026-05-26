@@ -152,6 +152,14 @@ export function shouldAbsorbWallHit(player: Player, tileKey: TileKey): boolean {
   );
 }
 
+/** True when the player's cannon shots ricochet (2 random bounces per
+ *  impact). Read by AI planners that target the player's own walls — the
+ *  random bounces have no friend/foe filter and frequently damage
+ *  adjacent own walls when fired inside own territory. */
+export function cannonShotsRicochet(player: Player): boolean {
+  return !!player.upgrades.get(UID.RICOCHET);
+}
+
 /** End-of-build territory score multiplier for a player (multiplicative). */
 export function territoryScoreMult(player: Player): number {
   return productHooks(UPGRADE_IMPL_LIST, (impl) =>

@@ -4,6 +4,7 @@
  * can't fit a cannon there.
  */
 
+import { cannonShotsRicochet } from "../game/index.ts";
 import { getBattleInterior } from "../shared/core/board-occupancy.ts";
 import type { TilePos } from "../shared/core/geometry-types.ts";
 import type { TileKey } from "../shared/core/grid.ts";
@@ -36,6 +37,13 @@ export function planPocketDestruction(
   playerId: ValidPlayerId,
 ): TilePos[] | null {
   const player = state.players[playerId]!;
+  // Ricochet adds 2 random bounces within Chebyshev radii [5, 3] after the
+  // initial impact. Pocket targets sit inside the player's own territory by
+  // definition, so the bounces frequently land on adjacent own walls and
+  // break the very enclosures the player is trying to clean up. Forfeit
+  // pocket destruction while ricochet is active — the cleanup is worth
+  // less than the unintended self-demolition.
+  if (cannonShotsRicochet(player)) return null;
   const interior = getBattleInterior(player);
   if (interior.size === 0) return null;
   const components = findEnclosureComponents(interior);

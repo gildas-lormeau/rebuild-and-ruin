@@ -88,6 +88,7 @@ export {
 export {
   applyUpgradePicks,
   buildTimerBonus,
+  cannonShotsRicochet,
   canPlayerBuild,
   shouldSkipBattle,
   tickBuildUpgrades,
