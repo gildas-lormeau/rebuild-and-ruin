@@ -185,6 +185,21 @@ export interface SeedFindings {
    *  Lets downstream analysis attribute fires to specific players without
    *  re-walking `perRound`. */
   desperateFiresPerPlayer: number[];
+  /** Count of (round, player) pairs where the desperate-interior fallback
+   *  fired at least once. Use as the denominator for save-rate analysis;
+   *  multiple fires within one round count as one round. */
+  desperateRounds: number;
+  /** Subset of `desperateRounds` where the player did NOT lose a life that
+   *  round. The intended-effect signal: the desperate fallback fired AND the
+   *  player ended the round with at least one enclosed alive tower. NOT
+   *  unambiguous attribution (the save could have happened anyway via
+   *  another piece in the bag), but the strongest signal available without
+   *  a per-fire counterfactual. */
+  desperateRoundsSurvived: number;
+  /** Subset of `desperateRounds` where the player still lost a life that
+   *  round despite the fallback firing — the discard advanced the bag but
+   *  no follow-up piece could close a ring in time. */
+  desperateRoundsLost: number;
 }
 
 export interface SeedResult {
@@ -235,7 +250,9 @@ export function formatSummaryLine(result: SeedResult): string {
     },
   ).join(" | ");
   const desperateTotal =
-    findings.desperateFires > 0 ? ` desperate=${findings.desperateFires}` : "";
+    findings.desperateFires > 0
+      ? ` desperate=${findings.desperateFires} saved=${findings.desperateRoundsSurvived}/${findings.desperateRounds}`
+      : "";
   return `seed=${seed} rounds=${roundsRecorded}/${ROUNDS_TO_PLAY} (last=r${lastRound})${desperateTotal} ${perPlayer}`;
 }
 
@@ -560,6 +577,9 @@ function analyzeSeed(
   let unwinnableCount = 0;
   let timeoutCount = 0;
   const desperateFiresPerPlayer = [0, 0, 0];
+  let desperateRounds = 0;
+  let desperateRoundsSurvived = 0;
+  let desperateRoundsLost = 0;
   for (let pid = 0; pid < 3; pid++) {
     for (const round of rounds) {
       const row = perRound.get(round)![pid]!;
@@ -567,6 +587,11 @@ function analyzeSeed(
       if (row.walls > 0) perPlayer[pid]!.activeRounds += 1;
       perPlayer[pid]!.livesEnd = row.livesAtRoundEnd;
       desperateFiresPerPlayer[pid]! += row.desperateFires;
+      if (row.desperateFires > 0) {
+        desperateRounds++;
+        if (row.lostLifeThisRound) desperateRoundsLost++;
+        else desperateRoundsSurvived++;
+      }
       // Stall: built actively, fired no enclosure this round despite having
       // ≥1 alive unowned tower available to enclose, didn't lose a life
       // (zone reset would clear ownedTowers and confuse the metric).
@@ -646,11 +671,18 @@ function analyzeSeed(
       ? ` | win W=${winnableCount} U=${unwinnableCount} T=${timeoutCount}`
       : "";
   const desperateFires = desperateFiresPerPlayer.reduce((a, b) => a + b, 0);
-  const desperateMedianStr =
-    desperateFires > 0 ? ` | desperate=${desperateFires}` : "";
+  // desperate-rounds save-rate: round-player pairs where the fallback fired
+  // AND the player ended the round still alive. The strongest survival
+  // signal available without a counterfactual A/B, since the fallback's
+  // intended effect is "advance the bag past an unplaceable piece so a
+  // following piece can close a ring before round end."
+  const desperateStr =
+    desperateFires > 0
+      ? ` | desperate=${desperateFires} (${desperateRoundsSurvived}/${desperateRounds} rounds survived)`
+      : "";
   const diagSummary =
     stalls.length > 0
-      ? `DIAG seed=${seed}: ${stalls.length} stalls | gap-hit median ${median(gapHitPcts)}% | flips total ${totalFlips}${bagFitMedianStr}${winMedianStr}${altBetterPcts.length > 0 ? ` | alt-better median ${median(altBetterPcts)}%` : ""}${desperateMedianStr}`
+      ? `DIAG seed=${seed}: ${stalls.length} stalls | gap-hit median ${median(gapHitPcts)}% | flips total ${totalFlips}${bagFitMedianStr}${winMedianStr}${altBetterPcts.length > 0 ? ` | alt-better median ${median(altBetterPcts)}%` : ""}${desperateStr}`
       : "";
   return {
     stalls,
@@ -658,6 +690,9 @@ function analyzeSeed(
     diagSummary,
     desperateFires,
     desperateFiresPerPlayer,
+    desperateRounds,
+    desperateRoundsSurvived,
+    desperateRoundsLost,
   };
 }
 
