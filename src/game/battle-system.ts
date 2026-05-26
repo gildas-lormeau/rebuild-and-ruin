@@ -675,6 +675,7 @@ function tickCannonballs(state: GameState, dt: number): CannonballUpdateResult {
               splashRow,
               splashCol,
               shooterId,
+              ball.cannonIdx,
               isCenter,
             );
             for (const evt of splashEvents) {
@@ -696,6 +697,7 @@ function tickCannonballs(state: GameState, dt: number): CannonballUpdateResult {
           hit.row,
           hit.col,
           shooterId,
+          ball.cannonIdx,
           ball.incendiary,
         );
         for (const evt of impactEvents) {
@@ -706,6 +708,7 @@ function tickCannonballs(state: GameState, dt: number): CannonballUpdateResult {
         applyRicochetBounces(
           state,
           shooterId,
+          ball.cannonIdx,
           hit,
           impactEvents,
           events,
@@ -735,6 +738,7 @@ function tickCannonballs(state: GameState, dt: number): CannonballUpdateResult {
 function applyRicochetBounces(
   state: GameState,
   shooterId: ValidPlayerId,
+  cannonIdx: CannonIdx,
   hit: TilePos,
   impactEvents: readonly ImpactEvent[],
   events: ImpactEvent[],
@@ -758,6 +762,7 @@ function applyRicochetBounces(
       bounce.row,
       bounce.col,
       shooterId,
+      cannonIdx,
       false,
     );
     for (const evt of bounceEvents) {
@@ -1249,6 +1254,7 @@ function computeImpact(
   row: number,
   col: number,
   shooterId: ValidPlayerId,
+  cannonIdx: CannonIdx,
   incendiary?: boolean,
 ): ImpactEvent[] {
   if (!inBounds(row, col)) return [];
@@ -1261,6 +1267,7 @@ function computeImpact(
     row,
     col,
     shooterId,
+    cannonIdx,
     incendiary,
   );
   // Step 2: cannons (independent)
@@ -1317,6 +1324,7 @@ function collectWallImpacts(
   row: number,
   col: number,
   shooterId: ValidPlayerId,
+  cannonIdx: CannonIdx,
   heavy?: boolean,
 ): { events: ImpactEvent[]; hitWall: boolean } {
   const events: ImpactEvent[] = [];
@@ -1358,6 +1366,7 @@ function collectWallImpacts(
     col,
     playerId: result.playerId,
     shooterId,
+    cannonIdx,
   });
   return { events, hitWall: true };
 }

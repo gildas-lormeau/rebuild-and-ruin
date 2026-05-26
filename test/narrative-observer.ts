@@ -75,14 +75,6 @@ export function createNarrativeObserver(): NarrativeObserver {
    *  is indistinguishable from a player who genuinely built nothing. */
   const lifeLostThisRound = new Set<number>();
 
-  /** Per-impact lookup `${shooterId}|${row}|${col}` → cannonIdx, populated
-   *  on CANNON_FIRED so WALL_DESTROYED can attribute the destruction to a
-   *  specific cannon. The WallDestroyedMessage payload itself does NOT
-   *  carry cannonIdx — without this correlation, friendly-fire patterns
-   *  can't be traced to a specific cannon. Cleared on each PHASE_START so
-   *  cross-phase stale entries can't mis-attribute. */
-  const recentImpacts = new Map<string, number>();
-
   function emitHeaderIfNeeded(): void {
     const header = `── r${currentRound} ${currentPhaseLabel} ──`;
     if (header === lastEmittedHeader) return;
@@ -137,7 +129,6 @@ export function createNarrativeObserver(): NarrativeObserver {
         flushWallGroup();
         currentRound = ev.round;
         currentPhaseLabel = Phase[ev.phase];
-        recentImpacts.clear();
         emitHeaderIfNeeded();
       });
 
@@ -219,10 +210,6 @@ export function createNarrativeObserver(): NarrativeObserver {
 
       // Battle events — emitted on the same bus via state.bus.emit(...).
       on(sc, BATTLE_MESSAGE.CANNON_FIRED, (ev) => {
-        recentImpacts.set(
-          `${ev.playerId}|${ev.impactRow}|${ev.impactCol}`,
-          ev.cannonIdx,
-        );
         const scorer = ev.scoringPlayerId !== undefined &&
             ev.scoringPlayerId !== ev.playerId
           ? ` (scoring ${playerName(ev.scoringPlayerId)})`
@@ -235,19 +222,13 @@ export function createNarrativeObserver(): NarrativeObserver {
       on(sc, BATTLE_MESSAGE.WALL_DESTROYED, (ev) => {
         // shooterId is undefined only when a grunt destroyed the wall
         // (grunt-system emits without a shooter; battle-system always sets
-        // one). Label accordingly so the play-by-play distinguishes
-        // cannon damage from grunt attacks.
-        let shooter: string;
-        if (ev.shooterId === undefined) {
-          shooter = "grunt";
-        } else {
-          const idx = recentImpacts.get(
-            `${ev.shooterId}|${ev.row}|${ev.col}`,
-          );
-          shooter = idx !== undefined
-            ? `${playerName(ev.shooterId)}@${idx}`
+        // one). cannonIdx is set for cannon-driven hits including splash;
+        // grunts pass undefined.
+        const shooter = ev.shooterId === undefined
+          ? "grunt"
+          : ev.cannonIdx !== undefined
+            ? `${playerName(ev.shooterId)}@${ev.cannonIdx}`
             : playerName(ev.shooterId);
-        }
         push(
           `${shooter} → ${playerName(ev.playerId)} wall@(${ev.row},${ev.col})`,
         );

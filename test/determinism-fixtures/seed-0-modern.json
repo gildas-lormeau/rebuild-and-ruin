@@ -11367,6 +11367,7 @@
     {
       "type": "wallDestroyed",
       "payload": {
+        "cannonIdx": 0,
         "col": 27,
         "playerId": 0,
         "row": 21,
@@ -11571,6 +11572,7 @@
     {
       "type": "wallDestroyed",
       "payload": {
+        "cannonIdx": 1,
         "col": 34,
         "playerId": 0,
         "row": 21,
@@ -11791,6 +11793,7 @@
     {
       "type": "wallDestroyed",
       "payload": {
+        "cannonIdx": 2,
         "col": 27,
         "playerId": 0,
         "row": 18,
@@ -12846,6 +12849,7 @@
     {
       "type": "wallDestroyed",
       "payload": {
+        "cannonIdx": 0,
         "col": 32,
         "playerId": 0,
         "row": 24,
@@ -12903,6 +12907,7 @@
     {
       "type": "wallDestroyed",
       "payload": {
+        "cannonIdx": 0,
         "col": 3,
         "playerId": 1,
         "row": 12,
@@ -13146,6 +13151,7 @@
     {
       "type": "wallDestroyed",
       "payload": {
+        "cannonIdx": 0,
         "col": 27,
         "playerId": 0,
         "row": 19,
@@ -13315,6 +13321,7 @@
     {
       "type": "wallDestroyed",
       "payload": {
+        "cannonIdx": 1,
         "col": 8,
         "playerId": 1,
         "row": 11,
@@ -13758,6 +13765,7 @@
     {
       "type": "wallDestroyed",
       "payload": {
+        "cannonIdx": 2,
         "col": 30,
         "playerId": 0,
         "row": 24,
@@ -14489,6 +14497,7 @@
     {
       "type": "wallDestroyed",
       "payload": {
+        "cannonIdx": 0,
         "col": 27,
         "playerId": 0,
         "row": 23,
@@ -34396,6 +34405,7 @@
     {
       "type": "wallDestroyed",
       "payload": {
+        "cannonIdx": 0,
         "col": 23,
         "playerId": 2,
         "row": 6,
@@ -34920,6 +34930,7 @@
     {
       "type": "wallDestroyed",
       "payload": {
+        "cannonIdx": 3,
         "col": 27,
         "playerId": 0,
         "row": 21,
@@ -35432,6 +35443,7 @@
     {
       "type": "wallDestroyed",
       "payload": {
+        "cannonIdx": 4,
         "col": 24,
         "playerId": 2,
         "row": 4,
@@ -35634,6 +35646,7 @@
     {
       "type": "wallDestroyed",
       "payload": {
+        "cannonIdx": 4,
         "col": 34,
         "playerId": 0,
         "row": 18,
@@ -35817,6 +35830,7 @@
     {
       "type": "wallDestroyed",
       "payload": {
+        "cannonIdx": 2,
         "col": 30,
         "playerId": 0,
         "row": 17,
@@ -35844,6 +35858,7 @@
     {
       "type": "wallDestroyed",
       "payload": {
+        "cannonIdx": 5,
         "col": 22,
         "playerId": 2,
         "row": 5,
@@ -35931,6 +35946,7 @@
     {
       "type": "wallDestroyed",
       "payload": {
+        "cannonIdx": 1,
         "col": 23,
         "playerId": 2,
         "row": 2,
@@ -36465,6 +36481,7 @@
     {
       "type": "wallDestroyed",
       "payload": {
+        "cannonIdx": 3,
         "col": 22,
         "playerId": 2,
         "row": 4,
@@ -36630,6 +36647,7 @@
     {
       "type": "wallDestroyed",
       "payload": {
+        "cannonIdx": 4,
         "col": 27,
         "playerId": 0,
         "row": 23,
@@ -37017,6 +37035,7 @@
     {
       "type": "wallDestroyed",
       "payload": {
+        "cannonIdx": 1,
         "col": 34,
         "playerId": 0,
         "row": 22,
@@ -37238,6 +37257,7 @@
     {
       "type": "wallDestroyed",
       "payload": {
+        "cannonIdx": 2,
         "col": 29,
         "playerId": 0,
         "row": 17,
@@ -38098,6 +38118,7 @@
     {
       "type": "wallDestroyed",
       "payload": {
+        "cannonIdx": 4,
         "col": 31,
         "playerId": 0,
         "row": 24,
@@ -38161,6 +38182,7 @@
     {
       "type": "wallDestroyed",
       "payload": {
+        "cannonIdx": 2,
         "col": 31,
         "playerId": 0,
         "row": 17,

@@ -69,6 +69,10 @@ export interface WallDestroyedMessage {
   col: number;
   playerId: ValidPlayerId;
   shooterId?: ValidPlayerId;
+  /** Cannon that fired the destroying ball. Undefined for grunt melee
+   *  attacks (grunts have no cannons) — readers should treat absence as
+   *  "non-cannon source". */
+  cannonIdx?: CannonIdx;
 }
 
 /** A cannon took damage (destroyed when newHp <= 0). */
