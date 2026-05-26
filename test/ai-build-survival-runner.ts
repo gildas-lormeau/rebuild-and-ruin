@@ -114,6 +114,14 @@ export interface PlacementRecord {
 
 export interface RoundRow {
   walls: number;
+  /** Count of bus WALL_PLACED events seen this round (= actual piece commits).
+   *  Pair with `placements.length` (= AI decisions captured via the diag
+   *  wall-placed event from pickPlacement): `placements.length - commits` is
+   *  the count of AI decisions that never reached commit, i.e. the cursor
+   *  didn't arrive / dwell didn't complete before WALL_BUILD ended. Surfaces
+   *  PROGRESS-mode stalls that the trajectory classifier currently buckets as
+   *  LATE_PLATEAU because it only sees the next tick's re-decision. */
+  commits: number;
   enclosures: number;
   unownedAliveZoneTowers: number;
   lostLifeThisRound: boolean;
@@ -248,6 +256,7 @@ async function runSeed(seed: number): Promise<{
       row = [0, 1, 2].map(
         (): RoundRow => ({
           walls: 0,
+          commits: 0,
           enclosures: 0,
           unownedAliveZoneTowers: 0,
           lostLifeThisRound: false,
@@ -356,7 +365,9 @@ async function runSeed(seed: number): Promise<{
     perRoundSnapshot.set(sc.state.round, captureRoundSnapshot(sc.state));
   });
   sc.bus.on(GAME_EVENT.WALL_PLACED, (ev) => {
-    getRow(sc.state.round)[ev.playerId]!.walls += ev.tileKeys.length;
+    const row = getRow(sc.state.round)[ev.playerId]!;
+    row.walls += ev.tileKeys.length;
+    row.commits += 1;
   });
   sc.bus.on(GAME_EVENT.TOWER_ENCLOSED, (ev) => {
     getRow(sc.state.round)[ev.playerId]!.enclosures += 1;
@@ -571,8 +582,19 @@ function analyzeSeed(
         if (winStr === " | win=WINNABLE") winnableCount++;
         else if (winStr.startsWith(" | win=UNWINNABLE")) unwinnableCount++;
         else if (winStr.startsWith(" | win=TIMEOUT")) timeoutCount++;
+        // decide/commit gap: AI decisions captured via diag (one per
+        // pickPlacement) vs actual commits captured via bus WALL_PLACED.
+        // Non-zero `dropped` = the AI decided to place but the cursor never
+        // arrived / dwell never completed before WALL_BUILD ended — surfaces
+        // PROGRESS-mode stalls misclassified as LATE_PLATEAU.
+        const decided = row.placements.length;
+        const committed = row.commits;
+        const dropped = decided - committed;
+        const dropStr = dropped > 0
+          ? ` | decide=${decided} commit=${committed} dropped=${dropped}`
+          : "";
         stalls.push(
-          `seed=${seed} r${round} ${PLAYER_NAMES[pid]}: ${row.walls} walls placed, 0 enclosures fired, ${row.unownedAliveZoneTowers} alive unowned tower(s) available, lives=${row.livesAtRoundEnd} | paths H=${pc.HOME} S=${pc.SEC} E=${pc.EXP} SR=${pc.STRAT_RECT} SN=${pc.STRAT_NONE} → ${cls.kind} (${cls.detail}) | sub-mode ${sub.kind} (${sub.detail})${winStr}\n  diag: walls ${walls}${bagFitStr}${altStr}${cacheStr} | flips ${flipStr}`,
+          `seed=${seed} r${round} ${PLAYER_NAMES[pid]}: ${row.walls} walls placed, 0 enclosures fired, ${row.unownedAliveZoneTowers} alive unowned tower(s) available, lives=${row.livesAtRoundEnd} | paths H=${pc.HOME} S=${pc.SEC} E=${pc.EXP} SR=${pc.STRAT_RECT} SN=${pc.STRAT_NONE} → ${cls.kind} (${cls.detail}) | sub-mode ${sub.kind} (${sub.detail})${winStr}${dropStr}\n  diag: walls ${walls}${bagFitStr}${altStr}${cacheStr} | flips ${flipStr}`,
         );
         if (row.placements.length > 0) {
           const hits = row.placements.filter((p) => p.hitTargetGap).length;
