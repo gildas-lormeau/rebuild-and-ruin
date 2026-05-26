@@ -883,6 +883,7 @@
     "role": "AI brain + build strategy + derived tactic planners (pocket destruction, structural hit)",
     "files": [
       "src/ai/ai-brain.ts",
+      "src/ai/ai-build-desperate.ts",
       "src/ai/ai-build-lookahead.ts",
       "src/ai/ai-plan-pocket-destruction.ts",
       "src/ai/ai-plan-structural-hit.ts"

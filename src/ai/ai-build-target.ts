@@ -114,6 +114,52 @@ export function selectTarget(ctx: TargetContext): TargetResult {
   return fallback;
 }
 
+/** Compute a tower's manageable wall-ring and check whether any piece in
+ *  `poolPieces` could fit any rotation into one of its gaps. Returns
+ *  `{ rect, gaps }` on a hit (gaps in [1, MANAGEABLE_GAP_LIMIT] AND at least
+ *  one rotation fits at least one gap), null otherwise. Shared by the
+ *  cursor-anticipation peek (uses the geometry to compute a centroid anchor)
+ *  and the desperate-interior fallback's hope check (just needs the boolean).
+ *  Keeps the `castleRect → findReachableRingGaps → adjustInterior →
+ *  canAnyRotationFillGap` sequence in one place. */
+export function poolFillableTowerRing(
+  tower: Tower,
+  state: BuildViewState,
+  player: Player,
+  interior: ReadonlySet<TileKey>,
+  castleMargin: number,
+  bankHugging: boolean,
+  poolPieces: readonly PieceShape[],
+  playerId: ValidPlayerId,
+  cache: OccupancyCache,
+  placementCtx: PlacementContext,
+): { rect: TileRect; gaps: Set<TileKey> } | null {
+  const rect = castleRect(
+    tower,
+    state.map.tiles,
+    state.map.towers,
+    castleMargin,
+    !bankHugging,
+  );
+  const gaps = findReachableRingGaps(rect, player.walls, state, interior);
+  if (gaps.size === 0 || gaps.size > MANAGEABLE_GAP_LIMIT) return null;
+  const adjusted = adjustInterior(interior, gaps, rect);
+  if (
+    !canAnyRotationFillGap(
+      poolPieces,
+      gaps,
+      adjusted,
+      state,
+      playerId,
+      cache,
+      placementCtx,
+    )
+  ) {
+    return null;
+  }
+  return { rect, gaps };
+}
+
 /** Bridge from selectTarget's per-branch context to the diag module's typed
  *  emit helper. Computes upcoming-piece fit + per-tower alternatives snapshot
  *  when a diag hook is active — both are read-only bag peeks that never
@@ -927,7 +973,7 @@ export function adjustInterior(
 }
 
 /** Try all rotations of each piece against each gap anchor; return true on first fit. */
-export function canAnyRotationFillGap(
+function canAnyRotationFillGap(
   pieces: readonly PieceShape[],
   gaps: Set<TileKey>,
   adjusted: ReadonlySet<TileKey>,

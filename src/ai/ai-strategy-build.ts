@@ -14,10 +14,16 @@ import {
 import {
   buildOccupancyCache,
   collectAliveHouseKeys,
+  filterAliveOwnedTowers,
   hasAliveHouseAt,
   type OccupancyCache,
 } from "../shared/core/board-occupancy.ts";
-import type { Castle, Tower, TowerIdx } from "../shared/core/geometry-types.ts";
+import type {
+  Castle,
+  TilePos,
+  Tower,
+  TowerIdx,
+} from "../shared/core/geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, type TileKey } from "../shared/core/grid.ts";
 import { type PieceShape, rotateCW } from "../shared/core/pieces.ts";
 import { getInterior } from "../shared/core/player-interior.ts";
@@ -32,6 +38,11 @@ import {
 } from "../shared/core/spatial.ts";
 import type { BuildViewState } from "../shared/core/system-interfaces.ts";
 import {
+  hasFillableTowerHope,
+  pickDesperateInteriorDiscard,
+} from "./ai-build-desperate.ts";
+import {
+  emitDesperateFiredDiag,
   emitNoPlacementDiag,
   emitWallPlacedDiag,
   type NoPlacementReason,
@@ -315,7 +326,29 @@ export function pickPlacement(
     hasManageableGaps:
       targetGaps.size > 0 && targetGaps.size <= MANAGEABLE_GAP_LIMIT,
   });
-  const placement = bestResult.placement;
+  let placement = bestResult.placement;
+  // Desperate last-resort: if every exterior path returned null AND the
+  // player has zero enclosed alive towers (would lose a life at round end)
+  // AND some pool piece could close some unenclosed alive ring next pick,
+  // discard the current piece inside the player's own closed enclosure to
+  // advance the bag. Mirrors what a human does when stuck with an
+  // unplaceable piece — humans can place anywhere legal; the AI's normal
+  // enumeration blocks interior tiles via `excludeInterior`. See
+  // ai-build-desperate.ts.
+  if (placement === null) {
+    placement = tryDesperateInteriorDiscard(
+      state,
+      playerId,
+      piece,
+      player,
+      unenclosedTowers,
+      cursorPos,
+      castleMargin,
+      bankHugging,
+      cache,
+      placementCtx,
+    );
+  }
   if (placement === null && bestResult.reason !== undefined) {
     emitNoPlacementDiag(playerId, state.round, bestResult.reason);
   }
@@ -584,6 +617,63 @@ function ok(placement: AiPlacement): BestPlacementResult {
 
 function fail(reason: NoPlacementReason): BestPlacementResult {
   return { placement: null, reason };
+}
+
+/** Gate + dispatch the desperate interior discard. Returns null when not
+ *  desperate (player has ≥1 enclosed alive tower), when no alive unenclosed
+ *  tower exists, when no pool piece could ever fill any unenclosed ring, or
+ *  when no rotation of the current piece fits entirely inside the player's
+ *  closed interior. */
+function tryDesperateInteriorDiscard(
+  state: BuildViewState,
+  playerId: ValidPlayerId,
+  piece: PieceShape,
+  player: Player,
+  unenclosedTowers: readonly Tower[],
+  cursorPos: TilePos | undefined,
+  castleMargin: number,
+  bankHugging: boolean,
+  cache: OccupancyCache,
+  placementCtx: PlacementContext,
+): AiPlacement | null {
+  if (filterAliveOwnedTowers(player, state).length > 0) return null;
+  const unenclosedAlive = unenclosedTowers.filter(
+    (tower) => state.towerAlive[tower.index],
+  );
+  if (unenclosedAlive.length === 0) return null;
+  if (
+    !hasFillableTowerHope(
+      state,
+      playerId,
+      player,
+      unenclosedAlive,
+      castleMargin,
+      bankHugging,
+      cache,
+      placementCtx,
+    )
+  ) {
+    return null;
+  }
+  const placement = pickDesperateInteriorDiscard(
+    state,
+    playerId,
+    piece,
+    player,
+    cursorPos,
+    cache,
+    placementCtx,
+  );
+  if (placement !== null) {
+    emitDesperateFiredDiag(
+      playerId,
+      state.round,
+      placement.row,
+      placement.col,
+      placement.piece.name,
+    );
+  }
+  return placement;
 }
 
 /** Look up skill config by 1-based buildSkill level (1=clumsy, 5=clean). */

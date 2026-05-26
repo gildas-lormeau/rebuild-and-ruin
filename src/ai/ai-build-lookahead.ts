@@ -17,13 +17,8 @@ import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import type { Player } from "../shared/core/player-types.ts";
 import { unpackTile } from "../shared/core/spatial.ts";
 import type { BuildViewState } from "../shared/core/system-interfaces.ts";
-import {
-  adjustInterior,
-  canAnyRotationFillGap,
-  MANAGEABLE_GAP_LIMIT,
-} from "./ai-build-target.ts";
+import { poolFillableTowerRing } from "./ai-build-target.ts";
 import type { PeekFitTarget } from "./ai-build-types.ts";
-import { castleRect, findReachableRingGaps } from "./ai-castle-rect.ts";
 
 /** Compute peek-fit anchors for the cursor-anticipation rule. Returns the
  *  empty array when no near-complete alternate ring exists or none of the
@@ -49,34 +44,24 @@ export function computePeekFitTargets(
   const targets: PeekFitTarget[] = [];
   for (const tower of unenclosedTowers) {
     if (towerOverlapsRect(tower, activeTargetRect)) continue;
-    const rect = castleRect(
+    const ring = poolFillableTowerRing(
       tower,
-      state.map.tiles,
-      state.map.towers,
+      state,
+      player,
+      interior,
       castleMargin,
-      !bankHugging,
+      bankHugging,
+      poolPieces,
+      playerId,
+      cache,
+      placementCtx,
     );
-    const gaps = findReachableRingGaps(rect, player.walls, state, interior);
-    if (gaps.size === 0 || gaps.size > MANAGEABLE_GAP_LIMIT) continue;
-    const adjusted = adjustInterior(interior, gaps, rect);
-    if (
-      !canAnyRotationFillGap(
-        poolPieces,
-        gaps,
-        adjusted,
-        state,
-        playerId,
-        cache,
-        placementCtx,
-      )
-    ) {
-      continue;
-    }
-    const anchor = gapCentroid(gaps);
+    if (!ring) continue;
+    const anchor = gapCentroid(ring.gaps);
     targets.push({
       anchorRow: anchor.row,
       anchorCol: anchor.col,
-      gapsCount: gaps.size,
+      gapsCount: ring.gaps.size,
     });
   }
   return targets;

@@ -92,6 +92,18 @@ type AiBuildDiagEvent =
        *  event (when a target was picked) to attribute the failure to
        *  that target's rect/gap geometry. */
       reason: NoPlacementReason;
+    }
+  | {
+      kind: "desperate-fired";
+      playerId: ValidPlayerId;
+      round: number;
+      /** Anchor of the chosen interior-discard placement. Pieces always
+       *  land entirely inside the player's flooded interior (closed
+       *  enclosure) — the discard advances the bag without affecting any
+       *  open ring. */
+      row: number;
+      col: number;
+      pieceShapeName: string;
     };
 
 /** Why pickPlacement returned null this tick. Closed union so the
@@ -169,6 +181,30 @@ export function emitNoPlacementDiag(
     playerId,
     round,
     reason,
+  });
+}
+
+/** Emit a desperate-fired event. Fires once per tick when the last-resort
+ *  interior-discard fallback (see ai-build-desperate.ts) succeeds — the
+ *  player had zero enclosed alive towers AND every exterior path returned
+ *  null AND some bag-pool piece could still close a future ring. Lets
+ *  diag consumers identify games where the fallback materially changed
+ *  AI behavior (e.g. survival-suite per-seed log attribution). */
+export function emitDesperateFiredDiag(
+  playerId: ValidPlayerId,
+  round: number,
+  row: number,
+  col: number,
+  pieceShapeName: string,
+): void {
+  if (!diagHook) return;
+  diagHook({
+    kind: "desperate-fired",
+    playerId,
+    round,
+    row,
+    col,
+    pieceShapeName,
   });
 }
 
