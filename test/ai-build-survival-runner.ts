@@ -912,6 +912,7 @@ function classifySubMode(traj: readonly TrajectoryTick[]): {
     | "PLATEAU"
     | "LATE_PLATEAU"
     | "MID_PLATEAU"
+    | "NEAR_MISS_FLIP"
     | "NEAR_MISS"
     | "PROGRESS"
     | "SWITCH"
@@ -959,6 +960,25 @@ function classifySubMode(traj: readonly TrajectoryTick[]): {
   }
   if (longestStuck >= 8)
     return { kind: "MID_PLATEAU", detail: `${longestStuck}t stuck mid-round` };
+  // Near-miss FLIP: AI was on a rect at ≤3 gaps, then switched to a rect
+  // with MORE gaps in the very next tick. The life-critical specialization
+  // of NEAR_MISS — when a ring is 1-3 placements from closing, abandoning
+  // it for a bigger ring is the BLUE-r3-seed-897314 signature: piece in
+  // hand can't fill the 2-3 remaining gaps → canFillAfterPlugging fails →
+  // trySecondaryTower drops to next-best (which has more gaps because
+  // larger rings give the current piece more places to land). Captured
+  // here before generic NEAR_MISS because it's the most actionable shape.
+  for (let i = 1; i < traj.length; i++) {
+    const prev = traj[i - 1]!;
+    const cur = traj[i]!;
+    if (prev.rectKey === cur.rectKey) continue;
+    if (prev.gaps > 3) continue;
+    if (cur.gaps <= prev.gaps) continue;
+    return {
+      kind: "NEAR_MISS_FLIP",
+      detail: `flipped from ${prev.gaps}g rect to ${cur.gaps}g rect at tick ${i}`,
+    };
+  }
   // Near-miss abandonment: some rect reached ≤5 gaps but is not the current
   // rect — AI walked away from a nearly-closed ring. Surface the abandoned
   // gap count so the seed is easy to find in subsequent investigations.
