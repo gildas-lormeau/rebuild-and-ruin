@@ -115,6 +115,13 @@ export function createBuildTraceObserver(
             // gap count match is reliable except when two alternatives
             // happen to have the same gap count — rare and not worth the
             // complexity to disambiguate further).
+            //
+            // bagFit (peek-ahead piece fit) is intentionally NOT shown: the
+            // AI's actual decision uses only the CURRENT piece via
+            // canFillAfterPlugging, so surfacing bagFit alongside score
+            // invites mistaken "the AI rejected target X because bagFit=0"
+            // inferences when in reality the gating signal is something
+            // else (current-piece fit).
             const chosenIdxByTower = ev.chosenTowerIndex;
             const chosenIdxByGaps = chosenIdxByTower === undefined
               ? ev.alternatives.find(
@@ -126,11 +133,8 @@ export function createBuildTraceObserver(
               const isChosen = alt.towerIdx === chosenIdxByTower ||
                 alt.towerIdx === chosenIdxByGaps;
               const marker = isChosen ? "← chosen" : "";
-              const bagClause = alt.bagFitDenom > 0
-                ? ` bagFit=${alt.bagFit}/${alt.bagFitDenom}`
-                : "";
               lines.push(
-                `    alt T${alt.towerIdx}: score=${alt.score.toFixed(1)} gaps=${alt.gapCount}${bagClause} ${marker}`.trimEnd(),
+                `    alt T${alt.towerIdx}: score=${alt.score.toFixed(1)} gaps=${alt.gapCount} ${marker}`.trimEnd(),
               );
             }
           }
