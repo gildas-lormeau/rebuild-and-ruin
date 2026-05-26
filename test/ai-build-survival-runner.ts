@@ -147,6 +147,11 @@ export interface RoundRow {
    *  analyzer answer: "of stall ticks where the AI committed to a tower, how
    *  often was a better-fit alternative available?" */
   altCompare: { chosenBagFit: number; bestAltBagFit: number; denom: number }[];
+  /** Count of `desperate-fired` diag events this round for this player.
+   *  Surfaced inline by the diag hook (one log line per fire) so per-seed
+   *  log files can identify games where the last-resort interior-discard
+   *  fallback materially altered AI behavior. */
+  desperateFires: number;
 }
 
 /** Per-round shared snapshot captured at WALL_BUILD entry. The winnability
@@ -173,6 +178,13 @@ export interface SeedFindings {
    *  of the diagnostic signals across this seed's stalls. Empty when no
    *  stalls — the aggregates are uninteresting for clean seeds. */
   diagSummary: string;
+  /** Total `desperate-fired` diag events across all rounds + players for this
+   *  seed. 0 when the desperate interior-discard fallback never triggered. */
+  desperateFires: number;
+  /** Per-player desperate-fired counts (length 3, indexed by ValidPlayerId).
+   *  Lets downstream analysis attribute fires to specific players without
+   *  re-walking `perRound`. */
+  desperateFiresPerPlayer: number[];
 }
 
 export interface SeedResult {
@@ -216,10 +228,15 @@ export async function runAndAnalyze(seed: number): Promise<SeedResult> {
 export function formatSummaryLine(result: SeedResult): string {
   const { seed, findings, lastRound, roundsRecorded } = result;
   const perPlayer = PLAYER_NAMES.map(
-    (name, i) =>
-      `${name}:enc=${findings.perPlayer[i]!.enclosures} lives=${findings.perPlayer[i]!.livesEnd} active=${findings.perPlayer[i]!.activeRounds}`,
+    (name, i) => {
+      const fires = findings.desperateFiresPerPlayer[i] ?? 0;
+      const fireStr = fires > 0 ? ` desperate=${fires}` : "";
+      return `${name}:enc=${findings.perPlayer[i]!.enclosures} lives=${findings.perPlayer[i]!.livesEnd} active=${findings.perPlayer[i]!.activeRounds}${fireStr}`;
+    },
   ).join(" | ");
-  return `seed=${seed} rounds=${roundsRecorded}/${ROUNDS_TO_PLAY} (last=r${lastRound}) ${perPlayer}`;
+  const desperateTotal =
+    findings.desperateFires > 0 ? ` desperate=${findings.desperateFires}` : "";
+  return `seed=${seed} rounds=${roundsRecorded}/${ROUNDS_TO_PLAY} (last=r${lastRound})${desperateTotal} ${perPlayer}`;
 }
 
 function parseSeedsFromEnv(): readonly number[] | null {
@@ -267,6 +284,7 @@ async function runSeed(seed: number): Promise<{
           upcomingFitDenominator: 0,
           placements: [],
           altCompare: [],
+          desperateFires: 0,
         }),
       );
       perRound.set(round, row);
@@ -355,6 +373,13 @@ async function runSeed(seed: number): Promise<{
           event.pieceShapeName,
           eventOrd++,
         ),
+      );
+      return;
+    }
+    if (event.kind === "desperate-fired") {
+      getRow(event.round)[event.playerId]!.desperateFires++;
+      console.log(
+        `desperate seed=${seed} r${event.round} pid=${event.playerId} piece=${event.pieceShapeName} at=(${event.row},${event.col})`,
       );
       return;
     }
@@ -534,12 +559,14 @@ function analyzeSeed(
   let winnableCount = 0;
   let unwinnableCount = 0;
   let timeoutCount = 0;
+  const desperateFiresPerPlayer = [0, 0, 0];
   for (let pid = 0; pid < 3; pid++) {
     for (const round of rounds) {
       const row = perRound.get(round)![pid]!;
       perPlayer[pid]!.enclosures += row.enclosures;
       if (row.walls > 0) perPlayer[pid]!.activeRounds += 1;
       perPlayer[pid]!.livesEnd = row.livesAtRoundEnd;
+      desperateFiresPerPlayer[pid]! += row.desperateFires;
       // Stall: built actively, fired no enclosure this round despite having
       // ≥1 alive unowned tower available to enclose, didn't lose a life
       // (zone reset would clear ownedTowers and confuse the metric).
@@ -593,8 +620,14 @@ function analyzeSeed(
         const dropStr = dropped > 0
           ? ` | decide=${decided} commit=${committed} dropped=${dropped}`
           : "";
+        // Desperate-interior fires for this (round, player) — surfaced inline
+        // when non-zero so a stall reader sees "AI was actively discarding
+        // into closed area" attached to the failing round.
+        const desperateStr = row.desperateFires > 0
+          ? ` | desperate=${row.desperateFires}`
+          : "";
         stalls.push(
-          `seed=${seed} r${round} ${PLAYER_NAMES[pid]}: ${row.walls} walls placed, 0 enclosures fired, ${row.unownedAliveZoneTowers} alive unowned tower(s) available, lives=${row.livesAtRoundEnd} | paths H=${pc.HOME} S=${pc.SEC} E=${pc.EXP} SR=${pc.STRAT_RECT} SN=${pc.STRAT_NONE} → ${cls.kind} (${cls.detail}) | sub-mode ${sub.kind} (${sub.detail})${winStr}${dropStr}\n  diag: walls ${walls}${bagFitStr}${altStr}${cacheStr} | flips ${flipStr}`,
+          `seed=${seed} r${round} ${PLAYER_NAMES[pid]}: ${row.walls} walls placed, 0 enclosures fired, ${row.unownedAliveZoneTowers} alive unowned tower(s) available, lives=${row.livesAtRoundEnd} | paths H=${pc.HOME} S=${pc.SEC} E=${pc.EXP} SR=${pc.STRAT_RECT} SN=${pc.STRAT_NONE} → ${cls.kind} (${cls.detail}) | sub-mode ${sub.kind} (${sub.detail})${winStr}${dropStr}${desperateStr}\n  diag: walls ${walls}${bagFitStr}${altStr}${cacheStr} | flips ${flipStr}`,
         );
         if (row.placements.length > 0) {
           const hits = row.placements.filter((p) => p.hitTargetGap).length;
@@ -612,11 +645,20 @@ function analyzeSeed(
     winnableCount + unwinnableCount + timeoutCount > 0
       ? ` | win W=${winnableCount} U=${unwinnableCount} T=${timeoutCount}`
       : "";
+  const desperateFires = desperateFiresPerPlayer.reduce((a, b) => a + b, 0);
+  const desperateMedianStr =
+    desperateFires > 0 ? ` | desperate=${desperateFires}` : "";
   const diagSummary =
     stalls.length > 0
-      ? `DIAG seed=${seed}: ${stalls.length} stalls | gap-hit median ${median(gapHitPcts)}% | flips total ${totalFlips}${bagFitMedianStr}${winMedianStr}${altBetterPcts.length > 0 ? ` | alt-better median ${median(altBetterPcts)}%` : ""}`
+      ? `DIAG seed=${seed}: ${stalls.length} stalls | gap-hit median ${median(gapHitPcts)}% | flips total ${totalFlips}${bagFitMedianStr}${winMedianStr}${altBetterPcts.length > 0 ? ` | alt-better median ${median(altBetterPcts)}%` : ""}${desperateMedianStr}`
       : "";
-  return { stalls, perPlayer, diagSummary };
+  return {
+    stalls,
+    perPlayer,
+    diagSummary,
+    desperateFires,
+    desperateFiresPerPlayer,
+  };
 }
 
 /** Run the bag-coverage solver for a LATE_PLATEAU stall and format the

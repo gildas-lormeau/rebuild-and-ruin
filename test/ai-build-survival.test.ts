@@ -50,9 +50,19 @@ const POOL_SIZE = Math.max(
   Number(Deno.env.get("AI_SURVIVAL_WORKERS")) ||
     (navigator.hardwareConcurrency ?? 4),
 );
+/** When set, each worker writes its captured console output to
+ *  `${LOG_DIR}/seed-{N}.log` instead of streaming to stdout. Non-interleaved
+ *  by construction — one writer per file. Created up-front so workers can
+ *  assume the directory exists. */
+const LOG_DIR = Deno.env.get("AI_SURVIVAL_LOG_DIR");
 const seedDeferreds = new Map<number, Deferred<SeedResult>>();
 const pendingSeeds: number[] = [...SEEDS];
 const poolCount = Math.min(POOL_SIZE, SEEDS.length);
+
+if (LOG_DIR) {
+  Deno.mkdirSync(LOG_DIR, { recursive: true });
+  console.log(`AI survival: writing per-seed logs to ${LOG_DIR}/seed-{N}.log`);
+}
 
 for (const seed of SEEDS) seedDeferreds.set(seed, defer<SeedResult>());
 
@@ -94,7 +104,7 @@ function startWorker(): void {
       return;
     }
     currentSeed = next;
-    const request: WorkerRequest = { seed: next };
+    const request: WorkerRequest = { seed: next, logDir: LOG_DIR };
     worker.postMessage(request);
   };
 
