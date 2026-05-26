@@ -3,6 +3,7 @@ import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import {
   eliminatePlayer,
   isPlayerAlive,
+  isPlayerEliminated,
   type Player,
 } from "../shared/core/player-types.ts";
 import type { GameState } from "../shared/core/types.ts";
@@ -71,6 +72,11 @@ export function eliminatePlayers(
   for (const playerId of playerIds) {
     const player = state.players[playerId];
     if (!player) continue;
+    // Already-eliminated players land here when the life-lost dialog
+    // pre-resolves their entry to ABANDON (see life-lost-core.ts) — skip
+    // so PLAYER_ELIMINATED doesn't re-fire for an elimination that already
+    // emitted from `finalizeRound`.
+    if (isPlayerEliminated(player)) continue;
     eliminatePlayer(player);
     emitGameEvent(state.bus, GAME_EVENT.PLAYER_ELIMINATED, {
       playerId: player.id,
