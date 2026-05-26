@@ -31,7 +31,11 @@ import {
   towerReachesOutsideCardinal,
 } from "../shared/core/spatial.ts";
 import type { BuildViewState } from "../shared/core/system-interfaces.ts";
-import { emitWallPlacedDiag } from "./ai-build-diag.ts";
+import {
+  emitNoPlacementDiag,
+  emitWallPlacedDiag,
+  type NoPlacementReason,
+} from "./ai-build-diag.ts";
 import {
   candidateObstacleHits,
   candidateToPlacement,
@@ -72,6 +76,14 @@ export interface PickPlacementResult {
    *  (DefaultStrategy) stores this and passes it back via PlacementOptions
    *  on the next tick to drive the persistence short-circuit. */
   chosenTowerIndex: TowerIdx | undefined;
+}
+
+interface BestPlacementResult {
+  placement: AiPlacement | null;
+  /** Set iff placement === null; identifies the terminal branch that
+   *  gave up. Forwarded to emitNoPlacementDiag at the pickPlacement call
+   *  site so the build-trace observer can bucket no-placement ticks. */
+  reason: NoPlacementReason | undefined;
 }
 
 const NO_PLACEMENT: PickPlacementResult = {
@@ -143,6 +155,7 @@ export function pickPlacement(
   } = options;
   const maybePlayer = state.players[playerId];
   if (!maybePlayer || maybePlayer.castleWallTiles.size === 0) {
+    emitNoPlacementDiag(playerId, state.round, "eliminated-no-walls");
     return NO_PLACEMENT;
   }
   const player = maybePlayer;
@@ -153,6 +166,7 @@ export function pickPlacement(
   // clears between selection and now, the recomputed rect drifts to the
   // natural-shoreline shape — bounded suboptimality, never desync.
   if (!player.homeTower) {
+    emitNoPlacementDiag(playerId, state.round, "eliminated-no-tower");
     return NO_PLACEMENT;
   }
   const castle = createCastle(
@@ -187,7 +201,10 @@ export function pickPlacement(
   // State is read-only during pickPlacement so memoization is safe.
   const cache = buildOccupancyCache(state);
   const placementCtx = buildPlacementContext(state, playerId);
-  if (!placementCtx) return NO_PLACEMENT;
+  if (!placementCtx) {
+    emitNoPlacementDiag(playerId, state.round, "no-placement-context");
+    return NO_PLACEMENT;
+  }
 
   // Step 1: determine which rectangle to build/repair.
   // Pipeline: tryRepairHomeCastle → trySecondaryTower → tryExpandTerritory
@@ -235,6 +252,7 @@ export function pickPlacement(
     interiorExcludingGaps,
   );
   if (allCandidates.length === 0) {
+    emitNoPlacementDiag(playerId, state.round, "no-candidates");
     return { placement: null, chosenTowerIndex };
   }
 
@@ -274,7 +292,7 @@ export function pickPlacement(
     aliveHouseKeys,
   };
 
-  const placement = selectBestPlacement(scored, allCandidates, scoringCtx, {
+  const bestResult = selectBestPlacement(scored, allCandidates, scoringCtx, {
     player,
     castle,
     castleMargin,
@@ -283,6 +301,10 @@ export function pickPlacement(
     hasManageableGaps:
       targetGaps.size > 0 && targetGaps.size <= MANAGEABLE_GAP_LIMIT,
   });
+  const placement = bestResult.placement;
+  if (placement === null && bestResult.reason !== undefined) {
+    emitNoPlacementDiag(playerId, state.round, bestResult.reason);
+  }
   if (placement !== null) {
     let cellsOnRingPerimeter = 0;
     if (targetRect !== null) {
@@ -331,7 +353,7 @@ function selectBestPlacement(
     noBuildTargets: boolean;
     hasManageableGaps: boolean;
   },
-): AiPlacement | null {
+): BestPlacementResult {
   const {
     walls,
     outside,
@@ -403,13 +425,14 @@ function selectBestPlacement(
   // than the cosmetics the hard-rejects were optimizing for. Falls back to
   // `pickFallbackPlacement` only when no gap-filler exists at all.
   if (!scoreResult.evaluated) {
-    if (noBuildTargets) return null;
+    if (noBuildTargets) return fail("unevaluated-no-targets");
     const topGapFiller = sortedScored.find(
       (entry) => entry.candidate.gapsFilled > 0,
     );
-    if (topGapFiller) return candidateToPlacement(topGapFiller.candidate);
-    return pickFallbackPlacement(sortedScored, state, fallbackBuildCtx)
-      .placement;
+    if (topGapFiller) return ok(candidateToPlacement(topGapFiller.candidate));
+    return fromFallback(
+      pickFallbackPlacement(sortedScored, state, fallbackBuildCtx),
+    );
   }
 
   const { bestCandidate, bestScore } = scoreResult;
@@ -418,7 +441,7 @@ function selectBestPlacement(
   // expansion if scoring found a positive placement (new large enclosure).
   // rejectTinyPockets already filtered out small-pocket candidates at
   // skill ≥ 3, so bestScore > 0 means genuinely useful territory gain.
-  if (noBuildTargets && bestScore <= 0) return null;
+  if (noBuildTargets && bestScore <= 0) return fail("low-score-no-targets");
 
   // Gap-filling was the priority but territory gain was ≤ 0 — still use the
   // best gap-filler by first-pass score (closing the ring IS the goal).
@@ -426,7 +449,7 @@ function selectBestPlacement(
   // enclosing territory is wasteful.
   if (bestScore <= 0 && restrictedToGapFillers) {
     if (fatBlockCountFor(bestCandidate) === 0) {
-      return candidateToPlacement(bestCandidate);
+      return ok(candidateToPlacement(bestCandidate));
     }
     // Fat wall gap-filler — find a non-fat alternative among gap fillers
     const nonFatGapFillers = topCandidates.filter(
@@ -436,26 +459,44 @@ function selectBestPlacement(
     );
     if (nonFatGapFillers.length > 0) {
       nonFatGapFillers.sort(compareByNumericScoreDesc);
-      return candidateToPlacement(nonFatGapFillers[0]!.candidate);
+      return ok(candidateToPlacement(nonFatGapFillers[0]!.candidate));
     }
     // All gap fillers are fat — accept the best one anyway if the ring
     // is still open, because closing the castle outweighs the fat penalty.
     if (!allCastlesEnclosed) {
-      return candidateToPlacement(bestCandidate);
+      return ok(candidateToPlacement(bestCandidate));
     }
   }
 
   // If no territory gain: discard or build toward unenclosed towers
   if (bestScore <= 0) {
-    return pickFallbackPlacement(sortedScored, state, fallbackBuildCtx)
-      .placement;
+    return fromFallback(
+      pickFallbackPlacement(sortedScored, state, fallbackBuildCtx),
+    );
   }
 
-  return {
+  return ok({
     piece: bestCandidate.piece,
     row: bestCandidate.row,
     col: bestCandidate.col,
-  };
+  });
+}
+
+function fromFallback(result: {
+  placement: AiPlacement | null;
+  reason: string;
+}): BestPlacementResult {
+  if (result.placement !== null) return ok(result.placement);
+  switch (result.reason) {
+    case "interior-full":
+      return fail("fallback-interior-full");
+    case "discard-all-fat":
+      return fail("fallback-discard-all-fat");
+    case "extend-all-fat":
+      return fail("fallback-extend-all-fat");
+    default:
+      return fail("fallback-unknown");
+  }
 }
 
 /** Fallback when prescoreCandidates yielded zero scored entries (every
@@ -468,7 +509,7 @@ function selectFromEmptyScored(
   scoringCtx: ScoringContext,
   noBuildTargets: boolean,
   fatBlockCountFor: (candidate: Candidate) => number,
-): AiPlacement | null {
+): BestPlacementResult {
   const {
     walls,
     outside,
@@ -479,7 +520,7 @@ function selectFromEmptyScored(
   } = scoringCtx;
   // When everything is enclosed with no gaps, don't force-place fat walls
   if (noBuildTargets) {
-    return null;
+    return fail("scored-empty-no-targets");
   }
   const isSmallEnclosure = memoize((candidate: Candidate) =>
     createsSmallEnclosure(candidate, walls, outside, state, aliveHouseKeys),
@@ -508,10 +549,10 @@ function selectFromEmptyScored(
         candidateObstacleHits(a, caresAboutHouses, caresAboutBonuses) -
         candidateObstacleHits(b, caresAboutHouses, caresAboutBonuses),
     );
-    return candidateToPlacement(open[0]!);
+    return ok(candidateToPlacement(open[0]!));
   }
   if (noFatNotOpen.length > 0) {
-    return candidateToPlacement(noFatNotOpen[0]!);
+    return ok(candidateToPlacement(noFatNotOpen[0]!));
   }
   // Last resort: prefer no small enclosure, then fewer fat blocks
   rest.sort((a, b) => {
@@ -520,7 +561,15 @@ function selectFromEmptyScored(
     if (aEncloses !== bEncloses) return aEncloses - bEncloses;
     return fatBlockCountFor(a) - fatBlockCountFor(b);
   });
-  return candidateToPlacement(rest[0]!);
+  return ok(candidateToPlacement(rest[0]!));
+}
+
+function ok(placement: AiPlacement): BestPlacementResult {
+  return { placement, reason: undefined };
+}
+
+function fail(reason: NoPlacementReason): BestPlacementResult {
+  return { placement: null, reason };
 }
 
 /** Look up skill config by 1-based buildSkill level (1=clumsy, 5=clean). */

@@ -82,7 +82,33 @@ type AiBuildDiagEvent =
        *  — the existing gap/adj/iso classification conflates them. */
       cellsOnRingPerimeter: number;
       pieceShapeName: string;
+    }
+  | {
+      kind: "no-placement";
+      playerId: ValidPlayerId;
+      round: number;
+      /** Short label for why pickPlacement returned without a placement
+       *  this tick. Pairs with the immediately-preceding `target-selected`
+       *  event (when a target was picked) to attribute the failure to
+       *  that target's rect/gap geometry. */
+      reason: NoPlacementReason;
     };
+
+/** Why pickPlacement returned null this tick. Closed union so the
+ *  build-trace observer's histogram stays exhaustive and a new failure
+ *  path is a compile error. */
+export type NoPlacementReason =
+  | "eliminated-no-walls"
+  | "eliminated-no-tower"
+  | "no-placement-context"
+  | "no-candidates"
+  | "scored-empty-no-targets"
+  | "unevaluated-no-targets"
+  | "low-score-no-targets"
+  | "fallback-interior-full"
+  | "fallback-discard-all-fat"
+  | "fallback-extend-all-fat"
+  | "fallback-unknown";
 
 export type AiBuildDiagHook = (event: AiBuildDiagEvent) => void;
 
@@ -124,6 +150,25 @@ export function emitWallPlacedDiag(
     targetRect,
     cellsOnRingPerimeter,
     pieceShapeName,
+  });
+}
+
+/** Emit a no-placement event. Fires once per tick when pickPlacement
+ *  returns without a placement, so the build-trace observer can replace
+ *  its previous "reason not emitted" placeholder with an actual cause
+ *  bucket. Pair with the immediately-preceding `target-selected` event
+ *  (when a target was picked) to attribute the failure to the rect. */
+export function emitNoPlacementDiag(
+  playerId: ValidPlayerId,
+  round: number,
+  reason: NoPlacementReason,
+): void {
+  if (!diagHook) return;
+  diagHook({
+    kind: "no-placement",
+    playerId,
+    round,
+    reason,
   });
 }
 
