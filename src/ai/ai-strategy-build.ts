@@ -36,6 +36,7 @@ import {
   emitWallPlacedDiag,
   type NoPlacementReason,
 } from "./ai-build-diag.ts";
+import { computePeekFitTargets } from "./ai-build-lookahead.ts";
 import {
   candidateObstacleHits,
   candidateToPlacement,
@@ -272,6 +273,18 @@ export function pickPlacement(
     aliveHouseKeys,
   );
 
+  const peekFitTargets = computePeekFitTargets(
+    state,
+    playerId,
+    player,
+    unenclosedTowers,
+    targetRect,
+    castleMargin,
+    bankHugging,
+    cache,
+    placementCtx,
+  );
+
   const scoringCtx: ScoringContext = {
     state,
     walls,
@@ -290,6 +303,7 @@ export function pickPlacement(
     baselineOutside,
     baselinePocketWaste,
     aliveHouseKeys,
+    peekFitTargets,
   };
 
   const bestResult = selectBestPlacement(scored, allCandidates, scoringCtx, {

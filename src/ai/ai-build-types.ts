@@ -196,4 +196,24 @@ export type ScoringContext = {
    *  so the simulated-wall predictors filter them out. Computed once per
    *  AI tick at scoring-context construction. */
   aliveHouseKeys: ReadonlySet<TileKey>;
+  /** 1-step bag lookahead anchors (Direction #4 — search-based placement).
+   *  Each entry marks an unenclosed tower OTHER than the active target whose
+   *  ring is near-complete (≤ MANAGEABLE_GAP_LIMIT gaps) AND whose gaps the
+   *  next peeked piece in the bag CAN fill. Used by `cursor-anticipation`
+   *  scoring rule to bias placements toward leaving the cursor close to a
+   *  future viable gap-fill — preventing wasted long-cursor travel after
+   *  filling a far-away gap when a near-complete home/secondary ring is
+   *  still pending. Empty when bag has no peek, no near-complete alternates
+   *  exist, or peeked piece doesn't fit any. */
+  peekFitTargets: readonly PeekFitTarget[];
 };
+
+/** Anchor for the cursor-anticipation lookahead bonus.
+ *  `anchorRow`/`anchorCol` are the gap centroid (fractional) — the rule
+ *  rewards placements close to this position via Manhattan distance.
+ *  `gapsCount` is informational (smaller rings get slightly higher pull). */
+export interface PeekFitTarget {
+  anchorRow: number;
+  anchorCol: number;
+  gapsCount: number;
+}

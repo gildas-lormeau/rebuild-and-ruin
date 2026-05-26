@@ -342,9 +342,9 @@
     "name": "L11",
     "files": [
       "src/ai/ai-brain.ts",
+      "src/ai/ai-build-lookahead.ts",
       "src/ai/ai-plan-pocket-destruction.ts",
       "src/ai/ai-plan-structural-hit.ts",
-      "src/ai/ai-strategy-build.ts",
       "src/controllers/controller-ai.ts",
       "src/game/grunt-system.ts",
       "src/render/3d/scene.ts",
@@ -355,7 +355,7 @@
   {
     "name": "L12",
     "files": [
-      "src/ai/ai-strategy.ts",
+      "src/ai/ai-strategy-build.ts",
       "src/controllers/controller-ai-assisted-human.ts",
       "src/game/battle-system.ts",
       "src/game/build-system.ts",
@@ -366,7 +366,7 @@
   {
     "name": "L13",
     "files": [
-      "src/ai/ai-defaults.ts",
+      "src/ai/ai-strategy.ts",
       "src/game/game-actions.ts",
       "src/game/phase-setup.ts",
       "src/game/scheduled-actions.ts",
@@ -377,6 +377,7 @@
   {
     "name": "L14",
     "files": [
+      "src/ai/ai-defaults.ts",
       "src/game/phase-entry.ts",
       "src/main.ts",
       "src/online/online-serialize.ts"

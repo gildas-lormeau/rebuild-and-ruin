@@ -927,7 +927,7 @@ export function adjustInterior(
 }
 
 /** Try all rotations of each piece against each gap anchor; return true on first fit. */
-function canAnyRotationFillGap(
+export function canAnyRotationFillGap(
   pieces: readonly PieceShape[],
   gaps: Set<TileKey>,
   adjusted: ReadonlySet<TileKey>,

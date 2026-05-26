@@ -249,6 +249,34 @@ export function sameShape(a: PieceShape, b: PieceShape): boolean {
   return pieceKey(a) === pieceKey(b);
 }
 
+/** Distinct piece shapes that appear in the bag pool for the given round
+ *  configuration. Deterministic from `(round, smallPieces)` — does NOT
+ *  consume RNG. Mirrors `piecePool`'s composition logic without the shuffle.
+ *  Used by the AI build lookahead so the rule consumes only information a
+ *  human could also derive from the round counter + visible modifier state
+ *  (no actual bag-queue peek, which would be asymmetric info). */
+export function piecesInRoundPool(
+  round: number,
+  smallPieces?: boolean,
+): readonly PieceShape[] {
+  if (smallPieces) {
+    return PIECE_WEIGHTS.filter((pw) => pw.tier === 1).map((pw) => pw.piece);
+  }
+  const interpolationFactor = Math.min(
+    1,
+    Math.max(
+      0,
+      (round - PIECE_POOL_START_ROUND) /
+        (PIECE_POOL_END_ROUND - PIECE_POOL_START_ROUND),
+    ),
+  );
+  const present: PieceShape[] = [];
+  for (const pw of PIECE_WEIGHTS) {
+    if (interpolatedCopies(pw, interpolationFactor) > 0) present.push(pw.piece);
+  }
+  return present;
+}
+
 /** Ensure the piece is oriented with its longest side horizontal. */
 function normalizeOrientation(piece: PieceShape): PieceShape {
   if (hasPortraitOrientation(piece)) {

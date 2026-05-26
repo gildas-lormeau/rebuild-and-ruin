@@ -222,6 +222,7 @@ const LABELS: Record<string, string> = {
   "13::runtime": "runtime composition",
 
   // L14 — composition roots
+  "14::ai": "default AI bundle (strategy + brain assembly entrypoint)",
   "14::controllers": "AI controller wrapper",
   "14::entry": "local-game entry",
   "14::game": "phase entry helpers",

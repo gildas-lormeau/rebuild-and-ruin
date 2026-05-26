@@ -77,6 +77,14 @@ const TOWER_PROXIMITY_RANGE = 8;
 const TOWER_PROXIMITY_FACTOR = 0.3;
 /** Bonus per gap tile that would survive the sweep (≥2 cardinal neighbors). */
 const SWEEP_SAFE_BONUS = 2;
+/** Max tile distance from candidate centroid to a peek-fit anchor that still
+ *  receives a `cursor-anticipation` bonus (Direction #4 bag-lookahead). */
+const CURSOR_ANTICIPATION_MAX = 18;
+/** Per-tile weight on the cursor-anticipation bonus. Sized to compete with
+ *  the gap-fill score among candidates that fill the SAME number of gaps —
+ *  acts as a tiebreaker that picks the gap-filler closest to a future viable
+ *  fill, without overriding the primary gap-fill ranking. */
+const CURSOR_ANTICIPATION_WEIGHT = 2;
 /** Reject candidates where all non-gap tiles are isolated (no wall adjacency).
  *  These placements bridge a gap but "float" — the non-gap portion is wasted. */
 const rejectIsolatedGapTiles: ScoringRule = {
@@ -220,6 +228,18 @@ const cursorProximityRule: ScoringRule = {
     );
   },
 };
+/** Bag-lookahead bonus (Direction #4): biases candidates toward leaving the
+ *  cursor near a future viable gap-fill opportunity on a NEAR-COMPLETE
+ *  unenclosed tower OTHER than the active target — peeking the next bag
+ *  piece to validate fillability. Prevents the canonical NEAR_MISS_FLIP
+ *  failure where the AI fills a far-away ring's gaps and runs out of build
+ *  time before returning to close a 1–3 gap home/secondary ring. */
+const cursorAnticipationRule: ScoringRule = {
+  name: "cursor-anticipation",
+  apply(candidate, _env, ctx) {
+    return computeCursorAnticipationBonus(candidate, ctx);
+  },
+};
 /** Bonus for placements near unowned zone towers (guides expansion). */
 const towerProximityRule: ScoringRule = {
   name: "tower-proximity",
@@ -251,6 +271,7 @@ const SCORE_CONTRIBUTION_RULES: readonly ScoringRule[] = [
   fatWallPenaltyRule,
   sweepSafeRule,
   cursorProximityRule,
+  cursorAnticipationRule,
   towerProximityRule,
 ];
 /** All scoring rules: hard-rejects first, then score contributions. */
@@ -505,6 +526,32 @@ function computeCursorProximityBonus(
   return (
     Math.max(0, CURSOR_PROXIMITY_MAX - avgDistance) *
     CURSOR_PROXIMITY_MULTIPLIER
+  );
+}
+
+function computeCursorAnticipationBonus(
+  candidate: Candidate,
+  ctx: ScoringContext,
+): number {
+  if (ctx.peekFitTargets.length === 0) return 0;
+  let avgRow = 0;
+  let avgCol = 0;
+  for (const [dr, dc] of candidate.piece.offsets) {
+    avgRow += candidate.row + dr;
+    avgCol += candidate.col + dc;
+  }
+  const tileCount = candidate.piece.offsets.length;
+  avgRow /= tileCount;
+  avgCol /= tileCount;
+  let minDist = Infinity;
+  for (const target of ctx.peekFitTargets) {
+    const dist =
+      Math.abs(target.anchorRow - avgRow) + Math.abs(target.anchorCol - avgCol);
+    if (dist < minDist) minDist = dist;
+  }
+  if (minDist === Infinity) return 0;
+  return (
+    Math.max(0, CURSOR_ANTICIPATION_MAX - minDist) * CURSOR_ANTICIPATION_WEIGHT
   );
 }
 
