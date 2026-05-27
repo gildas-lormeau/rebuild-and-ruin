@@ -127,7 +127,7 @@ const CELL_LAYER_PRIORITY: Record<CellKind, number> = {
 };
 /** Number of lines the legend produced by `buildLegend` occupies. Used by
  *  `extractGridLines` to strip legend without pattern-matching it. */
-const LEGEND_LINE_COUNT = 4;
+const LEGEND_LINE_COUNT = 3;
 /** Maximum diff lines emitted by `diffAsciiSnapshots` before truncating. */
 const DIFF_LINE_LIMIT = 100;
 /** Sentinel for Cell.playerId when the cell has no owner (terrain,
@@ -342,9 +342,8 @@ export function buildLegend(state: GameState): string {
 
   return [
     `Round ${state.round}  |  ${playerInfo}`,
-    ". grass  ~ water  f frozen  : territory  # wall  T tower  t dead tower",
-    "C cannon  x debris  ! grunt  * burning pit  + bonus  o cannonball",
-    "Walls: r=Red  b=Blue  g=Gold  |  Cannons: R=Red  B=Blue  G=Gold",
+    ". grass  ~ water  f frozen  ░ territory  # wall  T tower  t dead tower",
+    "C cannon  x debris  ! grunt  * burning pit  + bonus  o cannonball  H house  h dead house",
   ].join("\n");
 }
 
