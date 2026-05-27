@@ -219,19 +219,26 @@ export function createNarrativeObserver(): NarrativeObserver {
       });
 
       // Battle events — emitted on the same bus via state.bus.emit(...).
+      // Captured-cannon disambiguation: ev.playerId is the cannon's ORIGINAL
+      // owner; the actual shooter is ev.scoringPlayerId when set. Lead with
+      // the actual shooter and tag the cannon idx with its original owner
+      // when those differ, so a reader never has to infer who pulled the
+      // trigger from a trailing "(scoring X)" suffix.
       on(sc, BATTLE_MESSAGE.CANNON_FIRED, (ev) => {
-        const scorer = ev.scoringPlayerId !== undefined &&
-            ev.scoringPlayerId !== ev.playerId
-          ? ` (scoring ${playerName(ev.scoringPlayerId)})`
-          : "";
+        const shooterId = ev.scoringPlayerId ?? ev.playerId;
+        const isCaptured = ev.scoringPlayerId !== undefined &&
+          ev.scoringPlayerId !== ev.playerId;
+        const fireRef = isCaptured
+          ? `${playerName(shooterId)} fires ${playerName(ev.playerId)}@${ev.cannonIdx}`
+          : `${playerName(shooterId)} fires@${ev.cannonIdx}`;
         const tag = classifyImpactTile(
           sc.state,
           ev.impactRow,
           ev.impactCol,
-          ev.playerId,
+          shooterId,
         );
         push(
-          `${playerName(ev.playerId)} fires@${ev.cannonIdx} → (${ev.impactRow},${ev.impactCol}) [${tag}]${scorer}`,
+          `${fireRef} → (${ev.impactRow},${ev.impactCol}) [${tag}]`,
         );
       });
 
@@ -239,11 +246,13 @@ export function createNarrativeObserver(): NarrativeObserver {
         // shooterId is undefined only when a grunt destroyed the wall
         // (grunt-system emits without a shooter; battle-system always sets
         // one). cannonIdx is set for cannon-driven hits including splash;
-        // grunts pass undefined.
+        // grunts pass undefined. For captured cannons the idx lives in the
+        // original owner's player.cannons[] array — formatCannonShooter
+        // surfaces that as "SHOOTER via OWNER@idx".
         const shooter = ev.shooterId === undefined
           ? "grunt"
           : ev.cannonIdx !== undefined
-            ? `${playerName(ev.shooterId)}@${ev.cannonIdx}`
+            ? formatCannonShooter(sc.state, ev.shooterId, ev.cannonIdx)
             : playerName(ev.shooterId);
         push(
           `${shooter} → ${playerName(ev.playerId)} wall@(${ev.row},${ev.col})`,
@@ -251,6 +260,9 @@ export function createNarrativeObserver(): NarrativeObserver {
       });
 
       on(sc, BATTLE_MESSAGE.CANNON_DAMAGED, (ev) => {
+        // CANNON_DAMAGED carries shooterId (the actual scorer) but not the
+        // shooter's cannonIdx — so we can't tag captured-cannon fires with
+        // their original owner here. Bare shooter name only.
         const shooter = ev.shooterId !== undefined
           ? playerName(ev.shooterId)
           : "?";
@@ -288,24 +300,41 @@ export function createNarrativeObserver(): NarrativeObserver {
   };
 }
 
-/** Classify what's at the impact tile (row, col) for the firing player.
- *  Order matters — a tower tile that also has a wall around it shouldn't be
- *  reported as wall. Suffix `+dup` when another in-flight ball from the same
- *  player already targets this same impact tile (intra-volley duplicate). */
+/** Format a cannon-source label for events whose shooter may have fired a
+ *  captured cannon. cannonIdx on the wire is the idx in the firing cannon's
+ *  ORIGINAL owner's `player.cannons[]` array, which is the shooter's own
+ *  array for normal fires but the victim's array for captured-cannon fires.
+ *  Probe state.capturedCannons to detect the latter and surface the original
+ *  owner as a "via" prefix. */
+function formatCannonShooter(
+  state: GameState,
+  shooterId: number,
+  cannonIdx: number,
+): string {
+  const captured = state.capturedCannons.find(
+    (cap) => cap.capturerId === shooterId && cap.cannonIdx === cannonIdx,
+  );
+  if (captured !== undefined) {
+    return `${playerName(shooterId)} via ${playerName(captured.victimId)}@${cannonIdx}`;
+  }
+  return `${playerName(shooterId)}@${cannonIdx}`;
+}
+
+/** Classify what's at the impact tile (row, col) from the actual shooter's
+ *  perspective. Order matters — a tower tile that also has a wall around it
+ *  shouldn't be reported as wall. Suffix `+dup` when another in-flight ball
+ *  from the same shooter (capturer for captured cannons, original owner
+ *  otherwise) already targets this same impact tile. */
 function classifyImpactTile(
   state: GameState,
   row: number,
   col: number,
-  firingPlayerId: number,
+  shooterId: number,
 ): string {
-  let tag = identifyImpactTile(state, row, col, firingPlayerId);
-  // Intra-volley duplicate: another in-flight ball from the same player
-  // already aimed at this impact tile (the just-fired ball is in
-  // state.cannonballs by the time this handler runs, so count >= 2 means
-  // at least one peer ball is also targeting).
+  let tag = identifyImpactTile(state, row, col, shooterId);
   const sameTileBalls = state.cannonballs.filter(
     (b) =>
-      b.playerId === firingPlayerId &&
+      (b.scoringPlayerId ?? b.playerId) === shooterId &&
       b.impactRow === row &&
       b.impactCol === col,
   );
@@ -317,24 +346,35 @@ function identifyImpactTile(
   state: GameState,
   row: number,
   col: number,
-  firingPlayerId: number,
+  shooterId: number,
 ): string {
   // Cannon (own / enemy / captured) — 2×2 footprint check. Dead cannons
   // persist as debris (clear on zone reset) so a hit on one is wasted;
-  // we surface that explicitly.
+  // we surface that explicitly. "own-*" reflects the actual shooter's
+  // effective control, not original ownership — so a capturer hitting the
+  // victim's other cannons shows as `cannon:VICTIM@idx`, not `own-cannon`.
   for (let pid = 0; pid < state.players.length; pid++) {
     const player = state.players[pid]!;
     for (let idx = 0; idx < player.cannons.length; idx++) {
       const cannon = player.cannons[idx]!;
       if (!isCannonTile(cannon, row, col)) continue;
       if (!isCannonAlive(cannon)) return `debris:${playerName(pid)}@${idx}`;
-      const capturedByFirer = state.capturedCannons.some(
-        (cap) => cap.cannon === cannon && cap.capturerId === firingPlayerId,
+      const capturedByShooter = state.capturedCannons.some(
+        (cap) => cap.cannon === cannon && cap.capturerId === shooterId,
       );
-      if (capturedByFirer) return `own-captured@${idx}`;
-      return pid === firingPlayerId
-        ? `own-cannon@${idx}`
-        : `cannon:${playerName(pid)}@${idx}`;
+      if (capturedByShooter) return `own-captured@${idx}`;
+      if (pid === shooterId) {
+        // Original owner of this cannon — but if an enemy has captured it,
+        // it's effectively no longer ours.
+        const enemyCapture = state.capturedCannons.find(
+          (cap) => cap.cannon === cannon && cap.capturerId !== shooterId,
+        );
+        if (enemyCapture !== undefined) {
+          return `lost-cannon@${idx}→${playerName(enemyCapture.capturerId)}`;
+        }
+        return `own-cannon@${idx}`;
+      }
+      return `cannon:${playerName(pid)}@${idx}`;
     }
   }
   // Tower (owned / neutral) — 2×2 footprint.
@@ -344,14 +384,14 @@ function identifyImpactTile(
       player.ownedTowers.some((owned) => owned.index === tower.index),
     );
     if (owner === undefined) return `tower:neutral T${tower.index}`;
-    const ownTag = owner.id === firingPlayerId ? "own-" : "";
+    const ownTag = owner.id === shooterId ? "own-" : "";
     return `${ownTag}tower:${playerName(owner.id)} T${tower.index}`;
   }
   // Wall (own / enemy) — single-tile lookup via TileKey.
   const key = packTile(row, col);
   for (let pid = 0; pid < state.players.length; pid++) {
     if (!state.players[pid]!.walls.has(key)) continue;
-    return pid === firingPlayerId ? "own-wall" : `wall:${playerName(pid)}`;
+    return pid === shooterId ? "own-wall" : `wall:${playerName(pid)}`;
   }
   // Grunt on this tile — non-blocking but worth knowing.
   if (state.grunts.some((grunt) => isAtTile(grunt, row, col))) return "grunt";
