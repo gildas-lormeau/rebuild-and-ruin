@@ -110,6 +110,14 @@ const GAP_FILLED_WEIGHT = 100;
 const GAP_ADJACENT_WEIGHT = 20;
 /** Score weight per tile connected to existing walls. */
 const CONNECTED_TILES_WEIGHT = 10;
+/** Score penalty for a placement that extends a doubled-wall block into a
+ *  2×3 / 3×2 all-wall RUN — the visible "fat wall" pathology. Several orders
+ *  of magnitude larger than the typical placement score (`GAP_FILLED_WEIGHT
+ *  = 100 × gaps`) so a fat-run candidate ranks BELOW every non-fat-run
+ *  alternative, but is still kept in the scored list as a last-resort
+ *  fallback when every other placement is impossible (avoids the build-
+ *  phase deadlock observed when fat-run was hard-rejected upstream). */
+const FAT_WALL_RUN_PENALTY = 10_000;
 const BUILD_SKILL_TABLE = [
   /*1*/ {
     topCandidates: 12,
@@ -776,15 +784,28 @@ function prescoreCandidates(
 ): Scored[] {
   const scored: Scored[] = [];
   for (const candidate of allCandidates) {
-    const { hasFatWall, gapClosingFat } = checkFatWall(
+    const { hasFatWall, hasFatRun, gapClosingFat } = checkFatWall(
       walls,
       candidate,
       aliveHouseKeys,
     );
 
+    // Reject fat-RUN placements (2×3 / 3×2 doubled-wall blocks) unless they
+    // close at least one gap — those are the visible ##/##/## or ####/####
+    // touching-castle pathology. The gap-filled exception prevents the
+    // build phase from stalling when fat-run is the only way to close a
+    // critical ring gap (seed 7 modern needed this — pure hard-reject
+    // starved the AI of placements and the build phase never ended).
+    if (hasFatRun && candidate.gapsFilled === 0) continue;
     if (noTargetGaps && (hasFatWall || gapClosingFat)) continue;
 
     const fatBlocks = countFatBlocks(walls, candidate, aliveHouseKeys);
+
+    // Heavy penalty when a gap-closing placement still creates a fat-run,
+    // so the scorer prefers a non-fat-run alternative when one exists. The
+    // penalty is much larger than the typical gap-fill bonus so a fat-run
+    // candidate only wins when EVERY non-fat-run candidate is worse.
+    const fatRunPenalty = hasFatRun ? FAT_WALL_RUN_PENALTY : 0;
 
     scored.push({
       candidate,
@@ -793,7 +814,8 @@ function prescoreCandidates(
         candidate.gapAdjacent * GAP_ADJACENT_WEIGHT +
         candidate.connectedTiles * CONNECTED_TILES_WEIGHT +
         candidate.wallAdjacent -
-        (hasFatWall ? FAT_WALL_TILE_PENALTY : 0),
+        (hasFatWall ? FAT_WALL_TILE_PENALTY : 0) -
+        fatRunPenalty,
       gapClosingFat,
       hasFatWall,
       fatBlocks,

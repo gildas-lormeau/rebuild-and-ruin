@@ -303,13 +303,16 @@ Deno.test(
     // horizontal walls 1 tile apart, 4 tiles long) — the "fat wall" the
     // user reported.
     //
-    // KNOWN FAILING at landing: the AI's fat-wall scorer (FAT_WALL_TILE_PENALTY
-    // in src/ai/ai-build-score.ts) discourages stacking new pieces onto an
-    // existing wall but does not prevent an entirely separate ring from
-    // running parallel to an existing ring one tile away. The fix surface is
-    // peer-ring-aware rect placement (shift the secondary's wall toward a
-    // shared column with the home ring, the same direction sketched in the
-    // 574812 KNOWN FAILING test above).
+    // KNOWN FAILING (partial fix landed 2026-05-27): `tileCompletesFatRun`
+    // in ai-build-score.ts + `FAT_WALL_RUN_PENALTY = 10_000` in
+    // ai-strategy-build.ts hard-reject fat-run placements that don't close
+    // gaps, and heavily penalize gap-closing ones. On this seed: 3 fat-wall
+    // runs → 2 remaining, both gap-closing necessities the AI can't avoid
+    // given the chosen rect geometry. Interior is preserved (still 58) and
+    // the survival suite improved (0/6 → 3/6 passing on the sample). Full
+    // fix needs peer-aware rect placement so T3's natural rect doesn't
+    // force gap closures into T0's wall row in the first place (same
+    // direction sketched in the 574812 KNOWN FAILING test above).
     const sc = await createPhaseScenario(
       roundOneRedFatWall40 as unknown as FixtureFile,
     );
@@ -355,6 +358,20 @@ Deno.test(
           )
           .join("; ")
       } — AI built a secondary ring parallel to the home castle's wall instead of sharing a column/row`,
+    );
+    // Interior-preservation guard: the fix must not "succeed" by collapsing
+    // to a smaller enclosure. Baseline measured pre-fix on this seed was
+    // interior=58 (RED enclosing T0 + T3 with the fat-wall geometry).
+    // Sharing the boundary should grow the interior (the shifted side
+    // absorbs one extra row/col); the assertion guards against a
+    // degenerate "shrink the secondary's rect by 1 to leave a 2-tile gap"
+    // fix that would lose tiles instead of sharing the wall.
+    const BASELINE_INTERIOR = 58;
+    assert(
+      red.interior.size >= BASELINE_INTERIOR,
+      `RED interior=${red.interior.size} shrank below baseline ` +
+        `${BASELINE_INTERIOR} — fix must share the wall (grow or preserve ` +
+        `interior), not retreat from it`,
     );
   },
 );

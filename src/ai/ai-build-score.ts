@@ -326,29 +326,41 @@ export function countFatBlocks(
   return blocks;
 }
 
-/** Cheap fat-wall check — no Set copy, just checks if placing creates 2×2 blocks. */
+/** Cheap fat-wall check — no Set copy, just checks if placing creates 2×2
+ *  blocks (`hasFatWall` / `gapClosingFat`) or the larger 2×3/3×2 all-wall
+ *  RUN pattern (`hasFatRun`) that produces the visible touching-walls
+ *  pathology. The RUN check has no gap-closing exemption — a placement
+ *  that adds three adjacent doubled-wall cells is always rejected upstream,
+ *  while the bare 2×2 case (length 2, single corner crossing) is tolerated
+ *  for gap-fill candidates per the existing scorer trade-off. */
 export function checkFatWall(
   walls: ReadonlySet<TileKey>,
   candidate: Candidate,
   aliveHouseKeys: ReadonlySet<TileKey>,
-): { hasFatWall: boolean; gapClosingFat: boolean } {
+): { hasFatWall: boolean; hasFatRun: boolean; gapClosingFat: boolean } {
   const { addedKeys, isWall } = buildCandidateWallInfo(
     walls,
     packCandidateTiles(candidate, aliveHouseKeys),
   );
   let hasFatWall = false;
+  let hasFatRun = false;
   let gapClosingFat = false;
   for (const key of addedKeys) {
     const { row, col } = unpackTile(key);
+    if (tileCompletesFatRun(row, col, isWall)) {
+      hasFatRun = true;
+      // Upstream filter rejects regardless of remaining flags, but keep
+      // computing so the scorer sees consistent state if it ever consumes
+      // hasFatWall / gapClosingFat in the same pass.
+    }
     if (!tileCreatesFatBlock(row, col, isWall)) continue;
     if (candidate.gapsFilled > 0) {
       gapClosingFat = true;
       continue;
     }
     hasFatWall = true;
-    break;
   }
-  return { hasFatWall, gapClosingFat };
+  return { hasFatWall, hasFatRun, gapClosingFat };
 }
 
 /** Evaluate territory-gain scoring on pre-filtered top candidates.
@@ -405,6 +417,57 @@ export function scoreTopCandidates(
 
   if (bestCandidate === undefined) return { evaluated: false };
   return { evaluated: true, bestCandidate, bestScore };
+}
+
+/** True when (r,c) is part of any 2×3 or 3×2 all-wall rectangle under the
+ *  given `isWall` predicate. Two adjacent 2×2 blocks share three cells of a
+ *  2×3, so this is equivalent to "two consecutive fat blocks side by side" —
+ *  the minimum geometry that produces the visible ##/## stack or ####/####
+ *  bar the user identified as the fat-wall pathology. */
+function tileCompletesFatRun(
+  r: number,
+  c: number,
+  isWall: (k: TileKey) => boolean,
+): boolean {
+  // Horizontal 2×3: top-left at (br, bc); (r,c) somewhere inside.
+  for (let dRow = -1; dRow <= 0; dRow++) {
+    for (let dCol = -2; dCol <= 0; dCol++) {
+      const br = r + dRow;
+      const bc = c + dCol;
+      if (br < 0 || br + 1 >= GRID_ROWS) continue;
+      if (bc < 0 || bc + 2 >= GRID_COLS) continue;
+      if (
+        isWall(packTile(br, bc)) &&
+        isWall(packTile(br, bc + 1)) &&
+        isWall(packTile(br, bc + 2)) &&
+        isWall(packTile(br + 1, bc)) &&
+        isWall(packTile(br + 1, bc + 1)) &&
+        isWall(packTile(br + 1, bc + 2))
+      ) {
+        return true;
+      }
+    }
+  }
+  // Vertical 3×2.
+  for (let dRow = -2; dRow <= 0; dRow++) {
+    for (let dCol = -1; dCol <= 0; dCol++) {
+      const br = r + dRow;
+      const bc = c + dCol;
+      if (br < 0 || br + 2 >= GRID_ROWS) continue;
+      if (bc < 0 || bc + 1 >= GRID_COLS) continue;
+      if (
+        isWall(packTile(br, bc)) &&
+        isWall(packTile(br, bc + 1)) &&
+        isWall(packTile(br + 1, bc)) &&
+        isWall(packTile(br + 1, bc + 1)) &&
+        isWall(packTile(br + 2, bc)) &&
+        isWall(packTile(br + 2, bc + 1))
+      ) {
+        return true;
+      }
+    }
+  }
+  return false;
 }
 
 function computeGapBonus(gapsFilled: number, usefulGain: number): number {
