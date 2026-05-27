@@ -342,7 +342,7 @@ export function buildLegend(state: GameState): string {
 
   return [
     `Round ${state.round}  |  ${playerInfo}`,
-    ". grass  ~ water  f frozen  ░ territory  # wall  T tower  t dead tower",
+    ". grass  ~ water  f frozen  ░ territory  # wall  T home tower  t dead home  Y tower  y dead tower",
     "C cannon  x debris  ! grunt  * burning pit  + bonus  o cannonball  H house  h dead house",
   ].join("\n");
 }
@@ -417,11 +417,16 @@ function paintHouses(grid: Cell[][], state: GameState): void {
 
 /** 2×2 tower footprints. */
 function paintTowers(grid: Cell[][], state: GameState): void {
+  const homeIndices = new Set<number>();
+  for (const player of state.players) {
+    if (player.homeTower) homeIndices.add(player.homeTower.index);
+  }
   for (let tIdx = 0; tIdx < state.map.towers.length; tIdx++) {
     const tower = state.map.towers[tIdx]!;
     const alive = state.towerAlive[tIdx]!;
     const kind = alive ? CellKind.TowerAlive : CellKind.TowerDead;
-    const char = alive ? "T" : "t";
+    const isHome = homeIndices.has(tIdx);
+    const char = isHome ? (alive ? "T" : "t") : alive ? "Y" : "y";
     for (let dr = 0; dr < TOWER_SIZE; dr++) {
       for (let dc = 0; dc < TOWER_SIZE; dc++) {
         setCell(grid, tower.row + dr, tower.col + dc, kind, char, NO_OWNER);
