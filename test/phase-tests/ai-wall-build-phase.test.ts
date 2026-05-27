@@ -14,12 +14,23 @@ import roundTwoWholeZoneMoreHoles from "./fixtures/wall-build/round2-whole-zone-
 import roundOneGoldCluster574812 from "./fixtures/wall-build/round1-gold-cluster-574812.json" with {
   type: "json",
 };
+import roundOneRedFatWall40 from "./fixtures/wall-build/round1-red-fat-wall-40.json" with {
+  type: "json",
+};
 import { GAME_EVENT } from "../../src/shared/core/game-event-bus.ts";
 import { Phase } from "../../src/shared/core/game-phase.ts";
+import { GRID_COLS, GRID_ROWS } from "../../src/shared/core/grid.ts";
 import { packTile } from "../../src/shared/core/spatial.ts";
 import { createPhaseScenario } from "./loader.ts";
 import type { FixtureFile } from "./types.ts";
 import { waitForPhase } from "../scenario.ts";
+
+interface DoubledWallRun {
+  orientation: "horizontal" | "vertical";
+  row: number;
+  col: number;
+  length: number;
+}
 
 Deno.test("phase-test: wall-build round-2 fixture lands at WALL_BUILD", async () => {
   const sc = await createPhaseScenario(roundTwoDefault as unknown as FixtureFile);
@@ -279,3 +290,119 @@ Deno.test(
     );
   },
 );
+
+Deno.test(
+  "phase-test: AI doesn't build doubled walls when a secondary castle touches an already-enclosed castle (seed 40 RED r1) — KNOWN FAILING",
+  async () => {
+    // Seed 40, modern, round 1. RED's home is T0 @ (11,36); T3 @ (5,39) is
+    // an alive secondary in the same zone, three tiles north of T0's natural
+    // castleRect. CASTLE_SELECT auto-builds the T0 home castle; during the
+    // closing WALL_BUILD the AI builds a second ring around T3 that abuts
+    // T0's existing north wall. The shared north/south boundary lands one
+    // tile apart, producing a visible 2×4 doubled wall (two parallel
+    // horizontal walls 1 tile apart, 4 tiles long) — the "fat wall" the
+    // user reported.
+    //
+    // KNOWN FAILING at landing: the AI's fat-wall scorer (FAT_WALL_TILE_PENALTY
+    // in src/ai/ai-build-score.ts) discourages stacking new pieces onto an
+    // existing wall but does not prevent an entirely separate ring from
+    // running parallel to an existing ring one tile away. The fix surface is
+    // peer-ring-aware rect placement (shift the secondary's wall toward a
+    // shared column with the home ring, the same direction sketched in the
+    // 574812 KNOWN FAILING test above).
+    const sc = await createPhaseScenario(
+      roundOneRedFatWall40 as unknown as FixtureFile,
+    );
+    assertEquals(sc.state.round, 1);
+    assertEquals(sc.state.phase, Phase.WALL_BUILD);
+
+    const RED_SLOT = 0;
+    let roundEnded = false;
+    sc.bus.on(GAME_EVENT.ROUND_END, () => {
+      roundEnded = true;
+    });
+    sc.runUntil(() => roundEnded || sc.state.phase !== Phase.WALL_BUILD, {
+      timeoutMs: 60_000,
+    });
+
+    const red = sc.state.players[RED_SLOT]!;
+
+    // Precondition: the test premise requires RED to have enclosed both
+    // T0 (home) and a secondary tower. If the AI's behavior shifts and it
+    // only encloses one tower, the doubled-wall pathology can't appear and
+    // this test's assertion would pass for the wrong reason.
+    assert(
+      red.ownedTowers.length >= 2,
+      `RED should enclose 2+ towers (got ${red.ownedTowers.length}) — ` +
+        `test premise broken, re-record seed`,
+    );
+
+    // Load-bearing assertion: no parallel doubled-wall RUN of length ≥3.
+    // A single 2×2 wall block is allowed (every wall ring's outer corners
+    // form one when a horizontal segment meets a vertical segment). What
+    // we forbid is the visible touching-castle pattern — two parallel
+    // walls 1 tile apart over 3+ tiles, producing ## stacks (vertical run)
+    // or #### / #### bars (horizontal run).
+    const runs = findDoubledWallRuns(red.walls);
+    assertEquals(
+      runs.length,
+      0,
+      `RED has ${runs.length} parallel doubled-wall run(s): ${
+        runs
+          .map(
+            (run) =>
+              `${run.orientation} (${run.row},${run.col}) length=${run.length}`,
+          )
+          .join("; ")
+      } — AI built a secondary ring parallel to the home castle's wall instead of sharing a column/row`,
+    );
+  },
+);
+
+/** Find maximal axis-aligned 2×N or N×2 all-wall runs (N ≥ 3) in a single
+ *  player's walls. Each run represents the visible "fat wall" pattern:
+ *  two parallel walls 1 tile apart over 3+ consecutive tiles. Excludes the
+ *  incidental 2×2 blocks that form at every wall-ring corner (those have
+ *  N = 2 and are not flagged here). */
+function findDoubledWallRuns(
+  walls: ReadonlySet<number>,
+): readonly DoubledWallRun[] {
+  const runs: DoubledWallRun[] = [];
+  for (let row = 0; row + 1 < GRID_ROWS; row++) {
+    let start = -1;
+    for (let col = 0; col <= GRID_COLS; col++) {
+      const doubled =
+        col < GRID_COLS &&
+        walls.has(packTile(row, col)) &&
+        walls.has(packTile(row + 1, col));
+      if (doubled) {
+        if (start < 0) start = col;
+      } else if (start >= 0) {
+        const length = col - start;
+        if (length >= 3) {
+          runs.push({ orientation: "horizontal", row, col: start, length });
+        }
+        start = -1;
+      }
+    }
+  }
+  for (let col = 0; col + 1 < GRID_COLS; col++) {
+    let start = -1;
+    for (let row = 0; row <= GRID_ROWS; row++) {
+      const doubled =
+        row < GRID_ROWS &&
+        walls.has(packTile(row, col)) &&
+        walls.has(packTile(row, col + 1));
+      if (doubled) {
+        if (start < 0) start = row;
+      } else if (start >= 0) {
+        const length = row - start;
+        if (length >= 3) {
+          runs.push({ orientation: "vertical", row: start, col, length });
+        }
+        start = -1;
+      }
+    }
+  }
+  return runs;
+}

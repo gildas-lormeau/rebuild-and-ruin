@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "seed": 40,
+  "mode": "modern",
+  "rounds": 1,
+  "entryPhase": "WALL_BUILD",
+  "round": 1
+}
