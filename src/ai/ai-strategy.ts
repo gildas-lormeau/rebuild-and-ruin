@@ -77,8 +77,10 @@ export class DefaultStrategy implements AiStrategy {
   /** Shot count per cannon — tracks hits to know when to stop targeting.
    *  Keyed by (playerId << 8 | cannonIdx) to survive checkpoint cannon replacement. */
   private shotCounts = new Map<ShotKey, number>();
-  /** Focus fire on this player during battle. */
-  private focusFirePlayerId: ValidPlayerId | undefined;
+  /** Focus fire on this player during battle. Exposed via the AiStrategy
+   *  interface so the battle-diag emit path can distinguish a focus-fire
+   *  pickTarget commit from an unfocused one. */
+  focusFirePlayerId: ValidPlayerId | undefined;
   /** Sticky enclosure target — prevents per-shot oscillation between
    *  enclosures. Invalidated when the anchor tile leaves any eligible
    *  enemy's interior (breach, enemy eliminated, focus-fire switch). */

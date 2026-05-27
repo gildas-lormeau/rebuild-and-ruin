@@ -26,6 +26,7 @@ import type {
 } from "../shared/core/system-interfaces.ts";
 import type { ZoneId } from "../shared/core/zone-id.ts";
 import type { Rng } from "../shared/platform/rng.ts";
+import type { FireOrigin } from "./ai-battle-diag.ts";
 import type { AiPlacement } from "./ai-build-types.ts";
 import type { ChainType } from "./ai-chain.ts";
 
@@ -71,6 +72,10 @@ export interface BuildTickResult {
  *  by re-aiming the same crosshair on the next pass. */
 export interface BattleTickResult {
   readonly commit?: FireIntent;
+  /** Which planner / fallback produced `commit`'s target — fed to the
+   *  battle-diag hook so observers can tag each fire with its provenance.
+   *  Undefined iff `commit` is undefined. */
+  readonly origin?: FireOrigin;
 }
 
 /** Per-phase placement context — computed once at phase init. Tracks
@@ -154,6 +159,12 @@ export interface BattleHost {
 export interface AiStrategy {
   /** Seeded PRNG for reproducible AI behavior. */
   readonly rng: Rng;
+
+  /** Current focus-fire target — set by `planBattle` at battle start when
+   *  the FOCUS_FIRE_PROBABILITY roll succeeds, cleared otherwise. Read by
+   *  the diag-emit path to tag a non-chain fire as `focus_fire` (vs the
+   *  unfocused `default`). */
+  readonly focusFirePlayerId: ValidPlayerId | undefined;
 
   /** Pick a home tower for the AI player. Returns the chosen tower or null. */
   chooseBestTower(map: GameMap, zone: ZoneId): Tower | null;

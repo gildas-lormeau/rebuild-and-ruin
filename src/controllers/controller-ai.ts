@@ -7,6 +7,10 @@
  * brain comes from `ai/ai-brain.ts`.
  */
 
+import {
+  emitFireDecisionDiag,
+  isAiBattleDiagHookActive,
+} from "../ai/ai-battle-diag.ts";
 import type { AiBrain } from "../ai/ai-brain-types.ts";
 import type {
   AiStrategy,
@@ -259,7 +263,12 @@ export class AiController extends BaseController implements AiAnimatable {
       result.commit.targetRow,
       result.commit.targetCol,
     );
-    if (fired) this.cannonRotationIdx = fired.rotationIdx;
+    if (fired) {
+      this.cannonRotationIdx = fired.rotationIdx;
+      if (result.origin && isAiBattleDiagHookActive()) {
+        emitFireDecisionDiag(result.origin);
+      }
+    }
     this.brain.battle.onFireResult(this, state, !!fired);
   }
 

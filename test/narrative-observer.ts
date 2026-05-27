@@ -25,6 +25,7 @@
  *   narrative.detach();
  */
 
+import { setAiBattleDiagHook } from "../src/ai/ai-battle-diag.ts";
 import { BATTLE_MESSAGE } from "../src/shared/core/battle-events.ts";
 import { isCannonAlive } from "../src/shared/core/battle-types.ts";
 import {
@@ -289,6 +290,19 @@ export function createNarrativeObserver(): NarrativeObserver {
       on(sc, BATTLE_MESSAGE.GRUNT_KILLED, (ev) => {
         push(`grunt@(${ev.row},${ev.col}) killed`);
       });
+
+      // AI battle-diag hook — fires synchronously right after the AI's
+      // CANNON_FIRED in controller-ai's battleTick (fireNextReadyCannon →
+      // state.bus.emit, then emitFireDecisionDiag, no other bus events
+      // between them). The most recent narrative line is guaranteed to be
+      // the matching fire line, so we splice `via:X` into its tag bracket.
+      setAiBattleDiagHook((ev) => {
+        const last = lines[lines.length - 1];
+        if (!last) return;
+        if (!last.endsWith("]")) return;
+        lines[lines.length - 1] = `${last.slice(0, -1)} via:${ev.origin}]`;
+      });
+      subscriptions.push(() => setAiBattleDiagHook(undefined));
     },
 
     detach() {

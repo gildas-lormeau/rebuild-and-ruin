@@ -14,6 +14,7 @@ import type {
   BattleViewState,
   FireIntent,
 } from "../shared/core/system-interfaces.ts";
+import type { FireOrigin } from "./ai-battle-diag.ts";
 import { CHAIN, type ChainType } from "./ai-chain.ts";
 import { STEP } from "./ai-constants.ts";
 import type {
@@ -46,6 +47,17 @@ interface BattlePhase {
   orbitAngle: number;
 }
 
+/** Map a chain-attack kind to its FireOrigin tag. CHAIN.WALL aggregates
+ *  planWallDemolition + planSuperAttack — both share the same skip-when-
+ *  destroyed semantics so the strategy doesn't distinguish them; the
+ *  origin tag collapses them too. */
+const CHAIN_TO_ORIGIN: Record<ChainType, FireOrigin> = {
+  [CHAIN.POCKET]: "pocket",
+  [CHAIN.STRUCTURAL]: "structural",
+  [CHAIN.WALL]: "wall_chain",
+  [CHAIN.GRUNT]: "grunt_sweep",
+  [CHAIN.ICE_TRENCH]: "ice_trench",
+};
 /** Per-tick multiplier for orbit angular speed (rad/s → rad/tick). */
 const ORBIT_DT = SIM_TICK_DT;
 /** Pixel distance at which countdown orbit engages (stop approaching, start circling). */
@@ -365,7 +377,7 @@ function tickChainDwelling(
     targetRow: target.row,
     targetCol: target.col,
   };
-  return { commit: intent };
+  return { commit: intent, origin: CHAIN_TO_ORIGIN[phase.chainType] };
 }
 
 function completeChainFire(phase: BattlePhase, success: boolean): void {
@@ -410,7 +422,9 @@ function tickDwelling(
     phaseState.timer = CANNON_RETRY_WAIT;
     return {};
   }
-  return { commit: intent };
+  const origin: FireOrigin =
+    host.strategy.focusFirePlayerId !== undefined ? "focus_fire" : "default";
+  return { commit: intent, origin };
 }
 
 function completeStandardFire(

@@ -3,6 +3,7 @@
     "name": "L0",
     "files": [
       "server/send-utils.ts",
+      "src/ai/ai-battle-diag.ts",
       "src/ai/ai-chain.ts",
       "src/ai/ai-constants.ts",
       "src/game/index.ts",

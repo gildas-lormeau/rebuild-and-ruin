@@ -4,6 +4,7 @@
     "domain": "ai",
     "role": "AI tuning data",
     "files": [
+      "src/ai/ai-battle-diag.ts",
       "src/ai/ai-chain.ts",
       "src/ai/ai-constants.ts"
     ]
