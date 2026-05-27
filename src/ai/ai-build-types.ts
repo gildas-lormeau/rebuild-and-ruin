@@ -57,6 +57,7 @@ export interface TargetContext {
   cursorPos: TilePos | undefined;
   effectiveSkipHome: boolean;
   homeHasRingGaps: boolean;
+  homeTowerEnclosed: boolean;
   allCastlesEnclosed: boolean;
   unenclosedTowers: Tower[];
   otherUnenclosed: Tower[];

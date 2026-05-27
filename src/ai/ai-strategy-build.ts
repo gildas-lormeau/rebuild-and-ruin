@@ -240,6 +240,7 @@ export function pickPlacement(
     cursorPos,
     effectiveSkipHome,
     homeHasRingGaps,
+    homeTowerEnclosed,
     allCastlesEnclosed,
     unenclosedTowers,
     otherUnenclosed,

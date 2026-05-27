@@ -546,8 +546,12 @@ function trySecondaryTower(ctx: TargetContext): TargetResult {
       // If the current piece can't fill this tower's gaps, try the next tower.
       // gaps > MANAGEABLE_GAP_LIMIT bypasses the canFillAfterPlugging gate —
       // wide gap sets disable the orchestrator's gap-filler restriction (Mode
-      // #8 amplifier).
-      if (gaps.size <= MANAGEABLE_GAP_LIMIT) {
+      // #8 amplifier). This bypass is load-bearing when HOME isn't yet
+      // enclosed: the wide-ring wall-adjacent scoring helps grow walls
+      // toward enclosure even without a current-piece fit. Once HOME is
+      // enclosed, pursuing a wide ring instead lets placements drift into
+      // topologies that re-open HOME (seed-4761093 r14 BLUE shape).
+      if (gaps.size <= MANAGEABLE_GAP_LIMIT || ctx.homeTowerEnclosed) {
         if (!canFillAfterPlugging(ctx, gaps, rect)) continue;
       }
       // Cache only when ALL persistence invariants hold: tower is alive,
