@@ -26,11 +26,21 @@
  */
 
 import { BATTLE_MESSAGE } from "../src/shared/core/battle-events.ts";
+import { isCannonAlive } from "../src/shared/core/battle-types.ts";
 import {
   GAME_EVENT,
   type GameEventMap,
 } from "../src/shared/core/game-event-bus.ts";
 import { Phase } from "../src/shared/core/game-phase.ts";
+import {
+  hasPitAt,
+  isAtTile,
+  isCannonTile,
+  isGrass,
+  isTowerTile,
+  packTile,
+} from "../src/shared/core/spatial.ts";
+import type { GameState } from "../src/shared/core/types.ts";
 import type { Scenario } from "./scenario.ts";
 
 export interface NarrativeObserver {
@@ -214,8 +224,14 @@ export function createNarrativeObserver(): NarrativeObserver {
             ev.scoringPlayerId !== ev.playerId
           ? ` (scoring ${playerName(ev.scoringPlayerId)})`
           : "";
+        const tag = classifyImpactTile(
+          sc.state,
+          ev.impactRow,
+          ev.impactCol,
+          ev.playerId,
+        );
         push(
-          `${playerName(ev.playerId)} fires@${ev.cannonIdx} → (${ev.impactRow},${ev.impactCol})${scorer}`,
+          `${playerName(ev.playerId)} fires@${ev.cannonIdx} → (${ev.impactRow},${ev.impactCol}) [${tag}]${scorer}`,
         );
       });
 
@@ -270,4 +286,78 @@ export function createNarrativeObserver(): NarrativeObserver {
       attached = false;
     },
   };
+}
+
+/** Classify what's at the impact tile (row, col) for the firing player.
+ *  Order matters — a tower tile that also has a wall around it shouldn't be
+ *  reported as wall. Suffix `+dup` when another in-flight ball from the same
+ *  player already targets this same impact tile (intra-volley duplicate). */
+function classifyImpactTile(
+  state: GameState,
+  row: number,
+  col: number,
+  firingPlayerId: number,
+): string {
+  let tag = identifyImpactTile(state, row, col, firingPlayerId);
+  // Intra-volley duplicate: another in-flight ball from the same player
+  // already aimed at this impact tile (the just-fired ball is in
+  // state.cannonballs by the time this handler runs, so count >= 2 means
+  // at least one peer ball is also targeting).
+  const sameTileBalls = state.cannonballs.filter(
+    (b) =>
+      b.playerId === firingPlayerId &&
+      b.impactRow === row &&
+      b.impactCol === col,
+  );
+  if (sameTileBalls.length >= 2) tag += " +dup";
+  return tag;
+}
+
+function identifyImpactTile(
+  state: GameState,
+  row: number,
+  col: number,
+  firingPlayerId: number,
+): string {
+  // Cannon (own / enemy / captured) — 2×2 footprint check. Dead cannons
+  // persist as debris (clear on zone reset) so a hit on one is wasted;
+  // we surface that explicitly.
+  for (let pid = 0; pid < state.players.length; pid++) {
+    const player = state.players[pid]!;
+    for (let idx = 0; idx < player.cannons.length; idx++) {
+      const cannon = player.cannons[idx]!;
+      if (!isCannonTile(cannon, row, col)) continue;
+      if (!isCannonAlive(cannon)) return `debris:${playerName(pid)}@${idx}`;
+      const capturedByFirer = state.capturedCannons.some(
+        (cap) => cap.cannon === cannon && cap.capturerId === firingPlayerId,
+      );
+      if (capturedByFirer) return `own-captured@${idx}`;
+      return pid === firingPlayerId
+        ? `own-cannon@${idx}`
+        : `cannon:${playerName(pid)}@${idx}`;
+    }
+  }
+  // Tower (owned / neutral) — 2×2 footprint.
+  for (const tower of state.map.towers) {
+    if (!isTowerTile(tower, row, col)) continue;
+    const owner = state.players.find((player) =>
+      player.ownedTowers.some((owned) => owned.index === tower.index),
+    );
+    if (owner === undefined) return `tower:neutral T${tower.index}`;
+    const ownTag = owner.id === firingPlayerId ? "own-" : "";
+    return `${ownTag}tower:${playerName(owner.id)} T${tower.index}`;
+  }
+  // Wall (own / enemy) — single-tile lookup via TileKey.
+  const key = packTile(row, col);
+  for (let pid = 0; pid < state.players.length; pid++) {
+    if (!state.players[pid]!.walls.has(key)) continue;
+    return pid === firingPlayerId ? "own-wall" : `wall:${playerName(pid)}`;
+  }
+  // Grunt on this tile — non-blocking but worth knowing.
+  if (state.grunts.some((grunt) => isAtTile(grunt, row, col))) return "grunt";
+  // Map-level terrain modifiers.
+  if (hasPitAt(state.burningPits, row, col)) return "pit";
+  if (state.modern?.frozenTiles?.has(key)) return "ice";
+  if (isGrass(state.map.tiles, row, col)) return "grass";
+  return "water";
 }
