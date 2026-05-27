@@ -340,8 +340,12 @@ export class DefaultStrategy implements AiStrategy {
       }
     }
 
-    // Pocket destruction
-    if (!chainTargets) {
+    // Pocket destruction — gated on the same usable-cannon threshold as
+    // wall-demolition / super-attack so trailing or post-life-loss players
+    // with <6 firing cannons don't spend their entire round on own-wall
+    // cleanup. The 5-target chain dominates a 1-2 cannon round and
+    // contributes nothing to immediate score or survival.
+    if (!chainTargets && usableCannonCount >= CHAIN_ATTACK_MIN_CANNONS) {
       const pocketTargets = planPocketDestruction(state, playerId);
       if (pocketTargets) {
         chainTargets = pocketTargets;
