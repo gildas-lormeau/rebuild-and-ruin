@@ -20,6 +20,7 @@ import {
 } from "../shared/core/spatial.ts";
 import type { BattleViewState } from "../shared/core/system-interfaces.ts";
 import {
+  countBrokenEnclosures,
   DESTROY_POCKET_MAX_SIZE,
   findEnclosureComponents,
 } from "./ai-strategy-battle.ts";
@@ -200,23 +201,4 @@ function borderedEnclosures(
     if (label !== undefined) result.add(label);
   }
   return result;
-}
-
-/** Simulate wall removal and count how many enclosures now have tiles
- *  reachable from map edges (breached by the 8-dir flood). */
-function countBrokenEnclosures(
-  modifiedWalls: ReadonlySet<TileKey>,
-  enclosures: readonly (readonly TileKey[])[],
-): number {
-  const newOutside = computeOutside(modifiedWalls);
-  let broken = 0;
-  for (const comp of enclosures) {
-    for (const tileKey of comp) {
-      if (newOutside.has(tileKey)) {
-        broken++;
-        break;
-      }
-    }
-  }
-  return broken;
 }

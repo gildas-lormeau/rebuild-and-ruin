@@ -642,8 +642,7 @@
     "role": "AI strategy primitives (build types, castle rect) + wall-demolition tactic planner",
     "files": [
       "src/ai/ai-build-types.ts",
-      "src/ai/ai-castle-rect.ts",
-      "src/ai/ai-plan-wall-demolition.ts"
+      "src/ai/ai-castle-rect.ts"
     ]
   },
   {
@@ -765,7 +764,6 @@
     "role": "AI strategy types + build score helpers + super-attack tactic planner",
     "files": [
       "src/ai/ai-build-score.ts",
-      "src/ai/ai-plan-super-attack.ts",
       "src/ai/ai-strategy-types.ts"
     ]
   },
@@ -886,7 +884,8 @@
       "src/ai/ai-build-desperate.ts",
       "src/ai/ai-build-lookahead.ts",
       "src/ai/ai-plan-pocket-destruction.ts",
-      "src/ai/ai-plan-structural-hit.ts"
+      "src/ai/ai-plan-structural-hit.ts",
+      "src/ai/ai-plan-wall-demolition.ts"
     ]
   },
   {
@@ -927,6 +926,7 @@
     "domain": "ai",
     "role": "AI strategy orchestrator",
     "files": [
+      "src/ai/ai-plan-super-attack.ts",
       "src/ai/ai-strategy-build.ts"
     ]
   },

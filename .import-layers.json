@@ -264,7 +264,6 @@
       "server/server.ts",
       "src/ai/ai-build-types.ts",
       "src/ai/ai-castle-rect.ts",
-      "src/ai/ai-plan-wall-demolition.ts",
       "src/controllers/controller-factory.ts",
       "src/game/castle-generation.ts",
       "src/game/grunt-movement.ts",
@@ -302,7 +301,6 @@
     "name": "L9",
     "files": [
       "src/ai/ai-build-score.ts",
-      "src/ai/ai-plan-super-attack.ts",
       "src/ai/ai-strategy-types.ts",
       "src/game/modifier-system.ts",
       "src/game/upgrade-system.ts",
@@ -346,6 +344,7 @@
       "src/ai/ai-build-lookahead.ts",
       "src/ai/ai-plan-pocket-destruction.ts",
       "src/ai/ai-plan-structural-hit.ts",
+      "src/ai/ai-plan-wall-demolition.ts",
       "src/controllers/controller-ai.ts",
       "src/game/grunt-system.ts",
       "src/render/3d/scene.ts",
@@ -356,6 +355,7 @@
   {
     "name": "L12",
     "files": [
+      "src/ai/ai-plan-super-attack.ts",
       "src/ai/ai-strategy-build.ts",
       "src/controllers/controller-ai-assisted-human.ts",
       "src/game/battle-system.ts",

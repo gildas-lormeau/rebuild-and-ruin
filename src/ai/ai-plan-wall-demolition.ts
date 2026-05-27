@@ -4,7 +4,10 @@
  * a slice of it within the usable-cannon budget.
  */
 
-import { filterActiveEnemies } from "../shared/core/board-occupancy.ts";
+import {
+  filterActiveEnemies,
+  getBattleInterior,
+} from "../shared/core/board-occupancy.ts";
 import type { TilePos } from "../shared/core/geometry-types.ts";
 import type { TileKey } from "../shared/core/grid.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
@@ -16,13 +19,31 @@ import {
 } from "../shared/core/spatial.ts";
 import type { BattleViewState } from "../shared/core/system-interfaces.ts";
 import type { Rng } from "../shared/platform/rng.ts";
+import {
+  countBrokenEnclosures,
+  DESTROY_POCKET_MAX_SIZE,
+  findEnclosureComponents,
+} from "./ai-strategy-battle.ts";
 
 /** Minimum connected wall tiles needed to start a wall demolition run. */
 const MIN_WALL_SEGMENT_LENGTH = 4;
 /** Maximum wall tiles targeted in a single wall demolition chain. */
 const MAX_WALL_DEMOLITION_TARGETS = 10;
+/** Random-seed retry budget per enemy when an evaluated segment would
+ *  breach no large enclosure. Keeps cost bounded — each retry runs one
+ *  computeOutside flood. Five matches the empirical observation that the
+ *  first useful seed is usually within the first few picks; pushing higher
+ *  costs more without finding new wins (a fully-edge-walled enemy returns
+ *  null past this budget, and the cascade falls through to super-attack
+ *  / per-shot dispatch). */
+const MAX_SEED_ATTEMPTS = 5;
 
-/** Plan a wall demolition run: find connected enemy wall segment. */
+/** Plan a wall demolition run: find connected enemy wall segment whose
+ *  removal would actually breach a large enclosure. Segments that touch
+ *  nothing (e.g. map-edge walls bounding no interior) are rejected and
+ *  the planner retries with a new random seed up to MAX_SEED_ATTEMPTS
+ *  per enemy. Enemies with no large enclosures (all-pocket interior or
+ *  already fully exposed) are skipped entirely. */
 export function planWallDemolition(
   state: BattleViewState,
   playerId: ValidPlayerId,
@@ -33,26 +54,40 @@ export function planWallDemolition(
   rng.shuffle(enemies);
   for (const enemy of enemies) {
     if (enemy.walls.size < MIN_WALL_SEGMENT_LENGTH) continue;
-    const wallKeys = [...enemy.walls];
-    const startKey = rng.pick(wallKeys);
-    const segment = findConnectedWalls(
-      enemy.walls,
-      startKey,
-      usableCannonCount,
-      rng,
+    const interior = getBattleInterior(enemy);
+    const largeEnclosures = findEnclosureComponents(interior).filter(
+      (comp) => comp.length > DESTROY_POCKET_MAX_SIZE,
     );
-    if (segment.length >= MIN_WALL_SEGMENT_LENGTH) {
-      const maxLength = Math.min(
-        segment.length,
+    if (largeEnclosures.length === 0) continue;
+    const wallKeys = [...enemy.walls];
+    let segment: TileKey[] | undefined;
+    for (let attempt = 0; attempt < MAX_SEED_ATTEMPTS; attempt++) {
+      const startKey = rng.pick(wallKeys);
+      const candidate = findConnectedWalls(
+        enemy.walls,
+        startKey,
         usableCannonCount,
-        MAX_WALL_DEMOLITION_TARGETS,
+        rng,
       );
-      const length = rng.int(MIN_WALL_SEGMENT_LENGTH, maxLength);
-      return segment.slice(0, length).map((k) => {
-        const { row, col } = unpackTile(k);
-        return { row: row, col: col };
-      });
+      if (candidate.length < MIN_WALL_SEGMENT_LENGTH) continue;
+      const modWalls = new Set(enemy.walls);
+      for (const tile of candidate) modWalls.delete(tile);
+      if (countBrokenEnclosures(modWalls, largeEnclosures) > 0) {
+        segment = candidate;
+        break;
+      }
     }
+    if (segment === undefined) continue;
+    const maxLength = Math.min(
+      segment.length,
+      usableCannonCount,
+      MAX_WALL_DEMOLITION_TARGETS,
+    );
+    const length = rng.int(MIN_WALL_SEGMENT_LENGTH, maxLength);
+    return segment.slice(0, length).map((k) => {
+      const { row, col } = unpackTile(k);
+      return { row: row, col: col };
+    });
   }
   return null;
 }

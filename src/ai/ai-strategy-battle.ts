@@ -32,6 +32,7 @@ import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import { isPlayerEliminated } from "../shared/core/player-types.ts";
 import {
   cannonSize,
+  computeOutside,
   DIRS_4,
   forEachTowerTile,
   isCannonTile,
@@ -315,6 +316,29 @@ export function trackShot(
       }
     }
   }
+}
+
+/** Simulate wall removal and count how many of the supplied enclosures now
+ *  have at least one tile reachable from a map edge (breached by the 8-dir
+ *  flood). Used by structural-hit and wall-demolition to evaluate whether
+ *  a candidate set of wall removals actually breaches an enemy's territory.
+ *  Caller is responsible for filtering `enclosures` to the size class they
+ *  care about (typically `> DESTROY_POCKET_MAX_SIZE`). */
+export function countBrokenEnclosures(
+  modifiedWalls: ReadonlySet<TileKey>,
+  enclosures: readonly (readonly TileKey[])[],
+): number {
+  const newOutside = computeOutside(modifiedWalls);
+  let broken = 0;
+  for (const comp of enclosures) {
+    for (const tileKey of comp) {
+      if (newOutside.has(tileKey)) {
+        broken++;
+        break;
+      }
+    }
+  }
+  return broken;
 }
 
 function collectStrategicWallTargets(
