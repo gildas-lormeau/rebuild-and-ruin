@@ -17,6 +17,9 @@ import roundOneGoldCluster574812 from "./fixtures/wall-build/round1-gold-cluster
 import roundOneRedFatWall40 from "./fixtures/wall-build/round1-red-fat-wall-40.json" with {
   type: "json",
 };
+import roundTwentyFourRedCornerOrphan26796 from "./fixtures/wall-build/round24-red-corner-orphan-26796.json" with {
+  type: "json",
+};
 import { GAME_EVENT } from "../../src/shared/core/game-event-bus.ts";
 import { Phase } from "../../src/shared/core/game-phase.ts";
 import { GRID_COLS, GRID_ROWS } from "../../src/shared/core/grid.ts";
@@ -372,6 +375,69 @@ Deno.test(
       `RED interior=${red.interior.size} shrank below baseline ` +
         `${BASELINE_INTERIOR} — fix must share the wall (grow or preserve ` +
         `interior), not retreat from it`,
+    );
+  },
+);
+
+Deno.test(
+  "phase-test: AI re-encloses re-selected castle when corner gap is bordered by water + cannon (seed 26796 RED r24)",
+  async () => {
+    // Seed 26796, modern, r24 WALL_BUILD start. RED's castle was just re-
+    // selected at (18,23) after r23 life loss. Auto-built ring (cols 21-28,
+    // rows 15-22, 28 walls); CANNON_PLACE puts 4 cannons at the interior
+    // corners (cannon@1 at (16,22) is the load-bearing one); r24 BATTLE
+    // destroys 12 ring walls including a 4-wide top breach at (15,21-24)
+    // and 3 wall gaps on each side wall. Entering WALL_BUILD with 16 walls.
+    //
+    // Pre-fix bug: piece 2 (1×2) chooses (17,21)+(18,21) over the equally-
+    // gap-filling (15,21)+(15,22) because cursor proximity favors the
+    // vertical placement. After that, cannon@1 at (16,22) + water at row
+    // 14 cols 15-25 turn the corner span into structurally orphan tiles —
+    // once either (15,21) or (15,22) is filled solo by a later 1×1, the
+    // other becomes unfillable by any remaining piece in the bag. RED
+    // builds 35 walls in 10 pieces but encloses zero towers, loses its
+    // last life, gets eliminated. See `computeDifficultyBonus`.
+    const sc = await createPhaseScenario(
+      roundTwentyFourRedCornerOrphan26796 as unknown as FixtureFile,
+    );
+    assertEquals(sc.state.round, 24);
+    assertEquals(sc.state.phase, Phase.WALL_BUILD);
+
+    const RED_SLOT = 0;
+    const redBefore = sc.state.players[RED_SLOT]!;
+    const homeTowerIndex = redBefore.homeTower?.index;
+    assert(homeTowerIndex !== undefined, "RED should have a home tower");
+
+    // Wait for ROUND_END (fires at end of WALL_BUILD finalizeRound) rather
+    // than the next CANNON_PLACE — at this snapshot RED has 1 life left and
+    // BLUE is already eliminated, so if RED's last life is also lost during
+    // finalizeRound, the game ends here (no round 25) and waitForPhase
+    // would hang on a phase that never arrives.
+    let roundEnded = false;
+    sc.bus.on(GAME_EVENT.ROUND_END, () => {
+      roundEnded = true;
+    });
+    sc.runUntil(
+      () => roundEnded || sc.state.phase !== Phase.WALL_BUILD,
+      { timeoutMs: 60_000 },
+    );
+
+    const red = sc.state.players[RED_SLOT]!;
+    // Eliminated-after-WALL_BUILD = the bug fired: RED failed to enclose
+    // the home castle and lost their last life during finalizeRound.
+    assert(
+      !red.eliminated,
+      `RED was eliminated after r24 WALL_BUILD — AI failed to re-enclose ` +
+        `the re-selected castle (home tower idx=${homeTowerIndex})`,
+    );
+    // Direct enclosure check: the home tower must be in ownedTowers.
+    const ownedTowerIndices = new Set(
+      red.ownedTowers.map((tower) => tower.index as unknown as number),
+    );
+    assert(
+      ownedTowerIndices.has(homeTowerIndex as unknown as number),
+      `RED home tower ${homeTowerIndex} not enclosed after WALL_BUILD ` +
+        `(owned=${[...ownedTowerIndices].join(",")})`,
     );
   },
 );

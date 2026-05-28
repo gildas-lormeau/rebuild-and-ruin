@@ -36,6 +36,7 @@ interface CliConfig {
   untilRound: number;
   out: string;
   notes?: string;
+  timeoutSec?: number;
 }
 
 run();
@@ -57,9 +58,10 @@ async function run(): Promise<void> {
   // Drive to (round, phase). Round-1 needs phase-only; rounds ≥ 2 must
   // wait for ROUND_START first or `waitForPhase` would catch an earlier
   // round's instance of the same phase (e.g. round-1 WALL_BUILD).
-  // 180s budget mirrors what existing round-≥2 tests use — full rounds of
-  // AI gameplay can take 30–60s each in sim-time.
-  const timeoutMs = 180_000;
+  // Default 180s budget mirrors what existing round-≥2 tests use — full
+  // rounds of AI gameplay can take 30–60s each in sim-time. For deep rounds
+  // (24+), allow CLI override via --timeout-sec.
+  const timeoutMs = config.timeoutSec ? config.timeoutSec * 1000 : 180_000;
   if (config.untilRound > 1) {
     waitUntilRound(sc, config.untilRound, { timeoutMs });
   }
@@ -100,6 +102,7 @@ function parseArgs(): CliConfig {
   let untilSpec: string | undefined;
   let out: string | undefined;
   let notes: string | undefined;
+  let timeoutSec: number | undefined;
 
   for (let idx = 0; idx < args.length; idx++) {
     const arg = args[idx];
@@ -115,6 +118,8 @@ function parseArgs(): CliConfig {
       out = args[++idx];
     } else if (arg === "--notes" && args[idx + 1]) {
       notes = args[++idx];
+    } else if (arg === "--timeout-sec" && args[idx + 1]) {
+      timeoutSec = Number(args[++idx]);
     } else if (arg === "--help" || arg === "-h") {
       printUsage();
       Deno.exit(0);
@@ -149,6 +154,7 @@ function parseArgs(): CliConfig {
     untilRound,
     out: out!,
     notes,
+    timeoutSec,
   };
 }
 

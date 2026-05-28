@@ -174,11 +174,22 @@ const innerObstacleRule: ScoringRule = {
     );
   },
 };
-/** Bonus for 1×1 pieces filling hard-to-reach gaps (surrounded by obstacles). */
+/** Bonus per gap-filling tile in a placement that lands on a hard-to-reach
+ *  spot (surrounded by obstacles in opposite cardinal directions, walls
+ *  included). Applies to every gap-filling tile of the placement, so a 1×2
+ *  spanning two corner gaps each bordered by water + cannon scores higher
+ *  than a 1×2 filling two easy vertical-wall gaps. Steers the AI to fill
+ *  corner spans together — the alternative, filling one tile solo, can
+ *  orphan the adjacent gap when no future piece in the bag can reach it. */
 const difficultyRule: ScoringRule = {
   name: "difficulty",
   apply(candidate, _env, ctx) {
-    return computeDifficultyBonus(ctx.state, candidate);
+    return computeDifficultyBonus(
+      ctx.state,
+      ctx.walls,
+      ctx.targetGaps,
+      candidate,
+    );
   },
 };
 /** Penalty for creating new small interior pockets. */
@@ -660,21 +671,36 @@ function computeInnerObstacleBonus(
 
 function computeDifficultyBonus(
   state: BuildViewState,
+  walls: ReadonlySet<TileKey>,
+  targetGaps: Set<TileKey>,
   candidate: Candidate,
 ): number {
-  if (candidate.piece.offsets.length !== 1 || candidate.gapsFilled !== 1)
-    return 0;
-
-  const pr = candidate.row + candidate.piece.offsets[0]![0];
-  const pc = candidate.col + candidate.piece.offsets[0]![1];
-  // Track obstacle directions: [north, south, west, east]
-  const obstacles = computeCardinalObstacleMask(state, pr, pc);
-  const total = obstacles.filter(Boolean).length;
-  const hasOpposite =
-    (obstacles[0] && obstacles[1]) || (obstacles[2] && obstacles[3]);
-  if (total >= 2 && hasOpposite) return total * DIFFICULTY_MULTIPLIER;
-  if (total >= 1) return total;
-  return 0;
+  if (candidate.gapsFilled === 0) return 0;
+  let bonus = 0;
+  for (const [dr, dc] of candidate.piece.offsets) {
+    const pr = candidate.row + dr;
+    const pc = candidate.col + dc;
+    if (!targetGaps.has(packTile(pr, pc))) continue;
+    // Track obstacle directions: [north, south, west, east]. Walls block
+    // piece extension the same way water/cannons/towers/pits do — count
+    // them so a gap bordered by N=water + S=wall scores opposite-axis
+    // blocked, on par with N=water + S=cannon.
+    const obstacles = computeCardinalObstacleMask(state, pr, pc);
+    for (let dirIdx = 0; dirIdx < 4; dirIdx++) {
+      if (obstacles[dirIdx]) continue;
+      const [ar, ac] = DIRS_4[dirIdx]!;
+      const nr = pr + ar;
+      const nc = pc + ac;
+      if (!inBounds(nr, nc)) continue;
+      if (walls.has(packTile(nr, nc))) obstacles[dirIdx] = true;
+    }
+    const total = obstacles.filter(Boolean).length;
+    const hasOpposite =
+      (obstacles[0] && obstacles[1]) || (obstacles[2] && obstacles[3]);
+    if (total >= 2 && hasOpposite) bonus += total * DIFFICULTY_MULTIPLIER;
+    else if (total >= 1) bonus += total;
+  }
+  return bonus;
 }
 
 function computeWastefulClosureAdjustment(
