@@ -8,6 +8,14 @@
  *   deno run -A scripts/watch-game.ts --seed 42 --round 3
  *   deno run -A scripts/watch-game.ts --seed 555555 --build-trace 26 GOLD
  *
+ * --rounds N is a WATCH BUDGET — stop observing after round N closes. It does
+ * NOT change game state: the match itself defaults to to-the-death
+ * (state.maxRounds = Infinity), so RNG-consuming code gated on maxRounds
+ * (e.g. upgrade-system's "skip pick for the final round") never trips. That
+ * means `--rounds 29` and `--rounds 50` produce IDENTICAL r29 state. Use
+ * --match-rounds M to constrain the match length explicitly (rare —
+ * investigation reproduction usually wants the default).
+ *
  * --build-trace ROUND PLAYER captures the AI's per-placement build decisions
  * (target tower, gap set before/after, placement position relative to ring)
  * for ONE player ONE round — the format that makes "why did GOLD fail to
@@ -32,7 +40,11 @@ import {
 interface Args {
   seed: number | undefined;
   mode: "classic" | "modern";
+  /** Watch budget — stop observing after this round's ROUND_END. */
   rounds: number;
+  /** Match-length cap (state.maxRounds). 0 = to-the-death (Infinity).
+   *  Default 0 so --rounds never silently shifts AI-visible state. */
+  matchRounds: number;
   round: number | undefined;
   buildTrace: { round: number; playerId: 0 | 1 | 2 } | undefined;
 }
@@ -45,15 +57,21 @@ async function main(): Promise<void> {
   const args = parseArgs();
   if (args.seed === undefined) {
     console.error(
-      "Usage: deno run -A scripts/watch-game.ts --seed N [--mode classic|modern] [--rounds N] [--round N] [--build-trace ROUND PLAYER]",
+      "Usage: deno run -A scripts/watch-game.ts --seed N [--mode classic|modern] [--rounds N] [--match-rounds M] [--round N] [--build-trace ROUND PLAYER]",
     );
     Deno.exit(1);
   }
 
+  // --rounds is the WATCH BUDGET; match length is independent.
+  // matchRounds=0 → Infinity, so maxRounds-gated RNG (upgrade-system's
+  // "skip pick for the final round") never trips. That makes r29 state
+  // identical regardless of --rounds value.
+  const scenarioRounds =
+    args.matchRounds > 0 ? args.matchRounds : Number.POSITIVE_INFINITY;
   const sc = await createScenario({
     seed: args.seed,
     mode: args.mode,
-    rounds: args.rounds + 1,
+    rounds: scenarioRounds,
   });
   const narrative = createNarrativeObserver();
   narrative.attach(sc);
@@ -84,8 +102,12 @@ async function main(): Promise<void> {
     buildTrace?.detach();
   }
 
+  const matchLabel =
+    args.matchRounds > 0
+      ? `match-rounds=${args.matchRounds}`
+      : "match-rounds=∞";
   console.log(
-    `seed=${args.seed} mode=${args.mode} rounds=${args.rounds}${args.round !== undefined ? ` (filtered to r${args.round})` : ""}`,
+    `seed=${args.seed} mode=${args.mode} rounds=${args.rounds} ${matchLabel}${args.round !== undefined ? ` (filtered to r${args.round})` : ""}`,
   );
 
   const lines = filterByRound(narrative.lines, args.round);
@@ -135,6 +157,7 @@ function parseArgs(): Args {
   let seed: number | undefined;
   let mode: "classic" | "modern" = "modern";
   let rounds = 3;
+  let matchRounds = 0;
   let round: number | undefined;
   let buildTrace: { round: number; playerId: 0 | 1 | 2 } | undefined;
   for (let i = 0; i < argv.length; i++) {
@@ -148,6 +171,7 @@ function parseArgs(): Args {
       }
       mode = value;
     } else if (flag === "--rounds") rounds = Number(argv[++i]);
+    else if (flag === "--match-rounds") matchRounds = Number(argv[++i]);
     else if (flag === "--round") round = Number(argv[++i]);
     else if (flag === "--build-trace") {
       const roundArg = Number(argv[++i]);
@@ -169,5 +193,5 @@ function parseArgs(): Args {
       Deno.exit(1);
     }
   }
-  return { seed, mode, rounds, round, buildTrace };
+  return { seed, mode, rounds, matchRounds, round, buildTrace };
 }

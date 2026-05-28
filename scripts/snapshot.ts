@@ -8,6 +8,13 @@
  *   npm run snapshot -- --seed 1000000 --mode classic --round 3 --phase CANNON_PLACE
  *   npm run snapshot -- --seed 42 --round 5 --phase BATTLE --at 3.5
  *
+ * --round N is a WATCH TARGET — does NOT change game state. The match
+ * defaults to to-the-death (state.maxRounds = Infinity) so RNG-consuming
+ * code gated on maxRounds (e.g. upgrade-system's "skip pick for the final
+ * round") never trips. That means the r29 snapshot is IDENTICAL whether
+ * you ask for --round 29 or --round 50. Use --match-rounds M to constrain
+ * match length explicitly (rare).
+ *
  * --phase: CASTLE_SELECT | CANNON_PLACE | MODIFIER_REVEAL | BATTLE |
  *          UPGRADE_PICK | WALL_BUILD
  * --moment: start (default — at PHASE_START) | end (just after the phase exits)
@@ -35,6 +42,9 @@ interface Args {
   seed: number | undefined;
   mode: "classic" | "modern";
   round: number | undefined;
+  /** Match-length cap (state.maxRounds). 0 = to-the-death (Infinity).
+   *  Default 0 so --round never silently shifts AI-visible state. */
+  matchRounds: number;
   phase: Phase | undefined;
   moment: "start" | "end";
   /** Sim-seconds elapsed since PHASE_START, when provided. Overrides moment. */
@@ -55,7 +65,8 @@ async function main(): Promise<void> {
   ) {
     console.error(
       "Usage: npm run snapshot -- --seed N --round N --phase PHASE " +
-        "[--mode classic|modern] [--moment start|end | --at SECONDS] " +
+        "[--mode classic|modern] [--match-rounds M] " +
+        "[--moment start|end | --at SECONDS] " +
         "[--player RED|BLUE|GOLD]",
     );
     console.error(
@@ -64,10 +75,16 @@ async function main(): Promise<void> {
     Deno.exit(1);
   }
 
+  // --round is the WATCH TARGET; match length is independent.
+  // matchRounds=0 → Infinity, so maxRounds-gated RNG (upgrade-system's
+  // "skip pick for the final round") never trips. That keeps a given
+  // (seed, round, phase) snapshot identical regardless of --round value.
+  const scenarioRounds =
+    args.matchRounds > 0 ? args.matchRounds : Number.POSITIVE_INFINITY;
   using sc = await createScenario({
     seed: args.seed,
     mode: args.mode,
-    rounds: args.round + 1,
+    rounds: scenarioRounds,
     renderer: "ascii",
   });
 
@@ -150,8 +167,12 @@ async function main(): Promise<void> {
 
   // Banner: seed/round/phase/moment + per-player stats (filtered to the
   // focused player if --player was passed)
+  const matchLabel =
+    args.matchRounds > 0
+      ? `match-rounds=${args.matchRounds}`
+      : "match-rounds=∞";
   console.log(
-    `seed=${args.seed} mode=${args.mode} ${targetLabel}${args.player !== undefined ? ` (focus ${PLAYER_NAMES[args.player]})` : ""}`,
+    `seed=${args.seed} mode=${args.mode} ${matchLabel} ${targetLabel}${args.player !== undefined ? ` (focus ${PLAYER_NAMES[args.player]})` : ""}`,
   );
   for (let i = 0; i < 3; i++) {
     const player = sc.state.players[i];
@@ -254,6 +275,7 @@ function parseArgs(): Args {
   let seed: number | undefined;
   let mode: "classic" | "modern" = "modern";
   let round: number | undefined;
+  let matchRounds = 0;
   let phase: Phase | undefined;
   let moment: "start" | "end" = "start";
   let at: number | undefined;
@@ -269,6 +291,7 @@ function parseArgs(): Args {
       }
       mode = value;
     } else if (flag === "--round") round = Number(argv[++i]);
+    else if (flag === "--match-rounds") matchRounds = Number(argv[++i]);
     else if (flag === "--phase") {
       const value = argv[++i]?.toUpperCase() ?? "";
       const enumValue = (Phase as Record<string, Phase>)[value];
@@ -310,5 +333,5 @@ function parseArgs(): Args {
       Deno.exit(1);
     }
   }
-  return { seed, mode, round, phase, moment, at, player };
+  return { seed, mode, round, matchRounds, phase, moment, at, player };
 }
