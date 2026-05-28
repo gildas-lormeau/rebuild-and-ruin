@@ -33,6 +33,7 @@ import {
   type GameEventMap,
 } from "../src/shared/core/game-event-bus.ts";
 import { Phase } from "../src/shared/core/game-phase.ts";
+import { GRID_COLS, GRID_ROWS } from "../src/shared/core/grid.ts";
 import {
   hasPitAt,
   isAtTile,
@@ -375,6 +376,12 @@ function identifyImpactTile(
   col: number,
   shooterId: number,
 ): string {
+  // dust_storm scatters impact tiles, occasionally off-map. packTile (called
+  // for the wall lookup below) throws in dev mode on out-of-bounds, which
+  // would abort the bus emit and silently truncate the narrative log.
+  if (row < 0 || row >= GRID_ROWS || col < 0 || col >= GRID_COLS) {
+    return "off-map";
+  }
   // Cannon (own / enemy / captured) — 2×2 footprint check. Dead cannons
   // persist as debris (clear on zone reset) so a hit on one is wasted;
   // we surface that explicitly. "own-*" reflects the actual shooter's

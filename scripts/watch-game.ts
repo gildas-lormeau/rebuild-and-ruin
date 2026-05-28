@@ -23,7 +23,11 @@ import {
   createBuildTraceObserver,
 } from "../test/build-trace-observer.ts";
 import { createNarrativeObserver } from "../test/narrative-observer.ts";
-import { createScenario, waitForEvent } from "../test/scenario.ts";
+import {
+  createScenario,
+  ScenarioTimeoutError,
+  waitForEvent,
+} from "../test/scenario.ts";
 
 interface Args {
   seed: number | undefined;
@@ -67,8 +71,14 @@ async function main(): Promise<void> {
       timeoutMs: 200_000 * args.rounds,
       label: `seed=${args.seed} r${args.rounds} end`,
     });
-  } catch {
-    // Game may have ended early via last-player-standing — partial data ok.
+  } catch (err) {
+    // Timeout is expected when the game ended early via last-player-standing
+    // (no further ROUND_END fires) — partial data is still useful, so log
+    // and fall through to print whatever was captured. Anything else is a
+    // real bug (e.g. an observer crash) and must NOT be silently swallowed,
+    // because the narrative would truncate without explanation.
+    if (!(err instanceof ScenarioTimeoutError)) throw err;
+    console.error(`[watch-game] ${err.message}`);
   } finally {
     narrative.detach();
     buildTrace?.detach();
