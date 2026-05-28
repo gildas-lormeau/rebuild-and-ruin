@@ -82,6 +82,20 @@ async function main(): Promise<void> {
     buildTrace.attach();
   }
 
+  // Track natural game end + last completed round so the timeout catch can
+  // distinguish "game ended via last-player-standing before the watch budget"
+  // (expected, friendly note) from a genuine hang (loud error).
+  let gameEndedNaturally = false;
+  let lastRoundEnded = 0;
+  let winnerId: number | undefined;
+  sc.bus.on(GAME_EVENT.ROUND_END, (ev) => {
+    lastRoundEnded = ev.round;
+  });
+  sc.bus.on(GAME_EVENT.GAME_END, (ev) => {
+    gameEndedNaturally = true;
+    winnerId = ev.winner;
+  });
+
   try {
     waitForEvent(sc, GAME_EVENT.ROUND_END, (ev) => ev.round === args.rounds, {
       // Scale sim-ms budget with round count. Survival uses ~183s sim per
@@ -96,7 +110,21 @@ async function main(): Promise<void> {
     // real bug (e.g. an observer crash) and must NOT be silently swallowed,
     // because the narrative would truncate without explanation.
     if (!(err instanceof ScenarioTimeoutError)) throw err;
-    console.error(`[watch-game] ${err.message}`);
+    if (gameEndedNaturally) {
+      const winnerLabel =
+        winnerId !== undefined
+          ? (PLAYER_NAMES[winnerId] ?? `P${winnerId}`)
+          : "?";
+      console.error(
+        `[watch-game] game ended at r${lastRoundEnded} (winner ${winnerLabel}) — watch budget was r${args.rounds}`,
+      );
+    } else {
+      // No GAME_END seen → either a real hang or the game state is wedged.
+      // Surface the raw sim-budget error so the user can investigate.
+      console.error(
+        `[watch-game] ${err.message} (no GAME_END seen — possible hang; last ROUND_END was r${lastRoundEnded})`,
+      );
+    }
   } finally {
     narrative.detach();
     buildTrace?.detach();
