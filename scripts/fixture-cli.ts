@@ -15,8 +15,10 @@
  *                     Scans seeds when `--auto-seed` is set, otherwise uses
  *                     `--seed N` and fails if the ring doesn't fit.
  *
- *   show       --fixture <path>
+ *   show       --fixture <path> [--player RED|BLUE|GOLD]
  *       Boots the scenario, applies all overrides, renders ASCII to stdout.
+ *       `--player` crops the board to that player's zone (absolute coord
+ *       labels preserved), for compact single-zone debugging.
  *
  *   add-house  --fixture <path> --row N --col N
  *   add-bonus  --fixture <path> --row N --col N
@@ -47,6 +49,8 @@ import {
   type Cell,
   CellKind,
   formatGrid,
+  type Rect,
+  zoneBounds,
 } from "../dev/dev-console-grid.ts";
 import { generateMap, topZonesBySize } from "../src/game/map-generation.ts";
 import type { FullStateMessage } from "../src/protocol/protocol.ts";
@@ -59,7 +63,7 @@ import type { GameMap, Tower } from "../src/shared/core/geometry-types.ts";
 import { GRID_COLS, GRID_ROWS } from "../src/shared/core/grid.ts";
 import { IMPLEMENTED_MODIFIERS } from "../src/shared/core/modifier-defs.ts";
 import { isGrass } from "../src/shared/core/spatial.ts";
-import type { TestHooks } from "../src/shared/core/types.ts";
+import type { GameState, TestHooks } from "../src/shared/core/types.ts";
 import { Rng } from "../src/shared/platform/rng.ts";
 import {
   createPhaseScenario,
@@ -81,6 +85,8 @@ interface Flags {
   row?: number;
   col?: number;
   owner?: number;
+  /** `show` only: crop the rendered board to this player slot's zone. */
+  player?: 0 | 1 | 2;
   color?: boolean;
   noColor?: boolean;
   out?: string;
@@ -550,6 +556,7 @@ function buildCheckpoint(
     simTick: 0,
     players,
     grunts: [],
+    gruntSpawnSeq: 0,
     houses: [],
     bonusSquares: [],
     towerAlive,
@@ -562,9 +569,8 @@ function buildCheckpoint(
     activeModifierChangedTiles: [],
     lastModifierId: null,
     frozenTiles: null,
-    highTideTiles: null,
     sinkholeTiles: null,
-    lowWaterTiles: null,
+    exposedRiverbedTiles: null,
     towerPendingRevive: [],
     capturedCannons: [],
     cannonballs: [],
@@ -644,12 +650,22 @@ async function runShow(flags: Flags): Promise<void> {
   }
   const cells = buildGrid(sc.state, "all", undefined);
   const legend = buildLegend(sc.state);
+  let crop: Rect | undefined;
+  if (flags.player !== undefined) {
+    crop = cropRectForPlayer(sc.state, flags.player);
+    if (crop === undefined) {
+      throw new Error(
+        `--player ${flags.player} has no zone in this fixture ` +
+          `(eliminated or unseated)`,
+      );
+    }
+  }
   const useColor = shouldUseColor(flags);
   if (useColor) {
     console.log(legend);
-    console.log(colorizeGrid(cells, fixture));
+    console.log(colorizeGrid(cells, fixture, crop));
   } else {
-    console.log(formatGrid(cells, legend, { coords: true }));
+    console.log(formatGrid(cells, legend, { coords: true, crop }));
   }
   console.log(summarizeOverrides(fixture));
 }
@@ -675,6 +691,7 @@ function shouldUseColor(flags: Flags): boolean {
 function colorizeGrid(
   cells: readonly (readonly Cell[])[],
   fixture: FixtureFile,
+  crop?: Rect,
 ): string {
   const fixtureHouses = new Set<number>();
   for (const house of fixture.houses ?? []) {
@@ -693,18 +710,27 @@ function colorizeGrid(
     fixtureGrunts.add(grunt.row * GRID_COLS + grunt.col);
   }
 
+  const rect: Rect = crop ?? {
+    minRow: 0,
+    maxRow: cells.length - 1,
+    minCol: 0,
+    maxCol: (cells[0]?.length ?? 1) - 1,
+  };
   const rowLabelW = String(GRID_ROWS - 1).length;
   const pad = " ".repeat(rowLabelW);
-  const colCount = cells[0]?.length ?? 0;
-  const tensHeader = `${pad}  ${buildTensHeader(colCount)}`;
-  const onesHeader = `${pad}  ${buildOnesHeader(colCount)}`;
+  const colCount = rect.maxCol - rect.minCol + 1;
+  // Absolute col labels (offset by rect.minCol) so a cropped view's headers
+  // still cite real tile coordinates, matching formatGrid's cropped output.
+  const tensHeader = `${pad}  ${buildTensHeader(colCount, rect.minCol)}`;
+  const onesHeader = `${pad}  ${buildOnesHeader(colCount, rect.minCol)}`;
   const border = `${pad} +${"-".repeat(colCount)}+`;
 
   const lines = [tensHeader, onesHeader, border];
-  for (let row = 0; row < cells.length; row++) {
-    const cellRow = cells[row]!;
+  for (let row = rect.minRow; row <= rect.maxRow; row++) {
+    const cellRow = cells[row];
+    if (!cellRow) continue;
     let painted = "";
-    for (let col = 0; col < cellRow.length; col++) {
+    for (let col = rect.minCol; col <= rect.maxCol; col++) {
       painted += paintCell(cellRow[col]!, row, col, {
         fixtureHouses,
         fixtureBonuses,
@@ -766,19 +792,31 @@ function paintCell(
   }
 }
 
-function buildTensHeader(cols: number): string {
+function buildTensHeader(cols: number, startCol = 0): string {
   let out = "";
-  for (let col = 0; col < cols; col++) {
-    const tens = Math.floor(col / 10);
+  for (let i = 0; i < cols; i++) {
+    const tens = Math.floor((startCol + i) / 10);
     out += tens === 0 ? " " : String(tens);
   }
   return out;
 }
 
-function buildOnesHeader(cols: number): string {
+function buildOnesHeader(cols: number, startCol = 0): string {
   let out = "";
-  for (let col = 0; col < cols; col++) out += String(col % 10);
+  for (let i = 0; i < cols; i++) out += String((startCol + i) % 10);
   return out;
+}
+
+/** Resolve a player slot to its zone's 1-tile-padded crop rect (the same
+ *  bounds `asciiSnapshot`'s `cropTo: ValidPlayerId` uses). Returns undefined
+ *  when the slot has no zone (eliminated/unseated) so the caller can error. */
+function cropRectForPlayer(
+  state: GameState,
+  slot: 0 | 1 | 2,
+): Rect | undefined {
+  const zone = state.playerZones[slot];
+  if (zone === undefined) return undefined;
+  return zoneBounds(state, zone);
 }
 
 async function runAddHouse(flags: Flags): Promise<void> {
@@ -1006,6 +1044,9 @@ function parseFlags(argv: readonly string[]): Flags {
       case "--owner":
         out.owner = Number(argv[++i]);
         break;
+      case "--player":
+        out.player = parsePlayerSlot(argv[++i]);
+        break;
       case "--color":
         out.color = true;
         break;
@@ -1086,6 +1127,20 @@ function parseFlags(argv: readonly string[]): Flags {
   return out;
 }
 
+/** Parse `--player RED|BLUE|GOLD` (or the raw slot 0|1|2) into a player slot.
+ *  Slots follow the canonical Red=0 / Blue=1 / Gold=2 order. */
+function parsePlayerSlot(value: string | undefined): 0 | 1 | 2 {
+  if (value === undefined) {
+    throw new Error("--player requires RED|BLUE|GOLD (or 0|1|2)");
+  }
+  const byName: Record<string, 0 | 1 | 2> = { RED: 0, BLUE: 1, GOLD: 2 };
+  const named = byName[value.toUpperCase()];
+  if (named !== undefined) return named;
+  const slot = Number(value);
+  if (slot === 0 || slot === 1 || slot === 2) return slot;
+  throw new Error(`--player must be RED|BLUE|GOLD or 0|1|2 (got "${value}")`);
+}
+
 function printUsage(): void {
   console.log(
     [
@@ -1115,7 +1170,7 @@ function printUsage(): void {
       "                      Defaults: round=2, players=3, castle-size=10,",
       "                      entry=CANNON_PLACE.",
       "",
-      "  show       --fixture <path>",
+      "  show       --fixture <path> [--player RED|BLUE|GOLD]",
       "  add-house  --fixture <path> --row N --col N",
       "  add-bonus  --fixture <path> --row N --col N",
       "  add-wall   --fixture <path> --row N --col N --owner N",
