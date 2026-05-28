@@ -669,6 +669,9 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     beginUntilt: camera.beginUntilt,
     getPitchState: camera.getPitchState,
     cannonRotationSettled: () => cannonAnimator.allSettled(),
+    snapCannonBarrelsToRest: renderer.snapCannonBarrelsToRest
+      ? () => renderer.snapCannonBarrelsToRest!()
+      : undefined,
     beginTilt: camera.beginTilt,
     warmShadowPermutations: renderer.warmShadowPermutations
       ? () => renderer.warmShadowPermutations!()

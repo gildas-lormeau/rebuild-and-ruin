@@ -47,6 +47,11 @@ export interface CannonsManager {
   /** Reconcile live cannon meshes across every castle. Cheap no-op when
    *  the composite fingerprint hasn't changed since the last call. */
   update(ctx: FrameCtx): void;
+  /** Drop all in-flight barrel-recoil state so the next `update` paints
+   *  every barrel at rest (pitch = 0). Called from the runtime at
+   *  battle-end so the residual ~2s decay doesn't leak across the
+   *  BATTLE → WALL_BUILD boundary. */
+  snapBarrelsToRest(): void;
   /** Free GPU resources when the renderer is torn down. */
   dispose(): void;
 }
@@ -371,12 +376,16 @@ export function createCannonsManager(
     );
   }
 
+  function snapBarrelsToRest(): void {
+    barrelStates.clear();
+  }
+
   function dispose(): void {
     disposeAllBuckets(buckets, ownedMaterials);
     scene.remove(root);
   }
 
-  return { update, dispose };
+  return { update, snapBarrelsToRest, dispose };
 }
 
 /** Group live, non-balloon cannons across all castles by their rendered

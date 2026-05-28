@@ -615,6 +615,9 @@ export function createRender3d(
     setCannonFacingProvider: (provider) => {
       cannonFacingProvider = provider;
     },
+    snapCannonBarrelsToRest: () => {
+      ctx.cannons.snapBarrelsToRest();
+    },
   };
 }
 

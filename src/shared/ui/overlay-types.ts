@@ -541,6 +541,13 @@ export interface RendererInterface {
   setCannonFacingProvider?(
     fn: (col: number, row: number) => number | undefined,
   ): void;
+  /** Drop the renderer's per-cannon barrel-recoil state so every barrel
+   *  paints at rest on the next frame. Called from the runtime at
+   *  battle-end alongside `resetCannonFacings`: the recoil ease takes
+   *  ~2s to decay below its rest epsilon, and without this the residual
+   *  pitch leaks into WALL_BUILD as visible micro-rotation. Optional —
+   *  renderers without a barrel-pitch animation (2D, headless) omit it. */
+  snapCannonBarrelsToRest?(): void;
   /** The element that receives pointer/touch events and cursor-style changes. */
   eventTarget: HTMLElement;
   /** Container element — parent of the surface, holds touch panels and overlays. */

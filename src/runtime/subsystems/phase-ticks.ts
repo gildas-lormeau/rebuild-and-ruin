@@ -185,6 +185,13 @@ interface PhaseTicksDeps extends Pick<RuntimeConfig, "log"> {
    *  instead of wall-clock timed. Sourced from
    *  `subsystems/cannon-animator.ts`'s `allSettled`. */
   cannonRotationSettled: () => boolean;
+  /** Drop the renderer's per-cannon barrel-recoil pitch so every barrel
+   *  paints at rest from the next frame on. Called at battle-end after
+   *  `resetCannonFacings`, before the BATTLE → WALL_BUILD transition,
+   *  so the recoil decay (~2s) doesn't leak across the phase boundary
+   *  as visible micro-rotation. Undefined for renderers without a
+   *  barrel-pitch animation (2D, headless stub). */
+  snapCannonBarrelsToRest?: () => void;
   /** Start the build→battle tilt. Called from `proceedToBattle` at
    *  battle-banner end. */
   beginTilt: () => void;
@@ -683,6 +690,15 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     // frame-synced with the visual ease.
     resetCannonFacings(state);
     if (!deps.cannonRotationSettled()) return false;
+    // Snap barrel recoil pitch to rest. Unlike the yaw ease (above,
+    // gated on `cannonRotationSettled`), barrel pitch lives in the
+    // renderer and has a ~2s decay tail from the last shot — without
+    // this snap, the residual ease leaks across into WALL_BUILD as
+    // visible micro-rotation on the cannon barrels. Idempotent + safe
+    // here: the in-flight-cannonballs / animation gates above guarantee
+    // no ball is mid-flight, so the next frame's `applyFiringTargets`
+    // can't re-arm a recoil target.
+    deps.snapCannonBarrelsToRest?.();
 
     // Pre-banner untilt: trigger the camera to ease pitch → 0 and wait for
     // it to settle BEFORE the battle-done transition runs. Otherwise the
