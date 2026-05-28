@@ -56,7 +56,7 @@ const TOWER_PROGRESS_WEIGHT = 100;
  *  K_HOLE = max width of a closeable gap (1-tile, 2-tile, or 3-tile holes). */
 const HOLE_MAX_WIDTH = 3;
 /** Score penalty applied to dead towers — prefer live towers but still consider dead ones. */
-const DEAD_TOWER_PENALTY = 50;
+const DEAD_TOWER_PENALTY = 150;
 /** Max penalty for a fully obstructed castle rect (grunts, pits, enemy walls). */
 const OBSTRUCTION_PENALTY = 60;
 
