@@ -71,6 +71,7 @@ export function createNarrativeObserver(): NarrativeObserver {
    *  initial castle/enclosure events get attributed cleanly. */
   let currentRound = 0;
   let currentPhaseLabel = "SETUP";
+  let currentRoundModifier: string | null = null;
   let lastEmittedHeader = "";
 
   /** Per-player wall-placement accumulator — flushed when the phase
@@ -87,7 +88,17 @@ export function createNarrativeObserver(): NarrativeObserver {
   const lifeLostThisRound = new Set<number>();
 
   function emitHeaderIfNeeded(): void {
-    const header = `── r${currentRound} ${currentPhaseLabel} ──`;
+    // Tag BATTLE / MODIFIER_REVEAL with the round's modifier so the
+    // active modifier stays visible while scanning battle fires —
+    // dust_storm / wildfire / etc. scatter targets in ways that look
+    // like AI bugs without this context.
+    const modifierTag =
+      currentRoundModifier !== null &&
+      (currentPhaseLabel === "BATTLE" ||
+        currentPhaseLabel === "MODIFIER_REVEAL")
+        ? ` [${currentRoundModifier}]`
+        : "";
+    const header = `── r${currentRound} ${currentPhaseLabel}${modifierTag} ──`;
     if (header === lastEmittedHeader) return;
     flushWallGroup();
     lines.push(header);
@@ -132,6 +143,7 @@ export function createNarrativeObserver(): NarrativeObserver {
 
       on(sc, GAME_EVENT.ROUND_START, (ev) => {
         currentRound = ev.round;
+        currentRoundModifier = null;
         // Don't emit a header here — PHASE_START fires moments later
         // with the actual phase label. Avoids a stale "── r2 ?? ──".
       });
@@ -189,6 +201,7 @@ export function createNarrativeObserver(): NarrativeObserver {
       });
 
       on(sc, GAME_EVENT.MODIFIER_APPLIED, (ev) => {
+        currentRoundModifier = ev.modifierId;
         push(`modifier: ${ev.modifierId}`);
       });
 
