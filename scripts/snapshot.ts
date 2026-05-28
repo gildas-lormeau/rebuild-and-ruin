@@ -35,6 +35,7 @@
 
 import { GAME_EVENT } from "../src/shared/core/game-event-bus.ts";
 import { Phase } from "../src/shared/core/game-phase.ts";
+import { playerByZone } from "../src/shared/core/player-types.ts";
 import type { GameState } from "../src/shared/core/types.ts";
 import { createScenario, waitForEvent } from "../test/scenario.ts";
 
@@ -220,15 +221,37 @@ function buildAnchors(state: GameState, focus: 0 | 1 | 2 | undefined): string {
   }
   if (castles.length > 0) out.push(`  Castles: ${castles.join(" ")}`);
 
-  // Non-home towers (capturable / contested).
-  const towers: string[] = [];
+  // Non-home towers, grouped by zone-owner. A tower's zone is fixed at
+  // map-gen and never reassigned, so each tower has a durable owner-player
+  // (or no player when its zone isn't assigned to a slot). Whether the
+  // owner currently encloses it is visible on the ASCII map via the `░`
+  // territory marker — this listing surfaces the static zone affinity.
+  const towersByPlayer: Map<number, string[]> = new Map();
+  const neutralTowers: string[] = [];
   for (let i = 0; i < state.map.towers.length; i++) {
     if (homeIndices.has(i)) continue;
     const tower = state.map.towers[i]!;
     const alive = state.towerAlive[i] ?? false;
-    towers.push(`${alive ? "Y" : "y"}#${i}(${tower.row},${tower.col})`);
+    const label = `${alive ? "Y" : "y"}#${i}(${tower.row},${tower.col})`;
+    const ownerId = playerByZone(state.playerZones, tower.zone);
+    if (ownerId === undefined) {
+      neutralTowers.push(label);
+    } else {
+      const bucket = towersByPlayer.get(ownerId) ?? [];
+      bucket.push(label);
+      towersByPlayer.set(ownerId, bucket);
+    }
   }
-  if (towers.length > 0) out.push(`  Towers: ${towers.join(" ")}`);
+  for (const player of state.players) {
+    if (focus !== undefined && player.id !== focus) continue;
+    const bucket = towersByPlayer.get(player.id);
+    if (bucket && bucket.length > 0) {
+      out.push(`  Towers ${PLAYER_NAMES[player.id]}: ${bucket.join(" ")}`);
+    }
+  }
+  if (neutralTowers.length > 0 && focus === undefined) {
+    out.push(`  Towers neutral: ${neutralTowers.join(" ")}`);
+  }
 
   // Cannons per player. Dead cannons remain on the map as debris (x), so
   // include them — they still block placement.
