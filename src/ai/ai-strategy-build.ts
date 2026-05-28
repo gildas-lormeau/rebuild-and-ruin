@@ -65,7 +65,6 @@ import {
 } from "./ai-build-shared.ts";
 import {
   adjustInterior,
-  expandRectAroundBlockers,
   MANAGEABLE_GAP_LIMIT,
   selectTarget,
 } from "./ai-build-target.ts";
@@ -78,11 +77,7 @@ import type {
   Scored,
   ScoringContext,
 } from "./ai-build-types.ts";
-import {
-  filterUnfillableGaps,
-  findGapTiles,
-  hasMeaningfulHomeRingGaps,
-} from "./ai-castle-rect.ts";
+import { findGapTiles, hasMeaningfulHomeRingGaps } from "./ai-castle-rect.ts";
 
 type BuildSkillConfig = (typeof BUILD_SKILL_TABLE)[number];
 
@@ -884,32 +879,11 @@ function analyzeEnclosures(
   const otherUnenclosed = unenclosedTowers.filter(
     (tower) => tower !== castle.tower,
   );
-  // Doomed-home detection: check the *expanded* home rect (same one
-  // tryRepairHomeCastle targets after routing around temporary blockers).
-  // The ideal castle rect can mislead — a single pit on its ring may be
-  // routable via expansion, while a pit-next-to-water tile blocks every
-  // possible expansion direction. If ANY ring tile remains unfillable
-  // after expansion (water beyond, edge beyond, pit cluster spanning
-  // expansion budget), the perimeter cannot close this round and wall
-  // effort on home is wasted. Use this rect's fillability — not the
-  // ideal rect's — so the check sees what the AI actually pursues.
-  const expandedHomeRect = expandRectAroundBlockers(castle, state, player);
-  const homeRingGaps = findGapTiles(expandedHomeRect, player.walls);
-  const homeFillableGaps = new Set(homeRingGaps);
-  filterUnfillableGaps(homeFillableGaps, state, getInterior(player));
-  // Doomed when expansion can't route around all unfillable tiles —
-  // any leftover unfillable ring tile leaves the perimeter permanently
-  // open this round.
-  const homeDoomed =
-    !homeTowerEnclosed && homeRingGaps.size > homeFillableGaps.size;
-
   let effectiveSkipHome =
-    (homeWasBroken || homeTowerDead || homeDoomed) &&
-    otherUnenclosed.length > 0;
-  if (effectiveSkipHome && !homeTowerEnclosed && !homeDoomed) {
-    if (homeRingGaps.size <= HOME_GAP_REPAIR_THRESHOLD) {
-      effectiveSkipHome = false;
-    }
+    (homeWasBroken || homeTowerDead) && otherUnenclosed.length > 0;
+  if (effectiveSkipHome && !homeTowerEnclosed) {
+    const homeGaps = findGapTiles(castle, player.walls);
+    if (homeGaps.size <= HOME_GAP_REPAIR_THRESHOLD) effectiveSkipHome = false;
   }
 
   const homeHasRingGaps = hasMeaningfulHomeRingGaps(

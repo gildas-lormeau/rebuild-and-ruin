@@ -99,17 +99,9 @@ export function pickFallbackPlacement(
     return false;
   };
 
-  const fallbackPool = homeWasBroken
+  const fallbackTowers = homeWasBroken
     ? unenclosedTowers.filter((tower) => tower !== castle.tower)
     : unenclosedTowers;
-  // Alive-preference: dead-tower enclosure doesn't satisfy the life-loss
-  // survival check (`filterAliveOwnedTowers` in phase-setup.ts). Extending
-  // walls toward an alive tower is strictly better when one exists.
-  const aliveFallback = fallbackPool.filter(
-    (tower) => state.towerAlive[tower.index],
-  );
-  const fallbackTowers =
-    aliveFallback.length > 0 ? aliveFallback : fallbackPool;
 
   const isInsideOrFatCandidate = memoize(
     (candidate: Candidate): boolean =>
