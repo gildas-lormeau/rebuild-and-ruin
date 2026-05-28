@@ -548,7 +548,7 @@ export function createSfxSubsystem(deps: SfxSubsystemDeps): SfxSubsystem {
     if (state.phase !== lastPhase) {
       if (FANFARE_PHASES.has(state.phase)) {
         for (const player of state.players) {
-          const hasEnclosedAlive = player.ownedTowers.some(
+          const hasEnclosedAlive = player.enclosedTowers.some(
             (tower) => state.towerAlive[tower.index] === true,
           );
           if (hasEnclosedAlive) fanfarePlayedThisPhase.add(player.id);

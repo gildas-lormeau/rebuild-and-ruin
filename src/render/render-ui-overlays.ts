@@ -323,7 +323,7 @@ export function createOnlineOverlay(
     gruntSurgeRevealIntensity,
   } = revealOverlayFields;
 
-  const ownedTowers = buildOwnedTowersByIndex(view);
+  const enclosedTowers = buildEnclosedTowersByIndex(view);
   const homeTowerIndices = buildHomeTowerIndices(view);
   const masterBuilderLockout = view.modern?.masterBuilderLockout ?? 0;
   const whenBattle = <T>(value: T): T | undefined =>
@@ -338,7 +338,7 @@ export function createOnlineOverlay(
       towerAlive: view.towerAlive,
       burningPits: view.burningPits,
       bonusSquares: view.bonusSquares,
-      ownedTowers: ownedTowers.size > 0 ? ownedTowers : undefined,
+      enclosedTowers: enclosedTowers.size > 0 ? enclosedTowers : undefined,
       homeTowerIndices:
         homeTowerIndices.size > 0 ? homeTowerIndices : undefined,
       frozenTiles: view.modern?.frozenTiles ?? undefined,
@@ -643,16 +643,16 @@ function buildStatusBar(
   };
 }
 
-function buildOwnedTowersByIndex(
+function buildEnclosedTowersByIndex(
   view: RenderView,
 ): Map<TowerIdx, ValidPlayerId> {
-  const ownedTowers = new Map<TowerIdx, ValidPlayerId>();
+  const enclosedTowers = new Map<TowerIdx, ValidPlayerId>();
   for (const player of view.players) {
-    for (const tower of player.ownedTowers) {
-      ownedTowers.set(tower.index, player.id);
+    for (const tower of player.enclosedTowers) {
+      enclosedTowers.set(tower.index, player.id);
     }
   }
-  return ownedTowers;
+  return enclosedTowers;
 }
 
 function buildHomeTowerIndices(view: RenderView): Set<TowerIdx> {

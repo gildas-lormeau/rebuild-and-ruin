@@ -160,7 +160,7 @@ export function applyBonusSquareOverrides(
  *  tile). The `ownerId` must reference an existing player slot. Isolated
  *  walls are allowed (the game produces them often during normal play).
  *
- *  Does NOT recompute interior / ownedTowers / territory — that's the
+ *  Does NOT recompute interior / enclosedTowers / territory — that's the
  *  editor's responsibility. Call `recomputeFixtureDerivedState(state)`
  *  after this if the caller intends to advance the runtime. */
 export function applyWallOverrides(

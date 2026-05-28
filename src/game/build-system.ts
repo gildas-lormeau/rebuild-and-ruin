@@ -271,7 +271,7 @@ export function applyPiecePlacement(
 }
 
 /** Reclaim territory for all players after a wall mutation during active build phase.
- *  Sub-functions: recomputeInterior → updateOwnedTowers → removeEnclosedGrunts →
+ *  Sub-functions: recomputeInterior → updateEnclosedTowers → removeEnclosedGrunts →
  *  destroyEnclosedHouses → captureEnclosedBonusSquares → sweepMisplacedGrunts.
  *  Call after each piece placement or wall change during build phase.
  *  Do NOT use at end-of-build — use finalizeTerritoryWithScoring() instead (adds tower revival + scoring). */
@@ -285,7 +285,7 @@ export function recheckTerritory(state: GameState): void {
   // Pass 2: territory-dependent operations (safe — all interiors are fresh).
   for (const player of state.players) {
     const interior = getInterior(player);
-    updateOwnedTowers(state, player);
+    updateEnclosedTowers(state, player);
     removeEnclosedGruntsAndRespawn(state, player, interior);
     destroyEnclosedHousesAndSpawnGrunts(state, player, interior);
     captureEnclosedBonusSquares(state, player, interior);
@@ -307,7 +307,7 @@ export function finalizeTerritoryWithScoring(state: GameState): void {
   // Pass 2: territory-dependent operations + scoring.
   for (const player of state.players) {
     const interior = getInterior(player);
-    updateOwnedTowers(state, player);
+    updateEnclosedTowers(state, player);
     reviveEnclosedTowers(state, player);
     removeEnclosedGruntsAndRespawn(state, player, interior);
     destroyEnclosedHousesAndSpawnGrunts(state, player, interior);
@@ -380,7 +380,7 @@ export function removeBonusSquaresCoveredByWalls(
   state.bonusSquares = filterOffTiles(state.bonusSquares, walls);
 }
 
-/** Recompute interior + ownedTowers for every player. Used by checkpoint
+/** Recompute interior + enclosedTowers for every player. Used by checkpoint
  *  rehydration and deserialization paths where the full player wall set
  *  has just been replaced and all interiors need to be re-flooded. */
 export function recomputeAllTerritory(state: GameState): void {
@@ -409,12 +409,12 @@ function refillRampartShields(state: GameState): void {
   }
 }
 
-/** Recompute interior and ownedTowers from walls — no side effects.
+/** Recompute interior and enclosedTowers from walls — no side effects.
  *  Used by checkpoint restore where grunts/houses/bonus are already correct. */
 /** Private — callers outside this file should use `recomputeAllTerritory`. */
 function recomputeTerritoryFromWalls(state: GameState, player: Player): void {
   recomputeInterior(player);
-  updateOwnedTowers(state, player);
+  updateEnclosedTowers(state, player);
 }
 
 /** Collect valid grass tiles for bonus square placement in a single zone. */
@@ -470,7 +470,7 @@ function awardEndOfBuildPoints(
 
 function countCastleBonusUnits(state: GameState, player: Player): number {
   let castleUnits = 0;
-  for (const tower of player.ownedTowers) {
+  for (const tower of player.enclosedTowers) {
     if (state.towerAlive[tower.index]!) {
       castleUnits += tower === player.homeTower ? 2 : 1;
     }
@@ -620,19 +620,19 @@ function recomputeInterior(player: Player): void {
   player.interior = markInteriorFresh(player, fresh);
 }
 
-/** Recompute `player.ownedTowers` from the current interior and emit one
+/** Recompute `player.enclosedTowers` from the current interior and emit one
  *  `TOWER_ENCLOSED` event per tower that transitioned to enclosed this
  *  pass (SFX uses the events for the enclosure stinger + first-per-phase
- *  fanfare). The prior `ownedTowers` is captured BEFORE rebuild — that
+ *  fanfare). The prior `enclosedTowers` is captured BEFORE rebuild — that
  *  snapshot is the diff source for newly-enclosed detection. */
-function updateOwnedTowers(state: GameState, player: Player): void {
+function updateEnclosedTowers(state: GameState, player: Player): void {
   const previouslyEnclosed = new Set(
-    player.ownedTowers.map((tower) => tower.index),
+    player.enclosedTowers.map((tower) => tower.index),
   );
-  player.ownedTowers = state.map.towers.filter((tower) =>
+  player.enclosedTowers = state.map.towers.filter((tower) =>
     isTowerOwnedByPlayer(tower, player),
   );
-  for (const tower of player.ownedTowers) {
+  for (const tower of player.enclosedTowers) {
     if (previouslyEnclosed.has(tower.index)) continue;
     emitGameEvent(state.bus, GAME_EVENT.TOWER_ENCLOSED, {
       playerId: player.id,
@@ -647,7 +647,7 @@ function updateOwnedTowers(state: GameState, player: Player): void {
  *  Restoration Crew: the first newly-pending tower skips the wait and
  *  revives immediately (the upgrade is consumed on use). */
 function reviveEnclosedTowers(state: GameState, player: Player): void {
-  for (const tower of player.ownedTowers) {
+  for (const tower of player.enclosedTowers) {
     if (state.towerAlive[tower.index]) continue;
     if (state.towerPendingRevive.has(tower.index)) {
       state.towerAlive[tower.index] = true;

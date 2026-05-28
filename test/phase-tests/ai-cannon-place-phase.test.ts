@@ -259,7 +259,7 @@ Deno.test("phase-test: AI cannon placement prefers tower side over wall side in 
   for (const player of sc.state.players) {
     if (player.eliminated) continue;
     const towerTiles = new Set<TileKey>();
-    for (const tower of player.ownedTowers) {
+    for (const tower of player.enclosedTowers) {
       for (let dr = 0; dr < 2; dr++) {
         for (let dc = 0; dc < 2; dc++) {
           towerTiles.add(packTile(tower.row + dr, tower.col + dc));
@@ -334,12 +334,12 @@ Deno.test("phase-test: AI clusters cannons near owned towers in a multi-tower wh
     `expected AI to place all 20 cannons (cannonLimits=20)`,
   );
   assertGreater(
-    player.ownedTowers.length,
+    player.enclosedTowers.length,
     1,
-    `fixture should give player 0 multiple owned towers, got ${player.ownedTowers.length}`,
+    `fixture should give player 0 multiple owned towers, got ${player.enclosedTowers.length}`,
   );
 
-  const towerCenters = player.ownedTowers.map((tower) => ({
+  const towerCenters = player.enclosedTowers.map((tower) => ({
     row: tower.row + 1,
     col: tower.col + 1,
   }));

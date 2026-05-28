@@ -52,7 +52,7 @@ export async function runSeed(
     for (let pid = 0; pid < 3; pid++) {
       const player = sc.state.players[pid];
       if (!player) continue;
-      const enclosedAlive = player.ownedTowers.filter(
+      const enclosedAlive = player.enclosedTowers.filter(
         (tower) => sc.state.towerAlive[tower.index],
       ).length;
       perRound[pid]!.push({

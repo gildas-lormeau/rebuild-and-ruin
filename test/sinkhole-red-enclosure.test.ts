@@ -117,7 +117,7 @@ function dumpSinkholeState(
     `homeTower=(${red.homeTower!.row},${red.homeTower!.col}) idx=${red.homeTower!.index} zone=${redZone}`,
   );
   console.log(
-    `walls=${red.walls.size} interior=${red.interior.size} castleWallTiles=${red.castleWallTiles.size} ownedTowers=${red.ownedTowers.length}`,
+    `walls=${red.walls.size} interior=${red.interior.size} castleWallTiles=${red.castleWallTiles.size} enclosedTowers=${red.enclosedTowers.length}`,
   );
   const redSinkholeInInterior = sinkholeTiles.filter((key) => {
     const { row, col } = unpackTile(key);

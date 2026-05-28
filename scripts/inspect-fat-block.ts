@@ -60,20 +60,20 @@ async function run(): Promise<void> {
     runs.sort((a, b) => b.length - a.length);
     const homeTowerIdx = player.homeTower?.index;
     console.log(
-      `seed=${args.seed} mode=${args.mode} r${args.round} END  player=${player.id} (${["RED", "BLUE", "GOLD"][player.id]}) homeTower=T${homeTowerIdx} ownedTowers=${player.ownedTowers
+      `seed=${args.seed} mode=${args.mode} r${args.round} END  player=${player.id} (${["RED", "BLUE", "GOLD"][player.id]}) homeTower=T${homeTowerIdx} enclosedTowers=${player.enclosedTowers
         .map((t) => t.index)
         .join(",")} walls=${walls.size} doubledRuns=${runs.length}`,
     );
     for (const run of runs) {
-      const near = nearbyOwnedTowers(
-        player.ownedTowers,
+      const near = nearbyEnclosedTowers(
+        player.enclosedTowers,
         run.row,
         run.col,
         run.length,
         run.orientation,
       );
       console.log(
-        `  ${run.orientation}-run (${run.row},${run.col}) length=${run.length} near-owned-towers=[${near
+        `  ${run.orientation}-run (${run.row},${run.col}) length=${run.length} near-enclosed-towers=[${near
           .map((t) => `T${t.index}@(${t.row},${t.col})`)
           .join(", ")}]`,
       );
@@ -123,8 +123,8 @@ function findDoubledRuns(walls: ReadonlySet<number>): DoubledRun[] {
   return runs;
 }
 
-function nearbyOwnedTowers(
-  ownedTowers: readonly Tower[],
+function nearbyEnclosedTowers(
+  enclosedTowers: readonly Tower[],
   r: number,
   c: number,
   length: number,
@@ -133,7 +133,7 @@ function nearbyOwnedTowers(
   const rEnd = orientation === "vertical" ? r + length - 1 : r + 1;
   const cEnd = orientation === "horizontal" ? c + length - 1 : c + 1;
   const out: Tower[] = [];
-  for (const tower of ownedTowers) {
+  for (const tower of enclosedTowers) {
     const dr = Math.max(0, Math.max(tower.row - rEnd, r - (tower.row + 1)));
     const dc = Math.max(0, Math.max(tower.col - cEnd, c - (tower.col + 1)));
     const cheb = Math.max(dr, dc);

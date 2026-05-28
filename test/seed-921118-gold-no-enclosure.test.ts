@@ -90,7 +90,7 @@ Deno.test("seed 921118 modern: Gold AI does not stall when gap-fillers are hard-
   }
   const gold = sc.state.players[GOLD];
   console.log(
-    `Gold at r20 start: lives=${gold?.lives} score=${gold?.score} walls=${gold?.walls.size} ownedTowers=${gold?.ownedTowers.length}`,
+    `Gold at r20 start: lives=${gold?.lives} score=${gold?.score} walls=${gold?.walls.size} enclosedTowers=${gold?.enclosedTowers.length}`,
   );
 
   // Bug fingerprint: a round where Gold spent >=20 wall tiles (the AI is

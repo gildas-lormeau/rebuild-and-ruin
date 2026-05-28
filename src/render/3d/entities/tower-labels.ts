@@ -99,11 +99,11 @@ export function createTowerLabelsManager(
   function update(ctx: FrameCtx): void {
     const { overlay, map } = ctx;
     const towers = map?.towers;
-    const ownedTowers = overlay?.entities?.ownedTowers;
+    const enclosedTowers = overlay?.entities?.enclosedTowers;
     const homeTowerIndices = overlay?.entities?.homeTowerIndices;
     const inBattle = overlay?.phase === Phase.BATTLE;
 
-    if (!inBattle || !towers || !ownedTowers || !homeTowerIndices) {
+    if (!inBattle || !towers || !enclosedTowers || !homeTowerIndices) {
       for (const sprite of sprites.values()) sprite.visible = false;
       return;
     }
@@ -115,7 +115,7 @@ export function createTowerLabelsManager(
       // captured secondary towers stay unlabelled so the home tower
       // remains the unambiguous "this is you" beacon during battle.
       if (!homeTowerIndices.has(i)) continue;
-      const ownerId = ownedTowers.get(i);
+      const ownerId = enclosedTowers.get(i);
       if (ownerId === undefined) continue;
       const tower = towers[i]!;
       seen.add(i);

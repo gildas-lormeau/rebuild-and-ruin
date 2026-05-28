@@ -179,7 +179,7 @@ async function main(): Promise<void> {
     if (!player) continue;
     if (args.player !== undefined && args.player !== i) continue;
     console.log(
-      `  ${PLAYER_NAMES[i]}: ${player.lives}♥ ${player.score} ${player.walls.size}w ${player.ownedTowers.length}e${player.eliminated ? " ELIM" : ""}`,
+      `  ${PLAYER_NAMES[i]}: ${player.lives}♥ ${player.score} ${player.walls.size}w ${player.enclosedTowers.length}e${player.eliminated ? " ELIM" : ""}`,
     );
   }
   console.log();

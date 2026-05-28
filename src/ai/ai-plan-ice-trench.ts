@@ -46,7 +46,7 @@ export function planIceTrench(
   if (!frozenTiles || frozenTiles.size === 0) return null;
 
   const player = state.players[playerId]!;
-  if (player.ownedTowers.length === 0) return null;
+  if (player.enclosedTowers.length === 0) return null;
   const playerZone = state.playerZones[playerId];
 
   const bankGrunts = collectBankGrunts(state, frozenTiles, playerZone);

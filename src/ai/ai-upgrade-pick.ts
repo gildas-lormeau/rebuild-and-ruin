@@ -155,7 +155,7 @@ function playerHasDeadTowers(
 ): boolean {
   const player = state.players[playerId];
   if (!player) return false;
-  return player.ownedTowers.some((tower) => !state.towerAlive[tower.index]);
+  return player.enclosedTowers.some((tower) => !state.towerAlive[tower.index]);
 }
 
 function anyEntityInPlayerZone(

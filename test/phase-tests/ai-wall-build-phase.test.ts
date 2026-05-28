@@ -117,7 +117,7 @@ Deno.test("phase-test: AI repairs the outer ring with EXTRA holes (4 per player)
       throw new Error(`player ${player.id} should have a home tower`);
     }
     assert(
-      player.ownedTowers.includes(homeTower),
+      player.enclosedTowers.includes(homeTower),
       `player ${player.id} home tower should be re-enclosed after WALL_BUILD`,
     );
     assertGreater(
@@ -165,7 +165,7 @@ Deno.test("phase-test: AI repairs the existing outer ring instead of retreating 
       throw new Error(`player ${player.id} should have a home tower`);
     }
     assert(
-      player.ownedTowers.includes(homeTower),
+      player.enclosedTowers.includes(homeTower),
       `player ${player.id} home tower should be re-enclosed after WALL_BUILD`,
     );
     // Whole-zone fixture: real repair preserves an interior of >100 tiles.
@@ -246,7 +246,7 @@ Deno.test(
 
     const goldEnd = sc.state.players[GOLD_SLOT]!;
     const ownedTowerIndices = new Set<number>(
-      goldEnd.ownedTowers.map((t) => t.index as unknown as number),
+      goldEnd.enclosedTowers.map((t) => t.index as unknown as number),
     );
     for (const idx of ALIVE_GOLD_TOWERS) {
       assert(
@@ -338,8 +338,8 @@ Deno.test(
     // only encloses one tower, the doubled-wall pathology can't appear and
     // this test's assertion would pass for the wrong reason.
     assert(
-      red.ownedTowers.length >= 2,
-      `RED should enclose 2+ towers (got ${red.ownedTowers.length}) — ` +
+      red.enclosedTowers.length >= 2,
+      `RED should enclose 2+ towers (got ${red.enclosedTowers.length}) — ` +
         `test premise broken, re-record seed`,
     );
 
@@ -430,14 +430,14 @@ Deno.test(
       `RED was eliminated after r24 WALL_BUILD — AI failed to re-enclose ` +
         `the re-selected castle (home tower idx=${homeTowerIndex})`,
     );
-    // Direct enclosure check: the home tower must be in ownedTowers.
-    const ownedTowerIndices = new Set(
-      red.ownedTowers.map((tower) => tower.index as unknown as number),
+    // Direct enclosure check: the home tower must be in enclosedTowers.
+    const enclosedTowerIndices = new Set(
+      red.enclosedTowers.map((tower) => tower.index as unknown as number),
     );
     assert(
-      ownedTowerIndices.has(homeTowerIndex as unknown as number),
+      enclosedTowerIndices.has(homeTowerIndex as unknown as number),
       `RED home tower ${homeTowerIndex} not enclosed after WALL_BUILD ` +
-        `(owned=${[...ownedTowerIndices].join(",")})`,
+        `(enclosed=${[...enclosedTowerIndices].join(",")})`,
     );
   },
 );

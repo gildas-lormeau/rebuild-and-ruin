@@ -6,7 +6,7 @@ import {
   isRampartCannon,
 } from "../shared/core/battle-types.ts";
 import {
-  filterAliveOwnedTowers,
+  filterAliveEnclosedTowers,
   hasWallAt,
   isCannonEnclosed,
 } from "../shared/core/board-occupancy.ts";
@@ -273,7 +273,7 @@ export function homeEnclosedRegion(player: Player): Set<TileKey> {
   const interior = getInterior(player);
   // Build traversable set: interior tiles + all owned tower tiles
   const traversable = new Set(interior);
-  for (const tower of player.ownedTowers) {
+  for (const tower of player.enclosedTowers) {
     for (let dr = 0; dr < TOWER_SIZE; dr++) {
       for (let dc = 0; dc < TOWER_SIZE; dc++) {
         traversable.add(packTile(tower.row + dr, tower.col + dc));
@@ -444,7 +444,7 @@ export function canPlaceCannon(
       if (!interior.has(key)) return false;
       if (isWater(state.map.tiles, r, c)) return false;
       if (hasWallAt(state, r, c)) return false;
-      if (overlapsOwnedTower(player.ownedTowers, r, c)) return false;
+      if (overlapsEnclosedTower(player.enclosedTowers, r, c)) return false;
       if (overlapsExistingCannon(player.cannons, r, c)) return false;
       if (hasPitAt(state.burningPits, r, c)) return false;
     }
@@ -475,7 +475,7 @@ function cannonSlotsForRound(
     // so the value is naturally bounded — no explicit cap needed.
     newSlots = state.firstRoundCannons + (STARTING_LIVES - player.lives);
   } else {
-    const aliveTowers = filterAliveOwnedTowers(player, state);
+    const aliveTowers = filterAliveEnclosedTowers(player, state);
     const ownsHome =
       player.homeTower &&
       aliveTowers.some((tower) => tower === player.homeTower);
@@ -540,10 +540,10 @@ function overlapsExistingCannon(
   return cannons.some((cannon) => isCannonTile(cannon, row, col));
 }
 
-function overlapsOwnedTower(
-  ownedTowers: readonly Player["ownedTowers"][number][],
+function overlapsEnclosedTower(
+  enclosedTowers: readonly Player["enclosedTowers"][number][],
   row: number,
   col: number,
 ): boolean {
-  return ownedTowers.some((tower) => isTowerTile(tower, row, col));
+  return enclosedTowers.some((tower) => isTowerTile(tower, row, col));
 }

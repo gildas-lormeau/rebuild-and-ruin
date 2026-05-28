@@ -208,7 +208,7 @@ export class DefaultStrategy implements AiStrategy {
     const player = state.players[playerId]!;
     this._homeWasBroken =
       player.homeTower !== null &&
-      !player.ownedTowers.includes(player.homeTower);
+      !player.enclosedTowers.includes(player.homeTower);
     this._outerRingHolesSnapshot = undefined;
     this._lastTargetTowerIndex = undefined;
   }
@@ -253,7 +253,8 @@ export class DefaultStrategy implements AiStrategy {
       if (enemies.length > 0) {
         enemies.sort(
           (a, b) =>
-            a.ownedTowers.length - b.ownedTowers.length || a.score - b.score,
+            a.enclosedTowers.length - b.enclosedTowers.length ||
+            a.score - b.score,
         );
         this.focusFirePlayerId = enemies[0]!.id;
       } else {

@@ -11,7 +11,7 @@ import { isBalloonCannon } from "../shared/core/battle-types.ts";
 import {
   clearPlayerWalls,
   collectAllWalls,
-  filterAliveOwnedTowers,
+  filterAliveEnclosedTowers,
   sweepIsolatedWalls,
 } from "../shared/core/board-occupancy.ts";
 import { FID } from "../shared/core/feature-defs.ts";
@@ -465,7 +465,7 @@ function applyLifePenalties(state: GameState): {
   const eliminated: ValidPlayerId[] = [];
   for (const player of state.players) {
     if (isPlayerEliminated(player)) continue;
-    const hasAliveTower = filterAliveOwnedTowers(player, state).length > 0;
+    const hasAliveTower = filterAliveEnclosedTowers(player, state).length > 0;
     if (!hasAliveTower) {
       player.lives--;
       emitGameEvent(state.bus, GAME_EVENT.LIFE_LOST, {
@@ -615,7 +615,7 @@ function resetPlayerBoardState(player: Player): void {
   // catches up (castle animation runs from OPPONENT_PIECE_PLACED only).
   markInteriorFresh(player, new Set());
   player.cannons = [];
-  player.ownedTowers = [];
+  player.enclosedTowers = [];
   player.castleWallTiles = new Set();
   player.homeTower = null;
 }

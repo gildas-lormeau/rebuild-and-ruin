@@ -53,7 +53,7 @@ interface PlayerSnapshot {
   readonly lives: number;
   readonly walls: number;
   readonly cannons: number;
-  readonly ownedTowers: number;
+  readonly enclosedTowers: number;
   readonly score: number;
 }
 
@@ -304,7 +304,7 @@ async function runWithSnapshots(
 function snapshotState(sc: Scenario): string {
   const s = sc.state;
   const players = s.players.map((p) =>
-    `p${p.id}{l${p.lives}s${p.score}w${p.walls.size}c${p.cannons.length}t${p.ownedTowers.length}}`
+    `p${p.id}{l${p.lives}s${p.score}w${p.walls.size}c${p.cannons.length}t${p.enclosedTowers.length}}`
   ).join(" ");
   const rng = (s.rng.getState() >>> 0).toString(16).padStart(8, "0");
   return `${s.phase} m${sc.mode()} r${s.round} st=${s.simTick} rng=${rng} g=${s.grunts.length} b=${s.cannonballs.length} pits=${s.burningPits.length} ${players}`;
@@ -362,7 +362,7 @@ function snapshotPlayers(sc: Scenario): PlayerSnapshot[] {
     lives: player.lives,
     walls: player.walls.size,
     cannons: player.cannons.length,
-    ownedTowers: player.ownedTowers.length,
+    enclosedTowers: player.enclosedTowers.length,
     score: player.score,
   }));
 }

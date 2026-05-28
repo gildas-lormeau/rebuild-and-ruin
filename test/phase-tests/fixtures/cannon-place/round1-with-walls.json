@@ -117,5 +117,5 @@
       "ownerId": 0
     }
   ],
-  "notes": "Cannon-place entry with two isolated walls authored for player 0. The loader does NOT recompute derived state (interior, ownedTowers, territory) — call recomputeFixtureDerivedState(sc.state) before advancing the runtime."
+  "notes": "Cannon-place entry with two isolated walls authored for player 0. The loader does NOT recompute derived state (interior, enclosedTowers, territory) — call recomputeFixtureDerivedState(sc.state) before advancing the runtime."
 }

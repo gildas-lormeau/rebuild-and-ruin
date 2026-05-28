@@ -187,7 +187,7 @@ export function createCannonPlacementContext(
     rng.bool(rampartProb);
   return {
     noiseScale,
-    towerCenters: player.ownedTowers.map(towerCenter),
+    towerCenters: player.enclosedTowers.map(towerCenter),
     defensiveness,
     pendingSuperGun,
     pendingRampart,

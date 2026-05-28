@@ -259,7 +259,7 @@ const towerProximityRule: ScoringRule = {
       candidate,
       ctx.targetGaps,
       ctx.zoneTowers,
-      ctx.ownedTowers,
+      ctx.enclosedTowers,
     );
   },
 };
@@ -530,13 +530,13 @@ function computeTowerProximityBonus(
   candidate: Candidate,
   targetGaps: Set<TileKey>,
   zoneTowers: readonly Tower[],
-  ownedTowers: readonly Tower[],
+  enclosedTowers: readonly Tower[],
 ): number {
   if (targetGaps.size !== 0) return 0;
 
   let towerProximityBonus = 0;
   for (const tower of zoneTowers) {
-    if (ownedTowers.includes(tower)) continue;
+    if (enclosedTowers.includes(tower)) continue;
     for (const [dr, dc] of candidate.piece.offsets) {
       const distance = manhattanDistance(
         candidate.row + dr,

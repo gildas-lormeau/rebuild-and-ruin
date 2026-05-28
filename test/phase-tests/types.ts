@@ -54,7 +54,7 @@ export interface FixtureFile {
   /** Wall additions, applied after bonus squares. Each wall is owned by a
    *  specific player slot. Isolated walls are allowed — the game produces
    *  them often during normal play. The loader does NOT recompute
-   *  derived state (interior, ownedTowers, …); the editor/agent is
+   *  derived state (interior, enclosedTowers, …); the editor/agent is
    *  responsible for either running `recomputeFixtureDerivedState` or
    *  using `scripts/fixture-check.ts` to validate. */
   walls?: WallOverride[];

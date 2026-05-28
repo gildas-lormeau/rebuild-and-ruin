@@ -302,12 +302,12 @@ function collectDeadTowerDebris(
 ): void {
   const aliveMask = overlay.entities?.towerAlive;
   if (!aliveMask || !towers) return;
-  const ownedTowers = overlay.entities?.ownedTowers;
+  const enclosedTowers = overlay.entities?.enclosedTowers;
   for (let idx = 0; idx < towers.length; idx++) {
     const i = idx as TowerIdx;
     if (aliveMask[i] !== false) continue;
     const tower = towers[i]!;
-    const ownerId = ownedTowers?.get(i);
+    const ownerId = enclosedTowers?.get(i);
     const variantName =
       ownerId !== undefined ? "home_tower_debris" : "secondary_tower_debris";
     const bucketKey =
@@ -372,12 +372,12 @@ function computeStructuralSignature(
   const parts: string[] = [];
 
   const aliveMask = overlay.entities?.towerAlive;
-  const ownedTowers = overlay.entities?.ownedTowers;
+  const enclosedTowers = overlay.entities?.enclosedTowers;
   if (aliveMask && towers) {
     for (let idx = 0; idx < towers.length; idx++) {
       const i = idx as TowerIdx;
       if (aliveMask[i] !== false) continue;
-      const ownerId = ownedTowers?.get(i);
+      const ownerId = enclosedTowers?.get(i);
       parts.push(`t:${i}:${ownerId ?? "-"}`);
     }
   }

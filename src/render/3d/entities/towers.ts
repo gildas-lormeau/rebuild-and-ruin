@@ -130,7 +130,7 @@ export function createTowersManager(scene: THREE.Scene): TowersManager {
       clearAll();
       return;
     }
-    const ownedTowers = overlay?.entities?.ownedTowers;
+    const enclosedTowers = overlay?.entities?.enclosedTowers;
     const homeTowerIndices = overlay?.entities?.homeTowerIndices;
     const aliveMask = overlay?.entities?.towerAlive;
 
@@ -143,7 +143,7 @@ export function createTowersManager(scene: THREE.Scene): TowersManager {
       if (aliveMask && aliveMask[i] === false) continue;
       live.add(i);
 
-      const ownerId = ownedTowers?.get(i);
+      const ownerId = enclosedTowers?.get(i);
       const isHome = homeTowerIndices?.has(i) ? 1 : 0;
       const signature = `${ownerId ?? "-"}:${isHome}`;
 

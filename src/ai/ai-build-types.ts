@@ -177,7 +177,7 @@ export type ScoringContext = {
   castle: TileRect;
   cursorPos: TilePos | undefined;
   zoneTowers: Tower[];
-  ownedTowers: Tower[];
+  enclosedTowers: Tower[];
   skill: {
     topCandidates: number;
     fatGainPerBlock: number;

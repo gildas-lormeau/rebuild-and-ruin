@@ -9,7 +9,7 @@
  *   2. Boots a real runtime via `createPhaseScenario` and applies all
  *      overrides (houses, bonus squares, walls).
  *   3. Calls `recomputeFixtureDerivedState` so any wall-derived state
- *      (interior, ownedTowers, territory) is consistent with the
+ *      (interior, enclosedTowers, territory) is consistent with the
  *      authored overrides.
  *   4. Advances one frame to confirm the runtime can tick from the loaded
  *      state without `assertInteriorFresh` or other invariants tripping.

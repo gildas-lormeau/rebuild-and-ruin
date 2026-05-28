@@ -12,7 +12,7 @@
  *   - `host.state.round` === `local.state.round` (host plays the same
  *     game the local run would).
  *   - `watcher.state` matches `host.state` on every slot (lives, walls
- *     count, cannons count, ownedTowers count, score) — proves the wire
+ *     count, cannons count, enclosedTowers count, score) — proves the wire
  *     faithfully mirrors host state to the watcher.
  *
  * Covers two code paths:
@@ -42,7 +42,7 @@ interface PlayerSnapshot {
   readonly lives: number;
   readonly walls: number;
   readonly cannons: number;
-  readonly ownedTowers: number;
+  readonly enclosedTowers: number;
   readonly score: number;
   readonly currentPiece: PieceShape | undefined;
   readonly bagQueueLen: number | null;
@@ -316,7 +316,7 @@ function snapshotPlayers(sc: Scenario): PlayerSnapshot[] {
     lives: player.lives,
     walls: player.walls.size,
     cannons: player.cannons.length,
-    ownedTowers: player.ownedTowers.length,
+    enclosedTowers: player.enclosedTowers.length,
     score: player.score,
     currentPiece: player.currentPiece,
     bagQueueLen: player.bag ? player.bag.queue.length : null,

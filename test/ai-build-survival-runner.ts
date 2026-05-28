@@ -419,7 +419,7 @@ async function runSeed(seed: number): Promise<{
   });
   // ROUND_END fires inside finalizeRound, AFTER finalizeTerritoryWithScoring
   // but also AFTER applyLifePenalties — so for life-losing players the zone
-  // has already been reset and ownedTowers is empty. Capture unowned-alive
+  // has already been reset and enclosedTowers is empty. Capture unowned-alive
   // count here; the analyzer filters life-lost rounds separately.
   sc.bus.on(GAME_EVENT.ROUND_END, (ev) => {
     const row = getRow(ev.round);
@@ -432,7 +432,7 @@ async function runSeed(seed: number): Promise<{
         row[pid]!.unownedAliveZoneTowers = 0;
         continue;
       }
-      const ownedSet = new Set(player.ownedTowers.map((tower) => tower.index));
+      const ownedSet = new Set(player.enclosedTowers.map((tower) => tower.index));
       let unownedAlive = 0;
       for (const tower of sc.state.map.towers) {
         if (tower.zone !== home.zone) continue;
@@ -594,7 +594,7 @@ function analyzeSeed(
       }
       // Stall: built actively, fired no enclosure this round despite having
       // ≥1 alive unowned tower available to enclose, didn't lose a life
-      // (zone reset would clear ownedTowers and confuse the metric).
+      // (zone reset would clear enclosedTowers and confuse the metric).
       if (
         row.walls >= STALL_WALL_THRESHOLD &&
         row.enclosures === 0 &&

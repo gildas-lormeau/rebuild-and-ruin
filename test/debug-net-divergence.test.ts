@@ -24,7 +24,7 @@ interface Snap {
     lives: number;
     cannons: number;
     walls: number;
-    ownedTowers: number;
+    enclosedTowers: number;
     score: number;
   }[];
   readonly towerAlive: boolean[];
@@ -173,7 +173,7 @@ function snap(state: GameState): Snap {
       lives: p.lives,
       cannons: p.cannons.filter((c) => c.hp > 0).length,
       walls: p.walls.size,
-      ownedTowers: p.ownedTowers.length,
+      enclosedTowers: p.enclosedTowers.length,
       score: p.score,
     })),
     towerAlive: [...state.towerAlive],
@@ -199,8 +199,10 @@ function diff(a: Snap, b: Snap): string[] {
       out.push(`p${i}.cannons: ${ap.cannons} vs ${bp.cannons}`);
     if (ap.walls !== bp.walls)
       out.push(`p${i}.walls: ${ap.walls} vs ${bp.walls}`);
-    if (ap.ownedTowers !== bp.ownedTowers)
-      out.push(`p${i}.ownedTowers: ${ap.ownedTowers} vs ${bp.ownedTowers}`);
+    if (ap.enclosedTowers !== bp.enclosedTowers)
+      out.push(
+        `p${i}.enclosedTowers: ${ap.enclosedTowers} vs ${bp.enclosedTowers}`,
+      );
     if (ap.score !== bp.score)
       out.push(`p${i}.score: ${ap.score} vs ${bp.score}`);
   }

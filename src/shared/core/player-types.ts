@@ -39,11 +39,11 @@ export interface Player {
   /** All towers currently enclosed by this player's walls.
    *  Dual role: (1) hot-path cache for SFX, scoring, and grunt-spawn
    *  eligibility; (2) snapshot source for `TOWER_ENCLOSED` event diffing
-   *  in `updateOwnedTowers` — the prior list is captured before rebuild,
+   *  in `updateEnclosedTowers` — the prior list is captured before rebuild,
    *  so towers absent from the snapshot but present after fire a one-shot
    *  enclosure event. Replacing this field with a lazy getter over
    *  `interior` would silently break the diff. */
-  ownedTowers: Tower[];
+  enclosedTowers: Tower[];
   /** Wall tiles owned by this player (row,col pairs encoded as row*COLS+col).
    *  ReadonlySet at the type level — mutations must go through board-occupancy
    *  helpers (addPlayerWall, clearPlayerWalls, etc.) which maintain epoch tracking. */
@@ -163,11 +163,11 @@ export function cannonTier(player: { readonly lives: number }): 1 | 2 | 3 {
 /** Set a player's home tower. Called during selection phase when a player
  *  picks or changes their highlighted tower.
  *
- *  Deliberately does NOT touch `ownedTowers` — that list is derived
- *  state, maintained by `updateOwnedTowers` in build-system.ts via the
+ *  Deliberately does NOT touch `enclosedTowers` — that list is derived
+ *  state, maintained by `updateEnclosedTowers` in build-system.ts via the
  *  territory flood-fill. Seeding it here would create a "ghost"
  *  enclosure at the moment of highlight (before any walls exist), which
- *  misleads consumers that treat `ownedTowers` as "towers actually
+ *  misleads consumers that treat `enclosedTowers` as "towers actually
  *  enclosed by my territory" — notably the SFX layer, which uses the
  *  list to decide whether a player deserves the fanfare. */
 export function selectPlayerTower(player: Player, tower: Tower): void {
@@ -183,7 +183,7 @@ export function findTowerOwner(
   towerIdx: TowerIdx,
 ): ValidPlayerId | undefined {
   for (const player of players) {
-    if (player.ownedTowers.some((tower) => tower.index === towerIdx)) {
+    if (player.enclosedTowers.some((tower) => tower.index === towerIdx)) {
       return player.id;
     }
   }

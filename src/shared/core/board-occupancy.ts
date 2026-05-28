@@ -290,11 +290,13 @@ export function buildOccupancyCache(
   return { towerKeys, cannonKeys, gruntKeys, wallKeys, pitKeys };
 }
 
-export function filterAliveOwnedTowers(
+export function filterAliveEnclosedTowers(
   player: Player,
   state: { readonly towerAlive: readonly boolean[] },
 ) {
-  return player.ownedTowers.filter((tower) => state.towerAlive[tower.index]!);
+  return player.enclosedTowers.filter(
+    (tower) => state.towerAlive[tower.index]!,
+  );
 }
 
 /** Return all players that are not `playerId` and not eliminated. */

@@ -74,7 +74,7 @@ async function run(): Promise<void> {
         if (found) return;
         for (const player of sc.state.players) {
           if (player.eliminated) continue;
-          if (player.ownedTowers.length < 2) continue;
+          if (player.enclosedTowers.length < 2) continue;
           const runs = findDoubledWallRuns(player.walls as ReadonlySet<number>);
           if (runs.length === 0) continue;
           const longest = runs.reduce(

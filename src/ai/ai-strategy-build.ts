@@ -14,7 +14,7 @@ import {
 import {
   buildOccupancyCache,
   collectAliveHouseKeys,
-  filterAliveOwnedTowers,
+  filterAliveEnclosedTowers,
   hasAliveHouseAt,
   type OccupancyCache,
 } from "../shared/core/board-occupancy.ts";
@@ -313,7 +313,7 @@ export function pickPlacement(
     castle,
     cursorPos,
     zoneTowers,
-    ownedTowers: player.ownedTowers,
+    enclosedTowers: player.enclosedTowers,
     skill,
     caresAboutHouses,
     caresAboutBonuses,
@@ -645,7 +645,7 @@ function tryDesperateInteriorDiscard(
   cache: OccupancyCache,
   placementCtx: PlacementContext,
 ): AiPlacement | null {
-  if (filterAliveOwnedTowers(player, state).length > 0) return null;
+  if (filterAliveEnclosedTowers(player, state).length > 0) return null;
   const unenclosedAlive = unenclosedTowers.filter(
     (tower) => state.towerAlive[tower.index],
   );
@@ -839,15 +839,17 @@ function analyzeEnclosures(
   // `outside` is still needed for the 4-dir diagonal-leak disambiguation
   // (towerReachesOutsideCardinal) and for hasMeaningfulHomeRingGaps. The
   // 8-dir "is this tower enclosed by my walls" question is answered by
-  // player.ownedTowers, which recheckTerritory keeps in sync via the same
+  // player.enclosedTowers, which recheckTerritory keeps in sync via the same
   // computeOutside-derived interior.
   const outside = computeOutside(player.walls);
-  const ownedTowerSet = new Set(player.ownedTowers.map((tower) => tower.index));
-  const homeTowerEnclosed = ownedTowerSet.has(castle.tower.index);
+  const enclosedTowerSet = new Set(
+    player.enclosedTowers.map((tower) => tower.index),
+  );
+  const homeTowerEnclosed = enclosedTowerSet.has(castle.tower.index);
   // 4-dir BFS from a tower: returns true if the BFS can reach the map
   // border without crossing walls.
   const unenclosedTowers = zoneTowers.filter((tower) => {
-    if (!ownedTowerSet.has(tower.index)) {
+    if (!enclosedTowerSet.has(tower.index)) {
       // 8-dir flood says not enclosed but 4-dir BFS can't reach the map
       // border — the tower has a diagonal-only leak (e.g. two walls form
       // a diagonal step where 8-dir flood passes between them, but no
