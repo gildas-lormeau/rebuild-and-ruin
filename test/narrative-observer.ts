@@ -28,6 +28,7 @@
 import { setAiBattleDiagHook } from "../src/ai/ai-battle-diag.ts";
 import { BATTLE_MESSAGE } from "../src/shared/core/battle-events.ts";
 import { isCannonAlive } from "../src/shared/core/battle-types.ts";
+import { MODIFIER_ID } from "../src/shared/core/game-constants.ts";
 import {
   GAME_EVENT,
   type GameEventMap,
@@ -43,6 +44,7 @@ import {
   packTile,
 } from "../src/shared/core/spatial.ts";
 import type { GameState } from "../src/shared/core/types.ts";
+import { UID } from "../src/shared/core/upgrade-defs.ts";
 import type { Scenario } from "./scenario.ts";
 
 export interface NarrativeObserver {
@@ -83,7 +85,7 @@ export function createNarrativeObserver(): NarrativeObserver {
 
   /** Player IDs that lost a life THIS round. Used to mark their END
    *  snapshot with `(reset)` — `finalizeRound` runs `resetPlayerBoardState`
-   *  on life-loss, so their `walls.size` / `ownedTowers.length` read 0
+   *  on life-loss, so their `walls.size` / `enclosedTowers.length` read 0
    *  by the time ROUND_END fires. Without the marker the END row's `0w/0e`
    *  is indistinguishable from a player who genuinely built nothing. */
   const lifeLostThisRound = new Set<number>();
@@ -219,7 +221,7 @@ export function createNarrativeObserver(): NarrativeObserver {
           // player's walls/towers before this snapshot reads them, so the
           // `0w/0e` shown is the reset state, not a build failure.
           const resetMark = lifeLostThisRound.has(idx) ? " (reset)" : "";
-          return `${playerShort(idx)} ${player.lives}♥/${player.score}/${player.walls.size}w/${player.ownedTowers.length}e${resetMark}`;
+          return `${playerShort(idx)} ${player.lives}♥/${player.score}/${player.walls.size}w/${player.enclosedTowers.length}e${resetMark}`;
         }).join(" | ");
         lines.push(`r${ev.round} END: ${players}`);
         lifeLostThisRound.clear();
@@ -350,9 +352,19 @@ function formatCannonShooter(
 
 /** Classify what's at the impact tile (row, col) from the actual shooter's
  *  perspective. Order matters — a tower tile that also has a wall around it
- *  shouldn't be reported as wall. Suffix `+dup` when another in-flight ball
- *  from the same shooter (capturer for captured cannons, original owner
- *  otherwise) already targets this same impact tile. */
+ *  shouldn't be reported as wall.
+ *
+ *  Suffixes:
+ *    `+dup`         — another in-flight ball from the same shooter (capturer
+ *                     for captured cannons, original owner otherwise) already
+ *                     targets this same impact tile.
+ *    `+dup-wasted`  — this ball is excess vs the target's HP (e.g. 3rd ball
+ *                     queued on a 1-hit wall). Promoted from `+dup` when the
+ *                     overshoot is provable from current state.
+ *    `+jitter`      — dust_storm is active, so the impact tile may differ
+ *                     from the aim tile by up to 15°. Surfaces the explanation
+ *                     for own-cannon / off-map / grass impacts that would
+ *                     otherwise read as AI mistakes. */
 function classifyImpactTile(
   state: GameState,
   row: number,
@@ -366,8 +378,73 @@ function classifyImpactTile(
       b.impactRow === row &&
       b.impactCol === col,
   );
-  if (sameTileBalls.length >= 2) tag += " +dup";
+  if (sameTileBalls.length >= 2) {
+    // Include this just-fired ball in the count: CANNON_FIRED emits before
+    // the ball is pushed onto state.cannonballs in some paths and after in
+    // others, so compare against max(filterCount, totalQueued) — but the
+    // current code path emits after the push, so sameTileBalls already
+    // includes this fire. Verified by the existing +dup behaviour matching
+    // the observed log.
+    const queuedCount = sameTileBalls.length;
+    const targetHp = effectiveTargetHp(state, row, col, tag);
+    tag += targetHp !== undefined && queuedCount > targetHp
+      ? " +dup-wasted"
+      : " +dup";
+  }
+  if (state.modern?.activeModifier === MODIFIER_ID.DUST_STORM) {
+    tag += " +jitter";
+  }
   return tag;
+}
+
+/** Effective HP of whatever sits at (row, col), or undefined when HP doesn't
+ *  apply (grass, water, off-map, grunt, tower — towers are cannonball-
+ *  invulnerable so we don't surface "wasted" for them, the entire shot was
+ *  wasted regardless of dup count). Used to detect over-commit on focus-fire:
+ *  if more balls are queued than the target can absorb, the surplus is
+ *  marked `+dup-wasted`. */
+function effectiveTargetHp(
+  state: GameState,
+  row: number,
+  col: number,
+  tag: string,
+): number | undefined {
+  // Walls — 1 hit unless the owner holds reinforced_walls AND this tile isn't
+  // already in damagedWalls (= already absorbed its one reinforcement).
+  if (tag === "own-wall" || tag.startsWith("wall:")) {
+    const key = packTile(row, col);
+    for (const player of state.players) {
+      if (!player.walls.has(key)) continue;
+      const reinforced =
+        (player.upgrades.get(UID.REINFORCED_WALLS) ?? 0) > 0 &&
+        !player.damagedWalls.has(key);
+      return reinforced ? 2 : 1;
+    }
+    return 1;
+  }
+  // Cannons — current hp. Matches `cannon:NAME@idx`, `own-cannon@idx`,
+  // `own-captured@idx`, `lost-cannon@idx→NAME`. Locate by tile rather than
+  // parsing the tag, since the tag's idx refers to different player arrays
+  // across the variants.
+  if (
+    tag.startsWith("cannon:") ||
+    tag.startsWith("own-cannon") ||
+    tag.startsWith("own-captured") ||
+    tag.startsWith("lost-cannon")
+  ) {
+    for (const player of state.players) {
+      for (const cannon of player.cannons) {
+        if (isCannonTile(cannon, row, col) && isCannonAlive(cannon)) {
+          return cannon.hp;
+        }
+      }
+    }
+    return undefined;
+  }
+  // Debris — already-dead cannon, any hit is wasted. Treat as HP 0 so the
+  // first dup ball already qualifies as +dup-wasted.
+  if (tag.startsWith("debris:")) return 0;
+  return undefined;
 }
 
 function identifyImpactTile(
@@ -415,7 +492,7 @@ function identifyImpactTile(
   for (const tower of state.map.towers) {
     if (!isTowerTile(tower, row, col)) continue;
     const owner = state.players.find((player) =>
-      player.ownedTowers.some((owned) => owned.index === tower.index),
+      player.enclosedTowers.some((owned) => owned.index === tower.index),
     );
     if (owner === undefined) return `tower:neutral T${tower.index}`;
     const ownTag = owner.id === shooterId ? "own-" : "";
