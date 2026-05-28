@@ -134,7 +134,7 @@ Deno.test("scenario: asciiSnapshot supports playerFilter + cropTo for compact ag
   const wallTileKey = player.walls.values().next().value as TileKey;
   const { row } = unpackTile(wallTileKey);
   assert(
-    cropped.includes(` ${row} |`) || cropped.includes(`${row} |`),
+    new RegExp(`(^|\\n)\\s*${row} \\S`).test(cropped),
     `cropped snapshot should retain absolute row label for row ${row}`,
   );
 });
@@ -156,12 +156,15 @@ Deno.test("scenario: cropTo Rect clamps to grid bounds (no whitespace padding pa
       maxCol: GRID_COLS - 1 + 5,
     },
   });
-  // After clamping, every body row should be exactly GRID_COLS chars between
-  // the `|` borders (no trailing whitespace from out-of-bounds columns).
-  const bodyRows = out.split("\n").filter((line) => /^\s*\d+ \|/.test(line));
+  // After clamping, every body row should be exactly GRID_COLS chars of
+  // grid content following the `<row-label> ` prefix (no trailing
+  // whitespace from out-of-bounds columns).
+  const bodyRows = out
+    .split("\n")
+    .filter((line) => /^\s*\d+ [^\d\s]/.test(line));
   assertGreater(bodyRows.length, 0, "expected body rows in coord-mode output");
   for (const row of bodyRows) {
-    const inner = row.replace(/^\s*\d+ \|/, "").replace(/\|$/, "");
+    const inner = row.replace(/^\s*\d+ /, "");
     assertEquals(
       inner.length,
       GRID_COLS,

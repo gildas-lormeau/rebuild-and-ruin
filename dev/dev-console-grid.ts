@@ -133,6 +133,7 @@ const DIFF_LINE_LIMIT = 100;
 /** Sentinel for Cell.playerId when the cell has no owner (terrain,
  *  bonus square, pit, house, tower, grunt, cannonball). */
 const NO_OWNER = -1 as PlayerId;
+const BOTTOM_HEADER_THRESHOLD_ROWS = 15;
 /** Default layer for map-rendering helpers — shows every layer stacked. */
 export const DEFAULT_MAP_LAYER: MapLayer = "all";
 
@@ -271,17 +272,27 @@ export function formatGrid(
   }
   if (!opts?.coords) return `${legend}\n${lines.join("\n")}`;
 
+  // Coord format: stacked-digit headers (tens row then ones row) above the
+  // grid, repeated below in reverse order (ones then tens) when the grid is
+  // taller than `BOTTOM_HEADER_THRESHOLD_ROWS` so an agent reading the
+  // bottom of the snapshot doesn't have to scroll back up to count columns.
+  // No `+---+` border, no per-row `|...|` framing — row label then a single
+  // space then the grid content, so the column header digits line up with
+  // the grid characters directly underneath.
   const cols = rect.maxCol - rect.minCol + 1;
   const rowLabelW = String(cells.length - 1).length;
   const pad = " ".repeat(rowLabelW);
-  const tensHeader = `${pad}  ${buildTensHeader(cols, rect.minCol)}`;
-  const onesHeader = `${pad}  ${buildOnesHeader(cols, rect.minCol)}`;
-  const border = `${pad} +${"-".repeat(cols)}+`;
+  const tensHeader = `${pad} ${buildTensHeader(cols, rect.minCol)}`;
+  const onesHeader = `${pad} ${buildOnesHeader(cols, rect.minCol)}`;
   const body = lines.map((row, index) => {
     const rowIndex = rect.minRow + index;
-    return `${String(rowIndex).padStart(rowLabelW, " ")} |${row}|`;
+    return `${String(rowIndex).padStart(rowLabelW, " ")} ${row}`;
   });
-  return [legend, tensHeader, onesHeader, border, ...body].join("\n");
+  const out = [legend, tensHeader, onesHeader, ...body];
+  if (lines.length > BOTTOM_HEADER_THRESHOLD_ROWS) {
+    out.push(onesHeader, tensHeader);
+  }
+  return out.join("\n");
 }
 
 /** Normalize the back-compat `MapLayer | AsciiSnapshotOptions` shape
@@ -486,7 +497,11 @@ function paintCannonballs(grid: Cell[][], state: GameState): void {
  *  format variants. */
 function extractGridLines(snapshot: string): string[] {
   const lines = snapshot.split("\n");
-  const marginPattern = /^\s*\d+\s\|(.*)\|$/;
+  // Coord-margin format: `<row-label> <grid content>`. The first grid char
+  // must be a non-digit / non-space to exclude the ones-row header (which
+  // is digits-only after some leading padding). The repeated bottom headers
+  // get rejected for the same reason — they have no leading row label.
+  const marginPattern = /^\s*\d+ ([^\d\s].*)$/;
   const marginRows = lines
     .map((line) => marginPattern.exec(line)?.[1])
     .filter((inner): inner is string => inner !== undefined);
@@ -497,10 +512,13 @@ function extractGridLines(snapshot: string): string[] {
 }
 
 function buildTensHeader(cols: number, startCol: number): string {
+  // Dense: every col >= 10 carries its tens digit, so a reader can drop
+  // straight down from any column character to recover the full index by
+  // stacking the tens row above the ones row.
   let line = "";
   for (let i = 0; i < cols; i++) {
     const col = startCol + i;
-    line += col >= 10 && col % 10 === 0 ? String(Math.floor(col / 10)) : " ";
+    line += col >= 10 ? String(Math.floor(col / 10)) : " ";
   }
   return line;
 }

@@ -28,6 +28,7 @@
 
 import { GAME_EVENT } from "../src/shared/core/game-event-bus.ts";
 import { Phase } from "../src/shared/core/game-phase.ts";
+import type { GameState } from "../src/shared/core/types.ts";
 import { createScenario, waitForEvent } from "../test/scenario.ts";
 
 interface Args {
@@ -165,11 +166,87 @@ async function main(): Promise<void> {
   // cropTo accepts a ValidPlayerId directly — the renderer auto-computes
   // the player's footprint bbox.
   const snapshot = sc.renderer!.snapshot({
+    coords: true,
     playerFilter: args.player,
     cropTo: args.player,
   });
   console.log(snapshot);
+  console.log();
+  console.log(buildAnchors(sc.state, args.player));
   Deno.exit(0);
+}
+
+/** Anchor footnote — absolute (row, col) positions for entities the agent
+ *  is likely to want to reason about. Skips groups with no entries so
+ *  early-game / empty-state snapshots stay short. Always uses (row, col)
+ *  ordering to match TilePos / tileAt across the codebase. */
+function buildAnchors(state: GameState, focus: 0 | 1 | 2 | undefined): string {
+  const out: string[] = ["Anchors (row, col):"];
+  const homeIndices = new Set<number>();
+  for (const player of state.players) {
+    if (player.homeTower) homeIndices.add(player.homeTower.index);
+  }
+
+  // Castles — home towers per active player.
+  const castles: string[] = [];
+  for (const player of state.players) {
+    if (focus !== undefined && player.id !== focus) continue;
+    if (!player.homeTower) continue;
+    const alive = state.towerAlive[player.homeTower.index] ?? false;
+    castles.push(
+      `${PLAYER_NAMES[player.id]} ${alive ? "T" : "t"}(${player.homeTower.row},${player.homeTower.col})`,
+    );
+  }
+  if (castles.length > 0) out.push(`  Castles: ${castles.join(" ")}`);
+
+  // Non-home towers (capturable / contested).
+  const towers: string[] = [];
+  for (let i = 0; i < state.map.towers.length; i++) {
+    if (homeIndices.has(i)) continue;
+    const tower = state.map.towers[i]!;
+    const alive = state.towerAlive[i] ?? false;
+    towers.push(`${alive ? "Y" : "y"}#${i}(${tower.row},${tower.col})`);
+  }
+  if (towers.length > 0) out.push(`  Towers: ${towers.join(" ")}`);
+
+  // Cannons per player. Dead cannons remain on the map as debris (x), so
+  // include them — they still block placement.
+  for (const player of state.players) {
+    if (focus !== undefined && player.id !== focus) continue;
+    if (player.cannons.length === 0) continue;
+    const items: string[] = [];
+    for (let idx = 0; idx < player.cannons.length; idx++) {
+      const cannon = player.cannons[idx]!;
+      const char = cannon.hp > 0 ? "C" : "x";
+      items.push(`#${idx} ${char}(${cannon.row},${cannon.col})/${cannon.mode}`);
+    }
+    out.push(`  Cannons ${PLAYER_NAMES[player.id]}: ${items.join(" ")}`);
+  }
+
+  // Captured cannons (one player's cannon held by another).
+  if (state.capturedCannons.length > 0) {
+    const captured = state.capturedCannons.map(
+      (entry) =>
+        `(${entry.cannon.row},${entry.cannon.col})${PLAYER_NAMES[entry.victimId]}→${PLAYER_NAMES[entry.capturerId]}`,
+    );
+    out.push(`  Captured: ${captured.join(" ")}`);
+  }
+
+  // Burning pits (block grass tiles for 3 battle rounds).
+  if (state.burningPits.length > 0) {
+    const pits = state.burningPits.map((pit) => `(${pit.row},${pit.col})`);
+    out.push(`  Burning pits: ${pits.join(" ")}`);
+  }
+
+  // Bonus squares.
+  if (state.bonusSquares.length > 0) {
+    const bonuses = state.bonusSquares.map(
+      (bonus) => `(${bonus.row},${bonus.col})`,
+    );
+    out.push(`  Bonuses: ${bonuses.join(" ")}`);
+  }
+
+  return out.join("\n");
 }
 
 function parseArgs(): Args {
