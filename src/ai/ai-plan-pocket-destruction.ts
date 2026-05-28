@@ -1,7 +1,10 @@
 /**
- * AI tactic — pocket destruction. Find small/non-2x2 enclosures inside an
- * enemy's territory and target one bordering wall per pocket, so the enemy
- * can't fit a cannon there.
+ * AI tactic — pocket destruction. Clears the FIRING player's OWN small
+ * enclosures (< 2x2 — too small to fit a cannon): fires ONE bordering own
+ * wall per pocket to break the enclosure open, then lets the build-phase
+ * wall sweep (sweepIsolatedWalls → removeIsolatedWalls) peel away the
+ * now-isolated walls. One shot per pocket cascades into a full cleanup.
+ * Impacts read as `own-wall` fires, NOT an attack on an enemy.
  */
 
 import { cannonShotsRicochet } from "../game/index.ts";
