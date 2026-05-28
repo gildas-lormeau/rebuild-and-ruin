@@ -6,10 +6,16 @@
  *   npm run snapshot -- --seed 1000000 --round 20 --phase WALL_BUILD
  *   npm run snapshot -- --seed 42 --round 5 --phase BATTLE --moment end --player BLUE
  *   npm run snapshot -- --seed 1000000 --mode classic --round 3 --phase CANNON_PLACE
+ *   npm run snapshot -- --seed 42 --round 5 --phase BATTLE --at 3.5
  *
  * --phase: CASTLE_SELECT | CANNON_PLACE | MODIFIER_REVEAL | BATTLE |
  *          UPGRADE_PICK | WALL_BUILD
  * --moment: start (default — at PHASE_START) | end (just after the phase exits)
+ * --at <seconds>: sim-seconds elapsed since the target phase's PHASE_START.
+ *          Wins over --moment. Errors if the phase exits before reaching
+ *          the requested offset. Sub-second values (e.g. 2.5) are fine —
+ *          the runtime advances one frame at a time so granularity is bounded
+ *          by the sim frame budget, not seconds.
  * --player RED|BLUE|GOLD: highlights that player + crops the ASCII to
  *          their footprint (`cropTo: playerId` auto-computes the bbox)
  *
@@ -30,6 +36,8 @@ interface Args {
   round: number | undefined;
   phase: Phase | undefined;
   moment: "start" | "end";
+  /** Sim-seconds elapsed since PHASE_START, when provided. Overrides moment. */
+  at: number | undefined;
   player: 0 | 1 | 2 | undefined;
 }
 
@@ -46,7 +54,8 @@ async function main(): Promise<void> {
   ) {
     console.error(
       "Usage: npm run snapshot -- --seed N --round N --phase PHASE " +
-        "[--mode classic|modern] [--moment start|end] [--player RED|BLUE|GOLD]",
+        "[--mode classic|modern] [--moment start|end | --at SECONDS] " +
+        "[--player RED|BLUE|GOLD]",
     );
     console.error(
       "  PHASE: CASTLE_SELECT | CANNON_PLACE | MODIFIER_REVEAL | BATTLE | UPGRADE_PICK | WALL_BUILD",
@@ -61,12 +70,58 @@ async function main(): Promise<void> {
     renderer: "ascii",
   });
 
-  const targetLabel = `r${args.round} ${args.phase} ${args.moment}`;
+  const targetLabel =
+    args.at !== undefined
+      ? `r${args.round} ${args.phase} @${args.at}s`
+      : `r${args.round} ${args.phase} ${args.moment}`;
   // 200_000ms/round matches watch-game's budget shape (~183s sim/round on
   // survival, headroom for stalls).
   const timeoutMs = 200_000 * (args.round + 1);
 
-  if (args.moment === "start") {
+  if (args.at !== undefined) {
+    // "at N seconds" = wait for PHASE_START, then drive sim time forward
+    // until N*1000 sim-ms have elapsed. Bail if the phase exits early
+    // (PHASE_END for the target, or ROUND_END) — the requested offset
+    // doesn't exist.
+    let phaseStartAt: number | null = null;
+    let phaseExitedEarly = false;
+    sc.bus.on(GAME_EVENT.PHASE_START, (ev) => {
+      if (
+        phaseStartAt === null &&
+        ev.round === args.round &&
+        ev.phase === args.phase
+      ) {
+        phaseStartAt = sc.now();
+      }
+    });
+    sc.bus.on(GAME_EVENT.PHASE_END, (ev) => {
+      if (
+        phaseStartAt !== null &&
+        ev.round === args.round &&
+        ev.phase === args.phase
+      ) {
+        phaseExitedEarly = true;
+      }
+    });
+    sc.bus.on(GAME_EVENT.ROUND_END, (ev) => {
+      if (phaseStartAt !== null && ev.round === args.round) {
+        phaseExitedEarly = true;
+      }
+    });
+    const targetMs = args.at * 1000;
+    sc.runUntil(
+      () =>
+        phaseExitedEarly ||
+        (phaseStartAt !== null && sc.now() - phaseStartAt >= targetMs),
+      { timeoutMs },
+    );
+    if (phaseExitedEarly) {
+      console.error(
+        `Phase ${args.phase} in round ${args.round} exited before reaching --at ${args.at}s.`,
+      );
+      Deno.exit(1);
+    }
+  } else if (args.moment === "start") {
     waitForEvent(
       sc,
       GAME_EVENT.PHASE_START,
@@ -124,6 +179,7 @@ function parseArgs(): Args {
   let round: number | undefined;
   let phase: Phase | undefined;
   let moment: "start" | "end" = "start";
+  let at: number | undefined;
   let player: 0 | 1 | 2 | undefined;
   for (let i = 0; i < argv.length; i++) {
     const flag = argv[i];
@@ -153,6 +209,15 @@ function parseArgs(): Args {
         Deno.exit(1);
       }
       moment = value;
+    } else if (flag === "--at") {
+      const value = Number(argv[++i]);
+      if (!Number.isFinite(value) || value < 0) {
+        console.error(
+          `Invalid --at: ${argv[i]} (expected non-negative number of seconds)`,
+        );
+        Deno.exit(1);
+      }
+      at = value;
     } else if (flag === "--player") {
       const value = argv[++i]?.toUpperCase() ?? "";
       const idx = PLAYER_NAMES.indexOf(value as (typeof PLAYER_NAMES)[number]);
@@ -168,5 +233,5 @@ function parseArgs(): Args {
       Deno.exit(1);
     }
   }
-  return { seed, mode, round, phase, moment, player };
+  return { seed, mode, round, phase, moment, at, player };
 }
