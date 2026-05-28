@@ -90,6 +90,24 @@ export function createNarrativeObserver(): NarrativeObserver {
    *  is indistinguishable from a player who genuinely built nothing. */
   const lifeLostThisRound = new Set<number>();
 
+  /** Battle-skip tracking. The `ceasefire` upgrade routes CANNON_PLACE
+   *  straight to UPGRADE_PICK/WALL_BUILD with NO BATTLE PHASE_START — the
+   *  battle phase vanishes from the event stream entirely. Without a marker
+   *  that reads as a missing-phase bug (a skipped battle is indistinguishable
+   *  from a runtime defect), so we synthesize a `BATTLE [skipped: …]` header.
+   *  `sawCannonPlace` / `sawBattle` reset each round; `skipAnnounced` dedups
+   *  the marker across the two phases (UPGRADE_PICK then WALL_BUILD) that can
+   *  trigger detection. */
+  let sawCannonPlaceThisRound = false;
+  let sawBattleThisRound = false;
+  let skipAnnouncedThisRound = false;
+  /** `ceasefire` picks awaiting their skip. Picked in round N's UPGRADE_PICK,
+   *  the skip lands in round N+1's battle decision — so the owner must survive
+   *  the round rollover. Round-tagged so a pick that never causes a skip (sole
+   *  owner eliminated before the next battle) is pruned instead of mis-crediting
+   *  a later skip. */
+  const pendingCeasefire: Array<{ round: number; playerId: number }> = [];
+
   function emitHeaderIfNeeded(): void {
     // Tag BATTLE / MODIFIER_REVEAL with the round's modifier so the
     // active modifier stays visible while scanning battle fires —
@@ -147,6 +165,9 @@ export function createNarrativeObserver(): NarrativeObserver {
       on(sc, GAME_EVENT.ROUND_START, (ev) => {
         currentRound = ev.round;
         currentRoundModifier = null;
+        sawCannonPlaceThisRound = false;
+        sawBattleThisRound = false;
+        skipAnnouncedThisRound = false;
         // Don't emit a header here — PHASE_START fires moments later
         // with the actual phase label. Avoids a stale "── r2 ?? ──".
       });
@@ -154,6 +175,36 @@ export function createNarrativeObserver(): NarrativeObserver {
       on(sc, GAME_EVENT.PHASE_START, (ev) => {
         flushWallGroup();
         currentRound = ev.round;
+        if (ev.phase === Phase.CANNON_PLACE) sawCannonPlaceThisRound = true;
+        if (ev.phase === Phase.BATTLE) sawBattleThisRound = true;
+        // Ceasefire-skip detection: the first UPGRADE_PICK/WALL_BUILD after a
+        // CANNON_PLACE with no intervening BATTLE means the battle was skipped
+        // (MODIFIER_REVEAL never fires on the ceasefire path either). Emit a
+        // synthetic BATTLE header crediting the upgrade owner(s) before the
+        // real phase header so the skip reads as intentional, not a missing
+        // phase. Guarded so it fires once even though both phases can trigger.
+        if (
+          (ev.phase === Phase.UPGRADE_PICK || ev.phase === Phase.WALL_BUILD) &&
+          sawCannonPlaceThisRound &&
+          !sawBattleThisRound &&
+          !skipAnnouncedThisRound
+        ) {
+          skipAnnouncedThisRound = true;
+          const owners = pendingCeasefire
+            .filter((pick) => pick.round === ev.round - 1)
+            .map((pick) => playerName(pick.playerId))
+            .join(", ");
+          // Prune consumed + any stale picks that never produced a skip.
+          for (let idx = pendingCeasefire.length - 1; idx >= 0; idx--) {
+            if (pendingCeasefire[idx]!.round <= ev.round - 1) {
+              pendingCeasefire.splice(idx, 1);
+            }
+          }
+          const ownerSuffix = owners !== "" ? ` — ${owners}` : "";
+          lines.push(
+            `── r${ev.round} BATTLE [skipped: ceasefire${ownerSuffix}] ──`,
+          );
+        }
         currentPhaseLabel = Phase[ev.phase];
         emitHeaderIfNeeded();
       });
@@ -210,6 +261,12 @@ export function createNarrativeObserver(): NarrativeObserver {
 
       on(sc, GAME_EVENT.UPGRADE_PICKED, (ev) => {
         push(`${playerName(ev.playerId)} upgrade: ${ev.upgradeId}`);
+        // Remember who armed a ceasefire — it skips NEXT round's battle, so
+        // the skip marker (a round later) can name the owner. Tagged with the
+        // pick round; consumed/pruned at detection.
+        if (ev.upgradeId === UID.CEASEFIRE) {
+          pendingCeasefire.push({ round: currentRound, playerId: ev.playerId });
+        }
       });
 
       on(sc, GAME_EVENT.ROUND_END, (ev) => {
