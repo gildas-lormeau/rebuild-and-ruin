@@ -20,10 +20,14 @@ import roundOneRedFatWall40 from "./fixtures/wall-build/round1-red-fat-wall-40.j
 import roundTwentyFourRedCornerOrphan26796 from "./fixtures/wall-build/round24-red-corner-orphan-26796.json" with {
   type: "json",
 };
+import roundFourteenGoldPitLocked15397 from "./fixtures/wall-build/round14-gold-pit-locked-15397.json" with {
+  type: "json",
+};
 import { GAME_EVENT } from "../../src/shared/core/game-event-bus.ts";
 import { Phase } from "../../src/shared/core/game-phase.ts";
 import { GRID_COLS, GRID_ROWS } from "../../src/shared/core/grid.ts";
-import { packTile } from "../../src/shared/core/spatial.ts";
+import { packTile, unpackTile } from "../../src/shared/core/spatial.ts";
+import { setAiBuildDiagHook } from "../../src/ai/ai-build-diag.ts";
 import { createPhaseScenario } from "./loader.ts";
 import type { FixtureFile } from "./types.ts";
 import { waitForPhase } from "../scenario.ts";
@@ -438,6 +442,162 @@ Deno.test(
       ownedTowerIndices.has(homeTowerIndex as unknown as number),
       `RED home tower ${homeTowerIndex} not enclosed after WALL_BUILD ` +
         `(owned=${[...ownedTowerIndices].join(",")})`,
+    );
+  },
+);
+
+Deno.test(
+  "phase-test: AI prefers alive tower over dead when home is pit-locked (seed 15397 GOLD r14)",
+  async () => {
+    // Seed 15397, modern, r14 WALL_BUILD start. GOLD entered r14 at 1♥
+    // with home castle T(7,21) pit-locked by burning pits at (3,21) and
+    // (11,20-21) — pits next to the river at row 12 make the south
+    // perimeter un-bridgeable for 3 battle rounds. Available enclosure
+    // targets in zone: home castle T (alive, doomed), y#7/y#8/y#9 (all
+    // dead — index 7,8,9 false in towerAlive), Y#10 at (3,39) (alive,
+    // bare grass perimeter ~12 tiles).
+    //
+    // Pre-fix bug: getBuildTowerPool() and pickFallbackPlacement's
+    // fallbackTowers list returned all unenclosed towers without alive/
+    // dead distinction. The AI's scoring picked dead y#8 (proximity +
+    // pre-existing partial walls), closed it at t≈18s of WALL_BUILD,
+    // saw "1e ✓" and treated survival as secured. But the life-loss
+    // check (`applyLifePenalties` → `filterAliveOwnedTowers`) requires
+    // an *alive* enclosed tower. y#8 was dead → filterAliveOwnedTowers
+    // returned [] → GOLD lost its last life and was eliminated.
+    //
+    // Fix: getBuildTowerPool and fallbackTowers filter to alive towers
+    // when at least one alive option exists. Dead towers remain as a
+    // last-resort fallback. GOLD now prioritizes Y#10 (alive, in zone).
+    const sc = await createPhaseScenario(
+      roundFourteenGoldPitLocked15397 as unknown as FixtureFile,
+    );
+    assertEquals(sc.state.round, 14);
+    assertEquals(sc.state.phase, Phase.WALL_BUILD);
+
+    const GOLD_SLOT = 2;
+    const goldBefore = sc.state.players[GOLD_SLOT]!;
+    assertEquals(goldBefore.lives, 1, "GOLD should enter r14 at 1 life");
+
+    // y#7, y#8, y#9 are dead at fixture time; Y#10 is alive. Confirm
+    // the fixture still encodes that mix (would shift if seed dynamics
+    // change after a re-bake).
+    assertEquals(sc.state.towerAlive[7], false, "tower 7 should be dead");
+    assertEquals(sc.state.towerAlive[8], false, "tower 8 should be dead");
+    assertEquals(sc.state.towerAlive[9], false, "tower 9 should be dead");
+    assertEquals(sc.state.towerAlive[10], true, "tower 10 should be alive");
+
+    // Diagnostic log: per-piece trace of GOLD's decisions during the
+    // build phase. Each placement prints the chosen target path (HOME /
+    // SEC / EXP / STRAT_*), chosen tower index, gap count, target rect,
+    // current piece shape, and the cells the AI placed.
+    type DecisionLine = {
+      kind: "target" | "place" | "no-place" | "enclose";
+      text: string;
+    };
+    const trace: DecisionLine[] = [];
+    let lastTarget: {
+      path: string;
+      chosen: number | undefined;
+      gaps: number;
+      rect: string | undefined;
+      piece: string;
+    } | null = null;
+
+    setAiBuildDiagHook((event) => {
+      if (event.playerId !== GOLD_SLOT) return;
+      if (event.kind === "target-selected") {
+        const rect = event.targetRect
+          ? `[${event.targetRect.top},${event.targetRect.left}]→` +
+            `[${event.targetRect.bottom},${event.targetRect.right}]`
+          : "none";
+        lastTarget = {
+          path: event.path,
+          chosen: event.chosenTowerIndex as number | undefined,
+          gaps: event.targetGaps.size,
+          rect: rect,
+          piece: event.currentPieceShapeName,
+        };
+        trace.push({
+          kind: "target",
+          text: `  target: path=${event.path} tower=${
+            event.chosenTowerIndex ?? "-"
+          } gaps=${event.targetGaps.size} rect=${rect} piece=${
+            event.currentPieceShapeName
+          }`,
+        });
+      } else if (event.kind === "wall-placed") {
+        const cells = event.cells
+          .map((k) => {
+            const { row, col } = unpackTile(k);
+            return `(${row},${col})`;
+          })
+          .join(" ");
+        const targetCtx = lastTarget
+          ? `→ ${lastTarget.path}/T${lastTarget.chosen ?? "-"}`
+          : "→ ?";
+        trace.push({
+          kind: "place",
+          text: `  PLACE [${event.pieceShapeName}] ${cells} ${targetCtx}`,
+        });
+      } else if (event.kind === "no-placement") {
+        trace.push({
+          kind: "no-place",
+          text: `  NO-PLACE reason=${event.reason}`,
+        });
+      }
+    });
+
+    sc.bus.on(GAME_EVENT.TOWER_ENCLOSED, (event) => {
+      if (event.playerId !== GOLD_SLOT) return;
+      const alive =
+        (
+          roundFourteenGoldPitLocked15397 as unknown as FixtureFile
+        ).checkpoint?.towerAlive?.[event.towerIndex as unknown as number] ??
+          true;
+      trace.push({
+        kind: "enclose",
+        text: `  *** ENCLOSE tower#${event.towerIndex} (${
+          alive ? "ALIVE" : "DEAD"
+        }) ***`,
+      });
+    });
+
+    let roundEnded = false;
+    sc.bus.on(GAME_EVENT.ROUND_END, () => {
+      roundEnded = true;
+    });
+
+    try {
+      sc.runUntil(
+        () => roundEnded || sc.state.phase !== Phase.WALL_BUILD,
+        { timeoutMs: 60_000 },
+      );
+    } finally {
+      setAiBuildDiagHook(undefined);
+    }
+
+    console.log(
+      `\n--- GOLD r14 WALL_BUILD trace (${trace.length} events) ---`,
+    );
+    for (const line of trace) console.log(line.text);
+    const gold = sc.state.players[GOLD_SLOT]!;
+    console.log(
+      `--- end: eliminated=${gold.eliminated} walls=${gold.walls.size} ` +
+        `ownedTowers=[${gold.ownedTowers.map((t) => t.index).join(",")}] ---\n`,
+    );
+
+    // Real survival outcome: GOLD must not be eliminated. The life-loss
+    // rule (applyLifePenalties → filterAliveOwnedTowers) requires at
+    // least one alive enclosed tower at finalize. Y#10 (index 10) is
+    // the only alive enclosable tower in GOLD's zone given the pit-
+    // locked home castle — the AI must close it.
+    assert(
+      !gold.eliminated,
+      `GOLD was eliminated after r14 WALL_BUILD. Pre-fix AI wasted ` +
+        `walls on the pit-locked home castle and on dead y#7/y#8/y#9; ` +
+        `survival required enclosing alive Y#10. ` +
+        `(ownedTowers=[${gold.ownedTowers.map((t) => t.index).join(",")}])`,
     );
   },
 );

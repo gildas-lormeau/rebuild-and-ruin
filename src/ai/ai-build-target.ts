@@ -600,9 +600,18 @@ function trySecondaryTower(ctx: TargetContext): TargetResult {
 /** Towers eligible to be a secondary build target this tick. When the home
  *  ring is being deprioritized (`effectiveSkipHome`), the home tower itself
  *  drops out of consideration. Mirrored by `trySecondaryTower`, `strategicFallbackTarget`,
- *  and `collectAlternatives` — single accessor keeps them in lockstep. */
+ *  and `collectAlternatives` — single accessor keeps them in lockstep.
+ *
+ *  Alive-preference: only an enclosed *alive* tower prevents life loss
+ *  (see `applyLifePenalties` in phase-setup.ts — `filterAliveOwnedTowers`
+ *  is the survival predicate). Dead towers can still be enclosed for
+ *  delayed revival, but only as a last resort when no alive option exists. */
 function getBuildTowerPool(ctx: TargetContext): readonly Tower[] {
-  return ctx.effectiveSkipHome ? ctx.otherUnenclosed : ctx.unenclosedTowers;
+  const pool = ctx.effectiveSkipHome
+    ? ctx.otherUnenclosed
+    : ctx.unenclosedTowers;
+  const alive = pool.filter((tower) => ctx.state.towerAlive[tower.index]);
+  return alive.length > 0 ? alive : pool;
 }
 
 /** Anchor for distance-from-cursor scoring: the AI's last cursor position
@@ -693,8 +702,9 @@ function evaluateTowerCandidate(
  *  burning pits, alive houses) on the wall ring. Only grows along directions
  *  that have a blocker on the ring; water/permanent terrain doesn't trigger.
  *  Used by tryRepairHomeCastle and trySecondaryTower so secondaries also get
- *  the Mode #4 escape. */
-function expandRectAroundBlockers(
+ *  the Mode #4 escape. Also used by analyzeEnclosures' doomed-home check so
+ *  it evaluates the same rect the AI actually targets. */
+export function expandRectAroundBlockers(
   initialRect: TileRect,
   state: BuildViewState,
   player: Player,
