@@ -74,16 +74,17 @@ Deno.test("supply_ship: ships visible in overlay during MODIFIER_REVEAL", async 
     if (ev.modifierId === "supply_ship") supplyShipApplied = true;
   });
 
-  // Run until phase reaches MODIFIER_REVEAL. The overlay refresh runs
-  // AFTER the tick that fires PHASE_START, so the first tick that
-  // observes the new phase already carries a refreshed overlay for it.
+  // Run until the overlay itself carries the ships during MODIFIER_REVEAL.
+  // The overlay refresh runs AFTER the tick that fires PHASE_START, so we
+  // wait on the projected state directly rather than on state.phase + an
+  // extra belt-and-braces tick.
   sc.runUntil(
-    () => supplyShipApplied && sc.state.phase === Phase.MODIFIER_REVEAL,
+    () =>
+      supplyShipApplied &&
+      sc.state.phase === Phase.MODIFIER_REVEAL &&
+      (sc.overlay()?.battle?.supplyShips?.length ?? 0) > 0,
     { timeoutMs: MAX_TIMEOUT_MS },
   );
-  // One extra tick is belt-and-braces — guarantees the projection has
-  // run at least once with state.phase === MODIFIER_REVEAL.
-  sc.tick(1);
 
   const ships = sc.overlay()?.battle?.supplyShips;
   assertEquals(

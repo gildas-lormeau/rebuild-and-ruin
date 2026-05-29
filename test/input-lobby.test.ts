@@ -34,7 +34,12 @@ import {
   PLAYER_KEY_BINDINGS,
 } from "../src/shared/ui/player-config.ts";
 import { Mode } from "../src/shared/ui/ui-mode.ts";
-import { createScenario, type Scenario } from "./scenario.ts";
+import {
+  clickAndSettle,
+  createScenario,
+  pressKeyAndSettle,
+  settleLobbyExit,
+} from "./scenario.ts";
 
 Deno.test(
   "lobby input: clicking a slot joins it and starts the game before the 15s timeout",
@@ -59,12 +64,11 @@ Deno.test(
     // Each skip click adds 1s to `timerAccum`; we need to drop the timer
     // from 15s to below the lockout, so click ~15 times. Excess clicks
     // beyond the lockout are silently ignored by `lobbySkipStep`, so a
-    // few extras are harmless. We tick a frame between clicks so the
-    // intermediate `tickLobby` runs and the next click is evaluated
+    // few extras are harmless. `clickAndSettle` ticks a frame between clicks
+    // so the intermediate `tickLobby` runs and the next click is evaluated
     // against the latest `timerAccum`.
     for (let i = 0; i < LOBBY_TIMER; i++) {
-      sc.input.click(slot0.x, slot0.y);
-      sc.tick(1);
+      await clickAndSettle(sc, slot0.x, slot0.y);
     }
 
     // Stage 1 — sync frames until `tickLobby` notices `getLobbyRemaining()
@@ -141,16 +145,13 @@ Deno.test(
     // `lobby.joined[pid]` branch in `lobbyKeyJoin` and call `lobbySkipStep`.
     //
     // The keyboard handler is `async` (it `await`s `handleKeyF1`), so the
-    // body that calls `lobby.keyJoin` runs in a microtask. We `await
-    // Promise.resolve()` after every press to drain that microtask before
-    // the next press fires — otherwise all 16 events queue up sync but
-    // only the first handler's body actually runs before the timer
-    // assertion checks `lobby.active`.
+    // body that calls `lobby.keyJoin` runs in a microtask. `pressKeyAndSettle`
+    // drains that microtask + advances a frame after every press — otherwise
+    // all 16 events queue up sync but only the first handler's body actually
+    // runs before the timer assertion checks `lobby.active`.
     const slot0Confirm = PLAYER_KEY_BINDINGS[0]!.confirm;
     for (let i = 0; i <= LOBBY_TIMER; i++) {
-      sc.input.pressKey(slot0Confirm);
-      await Promise.resolve();
-      sc.tick(1);
+      await pressKeyAndSettle(sc, slot0Confirm);
     }
 
     const startedAt = sc.now();
@@ -180,16 +181,3 @@ Deno.test(
     );
   },
 );
-
-/** Drain microtasks + tasks so the queued `onTickLobbyExpired` body
- *  (await startGame → bootstrapNewGame → ensureAiModulesLoaded) runs
- *  to completion, then drive a few more frames so the runtime sees the
- *  new mode. Tests that exit the lobby through input call this once
- *  the lobby is no longer active. */
-async function settleLobbyExit(sc: Scenario): Promise<void> {
-  // setTimeout(0) lets I/O / dynamic-import tasks settle (bootstrapGame
-  // awaits AI module loading), Promise.resolve() drains microtasks.
-  await new Promise((resolve) => setTimeout(resolve, 0));
-  for (let i = 0; i < 10; i++) await Promise.resolve();
-  sc.runUntil(() => sc.mode() !== Mode.LOBBY, { timeoutMs: 500 });
-}

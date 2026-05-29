@@ -23,7 +23,11 @@ import { LOBBY_TIMER } from "../src/shared/core/game-constants.ts";
 import { Phase } from "../src/shared/core/game-phase.ts";
 import { PLAYER_KEY_BINDINGS } from "../src/shared/ui/player-config.ts";
 import { Mode } from "../src/shared/ui/ui-mode.ts";
-import { createScenario, type Scenario } from "./scenario.ts";
+import {
+  createScenario,
+  pressKeyAndSettle,
+  settleLobbyExit,
+} from "./scenario.ts";
 
 interface CameraTrace {
   game: string;
@@ -60,10 +64,10 @@ Deno.test(
     assert(sc.lobbyActive(), "expected lobby.active=true");
 
     // 1. Press slot-0's confirm key to join. Same path as the lobby input
-    //    test — the keyboard handler is async, so drain microtasks before
-    //    the next sim tick reads `lobby.joined`.
-    sc.input.pressKey(PLAYER_KEY_BINDINGS[0]!.confirm);
-    await Promise.resolve();
+    //    test — the keyboard handler is async, so `pressKeyAndSettle` drains
+    //    the microtask + advances a frame before the next tick reads
+    //    `lobby.joined`.
+    await pressKeyAndSettle(sc, PLAYER_KEY_BINDINGS[0]!.confirm);
 
     // 2. Wait for the lobby timer to expire. `tickLobby` flips
     //    `lobby.active=false` synchronously when the timer hits zero, then
@@ -117,17 +121,14 @@ Deno.test(
     );
 
     // 4. ESC twice to quit. First press arms `quit.pending` + a 2s timer;
-    //    second press inside that window calls `showLobby()`. We tick a
-    //    sim step between presses so the input handler's async body settles.
-    sc.input.pressKey("Escape");
-    await Promise.resolve();
-    sc.tick(1);
+    //    second press inside that window calls `showLobby()`. `pressKeyAndSettle`
+    //    settles the async input handler (microtask + a frame) between presses.
+    await pressKeyAndSettle(sc, "Escape");
     assert(
       sc.mode() !== Mode.LOBBY && sc.mode() !== Mode.STOPPED,
       `first ESC arms the warning but doesn't quit; got mode=${Mode[sc.mode()]}`,
     );
-    sc.input.pressKey("Escape");
-    await Promise.resolve();
+    await pressKeyAndSettle(sc, "Escape");
 
     // 5. After the second ESC, returnToLobby → showLobby flips us back to
     //    LOBBY mode with `lobby.active=true` and `joined` cleared.
@@ -212,16 +213,4 @@ function dumpCameraTrace(trace: readonly CameraTrace[]): void {
       `  [${row.game.padEnd(5)}] +${String(row.simMs).padStart(6)}ms  ${row.phase.padEnd(13)}  ${detail.padEnd(16)}  src=${row.event.source}`,
     );
   }
-}
-
-/** Drain microtasks + tasks so the queued `onTickLobbyExpired` body
- *  (await startGame → bootstrapNewGame → ensureAiModulesLoaded) runs
- *  to completion, then drive a few more frames so the runtime sees the
- *  new mode. Same pattern as `test/input-lobby.test.ts::settleLobbyExit`.
- *  Necessary because `runUntil` is sync — it never yields to the JS event
- *  loop, so async bootstrap microtasks won't settle inside it. */
-async function settleLobbyExit(sc: Scenario): Promise<void> {
-  await new Promise((resolve) => setTimeout(resolve, 0));
-  for (let i = 0; i < 10; i++) await Promise.resolve();
-  sc.runUntil(() => sc.mode() !== Mode.LOBBY, { timeoutMs: 500 });
 }

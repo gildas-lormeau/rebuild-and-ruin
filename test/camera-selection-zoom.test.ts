@@ -25,12 +25,16 @@ Deno.test(
       "mobile auto-zoom must be active (assistedSlots[0] is human + mobileZoomEnabled)",
     );
 
-    // Drive past the "Select your home castle" announcement, plus a small
-    // margin so handleSelectionZoom + viewport lerp have a chance to fire.
-    const framesToDrive = Math.ceil(
-      (SELECT_ANNOUNCEMENT_DURATION + 1) * 60,
+    // Wait for the auto-zoom to crop the viewport once the "Select your
+    // home castle" announcement ends and handleSelectionZoom + the viewport
+    // lerp engage. Budget covers the announcement plus a margin.
+    sc.runUntil(
+      () => {
+        const vp = sc.camera.getViewport();
+        return vp !== undefined && vp.w < MAP_PX_W;
+      },
+      { timeoutMs: (SELECT_ANNOUNCEMENT_DURATION + 2) * 1000 },
     );
-    sc.tick(framesToDrive);
 
     const vp = sc.camera.getViewport();
     assert(

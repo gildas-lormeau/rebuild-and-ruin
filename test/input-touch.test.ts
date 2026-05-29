@@ -21,7 +21,7 @@ import {
 import { MAP_PX_H, MAP_PX_W, SCALE } from "../src/shared/core/grid.ts";
 import { MAX_PLAYERS } from "../src/shared/ui/player-config.ts";
 import { Mode } from "../src/shared/ui/ui-mode.ts";
-import { createScenario } from "./scenario.ts";
+import { createScenario, settleLobbyExit, tapAndSettle } from "./scenario.ts";
 
 Deno.test(
   "lobby touch: tapping a slot joins it and starts the game before the 15s timeout",
@@ -44,11 +44,10 @@ Deno.test(
     // Spam-tap to skip the timer down to LOBBY_SKIP_LOCKOUT. Same
     // accounting as the mouse + keyboard tests in `input-lobby.test.ts`:
     // each skip adds 1s to `timerAccum` until the lockout (3s remaining).
-    // Tick a frame between taps so `tickLobby` runs and each next tap
-    // is evaluated against the latest `timerAccum`.
+    // `tapAndSettle` ticks a frame between taps so `tickLobby` runs and each
+    // next tap is evaluated against the latest `timerAccum`.
     for (let i = 0; i < LOBBY_TIMER; i++) {
-      sc.input.tap(slot0.x, slot0.y);
-      sc.tick(1);
+      await tapAndSettle(sc, slot0.x, slot0.y);
     }
 
     // Stage 1 — drive sync frames until `tickLobby` flips
@@ -64,11 +63,8 @@ Deno.test(
       `lobby took ${elapsedSec.toFixed(2)}s to drain after spam-tap (expected ≈${LOBBY_SKIP_LOCKOUT}s)`,
     );
 
-    // Stage 2 — drain microtasks so `onTickLobbyExpired` (await
-    // startGame → bootstrapNewGame → ensureAiModulesLoaded) settles.
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    for (let i = 0; i < 10; i++) await Promise.resolve();
-    sc.runUntil(() => sc.mode() !== Mode.LOBBY, { timeoutMs: 500 });
+    // Stage 2 — settle the async lobby-exit bootstrap (runs off the sim loop).
+    await settleLobbyExit(sc);
 
     assertEquals(
       sc.lobbyActive(),

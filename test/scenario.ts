@@ -66,7 +66,7 @@ import type { Phase } from "../src/shared/core/game-phase.ts";
 import type { GameMessage, ServerMessage } from "../src/protocol/protocol.ts";
 import type { ValidPlayerId } from "../src/shared/core/player-slot.ts";
 import type { GameState, TestHooks } from "../src/shared/core/types.ts";
-import type { Mode } from "../src/shared/ui/ui-mode.ts";
+import { Mode } from "../src/shared/ui/ui-mode.ts";
 import {
   createAsciiRenderer,
   type AsciiRenderer,
@@ -583,6 +583,57 @@ export async function step<T>(
       cause: err instanceof Error ? err : undefined,
     });
   }
+}
+
+/** Dispatch a key press through the production input pipeline, then settle:
+ *  drain the microtask the async keyboard handler runs in, and advance one
+ *  sim frame so the next tick observes the resulting state. Use this instead
+ *  of `sc.input.pressKey(...)` + a hand-rolled `await Promise.resolve()` +
+ *  `sc.tick(1)`: the input handlers are async, and `runUntil` is sync (it
+ *  never yields to the JS event loop), so the settle can't live inside a
+ *  wait — it has to be its own awaited step. */
+export async function pressKeyAndSettle(
+  sc: Scenario,
+  key: string,
+): Promise<void> {
+  sc.input.pressKey(key);
+  await Promise.resolve();
+  sc.tick(1);
+}
+
+/** Mouse-click variant of `pressKeyAndSettle`. */
+export async function clickAndSettle(
+  sc: Scenario,
+  x: number,
+  y: number,
+): Promise<void> {
+  sc.input.click(x, y);
+  await Promise.resolve();
+  sc.tick(1);
+}
+
+/** Touch-tap variant of `pressKeyAndSettle`. */
+export async function tapAndSettle(
+  sc: Scenario,
+  x: number,
+  y: number,
+): Promise<void> {
+  sc.input.tap(x, y);
+  await Promise.resolve();
+  sc.tick(1);
+}
+
+/** Drain the async game bootstrap that runs OFF the sim loop after the lobby
+ *  timer expires. `onTickLobbyExpired` awaits `startGame → bootstrapNewGame →
+ *  ensureAiModulesLoaded` (a dynamic `import()`), which resolves on the JS
+ *  event loop, not on a sim tick — so `runUntil` (sync, never yields) can't
+ *  make it happen. Drains tasks (`setTimeout(0)`) + microtasks, then drives
+ *  until the runtime has left LOBBY mode. Call once the lobby is no longer
+ *  active (e.g. after `runUntil(() => !sc.lobbyActive())`). */
+export async function settleLobbyExit(sc: Scenario): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  for (let i = 0; i < 10; i++) await Promise.resolve();
+  sc.runUntil(() => sc.mode() !== Mode.LOBBY, { timeoutMs: 500 });
 }
 
 /** Subscribe to every bus event and accumulate them in order.
