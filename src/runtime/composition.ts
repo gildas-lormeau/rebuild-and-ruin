@@ -199,6 +199,12 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   // phase-tick bag is the canonical signal that this runtime is networked.
   const isOnline = !!config.onlinePhaseTicks;
 
+  // Per-frame TICK event is a dev/test-only subscription point (headless +
+  // E2E). Default to IS_DEV (dev server / localhost true, deployed prod
+  // false); headless overrides to true since IS_DEV is false under Deno.
+  // Deployed prod has no TICK consumers, so it must not emit.
+  const emitTickEvent = config.emitTickEvent ?? IS_DEV;
+
   // -------------------------------------------------------------------------
   // Mutable state (shared bag — see state.ts)
   // -------------------------------------------------------------------------
@@ -313,10 +319,15 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       // fresh rising edge against frozen `phase=WALL_BUILD, timer=3`)
       // and burns CPU on cannon/score animations during the lobby.
       if (isSessionLive(runtimeState)) {
-        runtimeState.state.bus.emit(GAME_EVENT.TICK, {
-          type: GAME_EVENT.TICK,
-          dt: runtimeState.frameDt,
-        });
+        // TICK is dev/test-only (headless + E2E); no deployed-prod consumers,
+        // so `emitTickEvent` keeps it off the prod bus. The presentational
+        // audio derivations below are NOT gated — they must run in prod.
+        if (emitTickEvent) {
+          runtimeState.state.bus.emit(GAME_EVENT.TICK, {
+            type: GAME_EVENT.TICK,
+            dt: runtimeState.frameDt,
+          });
+        }
         // Presentational derivations run after all state mutation — SFX
         // and music both diff GameState-derived signals (countdown-active,
         // build-bg decrescendo threshold) against last frame to issue

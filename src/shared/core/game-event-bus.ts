@@ -109,9 +109,12 @@ type LifecycleEvent =
   /** Between-rounds score-delta overlay finished. Emitted immediately
    *  before the `onDone` callback runs (life-lost dialog or next banner). */
   | { type: "scoreOverlayEnd"; round: number }
-  /** Dev-only per-frame tick. Emitted once per frame after rendering, only
-   *  when IS_DEV is true. The E2E bridge attaches a canvas snapshot to the
-   *  busLog entry so browser-based tests can read per-frame pixel data. */
+  /** Per-frame tick (dev/test only). Emitted once per frame after rendering
+   *  while a session is live, when `RuntimeConfig.emitTickEvent` is set —
+   *  true in headless tests and on the dev server / localhost (E2E + local
+   *  dev), false in deployed prod (which has no consumers). The dev-only E2E
+   *  bridge attaches a canvas snapshot to the busLog entry so browser-based
+   *  tests can read per-frame pixel data. */
   | { type: "tick"; dt: number }
   /** Pre-battle announcement transitions, emitted once per crossing of the
    *  `battleCountdown` thresholds (> 3 s → Ready, 1–3 s → Aim, ≤ 1 s →

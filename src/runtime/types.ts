@@ -255,6 +255,13 @@ export interface RuntimeConfig {
    *  stay out of the determinism event log. */
   cameraTiltEnabled?: boolean;
 
+  /** Emit the per-frame `GAME_EVENT.TICK` event. Defaults to `IS_DEV` (true
+   *  on the Vite dev server / localhost — covers E2E + local dev — false in
+   *  deployed prod). Headless tests pass `true` explicitly because `IS_DEV`
+   *  is false under Deno. Deployed prod never emits it: TICK has no prod
+   *  consumers, so suppressing it keeps the bus free of per-frame churn. */
+  emitTickEvent?: boolean;
+
   /** Optional override for per-slot controller construction at bootstrap.
    *  When undefined (production path), the default `createController`
    *  factory is used. Tests use this to install

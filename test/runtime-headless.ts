@@ -362,6 +362,9 @@ export async function createHeadlessRuntime(
     // when this is false, so the phase machine's pitch-gate takes the
     // synchronous early-return path.
     cameraTiltEnabled: false,
+    // IS_DEV is false under Deno, so headless must opt in explicitly to keep
+    // the per-frame TICK event flowing to test subscribers (reveal/fade tests).
+    emitTickEvent: true,
     controllerFactory,
   });
   runtimeHolder.current = runtime;
