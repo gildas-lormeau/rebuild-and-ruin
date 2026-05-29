@@ -79,6 +79,19 @@ const TOWER_DISTANCE_MULTIPLIER = 24;
 const WALL_ADJACENT_PENALTY = 8;
 /** Penalty for each interior tile left with only 0–1 free neighbors (dead space). */
 const WASTED_TILE_PENALTY = 10;
+/** Corridor penalty: a perimeter wall left with ZERO free interior neighbors
+ *  after this cannon is placed. If that wall is breached in battle, only a 1×1
+ *  piece dropped exactly on it can repair it — effectively a dead corridor the
+ *  ring can't re-close. Tuned above the border ceiling (30) so the AI decisively
+ *  avoids sealing a wall against its own cannon. */
+const CORRIDOR_DEAD_PENALTY = 50;
+/** Corridor penalty: a perimeter wall left with exactly ONE free interior
+ *  neighbor. Narrow — only small pieces can repair a breach there. */
+const CORRIDOR_TIGHT_PENALTY = 22;
+/** Enclosed (firing) cannons a player must already have before the AI is
+ *  willing to decline a corridor-creating placement. Below this it still needs
+ *  firepower and tolerates the risk; at or above it, refusing costs little. */
+const ABSTAIN_MIN_ENCLOSED = 4;
 /** Random noise added to each score to break ties unpredictably. */
 const SCORE_NOISE_RANGE = 2;
 /** Minimum cannon slots before the AI considers placing a super gun. */
@@ -284,6 +297,28 @@ export function nextCannonPlacement(
   }
 
   const best = normalCandidates[0]!;
+
+  // The best remaining spot would seal a perimeter wall into an unrepairable
+  // corridor. If we already hold enough firing cannons, don't strand a
+  // permanent one here: place an ephemeral balloon (removed before WALL_BUILD,
+  // so it can't trap the rebuild) if one would capture something, otherwise
+  // stop placing for the round.
+  if (
+    countEnclosedAliveCannons(player) >= ABSTAIN_MIN_ENCLOSED &&
+    createsCorridor(player, best.row, best.col)
+  ) {
+    const balloonWorthwhile =
+      state.gameMode === GAME_MODE_MODERN &&
+      slotsLeft >= BALLOON_SLOT_COST &&
+      filterActiveEnemies(state, player.id).some((enemy) =>
+        enemyHasLiveCannon(state, enemy),
+      );
+    if (balloonWorthwhile) {
+      return { row: best.row, col: best.col, mode: CannonMode.BALLOON };
+    }
+    return undefined;
+  }
+
   return { row: best.row, col: best.col, mode: CannonMode.NORMAL };
 }
 
@@ -385,9 +420,94 @@ function scoreCannonPosition(
     }
   }
 
+  // Balloons are removed before WALL_BUILD (phase-setup cleanup), so their
+  // footprint can never trap a future enclosure repair — exempt them.
+  if (mode !== CannonMode.BALLOON) {
+    score += corridorPenalty(player, cannonTiles, occupied, interior);
+  }
+
   score += rng.next() * SCORE_NOISE_RANGE * noiseScale;
 
   return -score;
+}
+
+/** True if placing a NORMAL cannon at (row,col) would seal a perimeter wall
+ *  into a corridor (see `corridorPenalty`). Cheap single-position check used by
+ *  the abstain decision. */
+function createsCorridor(player: Player, row: number, col: number): boolean {
+  const footprint = computeCannonTileSet({ row, col, mode: CannonMode.NORMAL });
+  const occupied = new Set(footprint);
+  for (const cannon of player.cannons) {
+    for (const key of computeCannonTileSet(cannon)) occupied.add(key);
+  }
+  return corridorPenalty(player, footprint, occupied, getInterior(player)) > 0;
+}
+
+/** Penalty for sealing a perimeter wall against this cannon. For each of the
+ *  player's own perimeter walls cardinally adjacent to the candidate footprint,
+ *  count the free buildable interior tiles still touching that wall once the
+ *  cannon occupies its tiles. A wall left with ≤1 free interior neighbor is a
+ *  "corridor" a breach can't be repaired into with normal pieces — the very
+ *  geometry that strands cannons when the ring later re-opens. Only perimeter
+ *  walls (those facing outside the interior) count; deep interior walls don't
+ *  gate enclosure. Pure function of current geometry — no future prediction. */
+function corridorPenalty(
+  player: Player,
+  footprint: ReadonlySet<TileKey>,
+  occupied: ReadonlySet<TileKey>,
+  interior: ReadonlySet<TileKey>,
+): number {
+  let penalty = 0;
+  const seenWalls = new Set<TileKey>();
+  for (const tileKey of footprint) {
+    const { row, col } = unpackTile(tileKey);
+    for (const [dr, dc] of DIRS_4) {
+      const wallRow = row + dr;
+      const wallCol = col + dc;
+      if (!inBounds(wallRow, wallCol)) continue;
+      const wallKey = packTile(wallRow, wallCol);
+      if (!player.walls.has(wallKey) || seenWalls.has(wallKey)) continue;
+      seenWalls.add(wallKey);
+      let freeInterior = 0;
+      let facesOutside = false;
+      for (const [ndr, ndc] of DIRS_4) {
+        const neighborRow = wallRow + ndr;
+        const neighborCol = wallCol + ndc;
+        // Off-map neighbors are "outside" the interior — a wall touching the
+        // map edge faces outside there.
+        if (!inBounds(neighborRow, neighborCol)) {
+          facesOutside = true;
+          continue;
+        }
+        const neighborKey = packTile(neighborRow, neighborCol);
+        const isInterior = interior.has(neighborKey);
+        if (
+          isInterior &&
+          !occupied.has(neighborKey) &&
+          !player.walls.has(neighborKey)
+        ) {
+          freeInterior++;
+        }
+        if (!isInterior && !player.walls.has(neighborKey)) facesOutside = true;
+      }
+      // Only perimeter walls gate enclosure; skip deep interior walls.
+      if (!facesOutside) continue;
+      if (freeInterior === 0) penalty += CORRIDOR_DEAD_PENALTY;
+      else if (freeInterior === 1) penalty += CORRIDOR_TIGHT_PENALTY;
+    }
+  }
+  return penalty;
+}
+
+/** Count the player's alive cannons that are currently enclosed (i.e. able to
+ *  fire). Used to gate the corridor-abstain: plenty of firepower → declining a
+ *  risky spot is cheap. */
+function countEnclosedAliveCannons(player: Player): number {
+  let count = 0;
+  for (const cannon of player.cannons) {
+    if (isCannonAlive(cannon) && isCannonEnclosed(cannon, player)) count++;
+  }
+  return count;
 }
 
 function scoreCannonTileLocalPenalty(
