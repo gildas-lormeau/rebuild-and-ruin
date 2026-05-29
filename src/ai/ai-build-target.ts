@@ -76,6 +76,13 @@ const EMPTY_UPCOMING_FIT: {
   upcomingPieces: readonly string[];
   upcomingPieceFitsTarget: readonly boolean[];
 } = { upcomingPieces: [], upcomingPieceFitsTarget: [] };
+/** A salvageable outer ring this close to sealed is "near-complete": the AI
+ *  holds it as the target even when the current piece can't fill the remaining
+ *  gaps, rather than abandoning it for the many-gap ideal-castle rect. Without
+ *  this, the AI thrashes between the two rings on alternating pieces and closes
+ *  neither (seed 921118 RED r3). Kept tiny (2) so the perf-sensitive ungated
+ *  outer-ring path only fires in the brief, rare end-of-repair window. */
+const NEAR_COMPLETE_RING_GAPS = 1;
 /** Max gap tiles the AI considers evaluable in a single build turn. Beyond this, the target is skipped. */
 export const MANAGEABLE_GAP_LIMIT = 8;
 
@@ -382,6 +389,13 @@ function tryRepairHomeCastle(ctx: TargetContext): TargetResult {
   // the outer ring instead.
   const outer = tryRepairOuterRing(ctx);
   if (outer.targetGaps.size > 0) {
+    // Near-complete outer ring: hold it even when THIS piece can't fill the
+    // last gaps. Abandoning a 1-2-gap ring for the ideal-small-castle rect
+    // (many gaps) makes the AI thrash between the two rings and close neither
+    // (seed 921118 RED r3). The gap count is tiny here, so keeping the target
+    // can't trigger the outer-ring fallback storm the canPieceFillAnyGap gate
+    // guards against.
+    if (outer.targetGaps.size <= NEAR_COMPLETE_RING_GAPS) return outer;
     const passed = canPieceFillAnyGap(
       state,
       playerId,
