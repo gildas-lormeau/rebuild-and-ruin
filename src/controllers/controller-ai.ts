@@ -266,7 +266,7 @@ export class AiController extends BaseController implements AiAnimatable {
     if (fired) {
       this.cannonRotationIdx = fired.rotationIdx;
       if (result.origin && isAiBattleDiagHookActive()) {
-        emitFireDecisionDiag(result.origin);
+        emitFireDecisionDiag(result.origin, result.pickPath);
       }
     }
     this.brain.battle.onFireResult(this, state, !!fired);

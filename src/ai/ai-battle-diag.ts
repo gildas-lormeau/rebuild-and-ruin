@@ -25,7 +25,35 @@ export type FireOrigin =
   | "focus_fire"
   | "default";
 
-export type AiBattleDiagHook = (event: { origin: FireOrigin }) => void;
+/** Which sub-branch of the standard (non-chain) `pickTarget` produced a fire's
+ *  target tile. Orthogonal to FireOrigin (which only splits focus_fire vs
+ *  default for standard shots) — this resolves WHERE inside pickTarget the
+ *  target came from, so the scatter source can be attributed. The enclosure-
+ *  wall path is split by whether the contiguity bias engaged (`enclosure_contig`
+ *  = picked a wall 4-adjacent to the last one hit) or not (`enclosure_jump` =
+ *  fresh enclosure or no adjacent border wall → a scatter jump). Undefined for
+ *  chain shots (their provenance is the chainType-derived FireOrigin). */
+export type PickPath =
+  | "supply_ship"
+  | "strategic"
+  | "grunt_wall"
+  | "priority_cannon"
+  | "fresh_cannon"
+  | "enclosure_contig"
+  // enclosure path, contiguity bias did NOT engage, split by cause:
+  //   _switch  = a fresh enclosure was picked (anchor invalidated) → the walk
+  //              restarts elsewhere on the fortress (an unavoidable jump).
+  //   _deadend = same enclosure, but no border wall 4-adjacent to the last one
+  //              was available → uniform fallback across the perimeter (a jump
+  //              that a nearest-wall fallback could shrink).
+  | "enclosure_switch"
+  | "enclosure_deadend"
+  | "fallback";
+
+export type AiBattleDiagHook = (event: {
+  origin: FireOrigin;
+  pickPath?: PickPath;
+}) => void;
 
 let diagHook: AiBattleDiagHook | undefined = undefined;
 
@@ -39,8 +67,12 @@ export function isAiBattleDiagHookActive(): boolean {
   return diagHook !== undefined;
 }
 
-/** Emit a fire-decision event with the planner-origin tag. */
-export function emitFireDecisionDiag(origin: FireOrigin): void {
+/** Emit a fire-decision event with the planner-origin tag and (for standard
+ *  shots) the pickTarget sub-branch. */
+export function emitFireDecisionDiag(
+  origin: FireOrigin,
+  pickPath?: PickPath,
+): void {
   if (!diagHook) return;
-  diagHook({ origin });
+  diagHook({ origin, pickPath });
 }

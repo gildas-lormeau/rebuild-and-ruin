@@ -26,12 +26,17 @@ import type {
 } from "../shared/core/system-interfaces.ts";
 import type { ZoneId } from "../shared/core/zone-id.ts";
 import type { Rng } from "../shared/platform/rng.ts";
-import type { FireOrigin } from "./ai-battle-diag.ts";
+import type { FireOrigin, PickPath } from "./ai-battle-diag.ts";
 import type { AiPlacement } from "./ai-build-types.ts";
 import type { ChainType } from "./ai-chain.ts";
 
-/** Pixel position annotated with strategic flag (AI targeting). */
-export type StrategicPixelPos = PixelPos & { strategic?: boolean };
+/** Pixel position annotated with strategic flag (AI targeting). `pickPath`
+ *  is diag-only provenance (which `pickTarget` sub-branch produced it) —
+ *  read by the fire-decision diag, never affects behavior. */
+export type StrategicPixelPos = PixelPos & {
+  strategic?: boolean;
+  pickPath?: PickPath;
+};
 
 /** A single cannon placement decision returned by the AI strategy. */
 export interface CannonPlacement {
@@ -76,6 +81,9 @@ export interface BattleTickResult {
    *  battle-diag hook so observers can tag each fire with its provenance.
    *  Undefined iff `commit` is undefined. */
   readonly origin?: FireOrigin;
+  /** Diag-only: the `pickTarget` sub-branch for a standard (non-chain) fire.
+   *  Undefined for chain shots and when no commit. */
+  readonly pickPath?: PickPath;
 }
 
 /** Per-phase placement context — computed once at phase init. Tracks

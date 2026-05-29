@@ -51,6 +51,7 @@ import {
 } from "../shared/core/spatial.ts";
 import type { BattleViewState } from "../shared/core/system-interfaces.ts";
 import type { Rng } from "../shared/platform/rng.ts";
+import type { PickPath } from "./ai-battle-diag.ts";
 import type { StrategicPixelPos } from "./ai-strategy-types.ts";
 import { traitLookup } from "./ai-utils.ts";
 
@@ -213,7 +214,7 @@ export function pickTarget(
         rng,
       );
       if (shipTarget) {
-        return { x: shipTarget.x, y: shipTarget.y };
+        return { x: shipTarget.x, y: shipTarget.y, pickPath: "supply_ship" };
       }
     }
   }
@@ -242,6 +243,7 @@ export function pickTarget(
         x: jitter.x,
         y: jitter.y,
         strategic: true,
+        pickPath: "strategic",
       };
     }
   }
@@ -265,6 +267,7 @@ export function pickTarget(
       return {
         x: jitter.x,
         y: jitter.y,
+        pickPath: "grunt_wall",
       };
     }
   }
@@ -278,7 +281,10 @@ export function pickTarget(
       currentCol,
       rand,
     );
-    return jitterWithinTile(target.row, target.col, rand);
+    return tagPath(
+      jitterWithinTile(target.row, target.col, rand),
+      "priority_cannon",
+    );
   }
 
   // Fresh cannon targeting — without this, enclosure-wall sieging always wins
@@ -299,30 +305,45 @@ export function pickTarget(
         currentCol,
         rand,
       );
-      return jitterWithinTile(target.row, target.col, rand);
+      return tagPath(
+        jitterWithinTile(target.row, target.col, rand),
+        "fresh_cannon",
+      );
     }
   }
 
-  // Pick a random enclosure of the enemy, then target a wall bordering it.
-  // This distributes fire across the enemy's fortress instead of clustering
-  // near the AI's crosshair (which starts at the AI's own home tower).
-  // `targetMemory` keeps the AI locked onto one enclosure across shots so
-  // it doesn't oscillate between enclosures 10-15 tiles apart.
+  // Pick an enclosure of the enemy, then target a wall bordering it.
+  // `targetMemory` keeps the AI locked onto one enclosure across shots so it
+  // doesn't oscillate; when that lock invalidates (breach / consumed / focus
+  // switch), the switch is biased to the enclosure NEAREST the crosshair so
+  // fire concentrates on one fortress region (breach it fully, then hop to the
+  // next nearest) instead of teleporting across the map.
   const enclosureWall = pickEnclosureWallTarget(
     state,
     playerId,
     focusFirePlayerId,
     switchTarget,
     targetMemory,
+    currentRow,
+    currentCol,
     rand,
   );
-  if (enclosureWall)
-    return jitterWithinTile(enclosureWall.row, enclosureWall.col, rand);
+  if (enclosureWall) {
+    const path: PickPath = enclosureWall.contiguous
+      ? "enclosure_contig"
+      : enclosureWall.reused
+        ? "enclosure_deadend"
+        : "enclosure_switch";
+    return tagPath(
+      jitterWithinTile(enclosureWall.row, enclosureWall.col, rand),
+      path,
+    );
+  }
 
   // Fallback: sweet-spot pick from the flat candidate pool.
   const target = pickSweetSpotTarget(filtered, currentRow, currentCol, rand);
   // Jitter within the target tile (never spill into adjacent tiles)
-  return jitterWithinTile(target.row, target.col, rand);
+  return tagPath(jitterWithinTile(target.row, target.col, rand), "fallback");
 }
 
 export function trackShot(
@@ -521,8 +542,10 @@ function pickEnclosureWallTarget(
   focusFirePlayerId: ValidPlayerId | undefined,
   switchTarget: boolean,
   targetMemory: BattleTargetMemory,
+  refRow: number,
+  refCol: number,
   rand: () => number,
-): TilePos | null {
+): (TilePos & { contiguous: boolean; reused: boolean }) | null {
   // Collect all enclosures across eligible enemies, tagged with their owner.
   type CachedEnclosure = {
     ownerId: ValidPlayerId;
@@ -565,11 +588,18 @@ function pickEnclosureWallTarget(
       }
     }
   }
+  // Diag-only: did we keep the same enclosure as the previous shot (so a
+  // non-contiguous pick is a within-enclosure dead-end, not a switch)?
+  const reused = enclosure !== undefined;
 
   if (enclosure === undefined) {
-    // Pick a random enclosure (uniform — every enclosure equally likely) and
-    // start a fresh contiguous walk.
-    enclosure = allEnclosures[Math.floor(rand() * allEnclosures.length)]!;
+    // The lock invalidated — start a fresh walk on the enclosure NEAREST the
+    // crosshair (ref), so fire concentrates on one fortress region rather than
+    // teleporting to a random far enclosure (the dominant scatter source). A
+    // tiny top-2 random keeps ties / near-equidistant picks from locking
+    // deterministically and consumes one rand draw (parity-stable). Distance
+    // uses each enclosure's centroid — cheap and only computed on a switch.
+    enclosure = pickNearestEnclosure(allEnclosures, refRow, refCol, rand);
     targetMemory.ownerId = enclosure.ownerId;
     targetMemory.anchorTileKey = enclosure.tiles[0];
     targetMemory.lastWallTileKey = undefined;
@@ -607,25 +637,66 @@ function pickEnclosureWallTarget(
     rand,
   );
   targetMemory.lastWallTileKey = packTile(chosen.row, chosen.col);
-  return chosen;
+  return {
+    row: chosen.row,
+    col: chosen.col,
+    contiguous: chosen.contiguous,
+    reused,
+  };
 }
 
 /** Choose a border wall, preferring one cardinally adjacent to `lastKey` to
- *  keep consecutive shots on a contiguous segment; uniform-random otherwise. */
+ *  keep consecutive shots on a contiguous segment; uniform-random otherwise.
+ *  `contiguous` reports whether the adjacency bias actually engaged (a wall
+ *  4-adjacent to the last one was available and chosen) vs falling back to a
+ *  uniform scatter pick — surfaced for the fire-decision diag. */
 function pickContiguousWall(
   borderWalls: readonly TilePos[],
   lastKey: TileKey | undefined,
   rand: () => number,
-): TilePos {
+): TilePos & { contiguous: boolean } {
   if (lastKey !== undefined) {
     const { row: lr, col: lc } = unpackTile(lastKey);
     const adjacent = borderWalls.filter(
       (wall) => Math.abs(wall.row - lr) + Math.abs(wall.col - lc) === 1,
     );
-    if (adjacent.length > 0)
-      return adjacent[Math.floor(rand() * adjacent.length)]!;
+    if (adjacent.length > 0) {
+      const wall = adjacent[Math.floor(rand() * adjacent.length)]!;
+      return { row: wall.row, col: wall.col, contiguous: true };
+    }
   }
-  return borderWalls[Math.floor(rand() * borderWalls.length)]!;
+  const wall = borderWalls[Math.floor(rand() * borderWalls.length)]!;
+  return { row: wall.row, col: wall.col, contiguous: false };
+}
+
+/** Pick the enclosure nearest the reference tile (crosshair), with a top-2
+ *  random tiebreak. Distance is reference→centroid Manhattan; centroid is the
+ *  tile-mean of the component, computed here (only on an enclosure switch).
+ *  Concentrates fire on the closest fortress region instead of a uniform-random
+ *  far jump — the dominant inter-shot scatter source (see pickPath diag). */
+function pickNearestEnclosure<T extends { tiles: TileKey[] }>(
+  enclosures: readonly T[],
+  refRow: number,
+  refCol: number,
+  rand: () => number,
+): T {
+  const scored = enclosures.map((enc) => {
+    let sumRow = 0;
+    let sumCol = 0;
+    for (const key of enc.tiles) {
+      const { row, col } = unpackTile(key);
+      sumRow += row;
+      sumCol += col;
+    }
+    const tileCount = enc.tiles.length;
+    const dist =
+      Math.abs(sumRow / tileCount - refRow) +
+      Math.abs(sumCol / tileCount - refCol);
+    return { enc, dist };
+  });
+  scored.sort((a, b) => a.dist - b.dist);
+  const topCount = Math.min(2, scored.length);
+  return scored[Math.floor(rand() * topCount)]!.enc;
 }
 
 /** Live enclosure components for an enemy — connected interior regions computed
@@ -762,6 +833,12 @@ function pickRandomFromTop<T>(
 ): T {
   const count = Math.min(topCount, items.length);
   return items[Math.floor(rand() * count)]!;
+}
+
+/** Attach a diag-only pickPath tag to a pixel target (provenance for the
+ *  fire-decision diag; never affects behavior). */
+function tagPath(pos: PixelPos, pickPath: PickPath): StrategicPixelPos {
+  return { x: pos.x, y: pos.y, pickPath };
 }
 
 function jitterWithinTile(

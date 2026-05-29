@@ -117,6 +117,32 @@ function printReport(results: readonly SeedMetrics[]): void {
     console.log(`  ${origin.padEnd(14)} ${pct(count, totalShots)}  (${count})`);
   }
 
+  console.log(
+    "\nStandard-shot PICK PATH — pickTarget sub-branch + scatter (mean jump from prior shot, tiles)",
+  );
+  const pickCounts = new Map<string, number>();
+  const pickJumpSum = new Map<string, number>();
+  const pickJumpPairs = new Map<string, number>();
+  for (const row of rows) {
+    for (const [path, count] of Object.entries(row.pickPath)) {
+      pickCounts.set(path, (pickCounts.get(path) ?? 0) + count);
+    }
+    for (const [path, jumpSum] of Object.entries(row.pickPathJumpSum)) {
+      pickJumpSum.set(path, (pickJumpSum.get(path) ?? 0) + jumpSum);
+    }
+    for (const [path, pairs] of Object.entries(row.pickPathJumpPairs)) {
+      pickJumpPairs.set(path, (pickJumpPairs.get(path) ?? 0) + pairs);
+    }
+  }
+  const pickTotal = sum([...pickCounts.values()]);
+  for (const [path, count] of [...pickCounts].sort((a, b) => b[1] - a[1])) {
+    const pairs = pickJumpPairs.get(path) ?? 0;
+    const jump = pairs > 0 ? (pickJumpSum.get(path) ?? 0) / pairs : 0;
+    console.log(
+      `  ${path.padEnd(16)} ${pct(count, pickTotal)}  (${count})  jump=${jump.toFixed(1)}`,
+    );
+  }
+
   console.log("\nOffense / battle (mean over player-battles)");
   meanLine(
     "  enemy walls destroyed",

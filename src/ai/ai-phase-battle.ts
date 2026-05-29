@@ -431,7 +431,10 @@ function tickDwelling(
   }
   const origin: FireOrigin =
     host.strategy.focusFirePlayerId !== undefined ? "focus_fire" : "default";
-  return { commit: intent, origin };
+  // pickPath is the sub-branch of pickTarget that produced the tile we're
+  // firing at — still on crosshairTarget here (overwritten only later in
+  // completeStandardFire's anticipatesTarget pre-pick).
+  return { commit: intent, origin, pickPath: phase.crosshairTarget?.pickPath };
 }
 
 function completeStandardFire(

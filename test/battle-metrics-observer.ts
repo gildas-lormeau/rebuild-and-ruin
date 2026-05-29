@@ -55,6 +55,15 @@ export interface PlayerBattleMetrics {
   outcome: Record<ImpactKind, number>;
   /** AI FireOrigin tag per shot (charity / super_attack / focus_fire / …). */
   origin: Record<string, number>;
+  /** pickTarget sub-branch per standard (non-chain) shot (enclosure_contig /
+   *  enclosure_jump / fresh_cannon / priority_cannon / strategic / …). Resolves
+   *  WHERE the default/focus_fire shots came from — the scatter-source axis. */
+  pickPath: Record<string, number>;
+  /** Sum of inter-shot tile-jump attributed to the CURRENT shot's pickPath, and
+   *  the pair count — mean = how far each sub-branch jumps from the prior shot.
+   *  Isolates which branches scatter (high jump) vs concentrate (low jump). */
+  pickPathJumpSum: Record<string, number>;
+  pickPathJumpPairs: Record<string, number>;
   /** Sum of cannon→target flight distance (px) and flight time (s) over shots
    *  — the distance confound covariate; per-shot avg = sum / shots. */
   flightDistSumPx: number;
@@ -168,6 +177,10 @@ export function createBattleMetricsObserver(): BattleMetricsObserver {
   const firedCannons = new Map<number, Set<number>>();
   /** Last shot's impact tile per shooter — for consecutive-shot concentration. */
   const lastShotTile = new Map<number, { row: number; col: number }>();
+  /** Inter-shot jump computed for the just-fired shot per shooter (undefined if
+   *  it was the first shot). Consumed by the diag hook — which fires right after
+   *  CANNON_FIRED — to attribute the jump to that shot's pickPath. */
+  const lastJump = new Map<number, number | undefined>();
   /** Guards the post-battle interior/enclosure snapshot so only the FIRST
    *  non-BATTLE phase after a battle captures it (pre-repair). */
   let battleEndCaptured = false;
@@ -275,11 +288,15 @@ export function createBattleMetricsObserver(): BattleMetricsObserver {
         // Fire concentration: tile-distance from the previous shot's impact.
         const prev = lastShotTile.get(shooter);
         if (prev) {
-          row.interShotDistSum += Math.hypot(
+          const jump = Math.hypot(
             ev.impactRow - prev.row,
             ev.impactCol - prev.col,
           );
+          row.interShotDistSum += jump;
           row.interShotPairs++;
+          lastJump.set(shooter, jump);
+        } else {
+          lastJump.set(shooter, undefined);
         }
         lastShotTile.set(shooter, { row: ev.impactRow, col: ev.impactCol });
         lastShooter = shooter;
@@ -387,6 +404,16 @@ export function createBattleMetricsObserver(): BattleMetricsObserver {
         const row = current.get(lastShooter);
         if (!row) return;
         row.origin[ev.origin] = (row.origin[ev.origin] ?? 0) + 1;
+        if (ev.pickPath !== undefined) {
+          row.pickPath[ev.pickPath] = (row.pickPath[ev.pickPath] ?? 0) + 1;
+          const jump = lastJump.get(lastShooter);
+          if (jump !== undefined) {
+            row.pickPathJumpSum[ev.pickPath] =
+              (row.pickPathJumpSum[ev.pickPath] ?? 0) + jump;
+            row.pickPathJumpPairs[ev.pickPath] =
+              (row.pickPathJumpPairs[ev.pickPath] ?? 0) + 1;
+          }
+        }
       });
       subscriptions.push(() => setAiBattleDiagHook(undefined));
     },
@@ -410,6 +437,9 @@ function emptyRow(round: number, playerId: number): PlayerBattleMetrics {
     shots: 0,
     outcome,
     origin: {},
+    pickPath: {},
+    pickPathJumpSum: {},
+    pickPathJumpPairs: {},
     flightDistSumPx: 0,
     flightTimeSum: 0,
     enemyWallsDestroyed: 0,
