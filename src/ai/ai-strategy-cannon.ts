@@ -92,6 +92,15 @@ const CORRIDOR_TIGHT_PENALTY = 22;
  *  willing to decline a corridor-creating placement. Below this it still needs
  *  firepower and tolerates the risk; at or above it, refusing costs little. */
 const ABSTAIN_MIN_ENCLOSED = 4;
+/** Scaled corridor penalty (raw × corridorScale) at or above which the AI will
+ *  decline a placement / stop placing. Set to the tight tier so a low-awareness
+ *  AI (corridorScale 0.3) never reaches it and keeps boxing itself in. */
+const ABSTAIN_CORRIDOR_FLOOR = CORRIDOR_TIGHT_PENALTY;
+/** Corridor-penalty multiplier per spatialAwareness tier (1=low … 3=high).
+ *  Tier 2 stays at 1.0 to preserve the validated baseline behavior. */
+const CORRIDOR_SCALE_BY_AWARENESS: readonly [number, number, number] = [
+  0.3, 1.0, 1.3,
+];
 /** Random noise added to each score to break ties unpredictably. */
 const SCORE_NOISE_RANGE = 2;
 /** Minimum cannon slots before the AI considers placing a super gun. */
@@ -202,6 +211,7 @@ export function createCannonPlacementContext(
     noiseScale,
     towerCenters: player.enclosedTowers.map(towerCenter),
     defensiveness,
+    corridorScale: traitLookup(spatialAwareness, CORRIDOR_SCALE_BY_AWARENESS),
     pendingSuperGun,
     pendingRampart,
     pendingBalloon: defensiveness >= 2,
@@ -235,6 +245,7 @@ export function nextCannonPlacement(
         rng,
         ctx.noiseScale,
         ctx.towerCenters,
+        ctx.corridorScale,
       )[0];
       if (best) return { row: best.row, col: best.col, mode: CannonMode.SUPER };
     }
@@ -247,6 +258,7 @@ export function nextCannonPlacement(
     rng,
     ctx.noiseScale,
     ctx.towerCenters,
+    ctx.corridorScale,
   );
   if (normalCandidates.length === 0) return undefined;
 
@@ -264,6 +276,7 @@ export function nextCannonPlacement(
         rng,
         ctx.noiseScale,
         ctx.towerCenters,
+        ctx.corridorScale,
       );
       const position = rampartCandidates[0];
       if (position) {
@@ -305,7 +318,8 @@ export function nextCannonPlacement(
   // stop placing for the round.
   if (
     countEnclosedAliveCannons(player) >= ABSTAIN_MIN_ENCLOSED &&
-    createsCorridor(player, best.row, best.col)
+    corridorPenaltyAt(player, best.row, best.col) * ctx.corridorScale >=
+      ABSTAIN_CORRIDOR_FLOOR
   ) {
     const balloonWorthwhile =
       state.gameMode === GAME_MODE_MODERN &&
@@ -329,6 +343,7 @@ function collectCannonCandidates(
   rng: Rng,
   noiseScale: number,
   towerCenters: readonly TilePos[],
+  corridorScale: number,
 ): CannonCandidate[] {
   const candidates: CannonCandidate[] = [];
   for (const key of getInterior(player)) {
@@ -346,6 +361,7 @@ function collectCannonCandidates(
         rng,
         noiseScale,
         towerCenters,
+        corridorScale,
       ),
     });
   }
@@ -367,6 +383,7 @@ function scoreCannonPosition(
   rng: Rng,
   noiseScale: number,
   towerCenters: readonly TilePos[],
+  corridorScale: number,
 ): number {
   const size = cannonSize(mode);
   let score = 0;
@@ -421,9 +438,12 @@ function scoreCannonPosition(
   }
 
   // Balloons are removed before WALL_BUILD (phase-setup cleanup), so their
-  // footprint can never trap a future enclosure repair — exempt them.
+  // footprint can never trap a future enclosure repair — exempt them. The
+  // penalty is scaled by spatialAwareness (corridorScale): unaware AIs barely
+  // notice corridors and box themselves in.
   if (mode !== CannonMode.BALLOON) {
-    score += corridorPenalty(player, cannonTiles, occupied, interior);
+    score +=
+      corridorPenalty(player, cannonTiles, occupied, interior) * corridorScale;
   }
 
   score += rng.next() * SCORE_NOISE_RANGE * noiseScale;
@@ -431,16 +451,16 @@ function scoreCannonPosition(
   return -score;
 }
 
-/** True if placing a NORMAL cannon at (row,col) would seal a perimeter wall
- *  into a corridor (see `corridorPenalty`). Cheap single-position check used by
- *  the abstain decision. */
-function createsCorridor(player: Player, row: number, col: number): boolean {
+/** Raw (unscaled) corridor penalty for placing a NORMAL cannon at (row,col)
+ *  — see `corridorPenalty`. Cheap single-position check used by the abstain
+ *  decision, which scales it by the player's corridorScale. */
+function corridorPenaltyAt(player: Player, row: number, col: number): number {
   const footprint = computeCannonTileSet({ row, col, mode: CannonMode.NORMAL });
   const occupied = new Set(footprint);
   for (const cannon of player.cannons) {
     for (const key of computeCannonTileSet(cannon)) occupied.add(key);
   }
-  return corridorPenalty(player, footprint, occupied, getInterior(player)) > 0;
+  return corridorPenalty(player, footprint, occupied, getInterior(player));
 }
 
 /** Penalty for sealing a perimeter wall against this cannon. For each of the

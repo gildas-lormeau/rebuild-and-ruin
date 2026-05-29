@@ -86,6 +86,10 @@ export interface CannonPlacementContext {
   readonly noiseScale: number;
   readonly towerCenters: readonly TilePos[];
   readonly defensiveness: number;
+  /** Multiplier on the corridor (enclosure-clearance) penalty, derived from
+   *  spatialAwareness: low-awareness AIs barely perceive self-boxing and will
+   *  seal cannons into unrepairable corridors; high-awareness AIs avoid it. */
+  readonly corridorScale: number;
   /** Each flag is consumed (flipped to false) the first time we attempt
    *  that special placement, success or skip. "Pending" means we still
    *  owe the attempt — `nextCannonPlacement` handles one attempt per call
