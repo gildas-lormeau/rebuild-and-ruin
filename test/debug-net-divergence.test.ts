@@ -9,12 +9,11 @@
 // procedural-texture.ts goes from "undefined document → return undefined"
 // to "stub document → call canvas.getContext (which doesn't exist)".
 
-import { createScenario as _, type Scenario } from "./scenario.ts";
+import { createScenario as _ } from "./scenario.ts";
 import "./test-globals.ts";
 import { GAME_EVENT } from "../src/shared/core/game-event-bus.ts";
 import type { GameState } from "../src/shared/core/types.ts";
-import { Mode } from "../src/shared/ui/ui-mode.ts";
-import { createNetworkedPair } from "./network-setup.ts";
+import { createNetworkedPair, runNetworkedToEnd } from "./network-setup.ts";
 
 interface Snap {
   readonly round: number;
@@ -216,24 +215,4 @@ function diff(a: Snap, b: Snap): string[] {
     out.push(`grunts.length: ${a.grunts.length} vs ${b.grunts.length}`);
   }
   return out;
-}
-
-async function runNetworkedToEnd(
-  host: Scenario,
-  watcher: Scenario,
-  pump: () => Promise<void>,
-  maxSteps = 60_000,
-): Promise<void> {
-  for (let step = 0; step < maxSteps; step++) {
-    host.tick(1);
-    await pump();
-    watcher.tick(1);
-    if (host.mode() === Mode.STOPPED && watcher.mode() === Mode.STOPPED) {
-      return;
-    }
-  }
-  throw new Error(
-    `lockstep did not reach STOPPED within ${maxSteps} steps ` +
-      `(host=${host.mode()} watcher=${watcher.mode()})`,
-  );
 }

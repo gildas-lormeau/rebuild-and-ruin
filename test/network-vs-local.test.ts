@@ -32,7 +32,7 @@
 
 import { assert, assertEquals } from "@std/assert";
 import { createScenario, type Scenario } from "./scenario.ts";
-import { createNetworkedPair } from "./network-setup.ts";
+import { createNetworkedPair, runNetworkedToEnd } from "./network-setup.ts";
 import { Mode } from "../src/shared/ui/ui-mode.ts";
 import type { ValidPlayerId } from "../src/shared/core/player-slot.ts";
 import type { PieceShape } from "../src/shared/core/pieces.ts";
@@ -279,27 +279,6 @@ for (const stress of ASSISTED_STRESS) {
       assertStateConverges(hostSnap, localSnap, "host vs local");
       assertStateConverges(watcherSnap, hostSnap, "watcher vs host");
     },
-  );
-}
-
-/** Run the host + watcher in lockstep until both reach STOPPED. */
-async function runNetworkedToEnd(
-  host: Scenario,
-  watcher: Scenario,
-  pump: () => Promise<void>,
-  maxSteps = 60_000,
-): Promise<void> {
-  for (let step = 0; step < maxSteps; step++) {
-    host.tick(1);
-    await pump();
-    watcher.tick(1);
-    if (host.mode() === Mode.STOPPED && watcher.mode() === Mode.STOPPED) {
-      return;
-    }
-  }
-  throw new Error(
-    `lockstep run did not reach STOPPED within ${maxSteps} steps ` +
-      `(host=${host.mode()} watcher=${watcher.mode()})`,
   );
 }
 

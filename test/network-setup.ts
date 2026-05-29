@@ -49,6 +49,7 @@ import {
 } from "../src/online/online-presence-state.ts";
 import type { ValidPlayerId } from "../src/shared/core/player-slot.ts";
 import type { OnlinePhaseTicks } from "../src/runtime/types.ts";
+import { Mode } from "../src/shared/ui/ui-mode.ts";
 import {
   createHeadlessRuntime,
   type HeadlessRuntime,
@@ -214,6 +215,36 @@ export async function createBidirectionalNetworkedPair(
     watcher: watcherBuild.scenario,
     pump,
   };
+}
+
+/** Drive a host + watcher pair in lockstep until both reach STOPPED, using
+ *  the one-way `host.tick → pump → watcher.tick` cadence: the host steps and
+ *  sends, `pump` delivers the wire message, then the watcher steps consuming
+ *  it. Models one-directional host→watcher flow (only the host drives
+ *  assisted slots). Throws if STOPPED isn't reached within `maxSteps`.
+ *
+ *  NOTE: the bidirectional gate uses a DIFFERENT cadence — both peers tick
+ *  before the pump (see `runBidirectionalToEnd` in
+ *  network-bidirectional.test.ts). Don't fold the two together: the cadence
+ *  is the parity model under test. */
+export async function runNetworkedToEnd(
+  host: Scenario,
+  watcher: Scenario,
+  pump: () => Promise<void>,
+  maxSteps = 60_000,
+): Promise<void> {
+  for (let step = 0; step < maxSteps; step++) {
+    host.tick(1);
+    await pump();
+    watcher.tick(1);
+    if (host.mode() === Mode.STOPPED && watcher.mode() === Mode.STOPPED) {
+      return;
+    }
+  }
+  throw new Error(
+    `lockstep did not reach STOPPED within ${maxSteps} steps ` +
+      `(host=${host.mode()} watcher=${watcher.mode()})`,
+  );
 }
 
 async function buildHostRuntime(opts: ScenarioOptions): Promise<RuntimeBuild> {
