@@ -19,17 +19,24 @@ import {
 import {
   computeCardinalObstacleMask,
   filterActiveEnemies,
-  getBattleInterior,
 } from "../shared/core/board-occupancy.ts";
 import type {
   CannonIdx,
   PixelPos,
   TilePos,
 } from "../shared/core/geometry-types.ts";
-import { TILE_SIZE, type TileKey } from "../shared/core/grid.ts";
+import {
+  GRID_COLS,
+  GRID_ROWS,
+  TILE_SIZE,
+  type TileKey,
+} from "../shared/core/grid.ts";
 import { isCannonCapturedBy } from "../shared/core/occupancy-queries.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
-import { isPlayerEliminated } from "../shared/core/player-types.ts";
+import {
+  isPlayerEliminated,
+  type Player,
+} from "../shared/core/player-types.ts";
 import {
   cannonSize,
   computeOutside,
@@ -59,6 +66,10 @@ type TargetCandidate = TilePos & {
 export type BattleTargetMemory = {
   ownerId: ValidPlayerId | undefined;
   anchorTileKey: TileKey | undefined;
+  /** Last enclosure-wall tile this player aimed at — so consecutive shots
+   *  walk along one contiguous segment (concentrate into a breach) instead
+   *  of scattering across the enclosure perimeter. Reset on enclosure switch. */
+  lastWallTileKey: TileKey | undefined;
 };
 
 /** Packed `(playerId, cannonIdx)` key for the per-cannon shot counter map.
@@ -87,6 +98,23 @@ const TOP_TARGET_PICK_COUNT = 3;
 const SWEET_SPOT_MIN_DISTANCE = 0;
 /** Width of the preferred distance band (sweet spot = min .. min + range). */
 const SWEET_SPOT_DISTANCE_RANGE = 5;
+/** Shared, AI-local cache of LIVE enclosure components per enemy player. The
+ *  live interior (flood-fill from CURRENT walls) is identical for every AI that
+ *  targets a given enemy — it's a pure function of that enemy's walls — so it's
+ *  computed once and reused across all AI controllers (they import this module).
+ *
+ *  Versioned by `player.walls.size`: during a battle walls are delete-only
+ *  (cannonballs/grunts/modifiers destroy; nothing places until the next build),
+ *  so size strictly decreases and the single cache entry — overwritten on every
+ *  miss — can never serve a stale topology (a new battle's larger post-build
+ *  size forces a miss that overwrites the prior entry before it could shrink
+ *  back). Read-only and never written to `player.interior`, so the frozen
+ *  battle interior that drives rendering and fire-eligibility is untouched.
+ *  Pure function of synced walls → identical on every peer, no wire payload. */
+const liveEnclosureCache = new WeakMap<
+  Player,
+  { wallCount: number; components: TileKey[][] }
+>();
 /** Pockets smaller than this are worth destroying — can't fit a 2×2 cannon.
  *  Distinct from DESTROY_POCKET_MAX_SIZE (build scoring) which is higher (9)
  *  because build prevention is stricter than battle destruction. Exported
@@ -477,12 +505,16 @@ function shotCountKey(playerId: ValidPlayerId, cannonIdx: CannonIdx): ShotKey {
   return ((playerId << 16) | cannonIdx) as ShotKey;
 }
 
-/** Pick an enclosure of an eligible enemy, then return a random wall
- *  bordering it (skipping tiles already targeted by in-flight cannonballs).
- *  Reuses the cached enclosure from `targetMemory` if its anchor tile is
- *  still interior to an eligible enemy; otherwise picks a new random
- *  enclosure and updates the memory. Returns null when no enclosure has
- *  untargeted border walls. */
+/** Pick an enclosure of an eligible enemy, then return a wall bordering it.
+ *  Uses a LIVE enclosure view (`liveEnclosuresOf`, recomputed from current
+ *  walls) rather than the frozen battle interior — so an enclosure already
+ *  breached this battle drops out and the AI redirects fire to a still-intact
+ *  tower's enclosure instead of poking an open hole. Reuses the cached
+ *  enclosure from `targetMemory` while its anchor tile is still enclosed;
+ *  otherwise picks a new random one. Within an enclosure, prefers a border
+ *  wall adjacent to the last one hit (`lastWallTileKey`) so consecutive shots
+ *  walk one contiguous segment into a breach instead of scattering. Returns
+ *  null when no enclosure has untargeted border walls. */
 function pickEnclosureWallTarget(
   state: BattleViewState,
   playerId: ValidPlayerId,
@@ -491,7 +523,7 @@ function pickEnclosureWallTarget(
   targetMemory: BattleTargetMemory,
   rand: () => number,
 ): TilePos | null {
-  // Collect all enclosures across eligible enemies, tagged with their owner
+  // Collect all enclosures across eligible enemies, tagged with their owner.
   type CachedEnclosure = {
     ownerId: ValidPlayerId;
     walls: ReadonlySet<TileKey>;
@@ -501,10 +533,8 @@ function pickEnclosureWallTarget(
   for (const other of filterActiveEnemies(state, playerId)) {
     if (!isEnemyEligibleForFocus(other.id, focusFirePlayerId, switchTarget))
       continue;
-    const interior = getBattleInterior(other);
-    if (interior.size === 0) continue;
-    const components = findEnclosureComponents(interior);
-    for (const comp of components) {
+    // Live (shared, cached) enclosure components — breached ones are absent.
+    for (const comp of liveEnclosuresOf(other)) {
       allEnclosures.push({
         ownerId: other.id,
         walls: other.walls,
@@ -515,11 +545,14 @@ function pickEnclosureWallTarget(
   if (allEnclosures.length === 0) {
     targetMemory.ownerId = undefined;
     targetMemory.anchorTileKey = undefined;
+    targetMemory.lastWallTileKey = undefined;
     return null;
   }
 
   // Try to reuse the cached enclosure: find the component that still contains
   // the anchor tile (owner must match too, so focus-fire switches re-pick).
+  // With the live view this also self-invalidates on breach — a de-flooded
+  // enclosure no longer contains its anchor, forcing a redirect.
   let enclosure: CachedEnclosure | undefined;
   if (targetMemory.anchorTileKey !== undefined) {
     const anchor = targetMemory.anchorTileKey;
@@ -534,10 +567,12 @@ function pickEnclosureWallTarget(
   }
 
   if (enclosure === undefined) {
-    // Pick a random enclosure (uniform — every enclosure equally likely)
+    // Pick a random enclosure (uniform — every enclosure equally likely) and
+    // start a fresh contiguous walk.
     enclosure = allEnclosures[Math.floor(rand() * allEnclosures.length)]!;
     targetMemory.ownerId = enclosure.ownerId;
     targetMemory.anchorTileKey = enclosure.tiles[0];
+    targetMemory.lastWallTileKey = undefined;
   }
 
   // Find walls bordering this enclosure (4-dir adjacent to an enclosure tile).
@@ -562,7 +597,47 @@ function pickEnclosureWallTarget(
     }
   }
   if (borderWalls.length === 0) return null;
+
+  // Contiguity bias: prefer a border wall 4-adjacent to the last one hit, so
+  // fire concentrates along one segment (deeper breach, cheaper crosshair
+  // travel, tighter combo streaks). Fall back to a uniform pick.
+  const chosen = pickContiguousWall(
+    borderWalls,
+    targetMemory.lastWallTileKey,
+    rand,
+  );
+  targetMemory.lastWallTileKey = packTile(chosen.row, chosen.col);
+  return chosen;
+}
+
+/** Choose a border wall, preferring one cardinally adjacent to `lastKey` to
+ *  keep consecutive shots on a contiguous segment; uniform-random otherwise. */
+function pickContiguousWall(
+  borderWalls: readonly TilePos[],
+  lastKey: TileKey | undefined,
+  rand: () => number,
+): TilePos {
+  if (lastKey !== undefined) {
+    const { row: lr, col: lc } = unpackTile(lastKey);
+    const adjacent = borderWalls.filter(
+      (wall) => Math.abs(wall.row - lr) + Math.abs(wall.col - lc) === 1,
+    );
+    if (adjacent.length > 0)
+      return adjacent[Math.floor(rand() * adjacent.length)]!;
+  }
   return borderWalls[Math.floor(rand() * borderWalls.length)]!;
+}
+
+/** Live enclosure components for an enemy — connected interior regions computed
+ *  from the enemy's CURRENT walls (not the frozen battle snapshot). Cached and
+ *  shared; recomputed only when the enemy's wall count changes. */
+function liveEnclosuresOf(enemy: Player): TileKey[][] {
+  const hit = liveEnclosureCache.get(enemy);
+  if (hit !== undefined && hit.wallCount === enemy.walls.size)
+    return hit.components;
+  const components = findEnclosureComponents(computeLiveInterior(enemy.walls));
+  liveEnclosureCache.set(enemy, { wallCount: enemy.walls.size, components });
+  return components;
 }
 
 /** Find connected components of a tile set using 4-dir connectivity. */
@@ -591,6 +666,21 @@ export function findEnclosureComponents(
     components.push(component);
   }
   return components;
+}
+
+/** Inverse flood-fill interior from a wall set — mirrors `recomputeInterior`
+ *  in build-system (grass not reachable from a map edge through non-wall tiles
+ *  is interior), but reads the CURRENT walls so breaches are reflected live. */
+function computeLiveInterior(walls: ReadonlySet<TileKey>): Set<TileKey> {
+  const outside = computeOutside(walls);
+  const interior = new Set<TileKey>();
+  for (let row = 0; row < GRID_ROWS; row++) {
+    for (let col = 0; col < GRID_COLS; col++) {
+      const key = packTile(row, col);
+      if (!outside.has(key) && !walls.has(key)) interior.add(key);
+    }
+  }
+  return interior;
 }
 
 /** True if any cannonball in flight is targeting (row, col). */

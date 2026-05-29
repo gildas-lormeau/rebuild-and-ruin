@@ -88,6 +88,7 @@ export class DefaultStrategy implements AiStrategy {
   private battleTargetMemory: BattleTargetMemory = {
     ownerId: undefined,
     anchorTileKey: undefined,
+    lastWallTileKey: undefined,
   };
   /** Whether home tower was not enclosed at the end of last build phase. */
   private _homeWasBroken = false;
@@ -431,6 +432,7 @@ export class DefaultStrategy implements AiStrategy {
     this._homeWasBroken = false;
     this.battleTargetMemory.ownerId = undefined;
     this.battleTargetMemory.anchorTileKey = undefined;
+    this.battleTargetMemory.lastWallTileKey = undefined;
   }
 
   reset(): void {
