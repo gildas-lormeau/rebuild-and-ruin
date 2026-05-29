@@ -54,6 +54,39 @@ interface Args {
 }
 
 const PLAYER_NAMES = ["RED", "BLUE", "GOLD"] as const;
+const HELP_TEXT = `Capture an ASCII snapshot of the board at a specific (seed, round, phase,
+moment), optionally cropped to one player's footprint.
+
+Usage:
+  npm run snapshot -- --seed N --round N --phase PHASE [options]
+  deno run -A scripts/snapshot.ts --seed N --round N --phase PHASE [options]
+
+Options:
+  --seed N               Seed to play (REQUIRED).
+  --round N              Watch target round (REQUIRED). Does NOT change game
+                         state.
+  --phase PHASE          Target phase (REQUIRED). One of:
+                         CASTLE_SELECT | CANNON_PLACE | MODIFIER_REVEAL |
+                         BATTLE | UPGRADE_PICK | WALL_BUILD.
+  --mode classic|modern  Game mode (default: modern).
+  --match-rounds M       Match-length cap (state.maxRounds). 0 = to-the-death
+                         (default: 0).
+  --moment start|end     start (default, at PHASE_START) | end (just after the
+                         phase exits).
+  --at SECONDS           Sim-seconds elapsed since the phase's PHASE_START.
+                         Overrides --moment. Errors if the phase exits first.
+  --player RED|BLUE|GOLD Highlight that player and crop the ASCII to their
+                         footprint.
+  --help, -h             Show this help and exit.
+
+Conditional phases (MODIFIER_REVEAL, UPGRADE_PICK) don't fire every round;
+asking for one in a round that doesn't have it will time out.
+
+Examples:
+  npm run snapshot -- --seed 1000000 --round 20 --phase WALL_BUILD
+  npm run snapshot -- --seed 42 --round 5 --phase BATTLE --moment end --player BLUE
+  npm run snapshot -- --seed 1000000 --mode classic --round 3 --phase CANNON_PLACE
+  npm run snapshot -- --seed 42 --round 5 --phase BATTLE --at 3.5`;
 
 await main();
 
@@ -305,7 +338,10 @@ function parseArgs(): Args {
   let player: 0 | 1 | 2 | undefined;
   for (let i = 0; i < argv.length; i++) {
     const flag = argv[i];
-    if (flag === "--seed") seed = Number(argv[++i]);
+    if (flag === "--help" || flag === "-h") {
+      console.log(HELP_TEXT);
+      Deno.exit(0);
+    } else if (flag === "--seed") seed = Number(argv[++i]);
     else if (flag === "--mode") {
       const value = argv[++i];
       if (value !== "classic" && value !== "modern") {

@@ -50,6 +50,31 @@ interface Args {
 }
 
 const PLAYER_NAMES = ["RED", "BLUE", "GOLD"] as const;
+const HELP_TEXT = `Watch a game: run a seed end-to-end and print an event narrative, optionally
+with a build-phase trace for one specific player/round.
+
+Usage:
+  deno run -A scripts/watch-game.ts --seed N [options]
+  npm run watch-game -- --seed N [options]
+
+Options:
+  --seed N               Seed to play (REQUIRED).
+  --mode classic|modern  Game mode (default: modern).
+  --rounds N             Watch budget — stop observing after round N closes
+                         (default: 3). Does NOT change game state.
+  --match-rounds M       Match-length cap (state.maxRounds). 0 = to-the-death
+                         (default: 0). Use to constrain match length explicitly.
+  --round N              Filter the printed narrative to a single round.
+  --build-trace ROUND PLAYER
+                         Capture the AI's per-placement build decisions for one
+                         player one round. PLAYER in RED|BLUE|GOLD.
+  --help, -h             Show this help and exit.
+
+Examples:
+  deno run -A scripts/watch-game.ts --seed 42
+  deno run -A scripts/watch-game.ts --seed 42 --mode classic --rounds 10
+  deno run -A scripts/watch-game.ts --seed 42 --round 3
+  deno run -A scripts/watch-game.ts --seed 555555 --build-trace 26 GOLD`;
 
 await main();
 
@@ -190,7 +215,10 @@ function parseArgs(): Args {
   let buildTrace: { round: number; playerId: 0 | 1 | 2 } | undefined;
   for (let i = 0; i < argv.length; i++) {
     const flag = argv[i];
-    if (flag === "--seed") seed = Number(argv[++i]);
+    if (flag === "--help" || flag === "-h") {
+      console.log(HELP_TEXT);
+      Deno.exit(0);
+    } else if (flag === "--seed") seed = Number(argv[++i]);
     else if (flag === "--mode") {
       const value = argv[++i];
       if (value !== "classic" && value !== "modern") {
