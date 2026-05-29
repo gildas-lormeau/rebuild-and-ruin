@@ -11,23 +11,47 @@
  *   deno run -A scripts/battle-metrics.ts --seeds 1,2,3 --rounds 20
  *   deno run -A scripts/battle-metrics.ts --random 20 --mode classic
  *   deno run -A scripts/battle-metrics.ts --master-seed 42     # reproducible draw
+ *   deno run -A scripts/battle-metrics.ts --by-archetype       # segment by AI archetype
  *   deno run -A scripts/battle-metrics.ts --json
  *
  * Pool + arg plumbing is shared via scripts/seed-pool.ts.
  */
 
+import type { PlayerBattleMetrics } from "../test/battle-metrics-observer.ts";
 import { IMPACT } from "../test/impact-classify.ts";
-import type { SeedMetrics } from "./battle-metrics-runner.ts";
+import type {
+  PlayerGameMetrics,
+  SeedMetrics,
+} from "./battle-metrics-runner.ts";
 import type { WorkerRequest } from "./battle-metrics-worker.ts";
 import { parseSeedPoolArgs, poolSizeFor, runWorkerPool } from "./seed-pool.ts";
+
+interface ArchetypeGroup {
+  rows: PlayerBattleMetrics[];
+  players: PlayerGameMetrics[];
+}
+
+/** Fixed column order (NOT a skill ranking — read final score/lives for the
+ *  actual competitive standing, which is data-dependent). Only archetypes
+ *  actually present in the run are shown. */
+const ARCHETYPE_ORDER = [
+  "tactician",
+  "builder",
+  "balanced",
+  "aggressive",
+  "chaotic",
+] as const;
 
 await main();
 
 async function main(): Promise<void> {
   const args = parseSeedPoolArgs(
     "Battle metrics — tracks AI battle-phase firing metrics (no scoring).\n" +
-      "  deno run -A scripts/battle-metrics.ts [flags]   (or: npm run battle-metrics -- [flags])",
+      "  deno run -A scripts/battle-metrics.ts [flags]   (or: npm run battle-metrics -- [flags])\n" +
+      "  extra flag: --by-archetype  segment the report by AI personality archetype",
   );
+  // battle-metrics-local boolean flag; the shared parser ignores unknown args.
+  const byArchetype = Deno.args.includes("--by-archetype");
   if (!args.json) {
     console.log(
       `Battle metrics — ${args.seeds.length} seeds × ${args.rounds} rounds × 3 players, mode=${args.mode}`,
@@ -68,6 +92,7 @@ async function main(): Promise<void> {
     return;
   }
   printReport(results);
+  if (byArchetype) printByArchetype(results);
   console.log(`\nElapsed: ${elapsedSec.toFixed(1)}s`);
 }
 
@@ -305,6 +330,133 @@ function printReport(results: readonly SeedMetrics[]): void {
   console.log("─".repeat(72));
 }
 
+/** Per-archetype breakdown of the key axes — the population mean blends
+ *  deliberately-uneven trait tiers, so this segments by play style. Which
+ *  archetype leads on which axis is data-dependent (e.g. measured runs show
+ *  cannons-killed tracks battleTactics, while raw walls-destroyed and score
+ *  can favor the fast-spray chaotic profile) — read the columns, don't assume
+ *  an a-priori strong/weak ordering. */
+function printByArchetype(results: readonly SeedMetrics[]): void {
+  const groups = new Map<string, ArchetypeGroup>();
+  for (const result of results) {
+    for (const row of result.battles) {
+      const archetype = result.archetypes[row.playerId];
+      if (archetype === undefined) continue;
+      getGroup(groups, archetype).rows.push(row);
+    }
+    for (const player of result.players) {
+      const archetype = result.archetypes[player.playerId];
+      if (archetype === undefined) continue;
+      getGroup(groups, archetype).players.push(player);
+    }
+  }
+  const present = ARCHETYPE_ORDER.filter((a) => groups.has(a));
+  if (present.length === 0) return;
+
+  console.log("\n");
+  console.log("═".repeat(72));
+  console.log("PER-ARCHETYPE breakdown (fixed order — score/lives = standing)");
+  console.log("═".repeat(72));
+
+  const metrics: Array<[string, (group: ArchetypeGroup) => string]> = [
+    ["battles (n)", (g) => `${g.rows.length}`],
+    ["games (n)", (g) => `${g.players.length}`],
+    [
+      "enclosure-gated",
+      (g) =>
+        pct(
+          sum(
+            g.rows.map((r) => r.ownedCannonsAtStart - r.usableCannonsAtStart),
+          ),
+          sum(g.rows.map((r) => r.ownedCannonsAtStart)),
+        ).trim(),
+    ],
+    [
+      "utilization",
+      (g) =>
+        pct(
+          sum(g.rows.map((r) => r.distinctCannonsFired)),
+          sum(g.rows.map((r) => r.usableCannonsAtStart)),
+        ).trim(),
+    ],
+    [
+      "inter-shot tiles",
+      (g) =>
+        avgRatio(
+          g.rows.map((r) => r.interShotDistSum),
+          g.rows.map((r) => r.interShotPairs),
+        ),
+    ],
+    [
+      "walls destroyed",
+      (g) => mean(g.rows.map((r) => r.enemyWallsDestroyed)).toFixed(2),
+    ],
+    [
+      "cannons killed",
+      (g) => mean(g.rows.map((r) => r.enemyCannonsKilled)).toFixed(2),
+    ],
+    [
+      "interior lost",
+      (g) =>
+        mean(
+          g.rows.map((r) => Math.max(0, r.interiorAtStart - r.interiorAtEnd)),
+        ).toFixed(1),
+    ],
+    [
+      "towers de-encl",
+      (g) =>
+        mean(
+          g.rows.map((r) =>
+            Math.max(0, r.enclosedTowersAtStart - r.enclosedTowersAtEnd),
+          ),
+        ).toFixed(2),
+    ],
+    [
+      "breach %",
+      (g) =>
+        pct(
+          g.rows.filter((r) => r.interiorAtStart - r.interiorAtEnd > 0).length,
+          g.rows.length,
+        ).trim(),
+    ],
+    [
+      "repair frac",
+      (g) =>
+        pct(
+          sum(g.rows.map((r) => r.repairTilesPlaced)),
+          sum(g.rows.map((r) => r.repairTilesPlaced + r.expansionTilesPlaced)),
+        ).trim(),
+    ],
+    ["final score", (g) => mean(g.players.map((p) => p.finalScore)).toFixed(0)],
+    ["final lives", (g) => mean(g.players.map((p) => p.finalLives)).toFixed(2)],
+  ];
+
+  const colWidth = 12;
+  const header = [
+    "metric".padEnd(18),
+    ...present.map((a) => a.padStart(colWidth)),
+  ];
+  console.log(header.join(""));
+  console.log("─".repeat(18 + present.length * colWidth));
+  for (const [label, fn] of metrics) {
+    const cells = present.map((a) => fn(groups.get(a)!).padStart(colWidth));
+    console.log(label.padEnd(18) + cells.join(""));
+  }
+  console.log("═".repeat(72));
+}
+
+function getGroup(
+  groups: Map<string, ArchetypeGroup>,
+  archetype: string,
+): ArchetypeGroup {
+  let group = groups.get(archetype);
+  if (!group) {
+    group = { rows: [], players: [] };
+    groups.set(archetype, group);
+  }
+  return group;
+}
+
 function meanLine(label: string, values: readonly number[]): void {
   const stats = describe(values);
   console.log(
@@ -321,12 +473,6 @@ function pct(count: number, total: number): string {
 function avgRatio(num: readonly number[], den: readonly number[]): string {
   const d = sum(den);
   return (d > 0 ? sum(num) / d : 0).toFixed(1);
-}
-
-function sum(values: readonly number[]): number {
-  let total = 0;
-  for (const value of values) total += value;
-  return total;
 }
 
 function describe(values: readonly number[]): {
@@ -347,4 +493,14 @@ function describe(values: readonly number[]): {
   let sqSum = 0;
   for (const value of values) sqSum += (value - mean) * (value - mean);
   return { mean, std: Math.sqrt(sqSum / Math.max(1, n - 1)), max, n };
+}
+
+function mean(values: readonly number[]): number {
+  return values.length === 0 ? 0 : sum(values) / values.length;
+}
+
+function sum(values: readonly number[]): number {
+  let total = 0;
+  for (const value of values) total += value;
+  return total;
 }

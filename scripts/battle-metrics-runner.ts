@@ -23,6 +23,10 @@ export interface SeedMetrics {
   seed: number;
   battles: PlayerBattleMetrics[];
   players: PlayerGameMetrics[];
+  /** Rolled AI archetype per playerId for this game — lets the report segment
+   *  rows by play style (join via `archetypes[row.playerId]`). `undefined` for
+   *  any non-AI slot. */
+  archetypes: (string | undefined)[];
 }
 
 export async function runSeed(
@@ -65,6 +69,7 @@ export async function runSeed(
   }
 
   const battles = [...observer.battles];
+  const archetypes = [...sc.aiArchetypes()];
   observer.detach();
-  return { seed, battles, players };
+  return { seed, battles, players, archetypes };
 }

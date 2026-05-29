@@ -39,7 +39,9 @@
 // HTMLInputElement` without throwing in Deno.
 
 import "./test-globals.ts";
+import type { AiStrategy } from "../src/ai/ai-strategy-types.ts";
 import { createCanvasRenderer } from "../src/render/render-canvas.ts";
+import type { ArchetypeId } from "../src/shared/core/ai-personality.ts";
 import { SCALE, TILE_SIZE } from "../src/shared/core/grid.ts";
 import type { RenderOverlay } from "../src/shared/ui/overlay-types.ts";
 import type {
@@ -243,6 +245,12 @@ export interface Scenario extends Disposable {
      *  behaviour call it directly after `createScenario`. */
     enableMobileZoom: () => void;
   };
+  /** Rolled AI archetype per player slot, indexed by playerId (`undefined`
+   *  for human-driven or not-yet-constructed slots). Read from each slot's
+   *  controller strategy — observational only. Lets metrics/diagnostics
+   *  segment results by AI play style (archetype trait ranges are
+   *  intentionally uneven, so a pool mean blends distinct skill tiers). */
+  readonly aiArchetypes: () => readonly (ArchetypeId | undefined)[];
   /** Start a fresh game on the same runtime — production-equivalent to the
    *  rematch button on the game-over screen. Installs a new `state` (with
    *  a new `state.bus`) via `bootstrapGame`, which in turn re-runs the
@@ -460,6 +468,14 @@ export function wrapHeadless(
       isMobileAutoZoom: headless.runtime.camera.isMobileAutoZoom,
       enableMobileZoom: headless.runtime.camera.enableMobileZoom,
     },
+    aiArchetypes: () =>
+      headless.runtime.runtimeState.controllers.map((controller) => {
+        // Duck-typed: only AI controllers carry a strategy (with archetype);
+        // human controllers don't. Read-only, never mutated.
+        const strategy = (controller as Partial<{ strategy: AiStrategy }>)
+          .strategy;
+        return strategy?.archetype;
+      }),
     rematch: async () => {
       await headless.runtime.lifecycle.rematch();
     },

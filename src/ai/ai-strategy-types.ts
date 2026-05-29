@@ -4,6 +4,7 @@
  * interface without pulling in DefaultStrategy or its implementation tree.
  */
 
+import type { ArchetypeId } from "../shared/core/ai-personality.ts";
 import type { CannonMode } from "../shared/core/battle-types.ts";
 import type {
   GameMap,
@@ -177,6 +178,11 @@ export interface BattleHost {
 export interface AiStrategy {
   /** Seeded PRNG for reproducible AI behavior. */
   readonly rng: Rng;
+
+  /** This AI's rolled personality archetype — read by diagnostics/metrics to
+   *  segment results by play style (the trait ranges are intentionally uneven
+   *  per archetype, so a pool mean blends distinct skill tiers). */
+  readonly archetype: ArchetypeId;
 
   /** Current focus-fire target — set by `planBattle` at battle start when
    *  the FOCUS_FIRE_PROBABILITY roll succeeds, cleared otherwise. Read by
