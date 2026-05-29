@@ -101,6 +101,18 @@ const ABSTAIN_CORRIDOR_FLOOR = CORRIDOR_TIGHT_PENALTY;
 const CORRIDOR_SCALE_BY_AWARENESS: readonly [number, number, number] = [
   0.3, 1.0, 1.3,
 ];
+/** Two enclosed towers this close (Manhattan, top-left corners) would have
+ *  their cannon clusters merge into a solid wall, sealing off the seam where a
+ *  future divider could split the enclosure into per-tower compartments. We
+ *  reserve one clear lane between such pairs. */
+const SEAM_PAIR_MAX_DIST = 12;
+/** Minimum tower separation (along the divider axis) for a divider lane to fit
+ *  between them — towers are 2 wide, so need ≥1 free column/row in the gap. */
+const SEAM_MIN_SEPARATION = 3;
+/** Penalty for a cannon whose footprint lands on a reserved divider seam.
+ *  Large enough to decisively route cannons off the one reserved lane while
+ *  leaving every other near-tower tile available (clustering is preserved). */
+const SEAM_PENALTY = 60;
 /** Random noise added to each score to break ties unpredictably. */
 const SCORE_NOISE_RANGE = 2;
 /** Minimum cannon slots before the AI considers placing a super gun. */
@@ -345,6 +357,7 @@ function collectCannonCandidates(
   towerCenters: readonly TilePos[],
   corridorScale: number,
 ): CannonCandidate[] {
+  const reservedSeams = computeReservedSeams(player.enclosedTowers);
   const candidates: CannonCandidate[] = [];
   for (const key of getInterior(player)) {
     const { row, col } = unpackTile(key);
@@ -362,11 +375,47 @@ function collectCannonCandidates(
         noiseScale,
         towerCenters,
         corridorScale,
+        reservedSeams,
       ),
     });
   }
   candidates.sort((a, b) => b.score - a.score);
   return candidates;
+}
+
+/** Reserve one clear divider lane (a column or row) between each pair of
+ *  enclosed towers close enough that their cannon clusters would otherwise
+ *  merge into a wall. Keeping the lane cannon-free lets a future divider split
+ *  the enclosure into per-tower compartments (the "TT CCCC..CCCC TT" seam). */
+function computeReservedSeams(towers: readonly Tower[]): {
+  cols: ReadonlySet<number>;
+  rows: ReadonlySet<number>;
+} {
+  const cols = new Set<number>();
+  const rows = new Set<number>();
+  for (let i = 0; i < towers.length; i++) {
+    for (let j = i + 1; j < towers.length; j++) {
+      const a = towers[i]!;
+      const b = towers[j]!;
+      const dRow = Math.abs(a.row - b.row);
+      const dCol = Math.abs(a.col - b.col);
+      const dist = dRow + dCol;
+      if (dist === 0 || dist > SEAM_PAIR_MAX_DIST) continue;
+      // Reserve along the axis of greater separation (where the gap — and so
+      // the natural divider — lies). Towers occupy 2 tiles, so the gap is
+      // [min+2 .. max-1]; reserve its middle line.
+      if (dCol >= dRow && dCol >= SEAM_MIN_SEPARATION) {
+        const gapLo = Math.min(a.col, b.col) + 2;
+        const gapHi = Math.max(a.col, b.col) - 1;
+        if (gapHi >= gapLo) cols.add((gapLo + gapHi) >> 1);
+      } else if (dRow >= SEAM_MIN_SEPARATION) {
+        const gapLo = Math.min(a.row, b.row) + 2;
+        const gapHi = Math.max(a.row, b.row) - 1;
+        if (gapHi >= gapLo) rows.add((gapLo + gapHi) >> 1);
+      }
+    }
+  }
+  return { cols, rows };
 }
 
 /**
@@ -384,6 +433,7 @@ function scoreCannonPosition(
   noiseScale: number,
   towerCenters: readonly TilePos[],
   corridorScale: number,
+  reservedSeams: { cols: ReadonlySet<number>; rows: ReadonlySet<number> },
 ): number {
   const size = cannonSize(mode);
   let score = 0;
@@ -446,9 +496,37 @@ function scoreCannonPosition(
       corridorPenalty(player, cannonTiles, occupied, interior) * corridorScale;
   }
 
+  // Keep reserved divider seams between adjacent towers cannon-free, so a
+  // future wall can compartmentalize a breached multi-tower enclosure.
+  score += seamPenalty(row, col, size, reservedSeams);
+
   score += rng.next() * SCORE_NOISE_RANGE * noiseScale;
 
   return -score;
+}
+
+/** Penalty if the cannon footprint (anchor row/col, size×size) lands on any
+ *  reserved divider seam — one SEAM_PENALTY per blocked axis. */
+function seamPenalty(
+  row: number,
+  col: number,
+  size: number,
+  reservedSeams: { cols: ReadonlySet<number>; rows: ReadonlySet<number> },
+): number {
+  let penalty = 0;
+  for (let c = col; c < col + size; c++) {
+    if (reservedSeams.cols.has(c)) {
+      penalty += SEAM_PENALTY;
+      break;
+    }
+  }
+  for (let r = row; r < row + size; r++) {
+    if (reservedSeams.rows.has(r)) {
+      penalty += SEAM_PENALTY;
+      break;
+    }
+  }
+  return penalty;
 }
 
 /** Raw (unscaled) corridor penalty for placing a NORMAL cannon at (row,col)

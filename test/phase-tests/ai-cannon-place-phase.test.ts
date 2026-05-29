@@ -377,3 +377,108 @@ Deno.test("phase-test: AI clusters cannons near owned towers in a multi-tower wh
       `max=${max} sorted=[${distances.join(",")}]`,
   );
 });
+
+Deno.test("phase-test: AI leaves a buildable divider seam between adjacent towers in one enclosure", async () => {
+  // Same whole-zone multi-tower fixture as the clustering test. Clustering
+  // cannons tightly around towers (the test above) is correct for DEFENSE,
+  // but if the cannon clusters of two adjacent towers MERGE they form a solid
+  // "cannon wall" spanning the interior (TT CCCC..CCCC TT). That seals off
+  // compartmentalization: when the big enclosure is later breached, the AI
+  // can't build an internal divider to split it into two per-tower castles
+  // because cannons occupy every tile of every candidate divider lane.
+  //
+  // Invariant: between the two CLOSEST enclosed towers there must remain at
+  // least one buildable divider lane — a straight interior column or row,
+  // strictly between them, spanning the enclosure with no cannon (or tower)
+  // tile on it, so a future wall could split the castle there. Pre-fix this
+  // FAILS: the merged clusters block every lane.
+  const sc = await createPhaseScenario(
+    roundTwoWholeZoneMultiTowers as unknown as FixtureFile,
+  );
+  waitForPhase(sc, Phase.BATTLE);
+
+  const player = sc.state.players[0]!;
+  const towers = player.enclosedTowers;
+  assertGreater(towers.length, 1, "fixture should enclose multiple towers");
+
+  // Closest enclosed tower pair (Manhattan, top-left corners).
+  let a = towers[0]!;
+  let b = towers[1]!;
+  let bestDist = Infinity;
+  for (let i = 0; i < towers.length; i++) {
+    for (let j = i + 1; j < towers.length; j++) {
+      const d =
+        Math.abs(towers[i]!.row - towers[j]!.row) +
+        Math.abs(towers[i]!.col - towers[j]!.col);
+      if (d < bestDist) {
+        bestDist = d;
+        a = towers[i]!;
+        b = towers[j]!;
+      }
+    }
+  }
+
+  assert(
+    hasBuildableDividerLane(player, a, b),
+    `no buildable divider seam survives between adjacent towers ` +
+      `(${a.row},${a.col}) & (${b.row},${b.col}) (dist=${bestDist}) — cannon ` +
+      `clusters merged into a wall, blocking compartmentalization`,
+  );
+});
+
+/** True if at least one straight interior lane (a full column or row), strictly
+ *  between towers A and B, is free of cannon and tower tiles across the whole
+ *  enclosure span — i.e. a future divider wall could be built there to split
+ *  the enclosure. Existing walls on the lane are fine (already wall). */
+function hasBuildableDividerLane(
+  player: { cannons: readonly { row: number; col: number }[]; enclosedTowers: readonly { row: number; col: number }[]; interior: ReadonlySet<TileKey>; walls: ReadonlySet<TileKey> },
+  a: { row: number; col: number },
+  b: { row: number; col: number },
+): boolean {
+  const blocked = new Set<TileKey>();
+  for (const c of player.cannons) {
+    for (let dr = 0; dr < 2; dr++)
+      for (let dc = 0; dc < 2; dc++) blocked.add(packTile(c.row + dr, c.col + dc));
+  }
+  for (const t of player.enclosedTowers) {
+    for (let dr = 0; dr < 2; dr++)
+      for (let dc = 0; dc < 2; dc++) blocked.add(packTile(t.row + dr, t.col + dc));
+  }
+  let minR = Infinity;
+  let maxR = -Infinity;
+  let minC = Infinity;
+  let maxC = -Infinity;
+  for (const key of player.interior) {
+    const { row, col } = unpackTile(key);
+    minR = Math.min(minR, row);
+    maxR = Math.max(maxR, row);
+    minC = Math.min(minC, col);
+    maxC = Math.max(maxC, col);
+  }
+  // Vertical divider columns strictly between the towers (cols clear of the
+  // 2-wide tower footprints): every interior tile in the column must be free.
+  for (let col = Math.min(a.col, b.col) + 2; col <= Math.max(a.col, b.col) - 1; col++) {
+    let clear = true;
+    for (let row = minR; row <= maxR; row++) {
+      const key = packTile(row, col);
+      if (player.interior.has(key) && blocked.has(key)) {
+        clear = false;
+        break;
+      }
+    }
+    if (clear) return true;
+  }
+  // Horizontal divider rows strictly between the towers.
+  for (let row = Math.min(a.row, b.row) + 2; row <= Math.max(a.row, b.row) - 1; row++) {
+    let clear = true;
+    for (let col = minC; col <= maxC; col++) {
+      const key = packTile(row, col);
+      if (player.interior.has(key) && blocked.has(key)) {
+        clear = false;
+        break;
+      }
+    }
+    if (clear) return true;
+  }
+  return false;
+}
