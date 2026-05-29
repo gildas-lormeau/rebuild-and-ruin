@@ -149,6 +149,21 @@ function printReport(results: readonly SeedMetrics[]): void {
   );
 
   console.log(
+    "\nBattle decisiveness — victim-side breach severity (did fire actually breach?)",
+  );
+  const interiorLost = rows.map((r) =>
+    Math.max(0, r.interiorAtStart - r.interiorAtEnd),
+  );
+  const towersDeEnclosed = rows.map((r) =>
+    Math.max(0, r.enclosedTowersAtStart - r.enclosedTowersAtEnd),
+  );
+  meanLine("  interior tiles lost  ", interiorLost);
+  meanLine("  towers de-enclosed   ", towersDeEnclosed);
+  console.log(
+    `  battles with a breach = ${pct(interiorLost.filter((v) => v > 0).length, rows.length)}  (share of player-battles that lost any enclosed interior)`,
+  );
+
+  console.log(
     "\nCross-round build tax — next WALL_BUILD (the objective signal)",
   );
   const repair = sum(rows.map((r) => r.repairTilesPlaced));
@@ -207,6 +222,45 @@ function printReport(results: readonly SeedMetrics[]): void {
       rows.map((r) => r.flightTimeSum),
       rows.map((r) => r.shots),
     )}`,
+  );
+  console.log(
+    `  inter-shot dist (avg) = ${avgRatio(
+      rows.map((r) => r.interShotDistSum),
+      rows.map((r) => r.interShotPairs),
+    )} tiles  (jump between consecutive shots — lower = concentrated fire)`,
+  );
+
+  console.log("\nCannon utilization / firing cadence");
+  const owned = sum(rows.map((r) => r.ownedCannonsAtStart));
+  const usable = sum(rows.map((r) => r.usableCannonsAtStart));
+  const distinct = sum(rows.map((r) => r.distinctCannonsFired));
+  const stalls = sum(rows.map((r) => r.stallShots));
+  meanLine(
+    "  owned cannons        ",
+    rows.map((r) => r.ownedCannonsAtStart),
+  );
+  meanLine(
+    "  usable cannons       ",
+    rows.map((r) => r.usableCannonsAtStart),
+  );
+  console.log(
+    `  enclosure-gated       = ${pct(owned - usable, owned)}  (owned cannons that can't fire — not enclosed)`,
+  );
+  meanLine(
+    "  distinct fired       ",
+    rows.map((r) => r.distinctCannonsFired),
+  );
+  console.log(
+    `  utilization           = ${pct(distinct, usable)}  (distinct fired / usable — idle offense capacity is the rest)`,
+  );
+  console.log(
+    `  ready headroom / shot = ${avgRatio(
+      rows.map((r) => r.readyAfterFireSum),
+      rows.map((r) => r.shots),
+    )}  (cannons ready for the NEXT cycle; ≫0 = uninterrupted spam, ≈0 = reload-throttled)`,
+  );
+  console.log(
+    `  reload-stall fraction = ${pct(stalls, totalShots)}  (shots after which no cannon was ready — cannon-starved fire)`,
   );
 
   console.log("\nPer game (per player)");

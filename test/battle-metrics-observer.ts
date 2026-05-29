@@ -19,15 +19,30 @@
  */
 
 import { setAiBattleDiagHook } from "../src/ai/ai-battle-diag.ts";
+import { canFireOwnCannon } from "../src/game/index.ts";
+import {
+  isBalloonCannon,
+  isCannonAlive,
+} from "../src/shared/core/battle-types.ts";
 import { BATTLE_MESSAGE } from "../src/shared/core/battle-events.ts";
+import { getBattleInterior } from "../src/shared/core/board-occupancy.ts";
+import type { CannonIdx } from "../src/shared/core/geometry-types.ts";
 import {
   GAME_EVENT,
   type GameEventMap,
 } from "../src/shared/core/game-event-bus.ts";
 import type { TileKey } from "../src/shared/core/grid.ts";
 import { Phase } from "../src/shared/core/game-phase.ts";
-import { isPlayerEliminated } from "../src/shared/core/player-types.ts";
-import { packTile, zoneOwnerIdAt } from "../src/shared/core/spatial.ts";
+import type { ValidPlayerId } from "../src/shared/core/player-slot.ts";
+import {
+  isPlayerEliminated,
+  type Player,
+} from "../src/shared/core/player-types.ts";
+import {
+  forEachTowerTile,
+  packTile,
+  zoneOwnerIdAt,
+} from "../src/shared/core/spatial.ts";
 import { IMPACT, type ImpactKind, classifyImpact } from "./impact-classify.ts";
 import type { Scenario } from "./scenario.ts";
 
@@ -82,6 +97,48 @@ export interface PlayerBattleMetrics {
    *  exact-tile non-refills: a player who re-encloses via a different wall
    *  route still shows the original holes here. */
   unrepairedGaps: number;
+  // --- battle decisiveness (victim-side: breach severity suffered) ---
+  /** Enclosed-interior tile count at BATTLE start vs at battle end (first
+   *  non-BATTLE phase, pre-repair). start − end = interior lost to breaches
+   *  this battle — the territory-shrink signal that fires even when no tower
+   *  dies (the dominant case). The missing "did fire actually breach?" axis. */
+  interiorAtStart: number;
+  interiorAtEnd: number;
+  /** Enclosed-tower count at start vs battle end. start − end = towers knocked
+   *  OUT of enclosure by a breach (still alive, but no longer scoring/firing)
+   *  — distinct from `ownTowersLostToGrunts` (towers actually killed). */
+  enclosedTowersAtStart: number;
+  enclosedTowersAtEnd: number;
+  // --- cannon utilization / firing cadence ---
+  /** Alive, non-balloon cannons at battle start regardless of enclosure — the
+   *  raw "how many cannons do I own" axis. owned − usable = cannons that can't
+   *  fire because they're not enclosed (an enclosure problem, not a firing one). */
+  ownedCannonsAtStart: number;
+  /** Cannons that COULD fire at battle start (alive + enclosed + not captured)
+   *  — the "how many cannons" axis. With one serial crosshair the player fires
+   *  ~one cannon per ~1.5s cycle regardless of this; surplus cannons buy
+   *  uninterrupted cadence (always a fresh one ready), not parallel volume. */
+  usableCannonsAtStart: number;
+  /** Distinct cannon indices that fired ≥1 shot this battle. usable − distinct
+   *  = cannons that never fired (idle offense capacity). */
+  distinctCannonsFired: number;
+  /** Sum over shots of the shooter's ready-cannon count IMMEDIATELY AFTER each
+   *  fire (the just-fired cannon is mid-flight, so this is the headroom for the
+   *  NEXT cycle). Mean = spam headroom: ≫0 means many cannons keep the player
+   *  firing every crosshair cycle; ≈0 means the next shot must wait on a ball
+   *  to land (reload-throttled — only happens with few cannons). */
+  readyAfterFireSum: number;
+  /** Shots after which NO cannon was ready (headroom 0) — the player is
+   *  reload-throttled below the crosshair-cycle cadence. stallShots / shots =
+   *  the fraction of fire that hit the per-cannon in-flight limit. */
+  stallShots: number;
+  // --- fire concentration (consecutive-shot target spread) ---
+  /** Sum of tile-distance between each shot's impact tile and the previous
+   *  shot's, over `interShotPairs` consecutive pairs. mean = how far the AI
+   *  jumps between shots: low = concentrated fire (cheap crosshair travel,
+   *  damage stacks toward a breach), high = scatter across the fortress. */
+  interShotDistSum: number;
+  interShotPairs: number;
   // --- crosshair (per-frame TICK, after the countdown orbit) ---
   crosshairTravelPx: number;
   crosshairSamples: number;
@@ -106,6 +163,14 @@ export function createBattleMetricsObserver(): BattleMetricsObserver {
   /** Wall tiles destroyed this round per victim (cannon OR grunt) — consumed
    *  by the next WALL_BUILD to split repair vs expansion. Cleared each battle. */
   const destroyedThisRound = new Map<number, Set<TileKey>>();
+  /** Distinct cannon indices fired per shooter this battle — collapsed into
+   *  `row.distinctCannonsFired` on every fire. Cleared each battle. */
+  const firedCannons = new Map<number, Set<number>>();
+  /** Last shot's impact tile per shooter — for consecutive-shot concentration. */
+  const lastShotTile = new Map<number, { row: number; col: number }>();
+  /** Guards the post-battle interior/enclosure snapshot so only the FIRST
+   *  non-BATTLE phase after a battle captures it (pre-repair). */
+  let battleEndCaptured = false;
   /** Shooter of the most recent CANNON_FIRED — the diag hook fires synchronously
    *  right after with no intervening events, so this attributes its origin. */
   let lastShooter: number | undefined;
@@ -129,15 +194,43 @@ export function createBattleMetricsObserver(): BattleMetricsObserver {
       attached = true;
 
       on(sc, GAME_EVENT.PHASE_START, (ev) => {
-        if (ev.phase !== Phase.BATTLE) return;
+        if (ev.phase !== Phase.BATTLE) {
+          // First non-BATTLE phase after a battle: snapshot post-battle,
+          // pre-repair interior/enclosure (UPGRADE_PICK or WALL_BUILD comes
+          // next, both before any WALL_PLACED repair). Guarded so only the
+          // first such phase captures.
+          if (!battleEndCaptured && current.size > 0) {
+            for (const [pid, row] of current) {
+              const player = sc.state.players[pid];
+              if (!player) continue;
+              const interior = getBattleInterior(player);
+              row.interiorAtEnd = interior.size;
+              row.enclosedTowersAtEnd = countTowersInInterior(sc, interior);
+            }
+            battleEndCaptured = true;
+          }
+          return;
+        }
         current.clear();
         crosshairLast.clear();
         destroyedThisRound.clear();
+        firedCannons.clear();
+        lastShotTile.clear();
+        battleEndCaptured = false;
         lastShooter = undefined;
         for (let pid = 0; pid < sc.state.players.length; pid++) {
           const player = sc.state.players[pid];
           if (!player || isPlayerEliminated(player)) continue;
           const row = emptyRow(ev.round, pid);
+          row.ownedCannonsAtStart = countOwnedCannons(player);
+          row.usableCannonsAtStart = countReadyCannons(sc, pid);
+          const interior = getBattleInterior(player);
+          row.interiorAtStart = interior.size;
+          row.enclosedTowersAtStart = countTowersInInterior(sc, interior);
+          // Default end to start so a battle whose end is never captured (e.g.
+          // the final round at the rounds cap) contributes a neutral 0 loss.
+          row.interiorAtEnd = row.interiorAtStart;
+          row.enclosedTowersAtEnd = row.enclosedTowersAtStart;
           battles.push(row);
           current.set(pid, row);
         }
@@ -169,6 +262,26 @@ export function createBattleMetricsObserver(): BattleMetricsObserver {
           const zoneOwner = zoneOwnerIdAt(sc.state, ev.impactRow, ev.impactCol);
           if (zoneOwner !== shooter) row.enemyHouseShots++;
         }
+        // Cannon utilization: this fire's ball is already pushed onto
+        // cannonballs, so the firing cannon now reads not-ready — the count
+        // below is the headroom available for the NEXT cycle.
+        const fired = firedCannons.get(shooter) ?? new Set<number>();
+        fired.add(ev.cannonIdx);
+        firedCannons.set(shooter, fired);
+        row.distinctCannonsFired = fired.size;
+        const readyAfter = countReadyCannons(sc, shooter);
+        row.readyAfterFireSum += readyAfter;
+        if (readyAfter === 0) row.stallShots++;
+        // Fire concentration: tile-distance from the previous shot's impact.
+        const prev = lastShotTile.get(shooter);
+        if (prev) {
+          row.interShotDistSum += Math.hypot(
+            ev.impactRow - prev.row,
+            ev.impactCol - prev.col,
+          );
+          row.interShotPairs++;
+        }
+        lastShotTile.set(shooter, { row: ev.impactRow, col: ev.impactCol });
         lastShooter = shooter;
       });
 
@@ -311,7 +424,66 @@ function emptyRow(round: number, playerId: number): PlayerBattleMetrics {
     repairTilesPlaced: 0,
     expansionTilesPlaced: 0,
     unrepairedGaps: 0,
+    interiorAtStart: 0,
+    interiorAtEnd: 0,
+    enclosedTowersAtStart: 0,
+    enclosedTowersAtEnd: 0,
+    ownedCannonsAtStart: 0,
+    usableCannonsAtStart: 0,
+    distinctCannonsFired: 0,
+    readyAfterFireSum: 0,
+    stallShots: 0,
+    interShotDistSum: 0,
+    interShotPairs: 0,
     crosshairTravelPx: 0,
     crosshairSamples: 0,
   };
+}
+
+/** Count towers with any tile inside the given (freshly computed) interior set
+ *  — i.e. the player's currently-enclosed towers. Computed live from the same
+ *  flood-fill as `interiorAtStart/End` so the start↔end delta is timing-
+ *  independent (the cached `player.enclosedTowers` is only refreshed during
+ *  BUILD, so it would be stale at the post-battle snapshot). */
+function countTowersInInterior(
+  sc: Scenario,
+  interior: ReadonlySet<TileKey>,
+): number {
+  let count = 0;
+  for (const tower of sc.state.map.towers) {
+    let enclosed = false;
+    forEachTowerTile(tower, (_r, _c, key) => {
+      if (interior.has(key)) enclosed = true;
+    });
+    if (enclosed) count++;
+  }
+  return count;
+}
+
+/** Count alive, non-balloon cannons the player owns — the raw firepower they
+ *  hold regardless of whether each is currently enclosed (and thus fireable). */
+function countOwnedCannons(player: Player): number {
+  let count = 0;
+  for (const cannon of player.cannons) {
+    if (isCannonAlive(cannon) && !isBalloonCannon(cannon)) count++;
+  }
+  return count;
+}
+
+/** Count the player's cannons that can fire right now (alive + enclosed +
+ *  not-captured + no ball in flight from them) — the same `canFireOwnCannon`
+ *  predicate the AI's round-robin uses, so the count matches what the firing
+ *  loop actually sees. */
+function countReadyCannons(sc: Scenario, playerId: number): number {
+  const player = sc.state.players[playerId];
+  if (!player) return 0;
+  let count = 0;
+  for (let idx = 0; idx < player.cannons.length; idx++) {
+    if (
+      canFireOwnCannon(sc.state, playerId as ValidPlayerId, idx as CannonIdx)
+    ) {
+      count++;
+    }
+  }
+  return count;
 }
