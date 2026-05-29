@@ -11,6 +11,7 @@ import {
   effectivePlanTiles,
   type PlacementContext,
 } from "../game/index.ts";
+import { isCannonAlive } from "../shared/core/battle-types.ts";
 import {
   buildOccupancyCache,
   collectAliveHouseKeys,
@@ -18,6 +19,7 @@ import {
   hasAliveHouseAt,
   type OccupancyCache,
 } from "../shared/core/board-occupancy.ts";
+import { MODIFIER_ID } from "../shared/core/game-constants.ts";
 import type {
   Castle,
   TilePos,
@@ -33,8 +35,12 @@ import {
   computeOutside,
   DIRS_4,
   inBounds,
+  isCannonTile,
+  isFloodedTile,
+  isGrass,
   packTile,
   towerReachesOutsideCardinal,
+  unpackTile,
 } from "../shared/core/spatial.ts";
 import type { BuildViewState } from "../shared/core/system-interfaces.ts";
 import {
@@ -45,6 +51,7 @@ import {
   emitDesperateFiredDiag,
   emitNoPlacementDiag,
   emitWallPlacedDiag,
+  isAiBuildDiagHookActive,
   type NoPlacementReason,
 } from "./ai-build-diag.ts";
 import { computePeekFitTargets } from "./ai-build-lookahead.ts";
@@ -273,7 +280,14 @@ export function pickPlacement(
     interiorExcludingGaps,
   );
   if (allCandidates.length === 0) {
-    emitNoPlacementDiag(playerId, state.round, "no-candidates");
+    emitNoPlacementDiag(
+      playerId,
+      state.round,
+      "no-candidates",
+      isAiBuildDiagHookActive()
+        ? classifyGapBlockers(state, player, targetGaps, cache)
+        : undefined,
+    );
     return { placement: null, chosenTowerIndex };
   }
 
@@ -688,6 +702,68 @@ function tryDesperateInteriorDiscard(
 /** Look up skill config by 1-based buildSkill level (1=clumsy, 5=clean). */
 function getBuildSkillConfig(buildSkill: 1 | 2 | 3 | 4 | 5): BuildSkillConfig {
   return BUILD_SKILL_TABLE[buildSkill - 1]!;
+}
+
+/** Diag-only: explain why no candidate could be placed on the target ring
+ *  this tick, as a `cause×count,…` breakdown of what occupies the unfilled
+ *  gap tiles. `pit` / `debris` / `cannon` / `tower` / `enemy-wall` / `grunt` /
+ *  `flooded` (high-tide) / `water` (incl. sinkhole) mark a gap no piece can
+ *  fill while that blocker sits there; `open` means the gap tile is buildable
+ *  and the current piece simply couldn't reach/fit it (transient — a later
+ *  piece may). That split tells "the AI is stuck on a blocked ring" apart from
+ *  "the AI just needs a different piece next tick". Order matters: occupant
+ *  blockers are tested before terrain so a grunt-on-grass reads as `grunt`,
+ *  not `open`. (Low-water exposed-riverbed tiles aren't surfaced by the
+ *  narrow BuildViewState.modern slice, so a buildable exposed tile reads as
+ *  `water` — conservative: it never falsely claims `open`.) Never called on
+ *  the production path — guarded by isAiBuildDiagHookActive() at the call
+ *  site — so the per-gap scan costs nothing in real games. */
+function classifyGapBlockers(
+  state: BuildViewState,
+  player: Player,
+  targetGaps: ReadonlySet<TileKey>,
+  cache: OccupancyCache,
+): string {
+  if (targetGaps.size === 0) return "no-gaps";
+  const counts = new Map<string, number>();
+  const bump = (cause: string): void => {
+    counts.set(cause, (counts.get(cause) ?? 0) + 1);
+  };
+  const highTide = state.modern?.activeModifier === MODIFIER_ID.HIGH_TIDE;
+  for (const key of targetGaps) {
+    const { row, col } = unpackTile(key);
+    if (cache.pitKeys.has(key)) bump("pit");
+    else if (cache.cannonKeys.has(key)) bump(cannonCauseAt(state, row, col));
+    else if (cache.towerKeys.has(key)) bump("tower");
+    else if (cache.wallKeys.has(key) && !player.walls.has(key))
+      bump("enemy-wall");
+    else if (cache.gruntKeys.has(key)) bump("grunt");
+    else if (highTide && isFloodedTile(state.map, row, col)) bump("flooded");
+    else if (!isGrass(state.map.tiles, row, col)) bump("water");
+    else bump("open");
+  }
+  return [...counts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .map(([cause, count]) => `${cause}×${count}`)
+    .join(",");
+}
+
+/** Whether a cannon-occupied gap tile holds a live cannon or dead-cannon
+ *  debris — debris is the common ring-gap case (a destroyed cannon's tiles
+ *  block rebuilding until zone reset). */
+function cannonCauseAt(
+  state: BuildViewState,
+  row: number,
+  col: number,
+): string {
+  for (const candidate of state.players) {
+    for (const cannon of candidate.cannons) {
+      if (isCannonTile(cannon, row, col)) {
+        return isCannonAlive(cannon) ? "cannon" : "debris";
+      }
+    }
+  }
+  return "cannon";
 }
 
 /** Enumerate all valid placements for a piece, scoring adjacency/gap metrics. */

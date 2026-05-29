@@ -92,6 +92,13 @@ type AiBuildDiagEvent =
        *  event (when a target was picked) to attribute the failure to
        *  that target's rect/gap geometry. */
       reason: NoPlacementReason;
+      /** Optional finer-grained cause, free-form. For `no-candidates` it's a
+       *  `cause×count,…` breakdown of what occupies the unfilled gap tiles
+       *  (e.g. `pit×2` = gap blocked by burning pits, unfillable by any piece;
+       *  `open×3` = gap is buildable, the current piece just couldn't reach
+       *  it). Computed only when a diag hook is installed, so it never costs
+       *  the production path. */
+      detail?: string;
     }
   | {
       kind: "desperate-fired";
@@ -174,6 +181,7 @@ export function emitNoPlacementDiag(
   playerId: ValidPlayerId,
   round: number,
   reason: NoPlacementReason,
+  detail?: string,
 ): void {
   if (!diagHook) return;
   diagHook({
@@ -181,6 +189,7 @@ export function emitNoPlacementDiag(
     playerId,
     round,
     reason,
+    detail,
   });
 }
 

@@ -26,8 +26,13 @@
  */
 
 import { setAiBattleDiagHook } from "../src/ai/ai-battle-diag.ts";
+import { getBattleInterior } from "../src/shared/core/board-occupancy.ts";
 import { BATTLE_MESSAGE } from "../src/shared/core/battle-events.ts";
-import { isCannonAlive } from "../src/shared/core/battle-types.ts";
+import {
+  isBalloonCannon,
+  isCannonAlive,
+  isRampartCannon,
+} from "../src/shared/core/battle-types.ts";
 import { MODIFIER_ID } from "../src/shared/core/game-constants.ts";
 import {
   GAME_EVENT,
@@ -36,6 +41,7 @@ import {
 import { Phase } from "../src/shared/core/game-phase.ts";
 import { GRID_COLS, GRID_ROWS } from "../src/shared/core/grid.ts";
 import {
+  cannonSize,
   hasPitAt,
   isAtTile,
   isCannonTile,
@@ -207,6 +213,17 @@ export function createNarrativeObserver(): NarrativeObserver {
         }
         currentPhaseLabel = Phase[ev.phase];
         emitHeaderIfNeeded();
+        // At battle start, surface each player's firable-cannon capacity.
+        // A placed cannon only fires when ALL its tiles sit in wall-enclosed
+        // interior (canFireOwnCannon) and it isn't a rampart/balloon cannon —
+        // so the owned-cannon coordinates in the CANNON_PLACE log don't tell
+        // you how much firepower actually comes online this round. The
+        // fire/encl/alive triple makes "owns 17, fires 1" (enclosure collapse)
+        // legible at a glance instead of needing per-cannon state probes.
+        if (ev.phase === Phase.BATTLE) {
+          const firepower = firepowerSummary(sc.state);
+          if (firepower !== "") lines.push(`  firepower: ${firepower}`);
+        }
       });
 
       on(sc, GAME_EVENT.CASTLE_PLACED, (ev) => {
@@ -385,6 +402,50 @@ export function createNarrativeObserver(): NarrativeObserver {
       attached = false;
     },
   };
+}
+
+/** Per-player firable-cannon capacity at battle start, formatted as
+ *  `fire<F>/encl<E>/alive<A> t[<towers>] i<interior>`. A placed cannon only
+ *  fires when it's alive, NOT rampart/balloon, AND every tile of its footprint
+ *  sits in the player's wall-enclosed interior (mirrors `canFireOwnCannon`).
+ *  So `F` = firable now, `E` = alive + enclosed (drops the rampart/balloon
+ *  filter), `A` = alive total. The E→A gap is cannons stranded outside the
+ *  enclosure; the F→E gap is rampart/balloon dead weight. Without this line the
+ *  CANNON_PLACE coordinates show owned cannons but never how many actually come
+ *  online — "owns 17, fires 1" (enclosure collapse) is invisible otherwise.
+ *  Reads the battle-time interior snapshot (`getBattleInterior`, no freshness
+ *  assertion) so it's safe at BATTLE PHASE_START. */
+function firepowerSummary(state: GameState): string {
+  const segments: string[] = [];
+  for (let idx = 0; idx < state.players.length; idx++) {
+    const player = state.players[idx];
+    if (!player || player.eliminated) continue;
+    const interior = getBattleInterior(player);
+    let alive = 0;
+    let enclosed = 0;
+    let firable = 0;
+    for (const cannon of player.cannons) {
+      if (!isCannonAlive(cannon)) continue;
+      alive++;
+      const size = cannonSize(cannon.mode);
+      let inside = true;
+      for (let dr = 0; dr < size && inside; dr++) {
+        for (let dc = 0; dc < size && inside; dc++) {
+          if (!interior.has(packTile(cannon.row + dr, cannon.col + dc))) {
+            inside = false;
+          }
+        }
+      }
+      if (!inside) continue;
+      enclosed++;
+      if (!isRampartCannon(cannon) && !isBalloonCannon(cannon)) firable++;
+    }
+    const towers = player.enclosedTowers.map((tower) => tower.index).join(",");
+    segments.push(
+      `${playerShort(idx)} fire${firable}/encl${enclosed}/alive${alive} t[${towers}] i${interior.size}`,
+    );
+  }
+  return segments.join(" | ");
 }
 
 /** Format a cannon-source label for events whose shooter may have fired a

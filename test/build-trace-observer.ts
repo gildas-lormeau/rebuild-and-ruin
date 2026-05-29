@@ -164,10 +164,14 @@ export function createBuildTraceObserver(
           }
         } else if (ev.kind === "no-placement") {
           // Tick committed to the current target but pickPlacement returned
-          // null. Bucket by reason; flushed at next target change or detach.
+          // null. Bucket by reason (+ optional cause detail, e.g.
+          // `no-candidates(pit×2)`); flushed at next target change or detach.
+          const bucket = ev.detail
+            ? `${ev.reason}(${ev.detail})`
+            : ev.reason;
           pendingNoPlaceByReason.set(
-            ev.reason,
-            (pendingNoPlaceByReason.get(ev.reason) ?? 0) + 1,
+            bucket,
+            (pendingNoPlaceByReason.get(bucket) ?? 0) + 1,
           );
         } else if (ev.kind === "wall-placed") {
           const gapsBefore = ev.targetGaps.size;
