@@ -42,6 +42,7 @@
     "sprite-view": "deno run -A scripts/sprite-view.ts",
     "watch-game": "deno run -A scripts/watch-game.ts",
     "snapshot": "deno run -A scripts/snapshot.ts",
+    "battle-metrics": "deno run -A scripts/battle-metrics.ts",
     "perf:ai:cpu": "mkdir -p tmp/perf && deno run --cpu-prof --cpu-prof-dir tmp/perf --cpu-prof-name ai-cpu.cpuprofile -A scripts/perf-ai-headless.ts && deno run -A scripts/analyze-cpu.ts tmp/perf/ai-cpu.cpuprofile --filter src/ai/",
     "perf:ai:cpu:multi": "deno run -A scripts/perf-ai-multi.ts",
     "record-seeds": "deno run -A scripts/record-seeds.ts --parallel 4",
