@@ -26,6 +26,7 @@ import type {
 } from "../shared/core/system-interfaces.ts";
 import type { ZoneId } from "../shared/core/zone-id.ts";
 import { Rng } from "../shared/platform/rng.ts";
+import type { FireOrigin } from "./ai-battle-diag.ts";
 import type { AiPlacement } from "./ai-build-types.ts";
 import { findOuterRingHoles } from "./ai-castle-rect.ts";
 import { CHAIN, type ChainType } from "./ai-chain.ts";
@@ -267,6 +268,9 @@ export class DefaultStrategy implements AiStrategy {
     // Chain attacks
     let chainTargets: TilePos[] | undefined;
     let chainType: ChainType = CHAIN.WALL;
+    // Observability-only: refines the diag origin when a plan collapses into a
+    // shared chainType (charity→GRUNT, super_attack→WALL). No behavior effect.
+    let originTag: FireOrigin | undefined;
 
     const usableCannonCount = countUsableCannons(state, playerId);
 
@@ -317,6 +321,7 @@ export class DefaultStrategy implements AiStrategy {
       if (charityTargets) {
         chainTargets = charityTargets;
         chainType = CHAIN.GRUNT;
+        originTag = "charity";
       }
     }
 
@@ -388,9 +393,10 @@ export class DefaultStrategy implements AiStrategy {
         planSuperAttack(state, playerId, usableCannonCount, this.rng) ??
         undefined;
       chainType = CHAIN.WALL;
+      if (chainTargets) originTag = "super_attack";
     }
 
-    return { chainTargets, chainType };
+    return { chainTargets, chainType, originTag };
   }
 
   pickTarget(

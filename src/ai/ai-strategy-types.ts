@@ -103,6 +103,12 @@ export interface CannonPlacementContext {
 export interface BattlePlan {
   chainTargets: TilePos[] | undefined;
   chainType: ChainType;
+  /** Observability-only override for the diag FireOrigin tag, set when a
+   *  plan collapses into a shared chainType (charity → CHAIN.GRUNT,
+   *  super_attack → CHAIN.WALL) but battle-metrics want the precise origin.
+   *  Falls back to CHAIN_TO_ORIGIN[chainType] when undefined. Does not affect
+   *  AI behavior — only the emitted fire-decision diag. */
+  originTag?: FireOrigin;
 }
 
 /** Minimal subset of AiController needed by the selection phase. Phase

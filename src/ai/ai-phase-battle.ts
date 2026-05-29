@@ -8,7 +8,6 @@
 
 import { aimCannons, nextReadyCannon } from "../game/index.ts";
 import { SIM_TICK_DT } from "../shared/core/game-constants.ts";
-import type { TilePos } from "../shared/core/geometry-types.ts";
 import { packTile, tileCenterPx } from "../shared/core/spatial.ts";
 import type {
   BattleViewState,
@@ -19,6 +18,7 @@ import { CHAIN, type ChainType } from "./ai-chain.ts";
 import { STEP } from "./ai-constants.ts";
 import type {
   BattleHost,
+  BattlePlan,
   BattleTickResult,
   StrategicPixelPos,
 } from "./ai-strategy-types.ts";
@@ -37,12 +37,14 @@ type BattleState =
   | { step: "moving" }
   | { step: "dwelling"; timer: number };
 
-interface BattlePhase {
+// Extends BattlePlan: the controller's per-tick battle state IS a chain plan
+// (chainTargets / chainType / originTag) plus live cursor + dwell bookkeeping.
+// Inheriting the plan fields keeps the two shapes from drifting (and from
+// tripping the shared-subset duplicate-shape lint).
+interface BattlePhase extends BattlePlan {
   state: BattleState;
   crosshairTarget: StrategicPixelPos | null;
-  chainTargets: TilePos[] | undefined;
   chainIdx: number;
-  chainType: ChainType;
   /** Persistent orbit phase — accumulated across battles for natural variation. */
   orbitAngle: number;
 }
@@ -117,10 +119,12 @@ export function initBattle(
   phase.chainTargets = undefined;
   phase.chainIdx = 0;
   phase.chainType = CHAIN.WALL;
+  phase.originTag = undefined;
   if (state) {
     const plan = host.strategy.planBattle(state, host.playerId);
     phase.chainTargets = plan.chainTargets;
     phase.chainType = plan.chainType;
+    phase.originTag = plan.originTag;
   }
   phase.state = { step: STEP.COUNTDOWN, orbit: null };
 }
@@ -377,7 +381,10 @@ function tickChainDwelling(
     targetRow: target.row,
     targetCol: target.col,
   };
-  return { commit: intent, origin: CHAIN_TO_ORIGIN[phase.chainType] };
+  return {
+    commit: intent,
+    origin: phase.originTag ?? CHAIN_TO_ORIGIN[phase.chainType],
+  };
 }
 
 function completeChainFire(phase: BattlePhase, success: boolean): void {
