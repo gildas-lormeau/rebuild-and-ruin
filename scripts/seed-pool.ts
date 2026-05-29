@@ -20,10 +20,25 @@ export type PoolResponse<Res> =
 
 const DEFAULT_RANDOM_COUNT = 10;
 const DEFAULT_ROUNDS = 15;
+/** Shared flag reference appended to every script's `--help` output. */
+const FLAGS_HELP = `
+Flags:
+  --seeds a,b,c      explicit seed list
+  --random N         draw N random seeds (default ${DEFAULT_RANDOM_COUNT})
+  --master-seed N    reproducible random draw
+  --rounds N         rounds per game (default ${DEFAULT_ROUNDS})
+  --mode classic|modern   game mode (default modern)
+  --json             machine-readable output
+  --help, -h         show this help`;
 
-/** Parse the shared seed-pool CLI flags from `Deno.args`. */
-export function parseSeedPoolArgs(): SeedPoolArgs {
+/** Parse the shared seed-pool CLI flags from `Deno.args`. On `--help`/`-h`,
+ *  prints `usage` + the shared flag reference and exits before running. */
+export function parseSeedPoolArgs(usage: string): SeedPoolArgs {
   const argv = Deno.args;
+  if (argv.includes("--help") || argv.includes("-h")) {
+    console.log(`${usage.trim()}\n${FLAGS_HELP}`);
+    Deno.exit(0);
+  }
   let seeds: number[] | null = null;
   let randomCount: number | null = null;
   let masterSeed: number | null = null;

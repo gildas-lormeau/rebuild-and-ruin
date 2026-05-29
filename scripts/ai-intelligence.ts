@@ -24,7 +24,10 @@ import { parseSeedPoolArgs, poolSizeFor, runWorkerPool } from "./seed-pool.ts";
 await main();
 
 async function main(): Promise<void> {
-  const args = parseSeedPoolArgs();
+  const args = parseSeedPoolArgs(
+    "AI intelligence — multi-dimensional AI metrics across random seed sets.\n" +
+      "  deno run -A scripts/ai-intelligence.ts [flags]",
+  );
   if (!args.json) {
     console.log(
       `AI intelligence — ${args.seeds.length} seeds × ${args.rounds} rounds × 3 players, mode=${args.mode}`,

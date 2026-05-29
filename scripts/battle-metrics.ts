@@ -24,7 +24,10 @@ import { parseSeedPoolArgs, poolSizeFor, runWorkerPool } from "./seed-pool.ts";
 await main();
 
 async function main(): Promise<void> {
-  const args = parseSeedPoolArgs();
+  const args = parseSeedPoolArgs(
+    "Battle metrics — tracks AI battle-phase firing metrics (no scoring).\n" +
+      "  deno run -A scripts/battle-metrics.ts [flags]   (or: npm run battle-metrics -- [flags])",
+  );
   if (!args.json) {
     console.log(
       `Battle metrics — ${args.seeds.length} seeds × ${args.rounds} rounds × 3 players, mode=${args.mode}`,
