@@ -373,17 +373,22 @@ export function pickPlacement(
       placementCtx,
     );
   }
-  // Expansion clean-cycle: once every castle is enclosed, a placement is only
-  // worth making on the perimeter if it contributes to a future enclosure —
-  // i.e. fills a target-ring tile (advancing the ring toward closing) or
-  // reclaims net territory (usefulGain > 0). A placement that does neither
-  // would only double a wall to burn the piece (the "fat wall" pathology).
-  // Don't lay it on the perimeter; instead discard the piece at a fat-free spot
-  // inside the player's own interior. That still advances the piece bag — which
-  // the A/B comparison showed is load-bearing for AI strength (stalling here
-  // costs enclosures, territory, and lives) — without the doubled wall. If no
-  // fat-free interior spot exists, keep the original placement so the bag still
-  // advances (a rare unavoidable fat wall beats stalling).
+  // Work-is-done idle: once every castle is enclosed, a placement is only
+  // worth making if it contributes to a future enclosure — i.e. fills a
+  // target-ring tile (advancing/expanding a ring toward closing) or reclaims
+  // net territory (usefulGain > 0). A placement that does neither is pure
+  // waste: there is nothing left to build (the zone is boxed in by water / map
+  // edges) and laying the piece anyway just buries it in the finished interior
+  // as a junk wall (seed 424501 r6 BLUE dumped a dozen pieces inside a complete
+  // shell — "wtf is blue doing"). Do nothing: hold the piece and let the build
+  // timer run out. Genuine expansion (a real ring-gap fill or netGain > 0) is
+  // untouched. Gated on allCastlesEnclosed so the bag-cycling that IS load-
+  // bearing — burning a dud piece to reach a piece that can still enclose an
+  // open tower — is unaffected. A previous version routed these to a fat-free
+  // interior discard to "advance the bag"; a 10×20×15 ai-compare-multi showed
+  // idling instead is strength-neutral (finalScore -0.30%, finalLives -0.08%,
+  // enclosedAvg -0.31% — all noise), so the discards had no real value and the
+  // idle is the cleaner behaviour.
   if (placement !== null && allCastlesEnclosed) {
     const current = placement;
     const cells = current.piece.offsets.map(([dr, dc]) =>
@@ -395,24 +400,7 @@ export function pickPlacement(
       computeOutsideAfterAdd(outside, wallTiles).size -
       current.piece.offsets.length;
     const fillsTargetGap = cells.some((key) => targetGaps.has(key));
-    if (netGain <= 0 && !fillsTargetGap) {
-      const cleanDiscard = pickDesperateInteriorDiscard(
-        state,
-        playerId,
-        piece,
-        player,
-        cursorPos,
-        cache,
-        placementCtx,
-        (shape, row, col) =>
-          countFatBlocks(
-            player.walls,
-            { piece: shape, row, col },
-            aliveHouseKeys,
-          ) === 0,
-      );
-      if (cleanDiscard !== null) placement = cleanDiscard;
-    }
+    if (netGain <= 0 && !fillsTargetGap) placement = null;
   }
   if (placement === null && bestResult.reason !== undefined) {
     emitNoPlacementDiag(playerId, state.round, bestResult.reason);
