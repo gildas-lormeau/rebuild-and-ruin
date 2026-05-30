@@ -58,6 +58,11 @@ export interface AsciiSnapshotOptions {
    *  or a `Rect` directly. Absolute row/col labels are preserved when
    *  `coords: true`, so agents can still reason about tile positions. */
   cropTo?: ValidPlayerId | Rect;
+  /** Tiles of padding added around the resolved `cropTo` rect on every
+   *  side, clamped to the grid. Lets callers "zoom out" from a player
+   *  footprint or widen a point-target window. Default 0; no effect when
+   *  `cropTo` is undefined. */
+  cropPad?: number;
 }
 
 export const enum CellKind {
@@ -218,9 +223,20 @@ export function asciiSnapshot(
 ): string {
   const layer = opts.layer ?? DEFAULT_MAP_LAYER;
   const grid = buildGrid(state, layer, opts.playerFilter);
+  const baseCrop = resolveCropRect(state, opts.cropTo);
+  const pad = opts.cropPad ?? 0;
+  const crop =
+    baseCrop === undefined || pad <= 0
+      ? baseCrop
+      : {
+          minRow: Math.max(0, baseCrop.minRow - pad),
+          maxRow: Math.min(GRID_ROWS - 1, baseCrop.maxRow + pad),
+          minCol: Math.max(0, baseCrop.minCol - pad),
+          maxCol: Math.min(GRID_COLS - 1, baseCrop.maxCol + pad),
+        };
   return formatGrid(grid, buildLegend(state), {
     coords: opts.coords ?? false,
-    crop: resolveCropRect(state, opts.cropTo),
+    crop,
   });
 }
 

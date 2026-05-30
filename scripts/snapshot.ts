@@ -25,6 +25,13 @@
  *          by the sim frame budget, not seconds.
  * --player RED|BLUE|GOLD: highlights that player + crops the ASCII to
  *          their footprint (`cropTo: playerId` auto-computes the bbox)
+ * --tower N / --castle RED|BLUE|GOLD / --at-tile ROW,COL: focus the crop
+ *          window on one entity — works even when it is NOT enclosed (no
+ *          player footprint needed). At most one focus target.
+ * --zoom R: crop radius in tiles. With a focus target → half-window size
+ *          around it (default 8). With --player + no target → padding
+ *          added around the footprint (zoom out). ASCII keeps one char per
+ *          tile, so "zoom" means window size, not glyph magnification.
  *
  * Conditional phases (MODIFIER_REVEAL, UPGRADE_PICK) don't fire every round;
  * asking for one in a round that doesn't have it will time out.
@@ -33,6 +40,7 @@
  * init-order dependencies.
  */
 
+import type { Rect } from "../dev/dev-console-grid.ts";
 import { GAME_EVENT } from "../src/shared/core/game-event-bus.ts";
 import { Phase } from "../src/shared/core/game-phase.ts";
 import { playerByZone } from "../src/shared/core/player-types.ts";
@@ -51,9 +59,21 @@ interface Args {
   /** Sim-seconds elapsed since PHASE_START, when provided. Overrides moment. */
   at: number | undefined;
   player: 0 | 1 | 2 | undefined;
+  /** Focus the crop on one tower by its anchor index (state.map.towers[N]). */
+  tower: number | undefined;
+  /** Focus the crop on a player's home tower (castle), enclosed or not. */
+  castle: 0 | 1 | 2 | undefined;
+  /** Focus the crop on an arbitrary (row, col) center. */
+  atTile: { row: number; col: number } | undefined;
+  /** Crop window radius in tiles. With a focus target → half-window size
+   *  around it (default DEFAULT_FOCUS_ZOOM). With --player and no target →
+   *  padding added around the footprint. */
+  zoom: number | undefined;
 }
 
 const PLAYER_NAMES = ["RED", "BLUE", "GOLD"] as const;
+/** Default half-window radius for a focus target when --zoom is omitted. */
+const DEFAULT_FOCUS_ZOOM = 8;
 const HELP_TEXT = `Capture an ASCII snapshot of the board at a specific (seed, round, phase,
 moment), optionally cropped to one player's footprint.
 
@@ -77,7 +97,21 @@ Options:
                          Overrides --moment. Errors if the phase exits first.
   --player RED|BLUE|GOLD Highlight that player and crop the ASCII to their
                          footprint.
+
+Focus a crop window on one entity (works even when it is NOT enclosed — no
+player footprint required). At most one of these may be given:
+  --tower N              Center on tower index N (the #N shown in Anchors).
+  --castle RED|BLUE|GOLD Center on a player's home tower (castle).
+  --at-tile ROW,COL      Center on an arbitrary tile, e.g. --at-tile 12,34.
+  --zoom R               Crop radius in tiles. With a focus target, half the
+                         window size around it (default ${DEFAULT_FOCUS_ZOOM});
+                         smaller = tighter. With --player and no focus target,
+                         padding added around the footprint to zoom OUT.
   --help, -h             Show this help and exit.
+
+"Zoom" is a crop-window radius, not glyph magnification — ASCII keeps one
+character per tile, so a smaller window simply shows fewer tiles. A focus
+target may be combined with --player to tint a player inside the window.
 
 Conditional phases (MODIFIER_REVEAL, UPGRADE_PICK) don't fire every round;
 asking for one in a round that doesn't have it will time out.
@@ -86,7 +120,10 @@ Examples:
   npm run snapshot -- --seed 1000000 --round 20 --phase WALL_BUILD
   npm run snapshot -- --seed 42 --round 5 --phase BATTLE --moment end --player BLUE
   npm run snapshot -- --seed 1000000 --mode classic --round 3 --phase CANNON_PLACE
-  npm run snapshot -- --seed 42 --round 5 --phase BATTLE --at 3.5`;
+  npm run snapshot -- --seed 42 --round 5 --phase BATTLE --at 3.5
+  npm run snapshot -- --seed 42 --round 5 --phase BATTLE --castle RED --zoom 6
+  npm run snapshot -- --seed 42 --round 5 --phase WALL_BUILD --tower 3
+  npm run snapshot -- --seed 42 --round 8 --phase WALL_BUILD --player BLUE --zoom 4`;
 
 await main();
 
@@ -101,7 +138,8 @@ async function main(): Promise<void> {
       "Usage: npm run snapshot -- --seed N --round N --phase PHASE " +
         "[--mode classic|modern] [--match-rounds M] " +
         "[--moment start|end | --at SECONDS] " +
-        "[--player RED|BLUE|GOLD]",
+        "[--player RED|BLUE|GOLD] " +
+        "[--tower N | --castle RED|BLUE|GOLD | --at-tile ROW,COL] [--zoom R]",
     );
     console.error(
       "  PHASE: CASTLE_SELECT | CANNON_PLACE | MODIFIER_REVEAL | BATTLE | UPGRADE_PICK | WALL_BUILD",
@@ -199,14 +237,50 @@ async function main(): Promise<void> {
     sc.runUntil(() => triggered, { timeoutMs, label: targetLabel });
   }
 
+  // Resolve a point-focus crop window (tower / castle / at-tile), if any.
+  // A focus target wins over --player for the crop bounds; --player still
+  // tints via playerFilter, so you can zoom a neutral tower and shade a
+  // player at the same time. The renderer (renderGrid) clamps the bbox to
+  // the grid, so an over-large window near an edge is safe.
+  const focusZoom = args.zoom ?? DEFAULT_FOCUS_ZOOM;
+  let focusRect: Rect | undefined;
+  let focusLabel = "";
+  if (args.tower !== undefined) {
+    const tower = sc.state.map.towers[args.tower];
+    if (!tower) {
+      console.error(
+        `Invalid --tower ${args.tower}: map has ${sc.state.map.towers.length} towers (0..${sc.state.map.towers.length - 1}).`,
+      );
+      Deno.exit(1);
+    }
+    focusRect = towerWindow(tower.row, tower.col, focusZoom);
+    focusLabel = `tower #${args.tower}(${tower.row},${tower.col})`;
+  } else if (args.castle !== undefined) {
+    const homeTower = sc.state.players[args.castle]?.homeTower;
+    if (!homeTower) {
+      console.error(
+        `${PLAYER_NAMES[args.castle]} has no home tower (not seated this match).`,
+      );
+      Deno.exit(1);
+    }
+    focusRect = towerWindow(homeTower.row, homeTower.col, focusZoom);
+    focusLabel = `${PLAYER_NAMES[args.castle]} castle(${homeTower.row},${homeTower.col})`;
+  } else if (args.atTile) {
+    focusRect = pointWindow(args.atTile.row, args.atTile.col, focusZoom);
+    focusLabel = `tile(${args.atTile.row},${args.atTile.col})`;
+  }
+
   // Banner: seed/round/phase/moment + per-player stats (filtered to the
   // focused player if --player was passed)
   const matchLabel =
     args.matchRounds > 0
       ? `match-rounds=${args.matchRounds}`
       : "match-rounds=∞";
+  const playerNote =
+    args.player !== undefined ? ` (player ${PLAYER_NAMES[args.player]})` : "";
+  const focusNote = focusRect ? ` focus=${focusLabel} zoom=${focusZoom}` : "";
   console.log(
-    `seed=${args.seed} mode=${args.mode} ${matchLabel} ${targetLabel}${args.player !== undefined ? ` (focus ${PLAYER_NAMES[args.player]})` : ""}`,
+    `seed=${args.seed} mode=${args.mode} ${matchLabel} ${targetLabel}${playerNote}${focusNote}`,
   );
   for (let i = 0; i < 3; i++) {
     const player = sc.state.players[i];
@@ -218,12 +292,15 @@ async function main(): Promise<void> {
   }
   console.log();
 
-  // cropTo accepts a ValidPlayerId directly — the renderer auto-computes
-  // the player's footprint bbox.
+  // cropTo accepts a ValidPlayerId (renderer auto-computes the footprint
+  // rect) or an explicit Rect. A focus target supplies the rect directly;
+  // otherwise fall back to the player footprint. cropPad zooms OUT from a
+  // player footprint when --zoom is given without a focus target.
   const snapshot = sc.renderer!.snapshot({
     coords: true,
     playerFilter: args.player,
-    cropTo: args.player,
+    cropTo: focusRect ?? args.player,
+    cropPad: focusRect ? 0 : (args.zoom ?? 0),
   });
   console.log(snapshot);
   console.log();
@@ -326,6 +403,27 @@ function buildAnchors(state: GameState, focus: 0 | 1 | 2 | undefined): string {
   return out.join("\n");
 }
 
+/** Crop window around a 2x2 tower whose top-left is (row, col): the tower
+ *  footprint plus `zoom` tiles of margin on every side. */
+function towerWindow(row: number, col: number, zoom: number): Rect {
+  return {
+    minRow: row - zoom,
+    maxRow: row + 1 + zoom,
+    minCol: col - zoom,
+    maxCol: col + 1 + zoom,
+  };
+}
+
+/** Crop window centered on a single (row, col), `zoom` tiles each side. */
+function pointWindow(row: number, col: number, zoom: number): Rect {
+  return {
+    minRow: row - zoom,
+    maxRow: row + zoom,
+    minCol: col - zoom,
+    maxCol: col + zoom,
+  };
+}
+
 function parseArgs(): Args {
   const argv = Deno.args;
   let seed: number | undefined;
@@ -336,6 +434,10 @@ function parseArgs(): Args {
   let moment: "start" | "end" = "start";
   let at: number | undefined;
   let player: 0 | 1 | 2 | undefined;
+  let tower: number | undefined;
+  let castle: 0 | 1 | 2 | undefined;
+  let atTile: { row: number; col: number } | undefined;
+  let zoom: number | undefined;
   for (let i = 0; i < argv.length; i++) {
     const flag = argv[i];
     if (flag === "--help" || flag === "-h") {
@@ -351,17 +453,8 @@ function parseArgs(): Args {
       mode = value;
     } else if (flag === "--round") round = Number(argv[++i]);
     else if (flag === "--match-rounds") matchRounds = Number(argv[++i]);
-    else if (flag === "--phase") {
-      const value = argv[++i]?.toUpperCase() ?? "";
-      const enumValue = (Phase as Record<string, Phase>)[value];
-      if (enumValue === undefined) {
-        console.error(
-          `Invalid --phase: ${value} (expected CASTLE_SELECT | CANNON_PLACE | MODIFIER_REVEAL | BATTLE | UPGRADE_PICK | WALL_BUILD)`,
-        );
-        Deno.exit(1);
-      }
-      phase = enumValue;
-    } else if (flag === "--moment") {
+    else if (flag === "--phase") phase = parsePhase(argv[++i]);
+    else if (flag === "--moment") {
       const value = argv[++i];
       if (value !== "start" && value !== "end") {
         console.error(`Invalid --moment: ${value} (expected start or end)`);
@@ -387,10 +480,105 @@ function parseArgs(): Args {
         Deno.exit(1);
       }
       player = idx as 0 | 1 | 2;
+    } else if (flag === "--tower") {
+      tower = parseNonNegInt(argv[++i], "--tower");
+    } else if (flag === "--castle") {
+      castle = parsePlayerName(argv[++i], "--castle");
+    } else if (flag === "--at-tile") {
+      atTile = parseRowCol(argv[++i]);
+    } else if (flag === "--zoom") {
+      zoom = parseNonNegInt(argv[++i], "--zoom");
     } else {
       console.error(`Unknown flag: ${flag}`);
       Deno.exit(1);
     }
   }
-  return { seed, mode, round, matchRounds, phase, moment, at, player };
+  assertSingleFocus(tower, castle, atTile);
+  return {
+    seed,
+    mode,
+    round,
+    matchRounds,
+    phase,
+    moment,
+    at,
+    player,
+    tower,
+    castle,
+    atTile,
+    zoom,
+  };
+}
+
+/** Parse a --phase flag value to a Phase, or exit on a bad value. */
+function parsePhase(raw: string | undefined): Phase {
+  const value = raw?.toUpperCase() ?? "";
+  const enumValue = (Phase as Record<string, Phase>)[value];
+  if (enumValue === undefined) {
+    console.error(
+      `Invalid --phase: ${value} (expected CASTLE_SELECT | CANNON_PLACE | MODIFIER_REVEAL | BATTLE | UPGRADE_PICK | WALL_BUILD)`,
+    );
+    Deno.exit(1);
+  }
+  return enumValue;
+}
+
+/** Exit if more than one mutually-exclusive focus target was supplied —
+ *  each picks one crop center, so combining them is ambiguous. */
+function assertSingleFocus(
+  tower: number | undefined,
+  castle: number | undefined,
+  atTile: { row: number; col: number } | undefined,
+): void {
+  const count =
+    (tower !== undefined ? 1 : 0) +
+    (castle !== undefined ? 1 : 0) +
+    (atTile !== undefined ? 1 : 0);
+  if (count > 1) {
+    console.error(
+      "Pick at most one focus target: --tower, --castle, or --at-tile.",
+    );
+    Deno.exit(1);
+  }
+}
+
+/** Resolve a RED|BLUE|GOLD flag value to a player slot, or exit on a bad
+ *  value. Shared by --player and --castle. */
+function parsePlayerName(raw: string | undefined, flag: string): 0 | 1 | 2 {
+  const value = raw?.toUpperCase() ?? "";
+  const idx = PLAYER_NAMES.indexOf(value as (typeof PLAYER_NAMES)[number]);
+  if (idx < 0) {
+    console.error(`Invalid ${flag}: ${value} (expected RED, BLUE, or GOLD)`);
+    Deno.exit(1);
+  }
+  return idx as 0 | 1 | 2;
+}
+
+/** Parse a non-negative integer flag value, or exit on a bad value.
+ *  Shared by --tower and --zoom. */
+function parseNonNegInt(raw: string | undefined, flag: string): number {
+  const value = Number(raw);
+  if (!Number.isInteger(value) || value < 0) {
+    console.error(`Invalid ${flag}: ${raw} (expected a non-negative integer)`);
+    Deno.exit(1);
+  }
+  return value;
+}
+
+/** Parse a `ROW,COL` flag value into a tile, or exit on a bad value. */
+function parseRowCol(raw: string | undefined): { row: number; col: number } {
+  const parts = (raw ?? "").split(",");
+  const row = Number(parts[0]);
+  const col = Number(parts[1]);
+  if (
+    parts.length !== 2 ||
+    !Number.isInteger(row) ||
+    !Number.isInteger(col) ||
+    row < 0 ||
+    col < 0
+  ) {
+    console.error(`Invalid --at-tile: ${raw} (expected ROW,COL, e.g. 12,34)`);
+    Deno.exit(1);
+  }
+  return { row, col };
 }
