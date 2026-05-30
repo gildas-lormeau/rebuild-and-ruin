@@ -120,8 +120,8 @@ const poolComplete: PoolComplete = true;
 /** Rarity weights for modifier rolls — mirrors `upgrade-defs.ts` so the two
  *  pool systems share a tuning vocabulary. Higher = more likely to roll.
  *  Common modifiers are mild / recoverable (rubble_clearing, supply_ship,
- *  low_water, wildfire). Rare modifiers are match-defining or permanent
- *  (fog_of_war, sapper, frostbite, sinkhole, frozen_river). */
+ *  low_water). Rare modifiers are match-defining or permanent
+ *  (fog_of_war, sapper, frostbite, sinkhole, frozen_river, high_tide). */
 const WEIGHT_COMMON = 3;
 const WEIGHT_UNCOMMON = 2;
 const WEIGHT_RARE = 1;
@@ -137,7 +137,7 @@ const MODIFIER_POOL = [
     label: "Wildfire",
     description:
       "Elongated burn scar (~10 tiles), destroys walls/grunts/houses/bonus squares",
-    weight: WEIGHT_COMMON,
+    weight: WEIGHT_UNCOMMON,
     implemented: true,
     needsCheckpoint: false,
   },
@@ -172,7 +172,7 @@ const MODIFIER_POOL = [
     label: "High Tide",
     description:
       "River widens 1 tile, flooding banks and destroying structures. Recedes next round",
-    weight: WEIGHT_UNCOMMON,
+    weight: WEIGHT_RARE,
     implemented: true,
     needsCheckpoint: false,
   },
