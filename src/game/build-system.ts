@@ -257,6 +257,7 @@ export function applyPiecePlacement(
   });
   for (const pos of destroyedHousePositions) {
     emitGameEvent(state.bus, GAME_EVENT.HOUSE_CRUSHED, {
+      playerId,
       row: pos.row,
       col: pos.col,
     });

@@ -11319,10 +11319,10 @@
     {
       "type": "wallDestroyed",
       "payload": {
-        "cannonIdx": 0,
         "col": 9,
         "playerId": 0,
         "row": 9,
+        "shooterCannonIdx": 0,
         "shooterId": 1
       }
     },
@@ -11423,10 +11423,10 @@
     {
       "type": "wallDestroyed",
       "payload": {
-        "cannonIdx": 1,
         "col": 10,
         "playerId": 0,
         "row": 11,
+        "shooterCannonIdx": 1,
         "shooterId": 2
       }
     },
@@ -11581,10 +11581,10 @@
     {
       "type": "wallDestroyed",
       "payload": {
-        "cannonIdx": 0,
         "col": 10,
         "playerId": 0,
         "row": 13,
+        "shooterCannonIdx": 0,
         "shooterId": 2
       }
     },
@@ -11636,6 +11636,7 @@
         "cannonIdx": 1,
         "newHp": 2,
         "playerId": 1,
+        "shooterCannonIdx": 1,
         "shooterId": 0
       }
     },
@@ -11771,6 +11772,7 @@
         "cannonIdx": 1,
         "newHp": 1,
         "playerId": 1,
+        "shooterCannonIdx": 0,
         "shooterId": 0
       }
     },
@@ -11901,10 +11903,10 @@
     {
       "type": "wallDestroyed",
       "payload": {
-        "cannonIdx": 2,
         "col": 22,
         "playerId": 1,
         "row": 15,
+        "shooterCannonIdx": 2,
         "shooterId": 0
       }
     },
@@ -11984,6 +11986,7 @@
         "cannonIdx": 2,
         "newHp": 2,
         "playerId": 0,
+        "shooterCannonIdx": 1,
         "shooterId": 1
       }
     },
@@ -12050,10 +12053,10 @@
     {
       "type": "wallDestroyed",
       "payload": {
-        "cannonIdx": 2,
         "col": 10,
         "playerId": 0,
         "row": 14,
+        "shooterCannonIdx": 2,
         "shooterId": 2
       }
     },
@@ -12151,6 +12154,7 @@
         "cannonIdx": 2,
         "newHp": 1,
         "playerId": 0,
+        "shooterCannonIdx": 2,
         "shooterId": 1
       }
     },
@@ -12230,6 +12234,7 @@
         "cannonIdx": 2,
         "newHp": 0,
         "playerId": 0,
+        "shooterCannonIdx": 0,
         "shooterId": 1
       }
     },
@@ -12572,10 +12577,10 @@
     {
       "type": "wallDestroyed",
       "payload": {
-        "cannonIdx": 0,
         "col": 18,
         "playerId": 1,
         "row": 16,
+        "shooterCannonIdx": 0,
         "shooterId": 2
       }
     },
@@ -12730,10 +12735,10 @@
     {
       "type": "wallDestroyed",
       "payload": {
-        "cannonIdx": 1,
         "col": 18,
         "playerId": 1,
         "row": 18,
+        "shooterCannonIdx": 1,
         "shooterId": 2
       }
     },
@@ -12921,6 +12926,7 @@
         "cannonIdx": 0,
         "newHp": 2,
         "playerId": 1,
+        "shooterCannonIdx": 1,
         "shooterId": 0
       }
     },
@@ -12978,6 +12984,7 @@
         "cannonIdx": 1,
         "newHp": 0,
         "playerId": 1,
+        "shooterCannonIdx": 0,
         "shooterId": 0
       }
     },
@@ -13199,6 +13206,7 @@
         "cannonIdx": 0,
         "newHp": 2,
         "playerId": 0,
+        "shooterCannonIdx": 1,
         "shooterId": 1
       }
     },
@@ -13404,6 +13412,7 @@
         "cannonIdx": 0,
         "newHp": 1,
         "playerId": 0,
+        "shooterCannonIdx": 2,
         "shooterId": 1
       }
     },
@@ -13428,10 +13437,10 @@
     {
       "type": "wallDestroyed",
       "payload": {
-        "cannonIdx": 2,
         "col": 18,
         "playerId": 1,
         "row": 21,
+        "shooterCannonIdx": 2,
         "shooterId": 2
       }
     },
@@ -13498,10 +13507,10 @@
     {
       "type": "wallDestroyed",
       "payload": {
-        "cannonIdx": 0,
         "col": 18,
         "playerId": 1,
         "row": 17,
+        "shooterCannonIdx": 0,
         "shooterId": 2
       }
     },
@@ -13658,10 +13667,10 @@
     {
       "type": "wallDestroyed",
       "payload": {
-        "cannonIdx": 1,
         "col": 18,
         "playerId": 1,
         "row": 19,
+        "shooterCannonIdx": 1,
         "shooterId": 2
       }
     },
@@ -13917,6 +13926,7 @@
         "cannonIdx": 0,
         "newHp": 0,
         "playerId": 0,
+        "shooterCannonIdx": 0,
         "shooterId": 1
       }
     },
@@ -14026,6 +14036,7 @@
         "cannonIdx": 0,
         "newHp": 1,
         "playerId": 1,
+        "shooterCannonIdx": 1,
         "shooterId": 0
       }
     },
@@ -14065,6 +14076,7 @@
         "cannonIdx": 0,
         "newHp": 0,
         "playerId": 1,
+        "shooterCannonIdx": 0,
         "shooterId": 0
       }
     },
@@ -14498,6 +14510,7 @@
         "cannonIdx": 1,
         "newHp": 2,
         "playerId": 0,
+        "shooterCannonIdx": 2,
         "shooterId": 1
       }
     },
@@ -14643,6 +14656,7 @@
         "cannonIdx": 2,
         "newHp": 2,
         "playerId": 1,
+        "shooterCannonIdx": 0,
         "shooterId": 2
       }
     },
@@ -14724,6 +14738,7 @@
         "cannonIdx": 2,
         "newHp": 1,
         "playerId": 1,
+        "shooterCannonIdx": 2,
         "shooterId": 2
       }
     },
@@ -15049,6 +15064,7 @@
         "cannonIdx": 2,
         "newHp": 0,
         "playerId": 1,
+        "shooterCannonIdx": 1,
         "shooterId": 0
       }
     },
@@ -15436,6 +15452,7 @@
         "cannonIdx": 1,
         "newHp": 1,
         "playerId": 0,
+        "shooterCannonIdx": 2,
         "shooterId": 1
       }
     },
@@ -15748,10 +15765,10 @@
     {
       "type": "wallDestroyed",
       "payload": {
-        "cannonIdx": 2,
         "col": 21,
         "playerId": 1,
         "row": 22,
+        "shooterCannonIdx": 2,
         "shooterId": 2
       }
     },
@@ -18458,6 +18475,7 @@
       "type": "houseCrushed",
       "payload": {
         "col": 16,
+        "playerId": 1,
         "row": 21
       }
     },
@@ -34062,10 +34080,10 @@
     {
       "type": "wallDestroyed",
       "payload": {
-        "cannonIdx": 1,
         "col": 6,
         "playerId": 0,
         "row": 7,
+        "shooterCannonIdx": 1,
         "shooterId": 2
       }
     },
@@ -34177,16 +34195,17 @@
         "cannonIdx": 4,
         "newHp": 2,
         "playerId": 1,
+        "shooterCannonIdx": 3,
         "shooterId": 0
       }
     },
     {
       "type": "wallDestroyed",
       "payload": {
-        "cannonIdx": 3,
         "col": 20,
         "playerId": 2,
         "row": 0,
+        "shooterCannonIdx": 3,
         "shooterId": 1
       }
     },
@@ -34199,10 +34218,10 @@
     {
       "type": "wallDestroyed",
       "payload": {
-        "cannonIdx": 0,
         "col": 7,
         "playerId": 0,
         "row": 8,
+        "shooterCannonIdx": 0,
         "shooterId": 2
       }
     },
@@ -34357,10 +34376,10 @@
     {
       "type": "wallDestroyed",
       "payload": {
-        "cannonIdx": 2,
         "col": 6,
         "playerId": 0,
         "row": 9,
+        "shooterCannonIdx": 2,
         "shooterId": 2
       }
     },
@@ -34400,6 +34419,7 @@
         "cannonIdx": 4,
         "newHp": 1,
         "playerId": 1,
+        "shooterCannonIdx": 4,
         "shooterId": 0
       }
     },
@@ -34735,6 +34755,7 @@
         "cannonIdx": 4,
         "newHp": 0,
         "playerId": 1,
+        "shooterCannonIdx": 1,
         "shooterId": 0
       }
     },
@@ -35165,10 +35186,10 @@
     {
       "type": "wallDestroyed",
       "payload": {
-        "cannonIdx": 3,
         "col": 18,
         "playerId": 1,
         "row": 19,
+        "shooterCannonIdx": 3,
         "shooterId": 0
       }
     },
@@ -35193,10 +35214,10 @@
     {
       "type": "wallDestroyed",
       "payload": {
-        "cannonIdx": 4,
         "col": 10,
         "playerId": 0,
         "row": 12,
+        "shooterCannonIdx": 4,
         "shooterId": 1
       }
     },
@@ -35397,10 +35418,10 @@
     {
       "type": "wallDestroyed",
       "payload": {
-        "cannonIdx": 4,
         "col": 18,
         "playerId": 1,
         "row": 20,
+        "shooterCannonIdx": 4,
         "shooterId": 0
       }
     },
@@ -35449,10 +35470,10 @@
     {
       "type": "wallDestroyed",
       "payload": {
-        "cannonIdx": 3,
         "col": 5,
         "playerId": 0,
         "row": 7,
+        "shooterCannonIdx": 3,
         "shooterId": 2
       }
     },
@@ -35619,10 +35640,10 @@
     {
       "type": "wallDestroyed",
       "payload": {
-        "cannonIdx": 4,
         "col": 5,
         "playerId": 0,
         "row": 9,
+        "shooterCannonIdx": 4,
         "shooterId": 2
       }
     },
@@ -35662,6 +35683,7 @@
         "cannonIdx": 1,
         "newHp": 0,
         "playerId": 0,
+        "shooterCannonIdx": 3,
         "shooterId": 1
       }
     },
@@ -35824,10 +35846,10 @@
     {
       "type": "wallDestroyed",
       "payload": {
-        "cannonIdx": 1,
         "col": 17,
         "playerId": 1,
         "row": 21,
+        "shooterCannonIdx": 1,
         "shooterId": 2
       }
     },
@@ -35877,6 +35899,7 @@
         "cannonIdx": 3,
         "newHp": 2,
         "playerId": 1,
+        "shooterCannonIdx": 1,
         "shooterId": 0
       }
     },
@@ -36064,6 +36087,7 @@
         "cannonIdx": 3,
         "newHp": 1,
         "playerId": 1,
+        "shooterCannonIdx": 3,
         "shooterId": 0
       }
     },
@@ -36187,6 +36211,7 @@
         "cannonIdx": 3,
         "newHp": 0,
         "playerId": 1,
+        "shooterCannonIdx": 4,
         "shooterId": 0
       }
     },
@@ -36329,10 +36354,10 @@
     {
       "type": "wallDestroyed",
       "payload": {
-        "cannonIdx": 2,
         "col": 16,
         "playerId": 1,
         "row": 20,
+        "shooterCannonIdx": 2,
         "shooterId": 2
       }
     },
@@ -37041,10 +37066,10 @@
     {
       "type": "wallDestroyed",
       "payload": {
-        "cannonIdx": 3,
         "col": 22,
         "playerId": 1,
         "row": 25,
+        "shooterCannonIdx": 3,
         "shooterId": 2
       }
     },
@@ -37069,10 +37094,10 @@
     {
       "type": "wallDestroyed",
       "payload": {
-        "cannonIdx": 4,
         "col": 23,
         "playerId": 1,
         "row": 24,
+        "shooterCannonIdx": 4,
         "shooterId": 2
       }
     },
@@ -37225,10 +37250,10 @@
     {
       "type": "wallDestroyed",
       "payload": {
-        "cannonIdx": 3,
         "col": 14,
         "playerId": 1,
         "row": 25,
+        "shooterCannonIdx": 3,
         "shooterId": 0
       }
     },
@@ -37283,10 +37308,10 @@
     {
       "type": "wallDestroyed",
       "payload": {
-        "cannonIdx": 0,
         "col": 23,
         "playerId": 1,
         "row": 26,
+        "shooterCannonIdx": 0,
         "shooterId": 2
       }
     },
@@ -37341,10 +37366,10 @@
     {
       "type": "wallDestroyed",
       "payload": {
-        "cannonIdx": 1,
         "col": 24,
         "playerId": 1,
         "row": 25,
+        "shooterCannonIdx": 1,
         "shooterId": 2
       }
     },
@@ -37571,10 +37596,10 @@
     {
       "type": "wallDestroyed",
       "payload": {
-        "cannonIdx": 4,
         "col": 18,
         "playerId": 1,
         "row": 17,
+        "shooterCannonIdx": 4,
         "shooterId": 0
       }
     },
@@ -37833,10 +37858,10 @@
     {
       "type": "wallDestroyed",
       "payload": {
-        "cannonIdx": 2,
         "col": 21,
         "playerId": 1,
         "row": 27,
+        "shooterCannonIdx": 2,
         "shooterId": 2
       }
     },
@@ -38431,10 +38456,10 @@
     {
       "type": "wallDestroyed",
       "payload": {
-        "cannonIdx": 3,
         "col": 20,
         "playerId": 1,
         "row": 27,
+        "shooterCannonIdx": 3,
         "shooterId": 2
       }
     },
@@ -38471,10 +38496,10 @@
     {
       "type": "wallDestroyed",
       "payload": {
-        "cannonIdx": 4,
         "col": 22,
         "playerId": 1,
         "row": 27,
+        "shooterCannonIdx": 4,
         "shooterId": 2
       }
     },
@@ -40523,6 +40548,7 @@
       "type": "houseCrushed",
       "payload": {
         "col": 26,
+        "playerId": 2,
         "row": 4
       }
     },
@@ -48596,6 +48622,7 @@
       "type": "houseCrushed",
       "payload": {
         "col": 31,
+        "playerId": 1,
         "row": 17
       }
     },

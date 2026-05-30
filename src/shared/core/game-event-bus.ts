@@ -189,7 +189,12 @@ type LifecycleEvent =
    *  tile (no wall is laid there). Purely diagnostic — no SFX. Distinct
    *  from the battle-phase `houseDestroyed` event (cannonball impact),
    *  which is a networked game-state ImpactEvent. */
-  | { type: "houseCrushed"; row: number; col: number };
+  | {
+      type: "houseCrushed";
+      playerId: ValidPlayerId;
+      row: number;
+      col: number;
+    };
 
 type EntityEvent =
   | {

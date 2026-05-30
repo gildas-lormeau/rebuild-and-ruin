@@ -71,17 +71,21 @@ export interface WallDestroyedMessage {
   shooterId?: ValidPlayerId;
   /** Cannon that fired the destroying ball. Undefined for grunt melee
    *  attacks (grunts have no cannons) — readers should treat absence as
-   *  "non-cannon source". */
-  cannonIdx?: CannonIdx;
+   *  "non-cannon source". `shooterCannonIdx` (the firing cannon) across all
+   *  impact events; `cannonIdx` is reserved for the affected/victim cannon. */
+  shooterCannonIdx?: CannonIdx;
 }
 
 /** A cannon took damage (destroyed when newHp <= 0). */
 export interface CannonDamagedMessage {
   type: "cannonDamaged";
   playerId: ValidPlayerId;
+  /** The damaged (victim) cannon. */
   cannonIdx: CannonIdx;
   newHp: number;
   shooterId?: ValidPlayerId;
+  /** The firing (shooter) cannon — distinct from victim `cannonIdx`. */
+  shooterCannonIdx?: CannonIdx;
 }
 
 export interface GruntKilledMessage {
@@ -89,6 +93,7 @@ export interface GruntKilledMessage {
   row: number;
   col: number;
   shooterId?: ValidPlayerId;
+  shooterCannonIdx?: CannonIdx;
 }
 
 /** A frosted grunt absorbed its first hit (ice chip — grunt survives with
@@ -104,6 +109,8 @@ export interface HouseDestroyedMessage {
   type: "houseDestroyed";
   row: number;
   col: number;
+  shooterId?: ValidPlayerId;
+  shooterCannonIdx?: CannonIdx;
 }
 
 /** A grunt was spawned (from house destruction or inter-battle).

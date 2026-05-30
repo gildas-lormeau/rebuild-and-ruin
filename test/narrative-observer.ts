@@ -13,7 +13,23 @@
  *     a `[PHASE]` prefix on every event
  *   - `WALL_PLACED` events grouped per player per WALL_BUILD phase
  *     (per-piece coordinates would dominate the output)
- *   - abbreviated verbs (`X → Y cannon@N hp=H` rather than spelled out)
+ *   - every per-event line leads with a stable, greppable UPPERCASE `[TYPE]`
+ *     key so an agent can extract by event type without parsing prose.
+ *     Build/meta: [CASTLE] [PLACE] [BUILD] [ENCLOSE] [TRAP] [CRUSH]
+ *     [LIFE] [ELIM] [MODIFIER] [UPGRADE]. Battle: [FIRE] (launch) then the
+ *     landings [WALL] [CANNON] [HOUSE] [TOWER] [GRUNT] [PIT], plus [POWER]
+ *     at battle start. UPPERCASE `[TYPE]` is exclusively the event key;
+ *     lowercase brackets are reserved for the fire-line intent classification
+ *     (`[cannon:RED#2 via:focus_fire]`, `[own-wall via:pocket]`) — so the two
+ *     never collide, even under a loose grep. The tag is the reliable parse
+ *     key; the prose verb (destroys/damages/kills) is outcome metadata that
+ *     collides across types (destroys = wall|house|tower|dead-cannon), so
+ *     don't key off the verb. Structural lines are NOT tagged — they are their
+ *     own anchors: phase headers `── rN PHASE ──`, round-end `rN END:`, and
+ *     `GAME END rN:` (the last two are parsed by watch-game's round filter).
+ *   - launches read `[FIRE] X fires#N → (r,c) [intent]`; landings read
+ *     `[TYPE] X#N <verb> Y target`
+ *   - `#N` is always a cannon slot index, `@(r,c)` is always a tile coord
  *
  * Usage:
  *
@@ -138,7 +154,7 @@ export function createNarrativeObserver(): NarrativeObserver {
     const ordered = [...wallGroup.entries()].sort((a, b) => a[0] - b[0]);
     for (const [playerId, agg] of ordered) {
       lines.push(
-        `  ${playerName(playerId)} placed ${agg.tiles}w in ${agg.placements} pieces`,
+        `  [BUILD] ${playerName(playerId)} placed ${agg.tiles}w in ${agg.placements} pieces`,
       );
     }
     wallGroup.clear();
@@ -222,17 +238,17 @@ export function createNarrativeObserver(): NarrativeObserver {
         // legible at a glance instead of needing per-cannon state probes.
         if (ev.phase === Phase.BATTLE) {
           const firepower = firepowerSummary(sc.state);
-          if (firepower !== "") lines.push(`  firepower: ${firepower}`);
+          if (firepower !== "") lines.push(`  [POWER] ${firepower}`);
         }
       });
 
       on(sc, GAME_EVENT.CASTLE_PLACED, (ev) => {
-        push(`${playerName(ev.playerId)} castle (${ev.row},${ev.col})`);
+        push(`[CASTLE] ${playerName(ev.playerId)} castle (${ev.row},${ev.col})`);
       });
 
       on(sc, GAME_EVENT.CANNON_PLACED, (ev) => {
         push(
-          `${playerName(ev.playerId)} cannon@${ev.cannonIdx} (${ev.row},${ev.col})`,
+          `[PLACE] ${playerName(ev.playerId)} cannon#${ev.cannonIdx} (${ev.row},${ev.col})`,
         );
       });
 
@@ -249,35 +265,37 @@ export function createNarrativeObserver(): NarrativeObserver {
       });
 
       on(sc, GAME_EVENT.TOWER_ENCLOSED, (ev) => {
-        push(`${playerName(ev.playerId)} encloses T${ev.towerIndex}`);
+        push(`[ENCLOSE] ${playerName(ev.playerId)} encloses T${ev.towerIndex}`);
       });
 
       on(sc, GAME_EVENT.GRUNTS_ENCLOSED, (ev) => {
-        push(`${playerName(ev.playerId)} traps ${ev.count} grunt(s)`);
+        push(`[TRAP] ${playerName(ev.playerId)} traps ${ev.count} grunt(s)`);
       });
 
       on(sc, GAME_EVENT.HOUSE_CRUSHED, (ev) => {
-        push(`house@(${ev.row},${ev.col}) crushed by piece`);
+        push(
+          `[CRUSH] ${playerName(ev.playerId)} crushed house@(${ev.row},${ev.col})`,
+        );
       });
 
       on(sc, GAME_EVENT.LIFE_LOST, (ev) => {
         lifeLostThisRound.add(ev.playerId);
         push(
-          `${playerName(ev.playerId)} ✗ life (${ev.livesRemaining}♥ left)`,
+          `[LIFE] ${playerName(ev.playerId)} ✗ life (${ev.livesRemaining}♥ left)`,
         );
       });
 
       on(sc, GAME_EVENT.PLAYER_ELIMINATED, (ev) => {
-        push(`${playerName(ev.playerId)} ELIMINATED`);
+        push(`[ELIM] ${playerName(ev.playerId)} ELIMINATED`);
       });
 
       on(sc, GAME_EVENT.MODIFIER_APPLIED, (ev) => {
         currentRoundModifier = ev.modifierId;
-        push(`modifier: ${ev.modifierId}`);
+        push(`[MODIFIER] ${ev.modifierId}`);
       });
 
       on(sc, GAME_EVENT.UPGRADE_PICKED, (ev) => {
-        push(`${playerName(ev.playerId)} upgrade: ${ev.upgradeId}`);
+        push(`[UPGRADE] ${playerName(ev.playerId)} ${ev.upgradeId}`);
         // Remember who armed a ceasefire — it skips NEXT round's battle, so
         // the skip marker (a round later) can name the owner. Tagged with the
         // pick round; consumed/pruned at detection.
@@ -320,8 +338,8 @@ export function createNarrativeObserver(): NarrativeObserver {
         const isCaptured = ev.scoringPlayerId !== undefined &&
           ev.scoringPlayerId !== ev.playerId;
         const fireRef = isCaptured
-          ? `${playerName(shooterId)} fires ${playerName(ev.playerId)}@${ev.cannonIdx}`
-          : `${playerName(shooterId)} fires@${ev.cannonIdx}`;
+          ? `${playerName(shooterId)} fires ${playerName(ev.playerId)}#${ev.cannonIdx}`
+          : `${playerName(shooterId)} fires#${ev.cannonIdx}`;
         const tag = classifyImpactTile(
           sc.state,
           ev.impactRow,
@@ -329,56 +347,73 @@ export function createNarrativeObserver(): NarrativeObserver {
           shooterId,
         );
         push(
-          `${fireRef} → (${ev.impactRow},${ev.impactCol}) [${tag}]`,
+          `[FIRE] ${fireRef} → (${ev.impactRow},${ev.impactCol}) [${tag}]`,
         );
       });
 
       on(sc, BATTLE_MESSAGE.WALL_DESTROYED, (ev) => {
-        // shooterId is undefined only when a grunt destroyed the wall
-        // (grunt-system emits without a shooter; battle-system always sets
-        // one). cannonIdx is set for cannon-driven hits including splash;
-        // grunts pass undefined. For captured cannons the idx lives in the
-        // original owner's player.cannons[] array — formatCannonShooter
-        // surfaces that as "SHOOTER via OWNER@idx".
-        const shooter = ev.shooterId === undefined
-          ? "grunt"
-          : ev.cannonIdx !== undefined
-            ? formatCannonShooter(sc.state, ev.shooterId, ev.cannonIdx)
-            : playerName(ev.shooterId);
+        // shooterId/shooterCannonIdx are undefined only when a grunt destroyed
+        // the wall (grunt-system emits without a shooter; battle-system always
+        // sets both) — hence the "grunt" fallback. formatImpactShooter handles
+        // captured-cannon fires ("SHOOTER via OWNER#idx").
+        const shooter = formatImpactShooter(
+          sc.state,
+          ev.shooterId,
+          ev.shooterCannonIdx,
+          "grunt",
+        );
         push(
-          `${shooter} → ${playerName(ev.playerId)} wall@(${ev.row},${ev.col})`,
+          `[WALL] ${shooter} destroys ${impactVictim(ev.shooterId, ev.playerId)} wall@(${ev.row},${ev.col})`,
         );
       });
 
       on(sc, BATTLE_MESSAGE.CANNON_DAMAGED, (ev) => {
-        // CANNON_DAMAGED carries shooterId (the actual scorer) but not the
-        // shooter's cannonIdx — so we can't tag captured-cannon fires with
-        // their original owner here. Bare shooter name only.
-        const shooter = ev.shooterId !== undefined
-          ? playerName(ev.shooterId)
-          : "?";
+        const shooter = formatImpactShooter(
+          sc.state,
+          ev.shooterId,
+          ev.shooterCannonIdx,
+          "?",
+        );
+        const target = `${impactVictim(ev.shooterId, ev.playerId)} cannon#${ev.cannonIdx}`;
+        // hp 0 means the cannon is dead — read it as a kill, not a graze.
         push(
-          `${shooter} → ${playerName(ev.playerId)} cannon@${ev.cannonIdx} hp=${ev.newHp}`,
+          ev.newHp <= 0
+            ? `[CANNON] ${shooter} destroys ${target}`
+            : `[CANNON] ${shooter} damages ${target} (hp ${ev.newHp})`,
         );
       });
 
       on(sc, BATTLE_MESSAGE.TOWER_KILLED, (ev) => {
-        const owner = ev.playerId !== undefined
-          ? `${playerName(ev.playerId)}'s`
-          : "neutral";
-        push(`tower T${ev.towerIdx} (${owner}) destroyed`);
+        // Towers are cannonball-invulnerable — grunt-system is the sole emitter,
+        // so the killer is always a grunt (no shooter on the payload). Mirror
+        // the grunt wall-destruction form: `grunt destroys <owner> tower T<n>`.
+        const owner =
+          ev.playerId !== undefined ? playerName(ev.playerId) : "neutral";
+        push(`[TOWER] grunt destroys ${owner} tower T${ev.towerIdx}`);
       });
 
       on(sc, BATTLE_MESSAGE.HOUSE_DESTROYED, (ev) => {
-        push(`house@(${ev.row},${ev.col}) destroyed`);
+        const shooter = formatImpactShooter(
+          sc.state,
+          ev.shooterId,
+          ev.shooterCannonIdx,
+          "?",
+        );
+        push(`[HOUSE] ${shooter} destroys house@(${ev.row},${ev.col})`);
       });
 
       on(sc, BATTLE_MESSAGE.PIT_CREATED, (ev) => {
-        push(`pit@(${ev.row},${ev.col}) ${ev.roundsLeft}r`);
+        push(`[PIT] pit@(${ev.row},${ev.col}) ${ev.roundsLeft}r`);
       });
 
       on(sc, BATTLE_MESSAGE.GRUNT_KILLED, (ev) => {
-        push(`grunt@(${ev.row},${ev.col}) killed`);
+        const shooter = formatImpactShooter(
+          sc.state,
+          ev.shooterId,
+          ev.shooterCannonIdx,
+          "?",
+        );
+        push(`[GRUNT] ${shooter} kills grunt@(${ev.row},${ev.col})`);
       });
 
       // AI battle-diag hook — fires synchronously right after the AI's
@@ -448,6 +483,30 @@ function firepowerSummary(state: GameState): string {
   return segments.join(" | ");
 }
 
+/** Uniform shooter label for impact lines: `NAME#idx` (or `NAME via OWNER#idx`
+ *  for captured-cannon fires) when the firing cannon is known, a bare name when
+ *  only the shooter id is, and `fallback` when there's no shooter at all (e.g. a
+ *  grunt melee-destroying a wall). Keeps every impact line in `SHOOTER → …`
+ *  prefix form regardless of which fields its event payload carries. */
+function formatImpactShooter(
+  state: GameState,
+  shooterId: number | undefined,
+  shooterCannonIdx: number | undefined,
+  fallback: string,
+): string {
+  if (shooterId === undefined) return fallback;
+  return shooterCannonIdx !== undefined
+    ? formatCannonShooter(state, shooterId, shooterCannonIdx)
+    : playerName(shooterId);
+}
+
+/** Victim label for impact lines: `own` when the shooter is hitting their own
+ *  structure (the intentional self-wall / pocket-cut fire — see the `own-wall`
+ *  tag on the matching fire line), else the owner's name. */
+function impactVictim(shooterId: number | undefined, victimId: number): string {
+  return shooterId === victimId ? "own" : playerName(victimId);
+}
+
 /** Format a cannon-source label for events whose shooter may have fired a
  *  captured cannon. cannonIdx on the wire is the idx in the firing cannon's
  *  ORIGINAL owner's `player.cannons[]` array, which is the shooter's own
@@ -463,9 +522,9 @@ function formatCannonShooter(
     (cap) => cap.capturerId === shooterId && cap.cannonIdx === cannonIdx,
   );
   if (captured !== undefined) {
-    return `${playerName(shooterId)} via ${playerName(captured.victimId)}@${cannonIdx}`;
+    return `${playerName(shooterId)} via ${playerName(captured.victimId)}#${cannonIdx}`;
   }
-  return `${playerName(shooterId)}@${cannonIdx}`;
+  return `${playerName(shooterId)}#${cannonIdx}`;
 }
 
 /** Classify what's at the impact tile (row, col) from the actual shooter's
@@ -540,8 +599,8 @@ function effectiveTargetHp(
     }
     return 1;
   }
-  // Cannons — current hp. Matches `cannon:NAME@idx`, `own-cannon@idx`,
-  // `own-captured@idx`, `lost-cannon@idx→NAME`. Locate by tile rather than
+  // Cannons — current hp. Matches `cannon:NAME#idx`, `own-cannon#idx`,
+  // `own-captured#idx`, `lost-cannon#idx→NAME`. Locate by tile rather than
   // parsing the tag, since the tag's idx refers to different player arrays
   // across the variants.
   if (
@@ -581,17 +640,17 @@ function identifyImpactTile(
   // persist as debris (clear on zone reset) so a hit on one is wasted;
   // we surface that explicitly. "own-*" reflects the actual shooter's
   // effective control, not original ownership — so a capturer hitting the
-  // victim's other cannons shows as `cannon:VICTIM@idx`, not `own-cannon`.
+  // victim's other cannons shows as `cannon:VICTIM#idx`, not `own-cannon`.
   for (let pid = 0; pid < state.players.length; pid++) {
     const player = state.players[pid]!;
     for (let idx = 0; idx < player.cannons.length; idx++) {
       const cannon = player.cannons[idx]!;
       if (!isCannonTile(cannon, row, col)) continue;
-      if (!isCannonAlive(cannon)) return `debris:${playerName(pid)}@${idx}`;
+      if (!isCannonAlive(cannon)) return `debris:${playerName(pid)}#${idx}`;
       const capturedByShooter = state.capturedCannons.some(
         (cap) => cap.cannon === cannon && cap.capturerId === shooterId,
       );
-      if (capturedByShooter) return `own-captured@${idx}`;
+      if (capturedByShooter) return `own-captured#${idx}`;
       if (pid === shooterId) {
         // Original owner of this cannon — but if an enemy has captured it,
         // it's effectively no longer ours.
@@ -599,11 +658,11 @@ function identifyImpactTile(
           (cap) => cap.cannon === cannon && cap.capturerId !== shooterId,
         );
         if (enemyCapture !== undefined) {
-          return `lost-cannon@${idx}→${playerName(enemyCapture.capturerId)}`;
+          return `lost-cannon#${idx}→${playerName(enemyCapture.capturerId)}`;
         }
-        return `own-cannon@${idx}`;
+        return `own-cannon#${idx}`;
       }
-      return `cannon:${playerName(pid)}@${idx}`;
+      return `cannon:${playerName(pid)}#${idx}`;
     }
   }
   // Tower (owned / neutral) — 2×2 footprint.

@@ -11733,6 +11733,7 @@
         "cannonIdx": 0,
         "newHp": 2,
         "playerId": 1,
+        "shooterCannonIdx": 0,
         "shooterId": 0
       }
     },
@@ -11841,10 +11842,10 @@
     {
       "type": "wallDestroyed",
       "payload": {
-        "cannonIdx": 0,
         "col": 20,
         "playerId": 0,
         "row": 26,
+        "shooterCannonIdx": 0,
         "shooterId": 2
       }
     },
@@ -11932,6 +11933,7 @@
         "cannonIdx": 0,
         "newHp": 1,
         "playerId": 1,
+        "shooterCannonIdx": 1,
         "shooterId": 0
       }
     },
@@ -12044,10 +12046,10 @@
     {
       "type": "wallDestroyed",
       "payload": {
-        "cannonIdx": 1,
         "col": 22,
         "playerId": 0,
         "row": 26,
+        "shooterCannonIdx": 1,
         "shooterId": 2
       }
     },
@@ -12171,6 +12173,7 @@
         "cannonIdx": 0,
         "newHp": 0,
         "playerId": 1,
+        "shooterCannonIdx": 2,
         "shooterId": 0
       }
     },
@@ -12295,10 +12298,10 @@
     {
       "type": "wallDestroyed",
       "payload": {
-        "cannonIdx": 0,
         "col": 2,
         "playerId": 2,
         "row": 9,
+        "shooterCannonIdx": 0,
         "shooterId": 1
       }
     },
@@ -12420,6 +12423,7 @@
         "cannonIdx": 0,
         "newHp": 2,
         "playerId": 2,
+        "shooterCannonIdx": 1,
         "shooterId": 1
       }
     },
@@ -12486,10 +12490,10 @@
     {
       "type": "wallDestroyed",
       "payload": {
-        "cannonIdx": 2,
         "col": 24,
         "playerId": 0,
         "row": 26,
+        "shooterCannonIdx": 2,
         "shooterId": 2
       }
     },
@@ -13027,6 +13031,7 @@
         "cannonIdx": 2,
         "newHp": 2,
         "playerId": 1,
+        "shooterCannonIdx": 1,
         "shooterId": 0
       }
     },
@@ -13069,10 +13074,10 @@
     {
       "type": "wallDestroyed",
       "payload": {
-        "cannonIdx": 2,
         "col": 0,
         "playerId": 2,
         "row": 12,
+        "shooterCannonIdx": 2,
         "shooterId": 1
       }
     },
@@ -13194,6 +13199,7 @@
         "cannonIdx": 2,
         "newHp": 1,
         "playerId": 1,
+        "shooterCannonIdx": 0,
         "shooterId": 0
       }
     },
@@ -13341,6 +13347,7 @@
         "cannonIdx": 2,
         "newHp": 0,
         "playerId": 1,
+        "shooterCannonIdx": 2,
         "shooterId": 0
       }
     },
@@ -13833,10 +13840,10 @@
     {
       "type": "wallDestroyed",
       "payload": {
-        "cannonIdx": 0,
         "col": 31,
         "playerId": 1,
         "row": 11,
+        "shooterCannonIdx": 0,
         "shooterId": 2
       }
     },
@@ -13885,10 +13892,10 @@
     {
       "type": "wallDestroyed",
       "payload": {
-        "cannonIdx": 1,
         "col": 29,
         "playerId": 1,
         "row": 10,
+        "shooterCannonIdx": 1,
         "shooterId": 2
       }
     },
@@ -13910,6 +13917,7 @@
         "cannonIdx": 0,
         "newHp": 1,
         "playerId": 2,
+        "shooterCannonIdx": 1,
         "shooterId": 1
       }
     },
@@ -14318,10 +14326,10 @@
     {
       "type": "wallDestroyed",
       "payload": {
-        "cannonIdx": 2,
         "col": 29,
         "playerId": 1,
         "row": 8,
+        "shooterCannonIdx": 2,
         "shooterId": 2
       }
     },
@@ -15140,10 +15148,10 @@
     {
       "type": "wallDestroyed",
       "payload": {
-        "cannonIdx": 0,
         "col": 29,
         "playerId": 1,
         "row": 11,
+        "shooterCannonIdx": 0,
         "shooterId": 2
       }
     },
@@ -15240,10 +15248,10 @@
     {
       "type": "wallDestroyed",
       "payload": {
-        "cannonIdx": 1,
         "col": 0,
         "playerId": 2,
         "row": 13,
+        "shooterCannonIdx": 1,
         "shooterId": 1
       }
     },
@@ -15274,10 +15282,10 @@
     {
       "type": "wallDestroyed",
       "payload": {
-        "cannonIdx": 1,
         "col": 30,
         "playerId": 1,
         "row": 11,
+        "shooterCannonIdx": 1,
         "shooterId": 2
       }
     },
@@ -15353,6 +15361,7 @@
         "cannonIdx": 0,
         "newHp": 0,
         "playerId": 2,
+        "shooterCannonIdx": 0,
         "shooterId": 0
       }
     },
@@ -15635,10 +15644,10 @@
     {
       "type": "wallDestroyed",
       "payload": {
-        "cannonIdx": 2,
         "col": 29,
         "playerId": 1,
         "row": 9,
+        "shooterCannonIdx": 2,
         "shooterId": 2
       }
     },
@@ -24111,6 +24120,7 @@
       "type": "houseCrushed",
       "payload": {
         "col": 12,
+        "playerId": 2,
         "row": 10
       }
     },
@@ -34715,10 +34725,10 @@
     {
       "type": "wallDestroyed",
       "payload": {
-        "cannonIdx": 0,
         "col": 29,
         "playerId": 1,
         "row": 4,
+        "shooterCannonIdx": 0,
         "shooterId": 0
       }
     },
@@ -34749,10 +34759,10 @@
     {
       "type": "wallDestroyed",
       "payload": {
-        "cannonIdx": 1,
         "col": 26,
         "playerId": 0,
         "row": 26,
+        "shooterCannonIdx": 1,
         "shooterId": 1
       }
     },
@@ -34825,10 +34835,10 @@
     {
       "type": "wallDestroyed",
       "payload": {
-        "cannonIdx": 1,
         "col": 25,
         "playerId": 0,
         "row": 19,
+        "shooterCannonIdx": 1,
         "shooterId": 2
       }
     },
@@ -35239,10 +35249,10 @@
     {
       "type": "wallDestroyed",
       "payload": {
-        "cannonIdx": 1,
         "col": 27,
         "playerId": 1,
         "row": 0,
+        "shooterCannonIdx": 1,
         "shooterId": 0
       }
     },
@@ -35319,10 +35329,10 @@
     {
       "type": "wallDestroyed",
       "payload": {
-        "cannonIdx": 2,
         "col": 23,
         "playerId": 0,
         "row": 19,
+        "shooterCannonIdx": 2,
         "shooterId": 2
       }
     },
@@ -35479,10 +35489,10 @@
     {
       "type": "wallDestroyed",
       "payload": {
-        "cannonIdx": 2,
         "col": 28,
         "playerId": 1,
         "row": 0,
+        "shooterCannonIdx": 2,
         "shooterId": 0
       }
     },
@@ -35565,10 +35575,10 @@
     {
       "type": "wallDestroyed",
       "payload": {
-        "cannonIdx": 3,
         "col": 26,
         "playerId": 0,
         "row": 23,
+        "shooterCannonIdx": 3,
         "shooterId": 2
       }
     },
@@ -35605,10 +35615,10 @@
     {
       "type": "wallDestroyed",
       "payload": {
-        "cannonIdx": 4,
         "col": 26,
         "playerId": 0,
         "row": 21,
+        "shooterCannonIdx": 4,
         "shooterId": 2
       }
     },
@@ -35678,6 +35688,7 @@
         "cannonIdx": 3,
         "newHp": 2,
         "playerId": 0,
+        "shooterCannonIdx": 1,
         "shooterId": 1
       }
     },
@@ -35742,10 +35753,10 @@
     {
       "type": "wallDestroyed",
       "payload": {
-        "cannonIdx": 3,
         "col": 29,
         "playerId": 1,
         "row": 1,
+        "shooterCannonIdx": 3,
         "shooterId": 0
       }
     },
@@ -36164,10 +36175,10 @@
     {
       "type": "wallDestroyed",
       "payload": {
-        "cannonIdx": 5,
         "col": 22,
         "playerId": 0,
         "row": 26,
+        "shooterCannonIdx": 5,
         "shooterId": 2
       }
     },
@@ -36431,6 +36442,7 @@
         "cannonIdx": 1,
         "newHp": 2,
         "playerId": 1,
+        "shooterCannonIdx": 0,
         "shooterId": 0
       }
     },
@@ -36546,6 +36558,7 @@
         "cannonIdx": 3,
         "newHp": 1,
         "playerId": 0,
+        "shooterCannonIdx": 1,
         "shooterId": 1
       }
     },
@@ -36615,6 +36628,7 @@
         "cannonIdx": 1,
         "newHp": 1,
         "playerId": 1,
+        "shooterCannonIdx": 1,
         "shooterId": 0
       }
     },
@@ -36654,6 +36668,7 @@
         "cannonIdx": 1,
         "newHp": 0,
         "playerId": 1,
+        "shooterCannonIdx": 5,
         "shooterId": 0
       }
     },
@@ -37152,10 +37167,10 @@
     {
       "type": "wallDestroyed",
       "payload": {
-        "cannonIdx": 1,
         "col": 29,
         "playerId": 1,
         "row": 8,
+        "shooterCannonIdx": 1,
         "shooterId": 2
       }
     },
@@ -37171,6 +37186,7 @@
         "cannonIdx": 3,
         "newHp": 2,
         "playerId": 1,
+        "shooterCannonIdx": 2,
         "shooterId": 0
       }
     },
@@ -37489,10 +37505,10 @@
     {
       "type": "wallDestroyed",
       "payload": {
-        "cannonIdx": 4,
         "col": 28,
         "playerId": 1,
         "row": 9,
+        "shooterCannonIdx": 4,
         "shooterId": 2
       }
     },
@@ -37523,10 +37539,10 @@
     {
       "type": "wallDestroyed",
       "payload": {
-        "cannonIdx": 3,
         "col": 22,
         "playerId": 1,
         "row": 6,
+        "shooterCannonIdx": 3,
         "shooterId": 0
       }
     },
@@ -37679,10 +37695,10 @@
     {
       "type": "wallDestroyed",
       "payload": {
-        "cannonIdx": 5,
         "col": 26,
         "playerId": 1,
         "row": 9,
+        "shooterCannonIdx": 5,
         "shooterId": 2
       }
     },
@@ -38297,10 +38313,10 @@
     {
       "type": "wallDestroyed",
       "payload": {
-        "cannonIdx": 1,
         "col": 27,
         "playerId": 1,
         "row": 9,
+        "shooterCannonIdx": 1,
         "shooterId": 2
       }
     },
@@ -38619,10 +38635,10 @@
     {
       "type": "wallDestroyed",
       "payload": {
-        "cannonIdx": 3,
         "col": 29,
         "playerId": 1,
         "row": 11,
+        "shooterCannonIdx": 3,
         "shooterId": 2
       }
     },
@@ -38686,6 +38702,7 @@
         "cannonIdx": 3,
         "newHp": 2,
         "playerId": 2,
+        "shooterCannonIdx": 4,
         "shooterId": 0
       }
     },
@@ -38734,10 +38751,10 @@
     {
       "type": "wallDestroyed",
       "payload": {
-        "cannonIdx": 2,
         "col": 29,
         "playerId": 1,
         "row": 9,
+        "shooterCannonIdx": 2,
         "shooterId": 2
       }
     },
@@ -38852,10 +38869,10 @@
     {
       "type": "wallDestroyed",
       "payload": {
-        "cannonIdx": 4,
         "col": 32,
         "playerId": 1,
         "row": 11,
+        "shooterCannonIdx": 4,
         "shooterId": 2
       }
     },
@@ -47352,6 +47369,7 @@
       "type": "houseCrushed",
       "payload": {
         "col": 17,
+        "playerId": 2,
         "row": 2
       }
     },
@@ -48177,6 +48195,7 @@
       "type": "houseCrushed",
       "payload": {
         "col": 15,
+        "playerId": 2,
         "row": 11
       }
     },
@@ -48929,6 +48948,7 @@
       "type": "houseCrushed",
       "payload": {
         "col": 41,
+        "playerId": 1,
         "row": 4
       }
     },
@@ -49058,6 +49078,7 @@
       "type": "houseCrushed",
       "payload": {
         "col": 16,
+        "playerId": 2,
         "row": 9
       }
     },

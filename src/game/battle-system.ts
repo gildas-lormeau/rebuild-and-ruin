@@ -1276,6 +1276,7 @@ function computeImpact(
     row,
     col,
     shooterId,
+    cannonIdx,
     incendiary,
   );
 
@@ -1293,12 +1294,19 @@ function computeImpact(
       : [];
 
   // Step 4: houses and grunts (independent — towers NOT damaged by cannonballs)
-  const houseEvents = collectHouseImpacts(state, row, col);
+  const houseEvents = collectHouseImpacts(
+    state,
+    row,
+    col,
+    shooterId,
+    cannonIdx,
+  );
   const gruntEvents = collectGruntImpacts(
     state,
     row,
     col,
     shooterId,
+    cannonIdx,
     incendiary,
   );
 
@@ -1324,7 +1332,7 @@ function collectWallImpacts(
   row: number,
   col: number,
   shooterId: ValidPlayerId,
-  cannonIdx: CannonIdx,
+  shooterCannonIdx: CannonIdx,
   heavy?: boolean,
 ): { events: ImpactEvent[]; hitWall: boolean } {
   const events: ImpactEvent[] = [];
@@ -1366,7 +1374,7 @@ function collectWallImpacts(
     col,
     playerId: result.playerId,
     shooterId,
-    cannonIdx,
+    shooterCannonIdx,
   });
   return { events, hitWall: true };
 }
@@ -1378,6 +1386,7 @@ function collectCannonImpacts(
   row: number,
   col: number,
   shooterId: ValidPlayerId,
+  shooterCannonIdx: CannonIdx,
   heavy?: boolean,
 ): ImpactEvent[] {
   const events: ImpactEvent[] = [];
@@ -1406,6 +1415,7 @@ function collectCannonImpacts(
         cannonIdx: cannonIdx as CannonIdx,
         newHp: Math.max(0, cannon.hp - damage),
         shooterId,
+        shooterCannonIdx,
       });
     }
   }
@@ -1417,11 +1427,19 @@ function collectHouseImpacts(
   state: GameState,
   row: number,
   col: number,
+  shooterId: ValidPlayerId,
+  shooterCannonIdx: CannonIdx,
 ): ImpactEvent[] {
   const events: ImpactEvent[] = [];
   for (const house of state.map.houses) {
     if (house.alive && isAtTile(house, row, col)) {
-      events.push({ type: BATTLE_MESSAGE.HOUSE_DESTROYED, row, col });
+      events.push({
+        type: BATTLE_MESSAGE.HOUSE_DESTROYED,
+        row,
+        col,
+        shooterId,
+        shooterCannonIdx,
+      });
       // Grunt spawn is RNG-based — compute it here so the host decides
       if (state.rng.bool(HOUSE_GRUNT_SPAWN_CHANCE)) {
         const spawnPos = findGruntSpawnNear(state, row, col);
@@ -1448,6 +1466,7 @@ function collectGruntImpacts(
   row: number,
   col: number,
   shooterId: ValidPlayerId,
+  shooterCannonIdx: CannonIdx,
   heavy?: boolean,
 ): ImpactEvent[] {
   const events: ImpactEvent[] = [];
@@ -1469,6 +1488,7 @@ function collectGruntImpacts(
       row: grunt.row,
       col: grunt.col,
       shooterId,
+      shooterCannonIdx,
     });
     const respawn = onGruntKilled(state, shooterId);
     if (respawn) {
