@@ -74,7 +74,13 @@ export function hasFillableTowerHope(
  *  rejects every interior candidate (entities, modifier flooding, etc.).
  *  No `excludeInterior` passed to `canPlacePiece` — closed-area tiles
  *  are legal placement targets at the game-rules layer (only the AI's
- *  enumeration excludes them by default). */
+ *  enumeration excludes them by default).
+ *
+ *  `accept`, when supplied, filters candidate placements (e.g. the expansion
+ *  clean-cycle passes a "creates no 2×2 fat block" predicate so the discard
+ *  doesn't relocate the fat-wall pathology inside the territory). A candidate
+ *  failing `accept` is skipped entirely; the function returns null if every
+ *  interior placement is rejected by it. */
 export function pickDesperateInteriorDiscard(
   state: BuildViewState,
   playerId: ValidPlayerId,
@@ -83,6 +89,7 @@ export function pickDesperateInteriorDiscard(
   cursorPos: TilePos | undefined,
   cache: OccupancyCache,
   placementCtx: PlacementContext,
+  accept?: (shape: PieceShape, row: number, col: number) => boolean,
 ): AiPlacement | null {
   const interior = getInterior(player);
   if (interior.size === 0) return null;
@@ -107,6 +114,7 @@ export function pickDesperateInteriorDiscard(
         ) {
           continue;
         }
+        if (accept && !accept(rotated, r, c)) continue;
         const distance = cursorPos
           ? manhattanDistance(r, c, cursorPos.row, cursorPos.col)
           : 0;

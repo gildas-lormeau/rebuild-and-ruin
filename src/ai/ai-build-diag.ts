@@ -81,6 +81,17 @@ type AiBuildDiagEvent =
        *  the committed ring" from "wall lands wall-adjacent but off-ring"
        *  — the existing gap/adj/iso classification conflates them. */
       cellsOnRingPerimeter: number;
+      /** Net interior this placement reclaimed — the scorer's own `usefulGain`
+       *  (`rawGain − pieceTiles`, see computeCandidateEnv). The piece's own
+       *  wall footprint flips outside→wall and would inflate a raw
+       *  outside-delta, so the piece-tile subtraction leaves only
+       *  genuinely-sealed interior. > 0 ⇒ the placement actually enclosed new
+       *  territory; ≤ 0 ⇒ no net interior gained (doubled / dead wall), even
+       *  if it filled no ring gap. Lets the build-trace match what the scorer
+       *  calls useful instead of guessing off the perimeter-gap count.
+       *  Computed only when a diag hook is installed (test-only); 0 on the
+       *  production path. */
+      usefulGain: number;
       pieceShapeName: string;
     }
   | {
@@ -157,6 +168,7 @@ export function emitWallPlacedDiag(
   targetGaps: ReadonlySet<TileKey>,
   targetRect: TileRect | null,
   cellsOnRingPerimeter: number,
+  usefulGain: number,
   pieceShapeName: string,
 ): void {
   if (!diagHook) return;
@@ -168,6 +180,7 @@ export function emitWallPlacedDiag(
     targetGaps,
     targetRect,
     cellsOnRingPerimeter,
+    usefulGain,
     pieceShapeName,
   });
 }

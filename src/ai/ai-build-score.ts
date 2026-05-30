@@ -319,10 +319,13 @@ export function candidateToPlacement(candidate: Candidate): AiPlacement {
   };
 }
 
-/** Count 2×2 all-wall blocks a candidate would create (no exemptions). */
+/** Count 2×2 all-wall blocks a candidate would create (no exemptions).
+ *  Reads only placement geometry (piece + anchor), so a bare AiPlacement is
+ *  accepted too — the fat-free interior-discard search probes prospective
+ *  placements without building full Candidates. */
 export function countFatBlocks(
   walls: ReadonlySet<TileKey>,
-  candidate: Candidate,
+  candidate: Pick<Candidate, "piece" | "row" | "col">,
   aliveHouseKeys: ReadonlySet<TileKey>,
 ): number {
   const { addedKeys, isWall } = buildCandidateWallInfo(
@@ -840,7 +843,7 @@ function computeCandidateEnv(
  *  every simulated-wall predictor that consumes this set must agree.
  *  Hot path: called per candidate by every scoring stage. */
 export function packCandidateTiles(
-  candidate: Candidate,
+  candidate: Pick<Candidate, "piece" | "row" | "col">,
   aliveHouseKeys: ReadonlySet<TileKey>,
 ): TileKey[] {
   const tiles: TileKey[] = [];

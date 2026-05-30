@@ -181,9 +181,15 @@ export function createBuildTraceObserver(
           const where = ev.targetRect
             ? describePlacement(ev.cells, ev.targetRect)
             : "no-target";
+          // A 0-gap placement is only a real territory claim when it nets new
+          // interior (usefulGain > 0) — the scorer's own metric, with the
+          // piece's wall footprint already subtracted out. usefulGain ≤ 0
+          // means nothing was sealed: a dead doubled wall, genuinely wasted.
           const gapClause = filled > 0
             ? `fills ${filled}/${gapsBefore} → ${gapsAfter} left`
-            : `fills 0/${gapsBefore} (wasted) → ${gapsAfter} left`;
+            : ev.usefulGain > 0
+              ? `claims ${ev.usefulGain} interior (0 gaps) → ${gapsAfter} left`
+              : `fills 0/${gapsBefore} (wasted, net ${ev.usefulGain}) → ${gapsAfter} left`;
           const cellList = ev.cells
             .map((key) => {
               const { row, col } = unpackTile(key);

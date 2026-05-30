@@ -33,6 +33,7 @@ import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import type { Player } from "../shared/core/player-types.ts";
 import {
   computeOutside,
+  computeOutsideAfterAdd,
   DIRS_4,
   inBounds,
   isCannonTile,
@@ -372,10 +373,68 @@ export function pickPlacement(
       placementCtx,
     );
   }
+  // Expansion clean-cycle: once every castle is enclosed, a placement is only
+  // worth making on the perimeter if it contributes to a future enclosure —
+  // i.e. fills a target-ring tile (advancing the ring toward closing) or
+  // reclaims net territory (usefulGain > 0). A placement that does neither
+  // would only double a wall to burn the piece (the "fat wall" pathology).
+  // Don't lay it on the perimeter; instead discard the piece at a fat-free spot
+  // inside the player's own interior. That still advances the piece bag — which
+  // the A/B comparison showed is load-bearing for AI strength (stalling here
+  // costs enclosures, territory, and lives) — without the doubled wall. If no
+  // fat-free interior spot exists, keep the original placement so the bag still
+  // advances (a rare unavoidable fat wall beats stalling).
+  if (placement !== null && allCastlesEnclosed) {
+    const current = placement;
+    const cells = current.piece.offsets.map(([dr, dc]) =>
+      packTile(current.row + dr, current.col + dc),
+    );
+    const wallTiles = cells.filter((key) => !aliveHouseKeys.has(key));
+    const netGain =
+      baselineOutside -
+      computeOutsideAfterAdd(outside, wallTiles).size -
+      current.piece.offsets.length;
+    const fillsTargetGap = cells.some((key) => targetGaps.has(key));
+    if (netGain <= 0 && !fillsTargetGap) {
+      const cleanDiscard = pickDesperateInteriorDiscard(
+        state,
+        playerId,
+        piece,
+        player,
+        cursorPos,
+        cache,
+        placementCtx,
+        (shape, row, col) =>
+          countFatBlocks(
+            player.walls,
+            { piece: shape, row, col },
+            aliveHouseKeys,
+          ) === 0,
+      );
+      if (cleanDiscard !== null) placement = cleanDiscard;
+    }
+  }
   if (placement === null && bestResult.reason !== undefined) {
     emitNoPlacementDiag(playerId, state.round, bestResult.reason);
   }
   if (placement !== null) {
+    const cells = placement.piece.offsets.map(([dr, dc]) =>
+      packTile(placement.row + dr, placement.col + dc),
+    );
+    // Net interior this placement reclaims — the scorer's own `usefulGain`
+    // (`rawGain − pieceTiles`, see computeCandidateEnv). rawGain alone
+    // over-counts: the piece's OWN wall footprint flips outside→wall and
+    // would read as "reclaimed" even when nothing is enclosed; subtracting the
+    // piece's tile count leaves only genuinely-sealed interior. Computed only
+    // when a diag hook is active (for the build-trace) — otherwise production
+    // skips the O(outside) recompute. House tiles never become walls
+    // (applyPiecePlacement drops them), so exclude them from the add set.
+    const wallTiles = cells.filter((key) => !aliveHouseKeys.has(key));
+    const usefulGain = isAiBuildDiagHookActive()
+      ? baselineOutside -
+        computeOutsideAfterAdd(outside, wallTiles).size -
+        placement.piece.offsets.length
+      : 0;
     let cellsOnRingPerimeter = 0;
     if (targetRect !== null) {
       const ringTop = targetRect.top - 1;
@@ -398,12 +457,11 @@ export function pickPlacement(
     emitWallPlacedDiag(
       playerId,
       state.round,
-      placement.piece.offsets.map(([dr, dc]) =>
-        packTile(placement.row + dr, placement.col + dc),
-      ),
+      cells,
       targetGaps,
       targetRect,
       cellsOnRingPerimeter,
+      usefulGain,
       placement.piece.name,
     );
   }
