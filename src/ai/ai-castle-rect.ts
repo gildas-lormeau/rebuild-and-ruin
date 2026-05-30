@@ -614,6 +614,16 @@ function addBankPlugGaps(
  * walls and non-grass tiles. Seals diagonal flood-fill leaks both at
  * bank/pit ring gaps (`addBankPlugGaps`) and at interior unreachable gaps
  * (`plugUnreachableGaps` in ai-build-target.ts).
+ *
+ * A candidate plug must be 4-adjacent to an existing wall. A free-floating
+ * interior plug (no wall touching it) can't seal a diagonal leak — there's
+ * no wall there to complete the barrier — so walling it just buries a piece
+ * in the future interior and the leak shifts to a new diagonal step, which
+ * regenerates a fresh plug next tick (the seed 287751 r3 T5 stall: 8 "other"
+ * interior plugs the AI filled with fat walls while the ring never closed).
+ * Requiring wall-adjacency keeps only plugs that genuinely continue the wall
+ * toward closure — the same constraint `findInteriorPlugTargets` already
+ * applies for the map-edge plug-synthesis path.
  */
 export function addInteriorPlugGaps(
   gaps: Set<TileKey>,
@@ -637,9 +647,25 @@ export function addInteriorPlugGaps(
       const neighborKey = packTile(nr, nc);
       if (walls.has(neighborKey)) continue;
       if (!isGrass(tiles, nr, nc)) continue;
+      if (!isWallAdjacent(walls, nr, nc)) continue;
       gaps.add(neighborKey);
     }
   }
+}
+
+/** True iff (row, col) has at least one 4-dir neighbor in `walls`. */
+function isWallAdjacent(
+  walls: ReadonlySet<TileKey>,
+  row: number,
+  col: number,
+): boolean {
+  for (const [dr, dc] of DIRS_4) {
+    const nr = row + dr;
+    const nc = col + dc;
+    if (!inBounds(nr, nc)) continue;
+    if (walls.has(packTile(nr, nc))) return true;
+  }
+  return false;
 }
 
 /**
