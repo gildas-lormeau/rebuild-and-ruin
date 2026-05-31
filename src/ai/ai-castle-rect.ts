@@ -609,12 +609,13 @@ export function findOuterRingHoles(
 /** Canonical "fillable gap tile" predicate: a wall can be placed on (row, col)
  *  AND actually becomes a wall — plain grass with no burning pit, alive house,
  *  cannon, or tower. (A wall laid on a house spawns a grunt instead, so houses
- *  don't close gaps.) Single source of truth across this file: filterUnfillable-
- *  Gaps, findOuterRingHoles, and isTowerEnclosable all route through it; the
- *  `interior` exclusion is layered on separately at gap-filter call sites.
- *  Distinct from game/canPlacePiece (placement legality — allows houses, adds
- *  zone/modifier/overlap context); do not conflate the two. */
-function isWallableGrass(
+ *  don't close gaps.) Single source of truth: filterUnfillableGaps,
+ *  findOuterRingHoles, isTowerEnclosable, and ai-build-target's
+ *  findInteriorPlugTargets all route through it; the `interior`/already-walled
+ *  exclusions are layered on separately at call sites. Distinct from
+ *  game/canPlacePiece (placement legality — allows houses, adds zone/modifier/
+ *  overlap context); do not conflate the two. */
+export function isWallableGrass(
   state: BuildViewState,
   row: number,
   col: number,

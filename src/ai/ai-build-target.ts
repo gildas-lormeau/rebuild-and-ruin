@@ -52,6 +52,7 @@ import {
   filterUnfillableGaps,
   findGapTiles,
   findReachableRingGaps,
+  isWallableGrass,
   scoreBuildTowerTarget,
   snapRectToReuseWalls,
 } from "./ai-castle-rect.ts";
@@ -656,13 +657,9 @@ function findInteriorPlugTargets(
   const plugs = new Set<TileKey>();
   for (let r = rect.top; r <= rect.bottom; r++) {
     for (let c = rect.left; c <= rect.right; c++) {
-      if (!isGrass(state.map.tiles, r, c)) continue;
+      if (!isWallableGrass(state, r, c)) continue;
       const key = packTile(r, c);
       if (walls.has(key)) continue;
-      if (hasTowerAt(state, r, c)) continue;
-      if (hasCannonAt(state, r, c)) continue;
-      if (hasPitAt(state.burningPits, r, c)) continue;
-      if (hasAliveHouseAt(state, r, c)) continue;
       let adjacentToWall = false;
       for (const [dr, dc] of DIRS_4) {
         const nr = r + dr;
