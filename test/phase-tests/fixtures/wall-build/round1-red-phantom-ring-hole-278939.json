@@ -1,0 +1,535 @@
+{
+  "version": 1,
+  "seed": 278939,
+  "mode": "modern",
+  "rounds": 10,
+  "entryPhase": "WALL_BUILD",
+  "round": 1,
+  "checkpoint": {
+    "type": "fullState",
+    "migrationSeq": 0,
+    "phase": "WALL_BUILD",
+    "round": 1,
+    "timer": 25,
+    "battleCountdown": 0,
+    "maxRounds": 10,
+    "shotsFired": 18,
+    "rngState": -759767152,
+    "simTick": 2627,
+    "players": [
+      {
+        "id": 0,
+        "walls": [
+          80,
+          124,
+          168,
+          212,
+          256,
+          300,
+          344,
+          345,
+          346,
+          347,
+          348,
+          349,
+          350,
+          351,
+          307,
+          263,
+          219,
+          175,
+          131,
+          87,
+          43,
+          42,
+          41,
+          85,
+          40,
+          84,
+          39,
+          36
+        ],
+        "lives": 3,
+        "eliminated": false,
+        "score": 426,
+        "cannons": [
+          {
+            "row": 3,
+            "col": 37,
+            "hp": 3,
+            "mode": "normal",
+            "facing": -1.5707963267948966
+          },
+          {
+            "row": 5,
+            "col": 39,
+            "hp": 3,
+            "mode": "normal",
+            "facing": -1.5707963267948966
+          },
+          {
+            "row": 1,
+            "col": 38,
+            "hp": 1,
+            "mode": "normal",
+            "facing": -1.5707963267948966
+          }
+        ],
+        "homeTowerIdx": 1,
+        "castleWallTiles": [
+          80,
+          124,
+          168,
+          212,
+          256,
+          300,
+          344,
+          345,
+          346,
+          347,
+          348,
+          349,
+          350,
+          351,
+          307,
+          263,
+          219,
+          175,
+          174,
+          131,
+          87,
+          43,
+          42,
+          41,
+          85,
+          40,
+          84,
+          39,
+          38,
+          37,
+          36
+        ]
+      },
+      {
+        "id": 1,
+        "walls": [
+          800,
+          802,
+          804,
+          806,
+          807,
+          851,
+          895,
+          939,
+          983,
+          1027,
+          1071,
+          1115,
+          1114,
+          1113,
+          1112,
+          1111,
+          1110,
+          1109,
+          1108,
+          1064,
+          1020,
+          932,
+          844
+        ],
+        "lives": 3,
+        "eliminated": false,
+        "score": 8,
+        "cannons": [
+          {
+            "row": 20,
+            "col": 13,
+            "hp": 3,
+            "mode": "normal",
+            "facing": 0
+          },
+          {
+            "row": 23,
+            "col": 11,
+            "hp": 3,
+            "mode": "normal",
+            "facing": 0
+          },
+          {
+            "row": 22,
+            "col": 9,
+            "hp": 0,
+            "mode": "normal",
+            "facing": 0
+          }
+        ],
+        "homeTowerIdx": 4,
+        "castleWallTiles": [
+          800,
+          801,
+          802,
+          803,
+          847,
+          804,
+          805,
+          806,
+          807,
+          851,
+          895,
+          896,
+          939,
+          983,
+          1027,
+          1071,
+          1115,
+          1114,
+          1113,
+          1112,
+          1111,
+          1110,
+          1109,
+          1108,
+          1064,
+          1020,
+          976,
+          932,
+          933,
+          888,
+          844
+        ]
+      },
+      {
+        "id": 2,
+        "walls": [
+          142,
+          186,
+          230,
+          406,
+          407,
+          408,
+          409,
+          410,
+          411,
+          412,
+          413,
+          369,
+          325,
+          281,
+          237,
+          193,
+          149,
+          105,
+          104,
+          103,
+          102,
+          101,
+          100,
+          99,
+          98
+        ],
+        "lives": 3,
+        "eliminated": false,
+        "score": 118,
+        "cannons": [
+          {
+            "row": 4,
+            "col": 11,
+            "hp": 3,
+            "mode": "normal",
+            "facing": 1.5707963267948966
+          },
+          {
+            "row": 3,
+            "col": 14,
+            "hp": 0,
+            "mode": "normal",
+            "facing": 1.5707963267948966
+          },
+          {
+            "row": 7,
+            "col": 13,
+            "hp": 3,
+            "mode": "normal",
+            "facing": 1.5707963267948966
+          }
+        ],
+        "homeTowerIdx": 8,
+        "castleWallTiles": [
+          142,
+          186,
+          185,
+          230,
+          274,
+          318,
+          362,
+          406,
+          407,
+          408,
+          409,
+          410,
+          411,
+          412,
+          413,
+          369,
+          325,
+          281,
+          237,
+          193,
+          149,
+          105,
+          104,
+          103,
+          59,
+          102,
+          101,
+          100,
+          99,
+          98
+        ]
+      }
+    ],
+    "grunts": [],
+    "gruntSpawnSeq": 0,
+    "houses": [
+      {
+        "row": 17,
+        "col": 41,
+        "zone": 2,
+        "alive": true
+      },
+      {
+        "row": 3,
+        "col": 32,
+        "zone": 2,
+        "alive": true
+      },
+      {
+        "row": 14,
+        "col": 28,
+        "zone": 2,
+        "alive": true
+      },
+      {
+        "row": 24,
+        "col": 33,
+        "zone": 2,
+        "alive": true
+      },
+      {
+        "row": 9,
+        "col": 38,
+        "zone": 2,
+        "alive": true
+      },
+      {
+        "row": 16,
+        "col": 34,
+        "zone": 2,
+        "alive": true
+      },
+      {
+        "row": 8,
+        "col": 29,
+        "zone": 2,
+        "alive": true
+      },
+      {
+        "row": 19,
+        "col": 30,
+        "zone": 2,
+        "alive": true
+      },
+      {
+        "row": 25,
+        "col": 2,
+        "zone": 3,
+        "alive": true
+      },
+      {
+        "row": 16,
+        "col": 11,
+        "zone": 3,
+        "alive": true
+      },
+      {
+        "row": 25,
+        "col": 18,
+        "zone": 3,
+        "alive": true
+      },
+      {
+        "row": 14,
+        "col": 2,
+        "zone": 3,
+        "alive": true
+      },
+      {
+        "row": 18,
+        "col": 21,
+        "zone": 3,
+        "alive": true
+      },
+      {
+        "row": 23,
+        "col": 25,
+        "zone": 3,
+        "alive": true
+      },
+      {
+        "row": 20,
+        "col": 6,
+        "zone": 3,
+        "alive": true
+      },
+      {
+        "row": 17,
+        "col": 17,
+        "zone": 3,
+        "alive": true
+      },
+      {
+        "row": 2,
+        "col": 7,
+        "zone": 1,
+        "alive": true
+      },
+      {
+        "row": 4,
+        "col": 19,
+        "zone": 1,
+        "alive": true
+      },
+      {
+        "row": 10,
+        "col": 22,
+        "zone": 1,
+        "alive": true
+      },
+      {
+        "row": 6,
+        "col": 3,
+        "zone": 1,
+        "alive": true
+      },
+      {
+        "row": 2,
+        "col": 25,
+        "zone": 1,
+        "alive": true
+      },
+      {
+        "row": 9,
+        "col": 8,
+        "zone": 1,
+        "alive": true
+      },
+      {
+        "row": 11,
+        "col": 17,
+        "zone": 1,
+        "alive": true
+      },
+      {
+        "row": 6,
+        "col": 23,
+        "zone": 1,
+        "alive": true
+      }
+    ],
+    "bonusSquares": [
+      {
+        "row": 22,
+        "col": 34,
+        "zone": 2
+      },
+      {
+        "row": 16,
+        "col": 41,
+        "zone": 2
+      },
+      {
+        "row": 20,
+        "col": 36,
+        "zone": 2
+      },
+      {
+        "row": 19,
+        "col": 6,
+        "zone": 3
+      },
+      {
+        "row": 26,
+        "col": 26,
+        "zone": 3
+      },
+      {
+        "row": 16,
+        "col": 2,
+        "zone": 3
+      },
+      {
+        "row": 11,
+        "col": 21,
+        "zone": 1
+      },
+      {
+        "row": 2,
+        "col": 22,
+        "zone": 1
+      },
+      {
+        "row": 10,
+        "col": 19,
+        "zone": 1
+      }
+    ],
+    "towerAlive": [
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "burningPits": [],
+    "cannonLimits": [
+      3,
+      3,
+      3
+    ],
+    "cannonPlaceDone": [
+      0,
+      2,
+      1
+    ],
+    "playerZones": [
+      2,
+      3,
+      1
+    ],
+    "gameMode": "modern",
+    "activeModifier": null,
+    "activeModifierChangedTiles": [],
+    "lastModifierId": null,
+    "pendingUpgradeOffers": null,
+    "precomputedDustStormJitters": [],
+    "masterBuilderLockout": 0,
+    "masterBuilderOwners": null,
+    "rubbleClearingHeld": null,
+    "supplyShips": null,
+    "pendingSupplyBonuses": null,
+    "comboTracker": null,
+    "frozenTiles": null,
+    "sinkholeTiles": null,
+    "exposedRiverbedTiles": null,
+    "towerPendingRevive": [],
+    "capturedCannons": [],
+    "cannonballs": []
+  }
+}

@@ -168,14 +168,7 @@ export function filterUnfillableGaps(
 ): void {
   for (const key of gaps) {
     const { row, col } = unpackTile(key);
-    if (
-      !isGrass(state.map.tiles, row, col) ||
-      hasPitAt(state.burningPits, row, col) ||
-      hasAliveHouseAt(state, row, col) ||
-      hasCannonAt(state, row, col) ||
-      hasTowerAt(state, row, col) ||
-      interior.has(key)
-    ) {
+    if (!isWallableGrass(state, row, col) || interior.has(key)) {
       gaps.delete(key);
     }
   }
@@ -576,10 +569,11 @@ export function findOuterRingHoles(
             allFillable = false;
             break;
           }
+          // Canonical fillability — was inlined here and dropped the cannon/tower
+          // checks, so a cannon between two ring walls could read as a fillable
+          // hole. Routing through isWallableGrass restores them.
           if (
-            !isGrass(state.map.tiles, ir, ic) ||
-            hasPitAt(state.burningPits, ir, ic) ||
-            hasAliveHouseAt(state, ir, ic) ||
+            !isWallableGrass(state, ir, ic) ||
             interior.has(packTile(ir, ic))
           ) {
             allFillable = false;
@@ -589,8 +583,20 @@ export function findOuterRingHoles(
         if (!allFillable) continue;
         const farKey = packTile(nr, nc);
         if (walls.has(farKey) && isRingWall(farKey)) {
-          for (let inner = 1; inner < step; inner++) {
-            holes.add(packTile(wr + dr * inner, wc + dc * inner));
+          // Only count the run as a breach when it lies on the structure's
+          // outer perimeter — both flanking walls exposed (open / off-map) on
+          // the SAME side perpendicular to the run. An interior chord (a run
+          // between a side wall and an inner wall) or a gap inside a thick wall
+          // band fails this: one flank is boxed in perpendicular (it's part of
+          // a wall column running across the scan), so the run cuts through the
+          // interior and fills no real gap. The open-castle flood makes such
+          // runs read as "between two ring walls"; the perpendicular-exposure
+          // test is flood-free and rejects them (seed 278939 r1 RED: phantom
+          // holes 1,37–1,39 chord and the 1,42 east-band notch).
+          if (runOnPerimeter(walls, wr, wc, nr, nc, dr, dc)) {
+            for (let inner = 1; inner < step; inner++) {
+              holes.add(packTile(wr + dr * inner, wc + dc * inner));
+            }
           }
           break;
         }
@@ -600,9 +606,14 @@ export function findOuterRingHoles(
   return holes;
 }
 
-/** True iff a wall can be placed on (row, col): plain grass with no burning
- *  pit, alive house, cannon, or tower occupying it. Mirrors filterUnfillableGaps'
- *  notion of a fillable tile — a tile that can become a wall. */
+/** Canonical "fillable gap tile" predicate: a wall can be placed on (row, col)
+ *  AND actually becomes a wall — plain grass with no burning pit, alive house,
+ *  cannon, or tower. (A wall laid on a house spawns a grunt instead, so houses
+ *  don't close gaps.) Single source of truth across this file: filterUnfillable-
+ *  Gaps, findOuterRingHoles, and isTowerEnclosable all route through it; the
+ *  `interior` exclusion is layered on separately at gap-filter call sites.
+ *  Distinct from game/canPlacePiece (placement legality — allows houses, adds
+ *  zone/modifier/overlap context); do not conflate the two. */
 function isWallableGrass(
   state: BuildViewState,
   row: number,
@@ -838,6 +849,48 @@ export function addInteriorPlugGaps(
       gaps.add(neighborKey);
     }
   }
+}
+
+/** True when the fillable run between flanking ring walls (ar,ac)–(br,bc),
+ *  laid in direction (dr,dc), lies on the structure's outer perimeter rather
+ *  than cutting through its interior. Both flanking walls must be exposed —
+ *  open or off-map — on the SAME side perpendicular to the run, the way two
+ *  walls bracketing a perimeter gap face open space together. A side wall (part
+ *  of a column crossing the scan) is boxed in perpendicular and fails, so
+ *  interior chords and thick-band notches are rejected. Flood-free: holds even
+ *  when an open castle floods its own interior. */
+function runOnPerimeter(
+  walls: ReadonlySet<TileKey>,
+  ar: number,
+  ac: number,
+  br: number,
+  bc: number,
+  dr: number,
+  dc: number,
+): boolean {
+  for (const [pr, pc] of [
+    [-dc, dr],
+    [dc, -dr],
+  ] as const) {
+    if (faceOpen(walls, ar, ac, pr, pc) && faceOpen(walls, br, bc, pr, pc))
+      return true;
+  }
+  return false;
+}
+
+/** True when the tile one step (pr,pc) from (row,col) is open — off-map (true
+ *  exterior) or simply not a wall. */
+function faceOpen(
+  walls: ReadonlySet<TileKey>,
+  row: number,
+  col: number,
+  pr: number,
+  pc: number,
+): boolean {
+  const nr = row + pr;
+  const nc = col + pc;
+  if (!inBounds(nr, nc)) return true;
+  return !walls.has(packTile(nr, nc));
 }
 
 /** True iff (row, col) has at least one 4-dir neighbor in `walls`. */
