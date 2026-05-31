@@ -16,7 +16,19 @@
  *   0..N    — switch active wall owner
  *   u       — undo last edit
  *   s       — save (validates by re-running the loader end-to-end)
+ *   r       — enter replay (live-step the fixture's scenario)
  *   q       — quit (prompts if dirty)
+ *
+ * Replay keys (mode === "replay"):
+ *   0..9    — build a repeat count (vim-style); shown as `×N` in the status
+ *   space   — step the pending count of frames (default 1)
+ *   f       — step the pending count of frames (default 10 — "fast")
+ *   n       — advance to the next phase boundary (count = N phases)
+ *   N       — advance to the next round (count = N rounds)
+ *   arrows  — move the inspect cursor (does not clear the count)
+ *   e       — exit replay back to author mode
+ *   Phase/round jumps are sim-time-budgeted; a finished game reports
+ *   "no further phase/round" instead of hanging.
  *
  * Boot strategy: bootstraps the runtime ONCE with the seed/mode/round from
  * the fixture, but with overrides stripped — that produces the seed-baked
@@ -38,6 +50,7 @@ import { Phase } from "../src/shared/core/game-phase.ts";
 import { GRID_COLS, GRID_ROWS } from "../src/shared/core/grid.ts";
 import type { GameState } from "../src/shared/core/types.ts";
 import { PLAYER_NAMES } from "../src/shared/ui/player-config.ts";
+import { Mode as UiMode } from "../src/shared/ui/ui-mode.ts";
 import {
   createPhaseScenario,
   recomputeFixtureDerivedState,
@@ -112,6 +125,10 @@ interface EditorState {
   /** `replayScenario.now()` captured at replay start — sim-time deltas in
    *  the status bar are `now() - replayStartTimeMs`. */
   replayStartTimeMs?: number;
+  /** Pending vim-style repeat count accumulated from digit keys in replay
+   *  mode. Undefined when no count is queued. Consumed (and cleared) by the
+   *  next step/jump motion; defaults differ per motion (space=1, f=10, n/N=1). */
+  replayCount?: number;
 }
 
 type Action =
@@ -132,6 +149,9 @@ type Action =
   | "save"
   | "enter-replay"
   | "exit-replay"
+  | "replay-fast"
+  | "replay-next-phase"
+  | "replay-next-round"
   | { kind: "owner"; value: number }
   | "ignore";
 
@@ -180,6 +200,13 @@ interface ParsedFlags {
   seedCondition?: string;
 }
 
+/** Sim-time ceilings for phase/round jumps. A jump ticks one frame at a
+ *  time until the predicate fires or the budget elapses (a finished game
+ *  never advances phase/round, so the budget is what stops the loop).
+ *  Generous: one phase tops out near BUILD_TIMER + life-lost dialog, one
+ *  round at ~4 timed phases plus dialogs. */
+const PHASE_JUMP_BUDGET_MS = 60_000;
+const ROUND_JUMP_BUDGET_MS = 180_000;
 const RESET = "\x1b[0m";
 const BOLD = "\x1b[1m";
 const INVERSE = "\x1b[7m";
@@ -464,6 +491,12 @@ function decodeKey(bytes: Uint8Array): Action {
         return "enter-replay";
       case "e":
         return "exit-replay";
+      case "f":
+        return "replay-fast";
+      case "n":
+        return "replay-next-phase";
+      case "N":
+        return "replay-next-round";
     }
     if (ch >= "0" && ch <= "9") {
       return { kind: "owner", value: Number(ch) };
@@ -489,6 +522,16 @@ function decodeKey(bytes: Uint8Array): Action {
 async function handleAction(state: EditorState, action: Action): Promise<void> {
   if (typeof action === "object") {
     if (action.kind === "owner") {
+      // In replay mode the digit keys build a vim-style repeat count instead
+      // of selecting a wall owner (owner is meaningless when not authoring).
+      if (state.mode === "replay") {
+        const next = (state.replayCount ?? 0) * 10 + action.value;
+        // Cap so a stuck finger can't queue an absurd jump.
+        state.replayCount = Math.min(next, 99_999);
+        state.message = `count ×${state.replayCount}`;
+        state.messageKind = "info";
+        return;
+      }
       if (action.value < state.playerCount) {
         state.owner = action.value;
         state.message = `owner = ${action.value} (${PLAYER_NAMES[action.value] ?? action.value})`;
@@ -550,8 +593,21 @@ async function handleAction(state: EditorState, action: Action): Promise<void> {
       state.messageKind = "info";
       return;
     case "primary":
-      if (state.mode === "replay") stepReplay(state, 1);
+      if (state.mode === "replay")
+        stepReplay(state, consumeReplayCount(state, 1));
       else placeAtCursor(state);
+      return;
+    case "replay-fast":
+      if (state.mode !== "replay") return;
+      stepReplay(state, consumeReplayCount(state, 10));
+      return;
+    case "replay-next-phase":
+      if (state.mode !== "replay") return;
+      jumpReplayPhases(state, consumeReplayCount(state, 1));
+      return;
+    case "replay-next-round":
+      if (state.mode !== "replay") return;
+      jumpReplayRounds(state, consumeReplayCount(state, 1));
       return;
     case "remove":
       if (state.mode === "replay") return rejectInReplay(state);
@@ -596,8 +652,10 @@ async function enterReplay(state: EditorState): Promise<void> {
     state.replayCells = buildGrid(sc.state, "all", undefined);
     state.replayTicks = 0;
     state.replayStartTimeMs = sc.now();
+    state.replayCount = undefined;
     state.mode = "replay";
-    state.message = "entered replay — space steps a frame, e exits";
+    state.message =
+      "entered replay — space/f step, n/N jump phase/round, e exits";
     state.messageKind = "ok";
   } catch (err) {
     state.message = `cannot enter replay: ${err instanceof Error ? err.message : String(err)}`;
@@ -615,6 +673,7 @@ function exitReplay(state: EditorState): void {
   state.replayCells = undefined;
   state.replayTicks = undefined;
   state.replayStartTimeMs = undefined;
+  state.replayCount = undefined;
   state.mode = "author";
   state.message = "exited replay";
   state.messageKind = "info";
@@ -631,9 +690,93 @@ function stepReplay(state: EditorState, frames: number): void {
     sc.tick(frames);
     state.replayTicks = (state.replayTicks ?? 0) + frames;
     state.replayCells = buildGrid(sc.state, "all", undefined);
+    state.message = `stepped ${frames} frame${frames === 1 ? "" : "s"}`;
+    state.messageKind = "ok";
   } catch (err) {
     state.message = `tick failed: ${err instanceof Error ? err.message : String(err)}`;
     state.messageKind = "error";
+  }
+}
+
+/** Pop the pending vim-style repeat count, falling back to `fallback` when
+ *  none is queued. Always clears `replayCount` so the next motion starts
+ *  fresh. */
+function consumeReplayCount(state: EditorState, fallback: number): number {
+  const count = state.replayCount ?? fallback;
+  state.replayCount = undefined;
+  return Math.max(1, count);
+}
+
+/** Advance the live replay until the phase changes `count` times, or the
+ *  sim-time budget elapses (a finished game never transitions). Ticks one
+ *  frame at a time so `replayTicks` stays an exact frame count and the
+ *  predicate is checked at frame granularity. */
+function jumpReplayPhases(state: EditorState, count: number): void {
+  jumpReplay(
+    state,
+    count,
+    PHASE_JUMP_BUDGET_MS,
+    "phase",
+    (sc) => sc.state.phase,
+  );
+}
+
+/** Advance the live replay until `state.round` increases `count` times, or
+ *  the sim-time budget elapses. */
+function jumpReplayRounds(state: EditorState, count: number): void {
+  jumpReplay(
+    state,
+    count,
+    ROUND_JUMP_BUDGET_MS,
+    "round",
+    (sc) => sc.state.round,
+  );
+}
+
+/** Shared engine for phase/round jumps. `marker` reads the value we watch
+ *  for change (phase string or round number); each time it differs from the
+ *  value captured at the start of a leg, that leg is done. Stops early when
+ *  the game reaches STOPPED (nothing left to advance). */
+function jumpReplay(
+  state: EditorState,
+  count: number,
+  budgetMs: number,
+  label: string,
+  marker: (sc: Scenario) => string | number,
+): void {
+  const sc = state.replayScenario;
+  if (!sc) {
+    state.message = "no live replay scenario";
+    state.messageKind = "error";
+    return;
+  }
+  let reached = 0;
+  let framesAdvanced = 0;
+  try {
+    for (let leg = 0; leg < count; leg++) {
+      const start = marker(sc);
+      const deadline = sc.now() + budgetMs;
+      while (marker(sc) === start) {
+        if (sc.mode() === UiMode.STOPPED || sc.now() >= deadline) break;
+        sc.tick(1);
+        framesAdvanced++;
+      }
+      if (marker(sc) === start) break; // budget/stop hit before this leg landed
+      reached++;
+    }
+  } catch (err) {
+    state.message = `jump failed: ${err instanceof Error ? err.message : String(err)}`;
+    state.messageKind = "error";
+    return;
+  }
+  state.replayTicks = (state.replayTicks ?? 0) + framesAdvanced;
+  state.replayCells = buildGrid(sc.state, "all", undefined);
+  if (reached === count) {
+    state.message = `advanced ${reached} ${label}${reached === 1 ? "" : "s"} (+${framesAdvanced} frames)`;
+    state.messageKind = "ok";
+  } else {
+    state.message = `no further ${label} — advanced ${reached}/${count} (game over?)`;
+    state.messageKind = "info";
   }
 }
 
@@ -1062,7 +1205,11 @@ function replayStatusLine(state: EditorState): string {
   const ticks = state.replayTicks ?? 0;
   const elapsedMs = Math.round(sc.now() - (state.replayStartTimeMs ?? 0));
   const simTime = (elapsedMs / 1000).toFixed(2);
-  return `${cursor}   round ${round} phase ${phase}   tick ${ticks}   sim-time ${simTime}s`;
+  const count =
+    state.replayCount !== undefined
+      ? `   ${BOLD}${FG_YELLOW}×${state.replayCount}${RESET}`
+      : "";
+  return `${cursor}   round ${round} phase ${phase}   tick ${ticks}   sim-time ${simTime}s${count}`;
 }
 
 function tileInfoLine(state: EditorState): string {
@@ -1166,9 +1313,13 @@ function messageLine(state: EditorState): string {
 function helpLine(state: EditorState): string {
   if (state.mode === "replay") {
     return [
-      "arrows: move cursor",
-      "space: step 1 frame",
-      "e: exit replay",
+      "arrows: move",
+      "0-9: count",
+      "space: step (xN)",
+      "f: +10",
+      "n: next phase",
+      "N: next round",
+      "e: exit",
       "q: quit",
     ].join("  |  ");
   }
