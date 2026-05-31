@@ -20,6 +20,12 @@ import roundOneRedFatWall40 from "./fixtures/wall-build/round1-red-fat-wall-40.j
 import roundTwentyFourRedCornerOrphan26796 from "./fixtures/wall-build/round24-red-corner-orphan-26796.json" with {
   type: "json",
 };
+import roundPits1 from "./fixtures/wall-build/round-pits-1.json" with {
+  type: "json",
+};
+import roundPits2 from "./fixtures/wall-build/round-pits-2.json" with {
+  type: "json",
+};
 import { GAME_EVENT } from "../../src/shared/core/game-event-bus.ts";
 import { Phase } from "../../src/shared/core/game-phase.ts";
 import { GRID_COLS, GRID_ROWS } from "../../src/shared/core/grid.ts";
@@ -438,6 +444,67 @@ Deno.test(
       enclosedTowerIndices.has(homeTowerIndex as unknown as number),
       `RED home tower ${homeTowerIndex} not enclosed after WALL_BUILD ` +
         `(enclosed=${[...enclosedTowerIndices].join(",")})`,
+    );
+  },
+);
+
+Deno.test(
+  "phase-test: BLUE seals its home ring ABOVE a burning-pit column (round-pits-1)",
+  async () => {
+    // A burning-pit column runs from a few tiles below BLUE's home tower down
+    // to the map's bottom edge. The home IS enclosable — by a ring that seals
+    // on the grass ABOVE the pit. Before the fix the AI expanded the ring DOWN
+    // into the pit column (capped, leaving an unwallable pit on the ring) and
+    // never closed; `clampRectOffPits` now seals above it.
+    const sc = await createPhaseScenario(roundPits1 as unknown as FixtureFile);
+    const blue = sc.state.players[1]!;
+    const homeTower = blue.homeTower;
+    if (!homeTower) throw new Error("BLUE should have a home tower");
+
+    waitForPhase(sc, Phase.CANNON_PLACE, { timeoutMs: 60_000 });
+    assertEquals(sc.state.round, 3);
+
+    assertEquals(
+      sc.state.players[1]!.lives,
+      3,
+      "BLUE should keep all 3 lives — it can enclose its home above the pit",
+    );
+    assert(
+      sc.state.players[1]!.enclosedTowers.includes(homeTower),
+      "BLUE home tower should be enclosed (ring sealed above the pit column)",
+    );
+  },
+);
+
+Deno.test(
+  "phase-test: BLUE abandons an unenclosable home for a secondary tower (round-pits-2)",
+  async () => {
+    // Here the pit column is cardinally adjacent to BLUE's home tower AND
+    // reaches the map edge, so NO ring can enclose the home. The AI must detect
+    // this (`isTowerEnclosable` gate) and ring an enclosable secondary tower
+    // instead — reusing the existing home wall as a shared boundary so the
+    // secondary actually closes within the phase.
+    const sc = await createPhaseScenario(roundPits2 as unknown as FixtureFile);
+    const blue = sc.state.players[1]!;
+    const homeTower = blue.homeTower;
+    if (!homeTower) throw new Error("BLUE should have a home tower");
+
+    waitForPhase(sc, Phase.CANNON_PLACE, { timeoutMs: 60_000 });
+    assertEquals(sc.state.round, 3);
+
+    assertEquals(
+      sc.state.players[1]!.lives,
+      3,
+      "BLUE should keep all 3 lives by enclosing a secondary tower",
+    );
+    assertGreater(
+      sc.state.players[1]!.enclosedTowers.length,
+      0,
+      "BLUE should enclose at least one (secondary) tower",
+    );
+    assert(
+      !sc.state.players[1]!.enclosedTowers.includes(homeTower),
+      "BLUE home tower is unenclosable here — survival must come from a secondary",
     );
   },
 );

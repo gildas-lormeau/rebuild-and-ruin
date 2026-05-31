@@ -85,7 +85,11 @@ import type {
   Scored,
   ScoringContext,
 } from "./ai-build-types.ts";
-import { findGapTiles, hasMeaningfulHomeRingGaps } from "./ai-castle-rect.ts";
+import {
+  findGapTiles,
+  hasMeaningfulHomeRingGaps,
+  isTowerEnclosable,
+} from "./ai-castle-rect.ts";
 
 type BuildSkillConfig = (typeof BUILD_SKILL_TABLE)[number];
 
@@ -1008,6 +1012,19 @@ function analyzeEnclosures(
   if (effectiveSkipHome && !homeTowerEnclosed) {
     const homeGaps = findGapTiles(castle, player.walls);
     if (homeGaps.size <= HOME_GAP_REPAIR_THRESHOLD) effectiveSkipHome = false;
+  }
+  // A pit/water channel from the home tower to the map border means the home
+  // ring can never close this phase, no matter where we wall (e.g. a burning-
+  // pit column reaching the map edge right beside the tower). Pouring the whole
+  // build into that impossible ring strands every wall; defer to an enclosable
+  // secondary tower if one exists. Checked last so it overrides the small-gap
+  // reset above — a tiny gap count is irrelevant when the gap is unwallable.
+  if (
+    !homeTowerEnclosed &&
+    !isTowerEnclosable(castle.tower, state) &&
+    otherUnenclosed.some((tower) => isTowerEnclosable(tower, state))
+  ) {
+    effectiveSkipHome = true;
   }
 
   const homeHasRingGaps = hasMeaningfulHomeRingGaps(

@@ -182,6 +182,59 @@ export function filterUnfillableGaps(
 }
 
 /**
+ * True iff `tower` can still be enclosed by *some* wall configuration this
+ * phase. False when an unwallable channel — water, burning pit, alive house,
+ * or another tower, all traversable under computeOutside's 8-dir flood —
+ * connects the tower's footprint to the map border. Buildable grass blocks the
+ * flood (a wall can seal there), so any grass buffer around the tower yields
+ * true; only a channel touching the footprint with no grass to wall makes a
+ * tower unenclosable (e.g. a burning-pit column reaching the map edge right
+ * beside the tower). Cheap in the common (enclosable) case: the flood is
+ * blocked at the tower's grass neighbours before it can spread.
+ */
+export function isTowerEnclosable(
+  tower: Tower,
+  state: BuildViewState,
+): boolean {
+  const visited = new Set<TileKey>();
+  const stackR: number[] = [];
+  const stackC: number[] = [];
+  for (let r = tower.row; r < tower.row + TOWER_SIZE; r++) {
+    for (let c = tower.col; c < tower.col + TOWER_SIZE; c++) {
+      visited.add(packTile(r, c));
+      stackR.push(r);
+      stackC.push(c);
+    }
+  }
+  while (stackR.length > 0) {
+    const r = stackR.pop()!;
+    const c = stackC.pop()!;
+    for (const [dr, dc] of DIRS_8) {
+      const nr = r + dr;
+      const nc = c + dc;
+      if (!inBounds(nr, nc)) continue;
+      const key = packTile(nr, nc);
+      if (visited.has(key)) continue;
+      // Buildable grass can hold a wall — it bounds the channel, so stop here.
+      if (isWallableGrass(state, nr, nc)) continue;
+      visited.add(key);
+      // An unwallable channel reaching the border = no ring can enclose.
+      if (
+        nr === 0 ||
+        nr === GRID_ROWS - 1 ||
+        nc === 0 ||
+        nc === GRID_COLS - 1
+      ) {
+        return false;
+      }
+      stackR.push(nr);
+      stackC.push(nc);
+    }
+  }
+  return true;
+}
+
+/**
  * BFS to find a connected pocket of interior tiles starting from `startKey`.
  * Returns the array of tile keys in the pocket.
  *
@@ -368,6 +421,123 @@ export function castleRect(
   };
 }
 
+/**
+ * Pull a tower's candidate rect inward on any side whose wall ring would sit
+ * one tile *outside* an existing wall run, so the ring reuses that wall as a
+ * shared boundary instead of building a redundant parallel one. This is the
+ * secondary-tower analogue of `tryRepairOuterRing`'s home-perimeter reuse: a
+ * tower next to an existing perimeter (e.g. the home castle's wall) should
+ * share it rather than duplicate it — recovering the pieces that duplication
+ * would waste. A side shrinks by one only when the pulled-in ring line has
+ * strictly more existing-wall coverage than the current one (so it only ever
+ * trades a parallel wall for reuse, never collapses to a smaller ring for its
+ * own sake) and the tower still fits inside. Greedy, bounded passes.
+ */
+export function snapRectToReuseWalls(
+  rect: TileRect,
+  walls: ReadonlySet<TileKey>,
+  tower: Tower,
+): TileRect {
+  let { top, bottom, left, right } = rect;
+  const tTop = tower.row;
+  const tBottom = tower.row + TOWER_SIZE - 1;
+  const tLeft = tower.col;
+  const tRight = tower.col + TOWER_SIZE - 1;
+  const colCoverage = (col: number, rLo: number, rHi: number): number => {
+    let walled = 0;
+    for (let r = rLo; r <= rHi; r++) {
+      if (inBounds(r, col) && walls.has(packTile(r, col))) walled++;
+    }
+    return walled;
+  };
+  const rowCoverage = (row: number, cLo: number, cHi: number): number => {
+    let walled = 0;
+    for (let c = cLo; c <= cHi; c++) {
+      if (inBounds(row, c) && walls.has(packTile(row, c))) walled++;
+    }
+    return walled;
+  };
+  for (let pass = 0; pass < 4; pass++) {
+    let changed = false;
+    if (
+      right - 1 >= tRight &&
+      colCoverage(right, top - 1, bottom + 1) >
+        colCoverage(right + 1, top - 1, bottom + 1)
+    ) {
+      right--;
+      changed = true;
+    }
+    if (
+      left + 1 <= tLeft &&
+      colCoverage(left, top - 1, bottom + 1) >
+        colCoverage(left - 1, top - 1, bottom + 1)
+    ) {
+      left++;
+      changed = true;
+    }
+    if (
+      bottom - 1 >= tBottom &&
+      rowCoverage(bottom, left - 1, right + 1) >
+        rowCoverage(bottom + 1, left - 1, right + 1)
+    ) {
+      bottom--;
+      changed = true;
+    }
+    if (
+      top + 1 <= tTop &&
+      rowCoverage(top, left - 1, right + 1) >
+        rowCoverage(top - 1, left - 1, right + 1)
+    ) {
+      top++;
+      changed = true;
+    }
+    if (!changed) break;
+  }
+  return { top, bottom, left, right };
+}
+
+/**
+ * Pull a rect's sides inward off any burning pit on its wall ring, so the ring
+ * seals on grass *above* the pit instead of running through it. A pit can't
+ * hold a wall, and a deep pit column reaching the map border can't be expanded
+ * around (`expandRectAroundBlockers` caps out), so sealing above is the only
+ * enclosing ring. Bounded by the tower footprint: a side stops shrinking when
+ * it reaches the tower, so a pit cardinally adjacent to the tower (genuinely
+ * unenclosable) is left for the caller's `isTowerEnclosable` gate to skip.
+ * Meant to run *after* expansion, so shallow pits that expansion already routed
+ * around (no pit left on the ring) incur no shrink — only border-reaching
+ * columns that expansion couldn't clear get sealed above.
+ */
+export function clampRectOffPits(
+  rect: TileRect,
+  tower: Tower,
+  state: BuildViewState,
+): TileRect {
+  let { top, bottom, left, right } = rect;
+  const tTop = tower.row;
+  const tBottom = tower.row + TOWER_SIZE - 1;
+  const tLeft = tower.col;
+  const tRight = tower.col + TOWER_SIZE - 1;
+  const rowHasPit = (row: number, cLo: number, cHi: number): boolean => {
+    for (let c = cLo; c <= cHi; c++) {
+      if (inBounds(row, c) && hasPitAt(state.burningPits, row, c)) return true;
+    }
+    return false;
+  };
+  const colHasPit = (col: number, rLo: number, rHi: number): boolean => {
+    for (let r = rLo; r <= rHi; r++) {
+      if (inBounds(r, col) && hasPitAt(state.burningPits, r, col)) return true;
+    }
+    return false;
+  };
+  while (bottom > tBottom && rowHasPit(bottom + 1, left - 1, right + 1))
+    bottom--;
+  while (top < tTop && rowHasPit(top - 1, left - 1, right + 1)) top++;
+  while (right > tRight && colHasPit(right + 1, top - 1, bottom + 1)) right--;
+  while (left < tLeft && colHasPit(left - 1, top - 1, bottom + 1)) left++;
+  return { top, bottom, left, right };
+}
+
 /** Identify real breach points by scanning for short non-wall runs between
  *  paired *ring* walls. A "ring wall" is a wall whose outer face touches the
  *  exterior — i.e. has at least one 4-dir neighbor in computeOutside. The
@@ -428,6 +598,23 @@ export function findOuterRingHoles(
     }
   }
   return holes;
+}
+
+/** True iff a wall can be placed on (row, col): plain grass with no burning
+ *  pit, alive house, cannon, or tower occupying it. Mirrors filterUnfillableGaps'
+ *  notion of a fillable tile — a tile that can become a wall. */
+function isWallableGrass(
+  state: BuildViewState,
+  row: number,
+  col: number,
+): boolean {
+  return (
+    isGrass(state.map.tiles, row, col) &&
+    !hasPitAt(state.burningPits, row, col) &&
+    !hasAliveHouseAt(state, row, col) &&
+    !hasCannonAt(state, row, col) &&
+    !hasTowerAt(state, row, col)
+  );
 }
 
 /** Max margin a side can expand to before hitting water, map edge, or another

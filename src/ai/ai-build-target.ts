@@ -47,11 +47,13 @@ import type { TargetContext, TargetResult } from "./ai-build-types.ts";
 import {
   addInteriorPlugGaps,
   castleRect,
+  clampRectOffPits,
   computeFillableGaps,
   filterUnfillableGaps,
   findGapTiles,
   findReachableRingGaps,
   scoreBuildTowerTarget,
+  snapRectToReuseWalls,
 } from "./ai-castle-rect.ts";
 
 /** How far the castle rect can expand to route around blocked tiles.
@@ -417,7 +419,14 @@ function tryRepairHomeCastle(ctx: TargetContext): TargetResult {
   // modifier (e.g. high_tide) clears, the recomputed rect drifts to the
   // natural-shoreline shape — repair scoring may chase phantom gaps on the
   // wider side. Bounded suboptimality, never cross-peer desync.
-  const targetRect = expandRectAroundBlockers(castle, state, player);
+  // Expand around shallow/temporary blockers, then seal above any deep,
+  // border-reaching pit column expansion couldn't clear (otherwise the ring
+  // runs through an unwallable pit and never closes — seed round-pits-1).
+  const targetRect = clampRectOffPits(
+    expandRectAroundBlockers(castle, state, player),
+    castle.tower,
+    state,
+  );
   const targetGaps = findReachableRingGaps(
     targetRect,
     player.walls,
@@ -682,17 +691,23 @@ function evaluateTowerCandidate(
   ctx: TargetContext,
 ): { rect: TileRect; gaps: Set<TileKey> } {
   const { state, player, castleMargin, bankHugging } = ctx;
-  const rect = expandRectAroundBlockers(
-    castleRect(
-      tower,
-      state.map.tiles,
-      state.map.towers,
-      castleMargin,
-      !bankHugging,
-    ),
-    state,
-    player,
+  const base = castleRect(
+    tower,
+    state.map.tiles,
+    state.map.towers,
+    castleMargin,
+    !bankHugging,
   );
+  // Reuse an adjacent existing wall as a shared boundary only when the home
+  // ring is being abandoned (effectiveSkipHome) — enclosing this secondary is
+  // then survival-critical and a tight, closeable ring beats a roomier one.
+  // In normal territory play the full geometric ring keeps more interior
+  // (measured: ungated snapping regressed interiorAvg ~3.7% with no finalScore
+  // gain).
+  const reused = ctx.effectiveSkipHome
+    ? snapRectToReuseWalls(base, player.walls, tower)
+    : base;
+  const rect = expandRectAroundBlockers(reused, state, player);
   const gaps = computeFillableGaps(
     rect,
     player.walls,
