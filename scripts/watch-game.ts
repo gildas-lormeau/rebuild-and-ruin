@@ -31,73 +31,99 @@ import {
   createBuildTraceObserver,
 } from "../test/build-trace-observer.ts";
 import { createNarrativeObserver } from "../test/narrative-observer.ts";
-import {
-  createScenario,
-  ScenarioTimeoutError,
-  waitForEvent,
-} from "../test/scenario.ts";
+import { ScenarioTimeoutError, waitForEvent } from "../test/scenario.ts";
+import { resolveScenarioSource } from "./scenario-source.ts";
 
 interface Args {
   seed: number | undefined;
+  /** Phase-fixture path. Mutually exclusive with --seed: the fixture
+   *  carries its own seed / mode / rounds, and the runtime resumes from the
+   *  fixture's entry phase/round instead of booting at round 1. */
+  fixture: string | undefined;
   mode: "classic" | "modern";
-  /** Watch budget — stop observing after this round's ROUND_END. */
+  /** Watch budget — stop observing after this many rounds (counting from the
+   *  start round: round 1 for a seed, the fixture's entry round otherwise). */
   rounds: number;
   /** Match-length cap (state.maxRounds). 0 = to-the-death (Infinity).
-   *  Default 0 so --rounds never silently shifts AI-visible state. */
+   *  Default 0 so --rounds never silently shifts AI-visible state.
+   *  Ignored with --fixture (the fixture's own `rounds` sets match length). */
   matchRounds: number;
   round: number | undefined;
   buildTrace: { round: number; playerId: 0 | 1 | 2 } | undefined;
 }
 
 const PLAYER_NAMES = ["RED", "BLUE", "GOLD"] as const;
-const HELP_TEXT = `Watch a game: run a seed end-to-end and print an event narrative, optionally
-with a build-phase trace for one specific player/round.
+const HELP_TEXT = `Watch a game: run a seed (or a phase fixture) end-to-end and print an event
+narrative, optionally with a build-phase trace for one specific player/round.
 
 Usage:
   deno run -A scripts/watch-game.ts --seed N [options]
+  deno run -A scripts/watch-game.ts --fixture PATH [options]
   npm run watch-game -- --seed N [options]
 
 Options:
-  --seed N               Seed to play (REQUIRED).
-  --mode classic|modern  Game mode (default: modern).
-  --rounds N             Watch budget — stop observing after round N closes
-                         (default: 3). Does NOT change game state.
+  --seed N               Seed to play (REQUIRED unless --fixture is given).
+  --fixture PATH         Phase-fixture JSON to resume from instead of a seed.
+                         The fixture supplies seed / mode / rounds and the
+                         runtime resumes at its entry phase/round. Mutually
+                         exclusive with --seed. NOTE: checkpoint fixtures reset
+                         AI controller state (cursor / last-target / RNG), so
+                         build flip-stall behavior won't reproduce.
+  --mode classic|modern  Game mode (default: modern). Ignored with --fixture.
+  --rounds N             Watch budget — stop observing N rounds after the start
+                         round (default: 3). Does NOT change game state.
   --match-rounds M       Match-length cap (state.maxRounds). 0 = to-the-death
-                         (default: 0). Use to constrain match length explicitly.
+                         (default: 0). Ignored with --fixture.
   --round N              Filter the printed narrative to a single round.
   --build-trace ROUND PLAYER
                          Capture the AI's per-placement build decisions for one
-                         player one round. PLAYER in RED|BLUE|GOLD.
+                         player one round. PLAYER in RED|BLUE|GOLD. ROUND is
+                         absolute; the watch budget is extended to reach it.
   --help, -h             Show this help and exit.
 
 Examples:
   deno run -A scripts/watch-game.ts --seed 42
   deno run -A scripts/watch-game.ts --seed 42 --mode classic --rounds 10
   deno run -A scripts/watch-game.ts --seed 42 --round 3
-  deno run -A scripts/watch-game.ts --seed 555555 --build-trace 26 GOLD`;
+  deno run -A scripts/watch-game.ts --seed 555555 --build-trace 26 GOLD
+  deno run -A scripts/watch-game.ts --fixture test/phase-tests/fixtures/wall-build/round-pits-1.json`;
 
 await main();
 
 async function main(): Promise<void> {
   const args = parseArgs();
-  if (args.seed === undefined) {
+  if (args.fixture !== undefined && args.seed !== undefined) {
+    console.error("--fixture and --seed are mutually exclusive");
+    Deno.exit(1);
+  }
+  if (args.fixture === undefined && args.seed === undefined) {
     console.error(
-      "Usage: deno run -A scripts/watch-game.ts --seed N [--mode classic|modern] [--rounds N] [--match-rounds M] [--round N] [--build-trace ROUND PLAYER]",
+      "Usage: deno run -A scripts/watch-game.ts (--seed N | --fixture PATH) [--mode classic|modern] [--rounds N] [--match-rounds M] [--round N] [--build-trace ROUND PLAYER]",
     );
     Deno.exit(1);
   }
 
-  // --rounds is the WATCH BUDGET; match length is independent.
-  // matchRounds=0 → Infinity, so maxRounds-gated RNG (upgrade-system's
-  // "skip pick for the final round") never trips. That makes r29 state
-  // identical regardless of --rounds value.
-  const scenarioRounds =
-    args.matchRounds > 0 ? args.matchRounds : Number.POSITIVE_INFINITY;
-  const sc = await createScenario({
-    seed: args.seed,
-    mode: args.mode,
-    rounds: scenarioRounds,
-  });
+  // Build the scenario from either a phase fixture or a seed. Both yield the
+  // same Scenario shape, so the observers below don't care which path ran.
+  // `startRound` is where the watch budget counts from (the fixture's entry
+  // round, or round 1 for a fresh seed). --rounds remains the WATCH BUDGET;
+  // match length is independent (see resolveScenarioSource).
+  const {
+    sc,
+    startRound,
+    seed: displaySeed,
+    mode: displayMode,
+    sourceLabel,
+  } = await resolveScenarioSource(args);
+
+  // Watch `args.rounds` rounds forward from the start round; extend to reach an
+  // absolute build-trace round if one was requested beyond that window.
+  let targetRound = startRound + args.rounds - 1;
+  if (args.buildTrace) {
+    targetRound = Math.max(targetRound, args.buildTrace.round);
+  }
+  const roundsWatched = targetRound - startRound + 1;
+
   const narrative = createNarrativeObserver();
   narrative.attach(sc);
 
@@ -122,11 +148,12 @@ async function main(): Promise<void> {
   });
 
   try {
-    waitForEvent(sc, GAME_EVENT.ROUND_END, (ev) => ev.round === args.rounds, {
-      // Scale sim-ms budget with round count. Survival uses ~183s sim per
-      // round; 200s/round leaves headroom for occasional stalls.
-      timeoutMs: 200_000 * args.rounds,
-      label: `seed=${args.seed} r${args.rounds} end`,
+    waitForEvent(sc, GAME_EVENT.ROUND_END, (ev) => ev.round === targetRound, {
+      // Scale sim-ms budget with the number of rounds actually watched.
+      // Survival uses ~183s sim per round; 200s/round leaves headroom for
+      // occasional stalls.
+      timeoutMs: 200_000 * roundsWatched,
+      label: `seed=${displaySeed} r${targetRound} end`,
     });
   } catch (err) {
     // Timeout is expected when the game ended early via last-player-standing
@@ -141,7 +168,7 @@ async function main(): Promise<void> {
           ? (PLAYER_NAMES[winnerId] ?? `P${winnerId}`)
           : "?";
       console.error(
-        `[watch-game] game ended at r${lastRoundEnded} (winner ${winnerLabel}) — watch budget was r${args.rounds}`,
+        `[watch-game] game ended at r${lastRoundEnded} (winner ${winnerLabel}) — watch budget was r${targetRound}`,
       );
     } else {
       // No GAME_END seen → either a real hang or the game state is wedged.
@@ -155,12 +182,8 @@ async function main(): Promise<void> {
     buildTrace?.detach();
   }
 
-  const matchLabel =
-    args.matchRounds > 0
-      ? `match-rounds=${args.matchRounds}`
-      : "match-rounds=∞";
   console.log(
-    `seed=${args.seed} mode=${args.mode} rounds=${args.rounds} ${matchLabel}${args.round !== undefined ? ` (filtered to r${args.round})` : ""}`,
+    `seed=${displaySeed} mode=${displayMode} watch=r${startRound}..r${targetRound} ${sourceLabel}${args.round !== undefined ? ` (filtered to r${args.round})` : ""}`,
   );
 
   const lines = filterByRound(narrative.lines, args.round);
@@ -208,6 +231,7 @@ function filterByRound(
 function parseArgs(): Args {
   const argv = Deno.args;
   let seed: number | undefined;
+  let fixture: string | undefined;
   let mode: "classic" | "modern" = "modern";
   let rounds = 3;
   let matchRounds = 0;
@@ -219,6 +243,7 @@ function parseArgs(): Args {
       console.log(HELP_TEXT);
       Deno.exit(0);
     } else if (flag === "--seed") seed = Number(argv[++i]);
+    else if (flag === "--fixture") fixture = argv[++i];
     else if (flag === "--mode") {
       const value = argv[++i];
       if (value !== "classic" && value !== "modern") {
@@ -242,12 +267,12 @@ function parseArgs(): Args {
         Deno.exit(1);
       }
       buildTrace = { round: roundArg, playerId: idx as 0 | 1 | 2 };
-      // Ensure the round we're tracing is actually played.
-      if (rounds < roundArg) rounds = roundArg;
+      // The watch budget is extended to reach an absolute build-trace round
+      // in main() (via targetRound), so no `rounds` bump is needed here.
     } else {
       console.error(`Unknown flag: ${flag}`);
       Deno.exit(1);
     }
   }
-  return { seed, mode, rounds, matchRounds, round, buildTrace };
+  return { seed, fixture, mode, rounds, matchRounds, round, buildTrace };
 }

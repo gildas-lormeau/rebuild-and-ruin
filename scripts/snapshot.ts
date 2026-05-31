@@ -7,6 +7,13 @@
  *   npm run snapshot -- --seed 42 --round 5 --phase BATTLE --moment end --player BLUE
  *   npm run snapshot -- --seed 1000000 --mode classic --round 3 --phase CANNON_PLACE
  *   npm run snapshot -- --seed 42 --round 5 --phase BATTLE --at 3.5
+ *   npm run snapshot -- --fixture test/phase-tests/fixtures/wall-build/round-pits-1.json
+ *
+ * Source: either a --seed (booted at round 1) or a --fixture (a phase-test
+ * fixture resumed at its captured entry phase/round). With --fixture, --round
+ * and --phase default to the entry moment; asking for the entry phase at
+ * --moment start renders immediately (no PHASE_START fires for a mid-phase
+ * checkpoint resume), while a later round/phase runs the runtime forward.
  *
  * --round N is a WATCH TARGET — does NOT change game state. The match
  * defaults to to-the-death (state.maxRounds = Infinity) so RNG-consuming
@@ -45,10 +52,15 @@ import { GAME_EVENT } from "../src/shared/core/game-event-bus.ts";
 import { Phase } from "../src/shared/core/game-phase.ts";
 import { playerByZone } from "../src/shared/core/player-types.ts";
 import type { GameState } from "../src/shared/core/types.ts";
-import { createScenario, waitForEvent } from "../test/scenario.ts";
+import { waitForEvent } from "../test/scenario.ts";
+import { resolveScenarioSource } from "./scenario-source.ts";
 
 interface Args {
   seed: number | undefined;
+  /** Phase-fixture path. Mutually exclusive with --seed: the fixture supplies
+   *  seed / mode / rounds, and --round / --phase default to its entry moment.
+   *  Resumes via createPhaseScenario instead of booting at round 1. */
+  fixture: string | undefined;
   mode: "classic" | "modern";
   round: number | undefined;
   /** Match-length cap (state.maxRounds). 0 = to-the-death (Infinity).
@@ -79,18 +91,28 @@ moment), optionally cropped to one player's footprint.
 
 Usage:
   npm run snapshot -- --seed N --round N --phase PHASE [options]
+  npm run snapshot -- --fixture PATH [options]
   deno run -A scripts/snapshot.ts --seed N --round N --phase PHASE [options]
 
 Options:
-  --seed N               Seed to play (REQUIRED).
-  --round N              Watch target round (REQUIRED). Does NOT change game
-                         state.
-  --phase PHASE          Target phase (REQUIRED). One of:
+  --seed N               Seed to play (REQUIRED unless --fixture is given).
+  --round N              Watch target round (REQUIRED with --seed; defaults to
+                         the fixture's entry round). Does NOT change game state.
+  --phase PHASE          Target phase (REQUIRED with --seed; defaults to the
+                         fixture's entry phase). One of:
                          CASTLE_SELECT | CANNON_PLACE | MODIFIER_REVEAL |
                          BATTLE | UPGRADE_PICK | WALL_BUILD.
-  --mode classic|modern  Game mode (default: modern).
+  --fixture PATH         Phase-fixture JSON to resume from instead of a seed.
+                         Supplies seed/mode/rounds; --round/--phase default to
+                         its entry moment, so '--fixture X.json' alone snapshots
+                         the entry board. Mutually exclusive with --seed.
+                         Asking for the entry phase at --moment start needs no
+                         wait (the runtime is already there); a later round/
+                         phase runs forward normally. Checkpoint fixtures can't
+                         snapshot a round BEFORE their entry round.
+  --mode classic|modern  Game mode (default: modern). Ignored with --fixture.
   --match-rounds M       Match-length cap (state.maxRounds). 0 = to-the-death
-                         (default: 0).
+                         (default: 0). Ignored with --fixture.
   --moment start|end     start (default, at PHASE_START) | end (just after the
                          phase exits).
   --at SECONDS           Sim-seconds elapsed since the phase's PHASE_START.
@@ -123,19 +145,27 @@ Examples:
   npm run snapshot -- --seed 42 --round 5 --phase BATTLE --at 3.5
   npm run snapshot -- --seed 42 --round 5 --phase BATTLE --castle RED --zoom 6
   npm run snapshot -- --seed 42 --round 5 --phase WALL_BUILD --tower 3
-  npm run snapshot -- --seed 42 --round 8 --phase WALL_BUILD --player BLUE --zoom 4`;
+  npm run snapshot -- --seed 42 --round 8 --phase WALL_BUILD --player BLUE --zoom 4
+  npm run snapshot -- --fixture test/phase-tests/fixtures/wall-build/round-pits-1.json`;
 
 await main();
 
 async function main(): Promise<void> {
   const args = parseArgs();
+  if (args.fixture !== undefined && args.seed !== undefined) {
+    console.error("--fixture and --seed are mutually exclusive");
+    Deno.exit(1);
+  }
+  // Seed path requires seed + round + phase; fixture path defaults round/phase
+  // from the fixture's entry moment, so only --fixture is required there.
   if (
-    args.seed === undefined ||
-    args.round === undefined ||
-    args.phase === undefined
+    args.fixture === undefined &&
+    (args.seed === undefined ||
+      args.round === undefined ||
+      args.phase === undefined)
   ) {
     console.error(
-      "Usage: npm run snapshot -- --seed N --round N --phase PHASE " +
+      "Usage: npm run snapshot -- (--seed N --round N --phase PHASE | --fixture PATH) " +
         "[--mode classic|modern] [--match-rounds M] " +
         "[--moment start|end | --at SECONDS] " +
         "[--player RED|BLUE|GOLD] " +
@@ -147,18 +177,35 @@ async function main(): Promise<void> {
     Deno.exit(1);
   }
 
-  // --round is the WATCH TARGET; match length is independent.
-  // matchRounds=0 → Infinity, so maxRounds-gated RNG (upgrade-system's
-  // "skip pick for the final round") never trips. That keeps a given
-  // (seed, round, phase) snapshot identical regardless of --round value.
-  const scenarioRounds =
-    args.matchRounds > 0 ? args.matchRounds : Number.POSITIVE_INFINITY;
-  using sc = await createScenario({
-    seed: args.seed,
-    mode: args.mode,
-    rounds: scenarioRounds,
-    renderer: "ascii",
-  });
+  // Resolve the scenario (seed or fixture) with an ASCII renderer attached.
+  // --round is the WATCH TARGET; match length is independent (see
+  // resolveScenarioSource).
+  const resolved = await resolveScenarioSource(args, { renderer: "ascii" });
+  using sc = resolved.sc;
+
+  // A fixture supplies its own entry round/phase as the default target. The
+  // checkpoint path resumes mid-phase and emits NO PHASE_START for the entry
+  // phase, so "snapshot the entry moment" is handled specially below.
+  if (resolved.fixtureEntry) {
+    args.round ??= resolved.fixtureEntry.round;
+    args.phase ??= resolved.fixtureEntry.phase;
+    if (args.round < resolved.fixtureEntry.round) {
+      console.error(
+        `--round ${args.round} precedes the fixture's entry round ${resolved.fixtureEntry.round} (that state is gone — the fixture resumes at r${resolved.fixtureEntry.round}).`,
+      );
+      Deno.exit(1);
+    }
+  }
+  if (args.round === undefined || args.phase === undefined) {
+    throw new Error("unreachable: round/phase undefined after defaulting");
+  }
+  // True when the requested target IS the fixture's resume point. The runtime
+  // is already sitting at that phase's start, so there's nothing to wait for
+  // (start) and no entry PHASE_START will ever fire to prime the end/at logic.
+  const atFixtureEntry =
+    resolved.fixtureEntry !== undefined &&
+    args.round === resolved.fixtureEntry.round &&
+    args.phase === resolved.fixtureEntry.phase;
 
   const targetLabel =
     args.at !== undefined
@@ -168,12 +215,15 @@ async function main(): Promise<void> {
   // survival, headroom for stalls).
   const timeoutMs = 200_000 * (args.round + 1);
 
-  if (args.at !== undefined) {
+  if (atFixtureEntry && args.at === undefined && args.moment === "start") {
+    // Already sitting at the fixture's entry-phase start — snapshot as-is.
+  } else if (args.at !== undefined) {
     // "at N seconds" = wait for PHASE_START, then drive sim time forward
     // until N*1000 sim-ms have elapsed. Bail if the phase exits early
     // (PHASE_END for the target, or ROUND_END) — the requested offset
-    // doesn't exist.
-    let phaseStartAt: number | null = null;
+    // doesn't exist. At the fixture entry phase no PHASE_START fires, so
+    // anchor the clock at the resume moment (sc.now()) instead.
+    let phaseStartAt: number | null = atFixtureEntry ? sc.now() : null;
     let phaseExitedEarly = false;
     sc.bus.on(GAME_EVENT.PHASE_START, (ev) => {
       if (
@@ -224,8 +274,9 @@ async function main(): Promise<void> {
     // if the target was WALL_BUILD, the last phase of a round). Modern
     // mode has conditional phases (MODIFIER_REVEAL / UPGRADE_PICK) so we
     // can't hard-code the successor phase per (mode, target) — listening
-    // for whichever fires next is the only robust path.
-    let sawTarget = false;
+    // for whichever fires next is the only robust path. At the fixture entry
+    // phase no PHASE_START fires for the target, so treat it as already seen.
+    let sawTarget = atFixtureEntry;
     let triggered = false;
     sc.bus.on(GAME_EVENT.PHASE_START, (ev) => {
       if (sawTarget) triggered = true;
@@ -271,16 +322,13 @@ async function main(): Promise<void> {
   }
 
   // Banner: seed/round/phase/moment + per-player stats (filtered to the
-  // focused player if --player was passed)
-  const matchLabel =
-    args.matchRounds > 0
-      ? `match-rounds=${args.matchRounds}`
-      : "match-rounds=∞";
+  // focused player if --player was passed). `sourceLabel` carries the
+  // provenance (match-rounds for a seed, or fixture=… entry=… for a fixture).
   const playerNote =
     args.player !== undefined ? ` (player ${PLAYER_NAMES[args.player]})` : "";
   const focusNote = focusRect ? ` focus=${focusLabel} zoom=${focusZoom}` : "";
   console.log(
-    `seed=${args.seed} mode=${args.mode} ${matchLabel} ${targetLabel}${playerNote}${focusNote}`,
+    `seed=${resolved.seed} mode=${resolved.mode} ${resolved.sourceLabel} ${targetLabel}${playerNote}${focusNote}`,
   );
   for (let i = 0; i < 3; i++) {
     const player = sc.state.players[i];
@@ -427,6 +475,7 @@ function pointWindow(row: number, col: number, zoom: number): Rect {
 function parseArgs(): Args {
   const argv = Deno.args;
   let seed: number | undefined;
+  let fixture: string | undefined;
   let mode: "classic" | "modern" = "modern";
   let round: number | undefined;
   let matchRounds = 0;
@@ -444,6 +493,7 @@ function parseArgs(): Args {
       console.log(HELP_TEXT);
       Deno.exit(0);
     } else if (flag === "--seed") seed = Number(argv[++i]);
+    else if (flag === "--fixture") fixture = argv[++i];
     else if (flag === "--mode") {
       const value = argv[++i];
       if (value !== "classic" && value !== "modern") {
@@ -496,6 +546,7 @@ function parseArgs(): Args {
   assertSingleFocus(tower, castle, atTile);
   return {
     seed,
+    fixture,
     mode,
     round,
     matchRounds,

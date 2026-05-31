@@ -36,6 +36,10 @@ import type { ZoneId } from "../../src/shared/core/zone-id.ts";
 import { recheckTerritory } from "../../src/game/build-system.ts";
 import { useSmallPieces } from "../../src/game/upgrade-system.ts";
 import { applyMidGameCheckpoint } from "../../src/online/online-rehydrate.ts";
+import {
+  type AsciiRenderer,
+  createAsciiRenderer,
+} from "../ascii-renderer.ts";
 import { createHeadlessRuntime } from "../runtime-headless.ts";
 import {
   buildHeadlessOptions,
@@ -59,11 +63,12 @@ const SUPPORTED_VERSION = 1;
 
 export async function createPhaseScenario(
   fixture: FixtureFile,
+  opts?: { renderer?: "ascii" },
 ): Promise<Scenario> {
   validateFixture(fixture);
   const sc = fixture.checkpoint
-    ? await createCheckpointScenario(fixture)
-    : await createFreshScenario(fixture);
+    ? await createCheckpointScenario(fixture, opts?.renderer)
+    : await createFreshScenario(fixture, opts?.renderer);
   if (fixture.testHooks) {
     // Apply before any subsequent tick so rollModifier / drawOffers see
     // the filter on the next phase transition. Fresh-scenario creation
@@ -461,11 +466,15 @@ function cannonFootprintKeys(
 }
 
 /** Round-1 path: AI-drive from boot to `entryPhase`. */
-async function createFreshScenario(fixture: FixtureFile): Promise<Scenario> {
+async function createFreshScenario(
+  fixture: FixtureFile,
+  renderer?: "ascii",
+): Promise<Scenario> {
   const sc = await createScenario({
     seed: fixture.seed,
     mode: fixture.mode,
     rounds: fixture.rounds,
+    renderer,
   });
   if (fixture.entryPhase !== Phase.CASTLE_SELECT) {
     waitForPhase(sc, fixture.entryPhase);
@@ -477,9 +486,13 @@ async function createFreshScenario(fixture: FixtureFile): Promise<Scenario> {
  *  so it continues ticking from that moment. */
 async function createCheckpointScenario(
   fixture: FixtureFile,
+  renderer?: "ascii",
 ): Promise<Scenario> {
   if (!fixture.checkpoint) throw new Error("checkpoint required");
   const sentMessages: GameMessage[] = [];
+  // Mirror createScenario's ascii wiring: build the handle, feed it to the
+  // headless options, then bind + attach it after the runtime exists.
+  const ascii = renderer === "ascii" ? createAsciiRenderer() : undefined;
   const headless = await createHeadlessRuntime(
     buildHeadlessOptions(
       {
@@ -488,6 +501,7 @@ async function createCheckpointScenario(
         rounds: fixture.rounds,
       },
       sentMessages,
+      ascii,
     ),
   );
   const result = await applyMidGameCheckpoint(
@@ -501,7 +515,10 @@ async function createCheckpointScenario(
     );
   }
   ensurePieceBagsForBuildPhase(headless.runtime.runtimeState.state);
-  return wrapHeadless(headless, sentMessages);
+  if (ascii) ascii.bind(() => headless.runtime.runtimeState.state);
+  const sc = wrapHeadless(headless, sentMessages);
+  if (ascii) (sc as { renderer: AsciiRenderer }).renderer = ascii;
+  return sc;
 }
 
 /** Piece bags are *not* serialized in checkpoints — they're regenerated on
