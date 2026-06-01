@@ -640,9 +640,8 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
 
     // Weapons are locked once the timer has expired AND the last ball has
     // landed — no more aiming, firing, or crosshair motion. Controllers
-    // therefore skip their battleTick, which would otherwise overwrite
-    // `cannon.facing` via `aimCannons` every frame and fight the
-    // battle-end facing reset below.
+    // therefore skip their battleTick (crosshair motion); the cannon-
+    // animator then computes the rest facing once weapons go inactive.
     const weaponsActive = state.timer > 0 || state.cannonballs.length > 0;
 
     // Controller ticks (pass 1) must precede engine combat (pass 2): new

@@ -15,7 +15,6 @@ interface SerializedCannon {
   col: number;
   hp: number;
   mode: string;
-  facing?: number;
   mortar?: true;
   shielded?: true;
   /** Shield HP for rampart mode (omitted when 0 or non-rampart). */

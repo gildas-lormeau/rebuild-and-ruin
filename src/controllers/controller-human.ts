@@ -1,5 +1,4 @@
 import {
-  aimCannons,
   cannonSlotsUsed,
   canPlaceCannon,
   canPlacePiece,
@@ -219,9 +218,10 @@ export class HumanController extends BaseController implements InputReceiver {
     return result;
   }
 
-  battleTick(state: BattleViewState, dt: number): void {
+  battleTick(_state: BattleViewState, dt: number): void {
+    // Cannon facing is computed cosmetically by the cannon-animator from the
+    // crosshair — the controller only moves the crosshair here.
     this.moveCrosshairFromInput(dt);
-    aimCannons(state, this.playerId, this.crosshair.x, this.crosshair.y);
   }
 
   /** Apply held directional keys to crosshair position (sprint when ROTATE held).

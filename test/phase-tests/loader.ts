@@ -329,7 +329,6 @@ export function applyCannonOverrides(
       col,
       hp,
       mode: mode as CannonMode,
-      facing: override.facing ?? player.defaultFacing,
     });
     for (const key of cannonFootprintKeys(row, col, size)) occupied.add(key);
   }

@@ -7,7 +7,7 @@
  * smoothing — phantoms swap discretely, cannonballs are deterministic.
  */
 
-import { aimCannons, canPlayerFire, nextReadyCannon } from "../game/index.ts";
+import { canPlayerFire, nextReadyCannon } from "../game/index.ts";
 import { type GameMessage, MESSAGE } from "../protocol/protocol.ts";
 import type { Crosshair } from "../shared/core/battle-types.ts";
 import { isAiAnimatable } from "../shared/core/controller-guards.ts";
@@ -93,11 +93,12 @@ export function extendWithRemoteCrosshairs(
   return [...crosshairs, ...remote];
 }
 
-/** Per-frame visual interpolation for one remote crosshair: eligibility check,
- *  lerp the cached visual position toward the target, and sync the player's
- *  cannons to track the interpolated point. Mutates `visualPosCache` in place
- *  (lazy-init on first frame for a given pid). Returns null when the slot
- *  should be skipped (eliminated, can't fire). */
+/** Per-frame visual interpolation for one remote crosshair: eligibility check
+ *  and lerp the cached visual position toward the target. The interpolated
+ *  point is published as a crosshair entry by the caller; the cannon-animator
+ *  computes the player's cannon facing from it. Mutates `visualPosCache` in
+ *  place (lazy-init on first frame for a given pid). Returns null when the
+ *  slot should be skipped (eliminated, can't fire). */
 function tickRemoteCrosshair(
   pid: ValidPlayerId,
   target: PixelPos,
@@ -114,7 +115,6 @@ function tickRemoteCrosshair(
     visualPosCache.set(pid, visualPos);
   }
   interpolateToward(visualPos, target.x, target.y, REMOTE_CROSSHAIR_SPEED, dt);
-  aimCannons(state, pid, visualPos.x, visualPos.y);
   return visualPos;
 }
 

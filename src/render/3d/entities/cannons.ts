@@ -94,10 +94,7 @@ type VariantName =
  *  path reads. Derived via `Pick<>` rather than re-declared so the
  *  shape-duplicates lint stays clean — adding/renaming a field in
  *  battle-types automatically propagates here. */
-type Cannon = Pick<
-  BattleCannon,
-  "col" | "row" | "mode" | "facing" | "shieldHp"
->;
+type Cannon = Pick<BattleCannon, "col" | "row" | "mode" | "shieldHp">;
 
 interface BarrelState {
   currentPitch: number;
@@ -289,13 +286,14 @@ export function createCannonsManager(
     );
     // Rampart has no barrel and never rotates; every other variant rotates
     // by `-facing` on Y (game's CW convention vs three.js's CCW-from-+Y).
-    // Non-rampart cannons use the eased displayed facing so abrupt state
+    // Non-rampart cannons use the eased displayed facing (computed by the
+    // cannon-animator from the crosshair / rest target) so abrupt state
     // changes (battle-end reset, post-fire aim shifts) render as a rotation
-    // rather than a snap. Falls back to authoritative `cannon.facing` if
-    // the animator hasn't seeded an entry yet (race-free first frame).
+    // rather than a snap. Falls back to 0 (pointing up) only on the first
+    // frame before the animator has seeded this cannon's entry.
     const facing = isRampart
       ? 0
-      : (getCannonFacing(cannon.col, cannon.row) ?? cannon.facing ?? 0);
+      : (getCannonFacing(cannon.col, cannon.row) ?? 0);
     hostQuaternion.setFromAxisAngle(yAxis, -facing);
     matrix.compose(hostTranslation, hostQuaternion, hostScale);
   }
@@ -475,8 +473,7 @@ function computeSignature(
     for (const cannon of castle.cannons) {
       if (!isCannonAlive(cannon)) continue;
       if (isBalloonCannon(cannon)) continue;
-      const displayed =
-        getCannonFacing(cannon.col, cannon.row) ?? cannon.facing ?? 0;
+      const displayed = getCannonFacing(cannon.col, cannon.row) ?? 0;
       const enclosed = isCannonFootprintInside(cannon, castle.interior) ? 1 : 0;
       parts.push(
         `${castle.playerId}:${cannon.col}:${cannon.row}:${cannon.mode}:${displayed}:${cannon.mortar ? 1 : 0}:${cannon.shielded ? 1 : 0}:${castle.cannonTier}:${cannon.shieldHp ?? -1}:${enclosed}`,

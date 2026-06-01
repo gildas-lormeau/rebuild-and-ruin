@@ -225,45 +225,6 @@ export function canPlayerFire(
   );
 }
 
-/** Point all of a player's live cannons toward a crosshair position (pixels).
- *  Also aims any cannons this player has captured via propaganda balloons.
- *  Snap-only: cannon.facing is a pure function of (cannon position, crosshair).
- *  Visual smoothness comes from the crosshair itself being smoothed upstream. */
-export function aimCannons(
-  state: GameViewState & {
-    readonly capturedCannons: readonly CapturedCannon[];
-  },
-  playerId: ValidPlayerId,
-  cx: number,
-  cy: number,
-): void {
-  const player = state.players[playerId];
-  if (!player) return;
-  // Collect captured cannon refs so we skip them from the owner's own aiming
-  const capturedByOthers = new Set<Cannon>();
-  for (const captured of state.capturedCannons) {
-    capturedByOthers.add(captured.cannon);
-  }
-  const aimAt = (cannon: Cannon) => {
-    const { x: ox, y: oy } = cannonCenter(cannon);
-    cannon.facing = Math.atan2(cx - ox, -(cy - oy));
-  };
-
-  // Aim own cannons (excluding ones captured by someone else or not enclosed)
-  for (const cannon of player.cannons) {
-    if (!isCannonAlive(cannon) || capturedByOthers.has(cannon)) continue;
-    // Only rotate cannons inside enclosed territory
-    if (!isCannonEnclosed(cannon, player)) continue;
-    aimAt(cannon);
-  }
-  // Aim captured cannons toward the capturer's crosshair
-  for (const captured of state.capturedCannons) {
-    if (captured.capturerId !== playerId) continue;
-    if (!isCannonAlive(captured.cannon)) continue;
-    aimAt(captured.cannon);
-  }
-}
-
 /**
  * Per-frame battle tick: runs grunt tower attacks then advances cannonballs.
  *
@@ -432,8 +393,8 @@ export function fireNextReadyCannon(
 
 /** Originator path for the lockstep scheduled-actions queue.
  *
- * Validates a cannon-fire intent, computes the ballistic trajectory and
- * mutates `cannon.facing`, returns the would-be-fired ball plus the next
+ * Validates a cannon-fire intent, computes the ballistic trajectory, and
+ * returns the would-be-fired ball plus the next
  * rotation index — WITHOUT pushing the ball, bumping `state.shotsFired`,
  * or emitting the bus event. Caller schedules `applyCannonFiredOriginator`
  * for `applyAt = state.simTick + SAFETY` so the ball-push and shotsFired
@@ -1101,7 +1062,7 @@ function fireCapturedCannon(
 
 /**
  * Build and push a cannonball from a cannon toward a target tile.
- * Updates cannon facing. Used by all three firing paths.
+ * Used by all three firing paths.
  *
  * Pins the full ballistic trajectory (vy0, flightTime, impact tile) at
  * fire time using host state, so playback is purely parametric and
@@ -1131,7 +1092,6 @@ function launchCannonball(
     initialAimX,
     initialAimY,
   );
-  cannon.facing = Math.atan2(aimX - launchX, -(aimY - launchY));
   // overrideMortar promotes a non-mortar cannon to a single mortar shot
   // via the supply_ship `mortar_shot` bonus. Bonus consumption happens
   // on every peer in applyCannonFired so pendingSupplyBonuses stays

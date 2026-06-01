@@ -1,9 +1,10 @@
 /**
  * HumanController dpadVector unit tests — verify the analog touch d-pad
  * path on the controller side. Drives `battleTick` directly (which calls
- * the private `moveCrosshairFromInput`) against a stub BattleViewState
- * with no players, so `aimCannons` early-returns and the only observable
- * effect is crosshair position drift.
+ * the private `moveCrosshairFromInput`) against a stub BattleViewState;
+ * `battleTick` only moves the crosshair (cannon facing is computed
+ * cosmetically by the renderer), so crosshair position drift is the only
+ * observable effect.
  *
  * Covers:
  *   - vector drives crosshair in non-cardinal directions
@@ -126,7 +127,7 @@ function makeController(): HumanController {
 }
 
 function stubBattleState(): BattleViewState {
-  // aimCannons() reads state.players[playerId] and early-returns when the
-  // slot is empty, so an empty players array is the minimal safe state.
+  // `battleTick` ignores the state arg (it only moves the crosshair), so a
+  // minimal empty state is sufficient.
   return { players: [], capturedCannons: [] } as unknown as BattleViewState;
 }

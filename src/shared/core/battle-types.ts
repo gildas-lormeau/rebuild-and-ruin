@@ -65,8 +65,6 @@ export interface Cannon extends TilePos {
   hp: number;
   /** Cannon variant: normal (2×2), super (3×3 incendiary), or balloon (2×2 propaganda). */
   mode: CannonMode;
-  /** Facing angle in radians (snapped to 45° increments). 0 = up. */
-  facing?: number;
   /** True when this cannon is the elected mortar for the current battle round. */
   mortar?: true;
   /** True when this cannon is shielded (immune to damage) for the current battle round. */

@@ -46,8 +46,7 @@ export function createRender3d(
   // Closure-bound accessor — the runtime installs the cannon-animator's
   // `getDisplayed` here via `setCannonFacingProvider` once composition is
   // built. Default returns `undefined` so the cannons manager falls back
-  // to authoritative `cannon.facing` (no animation) until the runtime
-  // wires the real provider.
+  // to 0 (no animation) until the runtime wires the real provider.
   let cannonFacingProvider: GetCannonFacing = () => undefined;
   const getCannonFacing: GetCannonFacing = (col, row) =>
     cannonFacingProvider(col, row);

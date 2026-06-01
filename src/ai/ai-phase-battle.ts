@@ -6,7 +6,7 @@
  * readable and testable.
  */
 
-import { aimCannons, nextReadyCannon } from "../game/index.ts";
+import { nextReadyCannon } from "../game/index.ts";
 import { SIM_TICK_DT } from "../shared/core/game-constants.ts";
 import { packTile, tileCenterPx } from "../shared/core/spatial.ts";
 import type {
@@ -136,13 +136,9 @@ export function tickBattle(
 ): BattleTickResult {
   if (!nextReadyCannon(state, host.playerId)) return {};
 
-  // Aim at the LIVE crosshair, not the eventual destination, so the cannon
-  // barrel rotates in sync with the cursor exactly like a human player's
-  // (controller-human.battleTick). Aiming ahead at crosshairTarget made AI
-  // cannons visibly "rotate in advance" of their crosshair. facing is
-  // render-only and no longer gates any transition (see phase-ticks battle
-  // end), so this is determinism-neutral.
-  aimCannons(state, host.playerId, host.crosshair.x, host.crosshair.y);
+  // Cannon barrels follow the crosshair cosmetically (computed by the
+  // cannon-animator from `host.crosshair`), so the brain only steers the
+  // crosshair here — no explicit aim call.
 
   // During countdown or after battle timer expires: move/orbit only
   if (state.battleCountdown > 0 || state.timer <= 0) {
