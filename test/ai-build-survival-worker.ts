@@ -45,6 +45,10 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
         console.log(result.findings.diagSummary);
       }
     }
+    if (result.findings.idleRounds.length > 0) {
+      console.log(`Idle rounds (seed=${seed}):`);
+      for (const idle of result.findings.idleRounds) console.log(`  ${idle}`);
+    }
     if (capture && logDir) {
       await Deno.writeTextFile(
         `${logDir}/seed-${seed}.log`,

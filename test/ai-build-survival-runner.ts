@@ -180,6 +180,13 @@ export interface PlayerSummary {
 
 export interface SeedFindings {
   stalls: string[];
+  /** (round, player) rounds where the AI placed ~nothing across a full build
+   *  phase despite an unenclosed alive tower in its zone — the idle counterpart
+   *  to `stalls` (see IDLE_WALL_CEIL). Diagnostic only: not asserted, since a
+   *  boxed-in (unenclosable) tower is a legitimate idle round. A non-zero count
+   *  on a clean run is the signal to investigate / classify, not an immediate
+   *  failure. */
+  idleRounds: string[];
   perPlayer: PlayerSummary[];
   /** One-line aggregate per seed for eyeball-diff between runs. Sums + medians
    *  of the diagnostic signals across this seed's stalls. Empty when no
@@ -235,6 +242,24 @@ export const ROUNDS_TO_PLAY = 30;
 /** Wall-placement volume that signals the AI was actively building (~one
  *  full piece bag for a round). */
 export const STALL_WALL_THRESHOLD = 25;
+/** IDLE fingerprint thresholds. The STALL_WALL_THRESHOLD stall above catches
+ *  the "built a lot but never closed a ring" failure mode; it cannot see the
+ *  *opposite* mode — the AI emitting no build target for the whole phase and
+ *  placing ~nothing (path STRAT_NONE every tick, placement=null). That mode is
+ *  the documented diagonal-leak regression: when findReachableRingGaps reports
+ *  zero gaps for a leaking tower, the strategy must keep it in unenclosedTowers
+ *  so usefulGainRule scoring finds the plug tile (ai-strategy-build.ts) — if
+ *  that compensation regresses, the AI goes idle and this is the only window
+ *  onto it. Logged, not asserted: a genuinely unenclosable tower (boxed by
+ *  water/pits) is a legitimate idle round, so the count surfaces candidates for
+ *  review rather than failing the load-bearing suite. */
+export const IDLE_WALL_CEIL = 4;
+/** Min AI-decision ticks in the round before an idle round is meaningful —
+ *  excludes truncated final rounds (game-over before WALL_BUILD ran). */
+export const IDLE_MIN_BUILD_TICKS = 8;
+/** Fraction of build ticks on the STRAT_NONE (no-target) path required to call
+ *  a near-empty round idle rather than merely quiet. */
+export const IDLE_NO_TARGET_FRACTION = 0.8;
 /** Sim-ms budget for 30 rounds (~70s/round × safety margin). */
 export const RUN_BUDGET_MS = 5_500_000;
 export const PLAYER_NAMES = ["RED", "BLUE", "GOLD"] as const;
@@ -577,6 +602,7 @@ function analyzeSeed(
 ): SeedFindings {
   const rounds = [...perRound.keys()].sort((a, b) => a - b);
   const stalls: string[] = [];
+  const idleRounds: string[] = [];
   const perPlayer: PlayerSummary[] = [0, 1, 2].map(() => ({
     enclosures: 0,
     livesEnd: 0,
@@ -676,6 +702,27 @@ function analyzeSeed(
         if (bagFitPct >= 0) bagFitPcts.push(bagFitPct);
         if (altBetterPct >= 0) altBetterPcts.push(altBetterPct);
       }
+      // Idle fingerprint: the opposite of the stall above — the AI placed
+      // ~nothing across a full build phase (mostly STRAT_NONE, no target
+      // emitted) while an alive unowned tower in its zone was available to
+      // enclose. Catches the documented diagonal-leak regression that the
+      // wall-volume stall threshold structurally cannot see.
+      const buildTicks = row.trajectory.length;
+      const noTargetTicks = row.trajectory.filter(
+        (tick) => tick.path === "STRAT_NONE",
+      ).length;
+      if (
+        row.walls <= IDLE_WALL_CEIL &&
+        buildTicks >= IDLE_MIN_BUILD_TICKS &&
+        noTargetTicks >= IDLE_NO_TARGET_FRACTION * buildTicks &&
+        row.unownedAliveZoneTowers >= 1 &&
+        !row.lostLifeThisRound &&
+        row.livesAtRoundEnd > 0
+      ) {
+        idleRounds.push(
+          `seed=${seed} r${round} ${PLAYER_NAMES[pid]}: ${row.walls} walls, ${noTargetTicks}/${buildTicks} no-target ticks, ${row.unownedAliveZoneTowers} alive unowned tower(s), lives=${row.livesAtRoundEnd} | IDLE (no build target emitted for most of phase)`,
+        );
+      }
     }
   }
   const bagFitMedianStr =
@@ -700,6 +747,7 @@ function analyzeSeed(
       : "";
   return {
     stalls,
+    idleRounds,
     perPlayer,
     diagSummary,
     desperateFires,
