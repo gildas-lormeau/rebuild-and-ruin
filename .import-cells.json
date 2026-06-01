@@ -884,6 +884,7 @@
       "src/ai/ai-brain.ts",
       "src/ai/ai-build-desperate.ts",
       "src/ai/ai-build-lookahead.ts",
+      "src/ai/ai-plan-fat-breach.ts",
       "src/ai/ai-plan-pocket-destruction.ts",
       "src/ai/ai-plan-structural-hit.ts",
       "src/ai/ai-plan-wall-demolition.ts"

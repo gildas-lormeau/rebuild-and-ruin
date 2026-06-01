@@ -34,6 +34,7 @@ import type { AiPlacement } from "./ai-build-types.ts";
 import { findOuterRingHoles } from "./ai-castle-rect.ts";
 import { CHAIN, type ChainType } from "./ai-chain.ts";
 import { planCharitySweep } from "./ai-plan-charity-sweep.ts";
+import { planFatBreach } from "./ai-plan-fat-breach.ts";
 import { planGruntSweep } from "./ai-plan-grunt-sweep.ts";
 import { planIceTrench } from "./ai-plan-ice-trench.ts";
 import { planPocketDestruction } from "./ai-plan-pocket-destruction.ts";
@@ -74,6 +75,8 @@ const WALL_DEMOLITION_PROBABILITY = 1 / 3;
 const SUPER_ATTACK_PROBABILITY = 1 / 8;
 /** Chance to attempt a structural hit (break 2+ enclosures in 1–2 shots). */
 const STRUCTURAL_HIT_PROBABILITY = 1 / 2;
+/** Chance to attempt a diagonal fat-wall breach (drill through a ≥3-thick wall body). */
+const FAT_BREACH_PROBABILITY = 1 / 4;
 /** Minimum usable cannons to attempt an ice trench (lower than general chain threshold). */
 const ICE_TRENCH_MIN_CANNONS = 4;
 
@@ -351,6 +354,38 @@ export class DefaultStrategy implements AiStrategy {
       if (structuralTargets) {
         chainTargets = structuralTargets;
         chainType = CHAIN.STRUCTURAL;
+      }
+    }
+
+    // Fat-wall breach — drill a diagonal channel through a ≥3-thick enemy wall
+    // body. Tried after the surgical structural hit (which handles cheap 1–2
+    // tile breaches) as an opportunistic tactic for thick walls a single hit
+    // can't cut through. Shares CHAIN.STRUCTURAL behavior; distinct only via
+    // the fat_breach origin tag for metrics. The maxAttempts guard (0 at the
+    // weak tier) skips the rng roll entirely so the RNG stream is unperturbed
+    // for weak AI, mirroring structuralMaxHits.
+    const fatBreachProb = traitLookup(this.battleTactics, [
+      0,
+      FAT_BREACH_PROBABILITY,
+      1 / 2,
+    ]);
+    const fatBreachMaxAttempts = traitLookup(this.battleTactics, [0, 1, 1]);
+    if (
+      !chainTargets &&
+      fatBreachMaxAttempts > 0 &&
+      usableCannonCount >= CHAIN_ATTACK_MIN_CANNONS &&
+      this.rng.bool(fatBreachProb)
+    ) {
+      const fatTargets = planFatBreach(
+        state,
+        playerId,
+        usableCannonCount,
+        this.rng,
+      );
+      if (fatTargets) {
+        chainTargets = fatTargets;
+        chainType = CHAIN.STRUCTURAL;
+        originTag = "fat_breach";
       }
     }
 

@@ -21,6 +21,11 @@ export type FireOrigin =
   // only so metrics can flag enemy-zone "charity" sweeps (which help the
   // opponent) apart from own-zone defensive sweeps. Set via originTag.
   | "charity"
+  // fat_breach shares CHAIN.STRUCTURAL's behavior (surgical wall removal that
+  // breaches a large enclosure); distinct origin only so metrics can separate
+  // diagonal fat-wall cuts from single/double-tile structural hits. Set via
+  // originTag.
+  | "fat_breach"
   | "ice_trench"
   | "focus_fire"
   | "default";

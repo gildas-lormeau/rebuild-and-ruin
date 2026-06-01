@@ -89,6 +89,7 @@ export {
   buildTimerBonus,
   cannonShotsRicochet,
   canPlayerBuild,
+  shouldAbsorbWallHit,
   shouldSkipBattle,
   tickBuildUpgrades,
 } from "./upgrade-system.ts";

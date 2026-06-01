@@ -301,10 +301,7 @@ const EFFECT_PROBES: Partial<Record<UpgradeId, EffectProbe>> = {
  *  as `PER_MODIFIER_SEED` in test/modifiers.test.ts. Refresh by writing a
  *  throwaway probe that scans seeds and checks both `picked` and the
  *  effect-fires predicate for the first picker. */
-const PER_UPGRADE_SEED: Partial<Record<UpgradeId, number>> = {
-  mortar: 1,
-  reinforced_walls: 1,
-};
+const PER_UPGRADE_SEED: Partial<Record<UpgradeId, number>> = {};
 const seedGroups = new Map<number, UpgradeId[]>();
 
 for (const upgradeId of UPGRADE_IDS) {
