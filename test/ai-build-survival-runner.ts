@@ -30,6 +30,7 @@ export interface PathCounts {
   HOME: number;
   SEC: number;
   EXP: number;
+  CAPTURE: number;
   STRAT_RECT: number;
   STRAT_NONE: number;
 }
@@ -39,7 +40,13 @@ export interface PathCounts {
  *  how many gaps the result asked the AI to close. Used post-round to
  *  classify the stall sub-mode (PLATEAU / SWITCH / PROGRESS / etc.). */
 export interface TrajectoryTick {
-  path: "HOME" | "SEC" | "EXP" | "STRAT_RECT" | "STRAT_NONE";
+  path:
+    | "HOME"
+    | "SEC"
+    | "EXP"
+    | "CAPTURE"
+    | "STRAT_RECT"
+    | "STRAT_NONE";
   rectKey: string;
   /** Full rect dimensions from the target-selected event. Needed by the
    *  winnability solver to identify the plateau-start target rect and
@@ -295,7 +302,14 @@ async function runSeed(seed: number): Promise<{
           unownedAliveZoneTowers: 0,
           lostLifeThisRound: false,
           livesAtRoundEnd: 0,
-          pathCounts: { HOME: 0, SEC: 0, EXP: 0, STRAT_RECT: 0, STRAT_NONE: 0 },
+          pathCounts: {
+            HOME: 0,
+            SEC: 0,
+            EXP: 0,
+            CAPTURE: 0,
+            STRAT_RECT: 0,
+            STRAT_NONE: 0,
+          },
           trajectory: [],
           upcomingFitNumerator: 0,
           upcomingFitDenominator: 0,
@@ -652,7 +666,7 @@ function analyzeSeed(
           ? ` | desperate=${row.desperateFires}`
           : "";
         stalls.push(
-          `seed=${seed} r${round} ${PLAYER_NAMES[pid]}: ${row.walls} walls placed, 0 enclosures fired, ${row.unownedAliveZoneTowers} alive unowned tower(s) available, lives=${row.livesAtRoundEnd} | paths H=${pc.HOME} S=${pc.SEC} E=${pc.EXP} SR=${pc.STRAT_RECT} SN=${pc.STRAT_NONE} → ${cls.kind} (${cls.detail}) | sub-mode ${sub.kind} (${sub.detail})${winStr}${dropStr}${desperateStr}\n  diag: walls ${walls}${bagFitStr}${altStr}${cacheStr} | flips ${flipStr}`,
+          `seed=${seed} r${round} ${PLAYER_NAMES[pid]}: ${row.walls} walls placed, 0 enclosures fired, ${row.unownedAliveZoneTowers} alive unowned tower(s) available, lives=${row.livesAtRoundEnd} | paths H=${pc.HOME} S=${pc.SEC} E=${pc.EXP} CA=${pc.CAPTURE} SR=${pc.STRAT_RECT} SN=${pc.STRAT_NONE} → ${cls.kind} (${cls.detail}) | sub-mode ${sub.kind} (${sub.detail})${winStr}${dropStr}${desperateStr}\n  diag: walls ${walls}${bagFitStr}${altStr}${cacheStr} | flips ${flipStr}`,
         );
         if (row.placements.length > 0) {
           const hits = row.placements.filter((p) => p.hitTargetGap).length;
@@ -1096,11 +1110,12 @@ function classifyStall(counts: PathCounts): {
     counts.HOME +
     counts.SEC +
     counts.EXP +
+    counts.CAPTURE +
     counts.STRAT_RECT +
     counts.STRAT_NONE;
   if (total === 0) return { kind: "HYBRID", detail: "no calls" };
   const entries = (
-    ["HOME", "SEC", "EXP", "STRAT_RECT", "STRAT_NONE"] as const
+    ["HOME", "SEC", "EXP", "CAPTURE", "STRAT_RECT", "STRAT_NONE"] as const
   ).map((k) => ({ key: k, count: counts[k], pct: (counts[k] * 100) / total }));
   const top = entries.reduce((a, b) => (a.count > b.count ? a : b));
   if (top.pct > 70)

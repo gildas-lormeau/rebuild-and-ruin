@@ -14,6 +14,7 @@ export type SelectTargetPath =
   | "HOME"
   | "SEC"
   | "EXP"
+  | "CAPTURE"
   | "STRAT_RECT"
   | "STRAT_NONE";
 

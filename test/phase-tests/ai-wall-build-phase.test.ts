@@ -20,6 +20,9 @@ import roundOneRedFatWall40 from "./fixtures/wall-build/round1-red-fat-wall-40.j
 import roundTwentyFourRedCornerOrphan26796 from "./fixtures/wall-build/round24-red-corner-orphan-26796.json" with {
   type: "json",
 };
+import roundTwentyEightRedHouses829597 from "./fixtures/wall-build/round28-red-houses-829597.json" with {
+  type: "json",
+};
 import roundPits1 from "./fixtures/wall-build/round-pits-1.json" with {
   type: "json",
 };
@@ -505,6 +508,64 @@ Deno.test(
     assert(
       !sc.state.players[1]!.enclosedTowers.includes(homeTower),
       "BLUE home tower is unenclosable here — survival must come from a secondary",
+    );
+  },
+);
+
+Deno.test(
+  "phase-test: RED captures houses/grunts in the idle window once its castle is enclosed",
+  async () => {
+    // Seed 829597 r28: RED has all its zone towers enclosed early in the build
+    // with un-enclosed houses, bonus squares, and pacing grunts just outside
+    // its territory. Pre-fix, RED spent the whole idle window on aimless
+    // uniform expansion (tryExpandTerritory) and captured NOTHING. The value-
+    // ranked capture phase should wall a small pocket around the richest static
+    // anchor (house / bonus square) and seal it, scooping up any grunts inside.
+    // House/grunt enclosure is silent (house.alive flips / grunt removed), so
+    // we count alive→dead house transitions minus the placed-ON-house path
+    // (HOUSE_CRUSHED) plus GRUNTS_ENCLOSED events to measure genuine captures.
+    const RED = 0;
+    const sc = await createPhaseScenario(
+      roundTwentyEightRedHouses829597 as unknown as FixtureFile,
+    );
+    assertEquals(sc.state.round, 28);
+    assertEquals(sc.state.phase, Phase.WALL_BUILD);
+
+    const aliveHouseKeysAtStart = sc.state.map.houses
+      .filter((house) => house.alive)
+      .map((house) => packTile(house.row, house.col));
+
+    let placedOnHouse = 0;
+    let gruntsEnclosed = 0;
+    sc.bus.on(GAME_EVENT.HOUSE_CRUSHED, (ev) => {
+      if (ev.playerId === RED) placedOnHouse++;
+    });
+    sc.bus.on(GAME_EVENT.GRUNTS_ENCLOSED, (ev) => {
+      if (ev.playerId === RED) gruntsEnclosed += ev.count;
+    });
+
+    waitForPhase(sc, Phase.CANNON_PLACE, { timeoutMs: 120_000 });
+    assertEquals(sc.state.round, 29);
+
+    const houseStillAlive = new Set(
+      sc.state.map.houses
+        .filter((house) => house.alive)
+        .map((house) => packTile(house.row, house.col)),
+    );
+    const housesDestroyed = aliveHouseKeysAtStart.filter(
+      (key) => !houseStillAlive.has(key),
+    ).length;
+    const housesEnclosed = housesDestroyed - placedOnHouse;
+
+    // Robust to how the value-rank splits between houses and grunt-rich pockets
+    // (it may prefer a 1-house-3-grunt pocket over a 2-house pocket): assert the
+    // COMBINED capture is non-zero. On unfixed HEAD this build captures nothing.
+    assertGreater(
+      housesEnclosed + gruntsEnclosed,
+      0,
+      `RED captured 0 (housesEnclosed=${housesEnclosed}, ` +
+        `gruntsEnclosed=${gruntsEnclosed}, placed-on=${placedOnHouse}) — the ` +
+        `idle-window capture phase sealed nothing; RED reverted to expansion`,
     );
   },
 );

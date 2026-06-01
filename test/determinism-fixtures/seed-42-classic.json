@@ -6,7 +6,7 @@
     "rounds": 2
   },
   "timeoutMs": 480000,
-  "eventCount": 8042,
+  "eventCount": 8046,
   "events": [
     {
       "type": "tick",
@@ -48478,84 +48478,6 @@
       }
     },
     {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
       "type": "wallPlaced",
       "payload": {
         "playerId": 0,
@@ -48664,32 +48586,92 @@
       }
     },
     {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
       "type": "wallPlaced",
       "payload": {
         "playerId": 2,
         "tileKeys": [
-          43,
-          87,
-          42
+          377,
+          376,
+          333
         ]
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
       }
     },
     {
@@ -49004,39 +48986,13 @@
       }
     },
     {
-      "type": "tick",
+      "type": "wallPlaced",
       "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
+        "playerId": 2,
+        "tileKeys": [
+          421,
+          465
+        ]
       }
     },
     {
@@ -49302,9 +49258,100 @@
       "payload": {
         "playerId": 2,
         "tileKeys": [
-          31,
-          32
+          419,
+          420,
+          508,
+          509
         ]
+      }
+    },
+    {
+      "type": "houseCrushed",
+      "payload": {
+        "col": 24,
+        "playerId": 2,
+        "row": 10
+      }
+    },
+    {
+      "type": "gruntSpawn",
+      "payload": {
+        "col": 24,
+        "round": 2,
+        "row": 10,
+        "source": "at-tile"
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
       }
     },
     {
@@ -49464,21 +49511,13 @@
       }
     },
     {
-      "type": "tick",
+      "type": "wallPlaced",
       "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
+        "playerId": 0,
+        "tileKeys": [
+          0,
+          44
+        ]
       }
     },
     {

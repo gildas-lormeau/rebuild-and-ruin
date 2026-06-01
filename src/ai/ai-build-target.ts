@@ -14,6 +14,7 @@ import {
 } from "../shared/core/board-occupancy.ts";
 import type {
   TileBounds,
+  TilePos,
   TileRect,
   Tower,
 } from "../shared/core/geometry-types.ts";
@@ -86,12 +87,39 @@ const EMPTY_UPCOMING_FIT: {
  *  neither (seed 921118 RED r3). Kept tiny (2) so the perf-sensitive ungated
  *  outer-ring path only fires in the brief, rare end-of-repair window. */
 const NEAR_COMPLETE_RING_GAPS = 1;
+/** Max static anchors (houses + bonus squares) the idle-window capture phase
+ *  gate-tests per tick. Bounds the per-tick cost (each attempt runs
+ *  computeFillableGaps + a piece-fit sweep). Nearest-first, so the cap drops
+ *  the far anchors least likely to be cheaply closeable this tick. */
+const CAPTURE_SCAN_LIMIT = 6;
+/** Half-width of the local pocket box the capture phase walls around an anchor.
+ *  A 2-tile radius → 5×5 interior whose 1-tile ring leans on the player's
+ *  adjacent existing wall for most of its perimeter. Small enough that a
+ *  wall-adjacent anchor yields ≤ MANAGEABLE_GAP_LIMIT new holes, while an
+ *  anchor sitting in open ground (no nearby wall to lean on) produces a full
+ *  perimeter of gaps and is correctly rejected — we only cheaply capture what
+ *  abuts the territory, never wall a lone hut in a field. */
+const CAPTURE_POCKET_RADIUS = 2;
+/** Relative value weights for ranking capture pockets by what their interior
+ *  encloses. A bonus square is worth territoryBonusSquarePoints (100–1000 pts,
+ *  build-system.ts) — by far the biggest prize; a grunt is DESTROY_GRUNT_POINTS
+ *  plus threat removal; a house scores nothing directly but spawns a grunt on
+ *  every enemy's zone (offensive disruption). Used only to order pockets, not
+ *  to compute real scores, so coarse magnitudes are enough. Grunts are counted
+ *  per-pocket as a byproduct: they sit inside a static-anchor pocket but are
+ *  never anchors themselves (they pace during build — chasing one thrashes). */
+const CAPTURE_VALUE_BONUS = 100;
+const CAPTURE_VALUE_GRUNT = 16;
+const CAPTURE_VALUE_HOUSE = 20;
 /** Max gap tiles the AI considers evaluable in a single build turn. Beyond this, the target is skipped. */
 export const MANAGEABLE_GAP_LIMIT = 8;
 
 /** Select which rectangle to build/repair.
- *  Pipeline: tryRepairHomeCastle → trySecondaryTower → tryExpandTerritory.
- *  Each phase only runs if the previous one found no gaps. */
+ *  Pipeline: tryRepairHomeCastle → trySecondaryTower → tryEncloseCaptures →
+ *  tryExpandTerritory. Each phase only runs if the previous one found no gaps.
+ *  The last two are the idle-window family (gated on allCastlesEnclosed): the
+ *  value-ranked capture phase (houses / bonus squares / grunts-inside) takes
+ *  priority over aimless uniform expansion, which runs last. */
 export function selectTarget(ctx: TargetContext): TargetResult {
   const home = tryRepairHomeCastle(ctx);
   if (home.targetGaps.size > 0) {
@@ -103,12 +131,22 @@ export function selectTarget(ctx: TargetContext): TargetResult {
     emitTargetSelected(ctx, "SEC", secondary);
     return secondary;
   }
+  // Idle window (all towers enclosed): prefer DIRECTED captures over aimless
+  // uniform expansion, which would otherwise return a +2-ring target every
+  // tick and starve the captures (seed 829597 r28 RED: EXP fired all build,
+  // houses never pursued). One value-ranked phase walls the richest closeable
+  // pocket (bonus square / house anchor, grunts inside counted as byproduct).
+  const capture = tryEncloseCaptures(ctx);
+  if (capture.targetGaps.size > 0) {
+    emitTargetSelected(ctx, "CAPTURE", capture);
+    return capture;
+  }
   const expand = tryExpandTerritory(ctx);
   if (expand.targetGaps.size > 0) {
     emitTargetSelected(ctx, "EXP", expand);
     return expand;
   }
-  // All three phases bailed — typically because every tower's `canFillAfter-
+  // All build phases bailed — typically because every tower's `canFillAfter-
   // Plugging` gate fired (current piece doesn't fit any gap this tick). Without
   // a target the orchestrator can't restrict to gap-fillers and the scattered
   // fallback in `pickFallbackPlacement` takes over, dispersing walls across
@@ -845,6 +883,131 @@ function tryExpandTerritory(ctx: TargetContext): TargetResult {
     if (!canFillAfterPlugging(ctx, gaps, expandRect)) return NO_TARGET;
   }
   return { targetGaps: gaps, targetRect: expandRect };
+}
+
+/** Phase 4 (idle window): all towers enclosed AND uniform expansion found
+ *  nothing this tick — wall a small pocket around the highest-VALUE static
+ *  anchor (alive house or un-captured bonus square) in the player's own zone.
+ *  Each capture fires at end-of-build via recheckTerritory: a bonus square
+ *  scores territoryBonusSquarePoints (100–1000), a grunt caught inside scores
+ *  DESTROY_GRUNT_POINTS + removes a threat, a house spawns a grunt on every
+ *  enemy's zone. Grunts are NOT anchors — they pace during the build, so
+ *  chasing one thrashes (the pocket recenters every tick and never closes,
+ *  seed 829597 r28). Instead they're counted as bonus value when they sit
+ *  inside a static anchor's pocket, so the AI prefers pockets that scoop up
+ *  grunts as a byproduct. Among the nearest CAPTURE_SCAN_LIMIT anchors whose
+ *  pocket is closeable this tick (≤ MANAGEABLE_GAP_LIMIT gaps + current piece
+ *  fits — fully gated, never bypassed), the richest pocket wins. */
+function tryEncloseCaptures(ctx: TargetContext): TargetResult {
+  const { state, player, castle, bankHugging, allCastlesEnclosed } = ctx;
+  if (!allCastlesEnclosed) return NO_TARGET;
+  const bbox = computeWallsBBox(player.walls);
+  if (bbox === null) return NO_TARGET;
+  const interior = getInterior(player);
+  const homeZone = castle.tower.zone;
+
+  // Static anchors only — houses and bonus squares hold still while the pocket
+  // closes. Skip any already captured (inside the interior). Zone isolation
+  // (rivers) means a cross-zone anchor can never be sealed by these walls.
+  const anchors: TilePos[] = [];
+  for (const house of state.map.houses) {
+    if (!house.alive || house.zone !== homeZone) continue;
+    if (interior.has(packTile(house.row, house.col))) continue;
+    anchors.push(house);
+  }
+  for (const bonus of state.bonusSquares) {
+    if (bonus.zone !== homeZone) continue;
+    if (interior.has(packTile(bonus.row, bonus.col))) continue;
+    anchors.push(bonus);
+  }
+  if (anchors.length === 0) return NO_TARGET;
+
+  const nearest = anchors
+    .map((anchor) => ({
+      anchor,
+      dist:
+        rectAxisGap(anchor.row, bbox.minR, bbox.maxR) +
+        rectAxisGap(anchor.col, bbox.minC, bbox.maxC),
+    }))
+    .sort((a, b) => a.dist - b.dist)
+    .slice(0, CAPTURE_SCAN_LIMIT);
+
+  let best: { gaps: Set<TileKey>; rect: TileRect; value: number } | undefined;
+  for (const { anchor } of nearest) {
+    // Small local box centred on the anchor — its 1-tile ring leans on the
+    // adjacent existing wall, so only the open side(s) become gaps. NOT a bbox
+    // regrow: a large territory would need its whole perimeter rebuilt to reach
+    // the anchor, blowing past the gap limit (seed 829597 r28 RED).
+    const pocketRect: TileRect = {
+      top: Math.max(1, anchor.row - CAPTURE_POCKET_RADIUS),
+      bottom: Math.min(GRID_ROWS - 2, anchor.row + CAPTURE_POCKET_RADIUS),
+      left: Math.max(1, anchor.col - CAPTURE_POCKET_RADIUS),
+      right: Math.min(GRID_COLS - 2, anchor.col + CAPTURE_POCKET_RADIUS),
+    };
+    if (
+      pocketRect.top > pocketRect.bottom ||
+      pocketRect.left > pocketRect.right
+    )
+      continue;
+    const gaps = computeFillableGaps(
+      pocketRect,
+      player.walls,
+      interior,
+      state,
+      bankHugging,
+    );
+    if (gaps.size === 0 || gaps.size > MANAGEABLE_GAP_LIMIT) continue;
+    if (!canFillAfterPlugging(ctx, gaps, pocketRect)) continue;
+    const value = pocketCaptureValue(pocketRect, state, homeZone);
+    if (best === undefined || value > best.value) {
+      best = { gaps, rect: pocketRect, value };
+    }
+  }
+  if (best === undefined) return NO_TARGET;
+  return { targetGaps: best.gaps, targetRect: best.rect };
+}
+
+/** Weighted value of everything a sealed pocket would capture: alive houses +
+ *  un-captured bonus squares + grunts currently sitting in its interior box.
+ *  Grunts are an estimate (they may pace out before the seal), so they only
+ *  break ties toward grunt-rich pockets rather than driving the choice. */
+function pocketCaptureValue(
+  rect: TileRect,
+  state: BuildViewState,
+  homeZone: number,
+): number {
+  let value = 0;
+  for (const house of state.map.houses) {
+    if (!house.alive || house.zone !== homeZone) continue;
+    if (inRect(rect, house.row, house.col)) value += CAPTURE_VALUE_HOUSE;
+  }
+  for (const bonus of state.bonusSquares) {
+    if (bonus.zone !== homeZone) continue;
+    if (inRect(rect, bonus.row, bonus.col)) value += CAPTURE_VALUE_BONUS;
+  }
+  for (const grunt of state.grunts) {
+    if (inRect(rect, grunt.row, grunt.col)) value += CAPTURE_VALUE_GRUNT;
+  }
+  return value;
+}
+
+/** Whether (row, col) lies inside the rect's interior box (inclusive). */
+function inRect(rect: TileRect, row: number, col: number): boolean {
+  return (
+    row >= rect.top &&
+    row <= rect.bottom &&
+    col >= rect.left &&
+    col <= rect.right
+  );
+}
+
+/** Distance from a coordinate to the [low, high] band on one axis (0 when
+ *  inside). Summed over both axes gives the Manhattan gap from a point to a
+ *  bounding box. */
+function rectAxisGap(value: number, low: number, high: number): number {
+  if (value < low) return low - value;
+  if (value > high) return value - high;
+  return 0;
 }
 
 /** Try plugging structurally unreachable gaps (e.g. thick walls from + pieces)
