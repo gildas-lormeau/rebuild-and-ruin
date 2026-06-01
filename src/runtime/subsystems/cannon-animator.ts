@@ -24,10 +24,11 @@ interface CannonAnimator {
    *  if the animator has no entry (cannon was just placed and `tick`
    *  hasn't run yet — the renderer should fall back to `cannon.facing`). */
   getDisplayed(col: number, row: number): number | undefined;
-  /** True when every displayed facing has converged to its target. The
-   *  battle-end gate in `tickBattlePhase` polls this before transitioning
-   *  to battle-done — frame-synced with the visual ease. */
-  allSettled(): boolean;
+  /** Snap every displayed facing instantly to its (freshly re-synced)
+   *  target. Called at battle-end so the build banner's prev-scene
+   *  snapshot captures cannons at their rest facing without the battle-
+   *  done transition having to wait on the cosmetic ease. */
+  snapToRest(): void;
   /** Drop all state — for game teardown / rematch bootstrap. */
   reset(): void;
 }
@@ -43,33 +44,39 @@ export function createCannonAnimator(deps: CannonAnimatorDeps): CannonAnimator {
   const facings = new Map<string, FacingState>();
   const seen = new Set<string>();
 
+  // Sync each tracked cannon's `target` from current game-state facing,
+  // creating entries (snapped to target) for newly-placed cannons and
+  // pruning entries for cannons that no longer exist. Mirrors the live-
+  // cannon filter used by `buildCastleOverlay` so the animator's set of
+  // tracked cannons matches what the renderer will paint. Shared by
+  // `tick` (then ease) and `snapToRest` (then instant converge).
+  function syncTargets() {
+    seen.clear();
+    for (const player of runtimeState.state.players) {
+      if (player.castleWallTiles.size === 0) continue;
+      for (const cannon of player.cannons) {
+        if (!isCannonAlive(cannon)) continue;
+        if (isBalloonCannon(cannon)) continue;
+        const key = facingKey(cannon.col, cannon.row);
+        seen.add(key);
+        const target = cannon.facing ?? 0;
+        const existing = facings.get(key);
+        if (existing === undefined) {
+          facings.set(key, { displayed: target, target });
+        } else {
+          existing.target = target;
+        }
+      }
+    }
+    for (const key of facings.keys()) {
+      if (!seen.has(key)) facings.delete(key);
+    }
+  }
+
   return {
     tick(dt) {
       if (!isSessionLive(runtimeState)) return;
-      // Sync targets from current game state. Mirrors the live-cannon
-      // filter used by `buildCastleOverlay` so the animator's set of
-      // tracked cannons matches what the renderer will paint.
-      seen.clear();
-      for (const player of runtimeState.state.players) {
-        if (player.castleWallTiles.size === 0) continue;
-        for (const cannon of player.cannons) {
-          if (!isCannonAlive(cannon)) continue;
-          if (isBalloonCannon(cannon)) continue;
-          const key = facingKey(cannon.col, cannon.row);
-          seen.add(key);
-          const target = cannon.facing ?? 0;
-          const existing = facings.get(key);
-          if (existing === undefined) {
-            facings.set(key, { displayed: target, target });
-          } else {
-            existing.target = target;
-          }
-        }
-      }
-      // Prune entries for cannons that no longer exist.
-      for (const key of facings.keys()) {
-        if (!seen.has(key)) facings.delete(key);
-      }
+      syncTargets();
       // Ease toward each target via the shortest angular path.
       if (dt <= 0) return;
       const step = Math.min(1, FACING_EASE_PER_SEC * dt);
@@ -87,11 +94,16 @@ export function createCannonAnimator(deps: CannonAnimatorDeps): CannonAnimator {
       return facings.get(facingKey(col, row))?.displayed;
     },
 
-    allSettled() {
+    snapToRest() {
+      if (!isSessionLive(runtimeState)) return;
+      // Re-sync targets first: `resetCannonFacings` rewrote `cannon.facing`
+      // to the rest pose in this same substep, AFTER the animator's `tick`
+      // already ran — so the existing entries still hold the old aim
+      // targets. Pull the fresh rest targets before snapping.
+      syncTargets();
       for (const entry of facings.values()) {
-        if (entry.displayed !== entry.target) return false;
+        entry.displayed = entry.target;
       }
-      return true;
     },
 
     reset() {

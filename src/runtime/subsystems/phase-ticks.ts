@@ -179,12 +179,14 @@ interface PhaseTicksDeps extends Pick<RuntimeConfig, "log"> {
    *  banner snapshot captures a flat scene — wait until `"flat"` (or
    *  fall through on the safety timeout). */
   getPitchState: () => "flat" | "tilting" | "tilted" | "untilting";
-  /** True when every cannon's eased displayed facing has converged to
-   *  its target. Gates battle-end so the post-battle `resetCannonFacings`
-   *  rotation completes before the camera untilt begins — frame-synced
-   *  instead of wall-clock timed. Sourced from
-   *  `subsystems/cannon-animator.ts`'s `allSettled`. */
-  cannonRotationSettled: () => boolean;
+  /** Snap every cannon's eased displayed facing to its rest target.
+   *  Called once at battle-end (after `resetCannonFacings`, after the
+   *  camera untilt settles) so the build banner's prev-scene snapshot
+   *  captures cannons at rest. Render-only: the battle-done transition is
+   *  NOT gated on the cosmetic rotation ease — cannon facing must never
+   *  drive game-flow timing. Sourced from
+   *  `subsystems/cannon-animator.ts`'s `snapToRest`. */
+  snapCannonRotationToRest: () => void;
   /** Drop the renderer's per-cannon barrel-recoil pitch so every barrel
    *  paints at rest from the next frame on. Called at battle-end after
    *  `resetCannonFacings`, before the BATTLE → WALL_BUILD transition,
@@ -682,31 +684,37 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     )
       return false;
 
-    // Rotate cannons back to rest while the camera is still tilted. The
-    // call is idempotent (same defaultFacing → same cannon.facing every
-    // tick), so we don't need a "done it once" flag — the cannon-animator
-    // picks up the targets each tick and eases displayed → target. We
-    // hold the phase until `cannonRotationSettled()` returns true,
-    // frame-synced with the visual ease.
+    // Set the cannons' rest target (toward enemy territory). The cannon-
+    // animator eases displayed → target cosmetically over the following
+    // frames; we deliberately DO NOT gate the transition on that ease.
+    // Cannon facing is render-only state and must never drive game-flow
+    // timing (gating battle-done on the eased displayed value made the
+    // BATTLE phase last a facing-angle-dependent number of frames). The
+    // rotation plays out during the deterministic camera-untilt window
+    // below; any residual is snapped to rest just before the snapshot.
     resetCannonFacings(state);
-    if (!deps.cannonRotationSettled()) return false;
-    // Snap barrel recoil pitch to rest. Unlike the yaw ease (above,
-    // gated on `cannonRotationSettled`), barrel pitch lives in the
-    // renderer and has a ~2s decay tail from the last shot — without
-    // this snap, the residual ease leaks across into WALL_BUILD as
-    // visible micro-rotation on the cannon barrels. Idempotent + safe
-    // here: the in-flight-cannonballs / animation gates above guarantee
-    // no ball is mid-flight, so the next frame's `applyFiringTargets`
-    // can't re-arm a recoil target.
+    // Snap barrel recoil pitch to rest. Barrel pitch lives in the renderer
+    // and has a ~2s decay tail from the last shot — without this snap, the
+    // residual ease leaks across into WALL_BUILD as visible micro-rotation
+    // on the cannon barrels. Idempotent + safe here: the in-flight-
+    // cannonballs / animation gates above guarantee no ball is mid-flight,
+    // so the next frame's `applyFiringTargets` can't re-arm a recoil target.
     deps.snapCannonBarrelsToRest?.();
 
     // Pre-banner untilt: trigger the camera to ease pitch → 0 and wait for
     // it to settle BEFORE the battle-done transition runs. Otherwise the
     // banner's prev-scene snapshot bakes in the tilted view and the
     // untilt then plays under the banner (visible flat-flash then
-    // re-tilt on next-phase enter).
+    // re-tilt on next-phase enter). The untilt window is a fixed ease
+    // (constant tilt angle) → deterministic, unlike the old rotation gate.
     deps.beginUntilt();
     if (deps.getPitchState() !== "flat") return false;
+
+    // Guarantee cannons paint at their rest facing in the banner's prev-
+    // scene snapshot. The untilt window above eases most of the way; this
+    // snaps any remaining delta (e.g. a 180° flip that outlasts the
+    // untilt). Render-only — no effect on game state or determinism.
+    deps.snapCannonRotationToRest();
 
     runTransition("battle-done", buildHostPhaseCtx());
     return true;

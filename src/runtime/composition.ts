@@ -405,8 +405,9 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
 
   // -------------------------------------------------------------------------
   // Cannon-facing animator — eased displayed rotations live in the runtime,
-  // not the renderer. Battle-end gate polls `allSettled()` to wait for the
-  // post-battle reset to ease before transitioning. The renderer reads
+  // not the renderer. At battle-end the phase machine snaps these to rest
+  // (`snapToRest`) for the banner snapshot but does NOT wait on the ease —
+  // cosmetic facing must not drive game-flow timing. The renderer reads
   // displayed values through the setter installed below.
   // -------------------------------------------------------------------------
 
@@ -679,7 +680,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     endGame: lifecycle.endGame,
     beginUntilt: camera.beginUntilt,
     getPitchState: camera.getPitchState,
-    cannonRotationSettled: () => cannonAnimator.allSettled(),
+    snapCannonRotationToRest: () => cannonAnimator.snapToRest(),
     snapCannonBarrelsToRest: renderer.snapCannonBarrelsToRest
       ? () => renderer.snapCannonBarrelsToRest!()
       : undefined,

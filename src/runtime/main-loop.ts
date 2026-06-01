@@ -72,10 +72,11 @@ interface RuntimeLoopDeps {
   tickCamera: () => void;
   tickScoreDelta: (dt: number) => void;
   /** Tick the cannon-facing animator (mode-independent, like score-delta).
-   *  Eased displayed facings live in the runtime so the battle-end gate
-   *  can poll `cannonAnimator.allSettled()` without depending on the
-   *  renderer — the renderer just reads displayed values via the setter
-   *  installed at composition time. */
+   *  Eased displayed facings live in the runtime so the renderer just reads
+   *  displayed values via the setter installed at composition time. At
+   *  battle-end the phase machine snaps them to rest (`snapToRest`) for the
+   *  banner snapshot but never gates a transition on the ease — cosmetic
+   *  facing must not drive game-flow timing. */
   tickCannonAnimator: (dt: number) => void;
   /** The real render entrypoint. Called once per browser frame from
    *  `mainLoop`, and only when `runtimeState.renderDirty` is set — the
