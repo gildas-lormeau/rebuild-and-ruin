@@ -173,7 +173,7 @@ export function cannonSlotsBonus(player: Player): number {
 }
 
 /** True when this player's build bag should draw from the small-piece
- *  sub-pool this round. Consumed by controller-types.ts's initBag. */
+ *  sub-pool this round. Consumed by controller-base.ts's initBag. */
 export function useSmallPieces(player: Player): boolean {
   return anyHookTrue(UPGRADE_IMPL_LIST, (impl) =>
     impl.useSmallPieces?.(player),

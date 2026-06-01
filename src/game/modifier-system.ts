@@ -2,7 +2,7 @@
  * Environmental round modifiers — modern mode only.
  *
  * Registry + orchestration layer. Per-modifier implementations live in
- * sibling files (wildfire.ts, sinkhole.ts, etc.), mirroring the upgrades/ layout.
+ * sibling files (fire.ts, sinkhole.ts, etc.), mirroring the upgrades/ layout.
  * Selection uses the synced RNG for online determinism.
  */
 

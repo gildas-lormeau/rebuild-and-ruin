@@ -31,7 +31,7 @@ const UPGRADE_PICK_CYCLE_STEP = secondsToTicks(0.22);
 const UPGRADE_PICK_LOCK_IN = secondsToTicks(0.35);
 
 /** Per-frame auto-resolve tick for one upgrade-pick dialog entry.
- *  Called by `game/upgrade-pick.ts` via an injected callback (the game
+ *  Called by `game/upgrade-system.ts` via an injected callback (the game
  *  layer may not import ai/, so the runtime/entry wiring closes over state
  *  and passes this function down).
  *

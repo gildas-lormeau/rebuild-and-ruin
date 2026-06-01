@@ -39,7 +39,7 @@ const DUST_STREAK_ALPHA = 0.12;
 /** Battle steady-state oscillation period in seconds. The wind reverses
  *  direction every PERIOD/2 seconds; one full back-and-forth cycle takes
  *  PERIOD seconds. Slow + ominous, not a frantic shake. Mirrored in
- *  `runtime/dust-storm-reveal-overlay.ts` (reveal sweeps phase at the
+ *  `runtime/modifier-effects/dust-storm.ts` (reveal sweeps phase at the
  *  same angular speed for a continuous handoff) — keep in sync. */
 const DUST_STORM_SWAY_PERIOD_SEC = 3.2;
 /** Peak X-displacement applied to streak peaks at full sway amplitude

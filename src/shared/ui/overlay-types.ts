@@ -368,12 +368,12 @@ export interface UIOverlay {
    *  during the `MODIFIER_REVEAL` dwell phase. Populated by
    *  `refreshOverlay` from `state.modern` plus the resolved
    *  `revealTimeMs` scalar; undefined otherwise. The single banner-aware
-   *  resolution lives in `modifier-reveal-time.ts`. */
+   *  resolution lives in `reveal-time.ts`. */
   modifierReveal?: {
     /** Active modifier id — burst managers gate on this. */
     modifierId: ModifierId;
     /** Reveal time in ms — `0` during the snapshot window, `>0` during
-     *  the playing window. See `modifier-reveal-time.ts`. The single
+     *  the playing window. See `reveal-time.ts`. The single
      *  banner-aware site computes this; consumers see only the number. */
     revealTimeMs: number;
     /** Tile keys (row * GRID_COLS + col) the modifier touched. */

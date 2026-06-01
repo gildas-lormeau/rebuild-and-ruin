@@ -1,7 +1,7 @@
 /**
  * `rollPersonality` + archetype profile tables. Split out of
  * ai-strategy.ts so the function (called from online host promotion
- * via ai-hooks.ts) sits at L1 instead of L12 — lets the hook surface
+ * via online-host-promotion.ts) sits at L1 instead of L12 — lets the hook surface
  * stay below any non-AI consumer's layer.
  */
 

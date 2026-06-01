@@ -515,7 +515,7 @@ vec4 applyWaveOverlay(vec4 base, ivec2 tileRC, vec2 worldPx) {
   vec3 terrainColor = selectBankColor(d, grass, water);
   diffuseColor = vec4(terrainColor, 1.0);
 
-  // Open-water wave overlay (was effects/water-waves.ts) — the SDF gate
+  // Open-water wave overlay (replacing the old 2D water-waves effect) — the SDF gate
   // is the per-pixel equivalent of the 2D code's per-tile "all 4
   // neighbors are water" check, so bank-edge water tiles get waves on
   // their interior pixels for a more continuous open-water look.

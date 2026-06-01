@@ -3,7 +3,7 @@
  * in-memory: enums become `string` (e.g. `SerializedCannon.mode`), Maps
  * become `[k, v][]` (e.g. `SerializedPlayer.upgrades`), tile sets become
  * packed `row * GRID_COLS + col` indices (see grid.ts). Deserialization +
- * validation lives in online-serialize.ts; online-checkpoints.ts trusts
+ * validation lives in online-serialize.ts; online-rehydrate.ts trusts
  * host-provided data on apply.
  */
 

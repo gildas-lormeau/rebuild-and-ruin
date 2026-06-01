@@ -154,7 +154,7 @@ function buildUiDeps(init: DepsInit, client: OnlineClient) {
     getUpgradePickDialog: () => init.runtime.upgradePick.get(),
     clearUpgradePickDialog: () => {
       // Route through the subsystem boundary, matching the phase-transition
-      // path (host: `runtime-composition.ts:clearUpgradePickDialog`,
+      // path (host: `composition.ts:clearUpgradePickDialog`,
       // watcher: `online-phase-transitions.ts:clearUpgradePickDialog`)
       // and the host-promotion path (`online/runtime/promote.ts`).
       init.runtime.upgradePick.set(null);

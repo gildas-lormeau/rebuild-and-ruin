@@ -112,7 +112,7 @@ function clearAnimationState(mode: Mode): string | null {
       // Score-delta overlay can be mid-tick when promotion lands inside a
       // round-end transition. `reset` clears the timer AND the pending
       // `runDisplay` callback — leaving either would let the build phase
-      // resume mid-overlay (gate at runtime-phase-ticks.ts was the old
+      // resume mid-overlay (gate at subsystems/phase-ticks.ts was the old
       // defense; this is the upstream fix) and fire a stale closure
       // against the torn-down transition.
       _runtime.scoreDelta.reset();

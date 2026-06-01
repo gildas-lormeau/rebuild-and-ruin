@@ -215,7 +215,7 @@ export function createRenderSystem(deps: RenderSystemDeps): RenderSystem {
     const nowMs = deps.timing.now();
     tickModifierRevealClock(runtimeState, nowMs);
     // `revealTimeFor` is the single banner-read site for modifier-reveal
-    // timing (see `modifier-reveal-time.ts`). Resolved once here and fed
+    // timing (see `reveal-time.ts`). Resolved once here and fed
     // to both downstream consumers: the 2D-overlay registry (path B) and
     // the path-A `overlay.ui.modifierReveal` publication that the 3D
     // burst managers read.

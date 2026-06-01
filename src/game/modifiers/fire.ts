@@ -2,7 +2,7 @@
  * Fire modifiers — wildfire (one scar per zone, ~10 tiles each) and
  * dry lightning (random scattered burning pits on grass tiles per active zone).
  *
- * Merged from wildfire.ts + dry-lightning.ts + fire-helpers.ts so the shared
+ * Merged from the former wildfire, dry-lightning, and fire-helpers modules so the shared
  * burn predicate and scar applicator sit at the same layer as their callers.
  */
 

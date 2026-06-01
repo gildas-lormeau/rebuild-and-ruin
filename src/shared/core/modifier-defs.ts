@@ -105,7 +105,7 @@ interface ModifierDef extends PoolDef<ModifierId> {
   /** Whether this modifier stores tile state that must be serialized in
    *  checkpoints, restored via reapply on join/reconnect, and reverted
    *  on zone reset. When true, ensure matching entries in:
-   *  online-checkpoints.ts (restore), online-serialize.ts (serialize),
+   *  online-rehydrate.ts (restore), online-serialize.ts (serialize),
    *  phase-setup.ts resetZoneState (cleanup). */
   readonly needsCheckpoint: boolean;
 }

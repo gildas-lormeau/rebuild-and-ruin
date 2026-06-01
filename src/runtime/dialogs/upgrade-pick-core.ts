@@ -3,7 +3,7 @@
  * helpers. Lives in runtime/ because it manages UI dialog state (focus,
  * timers, per-entry resolution), not game rules. The rules
  * (applyUpgradePicks, generateUpgradeOffers, resetPlayerUpgrades) stay in
- * game/upgrade-pick.ts since they mutate game state based on resolved
+ * game/upgrade-system.ts since they mutate game state based on resolved
  * choices. Consumed by subsystems/upgrade-pick.ts.
  */
 

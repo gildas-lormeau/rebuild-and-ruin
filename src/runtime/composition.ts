@@ -691,7 +691,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   });
 
   // -------------------------------------------------------------------------
-  // UIContext — bridges internal state to game-ui-screens.ts functions
+  // UIContext — bridges internal state to render-ui-screens.ts functions
   // -------------------------------------------------------------------------
 
   const uiCtx: UIContext = {

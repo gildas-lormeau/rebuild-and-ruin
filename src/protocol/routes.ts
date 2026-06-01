@@ -1,7 +1,7 @@
 /** Centralized route constants shared between client and server.
  *
  *  SPA routes are hash-based (`#/online`, `#/play`) but stored without
- *  the hash prefix — the router in router.ts handles the `#` mapping. */
+ *  the hash prefix — the router in online-router.ts handles the `#` mapping. */
 
 /** SPA (client-side) routes. */
 

@@ -328,7 +328,7 @@ function handleAimUpdate(
  *  controller. The controller's own `current{Build,Cannon}Phantom(s)`
  *  field is the single source of truth for both render and broadcast,
  *  so there is no separate "remote slot" to upsert into.
- *  Contrast with crosshairs in online-host-crosshairs.ts which use
+ *  Contrast with crosshairs in online-remote-crosshairs.ts which use
  *  DedupChannel's atomic shouldSend() mechanism — crosshairs are
  *  fire-and-forget, phantoms accumulate. */
 function handlePiecePhantom(

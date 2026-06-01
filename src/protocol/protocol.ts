@@ -21,8 +21,8 @@ import {
 } from "../shared/core/battle-events.ts";
 import { GAME_MODE_MODERN } from "../shared/core/game-constants.ts";
 import type { CannonIdx, TowerIdx } from "../shared/core/geometry-types.ts";
-// Serialized sub-types and checkpoint data — defined in the game layer
-// (src/checkpoint-data.ts). Import here for local use in message types.
+// Serialized sub-types and checkpoint data — defined in shared/core/* and
+// the sibling checkpoint-data.ts. Imported here for local use in message types.
 import type {
   RubbleClearingHeld,
   SerializedModifierTiles,
