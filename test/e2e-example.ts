@@ -43,6 +43,35 @@ Deno.test("e2e: full game plays to completion with banners", async () => {
   );
 });
 
+Deno.test("e2e: banner composites TWO scene snapshots (old + new)", async () => {
+  await using sc = await createE2EScenario({
+    seed: 42,
+    humans: 0,
+    headless: true,
+    rounds: 2,
+  });
+
+  // Stop the moment a banner is on screen (its pre-mutation "old scene"
+  // snapshot is wired).
+  await sc.runUntil(
+    async () => (await sc.state()).overlay.hasBannerPrevScene,
+    { timeoutMs: 60_000 },
+  );
+
+  // A banner is a progressive reveal of the NEW scene over the OLD scene:
+  // both ImageData snapshots must be wired, never one. The historical
+  // regression (commit 483f0a5) collapsed to a single pre-mutation snapshot
+  // with a live "after" — that sets prevScene but leaves newScene undefined.
+  // `showBanner` captures both atomically, so prevScene-without-newScene can
+  // only mean that invariant was re-broken. (Structural guard replacing the
+  // project_banner_two_snapshots memory.)
+  const snap = await sc.state();
+  assert(
+    snap.overlay.hasBannerPrevScene && snap.overlay.hasBannerNewScene,
+    "banner must composite two scene snapshots (old + new), not one",
+  );
+});
+
 Deno.test("e2e: runUntil stops at first battle phase", async () => {
   await using sc = await createE2EScenario({
     seed: 42,
