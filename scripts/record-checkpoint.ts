@@ -58,10 +58,16 @@ async function run(): Promise<void> {
   // Drive to (round, phase). Round-1 needs phase-only; rounds ≥ 2 must
   // wait for ROUND_START first or `waitForPhase` would catch an earlier
   // round's instance of the same phase (e.g. round-1 WALL_BUILD).
-  // Default 180s budget mirrors what existing round-≥2 tests use — full
-  // rounds of AI gameplay can take 30–60s each in sim-time. For deep rounds
-  // (24+), allow CLI override via --timeout-sec.
-  const timeoutMs = config.timeoutSec ? config.timeoutSec * 1000 : 180_000;
+  //
+  // The budget here is sim-ms on the headless mock clock, NOT wall-clock —
+  // a generous value costs no real time, it only avoids giving up early.
+  // Full rounds of AI gameplay run 30–60s of sim-time each, so the default
+  // scales with the target round (120s/round, floored at 180s) so deep-round
+  // recordings just work without anyone having to pass --timeout-sec.
+  // Wall-clock is bounded separately by the caller (e.g. `timeout 300`).
+  const timeoutMs = config.timeoutSec
+    ? config.timeoutSec * 1000
+    : Math.max(180_000, config.untilRound * 120_000);
   if (config.untilRound > 1) {
     waitUntilRound(sc, config.untilRound, { timeoutMs });
   }
