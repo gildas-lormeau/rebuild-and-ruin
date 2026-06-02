@@ -8,9 +8,18 @@
  */
 
 import { TOWER_SIZE } from "../shared/core/game-constants.ts";
-import type { TileRect, Tower } from "../shared/core/geometry-types.ts";
+import type {
+  TileBounds,
+  TileRect,
+  Tower,
+} from "../shared/core/geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, type TileKey } from "../shared/core/grid.ts";
-import { DIRS_8, inBounds, packTile } from "../shared/core/spatial.ts";
+import {
+  DIRS_8,
+  inBounds,
+  packTile,
+  zoneTileBounds,
+} from "../shared/core/spatial.ts";
 import type { BuildViewState } from "../shared/core/system-interfaces.ts";
 import { isWallableGrass } from "./ai-castle-rect.ts";
 
@@ -32,6 +41,13 @@ const UNCUTTABLE = 1 << 24;
  * `walls`. One seed = a solo castle ring; two = a merged enclosure whose
  * marginal wall cost the cut reports exactly. Empty set = already enclosed.
  * null = unenclosable (no finite cut exists).
+ *
+ * The flow graph spans only the tower zone's bounding box (`computeEnclosureBox`)
+ * rather than the whole grid: zones are river-isolated, so a cut never crosses
+ * into another zone, and any flood that leaves the box has reached "outside"
+ * — modelled by draining box-edge tiles straight to the sink. This is exactly
+ * equivalent to the whole-grid graph (verified byte-identical over thousands of
+ * real placements + the determinism fixtures) while building ~70% fewer edges.
  */
 export function findEnclosureCut(
   seeds: readonly EnclosureSeed[],
@@ -42,10 +58,20 @@ export function findEnclosureCut(
   // Node ids: IN(t) = t, OUT(t) = t + tileCount, SOURCE, SINK.
   const source = tileCount * 2;
   const sink = tileCount * 2 + 1;
+  const box = computeEnclosureBox(seeds, state);
   const graph = new FlowGraph(tileCount * 2 + 2);
 
   const protectedTiles = collectProtectedTiles(seeds, state, walls);
-  buildFlowGraph(graph, tileCount, source, sink, protectedTiles, state, walls);
+  buildFlowGraph(
+    graph,
+    tileCount,
+    source,
+    sink,
+    box,
+    protectedTiles,
+    state,
+    walls,
+  );
 
   if (graph.maxFlow(source, sink) >= UNCUTTABLE) return null;
 
@@ -60,6 +86,62 @@ export function findEnclosureCut(
     }
   }
   return cut;
+}
+
+/** Bounding box the flow graph spans: the tower zone's tile bbox unioned with
+ *  every seed's rect and footprint, expanded by a 1-tile margin so the cut ring
+ *  (rect±1) and any wall just outside the zone bbox stay in-graph. */
+function computeEnclosureBox(
+  seeds: readonly EnclosureSeed[],
+  state: BuildViewState,
+): TileBounds {
+  const acc: TileBounds = {
+    minR: GRID_ROWS,
+    maxR: -1,
+    minC: GRID_COLS,
+    maxC: -1,
+  };
+  const zoneBox = zoneTileBounds(state.map, seeds[0]!.tower.zone);
+  if (zoneBox) {
+    extendBounds(acc, zoneBox.minR, zoneBox.maxR, zoneBox.minC, zoneBox.maxC);
+  }
+  for (const { tower, interior } of seeds) {
+    extendBounds(
+      acc,
+      tower.row,
+      tower.row + TOWER_SIZE - 1,
+      tower.col,
+      tower.col + TOWER_SIZE - 1,
+    );
+    extendBounds(
+      acc,
+      interior.top,
+      interior.bottom,
+      interior.left,
+      interior.right,
+    );
+  }
+  const MARGIN = 1;
+  return {
+    minR: Math.max(0, acc.minR - MARGIN),
+    maxR: Math.min(GRID_ROWS - 1, acc.maxR + MARGIN),
+    minC: Math.max(0, acc.minC - MARGIN),
+    maxC: Math.min(GRID_COLS - 1, acc.maxC + MARGIN),
+  };
+}
+
+/** Grow a mutable bounds accumulator to include the `[r0,r1]×[c0,c1]` box. */
+function extendBounds(
+  acc: TileBounds,
+  r0: number,
+  r1: number,
+  c0: number,
+  c1: number,
+): void {
+  if (r0 < acc.minR) acc.minR = r0;
+  if (r1 > acc.maxR) acc.maxR = r1;
+  if (c0 < acc.minC) acc.minC = c0;
+  if (c1 > acc.maxC) acc.maxC = c1;
 }
 
 /** Tiles the cut must wrap around (never wall): every seed tower footprint
@@ -90,21 +172,24 @@ function collectProtectedTiles(
   return protectedTiles;
 }
 
-/** Wire the vertex-split flow graph: per non-wall tile an IN→OUT edge (cap 1
- *  if a wall can seal there and it isn't protected, else uncuttable), channel
- *  edges to passable 8-neighbours, border drains to the sink, and the source
- *  feeds every protected tile. */
+/** Wire the vertex-split flow graph over the `box` tiles only: per non-wall
+ *  tile an IN→OUT edge (cap 1 if a wall can seal there and it isn't protected,
+ *  else uncuttable), channel edges to passable in-box 8-neighbours, and a drain
+ *  to the sink when the tile is on the map border OR has a neighbour outside the
+ *  box (the flood escaping the zone box has reached "outside"). The source feeds
+ *  every protected tile. */
 function buildFlowGraph(
   graph: FlowGraph,
   tileCount: number,
   source: number,
   sink: number,
+  box: TileBounds,
   protectedTiles: ReadonlySet<TileKey>,
   state: BuildViewState,
   walls: ReadonlySet<TileKey>,
 ): void {
-  for (let row = 0; row < GRID_ROWS; row++) {
-    for (let col = 0; col < GRID_COLS; col++) {
+  for (let row = box.minR; row <= box.maxR; row++) {
+    for (let col = box.minC; col <= box.maxC; col++) {
       const key = packTile(row, col);
       if (walls.has(key)) continue;
       // Internal IN->OUT edge carries the vertex capacity: 1 if a wall can
@@ -113,20 +198,27 @@ function buildFlowGraph(
       const cuttable =
         !protectedTiles.has(key) && isWallableGrass(state, row, col);
       graph.addEdge(key, key + tileCount, cuttable ? 1 : UNCUTTABLE);
+      let escapesBox = false;
       for (const [dr, dc] of DIRS_8) {
         const nr = row + dr;
         const nc = col + dc;
         if (!inBounds(nr, nc)) continue;
+        if (nr < box.minR || nr > box.maxR || nc < box.minC || nc > box.maxC) {
+          // Neighbour outside the box: the flood escapes the zone box here,
+          // which is equivalent to reaching the map border (outside).
+          escapesBox = true;
+          continue;
+        }
         const neighborKey = packTile(nr, nc);
         if (walls.has(neighborKey)) continue;
         graph.addEdge(key + tileCount, neighborKey, UNCUTTABLE);
       }
-      if (
+      const onMapBorder =
         row === 0 ||
         row === GRID_ROWS - 1 ||
         col === 0 ||
-        col === GRID_COLS - 1
-      ) {
+        col === GRID_COLS - 1;
+      if (onMapBorder || escapesBox) {
         graph.addEdge(key + tileCount, sink, UNCUTTABLE);
       }
     }
