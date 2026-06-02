@@ -172,7 +172,7 @@ export interface PhaseTransitionCtx {
   readonly state: GameState;
   readonly runtimeState: RuntimeState;
   /** Injected timing primitives. Transition display steps that schedule
-   *  fallback timers (e.g. `proceedToBattle`'s pitch-settle watchdog) MUST
+   *  fallback timers (e.g. `proceedToBattleFromCtx`'s pitch-settle watchdog) MUST
    *  route through here so headless tests on the mock clock observe the
    *  same timing as production. */
   readonly timing: TimingApi;
@@ -249,7 +249,7 @@ export interface PhaseTransitionCtx {
    *  the start of the next battle (touch UX). Host-only, no-op otherwise. */
   readonly saveBattleCrosshair?: () => void;
   /** Run `cb` once the in-flight pitch animation completes (in either
-   *  direction). `proceedToBattle` uses it to hold balloon-anim start
+   *  direction). `proceedToBattleFromCtx` uses it to hold balloon-anim start
    *  until the build→battle tilt completes. Fires synchronously when
    *  pitch is already settled (including headless `cameraTiltEnabled` =
    *  false), so callers don't need a separate gate. See
@@ -257,7 +257,7 @@ export interface PhaseTransitionCtx {
    *  that don't own a camera can skip wiring it. */
   readonly awaitPitchSettled?: (callback: () => void) => void;
   /** Start the build→battle tilt at battle-banner end. Called inside
-   *  `proceedToBattle`. Optional so headless / watcher-without-camera
+   *  `proceedToBattleFromCtx`. Optional so headless / watcher-without-camera
    *  contexts can skip it (2D wiring also skips — the renderer has no
    *  tilt axis). */
   readonly beginTilt?: () => void;
@@ -773,7 +773,7 @@ const ENTER_MODIFIER_REVEAL: Transition = {
 /** `enter-battle` — BATTLE entry. Flips the phase and shows the
  *  "Prepare for Battle" banner. Dispatched from `cannon-place-done`
  *  prep (classic / modern-no-modifier) or from `enter-modifier-reveal`
- *  after its banner finishes. postDisplay runs `proceedToBattle`
+ *  after its banner finishes. postDisplay runs `proceedToBattleFromCtx`
  *  (balloon-anim start or direct battle begin). */
 const ENTER_BATTLE: Transition = {
   id: "enter-battle",

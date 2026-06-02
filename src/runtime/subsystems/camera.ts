@@ -1356,7 +1356,7 @@ export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
   }
 
   /** Start the build→battle tilt. Called explicitly from the phase
-   *  machine at battle-banner end (inside `proceedToBattle`) so the
+   *  machine at battle-banner end (inside `proceedToBattleFromCtx`) so the
    *  tilt animation plays with the camera already at fullMapVp,
    *  BEFORE balloons / "ready" / auto-zoom into the battle zone.
    *  2D mode: no-op — `tickPitch` hard-zeros pitch when the renderer

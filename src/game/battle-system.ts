@@ -111,7 +111,7 @@ interface CannonballUpdateResult {
 }
 
 /** Combined per-frame battle tick result: grunt tower kills, cannonball impact
- *  events, and visual impact positions. Returned by `tickBattleCombat`. */
+ *  events, and visual impact positions. Returned by `tickBattlePhase`. */
 export interface BattleCombatResult {
   towerEvents: TowerKilledMessage[];
   impactEvents: ImpactEvent[];
@@ -591,7 +591,7 @@ function getAnnouncementStep(
  * Update all cannonballs. Move them toward their target. On arrival, apply damage.
  * Returns impact positions (for visual effects) and detailed events (for network relay).
  *
- * Private to battle-system — call `tickBattleCombat` from outside this file.
+ * Private to battle-system — call `tickBattlePhase` from outside this file.
  */
 function tickCannonballs(state: GameState, dt: number): CannonballUpdateResult {
   const impacts: TilePos[] = [];

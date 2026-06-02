@@ -114,7 +114,7 @@ interface PhaseTicksDeps extends Pick<RuntimeConfig, "log"> {
    *  `RuntimeCamera.awaitCameraFlat`. */
   awaitCameraFlat: (callback: () => void) => void;
   /** Run `cb` after the in-flight pitch animation completes — threaded
-   *  through to `PhaseTransitionCtx` so `proceedToBattle`'s postDisplay
+   *  through to `PhaseTransitionCtx` so `proceedToBattleFromCtx`'s postDisplay
    *  can gate balloon-anim entry on the build→battle tilt-in completing.
    *  See `RuntimeCamera.awaitPitchSettled`. */
   awaitPitchSettled: (callback: () => void) => void;
@@ -194,7 +194,7 @@ interface PhaseTicksDeps extends Pick<RuntimeConfig, "log"> {
    *  as visible micro-rotation. Undefined for renderers without a
    *  barrel-pitch animation (2D, headless stub). */
   snapCannonBarrelsToRest?: () => void;
-  /** Start the build→battle tilt. Called from `proceedToBattle` at
+  /** Start the build→battle tilt. Called from `proceedToBattleFromCtx` at
    *  battle-banner end. */
   beginTilt: () => void;
   /** Fire-and-forget renderer hook to pre-link shadow-pass shader
