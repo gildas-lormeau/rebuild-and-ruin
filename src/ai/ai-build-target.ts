@@ -145,7 +145,7 @@ const USE_ENCLOSURE_PLANNER = true;
  *  when the shared-wall ring saves material over two separate rings and the
  *  combined interior stays bounded. Trait-driven appetite is a future
  *  increment; for now the saving + area caps below are fixed. */
-const USE_TOWER_MERGES = false;
+const USE_TOWER_MERGES = true;
 /** Value weights ranking enclosure candidates within a priority class:
  *  per-tower worth minus per-wall cost. A 2-alive-tower merge scores
  *  2·ALIVE − cut, beating a solo (1·ALIVE − cut) whenever the second tower's
@@ -153,14 +153,20 @@ const USE_TOWER_MERGES = false;
 const CANDIDATE_VALUE_PER_ALIVE = 100;
 const CANDIDATE_VALUE_PER_DEAD = 30;
 const CANDIDATE_VALUE_PER_WALL = 1;
-/** Merge gates: skip pairs whose tower centroids are farther apart than this
- *  (bounds the per-tick min-cut count); require the merged ring to save at
- *  least MERGE_MIN_WALL_SAVING tiles over two solo rings; reject merges whose
- *  combined interior bounding box exceeds MERGE_MAX_INTERIOR_AREA (a single
- *  breach of a huge shared ring loses both towers). */
-const MERGE_MAX_DISTANCE = 16;
+/** Merge gates. The aggressive-archetype personality (see `collectMerge-
+ *  Candidates`) builds sprawling consolidated strongholds, so distance/area are
+ *  permissive — but MERGE_MAX_GAPS is the load-bearing SAFETY cap: a merge whose
+ *  ring can't be CLOSED in a build phase (cut > MERGE_MAX_GAPS) becomes an
+ *  unclosable target the build thrash latches onto, closing neither it nor the
+ *  near-complete home (seed 2705100 BLUE: 38-gap merge → eliminated). The
+ *  closeability cap prevents that self-destruction while still allowing big
+ *  rings whose gaps are mostly already walled (small cut, large interior).
+ *  Distance/area bound how far the consolidation can reach; MERGE_MIN_WALL_SAVING
+ *  keeps the shared ring at least marginally cheaper than two separate rings. */
+const MERGE_MAX_DISTANCE = 18;
 const MERGE_MIN_WALL_SAVING = 2;
-const MERGE_MAX_INTERIOR_AREA = 130;
+const MERGE_MAX_INTERIOR_AREA = 180;
+const MERGE_MAX_GAPS = 22;
 /** Max gap tiles the AI considers evaluable in a single build turn. Beyond this, the target is skipped. */
 export const MANAGEABLE_GAP_LIMIT = 8;
 
@@ -361,6 +367,15 @@ function collectMergeCandidates(
   ctx: TargetContext,
 ): EnclosureCandidate[] {
   const { state, player } = ctx;
+  // Personality gate: merging two towers into one big shared ring is an
+  // AMBITIOUS, riskier play — it grabs more in one enclosure but loses both to
+  // a single breach (compartmentalization). It's marginally suboptimal on
+  // average (measured neutral-to-slightly-negative), so it's reserved as a
+  // CHARACTER trait of the aggressive archetype (castleMargin 3 ⇔
+  // aggressiveness ≥ 3), not applied to every AI. The closeability gates below
+  // keep it from ever self-destructing. Like bankHugging / caresAboutHouses,
+  // this is a playstyle flavour, not a strength optimisation.
+  if (ctx.castleMargin < 3) return [];
   const homeIndex = ctx.castle.tower.index;
   // Only solo alive non-home towers are merge-eligible.
   const eligible = solos.filter(
@@ -393,6 +408,10 @@ function collectMergeCandidates(
         player.walls,
       );
       if (cut === null || cut.size === 0) continue;
+      // Closeability cap: a merged ring needing more than a build phase's worth
+      // of new walls is an unclosable target — reject regardless of any nominal
+      // wall-saving vs two (also-large) separate rings.
+      if (cut.size > MERGE_MAX_GAPS) continue;
       // Reasonable only when the shared ring is meaningfully cheaper than two
       // separate rings — otherwise keep them compartmentalized.
       if (cut.size > first.gaps.size + second.gaps.size - MERGE_MIN_WALL_SAVING)
