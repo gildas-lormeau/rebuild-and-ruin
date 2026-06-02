@@ -22,6 +22,8 @@ import {
 import { MODIFIER_ID } from "../shared/core/game-constants.ts";
 import type {
   Castle,
+  GameMap,
+  TileBounds,
   TilePos,
   Tower,
   TowerIdx,
@@ -42,8 +44,10 @@ import {
   packTile,
   towerReachesOutsideCardinal,
   unpackTile,
+  zoneTileBounds,
 } from "../shared/core/spatial.ts";
 import type { BuildViewState } from "../shared/core/system-interfaces.ts";
+import type { ZoneId } from "../shared/core/zone-id.ts";
 import {
   hasFillableTowerHope,
   pickDesperateInteriorDiscard,
@@ -832,10 +836,25 @@ function enumerateCandidates(
   const bonusKeys = new Set<TileKey>();
   for (const bonus of state.bonusSquares)
     bonusKeys.add(packTile(bonus.row, bonus.col));
+  // A valid placement needs every covered tile in the player's zone, so the
+  // anchor's covered rect must sit inside the zone's bounding box. Scanning
+  // only that box (vs the whole grid) skips anchors that canPlacePiece would
+  // reject for being out-of-zone — the surviving candidate set is identical.
+  const scanBox = candidateScanBox(state.map, placementCtx.zone);
   let rotated = piece;
   for (let rotation = 0; rotation < 4; rotation++) {
-    for (let r = 0; r < GRID_ROWS - rotated.height + 1; r++) {
-      for (let c = 0; c < GRID_COLS - rotated.width + 1; c++) {
+    const rLo = Math.max(0, scanBox.minR);
+    const rHi = Math.min(
+      GRID_ROWS - rotated.height,
+      scanBox.maxR - rotated.height + 1,
+    );
+    const cLo = Math.max(0, scanBox.minC);
+    const cHi = Math.min(
+      GRID_COLS - rotated.width,
+      scanBox.maxC - rotated.width + 1,
+    );
+    for (let r = rLo; r <= rHi; r++) {
+      for (let c = cLo; c <= cHi; c++) {
         if (
           !canPlacePiece(
             state,
@@ -900,6 +919,16 @@ function enumerateCandidates(
     rotated = rotateCW(rotated);
   }
   return candidates;
+}
+
+/** Resolve the tile box `enumerateCandidates` scans: the player's zone bounds,
+ *  or the whole grid when the zone is unknown (no home tower) or empty — that
+ *  fallback reproduces the original whole-grid scan exactly. */
+function candidateScanBox(map: GameMap, zone: ZoneId | undefined): TileBounds {
+  const zoneBox = zone !== undefined ? zoneTileBounds(map, zone) : null;
+  return (
+    zoneBox ?? { minR: 0, maxR: GRID_ROWS - 1, minC: 0, maxC: GRID_COLS - 1 }
+  );
 }
 
 /** Score all candidates with gap/wall/fat-wall metrics; filter fat walls when no gaps remain. */

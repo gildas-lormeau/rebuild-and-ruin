@@ -492,54 +492,36 @@ export function computeTrappedAfterAdd(
     }
   }
   if (suspects.length === 0) return trapped;
-  // BFS each suspect's component. If it touches the map edge, it stays
-  // outside; otherwise the whole component is now trapped.
+  // Flood each suspect's outside component. A component touching the map edge
+  // stays outside; one that doesn't is now trapped. We stop a flood the instant
+  // it proves boundary-connected, so the common "no new enclosure" case is a
+  // short walk to the nearest edge instead of an O(outside-region) flood.
+  //
+  // `boundaryConnected` records tiles already proven to reach the edge. It is
+  // load-bearing for correctness: an early-exited flood only partially marks
+  // its component `visited`, so a later suspect in the SAME component re-floods
+  // the remainder — without this set it could miss the (already-consumed) edge
+  // tile and be misclassified as trapped. A flood that reaches any
+  // boundary-connected tile concludes immediately. The resulting `trapped` set
+  // is identical to a full flood: boundary components never contribute, and
+  // trapped components (no edge tile) still run to completion in the same order.
   const visited = new Set<TileKey>();
-  const queueR: number[] = [];
-  const queueC: number[] = [];
+  const boundaryConnected = new Set<TileKey>();
   for (let seedIdx = 0; seedIdx < suspects.length; seedIdx++) {
     const seed = suspects[seedIdx]!;
     if (visited.has(seed)) continue;
-    const componentTiles: TileKey[] = [seed];
-    const seedR = (seed / GRID_COLS) | 0;
-    const seedC = seed - seedR * GRID_COLS;
-    visited.add(seed);
-    queueR.push(seedR);
-    queueC.push(seedC);
-    while (queueR.length > 0) {
-      const r = queueR.pop()!;
-      const c = queueC.pop()!;
-      for (let dirIdx = 0; dirIdx < 8; dirIdx++) {
-        const dir = DIRS_8[dirIdx]!;
-        const nr = r + dir[0];
-        const nc = c + dir[1];
-        if (nr < 0 || nr >= GRID_ROWS || nc < 0 || nc >= GRID_COLS) continue;
-        const neighborKey = (nr * GRID_COLS + nc) as TileKey;
-        if (visited.has(neighborKey)) continue;
-        if (newWallSet.has(neighborKey)) continue;
-        if (!baselineOutside.has(neighborKey)) continue;
-        visited.add(neighborKey);
-        componentTiles.push(neighborKey);
-        queueR.push(nr);
-        queueC.push(nc);
+    const { reachesBoundary, componentTiles } = floodOutsideComponent(
+      seed,
+      baselineOutside,
+      newWallSet,
+      visited,
+      boundaryConnected,
+    );
+    if (reachesBoundary) {
+      for (let t = 0; t < componentTiles.length; t++) {
+        boundaryConnected.add(componentTiles[t]!);
       }
-    }
-    let reachesBoundary = false;
-    for (let t = 0; t < componentTiles.length; t++) {
-      const tile = componentTiles[t]!;
-      const tileR = (tile / GRID_COLS) | 0;
-      const tileC = tile - tileR * GRID_COLS;
-      if (
-        tileR === 0 ||
-        tileR === GRID_ROWS - 1 ||
-        tileC === 0 ||
-        tileC === GRID_COLS - 1
-      ) {
-        reachesBoundary = true;
-        break;
-      }
-    }
-    if (!reachesBoundary) {
+    } else {
       for (let t = 0; t < componentTiles.length; t++) {
         trapped.push(componentTiles[t]!);
       }
@@ -599,6 +581,30 @@ export function zoneAt(
   return cell === undefined || cell === 0 ? undefined : cell;
 }
 
+/** Inclusive tile bounding box of every cell assigned to `zone`, or null when
+ *  the zone owns no tiles. Lets placement scans skip the whole grid and only
+ *  visit a player's own zone — anchors outside this box always have an
+ *  out-of-zone tile, so they fail placement regardless. Zones are static for a
+ *  match except when a modifier recomputes them (low_water). */
+export function zoneTileBounds(map: GameMap, zone: ZoneId): TileBounds | null {
+  let minR = GRID_ROWS;
+  let maxR = -1;
+  let minC = GRID_COLS;
+  let maxC = -1;
+  for (let r = 0; r < map.zones.length; r++) {
+    const rowCells = map.zones[r]!;
+    for (let c = 0; c < rowCells.length; c++) {
+      if (rowCells[c] === zone) {
+        if (r < minR) minR = r;
+        if (r > maxR) maxR = r;
+        if (c < minC) minC = c;
+        if (c > maxC) maxC = c;
+      }
+    }
+  }
+  return maxR < 0 ? null : { minR, maxR, minC, maxC };
+}
+
 /** Pixel center of the castle owned by the player in `zoneId`: bounding
  *  box of (walls ∪ home tower). Falls back to home tower alone when the
  *  player has no walls yet, then to the zone's static tile-rect center
@@ -644,6 +650,54 @@ export function towerCenterPx(tilePos: TilePos): PixelPos {
 /** Convert a world-pixel coordinate to a tile index (floor division by TILE_SIZE). */
 export function pxToTile(px: number): number {
   return Math.floor(px / TILE_SIZE);
+}
+
+/** Flood one outside component from `seed`, stopping early once it proves
+ *  boundary-connected (touches the map edge or a tile already in
+ *  `boundaryConnected`). Adds every visited tile to `visited`. Returns whether
+ *  the component reaches the boundary and the tiles flooded so far (the full
+ *  component when trapped, a partial walk-to-edge when boundary-connected). */
+function floodOutsideComponent(
+  seed: TileKey,
+  baselineOutside: ReadonlySet<TileKey>,
+  newWallSet: ReadonlySet<TileKey>,
+  visited: Set<TileKey>,
+  boundaryConnected: ReadonlySet<TileKey>,
+): { reachesBoundary: boolean; componentTiles: TileKey[] } {
+  const componentTiles: TileKey[] = [seed];
+  const seedR = (seed / GRID_COLS) | 0;
+  const seedC = seed - seedR * GRID_COLS;
+  visited.add(seed);
+  let reachesBoundary = isBoundaryTile(seedR, seedC);
+  const stackR: number[] = [seedR];
+  const stackC: number[] = [seedC];
+  while (!reachesBoundary && stackR.length > 0) {
+    const r = stackR.pop()!;
+    const c = stackC.pop()!;
+    for (let dirIdx = 0; dirIdx < 8; dirIdx++) {
+      const dir = DIRS_8[dirIdx]!;
+      const nr = r + dir[0];
+      const nc = c + dir[1];
+      if (nr < 0 || nr >= GRID_ROWS || nc < 0 || nc >= GRID_COLS) continue;
+      const neighborKey = (nr * GRID_COLS + nc) as TileKey;
+      if (boundaryConnected.has(neighborKey)) {
+        reachesBoundary = true;
+        break;
+      }
+      if (visited.has(neighborKey)) continue;
+      if (newWallSet.has(neighborKey)) continue;
+      if (!baselineOutside.has(neighborKey)) continue;
+      visited.add(neighborKey);
+      componentTiles.push(neighborKey);
+      if (isBoundaryTile(nr, nc)) {
+        reachesBoundary = true;
+        break;
+      }
+      stackR.push(nr);
+      stackC.push(nc);
+    }
+  }
+  return { reachesBoundary, componentTiles };
 }
 
 function extendBoundsFromWalls(
