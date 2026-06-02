@@ -1170,6 +1170,7 @@ function selectWhistleVariant(totalTravelSec: number): number | undefined {
     if (WHISTLE_VARIANT_DURATIONS_SEC[i]! <= totalTravelSec) eligible.push(i);
   }
   if (eligible.length === 0) return undefined;
+  // lint:allow-entropy -- cosmetic SFX variant; must NOT advance state.rng (see doc above)
   return eligible[Math.floor(Math.random() * eligible.length)];
 }
 

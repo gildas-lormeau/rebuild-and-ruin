@@ -62,6 +62,7 @@ echo "lint:all: parallel checks..."
   run closure-captures  deno run -A scripts/lint-closure-captures.ts
   run ai-rng-isolation  deno run -A scripts/lint-ai-rng-isolation.ts
   run ctor-rng          deno run -A scripts/lint-controller-ctor-rng.ts
+  run entropy           deno run -A scripts/lint-entropy-sources.ts
   run raf-mainloop      deno run -A scripts/lint-raf-mainloop.ts
   run null-init         deno run -A scripts/lint-null-init.ts
   run registries        deno run -A scripts/lint-registries.ts
