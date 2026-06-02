@@ -381,8 +381,8 @@ export function pickPlacement(
       placementCtx,
     );
   }
-  // Work-is-done idle: once every castle is enclosed, a placement is only
-  // worth making if it contributes to a future enclosure — i.e. fills a
+  // Work-is-done idle: when no real enclosure work remains, a placement is
+  // only worth making if it contributes to a future enclosure — i.e. fills a
   // target-ring tile (advancing/expanding a ring toward closing) or reclaims
   // net territory (usefulGain > 0). A placement that does neither is pure
   // waste: there is nothing left to build (the zone is boxed in by water / map
@@ -390,14 +390,25 @@ export function pickPlacement(
   // as a junk wall (seed 424501 r6 BLUE dumped a dozen pieces inside a complete
   // shell — "wtf is blue doing"). Do nothing: hold the piece and let the build
   // timer run out. Genuine expansion (a real ring-gap fill or netGain > 0) is
-  // untouched. Gated on allCastlesEnclosed so the bag-cycling that IS load-
-  // bearing — burning a dud piece to reach a piece that can still enclose an
-  // open tower — is unaffected. A previous version routed these to a fat-free
-  // interior discard to "advance the bag"; a 10×20×15 ai-compare-multi showed
-  // idling instead is strength-neutral (finalScore -0.30%, finalLives -0.08%,
-  // enclosedAvg -0.31% — all noise), so the discards had no real value and the
-  // idle is the cleaner behaviour.
-  if (placement !== null && allCastlesEnclosed) {
+  // untouched. A previous version routed these to a fat-free interior discard
+  // to "advance the bag"; a 10×20×15 ai-compare-multi showed idling instead is
+  // strength-neutral (finalScore -0.30%, finalLives -0.08%, enclosedAvg -0.31%
+  // — all noise), so the discards had no real value and the idle is cleaner.
+  //
+  // The gate is "no LIVE enclosure work" rather than the narrower
+  // allCastlesEnclosed: bag-cycling (burning a dud piece to reach one that can
+  // close an open ring) only pays off when an unenclosed tower is both alive
+  // AND structurally enclosable. When the only unenclosed towers left are dead
+  // or unenclosable, there is nothing to cycle toward, so a net-zero placement
+  // is the same junk-wall waste as the all-enclosed case — and must be held,
+  // not laid (seed 544663 GOLD r38: both alive towers sealed by ~7s, then ~20
+  // net-negative tiles dumped around dead T9/T11's unfillable rings). Direct
+  // gap-fills toward a dead-but-enclosable ring (revival) survive via the
+  // fillsTargetGap escape below; only the non-gap waste is suppressed.
+  const hasLiveEnclosureWork = unenclosedTowers.some(
+    (tower) => state.towerAlive[tower.index] && isTowerEnclosable(tower, state),
+  );
+  if (placement !== null && !hasLiveEnclosureWork) {
     const current = placement;
     const cells = current.piece.offsets.map(([dr, dc]) =>
       packTile(current.row + dr, current.col + dc),
