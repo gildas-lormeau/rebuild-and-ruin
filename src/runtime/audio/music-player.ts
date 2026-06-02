@@ -64,11 +64,6 @@ export interface MusicSubsystem extends RuntimeMusic {
   setPaused(paused: boolean): Promise<void>;
   /** Release the bus listener and stop playback. */
   dispose(): Promise<void>;
-  /** TEMP DEBUG — fire any bg track from `__dev.playBg("jaws")` etc. so
-   *  audio render fixes can be auditioned without driving the game to the
-   *  triggering phase. Bypasses the bus (works in lobby too). Remove once
-   *  the music render path is settled. */
-  debugPlayBg(trackId: BgTrackId): Promise<void>;
 }
 
 type BgTrackId = "title" | "cannon" | "build" | "score" | "lifeLost" | "jaws";
@@ -596,36 +591,6 @@ export function createMusicSubsystem(): MusicSubsystem {
     activatingPromise = undefined;
   }
 
-  // TEMP DEBUG — see MusicSubsystem.debugPlayBg for context.
-  const DEBUG_BG_TRACKS: Record<BgTrackId, BgTrack> = {
-    title: BG_TRACK_TITLE,
-    cannon: BG_TRACK_CANNON,
-    build: BG_TRACK_BUILD,
-    score: BG_TRACK_SCORE,
-    lifeLost: BG_TRACK_LIFE_LOST,
-    jaws: BG_TRACK_JAWS,
-  };
-  async function debugPlayBg(trackId: BgTrackId): Promise<void> {
-    await activate();
-    const track = DEBUG_BG_TRACKS[trackId];
-    const pcm = bgBuffers.get(track.cacheId);
-    const buffer = bgAudioBuffers.get(track.cacheId);
-    console.log(
-      `[__dev.playBg] ${trackId}`,
-      pcm
-        ? {
-            loop: track.loop,
-            durationSec: buffer?.duration?.toFixed(2),
-            loopStartSec: pcm.loopStartSec,
-            loopEndSec: pcm.loopEndSec,
-            frames: pcm.frames,
-            sampleRate: pcm.sampleRate,
-          }
-        : "(no PCM cached — upload assets first)",
-    );
-    await playBg(track);
-  }
-
   return {
     activate,
     startTitle: playTitle,
@@ -635,6 +600,5 @@ export function createMusicSubsystem(): MusicSubsystem {
     tickPresentation,
     setPaused,
     dispose,
-    debugPlayBg,
   };
 }

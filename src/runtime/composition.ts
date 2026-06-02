@@ -346,7 +346,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
           // `captureOn` PNG capture needs the HTMLCanvasElement surface.
           canvas: renderer.eventTarget as HTMLCanvasElement,
         });
-        exposeDevConsole(runtimeState, audio.music);
+        exposeDevConsole(runtimeState);
       }
     },
   });

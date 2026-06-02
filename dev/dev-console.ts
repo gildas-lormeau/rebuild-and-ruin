@@ -6,7 +6,6 @@ import {
   isPerfHudEnabled,
   setPerfHudEnabled,
 } from "../src/render/3d/perf-hud.ts";
-import type { MusicSubsystem } from "../src/runtime/audio/music-player.ts";
 import { isStateInstalled, type RuntimeState } from "../src/runtime/state.ts";
 import { GRID_COLS, GRID_ROWS } from "../src/shared/core/grid.ts";
 import type { GameState } from "../src/shared/core/types.ts";
@@ -21,14 +20,6 @@ import {
   type Rect,
   zoneBounds,
 } from "./dev-console-grid.ts";
-
-type DebugBgTrackId =
-  | "title"
-  | "cannon"
-  | "build"
-  | "score"
-  | "lifeLost"
-  | "jaws";
 
 interface MapTextOptions {
   layer?: MapLayer;
@@ -46,10 +37,6 @@ interface DevConsole {
   fixedStep: (ms?: number | false) => void;
   perfHud: (on?: boolean) => boolean;
   lightDebug: (on?: boolean) => boolean;
-  /** TEMP DEBUG — play any bg track on demand. Useful for auditioning the
-   *  music render path (jaws stinger tail, fanfare release, etc.) without
-   *  driving the game to the right phase. */
-  playBg: (trackId: DebugBgTrackId) => Promise<void>;
 }
 
 const PLAYER_CSS = [
@@ -68,10 +55,7 @@ const PLAYER_LABEL: Record<number, string> = { 0: "R", 1: "B", 2: "G" };
 /** Attach `window.__dev` once (dev-only, guarded by IS_DEV at call site).
  *  The console object closes over runtimeState but reads it on-demand —
  *  no stale snapshots are retained between invocations. */
-export function exposeDevConsole(
-  runtimeState: RuntimeState,
-  music: MusicSubsystem,
-): void {
+export function exposeDevConsole(runtimeState: RuntimeState): void {
   if (typeof window === "undefined") return;
 
   const win = globalThis as unknown as Record<string, unknown>;
@@ -205,13 +189,6 @@ export function exposeDevConsole(
       );
       return next;
     },
-
-    async playBg(trackId: DebugBgTrackId): Promise<void> {
-      await music.debugPlayBg(trackId);
-      console.log(
-        `Playing ${trackId}. (No PCM cached → silent; upload assets first.)`,
-      );
-    },
   };
 
   win.__dev = dev;
@@ -266,17 +243,11 @@ function printHelp(): void {
   Yellow arc shows full sun path; orange dot is current position.
   Wireframe box shows shadow camera coverage. HUD reads sunT live.
 
-%cMusic (TEMP DEBUG)%c
-  __dev.playBg("jaws")     Audition any bg track on demand. Bypasses bus.
-  Track ids: "title" | "cannon" | "build" | "score" | "lifeLost" | "jaws"
-
 %cSymbols%c
   · grass  ~ water  ░ territory  # wall  T tower  t dead tower
   C cannon  x debris  ! grunt  * burning pit  + bonus  o cannonball
   mapText walls: r/b/g  cannons: R/B/G  territory: :`,
     "font-weight:bold;font-size:14px",
-    RESET_CSS,
-    HEADING_CSS,
     RESET_CSS,
     HEADING_CSS,
     RESET_CSS,
