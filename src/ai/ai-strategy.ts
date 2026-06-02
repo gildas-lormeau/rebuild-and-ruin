@@ -17,9 +17,7 @@ import type {
   Tower,
   TowerIdx,
 } from "../shared/core/geometry-types.ts";
-import type { TileKey } from "../shared/core/grid.ts";
 import type { PieceShape } from "../shared/core/pieces.ts";
-import { getInterior } from "../shared/core/player-interior.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import type { Player } from "../shared/core/player-types.ts";
 import type {
@@ -31,7 +29,6 @@ import type { ZoneId } from "../shared/core/zone-id.ts";
 import { Rng } from "../shared/platform/rng.ts";
 import type { FireOrigin } from "./ai-battle-diag.ts";
 import type { AiPlacement } from "./ai-build-types.ts";
-import { findOuterRingHoles } from "./ai-castle-rect.ts";
 import { CHAIN, type ChainType } from "./ai-chain.ts";
 import { planCharitySweep } from "./ai-plan-charity-sweep.ts";
 import { planFatBreach } from "./ai-plan-fat-breach.ts";
@@ -98,18 +95,9 @@ export class DefaultStrategy implements AiStrategy {
   };
   /** Whether home tower was not enclosed at the end of last build phase. */
   private _homeWasBroken = false;
-  /** Phase-stable snapshot of outer-ring hole tiles for repair targeting.
-   *  Captured on the first pickPlacement() call of each build phase and
-   *  reused for every subsequent call until `assessBuildEnd` clears it at
-   *  end of WALL_BUILD, preventing pseudo-gaps formed by newly-placed walls
-   *  from polluting the target set and dispersing the AI's focus. Keyed on
-   *  build-phase lifecycle (not state.round) so future paths that lose a
-   *  life or rebuild without advancing the round stay correct. */
-  private _outerRingHolesSnapshot: ReadonlySet<TileKey> | undefined = undefined;
-  /** Secondary-tower target committed to on the previous build tick.
-   *  trySecondaryTower reuses this without re-scoring as long as the
-   *  cached tower remains alive, has manageable gaps, and is
-   *  piece-feasible — eliminating per-tick churn (Mode #2). Cleared in
+  /** Enclosure target committed to on the previous build tick. The planner
+   *  reuses this without re-ranking as long as the cached tower remains a
+   *  closeable candidate — eliminating per-tick churn (Mode #2). Cleared in
    *  assessBuildEnd so each build phase starts fresh. */
   private _lastTargetTowerIndex: TowerIdx | undefined = undefined;
 
@@ -178,7 +166,6 @@ export class DefaultStrategy implements AiStrategy {
     piece: PieceShape,
     cursorPos?: TilePos,
   ): AiPlacement | null {
-    const snapshot = this.ensureOuterRingHolesSnapshot(state, playerId);
     const result = pickPlacement(state, playerId, piece, {
       cursorPos,
       homeWasBroken: this._homeWasBroken,
@@ -187,39 +174,20 @@ export class DefaultStrategy implements AiStrategy {
       caresAboutHouses: this.caresAboutHouses,
       caresAboutBonuses: this.caresAboutBonuses,
       buildSkill: this.buildSkill,
-      outerRingHolesSnapshot: snapshot,
       lastTargetTowerIndex: this._lastTargetTowerIndex,
     });
     this._lastTargetTowerIndex = result.chosenTowerIndex;
     return result.placement;
   }
 
-  /** Lazily snapshot outer-ring breach tiles on the first build-phase tick.
-   *  Cleared by `assessBuildEnd` at the close of WALL_BUILD so the next build
-   *  phase recaptures fresh. Empty set when the player has no walls/castle
-   *  yet — findOuterRingHoles is cheap on an empty wall set, so we always
-   *  return a real set rather than threading an undefined sentinel through
-   *  the build pipeline. */
-  private ensureOuterRingHolesSnapshot(
-    state: BuildViewState,
-    playerId: ValidPlayerId,
-  ): ReadonlySet<TileKey> {
-    if (this._outerRingHolesSnapshot) return this._outerRingHolesSnapshot;
-    const player = state.players[playerId]!;
-    const holes = findOuterRingHoles(player.walls, state, getInterior(player));
-    this._outerRingHolesSnapshot = holes;
-    return holes;
-  }
-
   /** End-of-WALL_BUILD bookkeeping: stash home-broken status for the next
    *  build phase's pickPlacement (consumed as `_homeWasBroken`), and drop the
-   *  outer-ring holes snapshot so the next build phase recaptures fresh. */
+   *  per-tick target cache so the next build phase recaptures fresh. */
   assessBuildEnd(state: BuildViewState, playerId: ValidPlayerId): void {
     const player = state.players[playerId]!;
     this._homeWasBroken =
       player.homeTower !== null &&
       !player.enclosedTowers.includes(player.homeTower);
-    this._outerRingHolesSnapshot = undefined;
     this._lastTargetTowerIndex = undefined;
   }
 
@@ -478,7 +446,6 @@ export class DefaultStrategy implements AiStrategy {
   reset(): void {
     this.onLifeLost();
     this.shotCounts = new Map<ShotKey, number>();
-    this._outerRingHolesSnapshot = undefined;
     this._lastTargetTowerIndex = undefined;
   }
 }

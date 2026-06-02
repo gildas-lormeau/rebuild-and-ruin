@@ -23,7 +23,6 @@ import { hasCannonAt, hasTowerAt } from "../shared/core/occupancy-queries.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import type { FreshInterior } from "../shared/core/player-types.ts";
 import {
-  computeOutside,
   DIRS_4,
   DIRS_8,
   DIRS_DIAG,
@@ -49,12 +48,6 @@ interface MarginCtx {
 // Scoring weights for scoreBuildTowerTarget — tower ranking during build targeting.
 /** Weight given to wall-ring completion progress when ranking towers to build. */
 const TOWER_PROGRESS_WEIGHT = 100;
-/** Identify the real breach points in the player's wall ring by scanning
- *  for short non-wall runs between paired walls — works regardless of
- *  whether the ring is rectangular or stair-stepped, and catches holes
- *  inside the bounding box that the perimeter-only findGapTiles can't see.
- *  K_HOLE = max width of a closeable gap (1-tile, 2-tile, or 3-tile holes). */
-const HOLE_MAX_WIDTH = 3;
 /** Score penalty applied to dead towers — prefer live towers but still consider dead ones. */
 const DEAD_TOWER_PENALTY = 150;
 /** Max penalty for a fully obstructed castle rect (grunts, pits, enemy walls). */
@@ -417,8 +410,7 @@ export function castleRect(
 /**
  * Pull a tower's candidate rect inward on any side whose wall ring would sit
  * one tile *outside* an existing wall run, so the ring reuses that wall as a
- * shared boundary instead of building a redundant parallel one. This is the
- * secondary-tower analogue of `tryRepairOuterRing`'s home-perimeter reuse: a
+ * shared boundary instead of building a redundant parallel one: a
  * tower next to an existing perimeter (e.g. the home castle's wall) should
  * share it rather than duplicate it — recovering the pieces that duplication
  * would waste. A side shrinks by one only when the pulled-in ring line has
@@ -489,129 +481,11 @@ export function snapRectToReuseWalls(
   return { top, bottom, left, right };
 }
 
-/**
- * Pull a rect's sides inward off any burning pit on its wall ring, so the ring
- * seals on grass *above* the pit instead of running through it. A pit can't
- * hold a wall, and a deep pit column reaching the map border can't be expanded
- * around (`expandRectAroundBlockers` caps out), so sealing above is the only
- * enclosing ring. Bounded by the tower footprint: a side stops shrinking when
- * it reaches the tower, so a pit cardinally adjacent to the tower (genuinely
- * unenclosable) is left for the caller's `isTowerEnclosable` gate to skip.
- * Meant to run *after* expansion, so shallow pits that expansion already routed
- * around (no pit left on the ring) incur no shrink — only border-reaching
- * columns that expansion couldn't clear get sealed above.
- */
-export function clampRectOffPits(
-  rect: TileRect,
-  tower: Tower,
-  state: BuildViewState,
-): TileRect {
-  let { top, bottom, left, right } = rect;
-  const tTop = tower.row;
-  const tBottom = tower.row + TOWER_SIZE - 1;
-  const tLeft = tower.col;
-  const tRight = tower.col + TOWER_SIZE - 1;
-  const rowHasPit = (row: number, cLo: number, cHi: number): boolean => {
-    for (let c = cLo; c <= cHi; c++) {
-      if (inBounds(row, c) && hasPitAt(state.burningPits, row, c)) return true;
-    }
-    return false;
-  };
-  const colHasPit = (col: number, rLo: number, rHi: number): boolean => {
-    for (let r = rLo; r <= rHi; r++) {
-      if (inBounds(r, col) && hasPitAt(state.burningPits, r, col)) return true;
-    }
-    return false;
-  };
-  while (bottom > tBottom && rowHasPit(bottom + 1, left - 1, right + 1))
-    bottom--;
-  while (top < tTop && rowHasPit(top - 1, left - 1, right + 1)) top++;
-  while (right > tRight && colHasPit(right + 1, top - 1, bottom + 1)) right--;
-  while (left < tLeft && colHasPit(left - 1, top - 1, bottom + 1)) left++;
-  return { top, bottom, left, right };
-}
-
-/** Identify real breach points by scanning for short non-wall runs between
- *  paired *ring* walls. A "ring wall" is a wall whose outer face touches the
- *  exterior — i.e. has at least one 4-dir neighbor in computeOutside. The
- *  ring-wall filter prevents the pair-scan from inventing pseudo-gaps
- *  between newly-placed walls inside the enclosure as the AI fills holes. */
-export function findOuterRingHoles(
-  walls: ReadonlySet<TileKey>,
-  state: BuildViewState,
-  interior: ReadonlySet<TileKey>,
-): Set<TileKey> {
-  const outside = computeOutside(walls);
-  const isRingWall = (key: TileKey): boolean => {
-    const { row, col } = unpackTile(key);
-    for (const [dr, dc] of DIRS_4) {
-      const nr = row + dr;
-      const nc = col + dc;
-      if (!inBounds(nr, nc)) continue;
-      if (outside.has(packTile(nr, nc))) return true;
-    }
-    return false;
-  };
-  const holes = new Set<TileKey>();
-  for (const wallKey of walls) {
-    if (!isRingWall(wallKey)) continue;
-    const { row: wr, col: wc } = unpackTile(wallKey);
-    for (const [dr, dc] of DIRS_4) {
-      for (let step = 2; step <= HOLE_MAX_WIDTH + 1; step++) {
-        const nr = wr + dr * step;
-        const nc = wc + dc * step;
-        if (nr < 0 || nr >= GRID_ROWS || nc < 0 || nc >= GRID_COLS) break;
-        let allFillable = true;
-        for (let inner = 1; inner < step; inner++) {
-          const ir = wr + dr * inner;
-          const ic = wc + dc * inner;
-          if (walls.has(packTile(ir, ic))) {
-            allFillable = false;
-            break;
-          }
-          // Canonical fillability — was inlined here and dropped the cannon/tower
-          // checks, so a cannon between two ring walls could read as a fillable
-          // hole. Routing through isWallableGrass restores them.
-          if (
-            !isWallableGrass(state, ir, ic) ||
-            interior.has(packTile(ir, ic))
-          ) {
-            allFillable = false;
-            break;
-          }
-        }
-        if (!allFillable) continue;
-        const farKey = packTile(nr, nc);
-        if (walls.has(farKey) && isRingWall(farKey)) {
-          // Only count the run as a breach when it lies on the structure's
-          // outer perimeter — both flanking walls exposed (open / off-map) on
-          // the SAME side perpendicular to the run. An interior chord (a run
-          // between a side wall and an inner wall) or a gap inside a thick wall
-          // band fails this: one flank is boxed in perpendicular (it's part of
-          // a wall column running across the scan), so the run cuts through the
-          // interior and fills no real gap. The open-castle flood makes such
-          // runs read as "between two ring walls"; the perpendicular-exposure
-          // test is flood-free and rejects them (seed 278939 r1 RED: phantom
-          // holes 1,37–1,39 chord and the 1,42 east-band notch).
-          if (runOnPerimeter(walls, wr, wc, nr, nc, dr, dc)) {
-            for (let inner = 1; inner < step; inner++) {
-              holes.add(packTile(wr + dr * inner, wc + dc * inner));
-            }
-          }
-          break;
-        }
-      }
-    }
-  }
-  return holes;
-}
-
 /** Canonical "fillable gap tile" predicate: a wall can be placed on (row, col)
  *  AND actually becomes a wall — plain grass with no burning pit, alive house,
  *  cannon, or tower. (A wall laid on a house spawns a grunt instead, so houses
- *  don't close gaps.) Single source of truth: filterUnfillableGaps,
- *  findOuterRingHoles, isTowerEnclosable, and ai-build-target's
- *  findInteriorPlugTargets all route through it; the `interior`/already-walled
+ *  don't close gaps.) Single source of truth: filterUnfillableGaps and
+ *  isTowerEnclosable both route through it; the `interior`/already-walled
  *  exclusions are layered on separately at call sites. Distinct from
  *  game/canPlacePiece (placement legality — allows houses, adds zone/modifier/
  *  overlap context); do not conflate the two. */
@@ -821,8 +695,7 @@ function addBankPlugGaps(
  * regenerates a fresh plug next tick (the seed 287751 r3 T5 stall: 8 "other"
  * interior plugs the AI filled with fat walls while the ring never closed).
  * Requiring wall-adjacency keeps only plugs that genuinely continue the wall
- * toward closure — the same constraint `findInteriorPlugTargets` already
- * applies for the map-edge plug-synthesis path.
+ * toward closure.
  */
 export function addInteriorPlugGaps(
   gaps: Set<TileKey>,
@@ -850,48 +723,6 @@ export function addInteriorPlugGaps(
       gaps.add(neighborKey);
     }
   }
-}
-
-/** True when the fillable run between flanking ring walls (ar,ac)–(br,bc),
- *  laid in direction (dr,dc), lies on the structure's outer perimeter rather
- *  than cutting through its interior. Both flanking walls must be exposed —
- *  open or off-map — on the SAME side perpendicular to the run, the way two
- *  walls bracketing a perimeter gap face open space together. A side wall (part
- *  of a column crossing the scan) is boxed in perpendicular and fails, so
- *  interior chords and thick-band notches are rejected. Flood-free: holds even
- *  when an open castle floods its own interior. */
-function runOnPerimeter(
-  walls: ReadonlySet<TileKey>,
-  ar: number,
-  ac: number,
-  br: number,
-  bc: number,
-  dr: number,
-  dc: number,
-): boolean {
-  for (const [pr, pc] of [
-    [-dc, dr],
-    [dc, -dr],
-  ] as const) {
-    if (faceOpen(walls, ar, ac, pr, pc) && faceOpen(walls, br, bc, pr, pc))
-      return true;
-  }
-  return false;
-}
-
-/** True when the tile one step (pr,pc) from (row,col) is open — off-map (true
- *  exterior) or simply not a wall. */
-function faceOpen(
-  walls: ReadonlySet<TileKey>,
-  row: number,
-  col: number,
-  pr: number,
-  pc: number,
-): boolean {
-  const nr = row + pr;
-  const nc = col + pc;
-  if (!inBounds(nr, nc)) return true;
-  return !walls.has(packTile(nr, nc));
 }
 
 /** True iff (row, col) has at least one 4-dir neighbor in `walls`. */

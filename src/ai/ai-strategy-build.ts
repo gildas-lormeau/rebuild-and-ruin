@@ -99,8 +99,8 @@ type BuildSkillConfig = (typeof BUILD_SKILL_TABLE)[number];
 
 export interface PickPlacementResult {
   placement: AiPlacement | null;
-  /** Tower committed to by trySecondaryTower this tick (undefined for home
-   *  repair, expand-territory, or any path that didn't cache). The caller
+  /** Tower the planner committed to this tick (undefined for dead-tower
+   *  targets, expand-territory, or any path that didn't cache). The caller
    *  (DefaultStrategy) stores this and passes it back via PlacementOptions
    *  on the next tick to drive the persistence short-circuit. */
   chosenTowerIndex: TowerIdx | undefined;
@@ -186,7 +186,6 @@ export function pickPlacement(
     caresAboutHouses,
     caresAboutBonuses,
     buildSkill,
-    outerRingHolesSnapshot,
     lastTargetTowerIndex,
   } = options;
   const maybePlayer = state.players[playerId];
@@ -243,7 +242,7 @@ export function pickPlacement(
   }
 
   // Step 1: determine which rectangle to build/repair.
-  // Pipeline: tryRepairHomeCastle → trySecondaryTower → tryExpandTerritory
+  // Pipeline: planEnclosureTarget → tryEncloseCaptures → tryExpandTerritory
   // Each phase only runs if the previous one found no gaps.
   const { targetGaps, targetRect, chosenTowerIndex } = selectTarget({
     state,
@@ -260,7 +259,6 @@ export function pickPlacement(
     allCastlesEnclosed,
     unenclosedTowers,
     otherUnenclosed,
-    outerRingHolesSnapshot,
     lastTargetTowerIndex,
     cache,
     placementCtx,

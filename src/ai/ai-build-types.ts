@@ -36,12 +36,12 @@ export interface EnclosureAnalysis {
 export type TargetResult = {
   targetGaps: Set<TileKey>;
   targetRect: TileRect | null;
-  /** Set only when `trySecondaryTower` committed to a tower that meets ALL
+  /** Set only when the planner committed to an alive solo tower that meets ALL
    *  cache-write invariants (alive, manageable gap count, piece-feasible).
    *  Threaded back to the strategy so the next tick can short-circuit the
-   *  per-tick re-decision and avoid Mode #2 churn. Never set by home repair,
-   *  expand-territory, or strategicFallbackTarget — those are "best of bad
-   *  options" not commitments worth persisting. */
+   *  per-tick re-decision and avoid Mode #2 churn. Never set for merges,
+   *  dead-tower targets, expand-territory, or strategicFallbackTarget — those
+   *  are not commitments worth persisting. */
   chosenTowerIndex?: TowerIdx;
 };
 
@@ -61,11 +61,10 @@ export interface TargetContext {
   allCastlesEnclosed: boolean;
   unenclosedTowers: Tower[];
   otherUnenclosed: Tower[];
-  outerRingHolesSnapshot: ReadonlySet<TileKey>;
   /** Tower the strategy committed to on the previous tick (from a prior
-   *  `trySecondaryTower` cache write). `trySecondaryTower` checks this at
-   *  entry and short-circuits when the cached tower remains piece-feasible,
-   *  skipping the per-tick re-scoring that drives Mode #2 churn. */
+   *  planner cache write). The planner checks this at entry and short-circuits
+   *  when the cached tower remains a closeable candidate, skipping the per-tick
+   *  re-ranking that drives Mode #2 churn. */
   lastTargetTowerIndex: TowerIdx | undefined;
   /** Occupancy cache built once per pickPlacement to skip rebuilding inside
    *  every canPlacePiece sweep called by selectTarget's sub-helpers. */
@@ -84,14 +83,7 @@ export interface PlacementOptions {
   caresAboutHouses: boolean;
   caresAboutBonuses: boolean;
   buildSkill: 1 | 2 | 3 | 4 | 5;
-  /** Phase-stable snapshot of outer-ring breach tiles (computed by the
-   *  strategy on first call of the build phase and held constant).
-   *  tryRepairOuterRing uses this set verbatim (minus tiles the AI has
-   *  since walled) instead of recomputing each tick — recomputation picks
-   *  up "phantom" gaps formed by newly-placed walls pairing with existing
-   *  walls, which would otherwise disperse the AI's focus. */
-  outerRingHolesSnapshot: ReadonlySet<TileKey>;
-  /** Secondary-tower commitment carried over from the previous build tick
+  /** Enclosure-target commitment carried over from the previous build tick
    *  (if any). Threaded into `selectTarget` for the short-circuit. */
   lastTargetTowerIndex: TowerIdx | undefined;
 }
