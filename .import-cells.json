@@ -765,6 +765,7 @@
     "role": "AI strategy types + build score helpers + super-attack tactic planner",
     "files": [
       "src/ai/ai-build-score.ts",
+      "src/ai/ai-min-cut.ts",
       "src/ai/ai-strategy-types.ts"
     ]
   },

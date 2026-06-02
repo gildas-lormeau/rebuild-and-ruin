@@ -302,6 +302,7 @@
     "name": "L9",
     "files": [
       "src/ai/ai-build-score.ts",
+      "src/ai/ai-min-cut.ts",
       "src/ai/ai-strategy-types.ts",
       "src/game/modifier-system.ts",
       "src/game/upgrade-system.ts",

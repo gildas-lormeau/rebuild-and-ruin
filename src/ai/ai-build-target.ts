@@ -17,6 +17,7 @@ import type {
   TilePos,
   TileRect,
   Tower,
+  TowerIdx,
 } from "../shared/core/geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, type TileKey } from "../shared/core/grid.ts";
 import { hasCannonAt, hasTowerAt } from "../shared/core/occupancy-queries.ts";
@@ -33,6 +34,7 @@ import {
   hasPitAt,
   inBounds,
   isGrass,
+  manhattanDistance,
   packTile,
   unpackTile,
 } from "../shared/core/spatial.ts";
@@ -57,6 +59,20 @@ import {
   scoreBuildTowerTarget,
   snapRectToReuseWalls,
 } from "./ai-castle-rect.ts";
+import { findEnclosureCut } from "./ai-min-cut.ts";
+
+/** An enclosure the planner may pursue this tick: one tower (solo ring) or two
+ *  (merged ring), its minimum enclosure cut (new wall tiles needed), the rect
+ *  the cut wraps, a goal-hierarchy priority class (3 = alive home, 2 = any
+ *  alive, 1 = dead-but-revivable), and a within-class value (tower worth minus
+ *  wall cost) that lets a 2-tower merge compete against solo rings. */
+interface EnclosureCandidate {
+  towers: Tower[];
+  gaps: Set<TileKey>;
+  rect: TileRect;
+  priority: number;
+  value: number;
+}
 
 /** How far the castle rect can expand to route around blocked tiles.
  *  Indexed by interior utilization: >60% → 2, >30% → 3, >10% → 4, else 5. */
@@ -111,6 +127,40 @@ const CAPTURE_POCKET_RADIUS = 2;
 const CAPTURE_VALUE_BONUS = 100;
 const CAPTURE_VALUE_GRUNT = 16;
 const CAPTURE_VALUE_HOUSE = 20;
+/** PROTOTYPE A/B gate: when true, home-castle repair targets the minimum
+ *  enclosure cut (`findEnclosureCut`) instead of the rectangular-ring +
+ *  outer-ring heuristics. Computed per tick (no phase snapshot yet); validate
+ *  with `ai-compare-multi --baseline-ref HEAD` (HEAD = off) + the fat-wall
+ *  metric before wiring the snapshot and committing. */
+const USE_MIN_CUT_HOME = true;
+/** PROTOTYPE A/B gate: when true, the home→secondary heuristic phases are
+ *  replaced by a single value-ranked enclosure planner (`planEnclosureTarget`)
+ *  that costs every unenclosed tower by its minimum cut and pursues them in
+ *  goal-hierarchy order (alive home > other alive > dead). Supersedes
+ *  USE_MIN_CUT_HOME when on. Merges / empty-region candidates / trait weights
+ *  are future increments; validate each with `ai-compare-multi`. */
+const USE_ENCLOSURE_PLANNER = true;
+/** PROTOTYPE sub-gate of the planner: when true, it also generates merge
+ *  candidates that enclose two nearby alive towers in one ring, taken only
+ *  when the shared-wall ring saves material over two separate rings and the
+ *  combined interior stays bounded. Trait-driven appetite is a future
+ *  increment; for now the saving + area caps below are fixed. */
+const USE_TOWER_MERGES = false;
+/** Value weights ranking enclosure candidates within a priority class:
+ *  per-tower worth minus per-wall cost. A 2-alive-tower merge scores
+ *  2·ALIVE − cut, beating a solo (1·ALIVE − cut) whenever the second tower's
+ *  worth exceeds the extra walls — which the merge saving-cap already bounds. */
+const CANDIDATE_VALUE_PER_ALIVE = 100;
+const CANDIDATE_VALUE_PER_DEAD = 30;
+const CANDIDATE_VALUE_PER_WALL = 1;
+/** Merge gates: skip pairs whose tower centroids are farther apart than this
+ *  (bounds the per-tick min-cut count); require the merged ring to save at
+ *  least MERGE_MIN_WALL_SAVING tiles over two solo rings; reject merges whose
+ *  combined interior bounding box exceeds MERGE_MAX_INTERIOR_AREA (a single
+ *  breach of a huge shared ring loses both towers). */
+const MERGE_MAX_DISTANCE = 16;
+const MERGE_MIN_WALL_SAVING = 2;
+const MERGE_MAX_INTERIOR_AREA = 130;
 /** Max gap tiles the AI considers evaluable in a single build turn. Beyond this, the target is skipped. */
 export const MANAGEABLE_GAP_LIMIT = 8;
 
@@ -121,6 +171,17 @@ export const MANAGEABLE_GAP_LIMIT = 8;
  *  value-ranked capture phase (houses / bonus squares / grunts-inside) takes
  *  priority over aimless uniform expansion, which runs last. */
 export function selectTarget(ctx: TargetContext): TargetResult {
+  if (USE_ENCLOSURE_PLANNER) {
+    const planned = planEnclosureTarget(ctx);
+    if (planned.targetGaps.size > 0) {
+      // Diag path is approximate under the planner: home is priority-1 while
+      // unenclosed, so label by home-enclosure state. Debug-only — does not
+      // affect outcome metrics.
+      emitTargetSelected(ctx, ctx.homeTowerEnclosed ? "SEC" : "HOME", planned);
+      return planned;
+    }
+    return selectIdleOrFallback(ctx);
+  }
   const home = tryRepairHomeCastle(ctx);
   if (home.targetGaps.size > 0) {
     emitTargetSelected(ctx, "HOME", home);
@@ -131,35 +192,7 @@ export function selectTarget(ctx: TargetContext): TargetResult {
     emitTargetSelected(ctx, "SEC", secondary);
     return secondary;
   }
-  // Idle window (all towers enclosed): prefer DIRECTED captures over aimless
-  // uniform expansion, which would otherwise return a +2-ring target every
-  // tick and starve the captures (seed 829597 r28 RED: EXP fired all build,
-  // houses never pursued). One value-ranked phase walls the richest closeable
-  // pocket (bonus square / house anchor, grunts inside counted as byproduct).
-  const capture = tryEncloseCaptures(ctx);
-  if (capture.targetGaps.size > 0) {
-    emitTargetSelected(ctx, "CAPTURE", capture);
-    return capture;
-  }
-  const expand = tryExpandTerritory(ctx);
-  if (expand.targetGaps.size > 0) {
-    emitTargetSelected(ctx, "EXP", expand);
-    return expand;
-  }
-  // All build phases bailed — typically because every tower's `canFillAfter-
-  // Plugging` gate fired (current piece doesn't fit any gap this tick). Without
-  // a target the orchestrator can't restrict to gap-fillers and the scattered
-  // fallback in `pickFallbackPlacement` takes over, dispersing walls across
-  // the map without closing any ring. When the player still has unenclosed
-  // towers, keep the strategic target — the home castle ring (or top secondary
-  // if home is being skipped) with its raw gap set — so scoring still rewards
-  // gap-adjacent and wall-adjacent placements. Future pieces will close the
-  // gap; this tick's placement at least lands near the ring instead of in
-  // arbitrary corners of the board.
-  const fallback = strategicFallbackTarget(ctx);
-  const resultPath = fallback.targetGaps.size > 0 ? "STRAT_RECT" : "STRAT_NONE";
-  emitTargetSelected(ctx, resultPath, fallback);
-  return fallback;
+  return selectIdleOrFallback(ctx);
 }
 
 /** Compute a tower's manageable wall-ring and check whether any piece in
@@ -206,6 +239,240 @@ export function poolFillableTowerRing(
     return null;
   }
   return { rect, gaps };
+}
+
+/** Idle-window + fallback tail shared by the heuristic pipeline and the
+ *  enclosure planner. Runs once all tower-enclosure phases bail. */
+function selectIdleOrFallback(ctx: TargetContext): TargetResult {
+  // Idle window (all towers enclosed): prefer DIRECTED captures over aimless
+  // uniform expansion, which would otherwise return a +2-ring target every
+  // tick and starve the captures (seed 829597 r28 RED: EXP fired all build,
+  // houses never pursued). One value-ranked phase walls the richest closeable
+  // pocket (bonus square / house anchor, grunts inside counted as byproduct).
+  const capture = tryEncloseCaptures(ctx);
+  if (capture.targetGaps.size > 0) {
+    emitTargetSelected(ctx, "CAPTURE", capture);
+    return capture;
+  }
+  const expand = tryExpandTerritory(ctx);
+  if (expand.targetGaps.size > 0) {
+    emitTargetSelected(ctx, "EXP", expand);
+    return expand;
+  }
+  // All build phases bailed — typically because every tower's `canFillAfter-
+  // Plugging` gate fired (current piece doesn't fit any gap this tick). Without
+  // a target the orchestrator can't restrict to gap-fillers and the scattered
+  // fallback in `pickFallbackPlacement` takes over, dispersing walls across
+  // the map without closing any ring. When the player still has unenclosed
+  // towers, keep the strategic target — the home castle ring (or top secondary
+  // if home is being skipped) with its raw gap set — so scoring still rewards
+  // gap-adjacent and wall-adjacent placements. Future pieces will close the
+  // gap; this tick's placement at least lands near the ring instead of in
+  // arbitrary corners of the board.
+  const fallback = strategicFallbackTarget(ctx);
+  const resultPath = fallback.targetGaps.size > 0 ? "STRAT_RECT" : "STRAT_NONE";
+  emitTargetSelected(ctx, resultPath, fallback);
+  return fallback;
+}
+
+/** PROTOTYPE enclosure planner (gated by USE_ENCLOSURE_PLANNER). Replaces the
+ *  home→secondary heuristic phases with a single value-ranked pass over
+ *  enclosure candidates, each costed by its minimum enclosure cut. Candidates
+ *  are one tower (solo ring) or, when USE_TOWER_MERGES is on, two nearby alive
+ *  towers (shared ring). Priority follows the goal hierarchy: alive home > any
+ *  alive > dead-only; within a class, higher value (tower worth minus walls)
+ *  wins, so a wall-efficient merge outranks the solo rings it replaces. Empty-
+ *  region candidates are a future increment; the idle-window capture/expand
+ *  phases still cover no-tower territory. */
+function planEnclosureTarget(ctx: TargetContext): TargetResult {
+  const { state, player, homeTowerEnclosed, lastTargetTowerIndex } = ctx;
+  const pool = getBuildTowerPool(ctx);
+  if (pool.length === 0) return NO_TARGET;
+  const homeIndex = ctx.castle.tower.index;
+
+  // Persistence short-circuit (anti-churn): reuse last tick's committed tower
+  // when it's still a closeable candidate, skipping the re-rank. Mirrors
+  // trySecondaryTower's cache guard.
+  if (lastTargetTowerIndex !== undefined) {
+    const cached = pool.find((tower) => tower.index === lastTargetTowerIndex);
+    if (cached) {
+      const reuse = tryCloseableTowerTarget(cached, ctx);
+      if (reuse !== null) return reuse;
+    }
+  }
+
+  const solos: EnclosureCandidate[] = [];
+  for (const tower of pool) {
+    // The rect is the protected interior (cannon space) the cut wraps around.
+    const rect = candidateRect(tower, ctx);
+    const cut = findEnclosureCut(
+      [{ tower, interior: rect }],
+      state,
+      player.walls,
+    );
+    // null = unenclosable (channel reaches border); empty = already enclosed.
+    if (cut === null || cut.size === 0) continue;
+    solos.push(makeCandidate([tower], cut, rect, homeIndex, state));
+  }
+  if (solos.length === 0) return NO_TARGET;
+
+  const candidates = USE_TOWER_MERGES
+    ? [...solos, ...collectMergeCandidates(solos, ctx)]
+    : solos;
+  // Goal hierarchy first, then highest value (a wall-efficient merge beats the
+  // solo rings it replaces); cheapest cut breaks remaining ties.
+  candidates.sort(
+    (a, b) =>
+      b.priority - a.priority || b.value - a.value || a.gaps.size - b.gaps.size,
+  );
+
+  for (const cand of candidates) {
+    const manageable = cand.gaps.size <= MANAGEABLE_GAP_LIMIT;
+    // Wide-gap bypass: while home isn't enclosed, hold a many-gap ring as the
+    // target even without a current-piece fit (wall-adjacent scoring grows
+    // walls toward closure). Once home is enclosed, require piece feasibility
+    // so placements can't drift into topologies that re-open home.
+    if (manageable || homeTowerEnclosed) {
+      if (!canFillAfterPlugging(ctx, cand.gaps, cand.rect)) continue;
+    }
+    // Only solo alive towers cache for the persistence short-circuit — a merge
+    // has two towers (no single index to key on) and is cheap to re-derive
+    // deterministically each tick.
+    const cacheable =
+      manageable &&
+      cand.towers.length === 1 &&
+      state.towerAlive[cand.towers[0]!.index];
+    return {
+      targetGaps: cand.gaps,
+      targetRect: cand.rect,
+      chosenTowerIndex: cacheable ? cand.towers[0]!.index : undefined,
+    };
+  }
+  return NO_TARGET;
+}
+
+/** Merge candidates: every close alive non-home pair whose shared ring saves
+ *  at least MERGE_MIN_WALL_SAVING tiles over two separate rings and whose
+ *  combined interior stays under MERGE_MAX_INTERIOR_AREA. The min cut over both
+ *  seed regions reports the merged ring's exact cost, so "merge if it's worth
+ *  it" is measured, not guessed. */
+function collectMergeCandidates(
+  solos: readonly EnclosureCandidate[],
+  ctx: TargetContext,
+): EnclosureCandidate[] {
+  const { state, player } = ctx;
+  const homeIndex = ctx.castle.tower.index;
+  // Only solo alive non-home towers are merge-eligible.
+  const eligible = solos.filter(
+    (cand) =>
+      cand.towers[0]!.index !== homeIndex &&
+      state.towerAlive[cand.towers[0]!.index],
+  );
+  const merges: EnclosureCandidate[] = [];
+  for (let i = 0; i < eligible.length; i++) {
+    for (let j = i + 1; j < eligible.length; j++) {
+      const first = eligible[i]!;
+      const second = eligible[j]!;
+      const towerA = first.towers[0]!;
+      const towerB = second.towers[0]!;
+      const apart = manhattanDistance(
+        towerA.row,
+        towerA.col,
+        towerB.row,
+        towerB.col,
+      );
+      if (apart > MERGE_MAX_DISTANCE) continue;
+      const mergeRect = unionRect(first.rect, second.rect);
+      if (rectArea(mergeRect) > MERGE_MAX_INTERIOR_AREA) continue;
+      const cut = findEnclosureCut(
+        [
+          { tower: towerA, interior: first.rect },
+          { tower: towerB, interior: second.rect },
+        ],
+        state,
+        player.walls,
+      );
+      if (cut === null || cut.size === 0) continue;
+      // Reasonable only when the shared ring is meaningfully cheaper than two
+      // separate rings — otherwise keep them compartmentalized.
+      if (cut.size > first.gaps.size + second.gaps.size - MERGE_MIN_WALL_SAVING)
+        continue;
+      merges.push(
+        makeCandidate([towerA, towerB], cut, mergeRect, homeIndex, state),
+      );
+    }
+  }
+  return merges;
+}
+
+/** Assemble an enclosure candidate: priority class from the goal hierarchy
+ *  (alive home > any alive > dead-only) and value = per-tower worth minus the
+ *  cut's wall cost. */
+function makeCandidate(
+  towers: Tower[],
+  gaps: Set<TileKey>,
+  rect: TileRect,
+  homeIndex: TowerIdx,
+  state: BuildViewState,
+): EnclosureCandidate {
+  let alive = 0;
+  let dead = 0;
+  let hasAliveHome = false;
+  for (const tower of towers) {
+    if (state.towerAlive[tower.index]) {
+      alive++;
+      if (tower.index === homeIndex) hasAliveHome = true;
+    } else {
+      dead++;
+    }
+  }
+  const priority = hasAliveHome ? 3 : alive > 0 ? 2 : 1;
+  const value =
+    alive * CANDIDATE_VALUE_PER_ALIVE +
+    dead * CANDIDATE_VALUE_PER_DEAD -
+    gaps.size * CANDIDATE_VALUE_PER_WALL;
+  return { towers, gaps, rect, priority, value };
+}
+
+/** Smallest rect covering both inputs. */
+function unionRect(first: TileRect, second: TileRect): TileRect {
+  return {
+    top: Math.min(first.top, second.top),
+    bottom: Math.max(first.bottom, second.bottom),
+    left: Math.min(first.left, second.left),
+    right: Math.max(first.right, second.right),
+  };
+}
+
+/** Tile area of a rect's interior bounds. */
+function rectArea(rect: TileRect): number {
+  return (rect.bottom - rect.top + 1) * (rect.right - rect.left + 1);
+}
+
+/** Min-cut target for a single tower when the current piece can close one of
+ *  its gaps — backs the planner's persistence short-circuit. null when the
+ *  tower is already enclosed / unenclosable / too breached / not piece-feasible
+ *  this tick. */
+function tryCloseableTowerTarget(
+  tower: Tower,
+  ctx: TargetContext,
+): TargetResult | null {
+  const rect = candidateRect(tower, ctx);
+  const cut = findEnclosureCut(
+    [{ tower, interior: rect }],
+    ctx.state,
+    ctx.player.walls,
+  );
+  if (cut === null || cut.size === 0 || cut.size > MANAGEABLE_GAP_LIMIT)
+    return null;
+  if (!canFillAfterPlugging(ctx, cut, rect)) return null;
+  return {
+    targetGaps: cut,
+    targetRect: rect,
+    chosenTowerIndex: ctx.state.towerAlive[tower.index]
+      ? tower.index
+      : undefined,
+  };
 }
 
 /** Bridge from selectTarget's per-branch context to the diag module's typed
@@ -417,6 +684,7 @@ function tryRepairHomeCastle(ctx: TargetContext): TargetResult {
     placementCtx,
   } = ctx;
   if (effectiveSkipHome || !homeHasRingGaps) return NO_TARGET;
+  if (USE_MIN_CUT_HOME) return minCutHomeTarget(ctx);
   // Prefer the player's existing outer perimeter when it's salvageable —
   // the ideal castle rect collapses to ~36 interior tiles and the territory
   // sweep destroys every outer wall that no longer bounds an enclosed region.
@@ -478,6 +746,40 @@ function tryRepairHomeCastle(ctx: TargetContext): TargetResult {
     if (!canFillAfterPlugging(ctx, targetGaps, targetRect)) return NO_TARGET;
   }
   return { targetGaps, targetRect };
+}
+
+/** PROTOTYPE home-repair target via the minimum enclosure cut. Computes the
+ *  cheapest set of new wall tiles that encloses the home tower given existing
+ *  walls + terrain (`findEnclosureCut`), replacing the rectangular-ring and
+ *  outer-ring heuristics. The cut is exact — it inherently handles diagonal
+ *  leaks and wall reuse — so no plug step or outer-ring snapshot is needed.
+ *  Gated by USE_MIN_CUT_HOME. */
+function minCutHomeTarget(ctx: TargetContext): TargetResult {
+  const { state, player, castle } = ctx;
+  if (castle.top > castle.bottom || castle.left > castle.right)
+    return NO_TARGET;
+  // The expanded rect is both the protected interior (cannon space) the cut
+  // wraps around and the rect downstream scoring uses.
+  const targetRect = clampRectOffPits(
+    expandRectAroundBlockers(castle, state, player),
+    castle.tower,
+    state,
+  );
+  const cut = findEnclosureCut(
+    [{ tower: castle.tower, interior: targetRect }],
+    state,
+    player.walls,
+  );
+  // null = unenclosable (channel reaches the border); empty = already enclosed.
+  if (cut === null || cut.size === 0) return NO_TARGET;
+  // Manageable: require the current piece to actually fit a gap (possibly
+  // after plugging). Too many gaps to fill this tick still keeps the cut as
+  // the strategic target so scoring rewards ring-adjacent placements — mirrors
+  // the rectangular path and the outer-ring "hold the target" behaviour.
+  if (cut.size <= MANAGEABLE_GAP_LIMIT) {
+    if (!canFillAfterPlugging(ctx, cut, targetRect)) return NO_TARGET;
+  }
+  return { targetGaps: cut, targetRect };
 }
 
 /** Try repairing the player's existing outer wall ring (the bounding box
@@ -725,6 +1027,22 @@ function evaluateTowerCandidate(
   tower: Tower,
   ctx: TargetContext,
 ): { rect: TileRect; gaps: Set<TileKey> } {
+  const rect = candidateRect(tower, ctx);
+  const gaps = computeFillableGaps(
+    rect,
+    ctx.player.walls,
+    getInterior(ctx.player),
+    ctx.state,
+    ctx.bankHugging,
+  );
+  return { rect, gaps };
+}
+
+/** Per-tower castle interior rect: margin-based `castleRect`, optionally
+ *  snapped to reuse an adjacent wall when home is being abandoned, then
+ *  expanded around temporary blockers. Used as both the protected interior
+ *  the min cut wraps around and the rect downstream scoring consumes. */
+function candidateRect(tower: Tower, ctx: TargetContext): TileRect {
   const { state, player, castleMargin, bankHugging } = ctx;
   const base = castleRect(
     tower,
@@ -734,23 +1052,12 @@ function evaluateTowerCandidate(
     !bankHugging,
   );
   // Reuse an adjacent existing wall as a shared boundary only when the home
-  // ring is being abandoned (effectiveSkipHome) — enclosing this secondary is
-  // then survival-critical and a tight, closeable ring beats a roomier one.
-  // In normal territory play the full geometric ring keeps more interior
-  // (measured: ungated snapping regressed interiorAvg ~3.7% with no finalScore
-  // gain).
+  // ring is being abandoned (effectiveSkipHome) — enclosing this tower is then
+  // survival-critical and a tight, closeable ring beats a roomier one.
   const reused = ctx.effectiveSkipHome
     ? snapRectToReuseWalls(base, player.walls, tower)
     : base;
-  const rect = expandRectAroundBlockers(reused, state, player);
-  const gaps = computeFillableGaps(
-    rect,
-    player.walls,
-    getInterior(player),
-    state,
-    bankHugging,
-  );
-  return { rect, gaps };
+  return expandRectAroundBlockers(reused, state, player);
 }
 
 /** Expand a castle rect outward to route around temporary blockers (grunts,
