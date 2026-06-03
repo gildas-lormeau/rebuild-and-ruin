@@ -22,6 +22,7 @@ import {
   unpackTile,
 } from "../shared/core/spatial.ts";
 import type { BattleViewState } from "../shared/core/system-interfaces.ts";
+import type { Rng } from "../shared/platform/rng.ts";
 import { isRingWallable } from "./ai-castle-rect.ts";
 import { type EnclosureSeed, findEnclosureCut } from "./ai-min-cut.ts";
 
@@ -32,6 +33,9 @@ const NO_WALLS: ReadonlySet<TileKey> = new Set();
 const MAX_TOWERS_CONSIDERED = 3;
 /** Hard cap on the returned chain length, regardless of usable cannons. */
 const MAX_CHAIN_TILES = 12;
+/** How many of the most boxed-in tiles are eligible to start the breach walk.
+ *  >1 so two attackers on the same ring open the breach at different points. */
+const BREACH_START_CANDIDATES = 3;
 
 /**
  * Plan an enclosure-denial chain against `focusEnemyId` (or, when unset, the
@@ -44,11 +48,12 @@ export function planDenyEnclosure(
   playerId: ValidPlayerId,
   focusEnemyId: ValidPlayerId | undefined,
   usableCannonCount: number,
+  rng: Rng,
 ): TilePos[] | null {
-  const enemy = pickTargetEnemy(state, playerId, focusEnemyId);
+  const enemy = pickTargetEnemy(state, playerId, focusEnemyId, rng);
   if (!enemy) return null;
 
-  const bottleneck = cheapestRingBottleneck(state, enemy);
+  const bottleneck = cheapestRingBottleneck(state, enemy, rng);
   if (!bottleneck) return null;
 
   // Walls the defender's cheapest ring runs through: the live walls sitting on
@@ -62,8 +67,8 @@ export function planDenyEnclosure(
   }
   if (targetKeys.length === 0) return null;
 
-  // Deterministic order: most boxed-in (hardest to re-route) first, then a
-  // nearest-neighbour walk so consecutive shots concentrate into one breach.
+  // Most boxed-in (hardest to re-route) first, then a nearest-neighbour walk so
+  // consecutive shots concentrate into one breach.
   const tiles = targetKeys
     .map((key) => unpackTile(key))
     .sort(
@@ -71,18 +76,28 @@ export function planDenyEnclosure(
         chokepointSeverity(state, b) - chokepointSeverity(state, a) ||
         packTile(a.row, a.col) - packTile(b.row, b.col),
     );
+  // Vary which high-severity tile opens the breach so two attackers sieging the
+  // same ring don't walk an identical tile list — pick among the most boxed-in
+  // candidates and rotate it to the front of the nearest-neighbour walk.
+  const startIdx = rng.int(
+    0,
+    Math.min(BREACH_START_CANDIDATES, tiles.length) - 1,
+  );
+  if (startIdx > 0) tiles.unshift(tiles.splice(startIdx, 1)[0]!);
   const limit = Math.min(usableCannonCount * 2, MAX_CHAIN_TILES);
   const ordered = orderByNearest(tiles, limit);
   return ordered.length > 0 ? ordered : null;
 }
 
-/** The enemy to deny: the focus-fire target when it's still active, else the
- *  weakest active enemy (fewest enclosed alive towers, then lowest score) —
- *  the same "weakest" ranking `planBattle` uses to pick a focus target. */
+/** The enemy to deny: the focus-fire target when it's still active, else an
+ *  RNG-weighted pick over the weakest-first ranking (the same "weakest" order
+ *  `planBattle` uses) — favouring the weakest defender but not always picking
+ *  it, so independent attackers spread across defenders instead of ganging up. */
 function pickTargetEnemy(
   state: BattleViewState,
   playerId: ValidPlayerId,
   focusEnemyId: ValidPlayerId | undefined,
+  rng: Rng,
 ): Player | undefined {
   const enemies = filterActiveEnemies(state, playerId);
   if (enemies.length === 0) return undefined;
@@ -90,13 +105,25 @@ function pickTargetEnemy(
     const focus = enemies.find((enemy) => enemy.id === focusEnemyId);
     if (focus) return focus;
   }
-  return enemies.reduce((weakest, enemy) =>
-    enemy.enclosedTowers.length < weakest.enclosedTowers.length ||
-    (enemy.enclosedTowers.length === weakest.enclosedTowers.length &&
-      enemy.score < weakest.score)
-      ? enemy
-      : weakest,
+  return pickWeightedTargetEnemy(enemies, rng);
+}
+
+/**
+ * Pick a target enemy with RNG weighting toward weaker defenders (fewest
+ * enclosed alive towers, then lowest score). The weakest is favoured but not
+ * guaranteed, so multiple independent attackers don't all converge on the
+ * single weakest player. Exported for `planBattle`'s focus-fire selection so
+ * both paths share one ranking + weighting rule.
+ */
+export function pickWeightedTargetEnemy(
+  enemies: readonly Player[],
+  rng: Rng,
+): Player | undefined {
+  const ranked = [...enemies].sort(
+    (a, b) =>
+      a.enclosedTowers.length - b.enclosedTowers.length || a.score - b.score,
   );
+  return weightedPickByRank(ranked, rng);
 }
 
 /** Min-cut tiles of the enemy tower the defender can most cheaply re-enclose.
@@ -106,8 +133,9 @@ function pickTargetEnemy(
 function cheapestRingBottleneck(
   state: BattleViewState,
   enemy: Player,
+  rng: Rng,
 ): Set<TileKey> | undefined {
-  let best: Set<TileKey> | undefined;
+  const cuts: Set<TileKey>[] = [];
   let considered = 0;
   for (const tower of enemy.enclosedTowers) {
     if (considered >= MAX_TOWERS_CONSIDERED) break;
@@ -124,9 +152,30 @@ function cheapestRingBottleneck(
     const cut = findEnclosureCut([seed], state, NO_WALLS, false);
     // null = unenclosable (defender can't use it); empty = degenerate. Skip both.
     if (!cut || cut.size === 0) continue;
-    if (!best || cut.size < best.size) best = cut;
+    cuts.push(cut);
   }
-  return best;
+  // Favour the cheapest (smallest) ring but allow a costlier one sometimes, so
+  // two attackers on the same defender don't always siege the identical ring.
+  cuts.sort((a, b) => a.size - b.size);
+  return weightedPickByRank(cuts, rng);
+}
+
+/** Pick from a best-first-sorted list with linear rank weighting: index 0 (the
+ *  best) is most likely, the last least. Returns undefined only when empty. */
+function weightedPickByRank<T>(
+  sortedBestFirst: readonly T[],
+  rng: Rng,
+): T | undefined {
+  const count = sortedBestFirst.length;
+  if (count <= 1) return sortedBestFirst[0];
+  const total = (count * (count + 1)) / 2;
+  let roll = rng.next() * total;
+  for (let rank = 0; rank < count; rank++) {
+    const weight = count - rank;
+    if (roll < weight) return sortedBestFirst[rank]!;
+    roll -= weight;
+  }
+  return sortedBestFirst[count - 1];
 }
 
 /** How boxed-in a candidate wall is: count of its 8-neighbours that block a

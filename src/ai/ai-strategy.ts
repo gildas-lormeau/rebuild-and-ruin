@@ -31,7 +31,10 @@ import type { FireOrigin } from "./ai-battle-diag.ts";
 import type { AiPlacement } from "./ai-build-types.ts";
 import { CHAIN, type ChainType, TACTIC, type TacticId } from "./ai-chain.ts";
 import { planCharitySweep } from "./ai-plan-charity-sweep.ts";
-import { planDenyEnclosure } from "./ai-plan-deny-enclosure.ts";
+import {
+  pickWeightedTargetEnemy,
+  planDenyEnclosure,
+} from "./ai-plan-deny-enclosure.ts";
 import { planFatBreach } from "./ai-plan-fat-breach.ts";
 import { planGruntSweep } from "./ai-plan-grunt-sweep.ts";
 import { planIceTrench } from "./ai-plan-ice-trench.ts";
@@ -244,17 +247,10 @@ export class DefaultStrategy implements AiStrategy {
         0.8,
       ]);
       if (this.rng.bool(focusProb)) {
-        const enemies = filterActiveEnemies(state, playerId);
-        if (enemies.length > 0) {
-          enemies.sort(
-            (a, b) =>
-              a.enclosedTowers.length - b.enclosedTowers.length ||
-              a.score - b.score,
-          );
-          this.focusFirePlayerId = enemies[0]!.id;
-        } else {
-          this.focusFirePlayerId = undefined;
-        }
+        this.focusFirePlayerId = pickWeightedTargetEnemy(
+          filterActiveEnemies(state, playerId),
+          this.rng,
+        )?.id;
       } else {
         this.focusFirePlayerId = undefined;
       }
@@ -345,6 +341,7 @@ export class DefaultStrategy implements AiStrategy {
         playerId,
         this.focusFirePlayerId,
         usableCannonCount,
+        this.rng,
       );
       if (denyTargets) {
         chainTargets = denyTargets;
