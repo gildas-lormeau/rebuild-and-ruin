@@ -56,8 +56,13 @@ const AUTO_SINK_AT_TIMER = 1.5;
 const HIT_RADIUS = 1.0;
 /** Symmetric aim jitter (tiles) added to the AI's lead-predicted target
  *  so it doesn't snipe every ship — humans with manual lead still come
- *  out ahead, but the AI lands a meaningful fraction of its shots. */
-const SUPPLY_SHIP_AIM_NOISE = 0.5;
+ *  out ahead, but the AI lands a meaningful fraction of its shots. Tightened
+ *  from 0.5 to 0.3: at 0.5 the AI hit ~31% of attempts but almost never
+ *  landed the second hit needed to sink a 2-HP ship (1 sink in 30 seeds).
+ *  0.3 keeps a visible miss margin (humans still lead) while letting the
+ *  engagement-priority follow-up shot land often enough to occasionally
+ *  complete the two-hit combo. */
+const SUPPLY_SHIP_AIM_NOISE = 0.3;
 /** Seconds between target-pick and cannonball-fire. Matches the AI battle
  *  phase's `PRE_FIRE_DELAY_SEC` (dwell after arrival, before fire). Folded
  *  into the lead so the AI compensates for the dwell on top of crosshair

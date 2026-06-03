@@ -86,8 +86,14 @@ const TARGET_SWITCH_PROBABILITY = 0.25;
 const STRATEGIC_TARGET_PROBABILITY = 1 / 4;
 /** Chance to target a supply ship sailing the river. Aiming uses lead
  *  prediction via `pickSupplyShipTarget`, but the chosen probability
- *  keeps ships from dominating AI shot selection. */
-const SUPPLY_SHIP_TARGET_PROBABILITY = 1 / 8;
+ *  keeps ships from dominating AI shot selection. Raised from 1/8 to 3/16:
+ *  the dominant blocker on AI sinks isn't accuracy but follow-up volume —
+ *  a 2-HP ship needs two ship-shots stacked on one hull, and at 1/8 the AI
+ *  rarely re-rolls the ship branch in time to engage the same ship twice.
+ *  More attempts feed the `SHIP_ENGAGED_RADIUS` priority loop that
+ *  concentrates the second shot. Still well below the strategic/cannon
+ *  picks so ships don't dominate shot selection. */
+const SUPPLY_SHIP_TARGET_PROBABILITY = 3 / 16;
 /** Chance to target a wall tile blocking a grunt's path to its tower. */
 const GRUNT_WALL_TARGET_PROBABILITY = 1 / 8;
 /** Chance to target a fresh (undamaged) enemy cannon before defaulting to
