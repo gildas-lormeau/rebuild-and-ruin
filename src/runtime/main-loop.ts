@@ -71,12 +71,14 @@ interface RuntimeLoopDeps {
   isMobileAutoZoom: () => boolean;
   tickCamera: () => void;
   tickScoreDelta: (dt: number) => void;
-  /** Tick the cannon-facing animator (mode-independent, like score-delta).
-   *  Eased displayed facings live in the runtime so the renderer just reads
-   *  displayed values via the setter installed at composition time. At
-   *  battle-end the phase machine snaps them to rest (`snapToRest`) for the
-   *  banner snapshot but never gates a transition on the ease — cosmetic
-   *  facing must not drive game-flow timing. */
+  /** Tick the cannon-facing animator. Must run AFTER the mode tick: it reads
+   *  `frame.crosshairs`, which is emptied by `clearFrameData` each substep and
+   *  only repopulated by the mode tick's `syncCrosshairs`. Eased displayed
+   *  facings live in the runtime so the renderer just reads displayed values
+   *  via the setter installed at composition time. At battle-end the phase
+   *  machine snaps them to rest (`snapToRest`) for the banner snapshot but
+   *  never gates a transition on the ease — cosmetic facing must not drive
+   *  game-flow timing. */
   tickCannonAnimator: (dt: number) => void;
   /** The real render entrypoint. Called once per browser frame from
    *  `mainLoop`, and only when `runtimeState.renderDirty` is set — the
@@ -213,7 +215,6 @@ export function createRuntimeLoop(deps: RuntimeLoopDeps): {
 
     deps.tickCamera();
     deps.tickScoreDelta(dt);
-    deps.tickCannonAnimator(dt);
 
     tickMainLoop({
       dt,
@@ -227,6 +228,13 @@ export function createRuntimeLoop(deps: RuntimeLoopDeps): {
       requestRender: deps.requestRender,
       tickMode: deps.tickMode,
     });
+
+    // MUST run after `tickMainLoop`: the cannon-animator reads
+    // `frame.crosshairs`, which `clearFrameData` empties at the top of this
+    // substep and only the mode tick (`syncCrosshairs`) repopulates. Ticking
+    // it before the mode tick made the animator read an empty crosshair list
+    // every frame, so cannons never tracked the crosshair during battle.
+    deps.tickCannonAnimator(dt);
   }
 
   function mainLoop(now: number): void {
