@@ -3,6 +3,7 @@ import {
   canPlaceCannon,
   canPlacePiece,
   effectivePlacementCost,
+  isCannonPlacementComplete,
 } from "../game/index.ts";
 import { CannonMode } from "../shared/core/battle-types.ts";
 import { cannonModesForGame } from "../shared/core/cannon-mode-defs.ts";
@@ -73,12 +74,28 @@ export class HumanController extends BaseController implements InputReceiver {
   }
 
   isCannonPhaseDone(state: CannonViewState, maxSlots: number): boolean {
-    return cannonSlotsUsed(state.players[this.playerId]!) >= maxSlots;
+    return isCannonPlacementComplete(
+      state.players[this.playerId]!,
+      maxSlots,
+      state,
+    );
   }
 
-  cannonTick(state: CannonViewState, _dt: number): CannonPlacementPreview {
+  cannonTick(
+    state: CannonViewState,
+    _dt: number,
+  ): CannonPlacementPreview | undefined {
     const player = state.players[this.playerId]!;
     const maxSlots = state.cannonLimits[this.playerId] ?? 0;
+    // Once the player has no cannon left to place (all slots used OR no legal
+    // tile remains), show no phantom — the phase is just waiting on the other
+    // players to finish. Mirrors the AI's `tickCannon` returning a null
+    // phantom when its brain is done; without this the human keeps rendering
+    // an unplaceable phantom on screen until every slot finishes the phase.
+    if (isCannonPlacementComplete(player, maxSlots, state)) {
+      this.currentCannonPhantom = undefined;
+      return undefined;
+    }
     const remaining = maxSlots - cannonSlotsUsed(player);
     const valid =
       remaining > 0 && this.resolveCannonPlacement(remaining, player, state);

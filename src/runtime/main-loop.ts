@@ -1,4 +1,4 @@
-import { cannonSlotsUsed } from "../game/index.ts";
+import { isCannonPlacementComplete } from "../game/index.ts";
 import {
   MAX_FRAME_DT,
   PHASE_ENDING_THRESHOLD,
@@ -413,5 +413,5 @@ function computeHumanCannonsComplete(
   const player = state.players[humanId];
   const maxSlots = state.cannonLimits[humanId] ?? 0;
   if (!player || maxSlots <= 0) return false;
-  return cannonSlotsUsed(player) >= maxSlots;
+  return isCannonPlacementComplete(player, maxSlots, state);
 }

@@ -130,6 +130,25 @@ export function placeCannon(
   return true;
 }
 
+/** Runtime rule: a player has finished placing cannons when either every
+ *  slot is used OR no legal placement tile remains. Single source of truth
+ *  for phase completion, consumed by the human controller and the runtime's
+ *  `computeHumanCannonsComplete`. The AI brain self-terminates on the same
+ *  condition (its strategy's `nextCannonPlacement` returns undefined once no
+ *  `canPlaceCannon` tile exists) — keeping the rule here, not in the AI,
+ *  ensures humans aren't handed an unplaceable phantom when a free slot has
+ *  no room left, which leaves the phase hanging until the timer expires. */
+export function isCannonPlacementComplete(
+  player: Player,
+  maxSlots: number,
+  state: GameViewState,
+): boolean {
+  return (
+    cannonSlotsUsed(player) >= maxSlots ||
+    !hasLegalCannonPlacement(player, state)
+  );
+}
+
 /** True when every non-eliminated slot has flagged itself done with the
  *  CANNON_PLACE phase. Mirrors `allSelectionsConfirmed` (game/selection.ts)
  *  for the cannon phase: same shape, different storage (a Set on
@@ -338,6 +357,20 @@ export function effectivePlacementCost(
   mode: CannonMode,
 ): number {
   return Math.max(1, cannonSlotCost(mode) - rapidEmplacementDiscount(player));
+}
+
+/** True if at least one interior tile can still hold a NORMAL cannon.
+ *  NORMAL is the smallest footprint, so "no NORMAL placement" implies no
+ *  legal placement of any mode. Early-exits on the first legal tile. */
+function hasLegalCannonPlacement(
+  player: Player,
+  state: GameViewState,
+): boolean {
+  for (const key of getInterior(player)) {
+    const { row, col } = unpackTile(key);
+    if (canPlaceCannon(player, row, col, CannonMode.NORMAL, state)) return true;
+  }
+  return false;
 }
 
 /** Apply cannon placement (no validation). Internal helper — external

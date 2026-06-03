@@ -28,6 +28,7 @@ export {
   effectivePlacementCost,
   filterActiveFiringCannons,
   isCannonEnclosed,
+  isCannonPlacementComplete,
   prepareControllerCannonPhase,
   resetCannonFacings,
 } from "./cannon-system.ts";
