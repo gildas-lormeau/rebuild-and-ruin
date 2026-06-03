@@ -137,6 +137,13 @@ const MERGE_MAX_DISTANCE = 18;
 const MERGE_MIN_WALL_SAVING = 2;
 const MERGE_MAX_INTERIOR_AREA = 180;
 const MERGE_MAX_GAPS = 22;
+/** Solo-ring closeability cap. A solo candidate whose min-cut exceeds this
+ *  can't be sealed in one build phase via the wide-gap bypass, so the planner
+ *  won't commit the whole build to it WHEN a manageable alternative exists —
+ *  the planner-side analog of the `homeWasBroken` skip + the `MERGE_MAX_GAPS`
+ *  merge cap. Unlike `homeWasBroken` (previous-round state), this is the
+ *  CURRENT cut, so it also catches a home that breaks mid-build. */
+const SOLO_MAX_GAPS = 30;
 /** Max gap tiles the AI considers evaluable in a single build turn. Beyond this, the target is skipped. */
 export const MANAGEABLE_GAP_LIMIT = 8;
 
@@ -288,8 +295,21 @@ function planEnclosureTarget(ctx: TargetContext): TargetResult {
       b.priority - a.priority || b.value - a.value || a.gaps.size - b.gaps.size,
   );
 
+  // Closeability cap: when a closeable ALIVE ring exists this phase, don't let
+  // the wide-gap bypass commit the build to an unclosable-wide ring (cut >
+  // SOLO_MAX_GAPS). Diverts to the manageable alternative so the build banks a
+  // real enclosure rather than thrashing on a ring it can't finish. The
+  // alternative must be alive (priority ≥ 2) — abandoning a wide home for a
+  // dead-tower revival ring trades live territory for nothing.
+  const hasManageableAlt = candidates.some(
+    (cand) => cand.gaps.size <= MANAGEABLE_GAP_LIMIT && cand.priority >= 2,
+  );
+
   for (const cand of candidates) {
     const manageable = cand.gaps.size <= MANAGEABLE_GAP_LIMIT;
+    if (!manageable && cand.gaps.size > SOLO_MAX_GAPS && hasManageableAlt) {
+      continue;
+    }
     // Wide-gap bypass: while home isn't enclosed, hold a many-gap ring as the
     // target even without a current-piece fit (wall-adjacent scoring grows
     // walls toward closure). Once home is enclosed, require piece feasibility
