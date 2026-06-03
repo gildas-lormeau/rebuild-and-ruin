@@ -481,6 +481,45 @@ export function snapRectToReuseWalls(
   return { top, bottom, left, right };
 }
 
+/** Pull each rect side inward — never past the tower footprint — while the wall-
+ *  ring line just outside that side holds a tile no wall can seal: water, a
+ *  burning pit, an alive house, a cannon, or another tower (exactly what
+ *  `isWallableGrass` rejects, i.e. every tile the min cut treats as an uncuttable
+ *  channel). When such a channel reaches the zone edge the whole-rect cut is
+ *  `null` (unenclosable); resealing the ring on the near, wallable side recovers
+ *  the tower. Generalises the former pit-only clamp to every uncuttable obstacle
+ *  the cut model knows. Grunts are intentionally excluded — the cut treats their
+ *  tiles as wallable, so they never force the `null` this rescues. */
+export function clampRectOffUnwallable(
+  rect: TileRect,
+  tower: Tower,
+  state: BuildViewState,
+): TileRect {
+  let { top, bottom, left, right } = rect;
+  const tTop = tower.row;
+  const tBottom = tower.row + TOWER_SIZE - 1;
+  const tLeft = tower.col;
+  const tRight = tower.col + TOWER_SIZE - 1;
+  const rowBlocked = (row: number, cLo: number, cHi: number): boolean => {
+    for (let col = cLo; col <= cHi; col++) {
+      if (inBounds(row, col) && !isWallableGrass(state, row, col)) return true;
+    }
+    return false;
+  };
+  const colBlocked = (col: number, rLo: number, rHi: number): boolean => {
+    for (let row = rLo; row <= rHi; row++) {
+      if (inBounds(row, col) && !isWallableGrass(state, row, col)) return true;
+    }
+    return false;
+  };
+  while (bottom > tBottom && rowBlocked(bottom + 1, left - 1, right + 1))
+    bottom--;
+  while (top < tTop && rowBlocked(top - 1, left - 1, right + 1)) top++;
+  while (right > tRight && colBlocked(right + 1, top - 1, bottom + 1)) right--;
+  while (left < tLeft && colBlocked(left - 1, top - 1, bottom + 1)) left++;
+  return { top, bottom, left, right };
+}
+
 /** Canonical "fillable gap tile" predicate: a wall can be placed on (row, col)
  *  AND actually becomes a wall — plain grass with no burning pit, alive house,
  *  cannon, or tower. (A wall laid on a house spawns a grunt instead, so houses

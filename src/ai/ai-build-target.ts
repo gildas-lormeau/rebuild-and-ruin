@@ -48,6 +48,7 @@ import type { TargetContext, TargetResult } from "./ai-build-types.ts";
 import {
   addInteriorPlugGaps,
   castleRect,
+  clampRectOffUnwallable,
   computeFillableGaps,
   filterUnfillableGaps,
   findGapTiles,
@@ -254,7 +255,7 @@ function selectIdleOrFallback(ctx: TargetContext): TargetResult {
  *  it replaces. Empty-region territory is covered by the idle-window
  *  capture/expand phases. */
 function planEnclosureTarget(ctx: TargetContext): TargetResult {
-  const { state, player, homeTowerEnclosed, lastTargetTowerIndex } = ctx;
+  const { state, homeTowerEnclosed, lastTargetTowerIndex } = ctx;
   const pool = getBuildTowerPool(ctx);
   if (pool.length === 0) return NO_TARGET;
   const homeIndex = ctx.castle.tower.index;
@@ -274,13 +275,10 @@ function planEnclosureTarget(ctx: TargetContext): TargetResult {
 
   const solos: EnclosureCandidate[] = [];
   for (const tower of pool) {
-    // The rect is the protected interior (cannon space) the cut wraps around.
-    const rect = candidateRect(tower, ctx);
-    const cut = findEnclosureCut(
-      [{ tower, interior: rect }],
-      state,
-      player.walls,
-    );
+    // The rect is the protected interior (cannon space) the cut wraps around;
+    // soloEnclosure clamps it off a border-reaching uncuttable channel when the
+    // full rect would otherwise read as unenclosable.
+    const { rect, cut } = soloEnclosure(tower, ctx);
     // null = unenclosable (channel reaches border); empty = already enclosed.
     if (cut === null || cut.size === 0) continue;
     solos.push(makeCandidate([tower], cut, rect, homeIndex, state));
@@ -452,12 +450,7 @@ function tryCloseableTowerTarget(
   tower: Tower,
   ctx: TargetContext,
 ): TargetResult | null {
-  const rect = candidateRect(tower, ctx);
-  const cut = findEnclosureCut(
-    [{ tower, interior: rect }],
-    ctx.state,
-    ctx.player.walls,
-  );
+  const { rect, cut } = soloEnclosure(tower, ctx);
   if (cut === null || cut.size === 0 || cut.size > MANAGEABLE_GAP_LIMIT)
     return null;
   if (!canFillAfterPlugging(ctx, cut, rect)) return null;
@@ -702,6 +695,39 @@ function evaluateTowerCandidate(
     ctx.bankHugging,
   );
   return { rect, gaps };
+}
+
+/** Min cut enclosing one tower, with a rescue for border-reaching uncuttable
+ *  channels. Tries the full candidate rect first; if it's unenclosable (`null` —
+ *  a water / pit / house / cannon / tower channel pierces the protected interior
+ *  out to the zone edge), retries with the interior clamped to seal on the near,
+ *  wallable side of that channel. Returns the rect actually used so the caller
+ *  stores the matching interior. A `null` cut (still unenclosable after the
+ *  clamp) or an empty cut (already enclosed) passes through unchanged.
+ *
+ *  Without this the planner sees only the expanded rect, which `expandRect-
+ *  AroundBlockers` can grow over a deep pit/water column reaching the map edge;
+ *  the whole-rect cut is then `null` and the tower is wrongly abandoned even
+ *  though a tighter ring sealing above the channel encloses it (seed
+ *  round-pits-1: BLUE's home over a bottom-edge pit column). */
+function soloEnclosure(
+  tower: Tower,
+  ctx: TargetContext,
+): { rect: TileRect; cut: Set<TileKey> | null } {
+  const rect = candidateRect(tower, ctx);
+  const cut = findEnclosureCut(
+    [{ tower, interior: rect }],
+    ctx.state,
+    ctx.player.walls,
+  );
+  if (cut !== null) return { rect, cut };
+  const clamped = clampRectOffUnwallable(rect, tower, ctx.state);
+  const reCut = findEnclosureCut(
+    [{ tower, interior: clamped }],
+    ctx.state,
+    ctx.player.walls,
+  );
+  return reCut === null ? { rect, cut } : { rect: clamped, cut: reCut };
 }
 
 /** Per-tower castle interior rect: margin-based `castleRect`, optionally
