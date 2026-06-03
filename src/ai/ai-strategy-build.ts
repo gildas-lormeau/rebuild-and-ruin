@@ -90,10 +90,10 @@ import type {
   ScoringContext,
 } from "./ai-build-types.ts";
 import {
-  findGapTiles,
   hasMeaningfulHomeRingGaps,
   isTowerEnclosable,
 } from "./ai-castle-rect.ts";
+import { findEnclosureCut } from "./ai-min-cut.ts";
 
 type BuildSkillConfig = (typeof BUILD_SKILL_TABLE)[number];
 
@@ -118,8 +118,6 @@ const NO_PLACEMENT: PickPlacementResult = {
   placement: null,
   chosenTowerIndex: undefined,
 };
-/** Max gap tiles before AI deprioritizes home tower in favor of other unenclosed towers. */
-const HOME_GAP_REPAIR_THRESHOLD = 5;
 /** Score weight per gap tile filled by a placement. */
 const GAP_FILLED_WEIGHT = 100;
 /** Score weight per tile adjacent to a gap (supports gap closure). */
@@ -1048,8 +1046,20 @@ function analyzeEnclosures(
   let effectiveSkipHome =
     (homeWasBroken || homeTowerDead) && otherUnenclosed.length > 0;
   if (effectiveSkipHome && !homeTowerEnclosed) {
-    const homeGaps = findGapTiles(castle, player.walls);
-    if (homeGaps.size <= HOME_GAP_REPAIR_THRESHOLD) effectiveSkipHome = false;
+    // Rescue the home ring (keep building it) when it's still cheap to close —
+    // a small hole is worth repairing rather than abandoning. Cost it with the
+    // planner's own min-cut metric (the fewest NEW walls that re-enclose home)
+    // rather than a raw missing-ring-tile count, so the rescue stays consistent
+    // with how the planner ranks every other candidate: it keeps homes whose
+    // cut is small even when many ring tiles are still open, and skips homes
+    // whose few open tiles route to a large cut.
+    const homeCut = findEnclosureCut(
+      [{ tower: castle.tower, interior: castle }],
+      state,
+      player.walls,
+    );
+    if (homeCut !== null && homeCut.size <= MANAGEABLE_GAP_LIMIT)
+      effectiveSkipHome = false;
   }
   // A pit/water channel from the home tower to the map border means the home
   // ring can never close this phase, no matter where we wall (e.g. a burning-
