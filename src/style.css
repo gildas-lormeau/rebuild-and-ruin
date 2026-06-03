@@ -11,8 +11,8 @@
   --color-error: #e05050;
   --radius: 8px;
   --page-gap: 16px;
-  --btn-size: min(84px, 13.125vmin);
-  --dpad-btn-size: min(72px, 11.25vmin);
+  --btn-size: min(48px, 12.5vmin);
+  --dpad-btn-size: min(48px, 12.5vmin);
   --gap: 2vmin;
   --safe-padding: calc(var(--gap) * 2);
   --panel-size: clamp(
@@ -338,8 +338,6 @@ body {
    the orientation lock isn't honoured, the grid axes are still 28×44
    and the landscape layout would render the map sideways. */
 body.is-portrait {
-  --dpad-btn-size: min(72px, 11.25vmin);
-
   .floating-actions .btn-round {
     width: min(72px, 12.5vmin);
     height: min(72px, 12.5vmin);
