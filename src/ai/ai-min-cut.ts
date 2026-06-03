@@ -2,9 +2,9 @@
  * AI build — minimal enclosure cut: the fewest new wall tiles that stop
  * `computeOutside` reaching a desired interior, as a vertex-capacitated s-t min
  * cut on the SAME 8-adjacency flood graph (blocks diagonal leaks, no plug step).
- * Protected region (source, uncuttable) = footprint + rect grass interior, so the
- * cut wraps the cannon space. Water/pits/houses/cannons/towers are uncuttable
- * channels (like `isTowerEnclosable`); existing walls leave the graph; null = unenclosable.
+ * Protected region (source, uncuttable) = footprint + rect grass interior. Water/
+ * pits/houses/cannons/towers are uncuttable channels, except a pit is cuttable with
+ * `allowPit` (Foundations: the owner walls through it); null = unenclosable.
  */
 
 import { TOWER_SIZE } from "../shared/core/game-constants.ts";
@@ -21,7 +21,7 @@ import {
   zoneTileBounds,
 } from "../shared/core/spatial.ts";
 import type { BuildViewState } from "../shared/core/system-interfaces.ts";
-import { isWallableGrass } from "./ai-castle-rect.ts";
+import { isRingWallable, isWallableGrass } from "./ai-castle-rect.ts";
 
 /** One region the cut must enclose: a tower and its castle rect (cannon
  *  space). Pass several to enclose multiple towers in one shared ring. */
@@ -53,6 +53,7 @@ export function findEnclosureCut(
   seeds: readonly EnclosureSeed[],
   state: BuildViewState,
   walls: ReadonlySet<TileKey>,
+  allowPit: boolean,
 ): Set<TileKey> | null {
   const tileCount = GRID_ROWS * GRID_COLS;
   // Node ids: IN(t) = t, OUT(t) = t + tileCount, SOURCE, SINK.
@@ -71,6 +72,7 @@ export function findEnclosureCut(
     protectedTiles,
     state,
     walls,
+    allowPit,
   );
 
   if (graph.maxFlow(source, sink) >= UNCUTTABLE) return null;
@@ -187,6 +189,7 @@ function buildFlowGraph(
   protectedTiles: ReadonlySet<TileKey>,
   state: BuildViewState,
   walls: ReadonlySet<TileKey>,
+  allowPit: boolean,
 ): void {
   for (let row = box.minR; row <= box.maxR; row++) {
     for (let col = box.minC; col <= box.maxC; col++) {
@@ -194,9 +197,10 @@ function buildFlowGraph(
       if (walls.has(key)) continue;
       // Internal IN->OUT edge carries the vertex capacity: 1 if a wall can
       // seal here (cuttable), uncuttable otherwise. Protected interior tiles
-      // are never cuttable — the cut must go around them.
+      // are never cuttable — the cut must go around them. With `allowPit`
+      // (Foundations) a burning pit is cuttable too: the owner walls through it.
       const cuttable =
-        !protectedTiles.has(key) && isWallableGrass(state, row, col);
+        !protectedTiles.has(key) && isRingWallable(state, row, col, allowPit);
       graph.addEdge(key, key + tileCount, cuttable ? 1 : UNCUTTABLE);
       let escapesBox = false;
       for (const [dr, dc] of DIRS_8) {

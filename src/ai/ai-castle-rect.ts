@@ -177,10 +177,15 @@ export function filterUnfillableGaps(
  * tower unenclosable (e.g. a burning-pit column reaching the map edge right
  * beside the tower). Cheap in the common (enclosable) case: the flood is
  * blocked at the tower's grass neighbours before it can spread.
+ *
+ * With `allowPit` (the player owns Foundations) a burning pit counts as wallable
+ * and blocks the flood like grass — so a pit channel that would otherwise reach
+ * the border no longer makes the tower unenclosable: the player walls through it.
  */
 export function isTowerEnclosable(
   tower: Tower,
   state: BuildViewState,
+  allowPit: boolean,
 ): boolean {
   const visited = new Set<TileKey>();
   const stackR: number[] = [];
@@ -202,7 +207,7 @@ export function isTowerEnclosable(
       const key = packTile(nr, nc);
       if (visited.has(key)) continue;
       // Buildable grass can hold a wall — it bounds the channel, so stop here.
-      if (isWallableGrass(state, nr, nc)) continue;
+      if (isRingWallable(state, nr, nc, allowPit)) continue;
       visited.add(key);
       // An unwallable channel reaching the border = no ring can enclose.
       if (
@@ -489,11 +494,14 @@ export function snapRectToReuseWalls(
  *  `null` (unenclosable); resealing the ring on the near, wallable side recovers
  *  the tower. Generalises the former pit-only clamp to every uncuttable obstacle
  *  the cut model knows. Grunts are intentionally excluded — the cut treats their
- *  tiles as wallable, so they never force the `null` this rescues. */
+ *  tiles as wallable, so they never force the `null` this rescues. With
+ *  `allowPit` (Foundations) a pit no longer forces a clamp either — it's wallable
+ *  through, so only the genuinely unsealable channels (water) pull the ring in. */
 export function clampRectOffUnwallable(
   rect: TileRect,
   tower: Tower,
   state: BuildViewState,
+  allowPit: boolean,
 ): TileRect {
   let { top, bottom, left, right } = rect;
   const tTop = tower.row;
@@ -502,13 +510,15 @@ export function clampRectOffUnwallable(
   const tRight = tower.col + TOWER_SIZE - 1;
   const rowBlocked = (row: number, cLo: number, cHi: number): boolean => {
     for (let col = cLo; col <= cHi; col++) {
-      if (inBounds(row, col) && !isWallableGrass(state, row, col)) return true;
+      if (inBounds(row, col) && !isRingWallable(state, row, col, allowPit))
+        return true;
     }
     return false;
   };
   const colBlocked = (col: number, rLo: number, rHi: number): boolean => {
     for (let row = rLo; row <= rHi; row++) {
-      if (inBounds(row, col) && !isWallableGrass(state, row, col)) return true;
+      if (inBounds(row, col) && !isRingWallable(state, row, col, allowPit))
+        return true;
     }
     return false;
   };
@@ -533,9 +543,25 @@ export function isWallableGrass(
   row: number,
   col: number,
 ): boolean {
+  return isRingWallable(state, row, col, false);
+}
+
+/** `isWallableGrass` with the Foundations exception: a burning pit counts as
+ *  wallable when `allowPit` (the placing player owns Foundations) — they wall
+ *  straight through it and the placement extinguishes it. Lets the enclosure
+ *  planner route a ring through a pit a Foundations owner can seal, instead of
+ *  treating it as an uncuttable channel. Grunts are still ignored at this layer
+ *  regardless of Entomb: they move, so the cut already treats their tiles as
+ *  eventually-wallable, and Entomb only reinforces that. */
+export function isRingWallable(
+  state: BuildViewState,
+  row: number,
+  col: number,
+  allowPit: boolean,
+): boolean {
   return (
     isGrass(state.map.tiles, row, col) &&
-    !hasPitAt(state.burningPits, row, col) &&
+    (allowPit || !hasPitAt(state.burningPits, row, col)) &&
     !hasAliveHouseAt(state, row, col) &&
     !hasCannonAt(state, row, col) &&
     !hasTowerAt(state, row, col)

@@ -6,6 +6,7 @@
 
 import {
   buildPlacementContext,
+  canPlaceOverBurningPit,
   canPlacePiece,
   createCastle,
   effectivePlanTiles,
@@ -402,7 +403,9 @@ export function pickPlacement(
   // gap-fills toward a dead-but-enclosable ring (revival) survive via the
   // fillsTargetGap escape below; only the non-gap waste is suppressed.
   const hasLiveEnclosureWork = unenclosedTowers.some(
-    (tower) => state.towerAlive[tower.index] && isTowerEnclosable(tower, state),
+    (tower) =>
+      state.towerAlive[tower.index] &&
+      isTowerEnclosable(tower, state, placementCtx.allowPitOverlap),
   );
   if (placement !== null && !hasLiveEnclosureWork) {
     const current = placement;
@@ -994,6 +997,9 @@ function analyzeEnclosures(
   castle: Castle,
   homeWasBroken: boolean,
 ): EnclosureAnalysis {
+  // Foundations lets this player wall through burning pits, so the enclosability
+  // checks below treat a pit channel as sealable rather than a dead end.
+  const allowPit = canPlaceOverBurningPit(player);
   const zoneTowers = state.map.towers.filter(
     (tower) => tower.zone === castle.tower.zone,
   );
@@ -1057,6 +1063,7 @@ function analyzeEnclosures(
       [{ tower: castle.tower, interior: castle }],
       state,
       player.walls,
+      allowPit,
     );
     if (homeCut !== null && homeCut.size <= MANAGEABLE_GAP_LIMIT)
       effectiveSkipHome = false;
@@ -1069,8 +1076,8 @@ function analyzeEnclosures(
   // reset above — a tiny gap count is irrelevant when the gap is unwallable.
   if (
     !homeTowerEnclosed &&
-    !isTowerEnclosable(castle.tower, state) &&
-    otherUnenclosed.some((tower) => isTowerEnclosable(tower, state))
+    !isTowerEnclosable(castle.tower, state, allowPit) &&
+    otherUnenclosed.some((tower) => isTowerEnclosable(tower, state, allowPit))
   ) {
     effectiveSkipHome = true;
   }

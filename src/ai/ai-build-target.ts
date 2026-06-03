@@ -380,6 +380,7 @@ function collectMergeCandidates(
         ],
         state,
         player.walls,
+        ctx.placementCtx.allowPitOverlap,
       );
       if (cut === null || cut.size === 0) continue;
       // Closeability cap: a merged ring needing more than a build phase's worth
@@ -714,18 +715,21 @@ function soloEnclosure(
   tower: Tower,
   ctx: TargetContext,
 ): { rect: TileRect; cut: Set<TileKey> | null } {
+  const allowPit = ctx.placementCtx.allowPitOverlap;
   const rect = candidateRect(tower, ctx);
   const cut = findEnclosureCut(
     [{ tower, interior: rect }],
     ctx.state,
     ctx.player.walls,
+    allowPit,
   );
   if (cut !== null) return { rect, cut };
-  const clamped = clampRectOffUnwallable(rect, tower, ctx.state);
+  const clamped = clampRectOffUnwallable(rect, tower, ctx.state, allowPit);
   const reCut = findEnclosureCut(
     [{ tower, interior: clamped }],
     ctx.state,
     ctx.player.walls,
+    allowPit,
   );
   return reCut === null ? { rect, cut } : { rect: clamped, cut: reCut };
 }

@@ -88,6 +88,7 @@ export {
   applyUpgradePicks,
   buildTimerBonus,
   cannonShotsRicochet,
+  canPlaceOverBurningPit,
   canPlayerBuild,
   shouldAbsorbWallHit,
   shouldSkipBattle,
