@@ -36,7 +36,10 @@ import {
   towerReachesOutsideCardinal,
   unpackTile,
 } from "../shared/core/spatial.ts";
-import type { BuildViewState } from "../shared/core/system-interfaces.ts";
+import type {
+  BuildViewState,
+  GameViewState,
+} from "../shared/core/system-interfaces.ts";
 
 interface MarginCtx {
   readonly margin: number;
@@ -539,7 +542,7 @@ export function clampRectOffUnwallable(
  *  game/canPlacePiece (placement legality — allows houses, adds zone/modifier/
  *  overlap context); do not conflate the two. */
 export function isWallableGrass(
-  state: BuildViewState,
+  state: GameViewState,
   row: number,
   col: number,
 ): boolean {
@@ -554,7 +557,7 @@ export function isWallableGrass(
  *  regardless of Entomb: they move, so the cut already treats their tiles as
  *  eventually-wallable, and Entomb only reinforces that. */
 export function isRingWallable(
-  state: BuildViewState,
+  state: GameViewState,
   row: number,
   col: number,
   allowPit: boolean,

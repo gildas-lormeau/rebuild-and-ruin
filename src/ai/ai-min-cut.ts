@@ -20,7 +20,7 @@ import {
   packTile,
   zoneTileBounds,
 } from "../shared/core/spatial.ts";
-import type { BuildViewState } from "../shared/core/system-interfaces.ts";
+import type { GameViewState } from "../shared/core/system-interfaces.ts";
 import { isRingWallable, isWallableGrass } from "./ai-castle-rect.ts";
 
 /** One region the cut must enclose: a tower and its castle rect (cannon
@@ -51,7 +51,7 @@ const UNCUTTABLE = 1 << 24;
  */
 export function findEnclosureCut(
   seeds: readonly EnclosureSeed[],
-  state: BuildViewState,
+  state: GameViewState,
   walls: ReadonlySet<TileKey>,
   allowPit: boolean,
 ): Set<TileKey> | null {
@@ -95,7 +95,7 @@ export function findEnclosureCut(
  *  (rect±1) and any wall just outside the zone bbox stay in-graph. */
 function computeEnclosureBox(
   seeds: readonly EnclosureSeed[],
-  state: BuildViewState,
+  state: GameViewState,
 ): TileBounds {
   const acc: TileBounds = {
     minR: GRID_ROWS,
@@ -151,7 +151,7 @@ function extendBounds(
  *  uncuttable in the flow graph. */
 function collectProtectedTiles(
   seeds: readonly EnclosureSeed[],
-  state: BuildViewState,
+  state: GameViewState,
   walls: ReadonlySet<TileKey>,
 ): Set<TileKey> {
   const protectedTiles = new Set<TileKey>();
@@ -187,7 +187,7 @@ function buildFlowGraph(
   sink: number,
   box: TileBounds,
   protectedTiles: ReadonlySet<TileKey>,
-  state: BuildViewState,
+  state: GameViewState,
   walls: ReadonlySet<TileKey>,
   allowPit: boolean,
 ): void {

@@ -329,6 +329,7 @@
       "src/ai/ai-phase-build.ts",
       "src/ai/ai-phase-cannon.ts",
       "src/ai/ai-phase-select.ts",
+      "src/ai/ai-plan-deny-enclosure.ts",
       "src/ai/ai-strategy-battle.ts",
       "src/ai/ai-strategy-cannon.ts",
       "src/game/cannon-system.ts",

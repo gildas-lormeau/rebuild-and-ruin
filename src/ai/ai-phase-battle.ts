@@ -14,7 +14,12 @@ import type {
   FireIntent,
 } from "../shared/core/system-interfaces.ts";
 import type { FireOrigin } from "./ai-battle-diag.ts";
-import { CHAIN, type ChainType } from "./ai-chain.ts";
+import {
+  CHAIN,
+  type ChainType,
+  OFFENSIVE_TACTICS,
+  type TacticId,
+} from "./ai-chain.ts";
 import { STEP } from "./ai-constants.ts";
 import type {
   BattleHost,
@@ -45,6 +50,10 @@ interface BattlePhase extends BattlePlan {
   state: BattleState;
   crosshairTarget: StrategicPixelPos | null;
   chainIdx: number;
+  /** Offensive tactics already fired this battle. Fed to each re-plan so the
+   *  attack sequence varies instead of repeating the dominant tactic. Cleared
+   *  at every battle entry (`initBattle`). */
+  usedTactics: Set<TacticId>;
   /** Persistent orbit phase — accumulated across battles for natural variation. */
   orbitAngle: number;
 }
@@ -93,6 +102,7 @@ export function createBattlePhase(): BattlePhase {
     chainTargets: undefined,
     chainIdx: 0,
     chainType: CHAIN.WALL,
+    usedTactics: new Set(),
     orbitAngle: 0,
   };
 }
@@ -107,6 +117,7 @@ export function resetBattlePhaseKeepOrbit(phase: BattlePhase): void {
   phase.chainTargets = undefined;
   phase.chainIdx = 0;
   phase.chainType = CHAIN.WALL;
+  phase.usedTactics.clear();
 }
 
 /** Plan chain attacks and enter COUNTDOWN state. */
@@ -120,11 +131,13 @@ export function initBattle(
   phase.chainIdx = 0;
   phase.chainType = CHAIN.WALL;
   phase.originTag = undefined;
+  phase.usedTactics.clear();
   if (state) {
     const plan = host.strategy.planBattle(state, host.playerId);
     phase.chainTargets = plan.chainTargets;
     phase.chainType = plan.chainType;
     phase.originTag = plan.originTag;
+    recordTactic(phase, plan.tacticId);
   }
   phase.state = { step: STEP.COUNTDOWN, orbit: null };
 }
@@ -232,7 +245,7 @@ export function onBattleFireResult(
   success: boolean,
 ): void {
   if (phase.state.step === STEP.CHAIN_DWELLING) {
-    completeChainFire(phase, success);
+    completeChainFire(host, phase, state, success);
     return;
   }
   if (phase.state.step === STEP.DWELLING) {
@@ -341,7 +354,10 @@ function tickChainMoving(
     }
     if (!targetExists) {
       phase.chainIdx++;
-      if (phase.chainIdx >= phase.chainTargets.length) {
+      if (
+        phase.chainIdx >= phase.chainTargets.length &&
+        !replanChain(host, phase, state)
+      ) {
         phase.chainTargets = undefined;
         phase.crosshairTarget = null;
         phase.state = { step: STEP.PICKING };
@@ -388,7 +404,12 @@ function tickChainDwelling(
   };
 }
 
-function completeChainFire(phase: BattlePhase, success: boolean): void {
+function completeChainFire(
+  host: BattleHost,
+  phase: BattlePhase,
+  state: BattleViewState,
+  success: boolean,
+): void {
   if (phase.state.step !== STEP.CHAIN_DWELLING) return;
   const phaseState = phase.state;
   if (!success) {
@@ -400,13 +421,52 @@ function completeChainFire(phase: BattlePhase, success: boolean): void {
     return;
   }
   phase.chainIdx++;
-  if (phase.chainIdx >= phase.chainTargets.length) {
+  if (phase.chainIdx < phase.chainTargets.length) {
+    phase.state = { step: STEP.CHAIN_MOVING };
+  } else if (replanChain(host, phase, state)) {
+    // Chain finished — plan the next (varied) attack against the live board.
+    phase.state = { step: STEP.CHAIN_MOVING };
+  } else {
     phase.chainTargets = undefined;
     phase.crosshairTarget = null;
     phase.state = { step: STEP.PICKING };
-  } else {
-    phase.state = { step: STEP.CHAIN_MOVING };
   }
+}
+
+/** Re-plan a fresh chain when the current one finishes, against the LIVE board
+ *  (reactive to mid-battle wall/cannon destruction) and excluding offensive
+ *  tactics already used this battle. Returns true and loads the new chain when
+ *  one is found; false when no eligible tactic remains (caller falls through to
+ *  per-shot picking for the rest of the battle). */
+function replanChain(
+  host: BattleHost,
+  phase: BattlePhase,
+  state: BattleViewState,
+): boolean {
+  const plan = host.strategy.planBattle(
+    state,
+    host.playerId,
+    phase.usedTactics,
+  );
+  if (!plan.chainTargets || plan.chainTargets.length === 0) return false;
+  phase.chainTargets = plan.chainTargets;
+  phase.chainType = plan.chainType;
+  phase.originTag = plan.originTag;
+  phase.chainIdx = 0;
+  phase.crosshairTarget = null;
+  recordTactic(phase, plan.tacticId);
+  return true;
+}
+
+/** Track a fired tactic so subsequent re-plans skip it (force variety). Only
+ *  offensive wall-breaching tactics are excluded; defensive / utility ones
+ *  (grunt sweep, ice trench, charity, pocket) stay re-selectable. */
+function recordTactic(
+  phase: BattlePhase,
+  tacticId: TacticId | undefined,
+): void {
+  if (tacticId && OFFENSIVE_TACTICS.has(tacticId))
+    phase.usedTactics.add(tacticId);
 }
 
 /** Standard fire: dwell on target then produce a fire intent at the

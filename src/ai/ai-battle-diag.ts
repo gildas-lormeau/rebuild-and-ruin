@@ -9,6 +9,10 @@
  *  union so adding a new planner is a compile error at the emit site. */
 
 export type FireOrigin =
+  // deny_enclosure shares CHAIN.STRUCTURAL's behaviour (surgical wall removal);
+  // distinct origin so metrics can isolate min-cut enclosure-denial sieges from
+  // the broader structural-hit tactic. Set via BattlePlan.originTag.
+  | "deny_enclosure"
   | "pocket"
   | "structural"
   | "wall_chain"

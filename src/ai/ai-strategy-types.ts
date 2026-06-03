@@ -29,7 +29,7 @@ import type { ZoneId } from "../shared/core/zone-id.ts";
 import type { Rng } from "../shared/platform/rng.ts";
 import type { FireOrigin, PickPath } from "./ai-battle-diag.ts";
 import type { AiPlacement } from "./ai-build-types.ts";
-import type { ChainType } from "./ai-chain.ts";
+import type { ChainType, TacticId } from "./ai-chain.ts";
 
 /** Pixel position annotated with strategic flag (AI targeting). `pickPath`
  *  is diag-only provenance (which `pickTarget` sub-branch produced it) —
@@ -118,6 +118,11 @@ export interface BattlePlan {
    *  Falls back to CHAIN_TO_ORIGIN[chainType] when undefined. Does not affect
    *  AI behavior — only the emitted fire-decision diag. */
   originTag?: FireOrigin;
+  /** The granular tactic that produced this plan (finer than chainType).
+   *  Undefined when no chain was selected. The battle phase machine adds
+   *  offensive tactics to its per-battle exclusion set so successive re-plans
+   *  vary the attack. */
+  tacticId?: TacticId;
 }
 
 /** Minimal subset of AiController needed by the selection phase. Phase
@@ -219,8 +224,15 @@ export interface AiStrategy {
     ctx: CannonPlacementContext,
   ): CannonPlacement | undefined;
 
-  /** Plan the battle: pick focus target, decide chain attacks. */
-  planBattle(state: BattleViewState, playerId: ValidPlayerId): BattlePlan;
+  /** Plan one chain attack. Called at battle entry and again each time a chain
+   *  finishes (multiple attacks per battle). `excludedTactics` lists offensive
+   *  tactics already fired this battle so the cascade skips them (force
+   *  variety); focus-fire is (re-)rolled only on the entry call (empty set). */
+  planBattle(
+    state: BattleViewState,
+    playerId: ValidPlayerId,
+    excludedTactics?: ReadonlySet<TacticId>,
+  ): BattlePlan;
 
   /** Pick a target to fire at. strategic = wall between obstacles. wallsOnly = skip cannon targets. */
   pickTarget(

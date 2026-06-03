@@ -29,8 +29,9 @@ import type { ZoneId } from "../shared/core/zone-id.ts";
 import { Rng } from "../shared/platform/rng.ts";
 import type { FireOrigin } from "./ai-battle-diag.ts";
 import type { AiPlacement } from "./ai-build-types.ts";
-import { CHAIN, type ChainType } from "./ai-chain.ts";
+import { CHAIN, type ChainType, TACTIC, type TacticId } from "./ai-chain.ts";
 import { planCharitySweep } from "./ai-plan-charity-sweep.ts";
+import { planDenyEnclosure } from "./ai-plan-deny-enclosure.ts";
 import { planFatBreach } from "./ai-plan-fat-breach.ts";
 import { planGruntSweep } from "./ai-plan-grunt-sweep.ts";
 import { planIceTrench } from "./ai-plan-ice-trench.ts";
@@ -60,6 +61,9 @@ import type {
 } from "./ai-strategy-types.ts";
 import { traitLookup } from "./ai-utils.ts";
 
+/** Shared empty exclusion set for the entry `planBattle` call (no allocation
+ *  per battle, and `.size === 0` flags the entry call that rolls focus-fire). */
+const EMPTY_TACTICS: ReadonlySet<TacticId> = new Set();
 /** Chance to focus all fire on the weakest enemy for the entire battle. */
 const FOCUS_FIRE_PROBABILITY = 0.5;
 /** Minimum usable cannons required to attempt any chain attack. */
@@ -74,6 +78,10 @@ const SUPER_ATTACK_PROBABILITY = 1 / 8;
 const STRUCTURAL_HIT_PROBABILITY = 1 / 2;
 /** Chance to attempt a diagonal fat-wall breach (drill through a ≥3-thick wall body). */
 const FAT_BREACH_PROBABILITY = 1 / 4;
+/** Chance to launch a min-cut enclosure-denial siege — the top-priority
+ *  offensive tactic, since enclosure denial (not tower kills) is how defensive
+ *  players actually lose lives. Scales with battleTactics. */
+const DENY_ENCLOSURE_PROBABILITY = 3 / 4;
 /** Minimum usable cannons to attempt an ice trench (lower than general chain threshold). */
 const ICE_TRENCH_MIN_CANNONS = 4;
 
@@ -219,27 +227,37 @@ export class DefaultStrategy implements AiStrategy {
   // Battle
   // -----------------------------------------------------------------------
 
-  planBattle(state: BattleViewState, playerId: ValidPlayerId): BattlePlan {
-    // Focus fire probability scales with battleTactics
-    const focusProb = traitLookup(this.battleTactics, [
-      0.2,
-      FOCUS_FIRE_PROBABILITY,
-      0.8,
-    ]);
-    if (this.rng.bool(focusProb)) {
-      const enemies = filterActiveEnemies(state, playerId);
-      if (enemies.length > 0) {
-        enemies.sort(
-          (a, b) =>
-            a.enclosedTowers.length - b.enclosedTowers.length ||
-            a.score - b.score,
-        );
-        this.focusFirePlayerId = enemies[0]!.id;
+  planBattle(
+    state: BattleViewState,
+    playerId: ValidPlayerId,
+    excludedTactics: ReadonlySet<TacticId> = EMPTY_TACTICS,
+  ): BattlePlan {
+    // Focus-fire is decided once at battle entry (empty exclusion set). On the
+    // re-plans that follow each finished chain (excludedTactics non-empty) the
+    // entry-time focus is kept — re-rolling it every chain would thrash the
+    // per-shot fallback target and consume RNG mid-battle.
+    if (excludedTactics.size === 0) {
+      // Focus fire probability scales with battleTactics
+      const focusProb = traitLookup(this.battleTactics, [
+        0.2,
+        FOCUS_FIRE_PROBABILITY,
+        0.8,
+      ]);
+      if (this.rng.bool(focusProb)) {
+        const enemies = filterActiveEnemies(state, playerId);
+        if (enemies.length > 0) {
+          enemies.sort(
+            (a, b) =>
+              a.enclosedTowers.length - b.enclosedTowers.length ||
+              a.score - b.score,
+          );
+          this.focusFirePlayerId = enemies[0]!.id;
+        } else {
+          this.focusFirePlayerId = undefined;
+        }
       } else {
         this.focusFirePlayerId = undefined;
       }
-    } else {
-      this.focusFirePlayerId = undefined;
     }
 
     // Chain attacks
@@ -248,6 +266,8 @@ export class DefaultStrategy implements AiStrategy {
     // Observability-only: refines the diag origin when a plan collapses into a
     // shared chainType (charity→GRUNT, super_attack→WALL). No behavior effect.
     let originTag: FireOrigin | undefined;
+    // The granular tactic chosen — fed back to the next re-plan's exclusion set.
+    let tacticId: TacticId | undefined;
 
     const usableCannonCount = countUsableCannons(state, playerId);
 
@@ -261,6 +281,7 @@ export class DefaultStrategy implements AiStrategy {
       if (iceTrenchTargets) {
         chainTargets = iceTrenchTargets;
         chainType = CHAIN.ICE_TRENCH;
+        tacticId = TACTIC.ICE_TRENCH;
       }
     }
 
@@ -275,6 +296,7 @@ export class DefaultStrategy implements AiStrategy {
       if (gruntTargets) {
         chainTargets = gruntTargets;
         chainType = CHAIN.GRUNT;
+        tacticId = TACTIC.GRUNT_SWEEP;
       }
     }
 
@@ -299,6 +321,36 @@ export class DefaultStrategy implements AiStrategy {
         chainTargets = charityTargets;
         chainType = CHAIN.GRUNT;
         originTag = "charity";
+        tacticId = TACTIC.CHARITY;
+      }
+    }
+
+    // Enclosure denial — top offensive priority. Concentrate fire on the
+    // wall tiles at the min-cut bottleneck of the weakest enemy's cheapest
+    // ring, maximising the cost for them to re-enclose any tower (the actual
+    // life-loss condition). Re-selectable across re-plans (not excluded), so a
+    // multi-attack battle keeps sieging the defender's best fallback ring.
+    const denyProb = traitLookup(this.battleTactics, [
+      0,
+      DENY_ENCLOSURE_PROBABILITY,
+      1,
+    ]);
+    if (
+      !chainTargets &&
+      usableCannonCount >= CHAIN_ATTACK_MIN_CANNONS &&
+      this.rng.bool(denyProb)
+    ) {
+      const denyTargets = planDenyEnclosure(
+        state,
+        playerId,
+        this.focusFirePlayerId,
+        usableCannonCount,
+      );
+      if (denyTargets) {
+        chainTargets = denyTargets;
+        chainType = CHAIN.STRUCTURAL;
+        originTag = "deny_enclosure";
+        tacticId = TACTIC.DENY_ENCLOSURE;
       }
     }
 
@@ -312,6 +364,7 @@ export class DefaultStrategy implements AiStrategy {
     if (
       !chainTargets &&
       structuralMaxHits > 0 &&
+      !excludedTactics.has(TACTIC.STRUCTURAL) &&
       this.rng.bool(structuralProb)
     ) {
       const structuralTargets = planStructuralHit(
@@ -322,6 +375,7 @@ export class DefaultStrategy implements AiStrategy {
       if (structuralTargets) {
         chainTargets = structuralTargets;
         chainType = CHAIN.STRUCTURAL;
+        tacticId = TACTIC.STRUCTURAL;
       }
     }
 
@@ -342,6 +396,7 @@ export class DefaultStrategy implements AiStrategy {
       !chainTargets &&
       fatBreachMaxAttempts > 0 &&
       usableCannonCount >= CHAIN_ATTACK_MIN_CANNONS &&
+      !excludedTactics.has(TACTIC.FAT_BREACH) &&
       this.rng.bool(fatBreachProb)
     ) {
       const fatTargets = planFatBreach(
@@ -354,6 +409,7 @@ export class DefaultStrategy implements AiStrategy {
         chainTargets = fatTargets;
         chainType = CHAIN.STRUCTURAL;
         originTag = "fat_breach";
+        tacticId = TACTIC.FAT_BREACH;
       }
     }
 
@@ -367,6 +423,7 @@ export class DefaultStrategy implements AiStrategy {
       if (pocketTargets) {
         chainTargets = pocketTargets;
         chainType = CHAIN.POCKET;
+        tacticId = TACTIC.POCKET;
       }
     }
 
@@ -379,12 +436,17 @@ export class DefaultStrategy implements AiStrategy {
     if (
       !chainTargets &&
       usableCannonCount >= CHAIN_ATTACK_MIN_CANNONS &&
+      !excludedTactics.has(TACTIC.WALL_DEMOLITION) &&
       this.rng.bool(demolitionProb)
     ) {
-      chainTargets =
+      const demolitionTargets =
         planWallDemolition(state, playerId, usableCannonCount, this.rng) ??
         undefined;
-      chainType = CHAIN.WALL;
+      if (demolitionTargets) {
+        chainTargets = demolitionTargets;
+        chainType = CHAIN.WALL;
+        tacticId = TACTIC.WALL_DEMOLITION;
+      }
     }
 
     // Super attack — controlled by battleTactics
@@ -396,16 +458,21 @@ export class DefaultStrategy implements AiStrategy {
     if (
       !chainTargets &&
       usableCannonCount >= CHAIN_ATTACK_MIN_CANNONS &&
+      !excludedTactics.has(TACTIC.SUPER_ATTACK) &&
       this.rng.bool(superAtkProb)
     ) {
-      chainTargets =
+      const superTargets =
         planSuperAttack(state, playerId, usableCannonCount, this.rng) ??
         undefined;
-      chainType = CHAIN.WALL;
-      if (chainTargets) originTag = "super_attack";
+      if (superTargets) {
+        chainTargets = superTargets;
+        chainType = CHAIN.WALL;
+        originTag = "super_attack";
+        tacticId = TACTIC.SUPER_ATTACK;
+      }
     }
 
-    return { chainTargets, chainType, originTag };
+    return { chainTargets, chainType, originTag, tacticId };
   }
 
   pickTarget(
