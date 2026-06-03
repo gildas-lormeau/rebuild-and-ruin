@@ -36,11 +36,11 @@ import type { ZoneId } from "../../src/shared/core/zone-id.ts";
 import { recheckTerritory } from "../../src/game/build-system.ts";
 import { useSmallPieces } from "../../src/game/upgrade-system.ts";
 import { applyMidGameCheckpoint } from "../../src/online/online-rehydrate.ts";
+import { type AsciiRenderer, createAsciiRenderer } from "../ascii-renderer.ts";
 import {
-  type AsciiRenderer,
-  createAsciiRenderer,
-} from "../ascii-renderer.ts";
-import { createHeadlessRuntime } from "../runtime-headless.ts";
+  createHeadlessRuntime,
+  reinstallAssistedControllers,
+} from "../runtime-headless.ts";
 import {
   buildHeadlessOptions,
   createScenario,
@@ -63,12 +63,16 @@ const SUPPORTED_VERSION = 1;
 
 export async function createPhaseScenario(
   fixture: FixtureFile,
-  opts?: { renderer?: "ascii" },
+  opts?: { renderer?: "ascii"; assistedSlots?: readonly ValidPlayerId[] },
 ): Promise<Scenario> {
   validateFixture(fixture);
   const sc = fixture.checkpoint
-    ? await createCheckpointScenario(fixture, opts?.renderer)
-    : await createFreshScenario(fixture, opts?.renderer);
+    ? await createCheckpointScenario(
+      fixture,
+      opts?.renderer,
+      opts?.assistedSlots,
+    )
+    : await createFreshScenario(fixture, opts?.renderer, opts?.assistedSlots);
   if (fixture.testHooks) {
     // Apply before any subsequent tick so rollModifier / drawOffers see
     // the filter on the next phase transition. Fresh-scenario creation
@@ -185,7 +189,9 @@ export function applyWallOverrides(
       ownerId >= state.players.length
     ) {
       throw new Error(
-        `wall override (${row},${col}) has invalid ownerId ${ownerId} (expected 0..${state.players.length - 1})`,
+        `wall override (${row},${col}) has invalid ownerId ${ownerId} (expected 0..${
+          state.players.length - 1
+        })`,
       );
     }
     validateGrassEntityPos(
@@ -256,11 +262,13 @@ export function applyCannonOverrides(
     for (const key of player.walls) occupied.add(key);
     for (const cannon of player.cannons) {
       const cannonSize = cannonModeDef(cannon.mode).size;
-      for (const key of cannonFootprintKeys(
-        cannon.row,
-        cannon.col,
-        cannonSize,
-      )) {
+      for (
+        const key of cannonFootprintKeys(
+          cannon.row,
+          cannon.col,
+          cannonSize,
+        )
+      ) {
         occupied.add(key);
       }
     }
@@ -347,11 +355,13 @@ export function applyPitOverrides(
     for (const key of player.walls) occupied.add(key);
     for (const cannon of player.cannons) {
       const cannonSize = cannonModeDef(cannon.mode).size;
-      for (const key of cannonFootprintKeys(
-        cannon.row,
-        cannon.col,
-        cannonSize,
-      )) {
+      for (
+        const key of cannonFootprintKeys(
+          cannon.row,
+          cannon.col,
+          cannonSize,
+        )
+      ) {
         occupied.add(key);
       }
     }
@@ -423,7 +433,8 @@ export function validateFixture(fixture: FixtureFile): void {
         `Fixture round ${fixture.round} disagrees with checkpoint round ${fixture.checkpoint.round}`,
       );
     }
-    const checkpointPhase = Phase[fixture.checkpoint.phase as keyof typeof Phase];
+    const checkpointPhase =
+      Phase[fixture.checkpoint.phase as keyof typeof Phase];
     if (checkpointPhase !== fixture.entryPhase) {
       throw new Error(
         `Fixture entryPhase ${fixture.entryPhase} disagrees with checkpoint phase ${fixture.checkpoint.phase}`,
@@ -468,12 +479,14 @@ function cannonFootprintKeys(
 async function createFreshScenario(
   fixture: FixtureFile,
   renderer?: "ascii",
+  assistedSlots?: readonly ValidPlayerId[],
 ): Promise<Scenario> {
   const sc = await createScenario({
     seed: fixture.seed,
     mode: fixture.mode,
     rounds: fixture.rounds,
     renderer,
+    assistedSlots,
   });
   if (fixture.entryPhase !== Phase.CASTLE_SELECT) {
     waitForPhase(sc, fixture.entryPhase);
@@ -486,6 +499,7 @@ async function createFreshScenario(
 async function createCheckpointScenario(
   fixture: FixtureFile,
   renderer?: "ascii",
+  assistedSlots?: readonly ValidPlayerId[],
 ): Promise<Scenario> {
   if (!fixture.checkpoint) throw new Error("checkpoint required");
   const sentMessages: GameMessage[] = [];
@@ -511,6 +525,13 @@ async function createCheckpointScenario(
     throw new Error(
       "applyMidGameCheckpoint rejected the fixture's checkpoint " +
         "(structural validation failed — see [checkpoint] error above)",
+    );
+  }
+  if (assistedSlots && assistedSlots.length > 0) {
+    await reinstallAssistedControllers(
+      headless.runtime,
+      assistedSlots,
+      (msg) => sentMessages.push(msg),
     );
   }
   ensurePieceBagsForBuildPhase(headless.runtime.runtimeState.state);

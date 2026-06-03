@@ -14,9 +14,20 @@
  * `runtime.runtimeState.state.bus` rather than reaching into runtime internals.
  */
 
+import { createDefaultAiDeps } from "../src/ai/ai-defaults.ts";
+import {
+  ensureAiModulesLoaded,
+  rollAiPersonality,
+} from "../src/controllers/controller-factory.ts";
 import { generateMap } from "../src/game/index.ts";
+import { rebuildControllersForPhase } from "../src/online/online-host-promotion.ts";
+import { createAiController } from "../src/runtime/bootstrap.ts";
 import { Rng } from "../src/shared/platform/rng.ts";
-import { type GameMessage, MESSAGE, type ServerMessage } from "../src/protocol/protocol.ts";
+import {
+  type GameMessage,
+  MESSAGE,
+  type ServerMessage,
+} from "../src/protocol/protocol.ts";
 import {
   GAME_MODE_CLASSIC,
   GAME_MODE_MODERN,
@@ -29,10 +40,14 @@ import type {
   RendererInterface,
   RenderOverlay,
 } from "../src/shared/ui/overlay-types.ts";
-import type { ValidPlayerId } from "../src/shared/core/player-slot.ts";
+import type {
+  PlayerId,
+  ValidPlayerId,
+} from "../src/shared/core/player-slot.ts";
 import type {
   ControllerFactory,
   HapticsObserver,
+  PlayerController,
 } from "../src/shared/core/system-interfaces.ts";
 import type { GameState } from "../src/shared/core/types.ts";
 import { SEED_CUSTOM } from "../src/shared/ui/player-config.ts";
@@ -249,16 +264,15 @@ export async function createHeadlessRuntime(
   // populated by the time they're invoked.
   const runtimeHolder: { current?: GameRuntime } = {};
 
-  const controllerFactory =
-    assistedSlots && assistedSlots.length > 0
-      ? buildAssistedControllerFactory(
-          assistedSlots,
-          (msg) => networkObserver?.sent?.(msg),
-          () => (action) =>
-            runtimeHolder.current!.runtimeState.actionSchedule.schedule(action),
-          DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS,
-        )
-      : undefined;
+  const controllerFactory = assistedSlots && assistedSlots.length > 0
+    ? buildAssistedControllerFactory(
+      assistedSlots,
+      (msg) => networkObserver?.sent?.(msg),
+      () => (action) =>
+        runtimeHolder.current!.runtimeState.actionSchedule.schedule(action),
+      DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS,
+    )
+    : undefined;
 
   // ── Mock clock + deterministic timer scheduling ───────────────────
   // All timing flows through this closure. `mainLoop` is driven manually
@@ -288,10 +302,12 @@ export async function createHeadlessRuntime(
   // the production browser path uses (`document` in main.ts). The cast widens
   // EventTarget to the Document subset the runtime injects — every method we
   // surface lives on EventTarget itself.
-  const keyboardEventSource = new EventTarget() as unknown as Pick<
-    Document,
-    "addEventListener" | "removeEventListener"
-  > & { dispatchEvent(event: Event): boolean };
+  const keyboardEventSource = new EventTarget() as unknown as
+    & Pick<
+      Document,
+      "addEventListener" | "removeEventListener"
+    >
+    & { dispatchEvent(event: Event): boolean };
 
   // ── Runtime construction ──────────────────────────────────────────
   // Tracks every handler the runtime registers via `network.onMessage`.
@@ -352,8 +368,7 @@ export async function createHeadlessRuntime(
       await built.lifecycle.startGame();
       setMode(built.runtimeState, Mode.SELECTION);
     },
-    onlinePhaseTicks:
-      onlinePhaseTicksOverride ??
+    onlinePhaseTicks: onlinePhaseTicksOverride ??
       (hostMode
         ? buildHeadlessHostPhaseTicks((msg) => networkObserver?.sent?.(msg))
         : undefined),
@@ -527,6 +542,43 @@ export async function createHeadlessRuntime(
   };
 }
 
+/** Re-install assisted-human controllers for `assistedSlots` after a
+ *  checkpoint apply. `applyMidGameCheckpoint` rebuilds EVERY slot as pure-AI
+ *  (the production watcher / host-migration contract), so the checkpoint
+ *  phase-test path needs this second pass to put the assisted controller back
+ *  — primed for the restored phase exactly as the pure-AI rebuild was. Reuses
+ *  `rebuildControllersForPhase` so the priming (startBuildPhase / placeCannons
+ *  / initBattleState) stays identical to the rehydrate path. */
+export async function reinstallAssistedControllers(
+  runtime: GameRuntime,
+  assistedSlots: readonly ValidPlayerId[],
+  send: (msg: GameMessage) => void,
+): Promise<void> {
+  const assistedSet = new Set<ValidPlayerId>(assistedSlots);
+  const schedule = (action: ScheduledAction<GameState>) =>
+    runtime.runtimeState.actionSchedule.schedule(action);
+  runtime.runtimeState.controllers = await rebuildControllersForPhase(
+    runtime.runtimeState.state,
+    runtime.runtimeState.controllers,
+    -1 as PlayerId, // sentinel: no "my" slot, so every slot is rebuilt
+    {
+      ensureLoaded: ensureAiModulesLoaded,
+      rollPersonality: rollAiPersonality,
+      create: (pid, strategyRng, personality) =>
+        assistedSet.has(pid)
+          ? constructAssistedController(
+            pid,
+            createDefaultAiDeps(strategyRng, personality),
+            send,
+            schedule,
+            DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS,
+          )
+          : createAiController(pid, strategyRng, personality),
+    },
+    undefined,
+  );
+}
+
 /** Build a `ControllerFactory` that substitutes `AiAssistedHumanController`
  *  for the slots in `assistedSlots`, falling back to the default
  *  `createController` for everyone else. The senders bag wraps `send` (the
@@ -567,36 +619,51 @@ function buildAssistedControllerFactory(
     // strategy.rng-side draws would land on state.rng while the host's
     // assisted-human draws would land on this private RNG.
     const privateRng = new Rng(privateSeed);
-    const [{ AiAssistedHumanController }, { createDefaultAiDeps }, { MESSAGE }] =
-      await Promise.all([
-        import("../src/controllers/controller-ai-assisted-human.ts"),
-        import("../src/ai/ai-defaults.ts"),
-        import("../src/protocol/protocol.ts"),
-      ]);
-    const { strategy, brain } = createDefaultAiDeps(privateRng, personality);
-    return new AiAssistedHumanController(slot, {
-      strategy,
-      brain,
-      senders: {
-        sendPiecePlaced: (payload) =>
-          send({ type: MESSAGE.OPPONENT_PIECE_PLACED, ...payload }),
-        sendCannonPlaced: (payload) =>
-          send({ type: MESSAGE.OPPONENT_CANNON_PLACED, ...payload }),
-        sendCannonFired: (msg) => send(msg),
-        sendUpgradePick: (choice) =>
-          send({ type: MESSAGE.UPGRADE_PICK, playerId: slot, choice }),
-        sendLifeLostChoice: (choice, applyAt) =>
-          send({
-            type: MESSAGE.LIFE_LOST_CHOICE,
-            playerId: slot,
-            choice,
-            applyAt,
-          }),
-      },
-      schedule: (action) => getSchedule()(action),
+    return constructAssistedController(
+      slot,
+      createDefaultAiDeps(privateRng, personality),
+      send,
+      (action) => getSchedule()(action),
       safetyTicks,
-    });
+    );
   };
+}
+
+/** Construct an `AiAssistedHumanController` from pre-built AI deps. Shared by
+ *  the bootstrap factory (`buildAssistedControllerFactory`) and the post-
+ *  checkpoint re-install (`reinstallAssistedControllers`). */
+async function constructAssistedController(
+  slot: ValidPlayerId,
+  deps: ReturnType<typeof createDefaultAiDeps>,
+  send: (msg: GameMessage) => void,
+  schedule: (action: ScheduledAction<GameState>) => void,
+  safetyTicks: number,
+): Promise<PlayerController> {
+  const { AiAssistedHumanController } = await import(
+    "../src/controllers/controller-ai-assisted-human.ts"
+  );
+  return new AiAssistedHumanController(slot, {
+    strategy: deps.strategy,
+    brain: deps.brain,
+    senders: {
+      sendPiecePlaced: (payload) =>
+        send({ type: MESSAGE.OPPONENT_PIECE_PLACED, ...payload }),
+      sendCannonPlaced: (payload) =>
+        send({ type: MESSAGE.OPPONENT_CANNON_PLACED, ...payload }),
+      sendCannonFired: (msg) => send(msg),
+      sendUpgradePick: (choice) =>
+        send({ type: MESSAGE.UPGRADE_PICK, playerId: slot, choice }),
+      sendLifeLostChoice: (choice, applyAt) =>
+        send({
+          type: MESSAGE.LIFE_LOST_CHOICE,
+          playerId: slot,
+          choice,
+          applyAt,
+        }),
+    },
+    schedule,
+    safetyTicks,
+  });
 }
 
 /** Build an `OnlinePhaseTicks` for headless host mode. Phase-checkpoint
