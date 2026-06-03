@@ -335,9 +335,9 @@ function handleDpadAction(deps: DpadDeps): void {
  *  - PLACEMENT PHASES: key-repeat (short initial delay, fast repeat interval).
  *    Touch position snaps to one cardinal Action via axis comparison;
  *    drag re-decodes the cardinal as the finger crosses the diagonal.
- *  - BATTLE: continuous unit-vector aiming via setDpadVector (drift in any
- *    direction the finger points; magnitude scales with distance from
- *    center, capped at 1).
+ *  - BATTLE: 8-direction aiming via setDpadVector — the finger's heading
+ *    snaps to the nearest of 8 compass directions (cardinals + diagonals);
+ *    magnitude still scales with distance from center, capped at 1.
  *  Phase is checked live via isBattlePhase() on each event, not at wiring
  *  time. A single touch is tracked per element via pointerId to ignore
  *  multi-finger interactions. Returns handles needed by the parent for
@@ -377,7 +377,8 @@ function wireDpadCircle(
   }
 
   function setVector(vec: { x: number; y: number }) {
-    deps.withPointerPlayer((human) => human.setDpadVector(vec.x, vec.y));
+    const aim = snapVectorToOctant(vec);
+    deps.withPointerPlayer((human) => human.setDpadVector(aim.x, aim.y));
   }
 
   function clearVector() {
@@ -482,6 +483,21 @@ function computeDpadVector(
   if (dist < radius * DPAD_DEAD_ZONE) return undefined;
   const scale = Math.min(1, dist / radius);
   return { x: (dx / dist) * scale, y: (dy / dist) * scale };
+}
+
+/** Snap a vector's heading to the nearest of 8 compass directions (cardinals
+ *  + diagonals) while preserving its magnitude. Used for BATTLE aiming so the
+ *  crosshair drifts along 8 fixed headings; distance from the d-pad center
+ *  still scales speed. A zero vector is returned unchanged. */
+function snapVectorToOctant(vec: { x: number; y: number }): {
+  x: number;
+  y: number;
+} {
+  const magnitude = Math.hypot(vec.x, vec.y);
+  if (magnitude === 0) return vec;
+  const OCTANT = Math.PI / 4;
+  const heading = Math.round(Math.atan2(vec.y, vec.x) / OCTANT) * OCTANT;
+  return { x: Math.cos(heading) * magnitude, y: Math.sin(heading) * magnitude };
 }
 
 /** Snap a unit vector to the nearest cardinal Action (used outside BATTLE).
