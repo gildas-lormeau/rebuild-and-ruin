@@ -2,6 +2,7 @@ import {
   isBalloonCannon,
   isCannonAlive,
 } from "../../shared/core/battle-types.ts";
+import { isCannonEnclosed } from "../../shared/core/board-occupancy.ts";
 import { Phase } from "../../shared/core/game-phase.ts";
 import { cannonCenter } from "../../shared/core/spatial.ts";
 import { isSessionLive, type RuntimeState } from "../state.ts";
@@ -80,11 +81,24 @@ export function createCannonAnimator(deps: CannonAnimatorDeps): CannonAnimator {
         seen.add(key);
         let target = player.defaultFacing;
         if (weaponsActive) {
-          const controllerId = capturerOf.get(cannon) ?? player.id;
-          const crosshair = crosshairs.find((c) => c.playerId === controllerId);
-          if (crosshair) {
-            const { x, y } = cannonCenter(cannon);
-            target = Math.atan2(crosshair.x - x, -(crosshair.y - y));
+          const capturerId = capturerOf.get(cannon);
+          // Only cannons that can actually fire track the crosshair. An own
+          // (non-captured) cannon must be enclosed — mirroring the fire gate
+          // in `canFireOwnCannon`; an un-enclosed cannon stays at rest and
+          // does not rotate during battle. A captured cannon fires from the
+          // victim's position with no enclosure requirement (see
+          // `canFireCapturedCannon`), so it always tracks its capturer.
+          const canAim =
+            capturerId !== undefined || isCannonEnclosed(cannon, player);
+          if (canAim) {
+            const controllerId = capturerId ?? player.id;
+            const crosshair = crosshairs.find(
+              (c) => c.playerId === controllerId,
+            );
+            if (crosshair) {
+              const { x, y } = cannonCenter(cannon);
+              target = Math.atan2(crosshair.x - x, -(crosshair.y - y));
+            }
           }
         }
         const existing = facings.get(key);
