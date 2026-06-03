@@ -432,12 +432,6 @@ export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
     return deps.getCtx().povPlayerId;
   }
 
-  function getBestEnemyZone(): ZoneId | null {
-    const state = deps.getState();
-    if (!state) return null;
-    return bestEnemyZone(state.players, state.playerZones, povPlayerId());
-  }
-
   function getEnemyZones(): ZoneId[] {
     const state = deps.getState();
     if (!state) return [];
@@ -929,15 +923,17 @@ export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
   }
 
   /** Default zone target for a gameplay phase: home zone for BUILD /
-   *  CANNON_PLACE, best enemy zone for BATTLE. Returns null for phases
-   *  with no auto-anchor (selection / modifier-reveal / upgrade-pick) or
-   *  when the chosen zone can't be resolved (no live human / no enemy). */
+   *  CANNON_PLACE, the battle crosshair-target zone for BATTLE (restored
+   *  last-aimed enemy, else best enemy — kept in lockstep with the crosshair
+   *  so it can't land off-screen). Returns null for phases with no auto-anchor
+   *  (selection / modifier-reveal / upgrade-pick) or when the chosen zone
+   *  can't be resolved (no live human / no enemy). */
   function defaultTargetForPhase(phase: Phase): UserTarget | null {
     const slot = phaseSlot(phase);
     if (!slot) return null;
     const zoneId =
       slot === "battle"
-        ? getBestEnemyZone()
+        ? battleTargetZone()
         : zoneByPlayer(deps.getState(), povPlayerId());
     if (zoneId === null) return null;
     return { kind: "zone", zone: zoneId };
@@ -1450,6 +1446,32 @@ export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
   /** Store a crosshair position for restoration at the next battle start. */
   function saveBattleCrosshair(pos: { x: number; y: number }): void {
     lastBattleCrosshair = { x: pos.x, y: pos.y };
+  }
+
+  /** Zone the battle-start crosshair will occupy — the restored last-aimed
+   *  enemy (if still alive) or, failing that, the best enemy. The camera
+   *  frames THIS zone on battle entry so it always agrees with where
+   *  `applyBattleTarget` drops the crosshair. Framing `bestEnemyZone`
+   *  independently let the two disagree: fight enemy B last round → the
+   *  crosshair restores onto B, but the camera framed best-enemy A, so the
+   *  crosshair sat off-screen. Read-only — does NOT consume
+   *  `lastBattleCrosshair`. Null when there's no enemy or the target is
+   *  off-grid. */
+  function battleTargetZone(): ZoneId | null {
+    const state = deps.getState();
+    if (!state) return null;
+    const target = battleTargetPosition(
+      state.players,
+      state.playerZones,
+      state.map.zones,
+      povPlayerId(),
+      lastBattleCrosshair,
+    );
+    if (!target) return null;
+    const row = pxToTile(target.y);
+    const col = pxToTile(target.x);
+    if (row < 0 || row >= GRID_ROWS || col < 0 || col >= GRID_COLS) return null;
+    return zoneAt(state.map, row, col) ?? null;
   }
 
   // --- Return public API ---
