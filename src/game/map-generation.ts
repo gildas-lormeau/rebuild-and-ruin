@@ -254,6 +254,7 @@ function buildMapResult(
     exits,
     riverMidpoints,
     mapVersion: nextMapVersion(),
+    frozenVersion: 0,
   };
 }
 

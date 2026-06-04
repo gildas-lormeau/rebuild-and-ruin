@@ -177,10 +177,15 @@ adds an effect without touching the scene assembly.
   (`runtime/runtime-composition.ts`) is the one place allowed to import
   render functions and thread them into the runtime via deps.
 
-- **Terrain SDF cache is keyed by `mapVersion`.** Freeze/thaw or any
-  other tile mutation bumps `mapVersion`, which invalidates both the 2D
-  cache (`render-map.ts`) and the 3D shader's uploaded `DataTexture`
-  (`3d/effects/terrain-sdf-texture.ts`).
+- **Terrain SDF cache is keyed by `mapVersion`.** A genuine water/grass
+  geometry change (sinkhole, high_tide, low_water) bumps `mapVersion`,
+  which invalidates both the 2D cache (`render-map.ts`) and the 3D shader's
+  uploaded `DataTexture` (`3d/effects/terrain-sdf-texture.ts`). Frozen-river
+  freeze/thaw does NOT bump `mapVersion` — water stays water, so the SDF
+  shoreline is unchanged; it bumps `frozenVersion` instead, which only the
+  per-tile flags texture (`3d/effects/terrain-tile-data.ts`) watches. This
+  keeps a cannonball-on-ice impact from forcing a full-resolution SDF
+  rebuild every frame during a frozen-river battle.
 
 - **`drawFrame` must be called EVEN WHEN NOTHING CHANGED.** Neither the
   2D context nor the WebGL default framebuffer persists between frames

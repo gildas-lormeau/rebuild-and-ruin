@@ -185,6 +185,7 @@ function makeAllGrassMap(): GameMap {
     exits: [],
     riverMidpoints: [],
     mapVersion: 0,
+    frozenVersion: 0,
   };
 }
 

@@ -74,6 +74,13 @@ export interface GameMap {
   /** Bumped when tiles are mutated in place (e.g., sinkhole).
    *  Render terrain cache uses this to detect stale ImageData. */
   mapVersion: number;
+  /** Bumped when the frozen-tile set changes (frozen-river apply / thaw /
+   *  clear) WITHOUT the underlying water/grass geometry changing. Thawing
+   *  reverts water→water, so the shoreline the SDF encodes is unchanged —
+   *  only the per-tile `FLAG_FROZEN` flag moves. The tile-data flags texture
+   *  watches this; the expensive SDF caches stay keyed on `mapVersion` alone
+   *  so a thaw no longer forces a full-resolution distance-field rebuild. */
+  frozenVersion: number;
 }
 
 /** Viewport rect in tile-pixel coordinates (before SCALE). null = full map. */

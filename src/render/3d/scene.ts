@@ -181,9 +181,10 @@ export interface Render3dContext {
   readonly modifierEffects: readonly EffectManager[];
   /** SDF DataTexture (R32F, MAP_PX × MAP_PX) the terrain mesh's shader
    *  samples for the per-pixel grass→bank→water gradient (default branch
-   *  + owned-sinkhole branch). Rebuilt on `mapVersion` change (freeze/thaw,
-   *  sinkhole modifier mutation); sourced from the 2D renderer's cached
-   *  blurred SDF. */
+   *  + owned-sinkhole branch). Rebuilt on `mapVersion` change (sinkhole /
+   *  high_tide / low_water shoreline mutation). Frozen-river freeze/thaw
+   *  does NOT bump `mapVersion` — it leaves water as water, so the SDF is
+   *  unchanged. Sourced from the 2D renderer's cached blurred SDF. */
   readonly terrainSdfTexture: TerrainSdfTextureManager;
   /** Per-tile owner + flag DataTexture (RGBA8, GRID × GRID) the terrain
    *  shader looks up to gate the bank-gradient override. Refreshed only

@@ -54,7 +54,9 @@ function applyFrozenRiver(state: GameState): ReadonlySet<TileKey> {
   }
   if (frozen.size === 0) return frozen;
   modern.frozenTiles = frozen;
-  state.map.mapVersion++;
+  // Freezing leaves water as water (just walkable) — the SDF shoreline is
+  // unchanged, so bump the frozen-flag version, not `mapVersion`.
+  state.map.frozenVersion++;
 
   // Force all grunts to re-lock targets with zones open — grunts near the
   // river will pick cross-zone towers, grunts far away keep same-zone targets.
@@ -74,7 +76,9 @@ function clearFrozenRiver(state: GameState): void {
     state.grunts.forEach(resetGruntTargeting);
   }
   modern.frozenTiles = null;
-  state.map.mapVersion++;
+  // Thaw-all on clear: water was already water, so only the frozen flag is
+  // dropped — bump `frozenVersion`, not `mapVersion`.
+  state.map.frozenVersion++;
 }
 
 /** Clear every target-derived field on a grunt. Used by frozen-river

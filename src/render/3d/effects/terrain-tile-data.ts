@@ -32,6 +32,7 @@ export interface TerrainTileDataManager {
 
 interface TileDataFingerprint {
   mapVersion: number;
+  frozenVersion: number;
   interiorRefs: ReadonlyArray<ReadonlySet<TileKey>>;
   frozenTiles: ReadonlySet<TileKey> | undefined;
   inBattle: boolean;
@@ -64,14 +65,18 @@ export function createTerrainTileDataManager(): TerrainTileDataManager {
     const inBattle = overlay.phase === Phase.BATTLE;
     const frozenTiles = overlay.entities?.frozenTiles;
 
-    // `mapVersion` covers in-place mutations of frozenTiles (see ICE_THAWED
-    // in battle-system.ts — `frozenTiles.delete()` keeps the same Set
-    // reference but bumps mapVersion). Without this, ref equality alone
-    // would let a thawed-mid-battle tile keep showing as ice until the
-    // next phase replaced the Set wholesale.
+    // `frozenVersion` covers in-place mutations of frozenTiles (see
+    // ICE_THAWED in battle-system.ts — `frozenTiles.delete()` keeps the
+    // same Set reference but bumps frozenVersion). Without this, ref
+    // equality alone would let a thawed-mid-battle tile keep showing as ice
+    // until the next phase replaced the Set wholesale. `mapVersion` stays in
+    // the fingerprint to catch geometry/ownership changes; it deliberately
+    // no longer bumps on thaw, so the per-pixel SDF caches keyed on it don't
+    // rebuild every time a cannonball lands on ice.
     if (
       lastFingerprint &&
       lastFingerprint.mapVersion === map.mapVersion &&
+      lastFingerprint.frozenVersion === map.frozenVersion &&
       lastFingerprint.inBattle === inBattle &&
       lastFingerprint.frozenTiles === frozenTiles &&
       interiorRefsMatch(lastFingerprint.interiorRefs, overlay, inBattle)
@@ -96,6 +101,7 @@ export function createTerrainTileDataManager(): TerrainTileDataManager {
     texture.needsUpdate = true;
     lastFingerprint = {
       mapVersion: map.mapVersion,
+      frozenVersion: map.frozenVersion,
       interiorRefs: snapshotInteriorRefs(overlay, inBattle),
       frozenTiles,
       inBattle,

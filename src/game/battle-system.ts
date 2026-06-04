@@ -784,7 +784,11 @@ function applyImpactEvent(
       break;
     case BATTLE_MESSAGE.ICE_THAWED:
       state.modern?.frozenTiles?.delete(packTile(event.row, event.col));
-      state.map.mapVersion++;
+      // Thaw reverts water→water: only the frozen flag moves, not the
+      // water/grass shoreline. Bump `frozenVersion` (the tile-data flags
+      // texture watches it) and NOT `mapVersion`, so the per-pixel SDF
+      // caches don't recompute on every cannonball that lands on ice.
+      state.map.frozenVersion++;
       break;
     case BATTLE_MESSAGE.WALL_ABSORBED: {
       const player = state.players[event.playerId];
