@@ -14,7 +14,6 @@ import type { TileKey } from "../shared/core/grid.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import type { Player } from "../shared/core/player-types.ts";
 import {
-  DIRS_4,
   DIRS_8,
   inBounds,
   orderByNearest,
@@ -56,12 +55,17 @@ export function planDenyEnclosure(
   const bottleneck = cheapestRingBottleneck(state, enemy, rng);
   if (!bottleneck) return null;
 
-  // Walls the defender's cheapest ring runs through: the live walls sitting on
-  // or cardinally beside the min-cut bottleneck. These are the load-bearing
-  // tiles — destroying them forces a rebuild at the unroutable chokepoint.
+  // Walls the defender's cheapest ring runs through: the live walls sitting ON
+  // the min-cut bottleneck. Earlier this also swept in walls cardinally BESIDE
+  // the cut, which pulled in a redundant parallel layer — a doubled corner cap
+  // one tile off the chokepoint, sitting behind the wall that actually seals
+  // the ring. Destroying that inner/outer shell breaches nothing (the on-cut
+  // wall still encloses, so the defender need not even repair it) and worse
+  // hands them free interior tiles to re-place cannons on. Only walls on the
+  // bottleneck itself force a rebuild at the unroutable chokepoint.
   const targetKeys: TileKey[] = [];
   for (const wallKey of enemy.walls) {
-    if (bottleneck.has(wallKey) || hasCardinalIn(wallKey, bottleneck)) {
+    if (bottleneck.has(wallKey)) {
       targetKeys.push(wallKey);
     }
   }
@@ -194,15 +198,4 @@ function chokepointSeverity(state: BattleViewState, tile: TilePos): number {
     if (!isRingWallable(state, nr, nc, false)) severity++;
   }
   return severity;
-}
-
-/** Whether any cardinal neighbour of `key` is in `set`. */
-function hasCardinalIn(key: TileKey, set: ReadonlySet<TileKey>): boolean {
-  const { row, col } = unpackTile(key);
-  for (const [dr, dc] of DIRS_4) {
-    const nr = row + dr;
-    const nc = col + dc;
-    if (inBounds(nr, nc) && set.has(packTile(nr, nc))) return true;
-  }
-  return false;
 }
