@@ -18,6 +18,7 @@ import {
   DIRS_8,
   inBounds,
   packTile,
+  unpackTile,
   zoneTileBounds,
 } from "../shared/core/spatial.ts";
 import type { GameViewState } from "../shared/core/system-interfaces.ts";
@@ -55,20 +56,24 @@ export function findEnclosureCut(
   walls: ReadonlySet<TileKey>,
   allowPit: boolean,
 ): Set<TileKey> | null {
-  const tileCount = GRID_ROWS * GRID_COLS;
-  // Node ids: IN(t) = t, OUT(t) = t + tileCount, SOURCE, SINK.
-  const source = tileCount * 2;
-  const sink = tileCount * 2 + 1;
   const box = computeEnclosureBox(seeds, state);
-  const graph = new FlowGraph(tileCount * 2 + 2);
+  const boxW = box.maxC - box.minC + 1;
+  const boxTiles = boxW * (box.maxR - box.minR + 1);
+  // Node ids are BOX-LOCAL (dense over box tiles only, not the full grid), so
+  // every per-call array sizes to the box: IN(t) = t, OUT(t) = t + boxTiles,
+  // SOURCE, SINK. The IN id of an in-box tile is (row - minR) * boxW + (col - minC).
+  const source = boxTiles * 2;
+  const sink = boxTiles * 2 + 1;
+  const graph = new FlowGraph(boxTiles * 2 + 2);
 
   const protectedTiles = collectProtectedTiles(seeds, state, walls);
   buildFlowGraph(
     graph,
-    tileCount,
+    box,
+    boxW,
+    boxTiles,
     source,
     sink,
-    box,
     protectedTiles,
     state,
     walls,
@@ -79,17 +84,18 @@ export function findEnclosureCut(
 
   // Source-side min cut: a cuttable tile whose IN is residual-reachable from
   // the source but whose OUT is not has its capacity-1 internal edge saturated
-  // — it lies on the cut and must be walled. Only in-box tiles carry edges, so
-  // only they can be reachable; scanning the box (row-major = ascending key)
-  // visits the same cut tiles in the same order as a full-grid scan would.
+  // — it lies on the cut and must be walled. Scanning the box row-major emits
+  // the cut TileKeys in ascending-key order (the box-local id is just the dense
+  // scan index), matching the order a full-grid scan would have produced.
   const reachable = graph.residualReachable(source);
   const cut = new Set<TileKey>();
+  let inNode = 0;
   for (let row = box.minR; row <= box.maxR; row++) {
     for (let col = box.minC; col <= box.maxC; col++) {
-      const key = packTile(row, col);
-      if (reachable[key] && !reachable[key + tileCount]) {
-        cut.add(key as TileKey);
+      if (reachable[inNode] && !reachable[inNode + boxTiles]) {
+        cut.add(packTile(row, col) as TileKey);
       }
+      inNode++;
     }
   }
   return cut;
@@ -179,18 +185,20 @@ function collectProtectedTiles(
   return protectedTiles;
 }
 
-/** Wire the vertex-split flow graph over the `box` tiles only: per non-wall
- *  tile an IN→OUT edge (cap 1 if a wall can seal there and it isn't protected,
- *  else uncuttable), channel edges to passable in-box 8-neighbours, and a drain
- *  to the sink when the tile is on the map border OR has a neighbour outside the
- *  box (the flood escaping the zone box has reached "outside"). The source feeds
- *  every protected tile. */
+/** Wire the vertex-split flow graph over the `box` tiles only, with box-local
+ *  node ids (IN = `(row - minR) * boxW + (col - minC)`, OUT = IN + boxTiles):
+ *  per non-wall tile an IN→OUT edge (cap 1 if a wall can seal there and it isn't
+ *  protected, else uncuttable), channel edges to passable in-box 8-neighbours,
+ *  and a drain to the sink when the tile is on the map border OR has a neighbour
+ *  outside the box (the flood escaping the zone box has reached "outside"). The
+ *  source feeds every protected tile. */
 function buildFlowGraph(
   graph: FlowGraph,
-  tileCount: number,
+  box: TileBounds,
+  boxW: number,
+  boxTiles: number,
   source: number,
   sink: number,
-  box: TileBounds,
   protectedTiles: ReadonlySet<TileKey>,
   state: GameViewState,
   walls: ReadonlySet<TileKey>,
@@ -200,13 +208,15 @@ function buildFlowGraph(
     for (let col = box.minC; col <= box.maxC; col++) {
       const key = packTile(row, col);
       if (walls.has(key)) continue;
+      const inNode = (row - box.minR) * boxW + (col - box.minC);
+      const outNode = inNode + boxTiles;
       // Internal IN->OUT edge carries the vertex capacity: 1 if a wall can
       // seal here (cuttable), uncuttable otherwise. Protected interior tiles
       // are never cuttable — the cut must go around them. With `allowPit`
       // (Foundations) a burning pit is cuttable too: the owner walls through it.
       const cuttable =
         !protectedTiles.has(key) && isRingWallable(state, row, col, allowPit);
-      graph.addEdge(key, key + tileCount, cuttable ? 1 : UNCUTTABLE);
+      graph.addEdge(inNode, outNode, cuttable ? 1 : UNCUTTABLE);
       let escapesBox = false;
       for (const [dr, dc] of DIRS_8) {
         const nr = row + dr;
@@ -218,9 +228,9 @@ function buildFlowGraph(
           escapesBox = true;
           continue;
         }
-        const neighborKey = packTile(nr, nc);
-        if (walls.has(neighborKey)) continue;
-        graph.addEdge(key + tileCount, neighborKey, UNCUTTABLE);
+        if (walls.has(packTile(nr, nc))) continue;
+        const neighborIn = (nr - box.minR) * boxW + (nc - box.minC);
+        graph.addEdge(outNode, neighborIn, UNCUTTABLE);
       }
       const onMapBorder =
         row === 0 ||
@@ -228,12 +238,17 @@ function buildFlowGraph(
         col === 0 ||
         col === GRID_COLS - 1;
       if (onMapBorder || escapesBox) {
-        graph.addEdge(key + tileCount, sink, UNCUTTABLE);
+        graph.addEdge(outNode, sink, UNCUTTABLE);
       }
     }
   }
   for (const key of protectedTiles) {
-    graph.addEdge(source, key, UNCUTTABLE);
+    const { row, col } = unpackTile(key);
+    graph.addEdge(
+      source,
+      (row - box.minR) * boxW + (col - box.minC),
+      UNCUTTABLE,
+    );
   }
 }
 
