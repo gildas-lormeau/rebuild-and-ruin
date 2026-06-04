@@ -79,12 +79,17 @@ export function findEnclosureCut(
 
   // Source-side min cut: a cuttable tile whose IN is residual-reachable from
   // the source but whose OUT is not has its capacity-1 internal edge saturated
-  // — it lies on the cut and must be walled.
+  // — it lies on the cut and must be walled. Only in-box tiles carry edges, so
+  // only they can be reachable; scanning the box (row-major = ascending key)
+  // visits the same cut tiles in the same order as a full-grid scan would.
   const reachable = graph.residualReachable(source);
   const cut = new Set<TileKey>();
-  for (let key = 0; key < tileCount; key++) {
-    if (reachable[key] && !reachable[key + tileCount]) {
-      cut.add(key as TileKey);
+  for (let row = box.minR; row <= box.maxR; row++) {
+    for (let col = box.minC; col <= box.maxC; col++) {
+      const key = packTile(row, col);
+      if (reachable[key] && !reachable[key + tileCount]) {
+        cut.add(key as TileKey);
+      }
     }
   }
   return cut;
