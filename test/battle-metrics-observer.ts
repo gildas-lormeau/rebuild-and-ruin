@@ -39,8 +39,14 @@ import {
   type Player,
 } from "../src/shared/core/player-types.ts";
 import {
+  computeOutside,
+  computeOutsideAfterAdd,
+  computeTrappedAfterAdd,
+  DIRS_8,
   forEachTowerTile,
+  inBounds,
   packTile,
+  unpackTile,
   zoneOwnerIdAt,
 } from "../src/shared/core/spatial.ts";
 import { IMPACT, type ImpactKind, classifyImpact } from "./impact-classify.ts";
@@ -73,6 +79,30 @@ export interface PlayerBattleMetrics {
   /** Self-fire wall hits — cleanup (pocket/ice-trench), NOT waste. */
   ownWallsDestroyed: number;
   enemyCannonsKilled: number;
+  // --- per-shot enclosure-breach quality (enemy-wall cannon hits only) ---
+  // Each enemy-wall hit is classified by its effect on the victim's BREACH
+  // DISTANCE — the minimum walls still separating the sealed interior it
+  // borders from the map boundary (min wall-count 8-path). Distance → 0 =
+  // breaching; distance decreased but > 0 = progress; distance unchanged =
+  // useless. Evaluated per-hit at the moment it lands, so multi-shot drilling
+  // (two holes made at different moments) is credited as progress step-by-step,
+  // not lumped into useless.
+  /** Hits that dropped breach distance to 0 — the interior now leaks. */
+  enemyWallsBreaching: number;
+  /** Hits that REDUCED breach distance but left it > 0 — a necessary drilling
+   *  step toward a breach (e.g. the first tile of a 2-thick barrier). */
+  enemyWallsProgress: number;
+  /** Hits that left breach distance UNCHANGED — genuinely wasted: a redundant
+   *  parallel layer the min-cut doesn't pass through, or a wall sealing no live
+   *  interior (already-open ring / stray wall). The "useless hit" axis. */
+  enemyWallsUseless: number;
+  /** The three buckets split by the firing shot's FireOrigin (deny_enclosure /
+   *  structural / default / …) — shows which tactic wastes fire. Origin is
+   *  resolved per (shooter, cannon) from the diag hook; "unknown" when the
+   *  shot's origin wasn't captured. */
+  wallBreachByOrigin: Record<string, number>;
+  wallProgressByOrigin: Record<string, number>;
+  wallUselessByOrigin: Record<string, number>;
   /** Grunt kills in the shooter's OWN zone — defends own towers. */
   gruntKillsOwnZone: number;
   /** Grunt kills in an ENEMY zone — "charity", removes a threat to the
@@ -187,6 +217,14 @@ export function createBattleMetricsObserver(): BattleMetricsObserver {
   /** Shooter of the most recent CANNON_FIRED — the diag hook fires synchronously
    *  right after with no intervening events, so this attributes its origin. */
   let lastShooter: number | undefined;
+  /** Cannon index of the most recent CANNON_FIRED — paired with `lastShooter`
+   *  in the diag hook to key `shotOriginByCannon`. */
+  let lastCannonIdx: number | undefined;
+  /** FireOrigin of each cannon's most recent shot, keyed `${shooter}:${idx}`.
+   *  A cannon can't fire again until its ball lands (the WALL_DESTROYED below),
+   *  so at destruction time this holds the origin of the destroying shot.
+   *  Cleared each battle. */
+  const shotOriginByCannon = new Map<string, string>();
 
   function on<K extends keyof GameEventMap>(
     sc: Scenario,
@@ -229,8 +267,10 @@ export function createBattleMetricsObserver(): BattleMetricsObserver {
         destroyedThisRound.clear();
         firedCannons.clear();
         lastShotTile.clear();
+        shotOriginByCannon.clear();
         battleEndCaptured = false;
         lastShooter = undefined;
+        lastCannonIdx = undefined;
         for (let pid = 0; pid < sc.state.players.length; pid++) {
           const player = sc.state.players[pid];
           if (!player || isPlayerEliminated(player)) continue;
@@ -300,6 +340,7 @@ export function createBattleMetricsObserver(): BattleMetricsObserver {
         }
         lastShotTile.set(shooter, { row: ev.impactRow, col: ev.impactCol });
         lastShooter = shooter;
+        lastCannonIdx = ev.cannonIdx;
       });
 
       on(sc, BATTLE_MESSAGE.WALL_DESTROYED, (ev) => {
@@ -313,8 +354,12 @@ export function createBattleMetricsObserver(): BattleMetricsObserver {
         if (ev.shooterId === undefined) return;
         const row = current.get(ev.shooterId);
         if (!row) return;
-        if (ev.shooterId === ev.playerId) row.ownWallsDestroyed++;
-        else row.enemyWallsDestroyed++;
+        if (ev.shooterId === ev.playerId) {
+          row.ownWallsDestroyed++;
+        } else {
+          row.enemyWallsDestroyed++;
+          classifyBreach(sc, ev, row, shotOriginByCannon);
+        }
       });
 
       on(sc, BATTLE_MESSAGE.PIT_CREATED, (ev) => {
@@ -401,6 +446,9 @@ export function createBattleMetricsObserver(): BattleMetricsObserver {
       // intervening events, so `lastShooter` is the matching shot's shooter.
       setAiBattleDiagHook((ev) => {
         if (lastShooter === undefined) return;
+        if (lastCannonIdx !== undefined) {
+          shotOriginByCannon.set(`${lastShooter}:${lastCannonIdx}`, ev.origin);
+        }
         const row = current.get(lastShooter);
         if (!row) return;
         row.origin[ev.origin] = (row.origin[ev.origin] ?? 0) + 1;
@@ -445,6 +493,12 @@ function emptyRow(round: number, playerId: number): PlayerBattleMetrics {
     enemyWallsDestroyed: 0,
     ownWallsDestroyed: 0,
     enemyCannonsKilled: 0,
+    enemyWallsBreaching: 0,
+    enemyWallsProgress: 0,
+    enemyWallsUseless: 0,
+    wallBreachByOrigin: {},
+    wallProgressByOrigin: {},
+    wallUselessByOrigin: {},
     gruntKillsOwnZone: 0,
     gruntKillsEnemyZone: 0,
     ownTowersLostToGrunts: 0,
@@ -468,6 +522,97 @@ function emptyRow(round: number, playerId: number): PlayerBattleMetrics {
     crosshairTravelPx: 0,
     crosshairSamples: 0,
   };
+}
+
+/** Classify an enemy-wall cannon hit as breaching / progress / useless (see
+ *  `classifyHit`) and attribute it to the shooter's row by FireOrigin. The wall
+ *  is already removed from `victim.walls` when WALL_DESTROYED fires (apply
+ *  precedes the bus emit), so `victim.walls` is the post-removal set. */
+function classifyBreach(
+  sc: Scenario,
+  ev: GameEventMap[typeof BATTLE_MESSAGE.WALL_DESTROYED],
+  shooterRow: PlayerBattleMetrics,
+  shotOriginByCannon: ReadonlyMap<string, string>,
+): void {
+  const victim = sc.state.players[ev.playerId];
+  if (!victim) return;
+  const origin =
+    shotOriginByCannon.get(`${ev.shooterId}:${ev.shooterCannonIdx}`) ??
+    "unknown";
+  const category = classifyHit(victim.walls, ev.row, ev.col);
+  if (category === "breaching") {
+    shooterRow.enemyWallsBreaching++;
+    shooterRow.wallBreachByOrigin[origin] =
+      (shooterRow.wallBreachByOrigin[origin] ?? 0) + 1;
+  } else if (category === "progress") {
+    shooterRow.enemyWallsProgress++;
+    shooterRow.wallProgressByOrigin[origin] =
+      (shooterRow.wallProgressByOrigin[origin] ?? 0) + 1;
+  } else {
+    shooterRow.enemyWallsUseless++;
+    shooterRow.wallUselessByOrigin[origin] =
+      (shooterRow.wallUselessByOrigin[origin] ?? 0) + 1;
+  }
+}
+
+/** Classify one wall removal against the victim's post-removal wall set.
+ *
+ *  - breaching: re-adding the tile re-traps interior — it was the last wall of
+ *    the barrier here, so this hit opened the hole.
+ *  - else the barrier still seals. The tile is a drilling STEP (progress) iff,
+ *    with it re-added, its 4-connected wall body bridges a wall touching the
+ *    live interior to a wall touching the outside — i.e. it lies on a radial
+ *    barrier between interior and outside, so removing it thinned that barrier
+ *    one wall toward a breach (e.g. the inner tile of a 2-thick wall). This is
+ *    the multi-hit-breach credit: each step is scored when it lands, regardless
+ *    of when the others do.
+ *  - else USELESS: the wall body doesn't bridge interior to outside through this
+ *    tile — a redundant parallel/concentric layer the breach skips, or a stray
+ *    wall sealing no live interior. */
+function classifyHit(
+  walls: ReadonlySet<TileKey>,
+  row: number,
+  col: number,
+): "breaching" | "progress" | "useless" {
+  const tileKey = packTile(row, col);
+  const outsideNow = computeOutside(walls);
+  if (computeTrappedAfterAdd(outsideNow, [tileKey]).length > 0) {
+    return "breaching";
+  }
+  const wallsBefore = new Set(walls);
+  wallsBefore.add(tileKey);
+  const outsideBefore = computeOutsideAfterAdd(outsideNow, [tileKey]);
+  // BFS the destroyed tile's 4-connected wall body (a barrier seals the
+  // 8-flood iff its walls are 4-linked). Progress iff that body touches BOTH a
+  // live-interior tile and an outside tile somewhere — the tile is part of a
+  // barrier actually separating the two.
+  let touchesInterior = false;
+  let touchesOutside = false;
+  const stack: TileKey[] = [tileKey];
+  const seen = new Set<TileKey>([tileKey]);
+  while (stack.length > 0) {
+    const key = stack.pop()!;
+    const { row: kr, col: kc } = unpackTile(key);
+    for (const [dr, dc] of DIRS_8) {
+      const nr = kr + dr;
+      const nc = kc + dc;
+      if (!inBounds(nr, nc)) continue;
+      const nkey = packTile(nr, nc);
+      if (wallsBefore.has(nkey)) {
+        // Extend through the wall body 4-connected only.
+        if ((dr === 0 || dc === 0) && !seen.has(nkey)) {
+          seen.add(nkey);
+          stack.push(nkey);
+        }
+      } else if (outsideBefore.has(nkey)) {
+        touchesOutside = true;
+      } else {
+        touchesInterior = true;
+      }
+    }
+    if (touchesInterior && touchesOutside) return "progress";
+  }
+  return "useless";
 }
 
 /** Count towers with any tile inside the given (freshly computed) interior set

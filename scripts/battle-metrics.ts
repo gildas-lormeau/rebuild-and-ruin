@@ -177,6 +177,63 @@ function printReport(results: readonly SeedMetrics[]): void {
     "  enemy cannons killed ",
     rows.map((r) => r.enemyCannonsKilled),
   );
+  console.log(
+    "\nEnemy-wall hit quality — by effect on victim breach distance (min walls still sealing the interior)",
+  );
+  console.log(
+    "  breaching = interior now leaks | progress = drilled 1 wall closer (multi-hit breach) | useless = distance unchanged (redundant layer / sealed nothing)",
+  );
+  const breaching = sum(rows.map((r) => r.enemyWallsBreaching));
+  const progress = sum(rows.map((r) => r.enemyWallsProgress));
+  const useless = sum(rows.map((r) => r.enemyWallsUseless));
+  const totalEnemyWallHits = breaching + progress + useless;
+  console.log(
+    `  breaching hits        = ${pct(breaching, totalEnemyWallHits)}  (${breaching})`,
+  );
+  console.log(
+    `  progress hits         = ${pct(progress, totalEnemyWallHits)}  (${progress})`,
+  );
+  console.log(
+    `  useless hits          = ${pct(useless, totalEnemyWallHits)}  (${useless})  ← genuinely wasted`,
+  );
+  const breachByOrigin = new Map<string, number>();
+  const progressByOrigin = new Map<string, number>();
+  const uselessByOrigin = new Map<string, number>();
+  for (const row of rows) {
+    for (const [origin, count] of Object.entries(row.wallBreachByOrigin)) {
+      breachByOrigin.set(origin, (breachByOrigin.get(origin) ?? 0) + count);
+    }
+    for (const [origin, count] of Object.entries(row.wallProgressByOrigin)) {
+      progressByOrigin.set(origin, (progressByOrigin.get(origin) ?? 0) + count);
+    }
+    for (const [origin, count] of Object.entries(row.wallUselessByOrigin)) {
+      uselessByOrigin.set(origin, (uselessByOrigin.get(origin) ?? 0) + count);
+    }
+  }
+  const wallOrigins = new Set([
+    ...breachByOrigin.keys(),
+    ...progressByOrigin.keys(),
+    ...uselessByOrigin.keys(),
+  ]);
+  const originTotal = (origin: string) =>
+    (breachByOrigin.get(origin) ?? 0) +
+    (progressByOrigin.get(origin) ?? 0) +
+    (uselessByOrigin.get(origin) ?? 0);
+  console.log(
+    "  by FireOrigin (%useless | %progress | %breaching of that origin's enemy-wall hits):",
+  );
+  for (const origin of [...wallOrigins].sort(
+    (a, b) => originTotal(b) - originTotal(a),
+  )) {
+    const total = originTotal(origin);
+    const u = uselessByOrigin.get(origin) ?? 0;
+    const p = progressByOrigin.get(origin) ?? 0;
+    const b = breachByOrigin.get(origin) ?? 0;
+    console.log(
+      `    ${origin.padEnd(16)} useless ${pct(u, total)}  progress ${pct(p, total)}  breaching ${pct(b, total)}  (n=${total})`,
+    );
+  }
+
   console.log("\nSelf-fire / battle (cleanup, NOT waste)");
   meanLine(
     "  own walls destroyed  ",
