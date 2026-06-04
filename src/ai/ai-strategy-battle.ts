@@ -42,6 +42,7 @@ import {
   computeOutside,
   DIRS_4,
   forEachTowerTile,
+  inBounds,
   isCannonTile,
   manhattanDistance,
   packTile,
@@ -634,11 +635,18 @@ function pickEnclosureWallTarget(
   }
   if (borderWalls.length === 0) return null;
 
-  // Contiguity bias: prefer a border wall 4-adjacent to the last one hit, so
-  // fire concentrates along one segment (deeper breach, cheaper crosshair
-  // travel, tighter combo streaks). Fall back to a uniform pick.
-  const chosen = pickContiguousWall(
+  // Thinnest-barrier bias: score each border wall by how many wall tiles a shot
+  // would have to drill straight through here to reach the outside (1 = a
+  // single-thick, load-bearing wall that breaches in one shot). Firing at the
+  // thinnest segment — and, via the contiguity tiebreak below, drilling that
+  // one column radially — converges on a real breach instead of peeling the
+  // redundant inner shell of a double-walled corner (shots the defender need
+  // not even repair). Uses only board-visible wall geometry (no peeking).
+  const outside = computeOutside(enclosure.walls);
+  const depth = wallDepthToOutside(enclosure.walls, outside);
+  const chosen = pickBreachWall(
     borderWalls,
+    depth,
     targetMemory.lastWallTileKey,
     rand,
   );
@@ -651,19 +659,36 @@ function pickEnclosureWallTarget(
   };
 }
 
-/** Choose a border wall, preferring one cardinally adjacent to `lastKey` to
- *  keep consecutive shots on a contiguous segment; uniform-random otherwise.
- *  `contiguous` reports whether the adjacency bias actually engaged (a wall
- *  4-adjacent to the last one was available and chosen) vs falling back to a
- *  uniform scatter pick — surfaced for the fire-decision diag. */
-function pickContiguousWall(
+/** Choose a border wall, preferring the THINNEST barrier (fewest wall tiles
+ *  between it and the outside, per `depth`) so fire targets load-bearing
+ *  perimeter that actually breaches, not the redundant inner shell. Among
+ *  equally-thin walls, prefer one cardinally adjacent to `lastKey` so
+ *  consecutive shots drill one column radially toward the breach (also cheaper
+ *  crosshair travel + tighter combo streaks); uniform-random otherwise.
+ *  `contiguous` reports whether the adjacency bias engaged vs a scatter pick —
+ *  surfaced for the fire-decision diag. Draws exactly one `rand()` on every
+ *  path (RNG-parity stable). */
+function pickBreachWall(
   borderWalls: readonly TilePos[],
+  depth: ReadonlyMap<TileKey, number>,
   lastKey: TileKey | undefined,
   rand: () => number,
 ): TilePos & { contiguous: boolean } {
+  // Primary key: thinnest barrier. Walls the BFS never reached (fully sealed,
+  // no path of walls to the outside) sort last via Infinity, leaving the old
+  // uniform behaviour as the fallback when nothing is breachable.
+  let minDepth = Number.POSITIVE_INFINITY;
+  for (const wall of borderWalls) {
+    const wallDepth = depth.get(packTile(wall.row, wall.col)) ?? Infinity;
+    if (wallDepth < minDepth) minDepth = wallDepth;
+  }
+  const thinnest = borderWalls.filter(
+    (wall) =>
+      (depth.get(packTile(wall.row, wall.col)) ?? Infinity) === minDepth,
+  );
   if (lastKey !== undefined) {
     const { row: lr, col: lc } = unpackTile(lastKey);
-    const adjacent = borderWalls.filter(
+    const adjacent = thinnest.filter(
       (wall) => Math.abs(wall.row - lr) + Math.abs(wall.col - lc) === 1,
     );
     if (adjacent.length > 0) {
@@ -671,8 +696,49 @@ function pickContiguousWall(
       return { row: wall.row, col: wall.col, contiguous: true };
     }
   }
-  const wall = borderWalls[Math.floor(rand() * borderWalls.length)]!;
+  const wall = thinnest[Math.floor(rand() * thinnest.length)]!;
   return { row: wall.row, col: wall.col, contiguous: false };
+}
+
+/** Distance, in wall tiles, from each enemy wall to the nearest outside tile —
+ *  a multi-source BFS seeded at walls 4-adjacent to `outside` (depth 1) and
+ *  propagated 4-dir through the wall body. A border wall's value is how many
+ *  shots it takes to drill a breach straight through at that point. Walls with
+ *  no 4-connected path to the outside are absent from the map. */
+function wallDepthToOutside(
+  walls: ReadonlySet<TileKey>,
+  outside: ReadonlySet<TileKey>,
+): Map<TileKey, number> {
+  const depth = new Map<TileKey, number>();
+  const queue: TileKey[] = [];
+  for (const wallKey of walls) {
+    const { row, col } = unpackTile(wallKey);
+    for (const [dr, dc] of DIRS_4) {
+      const nr = row + dr;
+      const nc = col + dc;
+      if (inBounds(nr, nc) && outside.has(packTile(nr, nc))) {
+        depth.set(wallKey, 1);
+        queue.push(wallKey);
+        break;
+      }
+    }
+  }
+  for (let head = 0; head < queue.length; head++) {
+    const key = queue[head]!;
+    const next = depth.get(key)! + 1;
+    const { row, col } = unpackTile(key);
+    for (const [dr, dc] of DIRS_4) {
+      const nr = row + dr;
+      const nc = col + dc;
+      if (!inBounds(nr, nc)) continue;
+      const neighborKey = packTile(nr, nc);
+      if (walls.has(neighborKey) && !depth.has(neighborKey)) {
+        depth.set(neighborKey, next);
+        queue.push(neighborKey);
+      }
+    }
+  }
+  return depth;
 }
 
 /** Pick the enclosure nearest the reference tile (crosshair), with a top-2
