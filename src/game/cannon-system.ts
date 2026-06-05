@@ -1,4 +1,5 @@
 import {
+  aliveCannons,
   type Cannon,
   CannonMode,
   isBalloonCannon,
@@ -532,8 +533,7 @@ function cannonSlotsForRound(
 /** Count how many cannon slots are used by a player. Normal = 1, super = SUPER_GUN_COST, balloon = BALLOON_COST. */
 export function cannonSlotsUsed(player: Player): number {
   let slots = 0;
-  for (const cannon of player.cannons) {
-    if (!isCannonAlive(cannon)) continue;
+  for (const cannon of aliveCannons(player.cannons)) {
     slots += cannonSlotCost(cannon.mode);
   }
   return slots;

@@ -7,8 +7,8 @@
  */
 
 import {
+  aliveCannons,
   isBalloonCannon,
-  isCannonAlive,
   isRampartCannon,
 } from "../../shared/core/battle-types.ts";
 import { isPlayerEliminated } from "../../shared/core/player-types.ts";
@@ -34,13 +34,8 @@ function onBattlePhaseStart(
     if (!player.upgrades.get(UID.SHIELD_BATTERY)) continue;
     if (!player.homeTower) continue;
     const region = deps.homeEnclosedRegion(player);
-    for (const cannon of player.cannons) {
-      if (
-        !isCannonAlive(cannon) ||
-        isBalloonCannon(cannon) ||
-        isRampartCannon(cannon)
-      )
-        continue;
+    for (const cannon of aliveCannons(player.cannons)) {
+      if (isBalloonCannon(cannon) || isRampartCannon(cannon)) continue;
       const sz = cannonSize(cannon.mode);
       let allInside = true;
       for (let dr = 0; dr < sz && allInside; dr++) {

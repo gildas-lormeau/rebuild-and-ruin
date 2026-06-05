@@ -9,8 +9,8 @@
 import * as THREE from "three";
 import type { Cannon as BattleCannon } from "../../../shared/core/battle-types.ts";
 import {
+  aliveCannons,
   isBalloonCannon,
-  isCannonAlive,
 } from "../../../shared/core/battle-types.ts";
 import { NORMAL_CANNON_SIZE } from "../../../shared/core/game-constants.ts";
 import { Phase } from "../../../shared/core/game-phase.ts";
@@ -398,8 +398,7 @@ function bucketLiveCannonsByVariant(
 ): Map<VariantName, Cannon[]> {
   const byVariant = new Map<VariantName, Cannon[]>();
   for (const castle of castles) {
-    for (const cannon of castle.cannons) {
-      if (!isCannonAlive(cannon)) continue;
+    for (const cannon of aliveCannons(castle.cannons)) {
       if (isBalloonCannon(cannon)) continue;
       const enclosed = isCannonFootprintInside(cannon, castle.interior);
       const variant = selectVariant(cannon, castle.cannonTier, enclosed);
@@ -470,8 +469,7 @@ function computeSignature(
   if (!overlay?.castles) return "";
   const parts: string[] = [overlay.phase === Phase.BATTLE ? "b" : "p"];
   for (const castle of overlay.castles) {
-    for (const cannon of castle.cannons) {
-      if (!isCannonAlive(cannon)) continue;
+    for (const cannon of aliveCannons(castle.cannons)) {
       if (isBalloonCannon(cannon)) continue;
       const displayed = getCannonFacing(cannon.col, cannon.row) ?? 0;
       const enclosed = isCannonFootprintInside(cannon, castle.interior) ? 1 : 0;

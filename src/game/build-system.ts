@@ -5,9 +5,9 @@
  */
 
 import {
+  aliveCannons,
   CannonMode,
   type Grunt,
-  isCannonAlive,
 } from "../shared/core/battle-types.ts";
 import {
   addPlayerWalls,
@@ -400,9 +400,8 @@ export function recomputeAllTerritory(state: GameState): void {
  *  hits via `applyWallShield`. */
 function refillRampartShields(state: GameState): void {
   for (const player of state.players) {
-    for (const cannon of player.cannons) {
+    for (const cannon of aliveCannons(player.cannons)) {
       if (cannon.mode !== CannonMode.RAMPART) continue;
-      if (!isCannonAlive(cannon)) continue;
       cannon.shieldHp = isCannonEnclosed(cannon, player)
         ? RAMPART_SHIELD_HP
         : 0;

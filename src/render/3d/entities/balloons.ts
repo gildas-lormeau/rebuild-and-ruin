@@ -9,8 +9,8 @@
 import * as THREE from "three";
 import type { Cannon } from "../../../shared/core/battle-types.ts";
 import {
+  aliveCannons,
   isBalloonCannon,
-  isCannonAlive,
 } from "../../../shared/core/battle-types.ts";
 import { TILE_SIZE } from "../../../shared/core/grid.ts";
 import type {
@@ -210,8 +210,7 @@ function collectGroundedBalloons(overlay: RenderOverlay | undefined): Cannon[] {
   const out: Cannon[] = [];
   if (!overlay?.castles) return out;
   for (const castle of overlay.castles) {
-    for (const cannon of castle.cannons) {
-      if (!isCannonAlive(cannon)) continue;
+    for (const cannon of aliveCannons(castle.cannons)) {
       if (!isBalloonCannon(cannon)) continue;
       out.push(cannon);
     }

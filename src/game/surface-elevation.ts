@@ -7,7 +7,7 @@
  * at the pinned aim tile.
  */
 
-import { isCannonAlive } from "../shared/core/battle-types.ts";
+import { aliveCannons } from "../shared/core/battle-types.ts";
 import {
   BALLISTIC_CLEARANCE_MARGIN,
   BALLISTIC_MAX_SLOWDOWN,
@@ -298,8 +298,7 @@ function surfaceAltitudeAt(
 
   // Cannons (2×2 or 3×3)
   for (const player of state.players) {
-    for (const cannon of player.cannons) {
-      if (!isCannonAlive(cannon)) continue;
+    for (const cannon of aliveCannons(player.cannons)) {
       if (!isCannonTile(cannon, row, col)) continue;
       if (player.id === opts.shooterId && !atAim) continue;
       return CANNON_TOP_Y;

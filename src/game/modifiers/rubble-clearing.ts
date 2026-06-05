@@ -9,6 +9,7 @@
 
 import {
   type CannonMode,
+  deadCannons,
   isCannonAlive,
 } from "../../shared/core/battle-types.ts";
 import type { TileKey } from "../../shared/core/grid.ts";
@@ -53,8 +54,7 @@ function applyRubbleClearing(state: GameState): readonly TileKey[] {
   for (const player of state.players) {
     if (isPlayerEliminated(player)) continue;
     const tier = cannonTier(player);
-    for (const cannon of player.cannons) {
-      if (isCannonAlive(cannon)) continue;
+    for (const cannon of deadCannons(player.cannons)) {
       heldDeadCannons.push({
         ownerId: player.id,
         col: cannon.col,

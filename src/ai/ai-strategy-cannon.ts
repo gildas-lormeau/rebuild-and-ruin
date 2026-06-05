@@ -12,6 +12,7 @@ import {
   isCannonEnclosed,
 } from "../game/index.ts";
 import {
+  aliveCannons,
   CannonMode,
   isCannonAlive,
   isRampartCannon,
@@ -602,8 +603,8 @@ function corridorPenalty(
  *  risky spot is cheap. */
 function countEnclosedAliveCannons(player: Player): number {
   let count = 0;
-  for (const cannon of player.cannons) {
-    if (isCannonAlive(cannon) && isCannonEnclosed(cannon, player)) count++;
+  for (const cannon of aliveCannons(player.cannons)) {
+    if (isCannonEnclosed(cannon, player)) count++;
   }
   return count;
 }
@@ -680,8 +681,8 @@ function rampartNetWallCoverage(
   const candCenterRow = row + 1;
   const candCenterCol = col + 1;
   const existingRampartCenters: TilePos[] = [];
-  for (const cannon of player.cannons) {
-    if (!isCannonAlive(cannon) || !isRampartCannon(cannon)) continue;
+  for (const cannon of aliveCannons(player.cannons)) {
+    if (!isRampartCannon(cannon)) continue;
     if ((cannon.shieldHp ?? 0) <= 0) continue;
     if (!isCannonEnclosed(cannon, player)) continue;
     existingRampartCenters.push({ row: cannon.row + 1, col: cannon.col + 1 });

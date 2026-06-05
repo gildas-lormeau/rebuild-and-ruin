@@ -10,7 +10,7 @@
 import * as THREE from "three";
 import type { CannonMode } from "../../../shared/core/battle-types.ts";
 import {
-  isCannonAlive,
+  deadCannons,
   isSuperCannon,
 } from "../../../shared/core/battle-types.ts";
 import type { Tower, TowerIdx } from "../../../shared/core/geometry-types.ts";
@@ -274,8 +274,7 @@ function collectDeadCannonDebris(
 ): void {
   if (!overlay.castles) return;
   for (const castle of overlay.castles) {
-    for (const cannon of castle.cannons) {
-      if (isCannonAlive(cannon)) continue;
+    for (const cannon of deadCannons(castle.cannons)) {
       const variantName = cannonDebrisVariantName(cannon, castle.cannonTier);
       const offset = isSuperCannon(cannon)
         ? TILE_3X3_CENTER_OFFSET
@@ -384,8 +383,7 @@ function computeStructuralSignature(
 
   if (overlay.castles) {
     for (const castle of overlay.castles) {
-      for (const cannon of castle.cannons) {
-        if (isCannonAlive(cannon)) continue;
+      for (const cannon of deadCannons(castle.cannons)) {
         parts.push(
           `c:${castle.playerId}:${cannon.col}:${cannon.row}:${cannonDebrisVariantName(cannon, castle.cannonTier)}`,
         );

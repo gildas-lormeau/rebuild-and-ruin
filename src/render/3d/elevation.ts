@@ -4,10 +4,7 @@
  * occupant at a given tile so crosshair + ball aim agree.
  */
 
-import {
-  isCannonAlive,
-  isSuperCannon,
-} from "../../shared/core/battle-types.ts";
+import { aliveCannons, isSuperCannon } from "../../shared/core/battle-types.ts";
 import type { GameMap } from "../../shared/core/geometry-types.ts";
 import {
   GRID_COLS,
@@ -229,8 +226,7 @@ function targetTopAt(
 
   if (overlay?.castles) {
     for (const castle of overlay.castles) {
-      for (const cannon of castle.cannons) {
-        if (!isCannonAlive(cannon)) continue;
+      for (const cannon of aliveCannons(castle.cannons)) {
         const size = isSuperCannon(cannon) ? 3 : 2;
         if (
           col >= cannon.col &&

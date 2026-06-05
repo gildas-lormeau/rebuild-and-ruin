@@ -21,8 +21,8 @@
 import { setAiBattleDiagHook } from "../src/ai/ai-battle-diag.ts";
 import { canFireOwnCannon } from "../src/game/index.ts";
 import {
+  aliveCannons,
   isBalloonCannon,
-  isCannonAlive,
 } from "../src/shared/core/battle-types.ts";
 import { BATTLE_MESSAGE } from "../src/shared/core/battle-events.ts";
 import { getBattleInterior } from "../src/shared/core/board-occupancy.ts";
@@ -639,8 +639,8 @@ function countTowersInInterior(
  *  hold regardless of whether each is currently enclosed (and thus fireable). */
 function countOwnedCannons(player: Player): number {
   let count = 0;
-  for (const cannon of player.cannons) {
-    if (isCannonAlive(cannon) && !isBalloonCannon(cannon)) count++;
+  for (const cannon of aliveCannons(player.cannons)) {
+    if (!isBalloonCannon(cannon)) count++;
   }
   return count;
 }

@@ -45,6 +45,7 @@ import { setAiBattleDiagHook } from "../src/ai/ai-battle-diag.ts";
 import { getBattleInterior } from "../src/shared/core/board-occupancy.ts";
 import { BATTLE_MESSAGE } from "../src/shared/core/battle-events.ts";
 import {
+  aliveCannons,
   isBalloonCannon,
   isCannonAlive,
   isRampartCannon,
@@ -459,8 +460,7 @@ function firepowerSummary(state: GameState): string {
     let alive = 0;
     let enclosed = 0;
     let firable = 0;
-    for (const cannon of player.cannons) {
-      if (!isCannonAlive(cannon)) continue;
+    for (const cannon of aliveCannons(player.cannons)) {
       alive++;
       const size = cannonSize(cannon.mode);
       let inside = true;
@@ -610,8 +610,8 @@ function effectiveTargetHp(
     tag.startsWith("lost-cannon")
   ) {
     for (const player of state.players) {
-      for (const cannon of player.cannons) {
-        if (isCannonTile(cannon, row, col) && isCannonAlive(cannon)) {
+      for (const cannon of aliveCannons(player.cannons)) {
+        if (isCannonTile(cannon, row, col)) {
           return cannon.hp;
         }
       }

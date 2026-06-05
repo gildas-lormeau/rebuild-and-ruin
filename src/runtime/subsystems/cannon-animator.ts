@@ -1,6 +1,6 @@
 import {
+  aliveCannons,
   isBalloonCannon,
-  isCannonAlive,
 } from "../../shared/core/battle-types.ts";
 import { isCannonEnclosed } from "../../shared/core/board-occupancy.ts";
 import { Phase } from "../../shared/core/game-phase.ts";
@@ -74,8 +74,7 @@ export function createCannonAnimator(deps: CannonAnimatorDeps): CannonAnimator {
     seen.clear();
     for (const player of state.players) {
       if (player.castleWallTiles.size === 0) continue;
-      for (const cannon of player.cannons) {
-        if (!isCannonAlive(cannon)) continue;
+      for (const cannon of aliveCannons(player.cannons)) {
         if (isBalloonCannon(cannon)) continue;
         const key = facingKey(cannon.col, cannon.row);
         seen.add(key);

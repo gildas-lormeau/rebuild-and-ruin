@@ -334,6 +334,20 @@ export function ageImpacts(
   );
 }
 
+/** Iterate only the live cannons in a collection, skipping debris. */
+export function* aliveCannons(cannons: Iterable<Cannon>): Generator<Cannon> {
+  for (const cannon of cannons) {
+    if (isCannonAlive(cannon)) yield cannon;
+  }
+}
+
+/** Iterate only the dead cannons (debris) in a collection. */
+export function* deadCannons(cannons: Iterable<Cannon>): Generator<Cannon> {
+  for (const cannon of cannons) {
+    if (!isCannonAlive(cannon)) yield cannon;
+  }
+}
+
 /** True if a cannon still has hit points remaining. */
 export function isCannonAlive(cannon: Pick<Cannon, "hp">): boolean {
   return cannon.hp > 0;

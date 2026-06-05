@@ -22,6 +22,7 @@ import type {
   CombinedCannonResult,
 } from "../shared/core/battle-types.ts";
 import {
+  deadCannons,
   isBalloonCannon,
   isCannonAlive,
   isRampartCannon,
@@ -342,11 +343,9 @@ export function cleanupBalloonHitTrackingAfterBattle(state: GameState): void {
 
   // 2. Clear balloon state on destroyed cannons (no longer targetable)
   for (const player of state.players) {
-    for (const cannon of player.cannons) {
-      if (!isCannonAlive(cannon)) {
-        cannon.balloonHits = undefined;
-        cannon.balloonCapturerIds = undefined;
-      }
+    for (const cannon of deadCannons(player.cannons)) {
+      cannon.balloonHits = undefined;
+      cannon.balloonCapturerIds = undefined;
     }
   }
 
