@@ -101,7 +101,7 @@ Scenario API (`test/scenario.ts`):
 
 **For input/rendering/browser bugs** — use the E2E scenario API:
 ```typescript
-import { createE2EScenario, E2ETest } from "./e2e-scenario.ts";
+import { createE2EScenario, E2ETest } from "./scenario.ts";
 const test = new E2ETest("my test");
 const sc = await createE2EScenario({ seed: 42, humans: 1, headless: true });
 await sc.runGame();
@@ -155,7 +155,7 @@ Return:
 ```sh
 npm run test:e2e:banner-prev-scene # banner transition pixel verification
 npm run test:e2e:local:quick       # full simulation (headless, 1 round)
-deno test --no-check -A test/e2e-example.ts  # API example tests (local + online)
+deno test --no-check -A test/e2e/example.ts  # API example tests (local + online)
 ```
 
 Flags for online-e2e: `--headless`, `--seed N`, `--mobile`, `--screenshot`,

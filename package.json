@@ -36,7 +36,6 @@
     "test:e2e:local:quick": "deno run -A scripts/online-e2e.ts local 0 --headless '' 1",
     "test:e2e:mobile": "deno run -A scripts/online-e2e.ts local 0 --mobile --screenshot",
     "test:e2e:online:coverage:build-start": "deno run -A scripts/online-e2e.ts online 1 \"\" 1 --headless --coverage --action \"phase:WALL_BUILD exit\"",
-    "test:e2e:banner-prev-scene": "deno run -A test/e2e-banner-prev-scene.ts",
     "test:dt-divergence": "deno test --no-check test/dt-divergence.test.ts",
     "test:survival": "timeout 600 deno test --no-check -A test/ai-build-survival.test.ts",
     "find-seed": "deno run -A scripts/find-seed.ts",

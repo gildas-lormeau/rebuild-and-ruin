@@ -12,8 +12,8 @@
 import { assert } from "@std/assert";
 import { chromium, type Page } from "playwright";
 import { MESSAGE } from "../src/protocol/protocol.ts";
-import { installFastMode } from "./e2e-fast-mode.ts";
-import { waitForPageFn } from "./e2e-helpers.ts";
+import { installFastMode } from "./e2e/fast-mode.ts";
+import { waitForPageFn } from "./e2e/helpers.ts";
 
 const PAGE_URL = "http://localhost:5173/?server=localhost:8001";
 

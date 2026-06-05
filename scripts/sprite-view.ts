@@ -17,7 +17,7 @@
  */
 
 import { chromium } from "playwright";
-import { waitForPageFn } from "../test/e2e-helpers.ts";
+import { waitForPageFn } from "../test/e2e/helpers.ts";
 import { SPRITE_SCENES } from "./sprite-debug-registry.ts";
 
 interface Args {

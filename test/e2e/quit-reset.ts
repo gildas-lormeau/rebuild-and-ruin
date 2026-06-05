@@ -29,8 +29,8 @@ import {
   createE2EScenario,
   GAME_EVENT,
   waitForPhase,
-} from "./e2e-scenario.ts";
-import { Phase } from "../src/shared/core/game-phase.ts";
+} from "./scenario.ts";
+import { Phase } from "../../src/shared/core/game-phase.ts";
 
 Deno.test(
   "e2e mobile: ESC-quit leaves camera unzoomed in the next all-AI game",

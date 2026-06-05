@@ -4,7 +4,7 @@
  * and aggregates which seeds exhibit the shader-compile hitch.
  *
  * For each seed:
- *   1. Spawn `deno test test/e2e-perf.test.ts` with PERF_SEED + PERF_OUT_DIR
+ *   1. Spawn `deno test test/e2e/perf.test.ts` with PERF_SEED + PERF_OUT_DIR
  *      so the test writes to a per-seed directory.
  *   2. Run analyze-perf-peaks on the trace to find the worst-frame window.
  *   3. Run analyze-perf-window at that window's t to see whether
@@ -114,7 +114,7 @@ async function runSingleSeed(
   };
   if (fastMode) env.PERF_FAST = "1";
   const cmd = new Deno.Command("deno", {
-    args: ["test", "--no-check", "-A", "test/e2e-perf.test.ts"],
+    args: ["test", "--no-check", "-A", "test/e2e/perf.test.ts"],
     env,
     stdout: "piped",
     stderr: "piped",

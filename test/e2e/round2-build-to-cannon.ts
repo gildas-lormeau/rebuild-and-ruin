@@ -8,11 +8,11 @@
  * the output bounded.
  *
  * Run: npm run dev  (in another shell)
- *      deno run -A test/e2e-round2-build-to-cannon.ts [--visible]
+ *      deno run -A test/e2e/round2-build-to-cannon.ts [--visible]
  */
 
 import { mkdirSync } from "node:fs";
-import { createE2EScenario, E2ETest, GAME_EVENT } from "./e2e-scenario.ts";
+import { createE2EScenario, E2ETest, GAME_EVENT } from "./scenario.ts";
 
 const OUTPUT_DIR = "tmp/screenshots/round2-build-to-cannon";
 const TICK_STRIDE = 5;

@@ -38,8 +38,8 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import process from "node:process";
 import { type Browser, chromium, devices, type Page } from "playwright";
 import { MESSAGE } from "../src/protocol/protocol.ts";
-import { installFastMode } from "../test/e2e-fast-mode.ts";
-import { waitForPageExpr, waitForPageFn } from "../test/e2e-helpers.ts";
+import { installFastMode } from "../test/e2e/fast-mode.ts";
+import { waitForPageExpr, waitForPageFn } from "../test/e2e/helpers.ts";
 
 // Parse --action flags: "phase:BATTLE click:zoom screenshot:label exit"
 interface TestAction {

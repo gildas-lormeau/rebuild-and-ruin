@@ -6,7 +6,7 @@
  * but async, since all access crosses the Playwright process boundary.
  *
  * Usage:
- *   import { createE2EScenario, E2ETest } from "./e2e-scenario.ts";
+ *   import { createE2EScenario, E2ETest } from "./scenario.ts";
  *   const sc = await createE2EScenario({ seed: 42, headless: true });
  *   sc.bus.on("bannerStart", (ev) => console.log(ev.text));
  *   await sc.runGame();
@@ -14,39 +14,39 @@
  */
 
 import { chromium, type CDPSession, type Page } from "playwright";
-import { installFastMode } from "./e2e-fast-mode.ts";
-import { waitForPageFn } from "./e2e-helpers.ts";
+import { installFastMode } from "./fast-mode.ts";
+import { waitForPageFn } from "./helpers.ts";
 import type {
   E2EBridgeSnapshot,
   E2EBusEntry,
   E2EBusEntryOf,
   SerializedGameState,
-} from "../dev/e2e-bridge.ts";
+} from "../../dev/e2e-bridge.ts";
 import type {
   AsciiSnapshotOptions,
   MapLayer,
   TileInspection,
-} from "../dev/dev-console-grid.ts";
+} from "../../dev/dev-console-grid.ts";
 import {
   GAME_EVENT,
   type GameEventMap,
-} from "../src/shared/core/game-event-bus.ts";
-import type { Phase } from "../src/shared/core/game-phase.ts";
-import type { ModifierId } from "../src/shared/core/game-constants.ts";
-import { TILE_SIZE } from "../src/shared/core/grid.ts";
-import type { Mode } from "../src/shared/ui/ui-mode.ts";
+} from "../../src/shared/core/game-event-bus.ts";
+import type { Phase } from "../../src/shared/core/game-phase.ts";
+import type { ModifierId } from "../../src/shared/core/game-constants.ts";
+import { TILE_SIZE } from "../../src/shared/core/grid.ts";
+import type { Mode } from "../../src/shared/ui/ui-mode.ts";
 
 // Re-export so tests can import GAME_EVENT from the same place.
-export { GAME_EVENT } from "../src/shared/core/game-event-bus.ts";
+export { GAME_EVENT } from "../../src/shared/core/game-event-bus.ts";
 export type {
   E2EBusEntry,
   E2EBusEntryOf,
   SerializedGameState,
-} from "../dev/e2e-bridge.ts";
+} from "../../dev/e2e-bridge.ts";
 export type {
   MapLayer,
   TileInspection,
-} from "../dev/dev-console-grid.ts";
+} from "../../dev/dev-console-grid.ts";
 
 /** Stringified `Mode` enum key (e.g. "LOBBY", "GAME", "STOPPED"). The bridge
  *  emits names rather than numeric values so E2E tests compare against string

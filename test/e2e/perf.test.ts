@@ -11,12 +11,12 @@
  *   - cpu.cpuprofile   → Chrome DevTools Performance panel (Load profile)
  *   - heap.heapsnapshot → Chrome DevTools Memory panel (Load)
  *
- * Run: deno test --no-check -A test/e2e-perf.test.ts
+ * Run: deno test --no-check -A test/e2e/perf.test.ts
  * Requires: npm run dev (vite on port 5173)
  */
 
 import { assert, assertGreater } from "@std/assert";
-import { createE2EScenario } from "./e2e-scenario.ts";
+import { createE2EScenario } from "./scenario.ts";
 
 const OUT_DIR = Deno.env.get("PERF_OUT_DIR") ?? "tmp/perf";
 const SEED = Number(Deno.env.get("PERF_SEED") ?? "42");

@@ -4,7 +4,7 @@
  * Demonstrates the createE2EScenario API — same pattern as headless
  * createScenario, just async.
  *
- * Run: deno test --no-check -A test/e2e-example.ts
+ * Run: deno test --no-check -A test/e2e/example.ts
  * Requires: npm run dev (vite on port 5173)
  * Online test also requires: deno task server (port 8001)
  */
@@ -14,8 +14,8 @@ import {
   createE2EScenario,
   GAME_EVENT,
   waitForPhase,
-} from "./e2e-scenario.ts";
-import { Phase } from "../src/shared/core/game-phase.ts";
+} from "./scenario.ts";
+import { Phase } from "../../src/shared/core/game-phase.ts";
 
 Deno.test("e2e: full game plays to completion with banners", async () => {
   // `await using` pairs with the E2EScenario's Symbol.asyncDispose —

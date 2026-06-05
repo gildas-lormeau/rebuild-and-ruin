@@ -142,13 +142,13 @@ fields should add a new seed to its coverage list.
 3. **Don't use frame/tick counts for timing** (`{ maxTicks: 1000 }`).
    Use `{ timeoutMs }`. Enforced by `lint:test-timeouts`.
 4. **Don't call `page.waitForFunction` directly in E2E.** Use
-   `waitForPageFn` / `waitForPageExpr` from `test/e2e-helpers.ts`.
+   `waitForPageFn` / `waitForPageExpr` from `test/e2e/helpers.ts`.
    Enforced by `lint:raw-playwright`.
 
 ## Related
 
 - [skills/add-test.md](../skills/add-test.md) — step-by-step authoring flow.
 - [scenario.ts](scenario.ts) — public test API.
-- [e2e-scenario.ts](e2e-scenario.ts) — Playwright mirror.
+- [e2e/scenario.ts](e2e/scenario.ts) — Playwright mirror.
 - [reference_test_api.md](../../.claude/projects/-Users-gildas-Desktop-Dev-project-castles-99/memory/reference_test_api.md)
   (if present) — living reference notes.

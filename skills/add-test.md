@@ -64,7 +64,7 @@ Deno.test("scenario: …", async () => {
 
 For E2E tests, never call `page.waitForFunction` directly — use
 `waitForPageFn(page, fn, timeoutMs)` from
-[test/e2e-helpers.ts](../test/e2e-helpers.ts). Enforced by
+[test/e2e/helpers.ts](../test/e2e/helpers.ts). Enforced by
 `lint:raw-playwright`.
 
 ## Step 4: Run it
@@ -85,7 +85,7 @@ failing test pass; the test is the spec.
 The pre-commit hook runs the full lint suite including:
 - `lint:test-timeouts` — bans `maxTicks` / `maxFrames`, enforces `{ timeoutMs }`.
 - `lint:raw-playwright` — bans raw `page.waitForFunction(` outside
-  `test/e2e-helpers.ts`.
+  `test/e2e/helpers.ts`.
 - `lint:literals` — flags new repeated literals.
 
 Fix violations before the hook fails.

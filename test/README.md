@@ -19,7 +19,7 @@ files below are what they import (or what you run by hand).
 | File | Role |
 | --- | --- |
 | [scenario.ts](scenario.ts) | The one primitive. `createScenario({ seed, mode, rounds })` → `{ state, bus, input, runGame, tileAt, … }`. Headless, mock clock. |
-| [e2e-scenario.ts](e2e-scenario.ts) | `createE2EScenario` — async Playwright mirror of the same shape. For **rendering** assertions via bridge snapshots, not game state. Needs `npm run dev`. |
+| [e2e/scenario.ts](e2e/scenario.ts) | `createE2EScenario` — async Playwright mirror of the same shape. For **rendering** assertions via bridge snapshots, not game state. Needs `npm run dev`. |
 | [seed-conditions.ts](seed-conditions.ts) | `loadSeed(name)` + `SEED_CONDITIONS` — drift-safe named seeds. Reach for this instead of hardcoding a seed for a game condition. |
 
 [runtime-headless.ts](runtime-headless.ts) is the headless driver `scenario.ts`
@@ -78,8 +78,8 @@ Not `Deno.test`s — one-off investigation tools you invoke directly.
 | File | Role |
 | --- | --- |
 | [network-setup.ts](network-setup.ts) | Online scenario factories (`online: "host" \| "watcher"`) + `createNetworkedPair` two-runtime loopback. |
-| [e2e-helpers.ts](e2e-helpers.ts) | Playwright wrappers — use `waitForPageFn` (raw `page.waitForFunction` is lint-forbidden outside this file). |
-| [e2e-example.ts](e2e-example.ts) | Canonical E2E template — copy from here. |
+| [e2e/helpers.ts](e2e/helpers.ts) | Playwright wrappers — use `waitForPageFn` (raw `page.waitForFunction` is lint-forbidden outside this file). |
+| [e2e/example.ts](e2e/example.ts) | Canonical E2E template — copy from here. |
 
 ## Bench & fixtures
 

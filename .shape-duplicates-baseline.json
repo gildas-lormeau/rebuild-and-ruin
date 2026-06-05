@@ -541,10 +541,10 @@
       "pair": "DustHost@src/render/3d/effects/wall-dust.ts ↔ SmokePuff@src/render/3d/effects/fire-burst.ts"
     },
     {
-      "pair": "E2EScenarioOptions@test/e2e-scenario.ts ↔ HeadlessRuntimeOptions@test/runtime-headless.ts"
+      "pair": "E2EScenarioOptions@test/e2e/scenario.ts ↔ HeadlessRuntimeOptions@test/runtime-headless.ts"
     },
     {
-      "pair": "E2EScenarioOptions@test/e2e-scenario.ts ↔ ScenarioOptions@test/scenario.ts"
+      "pair": "E2EScenarioOptions@test/e2e/scenario.ts ↔ ScenarioOptions@test/scenario.ts"
     },
     {
       "pair": "EntityOverlay@src/shared/ui/overlay-types.ts ↔ GameState@src/shared/core/types.ts"
