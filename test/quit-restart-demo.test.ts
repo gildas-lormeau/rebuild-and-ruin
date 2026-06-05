@@ -5,7 +5,7 @@
  * "demo" game where every slot is AI. CAMERA_TARGET events fire on every
  * gameplay-phase enter (build/cannon/battle), so the trace shows the
  * runtime's intentional camera moves across both games — the same signal
- * the e2e mobile-zoom-leak repro (`test/e2e/quit-reset.ts`) watches for.
+ * the e2e mobile-zoom-leak repro (`test/e2e/quit-reset.test.ts`) watches for.
  *
  * Pre-req: `runtime-headless.ts::showLobby` must mirror `main.ts::showLobby`
  * (re-arms `lobby.active`, resets `timerAccum`, regenerates the map,
@@ -176,7 +176,7 @@ Deno.test(
 
     dumpCameraTrace(trace);
 
-    // 8. Mobile-zoom-leak invariant (the bug `e2e/quit-reset.ts` repros
+    // 8. Mobile-zoom-leak invariant (the bug `e2e/quit-reset.test.ts` repros
     //    over Playwright): the demo game has no pointer player, so
     //    `mobileAutoZoomActive` reads false and `applyPhaseCameraOnEnter`
     //    must NOT emit. Any demo-tagged event in the trace would mean
