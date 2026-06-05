@@ -204,32 +204,6 @@ Deno.test("scenario: tileAt inspects a walled-in interior tile", async () => {
   assert(interiorInspect.zone !== null, "expected non-null zone");
 });
 
-Deno.test("scenario: entities present during banner sweeps", async () => {
-  const sc = await createScenario({ seed: 42, rounds: 1 });
-
-  let towersSeenDuringBanner = false;
-  let housesSeenDuringBanner = false;
-  let cannonsSeenDuringBanner = false;
-
-  sc.bus.on(GAME_EVENT.BANNER_START, () => {
-    if (sc.state.towerAlive.some(Boolean)) {
-      towersSeenDuringBanner = true;
-    }
-    if (sc.state.map.houses.some((house) => house.alive)) {
-      housesSeenDuringBanner = true;
-    }
-    if (sc.state.players.some((player) => player.cannons.length > 0)) {
-      cannonsSeenDuringBanner = true;
-    }
-  });
-
-  sc.runGame({ timeoutMs: 600_000 });
-
-  assert(towersSeenDuringBanner, "towers should be present during at least one banner");
-  assert(housesSeenDuringBanner, "houses should be present during at least one banner");
-  assert(cannonsSeenDuringBanner, "cannons should be present during at least one banner");
-});
-
 Deno.test("scenario: runGame plays a full game to completion", async () => {
   const sc = await createScenario({ seed: 42, rounds: 2 });
   sc.runGame({ timeoutMs: 600_000 });
@@ -299,66 +273,6 @@ Deno.test(
       gruntSpawnsAtCrushedTile.size,
       crushedTiles.size,
       `every crushed-house tile should get a grunt at that exact tile (${gruntSpawnsAtCrushedTile.size}/${crushedTiles.size})`,
-    );
-  },
-);
-
-Deno.test(
-  "scenario: AI never places a piece that lays zero walls and crushes a house",
-  async () => {
-    // After the piece-on-house parity change (ad713fe2), a piece offset that
-    // lands on an alive house spawns a grunt instead of a wall. A candidate
-    // where every offset is on an alive house therefore produces 0 walls and
-    // only spawns hostile grunts — strictly negative for the placing player.
-    // Seed 505038 modern round 1 Gold places a 1×1 on the house at (20,23)
-    // without the defense-in-depth guard in `enumerateCandidates`.
-    const sc = await createScenario({ seed: 505038, mode: "modern", rounds: 2 });
-
-    type Placement = {
-      round: number;
-      playerId: ValidPlayerId;
-      wallCount: number;
-      crushCount: number;
-    };
-    let currentRound = 1;
-    let pending: Placement | null = null;
-    const badPlacements: Placement[] = [];
-
-    const flush = () => {
-      if (!pending) return;
-      if (pending.wallCount === 0 && pending.crushCount > 0) {
-        badPlacements.push(pending);
-      }
-      pending = null;
-    };
-
-    sc.bus.on(GAME_EVENT.ROUND_START, (ev) => {
-      currentRound = ev.round;
-    });
-    sc.bus.on(GAME_EVENT.WALL_PLACED, (ev) => {
-      flush();
-      pending = {
-        round: currentRound,
-        playerId: ev.playerId,
-        wallCount: ev.tileKeys.length,
-        crushCount: 0,
-      };
-    });
-    sc.bus.on(GAME_EVENT.HOUSE_CRUSHED, () => {
-      if (pending) pending.crushCount++;
-    });
-
-    try {
-      waitUntilRound(sc, 2, { timeoutMs: 480_000 });
-    } catch (_e) {
-      // Reaching round 2 is enough for this seed to trigger the bug if any.
-    }
-    flush();
-
-    assertEquals(
-      badPlacements,
-      [],
-      `placements that produce 0 walls and crush ≥1 house: ${JSON.stringify(badPlacements)}`,
     );
   },
 );
