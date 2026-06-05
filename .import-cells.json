@@ -450,6 +450,7 @@
     "files": [
       "src/render/3d/elevation.ts",
       "src/render/3d/frame-ctx.ts",
+      "src/render/3d/warm-entities.ts",
       "src/render/overlay-helpers.ts",
       "src/render/render-loupe.ts"
     ]

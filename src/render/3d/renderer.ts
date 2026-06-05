@@ -7,6 +7,7 @@
  */
 
 import type { ShadowMaterial } from "three";
+import * as THREE from "three";
 import type { GameMap, Viewport } from "../../shared/core/geometry-types.ts";
 import {
   CANVAS_H,
@@ -38,6 +39,7 @@ import {
   createRender3dScene,
   type Render3dContext,
 } from "./scene.ts";
+import { buildWarmupOverlay } from "./warm-entities.ts";
 
 export function createRender3d(
   worldCanvas: HTMLCanvasElement,
@@ -203,25 +205,11 @@ export function createRender3d(
   // (paired with a readback so the pixels go straight to CPU without
   // touching the visible canvas). The function never writes to the
   // default framebuffer itself — callers do that (or deliberately skip it).
-  function renderSceneToFBO(
-    map: GameMap,
-    overlay: RenderOverlay | undefined,
-    viewport: Viewport | null | undefined,
-    now: number,
-    pitch: number,
-    sunT: number | undefined,
-    pitchMax: number,
-  ): void {
-    // Modifier-aware SDF projection: high_tide flooded grass tiles paint
-    // as water, low_water exposed water tiles paint as grass. The bank
-    // gradient regenerates against the new effective shoreline so the
-    // river visibly widens / narrows, without the modifier needing to
-    // mutate `state.map.tiles`.
-    ctx.terrainSdfTexture.ensureBuilt(map, {
-      phantomWater: overlay?.entities?.floodedTiles,
-      phantomGrass: overlay?.entities?.exposedRiverbedTiles,
-    });
-    const frame: FrameCtx = { overlay, map, now, pitch, sunT };
+  /** Run every entity/effect manager's per-frame reconcile against
+   *  `frame`. Extracted from `renderSceneToFBO` so the warmup path
+   *  (`warmEntityShaders`) drives the identical manager list — adding a
+   *  new manager here is automatically covered by both paths. */
+  function runEntityUpdates(frame: FrameCtx): void {
     ctx.terrainTileData.update(frame);
     ctx.terrain.update(frame);
     ctx.walls.update(frame);
@@ -244,6 +232,28 @@ export function createRender3d(
     ctx.crosshairs.update(frame);
     for (const eff of ctx.modifierEffects) eff.update(frame);
     ctx.bonusSquares.update(frame);
+  }
+
+  function renderSceneToFBO(
+    map: GameMap,
+    overlay: RenderOverlay | undefined,
+    viewport: Viewport | null | undefined,
+    now: number,
+    pitch: number,
+    sunT: number | undefined,
+    pitchMax: number,
+  ): void {
+    // Modifier-aware SDF projection: high_tide flooded grass tiles paint
+    // as water, low_water exposed water tiles paint as grass. The bank
+    // gradient regenerates against the new effective shoreline so the
+    // river visibly widens / narrows, without the modifier needing to
+    // mutate `state.map.tiles`.
+    ctx.terrainSdfTexture.ensureBuilt(map, {
+      phantomWater: overlay?.entities?.floodedTiles,
+      phantomGrass: overlay?.entities?.exposedRiverbedTiles,
+    });
+    const frame: FrameCtx = { overlay, map, now, pitch, sunT };
+    runEntityUpdates(frame);
     updateCameraFromViewport(ctx.camera, viewport, pitch);
     lastViewport = viewport ?? undefined;
     lastPitch = pitch;
@@ -299,6 +309,119 @@ export function createRender3d(
     }
   }
 
+  // Permanent, never-rendered group of cloned entity materials. Built
+  // once by the first `warmEntityShaders` call. Its job is to hold a
+  // live (undisposed) material for every entity shader program so the
+  // program stays in three.js's program cache for the whole session.
+  // Several entity managers (cannonballs, the fire/smoke burst effects)
+  // `dispose()` their materials whenever their entity set empties — which
+  // happens during normal battle too, not just at warmup teardown — so
+  // pre-compiling them once isn't enough: the program would be released
+  // and re-linked on the next spawn. A retained clone with a matching
+  // shader cacheKey keeps the program's ref-count ≥ 1, so the manager's
+  // rebuild hits the cache (`acquireProgram`) instead of recompiling.
+  const shaderKeepalive = new THREE.Group();
+  shaderKeepalive.visible = false;
+  shaderKeepalive.name = "shaderKeepalive";
+  let keepaliveBuilt = false;
+  // Guards the once-per-session entity-shader warmup kicked off from the
+  // first `warmMapCache`.
+  let entityShadersWarmed = false;
+
+  /** Clone every entity mesh currently in the scene into the keepalive
+   *  group, giving each clone an INDEPENDENT material (so the source
+   *  manager disposing its own material doesn't take ours with it).
+   *  Clones must be visible when `compileAsync` runs so their materials
+   *  acquire the program (three's `compile` walks `traverseVisible`);
+   *  the caller flips the group invisible afterwards. Terrain + the
+   *  ground-shadow overlay are excluded — they live in the scene for the
+   *  whole session and never lose their program. */
+  function buildShaderKeepalive(): void {
+    const sources: THREE.Mesh[] = [];
+    ctx.scene.traverse((obj) => {
+      const mesh = obj as THREE.Mesh;
+      if (!mesh.isMesh) return;
+      if (mesh === ctx.terrain.mesh || mesh === ctx.groundShadowOverlay) return;
+      sources.push(mesh);
+    });
+    for (const mesh of sources) {
+      const clone = mesh.clone();
+      clone.material = Array.isArray(mesh.material)
+        ? mesh.material.map((mat) => mat.clone())
+        : mesh.material.clone();
+      clone.visible = true;
+      clone.frustumCulled = false;
+      shaderKeepalive.add(clone);
+    }
+    // Visible for the compile pass (three's `compile` walks
+    // `traverseVisible` and skips hidden subtrees); the caller hides it
+    // again once the programs are linked.
+    shaderKeepalive.visible = true;
+    ctx.scene.add(shaderKeepalive);
+    keepaliveBuilt = true;
+  }
+
+  /** Pre-compile the shader program of every ENTITY material — cannons
+   *  (all modes/tiers), grunts, cannonballs (iron/fire/mortar), the
+   *  fire/smoke/dust burst effects, balloons, pits, crosshairs, etc.
+   *  `warmShadowPermutations` only seeds the shadow permutation of
+   *  whatever meshes already exist in the scene; at CANNON_PLACE entry
+   *  most battle entities have never been instantiated, so their
+   *  programs link lazily on the frame each one first appears — the
+   *  ~600–1000ms BATTLE hitches the perf trace shows.
+   *
+   *  This drives a synthetic "one of every entity" overlay through the
+   *  identical manager reconcile loop the live renderer uses, so each
+   *  manager builds its meshes (and thus their materials) into the
+   *  scene. On the first call we also snapshot those materials into the
+   *  permanent {@link shaderKeepalive} group so the programs survive the
+   *  managers' own dispose-on-empty churn. `compileAsync` then links
+   *  every program (manager meshes + keepalive clones) off the critical
+   *  path. Finally the keepalive group is hidden and a second reconcile
+   *  against an empty overlay tears the throwaway manager instances back
+   *  down, so the warmup leaves no entities visible on the first real
+   *  frame. Shadows are forced on for the compile so the caster
+   *  permutation is seeded too. */
+  async function warmEntityShaders(map: GameMap): Promise<void> {
+    const warmOverlay = buildWarmupOverlay(map);
+    const frame: FrameCtx = {
+      overlay: warmOverlay,
+      map,
+      now: 0,
+      pitch: 0,
+      sunT: 0,
+    };
+    const wasOn = ctx.sun.castShadow;
+    ctx.sun.castShadow = true;
+    // Everything from building the synthetic meshes to tearing them back
+    // down runs SYNCHRONOUSLY before the first `await`, so no rendered
+    // frame ever observes the throwaway entities or the (briefly visible)
+    // keepalive clones — no flash, regardless of when this fires. three's
+    // `compileAsync` runs its synchronous `compile()` (which acquires every
+    // program) before it returns the completion-poll promise, so by the
+    // time we get `pending` the programs are already linked-in-flight and
+    // safe to hide/dispose the source meshes.
+    let pending: Promise<unknown>;
+    try {
+      runEntityUpdates(frame);
+      if (!keepaliveBuilt) buildShaderKeepalive();
+      applyShadowFlags(ctx.scene);
+      pending = ctx.renderer.compileAsync(ctx.scene, ctx.camera);
+    } finally {
+      ctx.sun.castShadow = wasOn;
+      // Keepalive clones' programs are acquired now — hide the group so it
+      // never renders; the materials (and thus their programs) stay alive
+      // via the retained references.
+      shaderKeepalive.visible = false;
+      // Tear the throwaway manager meshes back down so the next real frame
+      // starts from a clean entity set (managers hide/dispose on an empty
+      // overlay — same path as "all entities gone").
+      runEntityUpdates({ overlay: undefined, map, now: 0, pitch: 0, sunT: 0 });
+    }
+    // Off the critical path: just await the GPU link completion poll.
+    await pending;
+  }
+
   return {
     warmMapCache: (map) => {
       canvas2d.warmMapCache(map);
@@ -307,6 +430,16 @@ export function createRender3d(
       // state — geometry is fixed-size, everything else flows through
       // shader uniforms + the SDF / tile-data textures.
       ctx.terrainSdfTexture.ensureBuilt(map);
+      // First map warm of the session (lobby seed-gen) is the earliest the
+      // game map is known and well ahead of any battle — pre-link every
+      // entity shader program here so the per-spawn compiles that cause
+      // ~600–1000ms BATTLE hitches are already cached. Fire-and-forget; the
+      // synchronous portion can't flash (see `warmEntityShaders`), and the
+      // keepalive guard makes it a no-op after the first call.
+      if (!entityShadersWarmed) {
+        entityShadersWarmed = true;
+        void warmEntityShaders(map);
+      }
     },
     warmShadowPermutations,
     drawFrame: (
