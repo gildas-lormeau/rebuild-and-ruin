@@ -39,8 +39,11 @@
  *     remember the old value).
  *   - Control flow: calls inside early-return `if` branches that don't
  *     actually reach the later read.
- *   - Callbacks/closures: snapshot captured by a closure passed to the
- *     call, where the timeline is reversed.
+ *   - Callbacks/closures: a read captured inside a closure that runs at a
+ *     different time than the flagged call. (A mutator *call* located
+ *     behind a function boundary is now excluded — it cannot run during
+ *     the enclosing block's synchronous flow, so it no longer stales
+ *     snapshots read synchronously after the closure's definition.)
  *
  * Scope:
  *   src/**\/*.ts (excluding *.d.ts and test files)
@@ -72,6 +75,16 @@ interface Violation {
   rootName: string;
   snapshotPath: string;
   snippet: string;
+}
+
+interface Snapshot {
+  name: string;
+  decl: VariableDeclaration;
+  path: string[];
+  declLine: number;
+  declPos: number;
+  staleSince: number | null;
+  staleCallLine: number;
 }
 
 const ROOT = path.resolve(import.meta.dirname!, "..");
@@ -235,82 +248,108 @@ function scanBlock(
   rawLines: readonly string[],
   out: Violation[],
 ): void {
-  type Snapshot = {
-    name: string;
-    decl: VariableDeclaration;
-    path: string[];
-    declLine: number;
-    declPos: number;
-    staleSince: number | null;
-    staleCallLine: number;
-  };
   const snapshots = new Map<string, Snapshot>();
 
   for (const node of block.getDescendants()) {
     if (Node.isVariableDeclaration(node)) {
       tryRegisterSnapshot(node, snapshots);
-      continue;
-    }
-    if (Node.isCallExpression(node)) {
-      if (!isMutationCall(node)) continue;
-      const callEnd = node.getEnd();
-      const callLine = node.getStartLineNumber();
-      for (const arg of node.getArguments()) {
-        const argPath = extractAccessPath(arg);
-        if (!argPath) continue;
-        for (const snap of snapshots.values()) {
-          if (!pathsAlias(argPath, snap.path)) continue;
-          if (callEnd <= snap.declPos) continue;
-          if (snap.staleSince === null) {
-            snap.staleSince = callEnd;
-            snap.staleCallLine = callLine;
-          }
-        }
-      }
-      continue;
-    }
-    if (Node.isIdentifier(node)) {
-      const name = node.getText();
-      const snap = snapshots.get(name);
-      if (!snap) continue;
-      if (snap.staleSince === null) continue;
-      if (node.getPos() <= snap.staleSince) continue;
-      if (!identifierResolvesTo(node, snap.decl)) continue;
-      if (isWriteToSnapshotRoot(node)) {
-        snap.staleSince = null;
-        continue;
-      }
-      if (!isMemberAccessOf(node)) continue;
-      const line = node.getStartLineNumber();
-      if (hasAllowMarker(rawLines, line - 1)) continue;
-      out.push({
-        file: relPath,
-        line,
-        snapshotLine: snap.declLine,
-        callLine: snap.staleCallLine,
-        variable: snap.name,
-        rootName: snap.path[0]!,
-        snapshotPath: snap.path.join("."),
-        snippet: rawLines[line - 1]!.trim(),
-      });
+    } else if (Node.isCallExpression(node)) {
+      markStaleFromCall(node, block, snapshots);
+    } else if (Node.isIdentifier(node)) {
+      recordStaleRead(node, snapshots, relPath, rawLines, out);
     }
   }
 }
 
+/** Mark any aliased snapshot stale at a mutator-named call's end position. */
+function markStaleFromCall(
+  node: Node,
+  block: Block,
+  snapshots: Map<string, Snapshot>,
+): void {
+  if (!Node.isCallExpression(node)) return;
+  if (!isMutationCall(node)) return;
+  // A mutation call lexically nested inside a closure/function defined
+  // within this block cannot run during the block's synchronous flow — it
+  // fires later (or never), when that callback is invoked. Treating it as
+  // "intervening" reverses the timeline: the synchronous reads after the
+  // closure definition actually execute BEFORE the call. Skip it so it
+  // never stales a snapshot in the enclosing scope.
+  if (isInsideNestedFunction(node, block)) return;
+  const callEnd = node.getEnd();
+  const callLine = node.getStartLineNumber();
+  for (const arg of node.getArguments()) {
+    const argPath = extractAccessPath(arg);
+    if (!argPath) continue;
+    for (const snap of snapshots.values()) {
+      if (!pathsAlias(argPath, snap.path)) continue;
+      if (callEnd <= snap.declPos) continue;
+      if (snap.staleSince === null) {
+        snap.staleSince = callEnd;
+        snap.staleCallLine = callLine;
+      }
+    }
+  }
+}
+
+/** Record a read of a snapshot that has gone stale since an intervening
+ *  call — or clear staleness if the identifier is a re-assignment. */
+function recordStaleRead(
+  node: Identifier,
+  snapshots: Map<string, Snapshot>,
+  relPath: string,
+  rawLines: readonly string[],
+  out: Violation[],
+): void {
+  const snap = snapshots.get(node.getText());
+  if (!snap) return;
+  if (snap.staleSince === null) return;
+  if (node.getPos() <= snap.staleSince) return;
+  if (!identifierResolvesTo(node, snap.decl)) return;
+  if (isWriteToSnapshotRoot(node)) {
+    snap.staleSince = null;
+    return;
+  }
+  if (!isMemberAccessOf(node)) return;
+  const line = node.getStartLineNumber();
+  if (hasAllowMarker(rawLines, line - 1)) return;
+  out.push({
+    file: relPath,
+    line,
+    snapshotLine: snap.declLine,
+    callLine: snap.staleCallLine,
+    variable: snap.name,
+    rootName: snap.path[0]!,
+    snapshotPath: snap.path.join("."),
+    snippet: rawLines[line - 1]!.trim(),
+  });
+}
+
+/** True if `node` sits behind a function boundary relative to `block` —
+ *  i.e. an arrow/function/method body encloses it before reaching `block`.
+ *  Such a node does not run in `block`'s synchronous flow. */
+function isInsideNestedFunction(node: Node, block: Block): boolean {
+  let cursor = node.getParent();
+  while (cursor && cursor !== block) {
+    if (
+      Node.isArrowFunction(cursor) ||
+      Node.isFunctionExpression(cursor) ||
+      Node.isFunctionDeclaration(cursor) ||
+      Node.isMethodDeclaration(cursor) ||
+      Node.isGetAccessorDeclaration(cursor) ||
+      Node.isSetAccessorDeclaration(cursor) ||
+      Node.isConstructorDeclaration(cursor)
+    ) {
+      return true;
+    }
+    cursor = cursor.getParent();
+  }
+  return false;
+}
+
 function tryRegisterSnapshot(
   decl: VariableDeclaration,
-  out: Map<
-    string,
-    {
-      name: string;
-      decl: VariableDeclaration;
-      path: string[];
-      declLine: number;
-      declPos: number;
-      staleSince: number | null;
-      staleCallLine: number;
-    }
-  >,
+  out: Map<string, Snapshot>,
 ): void {
   const statement = decl.getVariableStatement();
   if (!statement) return;
