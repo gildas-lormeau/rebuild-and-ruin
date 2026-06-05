@@ -26,6 +26,7 @@ import type {
   GameMap,
   TileBounds,
   TilePos,
+  TileRect,
   Tower,
   TowerIdx,
 } from "../shared/core/geometry-types.ts";
@@ -378,100 +379,143 @@ export function pickPlacement(
       placementCtx,
     );
   }
-  // Work-is-done idle: when no real enclosure work remains, a placement is
-  // only worth making if it contributes to a future enclosure — i.e. fills a
-  // target-ring tile (advancing/expanding a ring toward closing) or reclaims
-  // net territory (usefulGain > 0). A placement that does neither is pure
-  // waste: there is nothing left to build (the zone is boxed in by water / map
-  // edges) and laying the piece anyway just buries it in the finished interior
-  // as a junk wall (seed 424501 r6 BLUE dumped a dozen pieces inside a complete
-  // shell — "wtf is blue doing"). Do nothing: hold the piece and let the build
-  // timer run out. Genuine expansion (a real ring-gap fill or netGain > 0) is
-  // untouched. A previous version routed these to a fat-free interior discard
-  // to "advance the bag"; a 10×20×15 ai-compare-multi showed idling instead is
-  // strength-neutral (finalScore -0.30%, finalLives -0.08%, enclosedAvg -0.31%
-  // — all noise), so the discards had no real value and the idle is cleaner.
-  //
-  // The gate is "no LIVE enclosure work" rather than the narrower
-  // allCastlesEnclosed: bag-cycling (burning a dud piece to reach one that can
-  // close an open ring) only pays off when an unenclosed tower is both alive
-  // AND structurally enclosable. When the only unenclosed towers left are dead
-  // or unenclosable, there is nothing to cycle toward, so a net-zero placement
-  // is the same junk-wall waste as the all-enclosed case — and must be held,
-  // not laid (seed 544663 GOLD r38: both alive towers sealed by ~7s, then ~20
-  // net-negative tiles dumped around dead T9/T11's unfillable rings). Direct
-  // gap-fills toward a dead-but-enclosable ring (revival) survive via the
-  // fillsTargetGap escape below; only the non-gap waste is suppressed.
-  const hasLiveEnclosureWork = unenclosedTowers.some(
-    (tower) =>
-      state.towerAlive[tower.index] &&
-      isTowerEnclosable(tower, state, placementCtx.allowPitOverlap),
-  );
-  if (placement !== null && !hasLiveEnclosureWork) {
-    const current = placement;
-    const cells = current.piece.offsets.map(([dr, dc]) =>
-      packTile(current.row + dr, current.col + dc),
-    );
-    const wallTiles = cells.filter((key) => !aliveHouseKeys.has(key));
-    const netGain =
-      baselineOutside -
-      computeOutsideAfterAdd(outside, wallTiles).size -
-      current.piece.offsets.length;
-    const fillsTargetGap = cells.some((key) => targetGaps.has(key));
-    if (netGain <= 0 && !fillsTargetGap) placement = null;
+  // Work-is-done idle: hold the piece rather than bury it as a junk wall when
+  // no enclosure work remains. See suppressIdleWaste.
+  if (placement !== null) {
+    placement = suppressIdleWaste(placement, {
+      state,
+      unenclosedTowers,
+      allowPitOverlap: placementCtx.allowPitOverlap,
+      outside,
+      baselineOutside,
+      targetGaps,
+      aliveHouseKeys,
+    });
   }
   if (placement === null && bestResult.reason !== undefined) {
     emitNoPlacementDiag(playerId, state.round, bestResult.reason);
   }
   if (placement !== null) {
-    const cells = placement.piece.offsets.map(([dr, dc]) =>
-      packTile(placement.row + dr, placement.col + dc),
-    );
-    // Net interior this placement reclaims — the scorer's own `usefulGain`
-    // (`rawGain − pieceTiles`, see computeCandidateEnv). rawGain alone
-    // over-counts: the piece's OWN wall footprint flips outside→wall and
-    // would read as "reclaimed" even when nothing is enclosed; subtracting the
-    // piece's tile count leaves only genuinely-sealed interior. Computed only
-    // when a diag hook is active (for the build-trace) — otherwise production
-    // skips the O(outside) recompute. House tiles never become walls
-    // (applyPiecePlacement drops them), so exclude them from the add set.
-    const wallTiles = cells.filter((key) => !aliveHouseKeys.has(key));
-    const usefulGain = isAiBuildDiagHookActive()
-      ? baselineOutside -
-        computeOutsideAfterAdd(outside, wallTiles).size -
-        placement.piece.offsets.length
-      : 0;
-    let cellsOnRingPerimeter = 0;
-    if (targetRect !== null) {
-      const ringTop = targetRect.top - 1;
-      const ringBottom = targetRect.bottom + 1;
-      const ringLeft = targetRect.left - 1;
-      const ringRight = targetRect.right + 1;
-      for (const [dr, dc] of placement.piece.offsets) {
-        const r = placement.row + dr;
-        const c = placement.col + dc;
-        const inRingBox =
-          r >= ringTop && r <= ringBottom && c >= ringLeft && c <= ringRight;
-        const onRingEdge =
-          r === ringTop ||
-          r === ringBottom ||
-          c === ringLeft ||
-          c === ringRight;
-        if (inRingBox && onRingEdge) cellsOnRingPerimeter++;
-      }
-    }
-    emitWallPlacedDiag(
-      playerId,
-      state.round,
-      cells,
+    emitPlacementResultDiag(playerId, state.round, placement, {
       targetGaps,
       targetRect,
-      cellsOnRingPerimeter,
-      usefulGain,
-      placement.piece.name,
-    );
+      outside,
+      baselineOutside,
+      aliveHouseKeys,
+    });
   }
   return { placement, chosenTowerIndex };
+}
+
+/** Work-is-done idle: when no real enclosure work remains, a placement is only
+ *  worth making if it advances a future enclosure — fills a target-ring tile or
+ *  reclaims net territory (usefulGain > 0). A placement that does neither is
+ *  pure waste: the zone is boxed in by water / map edges and laying the piece
+ *  just buries it in the finished interior as a junk wall (seed 424501 r6 BLUE
+ *  dumped a dozen pieces inside a complete shell — "wtf is blue doing"). Hold
+ *  the piece (return null) and let the build timer run out instead. A previous
+ *  version routed these to a fat-free interior discard to "advance the bag"; a
+ *  10×20×15 ai-compare-multi showed idling is strength-neutral (finalScore
+ *  -0.30%, finalLives -0.08%, enclosedAvg -0.31% — all noise), so the discards
+ *  had no value and the idle is cleaner.
+ *
+ *  The gate is "no LIVE enclosure work" rather than the narrower
+ *  allCastlesEnclosed: bag-cycling (burning a dud piece to reach one that can
+ *  close an open ring) only pays off when an unenclosed tower is both alive AND
+ *  structurally enclosable. When the only unenclosed towers left are dead or
+ *  unenclosable there is nothing to cycle toward, so a net-zero placement is the
+ *  same junk-wall waste as the all-enclosed case (seed 544663 GOLD r38: both
+ *  alive towers sealed by ~7s, then ~20 net-negative tiles dumped around dead
+ *  T9/T11's unfillable rings). Direct gap-fills toward a dead-but-enclosable
+ *  ring (revival) survive via the fillsTargetGap escape; only non-gap waste is
+ *  suppressed. */
+function suppressIdleWaste(
+  placement: AiPlacement,
+  ctx: {
+    state: BuildViewState;
+    unenclosedTowers: readonly Tower[];
+    allowPitOverlap: boolean;
+    outside: ReadonlySet<TileKey>;
+    baselineOutside: number;
+    targetGaps: ReadonlySet<TileKey>;
+    aliveHouseKeys: ReadonlySet<TileKey>;
+  },
+): AiPlacement | null {
+  const { state, unenclosedTowers, allowPitOverlap } = ctx;
+  const hasLiveEnclosureWork = unenclosedTowers.some(
+    (tower) =>
+      state.towerAlive[tower.index] &&
+      isTowerEnclosable(tower, state, allowPitOverlap),
+  );
+  if (hasLiveEnclosureWork) return placement;
+  const cells = placement.piece.offsets.map(([dr, dc]) =>
+    packTile(placement.row + dr, placement.col + dc),
+  );
+  const wallTiles = cells.filter((key) => !ctx.aliveHouseKeys.has(key));
+  const netGain =
+    ctx.baselineOutside -
+    computeOutsideAfterAdd(ctx.outside, wallTiles).size -
+    placement.piece.offsets.length;
+  const fillsTargetGap = cells.some((key) => ctx.targetGaps.has(key));
+  if (netGain <= 0 && !fillsTargetGap) return null;
+  return placement;
+}
+
+/** Emit the wall-placed build-trace diag for a committed placement. Computes
+ *  the scorer's `usefulGain` (`rawGain − pieceTiles`; rawGain alone over-counts
+ *  because the piece's OWN footprint flips outside→wall and reads as reclaimed)
+ *  only when a diag hook is active — production skips the O(outside) recompute.
+ *  House tiles never become walls (applyPiecePlacement drops them), so they're
+ *  excluded from the add set. Also tallies how many of the piece's cells land on
+ *  the target ring's perimeter box. */
+function emitPlacementResultDiag(
+  playerId: ValidPlayerId,
+  round: number,
+  placement: AiPlacement,
+  ctx: {
+    targetGaps: ReadonlySet<TileKey>;
+    targetRect: TileRect | null;
+    outside: ReadonlySet<TileKey>;
+    baselineOutside: number;
+    aliveHouseKeys: ReadonlySet<TileKey>;
+  },
+): void {
+  const { targetGaps, targetRect } = ctx;
+  const cells = placement.piece.offsets.map(([dr, dc]) =>
+    packTile(placement.row + dr, placement.col + dc),
+  );
+  const wallTiles = cells.filter((key) => !ctx.aliveHouseKeys.has(key));
+  const usefulGain = isAiBuildDiagHookActive()
+    ? ctx.baselineOutside -
+      computeOutsideAfterAdd(ctx.outside, wallTiles).size -
+      placement.piece.offsets.length
+    : 0;
+  let cellsOnRingPerimeter = 0;
+  if (targetRect !== null) {
+    const ringTop = targetRect.top - 1;
+    const ringBottom = targetRect.bottom + 1;
+    const ringLeft = targetRect.left - 1;
+    const ringRight = targetRect.right + 1;
+    for (const [dr, dc] of placement.piece.offsets) {
+      const r = placement.row + dr;
+      const c = placement.col + dc;
+      const inRingBox =
+        r >= ringTop && r <= ringBottom && c >= ringLeft && c <= ringRight;
+      const onRingEdge =
+        r === ringTop || r === ringBottom || c === ringLeft || c === ringRight;
+      if (inRingBox && onRingEdge) cellsOnRingPerimeter++;
+    }
+  }
+  emitWallPlacedDiag(
+    playerId,
+    round,
+    cells,
+    targetGaps,
+    targetRect,
+    cellsOnRingPerimeter,
+    usefulGain,
+    placement.piece.name,
+  );
 }
 
 /** Pick the best placement from scored candidates, with gap-filler priority and fallback. */
