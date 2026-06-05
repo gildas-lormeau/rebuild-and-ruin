@@ -3,7 +3,8 @@
 Practical catalogue of the ~5 shapes tests in this codebase take. Match
 your intent to a shape, copy the template, adapt. See
 [skills/add-test.md](../skills/add-test.md) for the end-to-end authoring
-workflow.
+workflow, and [README.md](README.md) for the support-file map (observers,
+diag scripts, shims).
 
 All templates assume:
 
