@@ -246,8 +246,7 @@ export function applyGruntOverrides(
  *  footprint at (row..row+1, col..col+1) must be in-bounds, fully on grass,
  *  off any tower, off any wall (any owner), and off any existing cannon
  *  (any owner). `ownerId` must reference an existing player slot. `mode`
- *  defaults to "normal", `hp` to `CANNON_MAX_HP`, `facing` to the player's
- *  `defaultFacing`.
+ *  defaults to "normal", `hp` to `CANNON_MAX_HP`.
  *
  *  Does NOT enforce interior membership — the runtime's checkpoint path
  *  also doesn't validate this, and tests may want to author cannons in

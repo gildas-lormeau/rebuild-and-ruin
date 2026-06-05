@@ -66,9 +66,9 @@ export interface FixtureFile {
   /** Cannon additions, applied after grunts. Each cannon's 2×2 footprint
    *  ([row..row+1] × [col..col+1]) must be in-bounds, fully on grass, and
    *  off any tower / wall / existing cannon. `ownerId` references a
-   *  player slot. Optional `mode` / `hp` / `facing` default to NORMAL /
-   *  CANNON_MAX_HP / player.defaultFacing. Used to pre-place cannons in
-   *  a CANNON_PLACE fixture so AI tests see a partially-filled state. */
+   *  player slot. Optional `mode` / `hp` default to NORMAL / CANNON_MAX_HP.
+   *  Used to pre-place cannons in a CANNON_PLACE fixture so AI tests see a
+   *  partially-filled state. */
   cannons?: CannonOverride[];
   /** Burning-pit additions, applied after cannons. Each pit occupies one
    *  grass tile; must be in-bounds, off any tower / wall / cannon / existing
@@ -120,8 +120,6 @@ export interface CannonOverride {
   mode?: string;
   /** Starting HP. Defaults to `CANNON_MAX_HP`. */
   hp?: number;
-  /** Facing in radians. Defaults to the player's `defaultFacing`. */
-  facing?: number;
 }
 
 export interface BurningPitOverride {
