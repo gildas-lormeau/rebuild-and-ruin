@@ -48,7 +48,6 @@ Not `Deno.test`s — one-off investigation tools you invoke directly.
 | [winnability-solver.ts](winnability-solver.ts) | The backtracking solver shared by `diag-winnability` and the survival runner. |
 | [grunt-spawn-per-tower.ts](grunt-spawn-per-tower.ts) | Per-`(zone, round, tower)` spawn-distribution table — checks spawns don't concentrate on one tower. |
 | [grunt-spawn-visual-run.ts](grunt-spawn-visual-run.ts) | ASCII samples of WALL_BUILD across rounds 2–4 (visual spot-check). |
-| [debug-tower-debris.test.ts](debug-tower-debris.test.ts) | Throwaway debug test — does `towerAlive` flip to state on a grunt kill. |
 
 ## AI build-survival harness
 
