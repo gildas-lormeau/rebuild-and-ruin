@@ -513,22 +513,11 @@ function selectBestPlacement(
   }
 
   const sortedScored = [...scored].sort((a, b) => b.score - a.score);
-  let topCandidates = sortedScored.slice(0, scoringCtx.skill.topCandidates);
-
-  // When the target has manageable gaps (1-8) and at least one candidate fills
-  // a gap, restrict the final scoring to gap-filling candidates only.
-  // This prevents territory gain elsewhere from out-scoring the gap closure.
-  // Threshold matches canPieceFillAnyGap — if the piece CAN fill a gap, it SHOULD.
-  let restrictedToGapFillers = false;
-  if (hasManageableGaps) {
-    const sortedGapFillers = sortedScored.filter(
-      (score) => score.candidate.gapsFilled > 0,
-    );
-    if (sortedGapFillers.length > 0) {
-      topCandidates = sortedGapFillers.slice(0, scoringCtx.skill.topCandidates);
-      restrictedToGapFillers = true;
-    }
-  }
+  const { topCandidates, restrictedToGapFillers } = restrictTopToGapFillers(
+    sortedScored,
+    hasManageableGaps,
+    scoringCtx.skill.topCandidates,
+  );
 
   const scoreResult = scoreTopCandidates(topCandidates, scoringCtx);
 
@@ -545,64 +534,36 @@ function selectBestPlacement(
     aliveHouseKeys,
   };
 
-  // No candidate evaluated (empty batch or every top candidate hard-rejected
-  // by SCORING_RULES — typically rejectIsolatedGapTiles / rejectFatWalls /
-  // rejectTinyPockets). The hard-rejects guard against imperfect placements
-  // (isolated bridges, fat walls without usefulGain, tiny trapped pockets);
-  // they're meant to nudge the AI toward cleaner choices, not to block it
-  // from ever building when there's a real target. When the AI has a target
-  // with gap-fillers available but every one fails a hard-reject, falling to
-  // `pickFallbackPlacement` (which scans the FULL candidate pool — gap-fillers
-  // and non-gap-fillers alike) scatters walls across the map and the target
-  // never closes, recurring tick after tick. Prefer the highest-pre-score
-  // gap-filler from `sortedScored` instead: closing the ring is more valuable
-  // than the cosmetics the hard-rejects were optimizing for. Falls back to
-  // `pickFallbackPlacement` only when no gap-filler exists at all.
+  // Gate: no candidate survived scoring (empty batch or all hard-rejected).
   if (!scoreResult.evaluated) {
-    if (noBuildTargets) return fail("unevaluated-no-targets");
-    const topGapFiller = sortedScored.find(
-      (entry) => entry.candidate.gapsFilled > 0,
-    );
-    if (topGapFiller) return ok(candidateToPlacement(topGapFiller.candidate));
-    return fromFallback(
-      pickFallbackPlacement(sortedScored, state, fallbackBuildCtx),
+    return selectWhenUnevaluated(
+      sortedScored,
+      noBuildTargets,
+      state,
+      fallbackBuildCtx,
     );
   }
 
   const { bestCandidate, bestScore } = scoreResult;
 
-  // All enclosed, no gaps, no towers to build toward — still allow
-  // expansion if scoring found a positive placement (new large enclosure).
-  // rejectTinyPockets already filtered out small-pocket candidates at
-  // skill ≥ 3, so bestScore > 0 means genuinely useful territory gain.
+  // Gate: all enclosed, no gaps, no towers to build toward — only expand on a
+  // genuinely useful (positive-score) placement. rejectTinyPockets already
+  // filtered small-pocket candidates at skill ≥ 3, so bestScore > 0 is real.
   if (noBuildTargets && bestScore <= 0) return fail("low-score-no-targets");
 
-  // Gap-filling was the priority but territory gain was ≤ 0 — still use the
-  // best gap-filler by first-pass score (closing the ring IS the goal).
-  // Reject fat walls even here — a gap-fill that creates 2×2 blocks without
-  // enclosing territory is wasteful.
+  // Gate: gap-filling was the priority but territory gain was ≤ 0 — close the
+  // ring anyway, preferring a non-fat gap-filler. Returns null to fall through.
   if (bestScore <= 0 && restrictedToGapFillers) {
-    if (fatBlockCountFor(bestCandidate) === 0) {
-      return ok(candidateToPlacement(bestCandidate));
-    }
-    // Fat wall gap-filler — find a non-fat alternative among gap fillers
-    const nonFatGapFillers = topCandidates.filter(
-      (score) =>
-        score.candidate.gapsFilled > 0 &&
-        fatBlockCountFor(score.candidate) === 0,
+    const result = selectGapFillerWithoutGain(
+      bestCandidate,
+      topCandidates,
+      allCastlesEnclosed,
+      fatBlockCountFor,
     );
-    if (nonFatGapFillers.length > 0) {
-      nonFatGapFillers.sort(compareByNumericScoreDesc);
-      return ok(candidateToPlacement(nonFatGapFillers[0]!.candidate));
-    }
-    // All gap fillers are fat — accept the best one anyway if the ring
-    // is still open, because closing the castle outweighs the fat penalty.
-    if (!allCastlesEnclosed) {
-      return ok(candidateToPlacement(bestCandidate));
-    }
+    if (result !== null) return result;
   }
 
-  // If no territory gain: discard or build toward unenclosed towers
+  // Gate: no territory gain at all — discard or build toward unenclosed towers.
   if (bestScore <= 0) {
     return fromFallback(
       pickFallbackPlacement(sortedScored, state, fallbackBuildCtx),
@@ -614,6 +575,87 @@ function selectBestPlacement(
     row: bestCandidate.row,
     col: bestCandidate.col,
   });
+}
+
+/** When the target has manageable gaps (1-8) and at least one scored candidate
+ *  fills a gap, restrict final scoring to gap-fillers only — otherwise
+ *  territory gain elsewhere could out-score the ring closure. Threshold matches
+ *  canPieceFillAnyGap: if the piece CAN fill a gap, it SHOULD. Returns the
+ *  (possibly narrowed) top-candidate slice and whether the restriction applied. */
+function restrictTopToGapFillers(
+  sortedScored: readonly Scored[],
+  hasManageableGaps: boolean,
+  limit: number,
+): { topCandidates: readonly Scored[]; restrictedToGapFillers: boolean } {
+  if (hasManageableGaps) {
+    const sortedGapFillers = sortedScored.filter(
+      (score) => score.candidate.gapsFilled > 0,
+    );
+    if (sortedGapFillers.length > 0) {
+      return {
+        topCandidates: sortedGapFillers.slice(0, limit),
+        restrictedToGapFillers: true,
+      };
+    }
+  }
+  return {
+    topCandidates: sortedScored.slice(0, limit),
+    restrictedToGapFillers: false,
+  };
+}
+
+/** No top candidate survived scoring (empty batch or every top candidate
+ *  hard-rejected by SCORING_RULES — typically rejectIsolatedGapTiles /
+ *  rejectFatWalls / rejectTinyPockets). The hard-rejects nudge the AI toward
+ *  cleaner choices, not to block it from building when there's a real target.
+ *  When a target has gap-fillers but every one fails a hard-reject, falling to
+ *  `pickFallbackPlacement` (which scans the FULL candidate pool) scatters walls
+ *  and the target never closes, recurring tick after tick. Prefer the
+ *  highest-pre-score gap-filler from `sortedScored`: closing the ring beats the
+ *  cosmetics the hard-rejects optimize for. Fall back only when no gap-filler
+ *  exists at all. */
+function selectWhenUnevaluated(
+  sortedScored: readonly Scored[],
+  noBuildTargets: boolean,
+  state: BuildViewState,
+  fallbackBuildCtx: FallbackContext,
+): BestPlacementResult {
+  if (noBuildTargets) return fail("unevaluated-no-targets");
+  const topGapFiller = sortedScored.find(
+    (entry) => entry.candidate.gapsFilled > 0,
+  );
+  if (topGapFiller) return ok(candidateToPlacement(topGapFiller.candidate));
+  return fromFallback(
+    pickFallbackPlacement(sortedScored, state, fallbackBuildCtx),
+  );
+}
+
+/** bestScore ≤ 0 while restricted to gap-fillers: still close the ring (that IS
+ *  the goal), but avoid creating a fat 2×2 block. Prefer a non-fat gap-filler;
+ *  accept a fat one only while the castle is still open, since closing it
+ *  outweighs the fat penalty. Returns null to fall through to the general
+ *  no-gain path when the best gap-filler is fat AND the castle is enclosed. */
+function selectGapFillerWithoutGain(
+  bestCandidate: Candidate,
+  topCandidates: readonly Scored[],
+  allCastlesEnclosed: boolean,
+  fatBlockCountFor: (candidate: Candidate) => number,
+): BestPlacementResult | null {
+  if (fatBlockCountFor(bestCandidate) === 0) {
+    return ok(candidateToPlacement(bestCandidate));
+  }
+  const nonFatGapFillers = topCandidates.filter(
+    (score) =>
+      score.candidate.gapsFilled > 0 && fatBlockCountFor(score.candidate) === 0,
+  );
+  if (nonFatGapFillers.length > 0) {
+    nonFatGapFillers.sort(compareByNumericScoreDesc);
+    return ok(candidateToPlacement(nonFatGapFillers[0]!.candidate));
+  }
+  if (!allCastlesEnclosed) {
+    return ok(candidateToPlacement(bestCandidate));
+  }
+  return null;
 }
 
 function fromFallback(result: {
