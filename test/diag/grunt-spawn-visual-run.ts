@@ -1,5 +1,5 @@
-import { createScenario } from "./scenario.ts";
-import { Phase } from "../src/shared/core/game-phase.ts";
+import { createScenario } from "../scenario.ts";
+import { Phase } from "../../src/shared/core/game-phase.ts";
 
 const FIRST_OBSERVED_ROUND = 2;
 const LAST_OBSERVED_ROUND = 4;

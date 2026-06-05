@@ -3,7 +3,7 @@
  * Used to characterize LOCK SEC sub-modes (scatter / plateau / steady-progress /
  * stragglers) — see Mode #8 in project_ai_build_stall_investigation memory.
  *
- * Usage: deno run -A test/diag-lock-sec.ts <seed> <round> <playerId>
+ * Usage: deno run -A test/diag/lock-sec.ts <seed> <round> <playerId>
  * Where playerId is 0=RED, 1=BLUE, 2=GOLD.
  *
  * Emits per-tick path/chosen-tower/gap-count/rect-bbox plus a round summary:
@@ -18,18 +18,18 @@ async function main() {
   const roundArg = Deno.args[1];
   const playerArg = Deno.args[2];
   if (!seedArg || !roundArg || !playerArg) {
-    console.error("Usage: deno run -A diag-lock-sec.ts <seed> <round> <playerId>");
+    console.error("Usage: deno run -A diag/lock-sec.ts <seed> <round> <playerId>");
     Deno.exit(1);
   }
   const seed = Number(seedArg);
   const targetRound = Number(roundArg);
   const targetPlayer = Number(playerArg);
 
-  const { createScenario, waitForEvent } = await import("./scenario.ts");
-  const { setAiBuildDiagHook } = await import("../src/ai/ai-build-diag.ts");
-  const { Phase } = await import("../src/shared/core/game-phase.ts");
+  const { createScenario, waitForEvent } = await import("../scenario.ts");
+  const { setAiBuildDiagHook } = await import("../../src/ai/ai-build-diag.ts");
+  const { Phase } = await import("../../src/shared/core/game-phase.ts");
   const { GAME_EVENT } = await import(
-    "../src/shared/core/game-event-bus.ts"
+    "../../src/shared/core/game-event-bus.ts"
   );
 
   const sc = await createScenario({
@@ -81,7 +81,7 @@ async function main() {
     });
   });
 
-  const { unpackTile } = await import("../src/shared/core/spatial.ts");
+  const { unpackTile } = await import("../../src/shared/core/spatial.ts");
   const walls: { row: number; col: number }[] = [];
   sc.bus.on(GAME_EVENT.WALL_PLACED, (ev) => {
     if (ev.playerId !== targetPlayer || sc.state.round !== targetRound) return;
@@ -148,7 +148,7 @@ async function main() {
   }
 
   // Compute "did walls land IN the target gaps?" using packTile
-  const { packTile } = await import("../src/shared/core/spatial.ts");
+  const { packTile } = await import("../../src/shared/core/spatial.ts");
   const allTargetGaps = new Set<string>();
   for (const t of ticks) {
     for (const k of t.gapKeys ?? []) allTargetGaps.add(k);

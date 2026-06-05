@@ -37,24 +37,26 @@ view. Pure reads, no mutation.
 | [battle-metrics-observer.ts](battle-metrics-observer.ts) | One metrics row per `(battle, player)` — shot economy / offense / defense / crosshair. Tracks, doesn't score. |
 | [impact-classify.ts](impact-classify.ts) | Structured `{ kind, ownerId? }` for an impact tile (own-wall / enemy-wall / immune-tower / grunt / …). Used by the battle-metrics observer. |
 
-## Standalone diag & run scripts — `deno run -A test/<file>.ts`
+## Standalone diag & run scripts — `deno run -A test/diag/<file>.ts`
 
-Not `Deno.test`s — one-off investigation tools you invoke directly.
+Not `Deno.test`s — one-off investigation tools you invoke directly. Live in
+[diag/](diag/).
 
 | File | Use |
 | --- | --- |
-| [diag-lock-sec.ts](diag-lock-sec.ts) | Per-tick `selectTarget` trace for one stall round. `<seed> <round> <playerId>`. |
-| [diag-winnability.ts](diag-winnability.ts) | Bag-coverage solver: is any placement sequence able to close a LATE_PLATEAU stall's ring gaps? |
-| [winnability-solver.ts](winnability-solver.ts) | The backtracking solver shared by `diag-winnability` and the survival runner. |
-| [grunt-spawn-per-tower.ts](grunt-spawn-per-tower.ts) | Per-`(zone, round, tower)` spawn-distribution table — checks spawns don't concentrate on one tower. |
-| [grunt-spawn-visual-run.ts](grunt-spawn-visual-run.ts) | ASCII samples of WALL_BUILD across rounds 2–4 (visual spot-check). |
+| [diag/lock-sec.ts](diag/lock-sec.ts) | Per-tick `selectTarget` trace for one stall round. `<seed> <round> <playerId>`. |
+| [diag/winnability.ts](diag/winnability.ts) | Bag-coverage solver: is any placement sequence able to close a LATE_PLATEAU stall's ring gaps? |
+| [diag/grunt-spawn-per-tower.ts](diag/grunt-spawn-per-tower.ts) | Per-`(zone, round, tower)` spawn-distribution table — checks spawns don't concentrate on one tower. |
+| [diag/grunt-spawn-visual-run.ts](diag/grunt-spawn-visual-run.ts) | ASCII samples of WALL_BUILD across rounds 2–4 (visual spot-check). |
+| [winnability-solver.ts](winnability-solver.ts) | The backtracking solver shared by `diag/winnability` and the survival runner — stays at root since both subfolders consume it. |
 
-## AI build-survival harness
+## AI build-survival harness — [survival/](survival/)
 
 | File | Role |
 | --- | --- |
-| [ai-build-survival-runner.ts](ai-build-survival-runner.ts) | Shared engine — imported by both the test file (one `Deno.test` per seed) and the worker. |
-| [ai-build-survival-worker.ts](ai-build-survival-worker.ts) | Deno worker — runs one seed on a background thread; with `logDir` set, captures per-seed logs to `${logDir}/seed-{N}.log`. |
+| [survival/build-survival.test.ts](survival/build-survival.test.ts) | Entry — one `Deno.test` per seed, spawns the worker pool. `npm run test:survival`. |
+| [survival/runner.ts](survival/runner.ts) | Shared engine — imported by both the test file and the worker. |
+| [survival/worker.ts](survival/worker.ts) | Deno worker — runs one seed on a background thread; with `logDir` set, captures per-seed logs to `${logDir}/seed-{N}.log`. |
 
 ## DOM / env shims — side-effect or infra imports
 

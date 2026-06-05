@@ -7,9 +7,9 @@
  * so we can see whether spawns concentrate on one tower or spread.
  */
 
-import { createScenario } from "./scenario.ts";
-import { GAME_EVENT } from "../src/shared/core/game-event-bus.ts";
-import { zoneAt, manhattanDistance } from "../src/shared/core/spatial.ts";
+import { createScenario } from "../scenario.ts";
+import { GAME_EVENT } from "../../src/shared/core/game-event-bus.ts";
+import { zoneAt, manhattanDistance } from "../../src/shared/core/spatial.ts";
 
 const SEEDS = [42, 7, 0, 13] as const;
 const ROUNDS = 5;

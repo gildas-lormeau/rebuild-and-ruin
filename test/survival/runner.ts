@@ -1,30 +1,30 @@
 /**
  * Shared engine for the AI build-survival suite. Imported by both the test
  * file (which registers one Deno.test per seed) and the worker (which actually
- * runs `runSeed` on a background thread). See ai-build-survival.test.ts for
+ * runs `runSeed` on a background thread). See build-survival.test.ts for
  * the stall-fingerprint background and the rationale for the 26-seed set.
  */
 
-import { createScenario, waitForEvent } from "./scenario.ts";
-import { Phase } from "../src/shared/core/game-phase.ts";
-import { GAME_EVENT } from "../src/shared/core/game-event-bus.ts";
+import { createScenario, waitForEvent } from "../scenario.ts";
+import { Phase } from "../../src/shared/core/game-phase.ts";
+import { GAME_EVENT } from "../../src/shared/core/game-event-bus.ts";
 import {
   GRID_COLS,
   GRID_ROWS,
   Tile,
   type TileKey,
-} from "../src/shared/core/grid.ts";
-import { DIRS_4, packTile, unpackTile } from "../src/shared/core/spatial.ts";
-import { setAiBuildDiagHook } from "../src/ai/ai-build-diag.ts";
-import type { ValidPlayerId } from "../src/shared/core/player-slot.ts";
-import { ALL_PIECE_SHAPES, type PieceShape } from "../src/shared/core/pieces.ts";
-import type { TileRect } from "../src/shared/core/geometry-types.ts";
+} from "../../src/shared/core/grid.ts";
+import { DIRS_4, packTile, unpackTile } from "../../src/shared/core/spatial.ts";
+import { setAiBuildDiagHook } from "../../src/ai/ai-build-diag.ts";
+import type { ValidPlayerId } from "../../src/shared/core/player-slot.ts";
+import { ALL_PIECE_SHAPES, type PieceShape } from "../../src/shared/core/pieces.ts";
+import type { TileRect } from "../../src/shared/core/geometry-types.ts";
 import {
   classifyIsolatedGapBlame,
   countIsolatedGaps,
   countNarrowPieces,
   solveWinnable,
-} from "./winnability-solver.ts";
+} from "../winnability-solver.ts";
 
 export interface PathCounts {
   HOME: number;
@@ -860,7 +860,7 @@ function evaluateWinnability(
  *  the same rectKey AND don't drop in gap count. Returns the index of the
  *  tick BEFORE the stuck-tail (i.e. the last tick that made progress, OR 0
  *  if the whole trajectory plateaued). Mirrors the logic in
- *  `diag-winnability.ts::classifySubMode` but extracted here so the runner
+ *  `diag/winnability.ts::classifySubMode` but extracted here so the runner
  *  can find the plateau without re-running the full classifier. */
 function findPlateauStartIdx(traj: readonly TrajectoryTick[]): number {
   if (traj.length === 0) return 0;

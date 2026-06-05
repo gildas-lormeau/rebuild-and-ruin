@@ -1,7 +1,7 @@
 /**
  * Deno worker for `scripts/ai-intelligence.ts`. Receives one (seed, rounds,
  * mode) request, runs `runSeed`, and posts the SeedMetrics back. Mirrors the
- * pool pattern in `test/ai-build-survival-worker.ts`.
+ * pool pattern in `test/survival/worker.ts`.
  */
 
 import { runSeed, type SeedMetrics } from "./ai-intelligence-runner.ts";

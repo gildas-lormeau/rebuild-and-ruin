@@ -9,33 +9,33 @@
  *
  * Output: per-stall WINNABLE/UNWINNABLE + aggregate by sub-mode.
  *
- * Usage: deno run -A test/diag-winnability.ts [seeds...]
+ * Usage: deno run -A test/diag/winnability.ts [seeds...]
  *   seeds defaults to the 40-seed survival suite.
  */
 
-import { createScenario, waitForEvent } from "./scenario.ts";
-import { Phase } from "../src/shared/core/game-phase.ts";
-import { GAME_EVENT } from "../src/shared/core/game-event-bus.ts";
-import { setAiBuildDiagHook } from "../src/ai/ai-build-diag.ts";
+import { createScenario, waitForEvent } from "../scenario.ts";
+import { Phase } from "../../src/shared/core/game-phase.ts";
+import { GAME_EVENT } from "../../src/shared/core/game-event-bus.ts";
+import { setAiBuildDiagHook } from "../../src/ai/ai-build-diag.ts";
 import {
   ALL_PIECE_SHAPES,
   rotateCW,
   type PieceShape,
-} from "../src/shared/core/pieces.ts";
+} from "../../src/shared/core/pieces.ts";
 import {
   GRID_COLS,
   GRID_ROWS,
   Tile,
   type TileKey,
-} from "../src/shared/core/grid.ts";
-import { packTile, unpackTile } from "../src/shared/core/spatial.ts";
-import type { TileRect } from "../src/shared/core/geometry-types.ts";
-import type { ValidPlayerId } from "../src/shared/core/player-slot.ts";
+} from "../../src/shared/core/grid.ts";
+import { packTile, unpackTile } from "../../src/shared/core/spatial.ts";
+import type { TileRect } from "../../src/shared/core/geometry-types.ts";
+import type { ValidPlayerId } from "../../src/shared/core/player-slot.ts";
 import {
   countIsolatedGaps,
   countNarrowPieces,
   solveWinnable,
-} from "./winnability-solver.ts";
+} from "../winnability-solver.ts";
 
 interface TickRecord {
   trajIdx: number;

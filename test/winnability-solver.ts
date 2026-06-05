@@ -1,7 +1,7 @@
 /**
  * Bag-coverage / winnability solver shared between the standalone diagnostic
- * (`test/diag-winnability.ts`) and the AI build-survival runner
- * (`test/ai-build-survival-runner.ts`).
+ * (`test/diag/winnability.ts`) and the AI build-survival runner
+ * (`test/survival/runner.ts`).
  *
  * For a captured LATE_PLATEAU stall state — remaining ring gaps, focal walls,
  * blocked tiles, the focal player's grass set, and the upcoming piece queue

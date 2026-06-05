@@ -33,11 +33,11 @@
  */
 
 import { assert } from "@std/assert";
-import { SEEDS, type SeedResult } from "./ai-build-survival-runner.ts";
+import { SEEDS, type SeedResult } from "./runner.ts";
 import type {
   WorkerRequest,
   WorkerResponse,
-} from "./ai-build-survival-worker.ts";
+} from "./worker.ts";
 
 interface Deferred<T> {
   promise: Promise<T>;
@@ -90,7 +90,7 @@ function defer<T>(): Deferred<T> {
 
 function startWorker(): void {
   const worker = new Worker(
-    import.meta.resolve("./ai-build-survival-worker.ts"),
+    import.meta.resolve("./worker.ts"),
     { type: "module" },
   );
 

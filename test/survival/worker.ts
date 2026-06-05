@@ -1,5 +1,5 @@
 /**
- * Deno worker for ai-build-survival. Receives one seed at a time, runs the
+ * Deno worker for the build-survival harness. Receives one seed at a time, runs the
  * full simulation + analysis on a background thread, and posts the structured
  * result back.
  *
@@ -18,7 +18,7 @@ import {
   formatSummaryLine,
   runAndAnalyze,
   type SeedResult,
-} from "./ai-build-survival-runner.ts";
+} from "./runner.ts";
 
 export interface WorkerRequest {
   seed: number;
