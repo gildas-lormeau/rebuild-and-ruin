@@ -145,6 +145,8 @@ function brandSuffixes(brand: string): string[] | null {
       return ["CannonIdx"];
     case "TileKey":
       return ["TileKey"];
+    case "ShotKey":
+      return ["ShotKey"];
     default:
       return null;
   }
