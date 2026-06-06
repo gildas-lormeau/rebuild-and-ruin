@@ -39,7 +39,6 @@ export interface SerializedGrunt {
   attackCountdown?: number;
   blockedRounds?: number;
   attackingWall?: true;
-  facing?: number;
   chipped?: true;
   /** Variant tag — omitted for regular grunts. */
   kind?: "catapult";

@@ -152,16 +152,14 @@ export function restoreFullStateSnapshot(
     msg.gameMode === GAME_MODE_MODERN ? GAME_MODE_MODERN : GAME_MODE_CLASSIC,
   );
   if (hasFeature(state, FID.MODIFIERS)) {
-    state.modern!.activeModifier =
-      (msg.activeModifier as NonNullable<
-        GameState["modern"]
-      >["activeModifier"]) ?? null;
+    state.modern!.activeModifier = msg.activeModifier as NonNullable<
+      GameState["modern"]
+    >["activeModifier"];
     state.modern!.activeModifierChangedTiles =
       msg.activeModifierChangedTiles as TileKey[];
-    state.modern!.lastModifierId =
-      (msg.lastModifierId as NonNullable<
-        GameState["modern"]
-      >["lastModifierId"]) ?? null;
+    state.modern!.lastModifierId = msg.lastModifierId as NonNullable<
+      GameState["modern"]
+    >["lastModifierId"];
     state.modern!.precomputedDustStormJitters =
       msg.precomputedDustStormJitters ?? [];
     state.modern!.rubbleClearingHeld = msg.rubbleClearingHeld ?? null;
@@ -528,7 +526,6 @@ function gruntWireFields(grunt: SerializedGrunt): SerializedGrunt {
     attackCountdown: grunt.attackCountdown,
     blockedRounds: grunt.blockedRounds,
     attackingWall: grunt.attackingWall,
-    facing: grunt.facing,
     chipped: grunt.chipped,
     kind: grunt.kind,
     slowSkip: grunt.slowSkip,
