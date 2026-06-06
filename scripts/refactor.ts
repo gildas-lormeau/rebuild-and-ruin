@@ -17,12 +17,14 @@ import { existsSync, readFileSync, unlinkSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import {
+  type ExportDeclaration,
   type ExportedDeclarations,
   type Identifier,
   type ImportDeclaration,
   type ImportSpecifier,
   Project,
   type SourceFile,
+  type StringLiteral,
   SyntaxKind,
 } from "ts-morph";
 
@@ -2721,25 +2723,50 @@ function renameFile(oldPath: string, newPath: string): void {
   const relNew = path.relative(process.cwd(), absNew);
   console.log(`Renaming ${oldPath} → ${relNew}`);
 
-  // ts-morph's move() renames the file and updates all import specifiers
+  // Capture runtime module-path string literals — import.meta.resolve("…"),
+  // dynamic import("…"), new URL("…", import.meta.url) — that either live in the
+  // moved file or point at it. ts-morph's move() rewrites import/export
+  // specifiers but never these string args, so a moved Deno Worker URL silently
+  // breaks at runtime. Record their resolved targets BEFORE the move, then
+  // recompute after against whichever endpoint relocated.
+  const stringRefs = collectModulePathLiterals(project, absOld);
+
+  // ts-morph's move() renames the file and updates all import/export specifiers.
   sourceFile.move(absNew);
 
-  // ts-morph may generate extensionless specifiers when it rewrites relative
-  // paths — both for imports pointing to the moved file AND for the moved
-  // file's own outgoing relative imports. Ensure all such specifiers end with
-  // .ts (project convention).
-  for (const sf of project.getSourceFiles()) {
-    for (const imp of sf.getImportDeclarations()) {
-      const target = imp.getModuleSpecifierSourceFile();
-      if (!target) continue;
-      const isToMoved = target.getFilePath() === absNew;
-      const isFromMoved = sf.getFilePath() === absNew;
-      if (!isToMoved && !isFromMoved) continue;
-      const spec = imp.getModuleSpecifierValue();
-      if (!spec.endsWith(".ts") && spec.startsWith(".")) {
-        imp.setModuleSpecifier(spec + ".ts");
-      }
+  // ts-morph may emit extensionless specifiers when it rewrites relative paths —
+  // for `import … from` AND `export … from`, on the moved file's own outgoing
+  // specifiers and on importers pointing back at it. Its own resolution can't be
+  // trusted to flag these (an extensionless specifier often fails to resolve),
+  // so append .ts to any relative specifier whose target file exists on disk (or
+  // is the just-moved file). This project uses explicit .ts imports everywhere.
+  const ensureExt = (
+    declAbs: string,
+    decl: ImportDeclaration | ExportDeclaration,
+  ): void => {
+    const spec = decl.getModuleSpecifierValue();
+    if (!spec || !spec.startsWith(".")) return;
+    if (/\.[cm]?[jt]sx?$|\.json$/.test(spec)) return;
+    const candidate = path.resolve(path.dirname(declAbs), `${spec}.ts`);
+    if (candidate === absNew || existsSync(candidate)) {
+      decl.setModuleSpecifier(`${spec}.ts`);
     }
+  };
+  for (const sf of project.getSourceFiles()) {
+    const declAbs = sf.getFilePath();
+    for (const imp of sf.getImportDeclarations()) ensureExt(declAbs, imp);
+    for (const exp of sf.getExportDeclarations()) ensureExt(declAbs, exp);
+  }
+
+  // Recompute the runtime string-path literals captured above, relative to the
+  // new location of whichever endpoint moved.
+  for (const ref of stringRefs) {
+    const declNew = ref.declaringAbs === absOld ? absNew : ref.declaringAbs;
+    const targetNew = ref.targetAbs === absOld ? absNew : ref.targetAbs;
+    if (declNew === ref.declaringAbs && targetNew === ref.targetAbs) continue;
+    let rel = path.relative(path.dirname(declNew), targetNew);
+    if (!rel.startsWith(".")) rel = `./${rel}`;
+    ref.literal.setLiteralValue(rel);
   }
 
   const changedFiles = saveChanges(project);
@@ -3793,11 +3820,70 @@ function addAllSources(project: Project): void {
     "src/**/*.ts",
     "server/**/*.ts",
     "test/**/*.ts",
+    // dev/ and scripts/ are real TypeScript that import from src/ and test/.
+    // Without them a rename-file / rename-symbol silently leaves their imports
+    // and references stale (e.g. scripts/online-e2e.ts importing test/e2e/*).
+    "dev/**/*.ts",
+    "scripts/**/*.ts",
   ]);
+}
+
+/**
+ * Find relative module-path string literals — `import.meta.resolve("…")`,
+ * dynamic `import("…")`, and `new URL("…", import.meta.url)` — that either live
+ * in `movedAbs` or resolve to it. These are runtime paths ts-morph's move()
+ * leaves untouched; `renameFile` recomputes them by hand.
+ */
+function collectModulePathLiterals(
+  project: Project,
+  movedAbs: string,
+): { literal: StringLiteral; declaringAbs: string; targetAbs: string }[] {
+  const refs: {
+    literal: StringLiteral;
+    declaringAbs: string;
+    targetAbs: string;
+  }[] = [];
+  for (const sf of project.getSourceFiles()) {
+    const declAbs = sf.getFilePath();
+    for (const lit of sf.getDescendantsOfKind(SyntaxKind.StringLiteral)) {
+      const value = lit.getLiteralValue();
+      if (!value.startsWith(".") || !isModulePathLiteral(lit)) continue;
+      const base = path.resolve(path.dirname(declAbs), value);
+      const targetAbs = existsSync(base)
+        ? base
+        : existsSync(`${base}.ts`)
+          ? `${base}.ts`
+          : base;
+      if (declAbs === movedAbs || targetAbs === movedAbs) {
+        refs.push({ literal: lit, declaringAbs: declAbs, targetAbs });
+      }
+    }
+  }
+  return refs;
 }
 
 function resolve(filePath: string): string {
   return path.resolve(filePath);
+}
+
+/**
+ * True when a string literal is the first arg of `import.meta.resolve(…)`, a
+ * dynamic `import(…)`, or `new URL(…, import.meta.url)` — i.e. a runtime module
+ * path rather than an arbitrary string.
+ */
+function isModulePathLiteral(lit: StringLiteral): boolean {
+  const call = lit.getParentIfKind(SyntaxKind.CallExpression);
+  if (call && call.getArguments()[0] === lit) {
+    const callee = call.getExpression();
+    if (callee.getKind() === SyntaxKind.ImportKeyword) return true;
+    if (callee.getText() === "import.meta.resolve") return true;
+  }
+  const neu = lit.getParentIfKind(SyntaxKind.NewExpression);
+  return (
+    neu !== undefined &&
+    neu.getArguments()[0] === lit &&
+    neu.getExpression().getText() === "URL"
+  );
 }
 
 /** Build a relative module specifier from `fromFile` to `toFile`, always ending in .ts. */
