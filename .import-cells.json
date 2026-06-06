@@ -342,7 +342,7 @@
   {
     "layer": 5,
     "domain": "shared",
-    "role": "first logic — spatial, walls, interior, contracts",
+    "role": "first logic — spatial, interior, contracts & core state",
     "files": [
       "src/shared/core/player-interior.ts",
       "src/shared/core/spatial.ts",
@@ -496,7 +496,7 @@
   {
     "layer": 6,
     "domain": "shared",
-    "role": "shared action schedule & query helpers",
+    "role": "shared wall mutators, occupancy queries, guards & deps",
     "files": [
       "src/shared/core/controller-guards.ts",
       "src/shared/core/occupancy-queries.ts",
@@ -604,7 +604,7 @@
   {
     "layer": 7,
     "domain": "runtime",
-    "role": "main loop + runtime contracts + battle-anim & timing translators",
+    "role": "main loop, castle-build, tick-consumers, battle-anim & runtime/timing contracts",
     "files": [
       "src/runtime/battle-anim.ts",
       "src/runtime/castle-build.ts",
@@ -673,7 +673,7 @@
   {
     "layer": 8,
     "domain": "game",
-    "role": "core subsystems (castle gen, grunt movement)",
+    "role": "core subsystems (castle gen, grunt movement, upgrade system)",
     "files": [
       "src/game/castle-generation.ts",
       "src/game/grunt-movement.ts",
@@ -743,7 +743,7 @@
   {
     "layer": 8,
     "domain": "runtime",
-    "role": "runtime primitives at this depth: castle-build, phase-machine, tick-consumers",
+    "role": "phase machine",
     "files": [
       "src/runtime/phase-machine.ts"
     ]
@@ -752,7 +752,7 @@
     "layer": 8,
     "domain": "runtime",
     "subdomain": "subsystems",
-    "role": "input, lobby, options, render — mid-depth subsystem factories",
+    "role": "mid-depth subsystem factories",
     "files": [
       "src/runtime/subsystems/cannon-animator.ts",
       "src/runtime/subsystems/input.ts",
@@ -775,7 +775,7 @@
   {
     "layer": 9,
     "domain": "game",
-    "role": "modifier + upgrade systems",
+    "role": "cannon, modifier & wall-impact systems",
     "files": [
       "src/game/cannon-system.ts",
       "src/game/modifier-system.ts",
@@ -824,7 +824,7 @@
     "layer": 9,
     "domain": "runtime",
     "subdomain": "subsystems",
-    "role": "phase-ticks & selection — phase-orchestrating subsystem factories",
+    "role": "game-lifecycle & phase-ticks — phase-orchestrating subsystem factories",
     "files": [
       "src/runtime/subsystems/game-lifecycle.ts",
       "src/runtime/subsystems/phase-ticks.ts"
@@ -850,7 +850,7 @@
   {
     "layer": 10,
     "domain": "game",
-    "role": "battle impact systems",
+    "role": "grunt system",
     "files": [
       "src/game/grunt-system.ts"
     ]
@@ -875,7 +875,7 @@
   {
     "layer": 10,
     "domain": "runtime",
-    "role": "runtime tick consumers",
+    "role": "GameRuntime handle — composition return type",
     "files": [
       "src/runtime/handle.ts"
     ]
@@ -905,7 +905,7 @@
   {
     "layer": 11,
     "domain": "game",
-    "role": "grunt system",
+    "role": "battle & build systems",
     "files": [
       "src/game/battle-system.ts",
       "src/game/build-system.ts"
@@ -948,7 +948,7 @@
   {
     "layer": 12,
     "domain": "game",
-    "role": "battle & build system orchestration",
+    "role": "game actions, phase setup & scheduling",
     "files": [
       "src/game/game-actions.ts",
       "src/game/phase-setup.ts",
@@ -958,7 +958,7 @@
   {
     "layer": 12,
     "domain": "online",
-    "role": "online phase-transition wire receivers",
+    "role": "online server-event handlers",
     "files": [
       "src/online/online-server-events.ts"
     ]
@@ -982,7 +982,7 @@
   {
     "layer": 13,
     "domain": "game",
-    "role": "game actions, phase setup & scheduling",
+    "role": "phase entry helpers",
     "files": [
       "src/game/phase-entry.ts"
     ]
@@ -990,7 +990,7 @@
   {
     "layer": 13,
     "domain": "online",
-    "role": "online server-event handlers",
+    "role": "online state serialization",
     "files": [
       "src/online/online-serialize.ts"
     ]
@@ -1022,7 +1022,7 @@
   {
     "layer": 14,
     "domain": "online",
-    "role": "online state serialization",
+    "role": "online rehydrate & host promotion",
     "files": [
       "src/online/online-rehydrate.ts",
       "src/online/runtime/promote.ts"
@@ -1031,7 +1031,7 @@
   {
     "layer": 15,
     "domain": "online",
-    "role": "online runtime transitions",
+    "role": "online runtime deps & session",
     "files": [
       "src/online/runtime/deps.ts",
       "src/online/runtime/session.ts"
@@ -1040,7 +1040,7 @@
   {
     "layer": 16,
     "domain": "online",
-    "role": "online deps wiring",
+    "role": "online runtime composition",
     "files": [
       "src/online/runtime/game.ts"
     ]

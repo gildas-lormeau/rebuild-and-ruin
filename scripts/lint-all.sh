@@ -41,6 +41,7 @@ echo "lint:all: parallel checks..."
 (
   run layers            deno run -A scripts/generate-import-layers.ts --check
   run cells             deno run -A scripts/cells/regen-cells.ts --check
+  run cell-label-refs   deno run -A scripts/lint-cell-label-refs.ts
   run lateral           deno run -A scripts/lint-lateral-imports.ts
   run domains           deno run -A scripts/lint-domain-boundaries.ts
   run literals          deno run -A scripts/find-duplicate-literals.ts

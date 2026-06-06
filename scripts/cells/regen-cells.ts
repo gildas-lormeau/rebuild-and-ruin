@@ -124,7 +124,7 @@ const LABELS: Record<string, string> = {
   "5::protocol": "protocol message dispatch",
   "5::render": "3D instance bucketing",
   "5::runtime": "runtime banner state",
-  "5::shared": "first logic — spatial, walls, interior, contracts",
+  "5::shared": "first logic — spatial, interior, contracts & core state",
 
   // L6 — upgrades, modifiers & runtime contracts
   "6::ai":
@@ -142,7 +142,7 @@ const LABELS: Record<string, string> = {
   "6::runtime/audio": "audio players (music + sfx)",
   "6::runtime/subsystems": "camera & haptics — leaf-depth subsystem factories",
   "6::server": "server game-room",
-  "6::shared": "shared action schedule & query helpers",
+  "6::shared": "shared wall mutators, occupancy queries, guards & deps",
 
   // L7 — entity renderers & cross-domain handlers
   "7::ai": "AI charity-sweep tactic planner (delegates to grunt sweep)",
@@ -156,7 +156,7 @@ const LABELS: Record<string, string> = {
   "7::render": "entity renderers",
   "7::render/3d/effects": "effect builders",
   "7::runtime":
-    "main loop + runtime contracts + battle-anim & timing translators",
+    "main loop, castle-build, tick-consumers, battle-anim & runtime/timing contracts",
   "7::runtime/subsystems": "subsystem factories",
   "7::server": "server room manager",
   "7::shared": "shared board occupancy",
@@ -166,9 +166,8 @@ const LABELS: Record<string, string> = {
     "AI strategy primitives (build types, castle rect) + wall-demolition tactic planner",
   "8::controllers": "controller factory",
   "8::entry": "server entry",
-  "8::runtime/subsystems":
-    "input, lobby, options, render — mid-depth subsystem factories",
-  "8::game": "core subsystems (castle gen, grunt movement)",
+  "8::runtime/subsystems": "mid-depth subsystem factories",
+  "8::game": "core subsystems (castle gen, grunt movement, upgrade system)",
   "8::game/modifiers": "modifier implementations",
   "8::game/upgrades": "upgrade implementation (erosion)",
   "8::input": "input dispatch & touch update",
@@ -176,13 +175,12 @@ const LABELS: Record<string, string> = {
   "8::render": "render UI (overlays, screens, settings)",
   "8::render/3d/effects":
     "effect subsystems (burns, dust, supply-ship, modifier-reveal)",
-  "8::runtime":
-    "runtime primitives at this depth: castle-build, phase-machine, tick-consumers",
+  "8::runtime": "phase machine",
 
   // L9 — system implementations
   "9::ai":
     "AI strategy types + build score helpers + super-attack tactic planner",
-  "9::game": "modifier + upgrade systems",
+  "9::game": "cannon, modifier & wall-impact systems",
   "9::input": "input device handlers (kb, mouse, touch)",
   "9::online": "online runtime lobby",
   "9::render": "render UI entry",
@@ -190,23 +188,23 @@ const LABELS: Record<string, string> = {
     "effect implementations (emergence, collapse, ice, lightning, water surge, wildfire)",
   "9::runtime": "runtime types & main loop",
   "9::runtime/subsystems":
-    "phase-ticks & selection — phase-orchestrating subsystem factories",
+    "game-lifecycle & phase-ticks — phase-orchestrating subsystem factories",
 
   // L10 — mid-depth assembly
   "10::ai":
     "AI brain types, build shared/target, phase machines, battle/cannon dispatchers",
-  "10::game": "battle impact systems",
+  "10::game": "grunt system",
   "10::online": "online phase transitions",
   "10::render": "map renderer",
   "10::render/3d/effects": "modifier-effect registry",
-  "10::runtime": "runtime tick consumers",
+  "10::runtime": "GameRuntime handle — composition return type",
   "10::runtime/subsystems": "game-lifecycle — top subsystem factory",
 
   // L11 — system composition
   "11::ai":
     "AI brain + build strategy + derived tactic planners (pocket destruction, structural hit)",
   "11::controllers": "AI controller (host wrapper around injected brain)",
-  "11::game": "grunt system",
+  "11::game": "battle & build systems",
   "11::online": "online phase transitions",
   "11::render": "frame renderers",
   "11::runtime": "GameRuntime handle — composition return type",
@@ -214,14 +212,14 @@ const LABELS: Record<string, string> = {
   // L12 — phase orchestration
   "12::ai": "AI strategy orchestrator",
   "12::controllers": "AI assisted-human controller variant",
-  "12::game": "battle & build system orchestration",
-  "12::online": "online phase-transition wire receivers",
+  "12::game": "game actions, phase setup & scheduling",
+  "12::online": "online server-event handlers",
   "12::render": "3D renderer entry",
 
   // L13 — wiring
   "13::ai": "default AI bundle (strategy + brain assembly entrypoint)",
-  "13::game": "game actions, phase setup & scheduling",
-  "13::online": "online server-event handlers",
+  "13::game": "phase entry helpers",
+  "13::online": "online state serialization",
   "13::runtime": "runtime composition",
 
   // L14 — composition roots
@@ -229,14 +227,14 @@ const LABELS: Record<string, string> = {
   "14::controllers": "AI controller wrapper",
   "14::entry": "local-game entry",
   "14::game": "phase entry helpers",
-  "14::online": "online state serialization",
+  "14::online": "online rehydrate & host promotion",
 
   // L15 — online session lifecycle
   "15::controllers": "AI-assisted human controller",
-  "15::online": "online runtime transitions",
+  "15::online": "online runtime deps & session",
 
   // L16 — online deps wiring
-  "16::online": "online deps wiring",
+  "16::online": "online runtime composition",
 
   // L17 — online runtime composition
   "17::entry": "online client entry",
