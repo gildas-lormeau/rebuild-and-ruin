@@ -1,4 +1,3 @@
-import { SELECT_TIMER } from "../shared/core/game-constants.ts";
 import { emitGameEvent, GAME_EVENT } from "../shared/core/game-event-bus.ts";
 import { Phase } from "../shared/core/game-phase.ts";
 import type { TowerIdx } from "../shared/core/geometry-types.ts";
@@ -87,12 +86,6 @@ export function confirmTowerSelection(
     towerIdx: selectionState.highlighted,
     allDone: allSelectionsConfirmed(selectionStates),
   };
-}
-
-/** Set the game timer for the selection phase. Keeps timer initialization
- *  inside the game domain instead of runtime directly mutating state.timer. */
-export function initSelectionTimer(state: GameState): void {
-  state.timer = SELECT_TIMER;
 }
 
 /** Clear selection state if in CASTLE_SELECT phase. Returns true if cleared. */

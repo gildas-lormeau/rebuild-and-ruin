@@ -11,6 +11,7 @@ import type { BalloonFlight } from "../shared/core/battle-types.ts";
 import {
   BATTLE_TIMER,
   MODIFIER_REVEAL_TIMER,
+  SELECT_TIMER,
 } from "../shared/core/game-constants.ts";
 import { Phase } from "../shared/core/game-phase.ts";
 import type { ModifierDiff } from "../shared/core/modifier-defs.ts";
@@ -23,7 +24,7 @@ import {
 } from "./cannon-system.ts";
 import { supplyShipBuildTimerBonus } from "./modifiers/supply-ship.ts";
 import { prepareBattleState, setPhase } from "./phase-setup.ts";
-import { initSelectionTimer, initTowerSelection } from "./selection.ts";
+import { initTowerSelection } from "./selection.ts";
 import { buildTimerBonus } from "./upgrade-system.ts";
 
 /** Result of `prepareBattle` — what the caller needs to wire up the
@@ -83,8 +84,13 @@ export function enterBattlePhase(state: GameState): void {
   state.timer = BATTLE_TIMER;
 }
 
-/** Flip to UPGRADE_PICK. The pick UI prepare hook is runtime-side and
- *  fires from the transition mutate immediately after this. */
+/** Flip to UPGRADE_PICK. Unlike the other enter helpers this primes no
+ *  entry-time game state, because UPGRADE_PICK has none: its countdown is a
+ *  runtime dialog timer (not `state.timer`), its offers were generated a
+ *  phase earlier in `prepareNextRound` (battle-done, before the BUILD_START
+ *  checkpoint), and its pick dialog is built runtime-side by
+ *  `ctx.upgradePick.prepare()` immediately after this. The helper still
+ *  exists as the sole sanctioned `setPhase` caller for this phase. */
 export function enterUpgradePickPhase(state: GameState): void {
   setPhase(state, Phase.UPGRADE_PICK);
 }
@@ -144,7 +150,7 @@ export function enterSelectionPhase(
     if (zone === undefined) continue;
     initTowerSelection(state, selectionStates, pid, zone);
   }
-  initSelectionTimer(state);
+  state.timer = SELECT_TIMER;
 }
 
 /** Transition game state to CANNON_PLACE. This only sets the phase flag and
