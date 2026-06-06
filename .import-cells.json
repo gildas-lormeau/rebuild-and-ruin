@@ -49,7 +49,6 @@
     "files": [
       "src/render/3d/entities/instance-modulation.ts",
       "src/render/3d/perf-hud.ts",
-      "src/render/3d/pixel-snap.ts",
       "src/render/3d/sprites/procedural-texture.ts",
       "src/render/3d/sprites/sprite-kit.ts",
       "src/render/render-layout.ts"

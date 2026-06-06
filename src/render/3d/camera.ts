@@ -13,16 +13,12 @@ import {
   MAP_PX_W,
   TOP_MARGIN_MAP_PX,
 } from "../../shared/core/grid.ts";
-import { pixelSnap } from "./pixel-snap.ts";
 
 /** Altitude for the camera — far enough above the ground plane that entities
  *  (towers, balloons) will never clip the near plane. */
 const CAMERA_ALTITUDE = 1000;
 /** Half-depth of the ortho frustum in Y. Entities live around Y=0..~50. */
 const CAMERA_DEPTH = 2000;
-/** Re-usable scratch vector for the ground-plane pixel snap. Avoids a
- *  per-frame Vector3 alloc. */
-const SNAP_SCRATCH = new THREE.Vector3();
 
 /** Build a fresh ortho camera, initially sized to the full map. */
 export function createMapCamera(): THREE.OrthographicCamera {
@@ -133,11 +129,11 @@ function normalizeViewport(viewport: Viewport | null | undefined): Viewport {
   };
 }
 
-/** Pixel-snap the X and Z components of a camera position while leaving Y
- *  exact. Re-uses a module-level scratch vector. Mutates `pos`. */
+/** Pixel-snap the X and Z components of a camera position, leaving Y exact.
+ *  1 world unit = 1 game-1× pixel, so rounding Viewport-derived ground-plane
+ *  coords to integers avoids sub-pixel jitter under nearest-neighbor sampling.
+ *  Mutates `pos`. */
 function snapGroundPlaneComponents(pos: THREE.Vector3): void {
-  SNAP_SCRATCH.set(pos.x, 0, pos.z);
-  pixelSnap(SNAP_SCRATCH);
-  pos.x = SNAP_SCRATCH.x;
-  pos.z = SNAP_SCRATCH.z;
+  pos.x = Math.round(pos.x);
+  pos.z = Math.round(pos.z);
 }

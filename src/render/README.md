@@ -94,8 +94,7 @@ what to draw; render decides how.
   `CanvasTexture` builders for entity materials. See
   `3d/sprites/CONVENTIONS.md`.
 - **`3d/frame-ctx.ts`** — per-frame `FrameCtx` passed to every manager.
-- **`3d/pixel-snap.ts`**, **`3d/light-debug.ts`**, **`3d/perf-hud.ts`** —
-  ancillary helpers.
+- **`3d/light-debug.ts`**, **`3d/perf-hud.ts`** — ancillary helpers.
 
 ## The render payload contract
 
