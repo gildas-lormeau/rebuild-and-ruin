@@ -148,6 +148,7 @@
       "src/ai/ai-plan-grunt-sweep.ts",
       "src/ai/ai-plan-ice-trench.ts",
       "src/ai/ai-upgrade-pick.ts",
+      "src/controllers/ai-commit-port.ts",
       "src/controllers/controller-base.ts",
       "src/game/combos.ts",
       "src/game/game-over.ts",

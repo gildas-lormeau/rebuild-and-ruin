@@ -369,6 +369,7 @@
     "domain": "controllers",
     "role": "BaseController abstraction",
     "files": [
+      "src/controllers/ai-commit-port.ts",
       "src/controllers/controller-base.ts"
     ]
   },

@@ -9,29 +9,14 @@
 
 import type { AiBrain } from "../ai/ai-brain-types.ts";
 import type { AiStrategy } from "../ai/ai-strategy-types.ts";
-import {
-  scheduleCannonFire,
-  scheduleCannonPlacement,
-  schedulePiecePlacement,
-} from "../game/index.ts";
 import type { ScheduledAction } from "../shared/core/action-schedule.ts";
-import type { CannonFiredMessage } from "../shared/core/battle-events.ts";
 import { CannonMode } from "../shared/core/battle-types.ts";
-import type {
-  CannonPlacedPayload,
-  PiecePlacedPayload,
-} from "../shared/core/phantom-types.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import type {
-  BattleViewState,
   BuildViewState,
-  CannonPlacementPreview,
   CannonViewState,
   GameViewState,
   InputReceiver,
-  PiecePlacementPreview,
-  PlaceCannonIntent,
-  PlacePieceIntent,
   UpgradePickViewState,
 } from "../shared/core/system-interfaces.ts";
 import type { GameState } from "../shared/core/types.ts";
@@ -43,14 +28,14 @@ import {
   type ResolvedChoice,
   type UpgradePickEntry,
 } from "../shared/ui/interaction-types.ts";
+import { type CommitSenders, networkedCommitPort } from "./ai-commit-port.ts";
 import { AiController } from "./controller-ai.ts";
 
 /** Typed wire-broadcast callbacks. The controller stays protocol-agnostic
- *  — callers wrap `network.send` with the appropriate MESSAGE.* type wrapping. */
-interface AssistedSenders {
-  sendPiecePlaced: (payload: PiecePlacedPayload) => void;
-  sendCannonPlaced: (payload: CannonPlacedPayload) => void;
-  sendCannonFired: (msg: CannonFiredMessage) => void;
+ *  — callers wrap `network.send` with the appropriate MESSAGE.* type wrapping.
+ *  Extends the port's CommitSenders (piece/cannon/fire) with the
+ *  upgrade/life-lost senders the commit port doesn't touch. */
+interface AssistedSenders extends CommitSenders {
   sendUpgradePick: (choice: UpgradeId) => void;
   sendLifeLostChoice: (choice: ResolvedChoice, applyAt: number) => void;
 }
@@ -74,110 +59,25 @@ export class AiAssistedHumanController
 {
   override readonly kind = "human" as const;
   private readonly senders: AssistedSenders;
-  private readonly schedule: (action: ScheduledAction<GameState>) => void;
   private readonly safetyTicks: number;
 
   constructor(playerId: ValidPlayerId, opts: AssistedControllerOptions) {
-    super(playerId, opts.strategy, opts.brain);
+    // Inject a networked commit port: piece/cannon/fire commits schedule on
+    // the lockstep queue + broadcast instead of mutating GameState directly.
+    // All three tick methods are inherited unchanged from AiController — the
+    // port is the only difference between local and assisted-human AI.
+    super(
+      playerId,
+      opts.strategy,
+      opts.brain,
+      networkedCommitPort({
+        schedule: opts.schedule,
+        senders: opts.senders,
+        safetyTicks: opts.safetyTicks,
+      }),
+    );
     this.senders = opts.senders;
-    this.schedule = opts.schedule;
     this.safetyTicks = opts.safetyTicks;
-  }
-
-  // ── Build phase: AI ticks; placements scheduled with lockstep applyAt ──
-
-  override buildTick(
-    state: BuildViewState,
-    _dt: number,
-  ): PiecePlacementPreview[] {
-    const result = this.brain.build.tick(this, state);
-    this.currentBuildPhantoms = result.phantoms;
-    if (result.commit) {
-      const placed = this.commitScheduledPiecePlacement(state, result.commit);
-      this.brain.build.onPlaceResult(this, state, placed);
-    }
-    return result.phantoms;
-  }
-
-  private commitScheduledPiecePlacement(
-    state: BuildViewState,
-    intent: PlacePieceIntent,
-  ): boolean {
-    const stamped = schedulePiecePlacement({
-      schedule: this.schedule,
-      state,
-      intent,
-      safetyTicks: this.safetyTicks,
-      clampBuildCursor: (piece) => this.clampBuildCursor(piece),
-    });
-    if (!stamped) return false;
-    this.senders.sendPiecePlaced(stamped);
-    return true;
-  }
-
-  // ── Cannon phase: AI ticks; placements broadcast via senders.sendCannonPlaced ──
-
-  override cannonTick(
-    state: CannonViewState,
-    _dt: number,
-  ): CannonPlacementPreview | undefined {
-    const result = this.brain.cannon.tick(this, state);
-    if (result.commit) {
-      this.commitScheduledPlacement(
-        state as GameState,
-        result.commit,
-        this.brain.cannon.maxSlots,
-      );
-    }
-    const phantom = result.phantom ?? undefined;
-    this.currentCannonPhantom = phantom;
-    return phantom;
-  }
-
-  override flushCannons(state: CannonViewState, maxSlots: number): void {
-    // Commit intents in order; stop on the first validation failure so a
-    // wedge in the brain's planning (mismatched slot accounting, occupied
-    // tile, etc.) can't burn frames retrying the same intent.
-    for (const intent of this.brain.cannon.flush(this, state)) {
-      if (!this.commitScheduledPlacement(state as GameState, intent, maxSlots))
-        break;
-    }
-  }
-
-  private commitScheduledPlacement(
-    state: GameState,
-    intent: PlaceCannonIntent,
-    maxSlots: number,
-  ): boolean {
-    const stamped = scheduleCannonPlacement({
-      schedule: this.schedule,
-      state,
-      intent,
-      maxSlots,
-      safetyTicks: this.safetyTicks,
-    });
-    if (!stamped) return false;
-    this.senders.sendCannonPlaced(stamped);
-    return true;
-  }
-
-  // ── Battle phase: AI ticks; fires broadcast via senders.sendCannonFired ──
-
-  override battleTick(state: BattleViewState, _dt: number): void {
-    const result = this.brain.battle.tick(this, state);
-    if (!result.commit) return;
-    const fired = scheduleCannonFire({
-      schedule: this.schedule,
-      state: state as GameState,
-      intent: result.commit,
-      ctrl: this,
-      safetyTicks: this.safetyTicks,
-    });
-    if (fired) {
-      this.cannonRotationIdx = fired.rotationIdx;
-      this.senders.sendCannonFired(fired.msg);
-    }
-    this.brain.battle.onFireResult(this, state, !!fired);
   }
 
   // ── Upgrade pick: AI animates + commits; pick broadcast via senders.sendUpgradePick ──

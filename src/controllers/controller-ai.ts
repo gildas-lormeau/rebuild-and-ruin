@@ -20,11 +20,6 @@ import type {
   SelectionHost,
 } from "../ai/ai-strategy-types.ts";
 import { secondsToTicks } from "../ai/ai-utils.ts";
-import {
-  executePlaceCannon,
-  executePlacePiece,
-  fireNextReadyCannon,
-} from "../game/index.ts";
 import { CROSSHAIR_SPEED, SIM_TICK_DT } from "../shared/core/game-constants.ts";
 import type { PixelPos, TilePos } from "../shared/core/geometry-types.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
@@ -38,13 +33,13 @@ import {
   type PiecePlacementPreview,
   type UpgradePickViewState,
 } from "../shared/core/system-interfaces.ts";
-import type { GameState } from "../shared/core/types.ts";
 import type { ZoneId } from "../shared/core/zone-id.ts";
 import {
   LifeLostChoice,
   type LifeLostEntry,
   type UpgradePickEntry,
 } from "../shared/ui/interaction-types.ts";
+import { type AiCommitPort, DIRECT_COMMIT_PORT } from "./ai-commit-port.ts";
 import { BaseController } from "./controller-base.ts";
 
 // Compile-time guarantee: AiController structurally satisfies every Host
@@ -71,6 +66,10 @@ export class AiController extends BaseController implements AiAnimatable {
   readonly strategy: AiStrategy;
   /** Pluggable AI brain (phase state machines + decision dispatch). */
   protected readonly brain: AiBrain;
+  /** Apply-strategy for the three mutating commits. Direct (mutate
+   *  GameState) by default; the assisted-human variant injects a networked
+   *  port that schedules + broadcasts instead. */
+  protected readonly commit: AiCommitPort;
 
   // --- Movement state (used by stepTileCursorToward) ---
   /** Which axis to move first — randomized when a new target is set. */
@@ -78,10 +77,16 @@ export class AiController extends BaseController implements AiAnimatable {
   /** Fixed perpendicular jitter offset (tiles), set once per movement. */
   private tileJitterOffset = 0;
 
-  constructor(playerId: ValidPlayerId, strategy: AiStrategy, brain: AiBrain) {
+  constructor(
+    playerId: ValidPlayerId,
+    strategy: AiStrategy,
+    brain: AiBrain,
+    commit: AiCommitPort = DIRECT_COMMIT_PORT,
+  ) {
     super(playerId);
     this.strategy = strategy;
     this.brain = brain;
+    this.commit = commit;
   }
 
   // -----------------------------------------------------------------------
@@ -179,7 +184,7 @@ export class AiController extends BaseController implements AiAnimatable {
     const result = this.brain.build.tick(this, state);
     this.currentBuildPhantoms = result.phantoms;
     if (result.commit) {
-      const placed = executePlacePiece(state as GameState, result.commit, this);
+      const placed = this.commit.placePiece(state, result.commit, this);
       this.brain.build.onPlaceResult(this, state, placed);
     }
     return result.phantoms;
@@ -210,17 +215,13 @@ export class AiController extends BaseController implements AiAnimatable {
   ): CannonPlacementPreview | undefined {
     const result = this.brain.cannon.tick(this, state);
     if (result.commit) {
-      const placed = executePlaceCannon(
-        state as GameState,
-        result.commit,
-        this.brain.cannon.maxSlots,
-      );
       // Validation rejection here is self-correcting: the brain has already
       // advanced to THINKING, the next decision cycle picks a fresh target
       // against updated state. A tight retry of the same blocked target is
       // prevented by the post-place THINKING delay (cf. build phase's
-      // explicit BLOCKED_RETRY_DELAY in ai-phase-build.ts:199).
-      void placed;
+      // explicit BLOCKED_RETRY_DELAY in ai-phase-build.ts:199), so the
+      // placeCannon result is intentionally not consumed here.
+      this.commit.placeCannon(state, result.commit, this.brain.cannon.maxSlots);
     }
     // Leave currentCannonPhantom populated by the startCannonPhase hook
     // empty on init (see note there): AI's cannon tick decrements timers
@@ -236,7 +237,7 @@ export class AiController extends BaseController implements AiAnimatable {
     // wedge in the brain's planning (mismatched slot accounting, occupied
     // tile, etc.) can't burn frames retrying the same intent.
     for (const intent of this.brain.cannon.flush(this, state)) {
-      if (!executePlaceCannon(state as GameState, intent, maxSlots)) break;
+      if (!this.commit.placeCannon(state, intent, maxSlots)) break;
     }
   }
 
@@ -256,20 +257,14 @@ export class AiController extends BaseController implements AiAnimatable {
   battleTick(state: BattleViewState, _dt: number): void {
     const result = this.brain.battle.tick(this, state);
     if (!result.commit) return;
-    const fired = fireNextReadyCannon(
-      state as GameState,
-      result.commit.playerId,
-      this.cannonRotationIdx,
-      result.commit.targetRow,
-      result.commit.targetCol,
-    );
-    if (fired) {
-      this.cannonRotationIdx = fired.rotationIdx;
+    const rotationIdx = this.commit.fire(state, result.commit, this);
+    if (rotationIdx !== null) {
+      this.cannonRotationIdx = rotationIdx;
       if (result.origin && isAiBattleDiagHookActive()) {
         emitFireDecisionDiag(result.origin, result.pickPath);
       }
     }
-    this.brain.battle.onFireResult(this, state, !!fired);
+    this.brain.battle.onFireResult(this, state, rotationIdx !== null);
   }
 
   // -----------------------------------------------------------------------
