@@ -6,8 +6,8 @@
  * `applyUpgradePicksFromDialog` after the entry batch resolves.
  */
 
-import { sweepIsolatedWalls } from "../../shared/core/board-occupancy.ts";
 import { isPlayerEliminated } from "../../shared/core/player-types.ts";
+import { sweepIsolatedWalls } from "../../shared/core/player-walls.ts";
 import type { GameState, UpgradeImpl } from "../../shared/core/types.ts";
 import { UID } from "../../shared/core/upgrade-defs.ts";
 

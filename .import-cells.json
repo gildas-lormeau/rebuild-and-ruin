@@ -346,7 +346,6 @@
     "role": "first logic — spatial, walls, interior, contracts",
     "files": [
       "src/shared/core/player-interior.ts",
-      "src/shared/core/player-walls.ts",
       "src/shared/core/spatial.ts",
       "src/shared/core/system-interfaces.ts",
       "src/shared/core/types.ts",
@@ -392,7 +391,6 @@
     "role": "modifier implementations",
     "files": [
       "src/game/modifiers/dust-storm.ts",
-      "src/game/modifiers/evict-tiles.ts",
       "src/game/modifiers/fog-of-war.ts",
       "src/game/modifiers/frostbite.ts",
       "src/game/modifiers/frozen-river.ts",
@@ -413,7 +411,6 @@
       "src/game/upgrades/ceasefire.ts",
       "src/game/upgrades/clear-the-field.ts",
       "src/game/upgrades/conscription.ts",
-      "src/game/upgrades/demolition.ts",
       "src/game/upgrades/double-time.ts",
       "src/game/upgrades/entomb.ts",
       "src/game/upgrades/foundations.ts",
@@ -504,6 +501,7 @@
     "files": [
       "src/shared/core/controller-guards.ts",
       "src/shared/core/occupancy-queries.ts",
+      "src/shared/core/player-walls.ts",
       "src/shared/core/render-view.ts",
       "src/shared/ui/input-deps.ts"
     ]
@@ -539,8 +537,17 @@
     "subdomain": "modifiers",
     "role": "modifier implementations",
     "files": [
-      "src/game/modifiers/fire.ts",
-      "src/game/modifiers/high-tide.ts"
+      "src/game/modifiers/evict-tiles.ts"
+    ]
+  },
+  {
+    "layer": 7,
+    "domain": "game",
+    "subdomain": "upgrades",
+    "role": "wall-mutating upgrade implementations (demolition, erosion)",
+    "files": [
+      "src/game/upgrades/demolition.ts",
+      "src/game/upgrades/erosion.ts"
     ]
   },
   {
@@ -601,6 +608,7 @@
     "role": "main loop + runtime contracts + battle-anim & timing translators",
     "files": [
       "src/runtime/battle-anim.ts",
+      "src/runtime/castle-build.ts",
       "src/runtime/input-actions.ts",
       "src/runtime/main-loop.ts",
       "src/runtime/modifier-effects/reveal-time.ts",
@@ -669,7 +677,8 @@
     "role": "core subsystems (castle gen, grunt movement)",
     "files": [
       "src/game/castle-generation.ts",
-      "src/game/grunt-movement.ts"
+      "src/game/grunt-movement.ts",
+      "src/game/upgrade-system.ts"
     ]
   },
   {
@@ -678,17 +687,10 @@
     "subdomain": "modifiers",
     "role": "modifier implementations",
     "files": [
+      "src/game/modifiers/fire.ts",
+      "src/game/modifiers/high-tide.ts",
       "src/game/modifiers/low-water.ts",
       "src/game/modifiers/sinkhole.ts"
-    ]
-  },
-  {
-    "layer": 8,
-    "domain": "game",
-    "subdomain": "upgrades",
-    "role": "upgrade implementation (erosion)",
-    "files": [
-      "src/game/upgrades/erosion.ts"
     ]
   },
   {
@@ -744,7 +746,6 @@
     "domain": "runtime",
     "role": "runtime primitives at this depth: castle-build, phase-machine, tick-consumers",
     "files": [
-      "src/runtime/castle-build.ts",
       "src/runtime/phase-machine.ts"
     ]
   },
@@ -758,7 +759,8 @@
       "src/runtime/subsystems/input.ts",
       "src/runtime/subsystems/lobby.ts",
       "src/runtime/subsystems/options.ts",
-      "src/runtime/subsystems/render.ts"
+      "src/runtime/subsystems/render.ts",
+      "src/runtime/subsystems/selection.ts"
     ]
   },
   {
@@ -776,8 +778,9 @@
     "domain": "game",
     "role": "modifier + upgrade systems",
     "files": [
+      "src/game/cannon-system.ts",
       "src/game/modifier-system.ts",
-      "src/game/upgrade-system.ts"
+      "src/game/wall-impact.ts"
     ]
   },
   {
@@ -824,8 +827,8 @@
     "subdomain": "subsystems",
     "role": "phase-ticks & selection — phase-orchestrating subsystem factories",
     "files": [
-      "src/runtime/subsystems/phase-ticks.ts",
-      "src/runtime/subsystems/selection.ts"
+      "src/runtime/subsystems/game-lifecycle.ts",
+      "src/runtime/subsystems/phase-ticks.ts"
     ]
   },
   {
@@ -850,8 +853,7 @@
     "domain": "game",
     "role": "battle impact systems",
     "files": [
-      "src/game/cannon-system.ts",
-      "src/game/wall-impact.ts"
+      "src/game/grunt-system.ts"
     ]
   },
   {
@@ -874,10 +876,9 @@
   {
     "layer": 10,
     "domain": "runtime",
-    "subdomain": "subsystems",
-    "role": "game-lifecycle — top subsystem factory",
+    "role": "runtime tick consumers",
     "files": [
-      "src/runtime/subsystems/game-lifecycle.ts"
+      "src/runtime/handle.ts"
     ]
   },
   {
@@ -907,7 +908,16 @@
     "domain": "game",
     "role": "grunt system",
     "files": [
-      "src/game/grunt-system.ts"
+      "src/game/battle-system.ts",
+      "src/game/build-system.ts"
+    ]
+  },
+  {
+    "layer": 11,
+    "domain": "online",
+    "role": "online phase transitions",
+    "files": [
+      "src/online/online-phase-transitions.ts"
     ]
   },
   {
@@ -917,14 +927,6 @@
     "files": [
       "src/render/3d/scene.ts",
       "src/render/render-canvas.ts"
-    ]
-  },
-  {
-    "layer": 11,
-    "domain": "runtime",
-    "role": "GameRuntime handle — composition return type",
-    "files": [
-      "src/runtime/handle.ts"
     ]
   },
   {
@@ -949,8 +951,9 @@
     "domain": "game",
     "role": "battle & build system orchestration",
     "files": [
-      "src/game/battle-system.ts",
-      "src/game/build-system.ts"
+      "src/game/game-actions.ts",
+      "src/game/phase-setup.ts",
+      "src/game/scheduled-actions.ts"
     ]
   },
   {
@@ -958,7 +961,7 @@
     "domain": "online",
     "role": "online phase-transition wire receivers",
     "files": [
-      "src/online/online-phase-transitions.ts"
+      "src/online/online-server-events.ts"
     ]
   },
   {
@@ -982,9 +985,7 @@
     "domain": "game",
     "role": "game actions, phase setup & scheduling",
     "files": [
-      "src/game/game-actions.ts",
-      "src/game/phase-setup.ts",
-      "src/game/scheduled-actions.ts"
+      "src/game/phase-entry.ts"
     ]
   },
   {
@@ -992,7 +993,7 @@
     "domain": "online",
     "role": "online server-event handlers",
     "files": [
-      "src/online/online-server-events.ts"
+      "src/online/online-serialize.ts"
     ]
   },
   {
@@ -1021,18 +1022,11 @@
   },
   {
     "layer": 14,
-    "domain": "game",
-    "role": "phase entry helpers",
-    "files": [
-      "src/game/phase-entry.ts"
-    ]
-  },
-  {
-    "layer": 14,
     "domain": "online",
     "role": "online state serialization",
     "files": [
-      "src/online/online-serialize.ts"
+      "src/online/online-rehydrate.ts",
+      "src/online/runtime/promote.ts"
     ]
   },
   {
@@ -1040,8 +1034,8 @@
     "domain": "online",
     "role": "online runtime transitions",
     "files": [
-      "src/online/online-rehydrate.ts",
-      "src/online/runtime/promote.ts"
+      "src/online/runtime/deps.ts",
+      "src/online/runtime/session.ts"
     ]
   },
   {
@@ -1049,20 +1043,11 @@
     "domain": "online",
     "role": "online deps wiring",
     "files": [
-      "src/online/runtime/deps.ts",
-      "src/online/runtime/session.ts"
-    ]
-  },
-  {
-    "layer": 17,
-    "domain": "online",
-    "role": "online runtime composition",
-    "files": [
       "src/online/runtime/game.ts"
     ]
   },
   {
-    "layer": 18,
+    "layer": 17,
     "domain": "entry",
     "role": "online client entry",
     "files": [

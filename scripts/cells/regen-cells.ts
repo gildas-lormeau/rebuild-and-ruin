@@ -149,6 +149,8 @@ const LABELS: Record<string, string> = {
   "7::controllers": "human controller",
   "7::game": "game state setup",
   "7::game/modifiers": "modifier implementations",
+  "7::game/upgrades":
+    "wall-mutating upgrade implementations (demolition, erosion)",
   "7::input": "pointer-event dispatch",
   "7::online": "online server lifecycle, remote crosshairs & stores",
   "7::render": "entity renderers",
@@ -205,6 +207,7 @@ const LABELS: Record<string, string> = {
     "AI brain + build strategy + derived tactic planners (pocket destruction, structural hit)",
   "11::controllers": "AI controller (host wrapper around injected brain)",
   "11::game": "grunt system",
+  "11::online": "online phase transitions",
   "11::render": "frame renderers",
   "11::runtime": "GameRuntime handle — composition return type",
 
@@ -236,6 +239,7 @@ const LABELS: Record<string, string> = {
   "16::online": "online deps wiring",
 
   // L17 — online runtime composition
+  "17::entry": "online client entry",
   "17::online": "online runtime composition",
 
   // L18 — online client entry

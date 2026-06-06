@@ -133,7 +133,6 @@
       "src/render/3d/entities/instance-bucket.ts",
       "src/runtime/banner-state.ts",
       "src/shared/core/player-interior.ts",
-      "src/shared/core/player-walls.ts",
       "src/shared/core/spatial.ts",
       "src/shared/core/system-interfaces.ts",
       "src/shared/core/types.ts",
@@ -154,7 +153,6 @@
       "src/game/game-over.ts",
       "src/game/map-generation.ts",
       "src/game/modifiers/dust-storm.ts",
-      "src/game/modifiers/evict-tiles.ts",
       "src/game/modifiers/fog-of-war.ts",
       "src/game/modifiers/frostbite.ts",
       "src/game/modifiers/frozen-river.ts",
@@ -169,7 +167,6 @@
       "src/game/upgrades/ceasefire.ts",
       "src/game/upgrades/clear-the-field.ts",
       "src/game/upgrades/conscription.ts",
-      "src/game/upgrades/demolition.ts",
       "src/game/upgrades/double-time.ts",
       "src/game/upgrades/entomb.ts",
       "src/game/upgrades/foundations.ts",
@@ -208,6 +205,7 @@
       "src/runtime/types.ts",
       "src/shared/core/controller-guards.ts",
       "src/shared/core/occupancy-queries.ts",
+      "src/shared/core/player-walls.ts",
       "src/shared/core/render-view.ts",
       "src/shared/ui/input-deps.ts"
     ]
@@ -219,8 +217,9 @@
       "src/ai/ai-plan-charity-sweep.ts",
       "src/controllers/controller-human.ts",
       "src/game/game-init.ts",
-      "src/game/modifiers/fire.ts",
-      "src/game/modifiers/high-tide.ts",
+      "src/game/modifiers/evict-tiles.ts",
+      "src/game/upgrades/demolition.ts",
+      "src/game/upgrades/erosion.ts",
       "src/game/zone-recompute.ts",
       "src/input/input-dispatch.ts",
       "src/online/online-remote-crosshairs.ts",
@@ -246,6 +245,7 @@
       "src/render/3d/entities/walls.ts",
       "src/render/3d/terrain.ts",
       "src/runtime/battle-anim.ts",
+      "src/runtime/castle-build.ts",
       "src/runtime/input-actions.ts",
       "src/runtime/main-loop.ts",
       "src/runtime/modifier-effects/reveal-time.ts",
@@ -269,9 +269,11 @@
       "src/controllers/controller-factory.ts",
       "src/game/castle-generation.ts",
       "src/game/grunt-movement.ts",
+      "src/game/modifiers/fire.ts",
+      "src/game/modifiers/high-tide.ts",
       "src/game/modifiers/low-water.ts",
       "src/game/modifiers/sinkhole.ts",
-      "src/game/upgrades/erosion.ts",
+      "src/game/upgrade-system.ts",
       "src/input/input-keyboard.ts",
       "src/input/input-mouse.ts",
       "src/input/input-seed-field.ts",
@@ -291,13 +293,13 @@
       "src/render/render-ui-overlays.ts",
       "src/render/render-ui-screens.ts",
       "src/render/render-ui-settings.ts",
-      "src/runtime/castle-build.ts",
       "src/runtime/phase-machine.ts",
       "src/runtime/subsystems/cannon-animator.ts",
       "src/runtime/subsystems/input.ts",
       "src/runtime/subsystems/lobby.ts",
       "src/runtime/subsystems/options.ts",
-      "src/runtime/subsystems/render.ts"
+      "src/runtime/subsystems/render.ts",
+      "src/runtime/subsystems/selection.ts"
     ]
   },
   {
@@ -306,8 +308,9 @@
       "src/ai/ai-build-score.ts",
       "src/ai/ai-min-cut.ts",
       "src/ai/ai-strategy-types.ts",
+      "src/game/cannon-system.ts",
       "src/game/modifier-system.ts",
-      "src/game/upgrade-system.ts",
+      "src/game/wall-impact.ts",
       "src/online/runtime/lobby.ts",
       "src/render/3d/effects/grass-emergence.ts",
       "src/render/3d/effects/ground-collapse.ts",
@@ -317,8 +320,8 @@
       "src/render/3d/effects/wildfire-burst.ts",
       "src/render/render-ui.ts",
       "src/runtime/bootstrap.ts",
-      "src/runtime/subsystems/phase-ticks.ts",
-      "src/runtime/subsystems/selection.ts"
+      "src/runtime/subsystems/game-lifecycle.ts",
+      "src/runtime/subsystems/phase-ticks.ts"
     ]
   },
   {
@@ -334,11 +337,10 @@
       "src/ai/ai-plan-deny-enclosure.ts",
       "src/ai/ai-strategy-battle.ts",
       "src/ai/ai-strategy-cannon.ts",
-      "src/game/cannon-system.ts",
-      "src/game/wall-impact.ts",
+      "src/game/grunt-system.ts",
       "src/render/3d/effects/modifier-effect-registry.ts",
       "src/render/render-map.ts",
-      "src/runtime/subsystems/game-lifecycle.ts"
+      "src/runtime/handle.ts"
     ]
   },
   {
@@ -352,10 +354,11 @@
       "src/ai/ai-plan-structural-hit.ts",
       "src/ai/ai-plan-wall-demolition.ts",
       "src/controllers/controller-ai.ts",
-      "src/game/grunt-system.ts",
+      "src/game/battle-system.ts",
+      "src/game/build-system.ts",
+      "src/online/online-phase-transitions.ts",
       "src/render/3d/scene.ts",
-      "src/render/render-canvas.ts",
-      "src/runtime/handle.ts"
+      "src/render/render-canvas.ts"
     ]
   },
   {
@@ -364,9 +367,10 @@
       "src/ai/ai-plan-super-attack.ts",
       "src/ai/ai-strategy-build.ts",
       "src/controllers/controller-ai-assisted-human.ts",
-      "src/game/battle-system.ts",
-      "src/game/build-system.ts",
-      "src/online/online-phase-transitions.ts",
+      "src/game/game-actions.ts",
+      "src/game/phase-setup.ts",
+      "src/game/scheduled-actions.ts",
+      "src/online/online-server-events.ts",
       "src/render/3d/renderer.ts"
     ]
   },
@@ -374,10 +378,8 @@
     "name": "L13",
     "files": [
       "src/ai/ai-strategy.ts",
-      "src/game/game-actions.ts",
-      "src/game/phase-setup.ts",
-      "src/game/scheduled-actions.ts",
-      "src/online/online-server-events.ts",
+      "src/game/phase-entry.ts",
+      "src/online/online-serialize.ts",
       "src/runtime/composition.ts"
     ]
   },
@@ -385,33 +387,26 @@
     "name": "L14",
     "files": [
       "src/ai/ai-defaults.ts",
-      "src/game/phase-entry.ts",
       "src/main.ts",
-      "src/online/online-serialize.ts"
-    ]
-  },
-  {
-    "name": "L15",
-    "files": [
       "src/online/online-rehydrate.ts",
       "src/online/runtime/promote.ts"
     ]
   },
   {
-    "name": "L16",
+    "name": "L15",
     "files": [
       "src/online/runtime/deps.ts",
       "src/online/runtime/session.ts"
     ]
   },
   {
-    "name": "L17",
+    "name": "L16",
     "files": [
       "src/online/runtime/game.ts"
     ]
   },
   {
-    "name": "L18",
+    "name": "L17",
     "files": [
       "src/online-client.ts"
     ]

@@ -10,7 +10,6 @@ import {
   type Grunt,
 } from "../shared/core/battle-types.ts";
 import {
-  addPlayerWalls,
   BONUS_PLACEMENT_BLOCKED,
   collectAllInterior,
   collectOccupiedTiles,
@@ -55,6 +54,7 @@ import {
   isPlayerSeated,
   type Player,
 } from "../shared/core/player-types.ts";
+import { addPlayerWalls } from "../shared/core/player-walls.ts";
 import {
   computeOutside,
   DIRS_4,

@@ -2,13 +2,12 @@ import { type Cannon, type Grunt, isBalloonCannon } from "./battle-types.ts";
 import type { BonusSquare, TowerIdx } from "./geometry-types.ts";
 import type { TileKey } from "./grid.ts";
 import { hasCannonAt, hasTowerAt } from "./occupancy-queries.ts";
-import { assertInteriorFresh, markWallsDirty } from "./player-interior.ts";
+import { assertInteriorFresh } from "./player-interior.ts";
 import type { ValidPlayerId } from "./player-slot.ts";
 import { isPlayerAlive, type Player } from "./player-types.ts";
 import {
   cannonSize,
   computeCannonTileSet,
-  countWallNeighbors,
   DIRS_4,
   forEachTowerTile,
   hasPitAt,
@@ -17,7 +16,6 @@ import {
   isTowerTile,
   isWater,
   packTile,
-  unpackTile,
 } from "./spatial.ts";
 import type { GameViewState } from "./system-interfaces.ts";
 
@@ -309,37 +307,6 @@ export function filterActiveEnemies(
   );
 }
 
-export function addPlayerWall(player: Player, key: TileKey): void {
-  mutableWalls(player).add(key);
-  markWallsDirty(player);
-}
-
-/** Batch-add wall keys and mark dirty once. Use instead of a loop of .add() calls.
- *  WARNING: Leaves interior stale. Caller MUST call recheckTerritory(state) before
- *  any code reads player.interior. Enforced at runtime by assertInteriorFresh(). */
-export function addPlayerWalls(player: Player, keys: Iterable<TileKey>): void {
-  const walls = mutableWalls(player);
-  for (const key of keys) walls.add(key);
-  markWallsDirty(player);
-}
-
-/** Clear all walls and mark dirty. Used when resetting a player's board state.
- *  WARNING: Leaves interior stale. Caller MUST call recheckTerritory(state) before
- *  any code reads player.interior. Enforced at runtime by assertInteriorFresh(). */
-export function clearPlayerWalls(player: Player): void {
-  mutableWalls(player).clear();
-  markWallsDirty(player);
-}
-
-/** Remove isolated debris walls (≤1 orthogonal neighbor) and mark dirty.
- *  Used during wall sweep at build phase transitions.
- *  WARNING: Leaves interior stale. Caller MUST call recheckTerritory(state) before
- *  any code reads player.interior. Enforced at runtime by assertInteriorFresh(). */
-export function sweepIsolatedWalls(player: Player): void {
-  removeIsolatedWalls(mutableWalls(player));
-  markWallsDirty(player);
-}
-
 /** Check whether all tiles of a cannon are inside the player's enclosed territory.
  *  Freshness of `player.interior` is asserted — callers that read during battle
  *  (when interior is intentionally stale) should still get the build-time snapshot. */
@@ -375,24 +342,6 @@ function collectAllCannonTiles(
     }
   }
   return cannonTiles;
-}
-
-/**
- * Sweep one layer of debris wall tiles (0 or 1 orthogonal neighbor).
- * Collects all isolated tiles first, then removes them in one batch.
- */
-function removeIsolatedWalls(walls: Set<TileKey>): void {
-  const toRemove: TileKey[] = [];
-  for (const key of walls) {
-    const { row, col } = unpackTile(key);
-    if (countWallNeighbors(walls, row, col) <= 1) toRemove.push(key);
-  }
-  for (const key of toRemove) walls.delete(key);
-}
-
-/** Cast ReadonlySet → Set for internal mutation. Only used by wall helpers in this file. */
-function mutableWalls(player: Player): Set<TileKey> {
-  return player.walls as Set<TileKey>;
 }
 
 function hasWallMatching(

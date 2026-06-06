@@ -9,10 +9,8 @@
 
 import { isBalloonCannon } from "../shared/core/battle-types.ts";
 import {
-  clearPlayerWalls,
   collectAllWalls,
   filterAliveEnclosedTowers,
-  sweepIsolatedWalls,
 } from "../shared/core/board-occupancy.ts";
 import { FID } from "../shared/core/feature-defs.ts";
 import { emitGameEvent, GAME_EVENT } from "../shared/core/game-event-bus.ts";
@@ -29,6 +27,10 @@ import {
   isPlayerSeated,
   type Player,
 } from "../shared/core/player-types.ts";
+import {
+  clearPlayerWalls,
+  sweepIsolatedWalls,
+} from "../shared/core/player-walls.ts";
 import {
   DIRS_4,
   isGrass,

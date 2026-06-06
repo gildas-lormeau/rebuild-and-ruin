@@ -12,7 +12,7 @@
  * bonus squares, walls) are applied on top of the settled state.
  */
 
-import { addPlayerWall } from "../../src/shared/core/board-occupancy.ts";
+import { addPlayerWall } from "../../src/shared/core/player-walls.ts";
 import { CannonMode } from "../../src/shared/core/battle-types.ts";
 import {
   CANNON_MODE_IDS,
