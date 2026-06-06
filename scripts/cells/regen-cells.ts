@@ -217,7 +217,7 @@ const LABELS: Record<string, string> = {
   "12::render": "3D renderer entry",
 
   // L13 — wiring
-  "13::ai": "default AI bundle (strategy + brain assembly entrypoint)",
+  "13::ai": "DefaultStrategy — production AiStrategy implementation",
   "13::game": "phase entry helpers",
   "13::online": "online state serialization",
   "13::runtime": "runtime composition",
