@@ -490,6 +490,16 @@ function isTrivialBody(fn: CheckableFunction): boolean {
   return body.getStatements().length <= 2;
 }
 
+/** Locate the sole reference of an export, or null if it doesn't have
+ *  exactly one. Deliberately counts ALL non-declaration references (a
+ *  same-file caller resolves to a single `[call]` ref; a cross-file caller
+ *  carries an extra import specifier → 2 refs → skipped). This keeps the
+ *  hard gate scoped to SAME-FILE trivial single-callers: cross-file
+ *  one-liner single-callers are pervasive and overwhelmingly intentional
+ *  boundary seams here (phase-entry helpers, registry hooks, AI phase
+ *  composition), so they belong in the review-only
+ *  `audit-single-call-exports.ts` (run with `--min-statements=1`), not in
+ *  an exit-code lint. */
 function singleCallerLocation(nameNode: Node): string | null {
   const finder = nameNode as { findReferencesAsNodes?: () => Node[] };
   if (typeof finder.findReferencesAsNodes !== "function") return null;

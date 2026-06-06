@@ -3,10 +3,19 @@
  *
  * Catches the gap between two existing tools:
  *   - knip                          → 0 callers (dead exports)
- *   - lint:passthrough SINGLE_CALLER → 1 caller + trivial body (≤ 2 statements)
+ *   - lint:passthrough SINGLE_CALLER → 1 caller + trivial body (≤ 2 statements),
+ *                                      but only when the caller is in the
+ *                                      SAME FILE (its `external.length === 1`
+ *                                      ref count is inflated to 2 by the
+ *                                      import specifier on any cross-file call).
  *
- * This audit covers the OTHER side of SINGLE_CALLER: ≥ 3-statement bodies
- * with exactly 1 direct call site. Two common LLM causes:
+ * This audit covers everything that gate misses: any exported function
+ * with exactly 1 direct call site, regardless of body size or whether the
+ * caller is cross-file. The default `--min-statements=1` includes one-liner
+ * single-callers (e.g. a cross-file `state.x = CONST` wrapper) — these fall
+ * through both knip and the same-file-only SINGLE_CALLER gate. Raise the
+ * floor (`--min-statements=3`) to focus on the higher-signal extractions.
+ * Two common LLM causes:
  *
  *   1. Premature extraction — pulled out "just in case", never reused.
  *   2. Stale extraction — used to have multiple callers, refactored down
@@ -61,7 +70,9 @@
  *   --test                 Include test/ files
  *   --json                 Emit JSON
  *   --filter=<re>          Only show findings whose file path matches the regex
- *   --min-statements=N     Min block statements for "non-trivial" (default 3)
+ *   --min-statements=N     Min block statements to flag (default 1 — includes
+ *                          one-liners the same-file-only SINGLE_CALLER gate
+ *                          misses; raise to 3 for higher-signal extractions)
  *   --include-documented   Also flag exports that have a JSDoc comment
  *   --include-factories    Also flag DI factories (create / init prefix)
  */
@@ -111,7 +122,7 @@ function main(): void {
   const minStmtArg = args.find((a) => a.startsWith("--min-statements="));
   const minStatements = minStmtArg
     ? parseInt(minStmtArg.slice("--min-statements=".length), 10)
-    : 3;
+    : 1;
 
   const project = new Project({
     tsConfigFilePath: "tsconfig.json",
