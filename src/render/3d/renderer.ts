@@ -382,7 +382,7 @@ export function createRender3d(
    *  down, so the warmup leaves no entities visible on the first real
    *  frame. Shadows are forced on for the compile so the caster
    *  permutation is seeded too. */
-  async function warmEntityShaders(map: GameMap): Promise<void> {
+  function warmEntityShaders(map: GameMap): void {
     const warmOverlay = buildWarmupOverlay(map);
     const frame: FrameCtx = {
       overlay: warmOverlay,
@@ -393,20 +393,27 @@ export function createRender3d(
     };
     const wasOn = ctx.sun.castShadow;
     ctx.sun.castShadow = true;
-    // Everything from building the synthetic meshes to tearing them back
-    // down runs SYNCHRONOUSLY before the first `await`, so no rendered
-    // frame ever observes the throwaway entities or the (briefly visible)
-    // keepalive clones — no flash, regardless of when this fires. three's
-    // `compileAsync` runs its synchronous `compile()` (which acquires every
-    // program) before it returns the completion-poll promise, so by the
-    // time we get `pending` the programs are already linked-in-flight and
-    // safe to hide/dispose the source meshes.
-    let pending: Promise<unknown>;
+    // Everything here runs synchronously, so no rendered frame ever observes
+    // the throwaway entities or the (briefly visible) keepalive clones — no
+    // flash, regardless of when this fires.
+    //
+    // We use the SYNCHRONOUS `compile()`, NOT `compileAsync()`. `compile()`
+    // acquires every program (and, via KHR_parallel_shader_compile, kicks off
+    // its GPU link in the background) — the exact work `compileAsync` does
+    // synchronously before returning its readiness-poll promise. That poll is
+    // the only thing `compileAsync` adds, and it's a trap here: it fires ~10ms
+    // later and walks the SAME `materials` set `compile()` collected — which
+    // includes the throwaway manager materials we dispose in the `finally`
+    // below. three drops disposed materials from its `properties` WeakMap, so
+    // the poll's `properties.get(mat).currentProgram.isReady()` reads
+    // `currentProgram` off a fresh empty record and throws. The keepalive
+    // clones keep each program's refcount ≥ 1, so the link finishes and the
+    // cache survives the teardown without anyone polling for it.
     try {
       runEntityUpdates(frame);
       if (!keepaliveBuilt) buildShaderKeepalive();
       applyShadowFlags(ctx.scene);
-      pending = ctx.renderer.compileAsync(ctx.scene, ctx.camera);
+      ctx.renderer.compile(ctx.scene, ctx.camera);
     } finally {
       ctx.sun.castShadow = wasOn;
       // Keepalive clones' programs are acquired now — hide the group so it
@@ -418,8 +425,6 @@ export function createRender3d(
       // overlay — same path as "all entities gone").
       runEntityUpdates({ overlay: undefined, map, now: 0, pitch: 0, sunT: 0 });
     }
-    // Off the critical path: just await the GPU link completion poll.
-    await pending;
   }
 
   return {
@@ -433,12 +438,12 @@ export function createRender3d(
       // First map warm of the session (lobby seed-gen) is the earliest the
       // game map is known and well ahead of any battle — pre-link every
       // entity shader program here so the per-spawn compiles that cause
-      // ~600–1000ms BATTLE hitches are already cached. Fire-and-forget; the
-      // synchronous portion can't flash (see `warmEntityShaders`), and the
-      // keepalive guard makes it a no-op after the first call.
+      // ~600–1000ms BATTLE hitches are already cached. Synchronous and
+      // flash-free (see `warmEntityShaders`); the keepalive guard makes it a
+      // no-op after the first call.
       if (!entityShadersWarmed) {
         entityShadersWarmed = true;
-        void warmEntityShaders(map);
+        warmEntityShaders(map);
       }
     },
     warmShadowPermutations,
