@@ -39,6 +39,12 @@
  *          around it (default 8). With --player + no target → padding
  *          added around the footprint (zoom out). ASCII keeps one char per
  *          tile, so "zoom" means window size, not glyph magnification.
+ * --each-placement: instead of one moment, render a snapshot after EACH
+ *          placement --player makes during a placement phase (WALL_BUILD /
+ *          CASTLE_SELECT → labeled with the piece shape; CANNON_PLACE →
+ *          labeled with the cannon mode). Requires --player. Combine with
+ *          --at SECONDS to stop once that many sim-seconds have elapsed
+ *          since PHASE_START, or --max-placements N to cap the count.
  *
  * Conditional phases (MODIFIER_REVEAL, UPGRADE_PICK) don't fire every round;
  * asking for one in a round that doesn't have it will time out.
@@ -48,12 +54,17 @@
  */
 
 import type { Rect } from "../dev/dev-console-grid.ts";
+import { setAiBuildDiagHook } from "../src/ai/ai-build-diag.ts";
 import { GAME_EVENT } from "../src/shared/core/game-event-bus.ts";
 import { Phase } from "../src/shared/core/game-phase.ts";
 import { playerByZone } from "../src/shared/core/player-types.ts";
+import { unpackTile } from "../src/shared/core/spatial.ts";
 import type { GameState } from "../src/shared/core/types.ts";
-import { waitForEvent } from "../test/scenario.ts";
-import { resolveScenarioSource } from "./scenario-source.ts";
+import { type Scenario, waitForEvent } from "../test/scenario.ts";
+import {
+  type ResolvedScenarioSource,
+  resolveScenarioSource,
+} from "./scenario-source.ts";
 
 interface Args {
   seed: number | undefined;
@@ -81,6 +92,14 @@ interface Args {
    *  around it (default DEFAULT_FOCUS_ZOOM). With --player and no target →
    *  padding added around the footprint. */
   zoom: number | undefined;
+  /** Render one snapshot after EACH wall placement by `--player` during the
+   *  target build phase (instead of a single moment), labeling each with the
+   *  piece shape. Requires --player. `--at SECONDS` caps the window (stop once
+   *  that many sim-seconds have elapsed since PHASE_START). */
+  eachPlacement: boolean;
+  /** Optional cap on the number of per-placement snapshots in --each-placement
+   *  mode (default: unbounded — runs to phase end). */
+  maxPlacements: number | undefined;
 }
 
 const PLAYER_NAMES = ["RED", "BLUE", "GOLD"] as const;
@@ -120,6 +139,16 @@ Options:
   --player RED|BLUE|GOLD Highlight that player and crop the ASCII to their
                          footprint.
 
+Per-placement mode (one snapshot after each placement instead of a moment):
+  --each-placement       Render a snapshot after every placement --player makes
+                         during the target phase. WALL_BUILD / CASTLE_SELECT
+                         label each with the piece shape; CANNON_PLACE labels
+                         each with the cannon mode. Requires --player. Honors
+                         --at SECONDS (stop after that elapsed) and the focus/
+                         zoom crop flags.
+  --max-placements N     Cap the number of per-placement snapshots (default:
+                         run to phase end).
+
 Focus a crop window on one entity (works even when it is NOT enclosed — no
 player footprint required). At most one of these may be given:
   --tower N              Center on tower index N (the #N shown in Anchors).
@@ -146,6 +175,8 @@ Examples:
   npm run snapshot -- --seed 42 --round 5 --phase BATTLE --castle RED --zoom 6
   npm run snapshot -- --seed 42 --round 5 --phase WALL_BUILD --tower 3
   npm run snapshot -- --seed 42 --round 8 --phase WALL_BUILD --player BLUE --zoom 4
+  npm run snapshot -- --seed 42 --round 1 --phase WALL_BUILD --player RED --castle RED --each-placement --at 15
+  npm run snapshot -- --seed 42 --round 1 --phase CANNON_PLACE --player RED --castle RED --each-placement
   npm run snapshot -- --fixture test/phase-tests/fixtures/wall-build/round-pits-1.json`;
 
 await main();
@@ -214,6 +245,13 @@ async function main(): Promise<void> {
   // 200_000ms/round matches watch-game's budget shape (~183s sim/round on
   // survival, headroom for stalls).
   const timeoutMs = 200_000 * (args.round + 1);
+
+  // --each-placement: render one snapshot per placement (wall piece in a
+  // build phase, cannon in CANNON_PLACE) instead of a single moment.
+  if (args.eachPlacement) {
+    runEachPlacement(sc, args, resolved, timeoutMs, atFixtureEntry);
+    Deno.exit(0);
+  }
 
   if (atFixtureEntry && args.at === undefined && args.moment === "start") {
     // Already sitting at the fixture's entry-phase start — snapshot as-is.
@@ -289,37 +327,11 @@ async function main(): Promise<void> {
   }
 
   // Resolve a point-focus crop window (tower / castle / at-tile), if any.
-  // A focus target wins over --player for the crop bounds; --player still
-  // tints via playerFilter, so you can zoom a neutral tower and shade a
-  // player at the same time. The renderer (renderGrid) clamps the bbox to
-  // the grid, so an over-large window near an edge is safe.
-  const focusZoom = args.zoom ?? DEFAULT_FOCUS_ZOOM;
-  let focusRect: Rect | undefined;
-  let focusLabel = "";
-  if (args.tower !== undefined) {
-    const tower = sc.state.map.towers[args.tower];
-    if (!tower) {
-      console.error(
-        `Invalid --tower ${args.tower}: map has ${sc.state.map.towers.length} towers (0..${sc.state.map.towers.length - 1}).`,
-      );
-      Deno.exit(1);
-    }
-    focusRect = towerWindow(tower.row, tower.col, focusZoom);
-    focusLabel = `tower #${args.tower}(${tower.row},${tower.col})`;
-  } else if (args.castle !== undefined) {
-    const homeTower = sc.state.players[args.castle]?.homeTower;
-    if (!homeTower) {
-      console.error(
-        `${PLAYER_NAMES[args.castle]} has no home tower (not seated this match).`,
-      );
-      Deno.exit(1);
-    }
-    focusRect = towerWindow(homeTower.row, homeTower.col, focusZoom);
-    focusLabel = `${PLAYER_NAMES[args.castle]} castle(${homeTower.row},${homeTower.col})`;
-  } else if (args.atTile) {
-    focusRect = pointWindow(args.atTile.row, args.atTile.col, focusZoom);
-    focusLabel = `tile(${args.atTile.row},${args.atTile.col})`;
-  }
+  const {
+    rect: focusRect,
+    label: focusLabel,
+    zoom: focusZoom,
+  } = resolveFocus(sc, args);
 
   // Banner: seed/round/phase/moment + per-player stats (filtered to the
   // focused player if --player was passed). `sourceLabel` carries the
@@ -354,6 +366,143 @@ async function main(): Promise<void> {
   console.log();
   console.log(buildAnchors(sc.state, args.player));
   Deno.exit(0);
+}
+
+/** --each-placement: render one cropped snapshot per placement the focused
+ *  player makes during the target phase, labeled with the piece shape (build
+ *  phases) or cannon mode (CANNON_PLACE). Drives the sim placement-by-placement
+ *  via `runUntil(count increased)` — `tick()` alone doesn't advance the AI
+ *  enough to place. `--at SECONDS` caps the window; `--max-placements N` caps
+ *  the count. */
+function runEachPlacement(
+  sc: Scenario,
+  args: Args,
+  resolved: ResolvedScenarioSource,
+  timeoutMs: number,
+  atFixtureEntry: boolean,
+): void {
+  const playerId = args.player;
+  if (playerId === undefined) {
+    console.error("--each-placement requires --player RED|BLUE|GOLD.");
+    Deno.exit(1);
+  }
+  if (args.round === undefined || args.phase === undefined) {
+    throw new Error("unreachable: round/phase undefined in each-placement");
+  }
+  const round = args.round;
+  const phase = args.phase;
+  const isCannonPhase = phase === Phase.CANNON_PLACE;
+  if (
+    !isCannonPhase &&
+    phase !== Phase.WALL_BUILD &&
+    phase !== Phase.CASTLE_SELECT
+  ) {
+    console.error(
+      `--each-placement only supports placement phases (CANNON_PLACE | WALL_BUILD | CASTLE_SELECT), got ${phase}.`,
+    );
+    Deno.exit(1);
+  }
+
+  // Build phases: capture the placed piece's shape name from the AI build-diag
+  // hook (the bus WALL_PLACED event doesn't carry it). Cannon mode is read
+  // straight off the placed cannon, so no hook is needed there.
+  let lastPiece = "(piece n/a)";
+  if (!isCannonPhase) {
+    setAiBuildDiagHook((ev) => {
+      if (ev.round !== round || ev.playerId !== playerId) return;
+      if (ev.kind === "wall-placed") {
+        const cells = ev.cells
+          .map((key) => {
+            const { row, col } = unpackTile(key);
+            return `(${row},${col})`;
+          })
+          .join("");
+        lastPiece = `${ev.pieceShapeName} (${ev.cells.length}t) ${cells}`;
+      }
+    });
+  }
+
+  let phaseEnded = false;
+  sc.bus.on(GAME_EVENT.PHASE_END, (ev) => {
+    if (ev.round === round && ev.phase === phase) phaseEnded = true;
+  });
+  sc.bus.on(GAME_EVENT.ROUND_END, (ev) => {
+    if (ev.round === round) phaseEnded = true;
+  });
+
+  // Anchor the phase clock: at a fixture's own entry phase no PHASE_START
+  // fires, so use the resume moment; otherwise wait for the phase to start.
+  let anchorMs: number;
+  if (atFixtureEntry) {
+    anchorMs = sc.now();
+  } else {
+    waitForEvent(
+      sc,
+      GAME_EVENT.PHASE_START,
+      (ev) => ev.round === round && ev.phase === phase,
+      { timeoutMs, label: `r${round} ${phase} start` },
+    );
+    anchorMs = sc.now();
+  }
+
+  const {
+    rect: focusRect,
+    label: focusLabel,
+    zoom: focusZoom,
+  } = resolveFocus(sc, args);
+  const boundMs = args.at !== undefined ? args.at * 1000 : undefined;
+  const max = args.maxPlacements ?? Number.POSITIVE_INFINITY;
+  const count = () =>
+    isCannonPhase
+      ? sc.state.players[playerId]!.cannons.length
+      : sc.state.players[playerId]!.walls.size;
+
+  const boundNote = boundMs !== undefined ? ` until +${args.at}s` : "";
+  const focusNote = focusRect ? ` focus=${focusLabel} zoom=${focusZoom}` : "";
+  console.log(
+    `seed=${resolved.seed} mode=${resolved.mode} ${resolved.sourceLabel} r${round} ${phase} per-placement (player ${PLAYER_NAMES[playerId]})${boundNote}${focusNote}`,
+  );
+
+  let placements = 0;
+  while (!phaseEnded && placements < max) {
+    if (boundMs !== undefined && sc.now() - anchorMs >= boundMs) break;
+    const prev = count();
+    sc.runUntil(
+      () =>
+        phaseEnded ||
+        count() > prev ||
+        (boundMs !== undefined && sc.now() - anchorMs >= boundMs),
+      { timeoutMs },
+    );
+    if (phaseEnded || count() <= prev) break;
+    placements++;
+    const player = sc.state.players[playerId]!;
+    const elapsed = ((sc.now() - anchorMs) / 1000).toFixed(1);
+    let label: string;
+    if (isCannonPhase) {
+      const cannon = player.cannons[player.cannons.length - 1]!;
+      label = `${cannon.mode} cannon @(${cannon.row},${cannon.col})`;
+    } else {
+      label = lastPiece;
+    }
+    const stat = isCannonPhase
+      ? `${player.cannons.length}c`
+      : `${player.walls.size}w ${player.enclosedTowers.length}e`;
+    console.log(
+      `\n── placement #${placements} @${elapsed}s — ${label} — ${PLAYER_NAMES[playerId]} ${stat}`,
+    );
+    console.log(
+      sc.renderer!.snapshot({
+        coords: true,
+        playerFilter: args.player,
+        cropTo: focusRect ?? args.player,
+        cropPad: focusRect ? 0 : (args.zoom ?? 0),
+      }),
+    );
+  }
+  console.log(
+    `\n${placements} placement(s) rendered; phase ${phaseEnded ? "ended" : "in progress"}.`,
+  );
 }
 
 /** Anchor footnote — absolute (row, col) positions for entities the agent
@@ -451,6 +600,54 @@ function buildAnchors(state: GameState, focus: 0 | 1 | 2 | undefined): string {
   return out.join("\n");
 }
 
+/** Resolve a point-focus crop window (tower / castle / at-tile), if any.
+ *  A focus target wins over --player for the crop bounds; --player still
+ *  tints via playerFilter, so you can zoom a neutral tower and shade a
+ *  player at the same time. The renderer (renderGrid) clamps the bbox to
+ *  the grid, so an over-large window near an edge is safe. */
+function resolveFocus(
+  sc: Scenario,
+  args: Args,
+): { rect: Rect | undefined; label: string; zoom: number } {
+  const zoom = args.zoom ?? DEFAULT_FOCUS_ZOOM;
+  if (args.tower !== undefined) {
+    const tower = sc.state.map.towers[args.tower];
+    if (!tower) {
+      console.error(
+        `Invalid --tower ${args.tower}: map has ${sc.state.map.towers.length} towers (0..${sc.state.map.towers.length - 1}).`,
+      );
+      Deno.exit(1);
+    }
+    return {
+      rect: towerWindow(tower.row, tower.col, zoom),
+      label: `tower #${args.tower}(${tower.row},${tower.col})`,
+      zoom,
+    };
+  }
+  if (args.castle !== undefined) {
+    const homeTower = sc.state.players[args.castle]?.homeTower;
+    if (!homeTower) {
+      console.error(
+        `${PLAYER_NAMES[args.castle]} has no home tower (not seated this match).`,
+      );
+      Deno.exit(1);
+    }
+    return {
+      rect: towerWindow(homeTower.row, homeTower.col, zoom),
+      label: `${PLAYER_NAMES[args.castle]} castle(${homeTower.row},${homeTower.col})`,
+      zoom,
+    };
+  }
+  if (args.atTile) {
+    return {
+      rect: pointWindow(args.atTile.row, args.atTile.col, zoom),
+      label: `tile(${args.atTile.row},${args.atTile.col})`,
+      zoom,
+    };
+  }
+  return { rect: undefined, label: "", zoom };
+}
+
 /** Crop window around a 2x2 tower whose top-left is (row, col): the tower
  *  footprint plus `zoom` tiles of margin on every side. */
 function towerWindow(row: number, col: number, zoom: number): Rect {
@@ -487,6 +684,8 @@ function parseArgs(): Args {
   let castle: 0 | 1 | 2 | undefined;
   let atTile: { row: number; col: number } | undefined;
   let zoom: number | undefined;
+  let eachPlacement = false;
+  let maxPlacements: number | undefined;
   for (let i = 0; i < argv.length; i++) {
     const flag = argv[i];
     if (flag === "--help" || flag === "-h") {
@@ -494,43 +693,15 @@ function parseArgs(): Args {
       Deno.exit(0);
     } else if (flag === "--seed") seed = Number(argv[++i]);
     else if (flag === "--fixture") fixture = argv[++i];
-    else if (flag === "--mode") {
-      const value = argv[++i];
-      if (value !== "classic" && value !== "modern") {
-        console.error(`Invalid --mode: ${value} (expected classic or modern)`);
-        Deno.exit(1);
-      }
-      mode = value;
-    } else if (flag === "--round") round = Number(argv[++i]);
+    else if (flag === "--mode") mode = parseMode(argv[++i]);
+    else if (flag === "--round") round = Number(argv[++i]);
     else if (flag === "--match-rounds") matchRounds = Number(argv[++i]);
     else if (flag === "--phase") phase = parsePhase(argv[++i]);
-    else if (flag === "--moment") {
-      const value = argv[++i];
-      if (value !== "start" && value !== "end") {
-        console.error(`Invalid --moment: ${value} (expected start or end)`);
-        Deno.exit(1);
-      }
-      moment = value;
-    } else if (flag === "--at") {
-      const value = Number(argv[++i]);
-      if (!Number.isFinite(value) || value < 0) {
-        console.error(
-          `Invalid --at: ${argv[i]} (expected non-negative number of seconds)`,
-        );
-        Deno.exit(1);
-      }
-      at = value;
-    } else if (flag === "--player") {
-      const value = argv[++i]?.toUpperCase() ?? "";
-      const idx = PLAYER_NAMES.indexOf(value as (typeof PLAYER_NAMES)[number]);
-      if (idx < 0) {
-        console.error(
-          `Invalid --player: ${value} (expected RED, BLUE, or GOLD)`,
-        );
-        Deno.exit(1);
-      }
-      player = idx as 0 | 1 | 2;
-    } else if (flag === "--tower") {
+    else if (flag === "--moment") moment = parseMoment(argv[++i]);
+    else if (flag === "--at") at = parseAtSeconds(argv[++i]);
+    else if (flag === "--player")
+      player = parsePlayerName(argv[++i], "--player");
+    else if (flag === "--tower") {
       tower = parseNonNegInt(argv[++i], "--tower");
     } else if (flag === "--castle") {
       castle = parsePlayerName(argv[++i], "--castle");
@@ -538,6 +709,10 @@ function parseArgs(): Args {
       atTile = parseRowCol(argv[++i]);
     } else if (flag === "--zoom") {
       zoom = parseNonNegInt(argv[++i], "--zoom");
+    } else if (flag === "--each-placement") {
+      eachPlacement = true;
+    } else if (flag === "--max-placements") {
+      maxPlacements = parseNonNegInt(argv[++i], "--max-placements");
     } else {
       console.error(`Unknown flag: ${flag}`);
       Deno.exit(1);
@@ -558,7 +733,39 @@ function parseArgs(): Args {
     castle,
     atTile,
     zoom,
+    eachPlacement,
+    maxPlacements,
   };
+}
+
+/** Parse a --mode flag value, or exit on a bad value. */
+function parseMode(raw: string | undefined): "classic" | "modern" {
+  if (raw !== "classic" && raw !== "modern") {
+    console.error(`Invalid --mode: ${raw} (expected classic or modern)`);
+    Deno.exit(1);
+  }
+  return raw;
+}
+
+/** Parse a --moment flag value, or exit on a bad value. */
+function parseMoment(raw: string | undefined): "start" | "end" {
+  if (raw !== "start" && raw !== "end") {
+    console.error(`Invalid --moment: ${raw} (expected start or end)`);
+    Deno.exit(1);
+  }
+  return raw;
+}
+
+/** Parse a --at flag value (non-negative seconds), or exit on a bad value. */
+function parseAtSeconds(raw: string | undefined): number {
+  const value = Number(raw);
+  if (!Number.isFinite(value) || value < 0) {
+    console.error(
+      `Invalid --at: ${raw} (expected non-negative number of seconds)`,
+    );
+    Deno.exit(1);
+  }
+  return value;
 }
 
 /** Parse a --phase flag value to a Phase, or exit on a bad value. */
