@@ -747,12 +747,22 @@ function candidateRect(tower: Tower, ctx: TargetContext): TileRect {
     castleMargin,
     !bankHugging,
   );
-  // Reuse an adjacent existing wall as a shared boundary only when the home
-  // ring is being abandoned (effectiveSkipHome) — enclosing this tower is then
-  // survival-critical and a tight, closeable ring beats a roomier one.
-  const reused = ctx.effectiveSkipHome
-    ? snapRectToReuseWalls(base, player.walls, tower)
-    : base;
+  // Reuse an adjacent existing wall as a shared boundary in two cases:
+  //  - a secondary ring being abandoned for (effectiveSkipHome) — enclosing
+  //    that tower is survival-critical and a tight, closeable ring beats a
+  //    roomier one;
+  //  - ALWAYS for the home tower — the round-1 prebuilt castle (and the
+  //    player's own ring in later rounds) already traces a ring; snapping the
+  //    margin rect onto it reuses those walls instead of building a concentric
+  //    ring one tile out (which strands the standing walls as interior and
+  //    wastes pieces). The snap is coverage-driven: it only pulls a side in
+  //    where the existing walls have more coverage, so it keeps a roomier ring
+  //    when the walls already trace one.
+  const isHome = tower.index === ctx.castle.tower.index;
+  const reused =
+    ctx.effectiveSkipHome || isHome
+      ? snapRectToReuseWalls(base, player.walls, tower)
+      : base;
   return expandRectAroundBlockers(reused, state, player);
 }
 
