@@ -82,7 +82,6 @@ import { consumeSupplyBonuses } from "./modifiers/supply-ship.ts";
 import {
   generateUpgradeOffers,
   onBattlePhaseStart,
-  onBuildPhaseStart,
   resetPlayerUpgrades,
   useSmallPieces,
 } from "./upgrade-system.ts";
@@ -239,15 +238,14 @@ export function prepareNextRound(state: GameState): void {
   // `enterWallBuildPhase`. Engine-level setup runs here but state.phase
   // stays on BATTLE until that mutate fires.
 
-  // Upgrade-effect setup for the new build phase (Master Builder owners +
-  // lockout, plus any future hooks wired into onBuildPhaseStart).
-  onBuildPhaseStart(state);
-  // `state.timer` for the upcoming build phase is anchored in
-  // `enter-wall-build.mutate` (runtime/phase-machine.ts) — AFTER
-  // `applyUpgradePicks` has applied THIS round's picks. Setting it here
-  // would freeze the value at the previous round's upgrade set, so
-  // Double Time / Master Builder bonuses applied this round would not
-  // affect phase length and host/watcher would disagree.
+  // Upgrade-effect setup for the new build phase (`onBuildPhaseStart`:
+  // Master Builder owners + lockout) is anchored in `enterWallBuildPhase`
+  // (game/phase-entry.ts) — AFTER `applyUpgradePicks` has applied THIS
+  // round's picks, alongside the `state.timer` anchoring. Running it here
+  // (battle-done, before the upgrade pick) would freeze the owner/lockout
+  // set at the PREVIOUS round's picks, so a Master Builder bought this
+  // round would grant no exclusive window in the build phase it was picked
+  // for, and host/watcher would disagree.
   resetPlayerUpgrades(state);
   startOfBuildPhaseHousekeeping(state);
 

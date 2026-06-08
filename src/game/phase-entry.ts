@@ -25,7 +25,7 @@ import {
 import { supplyShipBuildTimerBonus } from "./modifiers/supply-ship.ts";
 import { prepareBattleState, setPhase } from "./phase-setup.ts";
 import { initTowerSelection } from "./selection.ts";
-import { buildTimerBonus } from "./upgrade-system.ts";
+import { buildTimerBonus, onBuildPhaseStart } from "./upgrade-system.ts";
 
 /** Result of `prepareBattle` — what the caller needs to wire up the
  *  modifier-reveal banner, balloon animation, and online broadcast.
@@ -95,12 +95,17 @@ export function enterUpgradePickPhase(state: GameState): void {
   setPhase(state, Phase.UPGRADE_PICK);
 }
 
-/** Flip to WALL_BUILD and anchor the entry-time timer. Anchoring runs here
- *  AFTER `applyUpgradePicks` and `resetPlayerUpgrades` have settled the
- *  upgrade set for this round — anchoring earlier would reflect the
- *  PREVIOUS round's bonuses and diverge host vs watcher on phase length. */
+/** Flip to WALL_BUILD and anchor the entry-time timer + upgrade build-phase
+ *  setup. Both run here AFTER `applyUpgradePicks` and `resetPlayerUpgrades`
+ *  have settled the upgrade set for this round — running them earlier (e.g.
+ *  in `prepareNextRound` at battle-done, before the upgrade pick) would
+ *  reflect the PREVIOUS round's picks: phase length would diverge host vs
+ *  watcher, and Master Builder's exclusive-build lockout (`onBuildPhaseStart`)
+ *  would be computed from last round's owners, granting no exclusive window
+ *  to a player who bought it this round. */
 export function enterWallBuildPhase(state: GameState): void {
   setPhase(state, Phase.WALL_BUILD);
+  onBuildPhaseStart(state);
   state.timer =
     state.buildTimer +
     buildTimerBonus(state) +
