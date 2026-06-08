@@ -466,8 +466,17 @@ function computeMask(
   let mask = 0;
   if (walls.has(((row - 1) * GRID_COLS + col) as TileKey)) mask |= MASK_N;
   if (walls.has(((row + 1) * GRID_COLS + col) as TileKey)) mask |= MASK_S;
-  if (walls.has((row * GRID_COLS + (col + 1)) as TileKey)) mask |= MASK_E;
-  if (walls.has((row * GRID_COLS + (col - 1)) as TileKey)) mask |= MASK_W;
+  // Guard the column edges: col±1 must stay in-row, otherwise the flat
+  // TileKey wraps onto a valid tile in the adjacent row (col-1 at col 0 →
+  // last col of the previous row; col+1 at the last col → col 0 of the next
+  // row), making edge walls render as if the map were a horizontal cylinder.
+  if (
+    col + 1 < GRID_COLS &&
+    walls.has((row * GRID_COLS + (col + 1)) as TileKey)
+  )
+    mask |= MASK_E;
+  if (col - 1 >= 0 && walls.has((row * GRID_COLS + (col - 1)) as TileKey))
+    mask |= MASK_W;
   return mask;
 }
 
