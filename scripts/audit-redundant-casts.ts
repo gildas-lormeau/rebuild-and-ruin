@@ -38,9 +38,11 @@
  * Usage:
  *   deno run -A scripts/audit-redundant-casts.ts [options]
  *
+ * Scope: src/ and dev/ by default (dev tooling is linted alongside src/).
+ *
  * Options:
- *   --server         Include server/ files
- *   --test           Include test/ files
+ *   --server         Also include server/ files
+ *   --test           Also include test/ files
  *   --json           Emit JSON instead of human-readable
  *   --filter=<re>    Only show findings whose file path matches the regex
  */
@@ -76,7 +78,7 @@ function main(): void {
     skipAddingFilesFromTsConfig: true,
   });
 
-  const globs = ["src/**/*.ts"];
+  const globs = ["src/**/*.ts", "dev/**/*.ts"];
   if (includeServer) globs.push("server/**/*.ts");
   if (includeTest) globs.push("test/**/*.ts");
   for (const gl of globs) project.addSourceFilesAtPaths(gl);
