@@ -11,6 +11,7 @@ import type {
   PixelPos,
   TilePos,
   Tower,
+  WorldPos,
 } from "../shared/core/geometry-types.ts";
 import type { PieceShape } from "../shared/core/pieces.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
@@ -85,6 +86,12 @@ export interface BattleTickResult {
   /** Diag-only: the `pickTarget` sub-branch for a standard (non-chain) fire.
    *  Undefined for chain shots and when no commit. */
   readonly pickPath?: PickPath;
+  /** Diag-only: the tile the planner actually wanted to hit, BEFORE aim
+   *  occlusion redirected it. When a camera-near wall hides the target, this
+   *  differs from `commit`'s tile (which snapped onto the occluder). Lets the
+   *  battle-diag distinguish "aimed where intended" from "occlusion redirected
+   *  onto a wall". Undefined when no commit. */
+  readonly intendedTarget?: TilePos;
 }
 
 /** Per-phase placement context — computed once at phase init. Tracks
@@ -173,11 +180,15 @@ export interface BattleHost {
   readonly playerId: ValidPlayerId;
   readonly strategy: AiStrategy;
   crosshair: PixelPos;
-  readonly cannonRotationIdx: number | undefined;
   readonly anticipatesTarget: boolean;
   scaledDelay(base: number, spread: number): number;
   stepCrosshairToward(tx: PixelPos["x"], ty: PixelPos["y"]): boolean;
   fire(state: BattleViewState): FireIntent | null;
+  /** Resolve a world-px aim point through the controller's occlusion model
+   *  (sim-only for AI) and return the occluded world position — the same seam
+   *  a human pointer drives. The brain reattaches its strategic metadata to
+   *  the result; the crosshair itself glides via `stepCrosshairToward`. */
+  aim(state: BattleViewState, x: number, y: number): WorldPos;
 }
 
 export interface AiStrategy {

@@ -20,6 +20,7 @@ import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import type { Player } from "../shared/core/player-types.ts";
 import { cannonSize } from "../shared/core/spatial.ts";
 import {
+  type AimResolver,
   type BattleViewState,
   type BuildViewState,
   type CannonPlacementPreview,
@@ -53,8 +54,12 @@ export class HumanController extends BaseController implements InputReceiver {
    *  touch handler normalizes (with a center dead-zone) before writing. */
   private dpadVector: { x: number; y: number } | undefined;
 
-  constructor(playerId: ValidPlayerId, keys: KeyBindings) {
-    super(playerId);
+  constructor(
+    playerId: ValidPlayerId,
+    keys: KeyBindings,
+    aimResolver: AimResolver,
+  ) {
+    super(playerId, aimResolver);
     this.keyMap = buildKeyMap(keys);
   }
 

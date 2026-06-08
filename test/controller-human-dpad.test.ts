@@ -123,7 +123,12 @@ Deno.test("crosshair clamps to map bounds even with vector overflow", () => {
 });
 
 function makeController(): HumanController {
-  return new HumanController(PID, PLAYER_KEY_BINDINGS[0]!);
+  // dpad movement steers the crosshair directly and never calls `aim()`, so a
+  // pass-through resolver suffices for this unit test.
+  return new HumanController(PID, PLAYER_KEY_BINDINGS[0]!, (_state, x, y) => ({
+    wx: x,
+    wy: y,
+  }));
 }
 
 function stubBattleState(): BattleViewState {

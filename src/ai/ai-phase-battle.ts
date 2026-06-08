@@ -8,7 +8,8 @@
 
 import { nextReadyCannon } from "../game/index.ts";
 import { SIM_TICK_DT } from "../shared/core/game-constants.ts";
-import { packTile, tileCenterPx } from "../shared/core/spatial.ts";
+import type { TilePos } from "../shared/core/geometry-types.ts";
+import { packTile, pxToTile, tileCenterPx } from "../shared/core/spatial.ts";
 import type {
   BattleViewState,
   FireIntent,
@@ -50,6 +51,14 @@ interface BattlePhase extends BattlePlan {
   state: BattleState;
   crosshairTarget: StrategicPixelPos | null;
   chainIdx: number;
+  /** Diag-only: the tile the planner wanted for the current standard shot,
+   *  BEFORE aim occlusion redirected it. Set alongside `crosshairTarget`;
+   *  reported with the fire so observers can spot occlusion redirects. */
+  intendedTarget: TilePos | null;
+  /** Diag-only: pre-occlusion twin of `chainTargets`, parallel by index, so a
+   *  chain fire can report the tile it meant to hit before occlusion snapped
+   *  it onto a camera-near wall. */
+  chainIntended: TilePos[] | undefined;
   /** Offensive tactics already fired this battle. Fed to each re-plan so the
    *  attack sequence varies instead of repeating the dominant tactic. Cleared
    *  at every battle entry (`initBattle`). */
@@ -99,7 +108,9 @@ export function createBattlePhase(): BattlePhase {
   return {
     state: { step: STEP.IDLE },
     crosshairTarget: null,
+    intendedTarget: null,
     chainTargets: undefined,
+    chainIntended: undefined,
     chainIdx: 0,
     chainType: CHAIN.WALL,
     usedTactics: new Set(),
@@ -114,7 +125,9 @@ export function createBattlePhase(): BattlePhase {
 export function resetBattlePhaseKeepOrbit(phase: BattlePhase): void {
   phase.state = { step: STEP.IDLE };
   phase.crosshairTarget = null;
+  phase.intendedTarget = null;
   phase.chainTargets = undefined;
+  phase.chainIntended = undefined;
   phase.chainIdx = 0;
   phase.chainType = CHAIN.WALL;
   phase.usedTactics.clear();
@@ -127,14 +140,19 @@ export function initBattle(
   state?: BattleViewState,
 ): void {
   phase.crosshairTarget = null;
+  phase.intendedTarget = null;
   phase.chainTargets = undefined;
+  phase.chainIntended = undefined;
   phase.chainIdx = 0;
   phase.chainType = CHAIN.WALL;
   phase.originTag = undefined;
   phase.usedTactics.clear();
   if (state) {
     const plan = host.strategy.planBattle(state, host.playerId);
-    phase.chainTargets = plan.chainTargets;
+    phase.chainIntended = plan.chainTargets
+      ? [...plan.chainTargets]
+      : undefined;
+    phase.chainTargets = occludeChainTargets(host, state, plan.chainTargets);
     phase.chainType = plan.chainType;
     phase.originTag = plan.originTag;
     recordTactic(phase, plan.tacticId);
@@ -197,11 +215,7 @@ export function tickBattle(
       }
       return {};
     case STEP.PICKING:
-      phase.crosshairTarget = host.strategy.pickTarget(
-        state,
-        host.playerId,
-        host.crosshair,
-      );
+      phase.crosshairTarget = pickAndSnap(host, phase, state);
       phase.state = { step: STEP.MOVING };
       return {};
     case STEP.MOVING:
@@ -260,11 +274,7 @@ function tickCountdown(
   state: BattleViewState,
 ): void {
   if (!phase.crosshairTarget) {
-    phase.crosshairTarget = host.strategy.pickTarget(
-      state,
-      host.playerId,
-      host.crosshair,
-    );
+    phase.crosshairTarget = pickAndSnap(host, phase, state);
   }
   if (!phase.crosshairTarget) return;
 
@@ -317,6 +327,38 @@ function tickCountdown(
   } else {
     host.stepCrosshairToward(phase.crosshairTarget.x, phase.crosshairTarget.y);
   }
+}
+
+/** Pick a standard target, record the pre-occlusion tile on `phase` (diag), and
+ *  return the occlusion-snapped aim. The recorded `intendedTarget` is reported
+ *  with the fire so observers can see when occlusion redirected the shot. */
+function pickAndSnap(
+  host: BattleHost,
+  phase: BattlePhase,
+  state: BattleViewState,
+): StrategicPixelPos | null {
+  const picked = host.strategy.pickTarget(state, host.playerId, host.crosshair);
+  phase.intendedTarget = picked
+    ? { row: pxToTile(picked.y), col: pxToTile(picked.x) }
+    : null;
+  return snapAimToOcclusion(host, state, picked);
+}
+
+/** Snap a single-shot aim target through the controller's `aim()` seam so the
+ *  AI (and assisted-human) can't aim at a tile a human's crosshair could never
+ *  reach: if a nearer wall/tower hides the target under the battle tilt, the
+ *  aim redirects onto that occluder (where the pointer pick would land),
+ *  carrying the strategic metadata along. The occlusion geometry lives behind
+ *  the seam (`host.aim`), not here. Chain targets are snapped at plan time (see
+ *  `planBattle`); this covers the standard pick. */
+function snapAimToOcclusion(
+  host: BattleHost,
+  state: BattleViewState,
+  target: StrategicPixelPos | null,
+): StrategicPixelPos | null {
+  if (target === null) return null;
+  const world = host.aim(state, target.x, target.y);
+  return { ...target, x: world.wx, y: world.wy };
 }
 
 /** Chain attack: move crosshair toward next chain target, skip destroyed walls. */
@@ -401,6 +443,7 @@ function tickChainDwelling(
   return {
     commit: intent,
     origin: phase.originTag ?? CHAIN_TO_ORIGIN[phase.chainType],
+    intendedTarget: phase.chainIntended?.[phase.chainIdx],
   };
 }
 
@@ -449,13 +492,32 @@ function replanChain(
     phase.usedTactics,
   );
   if (!plan.chainTargets || plan.chainTargets.length === 0) return false;
-  phase.chainTargets = plan.chainTargets;
+  phase.chainIntended = [...plan.chainTargets];
+  phase.chainTargets = occludeChainTargets(host, state, plan.chainTargets);
   phase.chainType = plan.chainType;
   phase.originTag = plan.originTag;
   phase.chainIdx = 0;
   phase.crosshairTarget = null;
   recordTactic(phase, plan.tacticId);
   return true;
+}
+
+/** Snap a freshly-planned chain's targets through the controller's `aim()`
+ *  seam. A chain builds both its moving crosshair (`tickChainMoving`) and its
+ *  `FireIntent` (`tickChainDwelling`) straight from these tiles, so snapping
+ *  the array once at plan-load time keeps the two in lockstep — and keeps
+ *  occlusion owned entirely by the aim seam, not the target-selection
+ *  strategy. */
+function occludeChainTargets(
+  host: BattleHost,
+  state: BattleViewState,
+  targets: readonly TilePos[] | undefined,
+): TilePos[] | undefined {
+  return targets?.map((target) => {
+    const center = tileCenterPx(target.row, target.col);
+    const world = host.aim(state, center.x, center.y);
+    return { row: pxToTile(world.wy), col: pxToTile(world.wx) };
+  });
 }
 
 /** Track a fired tactic so subsequent re-plans skip it (force variety). Only
@@ -495,7 +557,12 @@ function tickDwelling(
   // pickPath is the sub-branch of pickTarget that produced the tile we're
   // firing at — still on crosshairTarget here (overwritten only later in
   // completeStandardFire's anticipatesTarget pre-pick).
-  return { commit: intent, origin, pickPath: phase.crosshairTarget?.pickPath };
+  return {
+    commit: intent,
+    origin,
+    pickPath: phase.crosshairTarget?.pickPath,
+    intendedTarget: phase.intendedTarget ?? undefined,
+  };
 }
 
 function completeStandardFire(

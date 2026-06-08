@@ -5,6 +5,7 @@
  * and exposes a pure API for the runtime to call.
  */
 
+import { BATTLE_TILT_PITCH_RAD } from "../../shared/core/elevation-constants.ts";
 import {
   CROSSHAIR_TRACK_PAD_TILES,
   MIN_ZOOM_RATIO,
@@ -145,8 +146,7 @@ export interface RuntimeCamera {
   awaitCameraFlat: (callback: () => void) => void;
   /** Run `cb` once the in-flight pitch animation completes (in either
    *  direction — `flat` and `tilted` both count as settled). Fires
-   *  synchronously when pitch is already settled, including the headless
-   *  `cameraTiltEnabled === false` case. Used by the phase machine's
+   *  synchronously when pitch is already settled. Used by the phase machine's
    *  battle-banner postDisplay to gate balloon-anim / battle-mode entry
    *  behind the build→battle tilt-in. Caller-overwrite semantics. */
   awaitPitchSettled: (callback: () => void) => void;
@@ -190,10 +190,6 @@ interface CameraDeps {
    *  `pointerPlayer()` cache still holds the lobby's stale `null`). */
   hasPointerPlayer: () => boolean;
   getFrameDt: () => number;
-  /** Whether camera pitch animations run. `false` in headless (no renderer
-   *  to apply tilt); `true` in the browser, where the 3D renderer renders
-   *  tilt and the pitch animation drives `awaitPitchSettled` callbacks. */
-  cameraTiltEnabled: boolean;
   setFrameAnnouncement: (text: string) => void;
   getPointerPlayerCrosshair?: () => { x: number; y: number } | null;
   /** Pointer player's active phantoms — raw shapes only. The camera derives
@@ -234,8 +230,10 @@ interface CameraDeps {
 type PitchState = "flat" | "tilting" | "tilted" | "untilting";
 
 const CANVAS_SIZE = { w: CANVAS_W, h: CANVAS_H } as const;
-/** Target pitch when entering battle: 30° classic isometric / Rampart 3/4 view. */
-const TILT_BATTLE_PITCH = Math.PI / 6;
+/** Target pitch when entering battle: 30° classic isometric / Rampart 3/4
+ *  view. Single source in shared/core so the sim's aim-occlusion snap reads
+ *  the same settled value (see `BATTLE_TILT_PITCH_RAD`). */
+const TILT_BATTLE_PITCH = BATTLE_TILT_PITCH_RAD;
 /** Pitch animation duration (seconds). CSS `transition: Xms ease-out` equivalent. */
 const PITCH_DURATION = 0.6;
 
@@ -328,8 +326,7 @@ export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
 
   // Pitch animation — targetPitch is re-set on phase-enter (see
   // handlePhaseChangeZoom); currentPitch eases toward target each tick
-  // in tickCamera. Gated on `cameraTiltEnabled` — headless has no place
-  // to apply tilt, so we keep both values at 0 there.
+  // in tickCamera.
   // TODO(step-6): loupe (render-loupe.ts) and auto-zoom fit
   // (fitTileBoundsToViewport) are pitch-agnostic; under tilt the loupe
   // crop and zone fit are slightly off. Cosmetic at 30°; fix in step 6.
@@ -848,20 +845,10 @@ export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
     }
   }
 
-  /** Ease currentPitch toward targetPitch each frame. Hard-zero when tilt is
-   *  disabled (headless) — no animation runs, so `tickPitch` never invokes
-   *  the parked callback. `awaitPitchSettled` handles this by firing
-   *  synchronously when pitch is already settled (including the headless
-   *  always-flat case), so callers don't need to pre-check. */
+  /** Ease currentPitch toward targetPitch each frame. `awaitPitchSettled`
+   *  fires synchronously when pitch is already settled, so callers don't need
+   *  to pre-check. */
   function tickPitch(): void {
-    if (!deps.cameraTiltEnabled) {
-      currentPitch = 0;
-      targetPitch = 0;
-      pitchAnimFrom = 0;
-      pitchAnimElapsed = PITCH_DURATION;
-      pitchState = "flat";
-      return;
-    }
     if (pitchAnimElapsed >= PITCH_DURATION) {
       if (currentPitch !== targetPitch) currentPitch = targetPitch;
       return;
@@ -1271,10 +1258,9 @@ export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
 
   /** Run `cb` once the in-flight pitch animation completes (in either
    *  direction — `flat` or `tilted` both count as settled). Fires
-   *  synchronously when the pitch is already settled, including the
-   *  headless / `cameraTiltEnabled === false` case where `getPitchState()`
-   *  always reports `"flat"` and `tickPitch` never invokes the parked
-   *  callback. Without the sync-fire path, headless callers would hang.
+   *  synchronously when the pitch is already settled, so a caller that
+   *  registers while nothing is animating still runs this frame instead of
+   *  hanging on a callback that `tickPitch` would never invoke.
    *
    *  Used by the phase machine's battle-banner postDisplay (see
    *  `proceedToBattleFromCtx`) to gate balloon-anim / battle-mode entry
@@ -1361,12 +1347,10 @@ export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
     setPitchTarget(TILT_BATTLE_PITCH);
   }
 
-  /** Current pitch state machine value. When tilt is disabled (headless)
-   *  always `"flat"` — pitch is hard-zeroed by `tickPitch`. Sites that
-   *  need the settle edge as a one-shot continuation use `awaitPitchSettled`
-   *  instead — this getter is for call sites that already poll per tick. */
+  /** Current pitch state machine value. Sites that need the settle edge as a
+   *  one-shot continuation use `awaitPitchSettled` instead — this getter is
+   *  for call sites that already poll per tick. */
   function getPitchState(): PitchState {
-    if (!deps.cameraTiltEnabled) return "flat";
     return pitchState;
   }
 

@@ -4,7 +4,6 @@
     "domain": "ai",
     "role": "AI tuning data",
     "files": [
-      "src/ai/ai-battle-diag.ts",
       "src/ai/ai-chain.ts",
       "src/ai/ai-constants.ts"
     ]
@@ -195,6 +194,7 @@
       "src/shared/core/elevation-constants.ts",
       "src/shared/core/feature-defs.ts",
       "src/shared/core/geometry-types.ts",
+      "src/shared/core/occlusion.ts",
       "src/shared/core/pieces.ts",
       "src/shared/core/upgrade-defs.ts",
       "src/shared/core/wall-destroy-anim.ts",
@@ -206,6 +206,7 @@
     "domain": "ai",
     "role": "AI build-phase diagnostic hook (test-only event surface)",
     "files": [
+      "src/ai/ai-battle-diag.ts",
       "src/ai/ai-build-diag.ts"
     ]
   },
@@ -376,6 +377,7 @@
     "domain": "game",
     "role": "core game systems (combos, game-over, selection, map gen, elevation)",
     "files": [
+      "src/game/aim-occlusion.ts",
       "src/game/combos.ts",
       "src/game/game-over.ts",
       "src/game/map-generation.ts",

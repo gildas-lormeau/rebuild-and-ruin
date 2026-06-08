@@ -251,8 +251,7 @@ export interface PhaseTransitionCtx {
   /** Run `cb` once the in-flight pitch animation completes (in either
    *  direction). `proceedToBattleFromCtx` uses it to hold balloon-anim start
    *  until the build→battle tilt completes. Fires synchronously when
-   *  pitch is already settled (including headless `cameraTiltEnabled` =
-   *  false), so callers don't need a separate gate. See
+   *  pitch is already settled, so callers don't need a separate gate. See
    *  `RuntimeCamera.awaitPitchSettled`. Optional so headless contexts
    *  that don't own a camera can skip wiring it. */
   readonly awaitPitchSettled?: (callback: () => void) => void;

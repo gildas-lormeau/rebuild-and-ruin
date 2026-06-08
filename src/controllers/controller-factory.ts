@@ -7,7 +7,10 @@
 
 import type { AiPersonality } from "../shared/core/ai-personality.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
-import type { PlayerController } from "../shared/core/system-interfaces.ts";
+import type {
+  AimResolver,
+  PlayerController,
+} from "../shared/core/system-interfaces.ts";
 import type { Rng } from "../shared/platform/rng.ts";
 import type { KeyBindings } from "../shared/ui/player-config.ts";
 import { HumanController } from "./controller-human.ts";
@@ -53,6 +56,10 @@ export async function createController(
   // host/watcher remain symmetric.
   _privateSeed?: number,
   personality?: AiPersonality,
+  // Camera-backed aim resolver, threaded from the composition root (where the
+  // camera exists). AI controllers ignore it — they build their own sim-only
+  // resolver internally for cross-peer parity; only humans need the camera one.
+  humanAimResolver?: AimResolver,
 ): Promise<PlayerController> {
   if (isAi) {
     if (!sharedRng) throw new Error("sharedRng required for AI controller");
@@ -61,7 +68,9 @@ export async function createController(
     return cachedAiControllerBuilder!(playerId, sharedRng, personality);
   }
   if (!keys) throw new Error("KeyBindings required for human controller");
-  return new HumanController(playerId, keys);
+  if (!humanAimResolver)
+    throw new Error("humanAimResolver required for human controller");
+  return new HumanController(playerId, keys, humanAimResolver);
 }
 
 /** Ensure AI chunks are cached. Awaited by bootstrapGame + host-promotion

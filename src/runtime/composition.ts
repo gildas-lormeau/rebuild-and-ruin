@@ -371,7 +371,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     getCtx: () => runtimeState.frameMeta,
     hasPointerPlayer,
     getFrameDt: () => runtimeState.frameDt,
-    cameraTiltEnabled: config.cameraTiltEnabled ?? true,
     setFrameAnnouncement: (text) => {
       runtimeState.frame.announcement = text;
     },
@@ -553,6 +552,10 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
               audio.sfx.subscribeBus(runtimeState.state.bus);
             },
             controllerFactory: config.controllerFactory,
+            // Camera-backed human aim resolver: screen px → occluded world via
+            // the live camera pitch + overlay heights. AI controllers ignore
+            // this and use their own sim-only resolver for cross-peer parity.
+            humanAimResolver: (_state, x, y) => camera.pickHitWorld(x, y),
           },
           config.getUrlModeOverride,
         ),

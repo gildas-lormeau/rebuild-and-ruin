@@ -373,10 +373,6 @@ export async function createHeadlessRuntime(
         ? buildHeadlessHostPhaseTicks((msg) => networkObserver?.sent?.(msg))
         : undefined),
     observers: hapticsObserver ? { haptics: hapticsObserver } : undefined,
-    // Headless has no place to apply tilt — `tickPitch` hard-zeros pitch
-    // when this is false, so the phase machine's pitch-gate takes the
-    // synchronous early-return path.
-    cameraTiltEnabled: false,
     // IS_DEV is false under Deno, so headless must opt in explicitly to keep
     // the per-frame TICK event flowing to test subscribers (reveal/fade tests).
     emitTickEvent: true,
@@ -592,7 +588,15 @@ function buildAssistedControllerFactory(
   safetyTicks: number,
 ): ControllerFactory {
   const assistedSet = new Set<ValidPlayerId>(assistedSlots);
-  return async (slot, isAi, keys, sharedRng, privateSeed, personality) => {
+  return async (
+    slot,
+    isAi,
+    keys,
+    sharedRng,
+    privateSeed,
+    personality,
+    humanAimResolver,
+  ) => {
     if (!isAi || !assistedSet.has(slot)) {
       const { createController } = await import(
         "../src/controllers/controller-factory.ts"
@@ -604,6 +608,7 @@ function buildAssistedControllerFactory(
         sharedRng,
         privateSeed,
         personality,
+        humanAimResolver,
       );
     }
     if (privateSeed === undefined) {

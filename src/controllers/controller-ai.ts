@@ -20,8 +20,13 @@ import type {
   SelectionHost,
 } from "../ai/ai-strategy-types.ts";
 import { secondsToTicks } from "../ai/ai-utils.ts";
+import { occludedAimWorld } from "../game/index.ts";
 import { CROSSHAIR_SPEED, SIM_TICK_DT } from "../shared/core/game-constants.ts";
-import type { PixelPos, TilePos } from "../shared/core/geometry-types.ts";
+import type {
+  PixelPos,
+  TilePos,
+  WorldPos,
+} from "../shared/core/geometry-types.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import {
   type AiAnimatable,
@@ -83,10 +88,20 @@ export class AiController extends BaseController implements AiAnimatable {
     brain: AiBrain,
     commit: AiCommitPort = DIRECT_COMMIT_PORT,
   ) {
-    super(playerId);
+    // Sim-only aim resolver (fixed pitch + GameState heights): camera-
+    // independent so AI aim stays identical across host / watcher. The
+    // assisted-human variant inherits it for the same parity reason.
+    super(playerId, occludedAimWorld);
     this.strategy = strategy;
     this.brain = brain;
     this.commit = commit;
+  }
+
+  /** Resolve occlusion only — the AI crosshair glides toward this target via
+   *  `stepCrosshairToward`, so (unlike the human pointer) we don't snap the
+   *  crosshair instantly. The brain stores the result as its aim target. */
+  override aim(state: BattleViewState, x: number, y: number): WorldPos {
+    return this.aimResolver(state, x, y);
   }
 
   // -----------------------------------------------------------------------
@@ -261,7 +276,15 @@ export class AiController extends BaseController implements AiAnimatable {
     if (rotationIdx !== null) {
       this.cannonRotationIdx = rotationIdx;
       if (result.origin && isAiBattleDiagHookActive()) {
-        emitFireDecisionDiag(result.origin, result.pickPath);
+        emitFireDecisionDiag({
+          origin: result.origin,
+          pickPath: result.pickPath,
+          intendedTarget: result.intendedTarget,
+          aimTarget: {
+            row: result.commit.targetRow,
+            col: result.commit.targetCol,
+          },
+        });
       }
     }
     this.brain.battle.onFireResult(this, state, rotationIdx !== null);

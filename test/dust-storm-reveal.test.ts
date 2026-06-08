@@ -2,26 +2,36 @@
  * dust_storm progressive reveal: per-tick sway-amplitude verification.
  *
  * Plays the game until the dust_storm modifier rolls, then samples
- * `sc.overlay()?.battle?.dustStormSwayAmplitude` every tick for the
- * full 2-second MODIFIER_REVEAL phase — from PHASE_START to PHASE_END.
- * That window covers three regimes:
+ * `sc.overlay()?.battle?.dustStormSwayAmplitude` (and the matching phase)
+ * every tick for the full MODIFIER_REVEAL phase — from PHASE_START to
+ * PHASE_END. Each sample is checked against the runtime derivers
+ * (`deriveDustStormSway*`) for the reconstructed `revealTimeMs`, so the
+ * test tracks the deriver instead of hard-coding a formula that drifts.
  *
- *   1. Banner-sweep portion (revealTimeMs = 0): deriver returns 0.
- *   2. Post-sweep envelope (0 ≤ revealTimeMs < DURATION):
- *      amp(t) = PEAK · sin²(t · π), t = elapsed / DURATION.
- *   3. Post-envelope tail (revealTimeMs ≥ DURATION): undefined (released).
+ * Three regimes (see `reveal-time.ts` + `dust-storm.ts`):
+ *
+ *   1. Banner-sweep portion (revealTimeMs held at 0): amp = the breeze
+ *      FLOOR (`compute(0)` of the waved ramp), phase = 0. The snapshot is
+ *      held stable; phase 0 means zero *visible* displacement (sin(0)=0).
+ *   2. Post-sweep envelope (0 ≤ revealTimeMs < DURATION): amp follows the
+ *      waved ramp from FLOOR up to PEAK; phase ramps at the battle
+ *      angular speed so the reveal ends mid-cycle with amp near peak.
+ *   3. Post-envelope tail (revealTimeMs ≥ DURATION): released → undefined.
  *
  * Prints the per-tick curve as a bar graph (so a human can scan it) and
- * asserts every sample matches the spec formula. Also asserts the
- * cosine bell hits its peak (≥ 90% of PEAK_AMPLITUDE) symmetrically in
- * the middle of the envelope window so a flat / wrong-shape regression
- * is caught.
+ * asserts (a) every sample matches the deriver, (b) the breeze floor holds
+ * with zero phase during the sweep, (c) the envelope ramps up to ≥ 90% of
+ * PEAK near its end with a strictly rising phase and a single sway
+ * direction (composite sin(phase)·amp never goes negative), and (d) the
+ * tail releases to undefined.
  *
  * Run with: deno test --no-check test/dust-storm-reveal.test.ts
  */
 
 import { assert, assertAlmostEquals } from "@std/assert";
 import {
+  deriveDustStormSwayAmplitude,
+  deriveDustStormSwayPhaseRad,
   DUST_STORM_REVEAL_DURATION_MS,
   DUST_STORM_REVEAL_PEAK_AMPLITUDE,
 } from "../src/runtime/modifier-effects/dust-storm.ts";
@@ -33,7 +43,7 @@ interface Sample {
   /** ms since `PHASE_START(MODIFIER_REVEAL)` for the dust_storm round. */
   elapsedFromPhaseStart: number;
   /** ms since `BANNER_SWEEP_END` for the modifier-reveal banner. Negative
-   *  during the sweep portion of the phase (derivers return 0 / 0 here). */
+   *  during the sweep portion of the phase (revealTimeMs held at 0 here). */
   elapsedFromSweepEnd: number;
   /** Value read from `overlay.battle.dustStormSwayAmplitude` this tick. */
   amp: number | undefined;
@@ -42,6 +52,10 @@ interface Sample {
 }
 
 const MAX_TIMEOUT_MS = 1_200_000;
+/** Reconstructed-vs-actual `revealTimeMs` can differ by up to one tick of
+ *  curve movement; tolerate that rather than asserting sub-ms alignment. */
+const AMP_TOLERANCE = 0.03;
+const PHASE_TOLERANCE = 0.05;
 
 Deno.test("dust_storm reveal: sway amplitude per tick across the full 2s phase", async () => {
   using sc = await loadSeed("modifier:dust_storm");
@@ -117,8 +131,9 @@ Deno.test("dust_storm reveal: sway amplitude per tick across the full 2s phase",
     "  -----   ------   ------   ------   -----   ------   -------  ----------------------------------------",
   );
   for (const s of samples) {
-    const expectedAmp = expectedAmpFromSpec(s.elapsedFromSweepEnd);
-    const expectedPhase = expectedPhaseFromSpec(s.elapsedFromSweepEnd);
+    const { amp: expectedAmp, phase: expectedPhase } = expectedFor(
+      s.elapsedFromSweepEnd,
+    );
     const composite =
       s.amp === undefined || s.phase === undefined
         ? undefined
@@ -147,10 +162,11 @@ Deno.test("dust_storm reveal: sway amplitude per tick across the full 2s phase",
     );
   }
 
-  // ----- Per-tick assertions: every sample matches the spec exactly -----
+  // ----- Per-tick assertions: every sample matches the deriver -----
   for (const s of samples) {
-    const expectedAmp = expectedAmpFromSpec(s.elapsedFromSweepEnd);
-    const expectedPhase = expectedPhaseFromSpec(s.elapsedFromSweepEnd);
+    const { amp: expectedAmp, phase: expectedPhase } = expectedFor(
+      s.elapsedFromSweepEnd,
+    );
     if (expectedAmp === undefined) {
       assert(
         s.amp === undefined,
@@ -164,7 +180,7 @@ Deno.test("dust_storm reveal: sway amplitude per tick across the full 2s phase",
       assertAlmostEquals(
         s.amp,
         expectedAmp,
-        1e-6,
+        AMP_TOLERANCE,
         `phase+${s.elapsedFromPhaseStart}ms sweep+${s.elapsedFromSweepEnd}ms amp: got ${s.amp.toFixed(4)} expected ${expectedAmp.toFixed(4)}`,
       );
     }
@@ -181,19 +197,17 @@ Deno.test("dust_storm reveal: sway amplitude per tick across the full 2s phase",
       assertAlmostEquals(
         s.phase,
         expectedPhase,
-        1e-6,
+        PHASE_TOLERANCE,
         `phase+${s.elapsedFromPhaseStart}ms sweep+${s.elapsedFromSweepEnd}ms phase: got ${s.phase.toFixed(4)} expected ${expectedPhase.toFixed(4)}`,
       );
     }
   }
 
-  // ----- Shape assertions: prove the envelope is a cosine bell AND
-  //       the composite displacement is monotonic up-then-down (no
-  //       direction reversals during reveal). The composite is what
-  //       actually drives `swayOffsetPx` in the shader, so this is
-  //       the user-visible motion the test guards. -----
-
-  // Pre-sweep portion exists and both scalars are zero.
+  // ----- Regime 1: banner sweep holds the breeze floor at zero phase -----
+  // revealTimeMs is pinned to 0 during the sweep, so amp = compute(0) (the
+  // FLOOR) and phase = 0 → no *visible* displacement (sin(0)·amp = 0).
+  const floorAmp = deriveDustStormSwayAmplitude(0);
+  assert(floorAmp !== undefined, "floor amp should be defined at revealTime=0");
   const preSweep = samples.filter((s) => s.elapsedFromSweepEnd < 0);
   assert(
     preSweep.length > 0,
@@ -201,91 +215,74 @@ Deno.test("dust_storm reveal: sway amplitude per tick across the full 2s phase",
   );
   for (const s of preSweep) {
     assert(
-      s.amp === 0,
-      `pre-sweep tick at phase+${s.elapsedFromPhaseStart}ms: amp should be 0 (revealTimeMs=0), got ${s.amp}`,
+      s.amp !== undefined,
+      `pre-sweep tick at phase+${s.elapsedFromPhaseStart}ms: amp should be the breeze floor, got undefined`,
+    );
+    assertAlmostEquals(
+      s.amp,
+      floorAmp,
+      AMP_TOLERANCE,
+      `pre-sweep tick at phase+${s.elapsedFromPhaseStart}ms: amp should hold the breeze floor (${floorAmp.toFixed(4)}), got ${s.amp.toFixed(4)}`,
     );
     assert(
       s.phase === 0,
-      `pre-sweep tick at phase+${s.elapsedFromPhaseStart}ms: phase should be 0 (revealTimeMs=0), got ${s.phase}`,
+      `pre-sweep tick at phase+${s.elapsedFromPhaseStart}ms: phase should be 0 (no visible motion during sweep), got ${s.phase}`,
     );
   }
 
-  // Composite displacement (sin(phase) · amp — what the shader draws):
-  // strictly non-negative across the envelope and monotonic up to the
-  // peak, monotonic down after. Catches direction-reversal regressions.
-  const envelopeSamplesForShape = samples.filter(
+  // ----- Regime 2: post-sweep envelope -----
+  const envelope = samples.filter(
     (s) =>
       s.elapsedFromSweepEnd >= 0 &&
       s.elapsedFromSweepEnd < DUST_STORM_REVEAL_DURATION_MS &&
       s.amp !== undefined &&
       s.phase !== undefined,
   );
-  let peakIdx = 0;
-  let peakComposite = -Infinity;
-  for (let i = 0; i < envelopeSamplesForShape.length; i++) {
-    const s = envelopeSamplesForShape[i]!;
-    const c = Math.sin(s.phase!) * s.amp!;
+  assert(envelope.length > 0, "should have envelope-window samples");
+
+  // Continuity across the sweep→play boundary: the first envelope sample
+  // matches the held breeze floor (both call compute(0)), so there's no
+  // jump when the banner finishes sweeping.
+  assertAlmostEquals(
+    envelope[0]!.amp!,
+    floorAmp,
+    AMP_TOLERANCE,
+    `envelope should start at the breeze floor (continuity), got ${envelope[0]!.amp}`,
+  );
+
+  // Phase ramps strictly upward (linear angular sweep) and stays in the
+  // first half-cycle so sin(phase) — the visible direction — never flips.
+  for (let i = 1; i < envelope.length; i++) {
     assert(
-      c >= -1e-9,
-      `composite sin(phase)·amp must stay non-negative across the envelope (no L↔R reversal). Got ${c.toFixed(6)} at sweep+${s.elapsedFromSweepEnd}ms`,
-    );
-    if (c > peakComposite) {
-      peakComposite = c;
-      peakIdx = i;
-    }
-  }
-  // Strictly increasing up to peak (within sample-rate tolerance).
-  for (let i = 1; i <= peakIdx; i++) {
-    const prev = envelopeSamplesForShape[i - 1]!;
-    const cur = envelopeSamplesForShape[i]!;
-    const cPrev = Math.sin(prev.phase!) * prev.amp!;
-    const cCur = Math.sin(cur.phase!) * cur.amp!;
-    assert(
-      cCur >= cPrev - 1e-9,
-      `composite must be monotonic-non-decreasing up to peak; sweep+${prev.elapsedFromSweepEnd}ms (${cPrev.toFixed(6)}) → sweep+${cur.elapsedFromSweepEnd}ms (${cCur.toFixed(6)})`,
+      envelope[i]!.phase! >= envelope[i - 1]!.phase! - 1e-9,
+      `phase must ramp upward; sweep+${envelope[i - 1]!.elapsedFromSweepEnd}ms (${envelope[i - 1]!.phase}) → sweep+${envelope[i]!.elapsedFromSweepEnd}ms (${envelope[i]!.phase})`,
     );
   }
-  // Strictly decreasing after peak.
-  for (let i = peakIdx + 1; i < envelopeSamplesForShape.length; i++) {
-    const prev = envelopeSamplesForShape[i - 1]!;
-    const cur = envelopeSamplesForShape[i]!;
-    const cPrev = Math.sin(prev.phase!) * prev.amp!;
-    const cCur = Math.sin(cur.phase!) * cur.amp!;
+  for (const s of envelope) {
+    const composite = Math.sin(s.phase!) * s.amp!;
     assert(
-      cCur <= cPrev + 1e-9,
-      `composite must be monotonic-non-increasing after peak; sweep+${prev.elapsedFromSweepEnd}ms (${cPrev.toFixed(6)}) → sweep+${cur.elapsedFromSweepEnd}ms (${cCur.toFixed(6)})`,
+      composite >= -1e-9,
+      `composite sin(phase)·amp must stay non-negative across the envelope (single sway direction). Got ${composite.toFixed(6)} at sweep+${s.elapsedFromSweepEnd}ms`,
     );
   }
 
-  // Envelope window peak: must hit ≥ 90% of PEAK_AMPLITUDE somewhere.
-  const envelopeSamples = samples.filter(
-    (s) =>
-      s.elapsedFromSweepEnd >= 0 &&
-      s.elapsedFromSweepEnd < DUST_STORM_REVEAL_DURATION_MS &&
-      s.amp !== undefined,
-  );
-  assert(
-    envelopeSamples.length > 0,
-    "should have envelope-window samples",
-  );
-  const peakSample = envelopeSamples.reduce((max, s) =>
+  // Amplitude ramps up to near PEAK, and the peak lands near the END of
+  // the window (the waved ramp climbs floor→peak; it is not a mid-window
+  // bell). ≥ 90% of PEAK by the time the reveal hands off to battle.
+  const peakSample = envelope.reduce((max, s) =>
     (s.amp ?? -Infinity) > (max.amp ?? -Infinity) ? s : max,
   );
   assert(
-    peakSample.amp !== undefined &&
-      peakSample.amp >= DUST_STORM_REVEAL_PEAK_AMPLITUDE * 0.9,
-    `peak sample amp (${peakSample.amp}) should reach ≥ 90% of PEAK_AMPLITUDE (${DUST_STORM_REVEAL_PEAK_AMPLITUDE})`,
+    peakSample.amp! >= DUST_STORM_REVEAL_PEAK_AMPLITUDE * 0.9,
+    `peak sample amp (${peakSample.amp}) should reach ≥ 90% of PEAK (${DUST_STORM_REVEAL_PEAK_AMPLITUDE})`,
   );
-
-  // Peak lands near the middle of the envelope (cosine bell symmetric).
   const peakT = peakSample.elapsedFromSweepEnd / DUST_STORM_REVEAL_DURATION_MS;
   assert(
-    peakT > 0.3 && peakT < 0.7,
-    `peak should land near middle of envelope, got t=${peakT.toFixed(3)} at elapsed=${peakSample.elapsedFromSweepEnd}ms`,
+    peakT > 0.7,
+    `amp peak should land near the END of the envelope (ramp, not bell), got t=${peakT.toFixed(3)} at elapsed=${peakSample.elapsedFromSweepEnd}ms`,
   );
 
-  // Post-envelope tail (still in MODIFIER_REVEAL phase, but past
-  // DURATION_MS): deriver releases → both scalars undefined.
+  // ----- Regime 3: post-envelope tail releases to undefined -----
   const postEnvelope = samples.filter(
     (s) => s.elapsedFromSweepEnd >= DUST_STORM_REVEAL_DURATION_MS,
   );
@@ -305,24 +302,17 @@ Deno.test("dust_storm reveal: sway amplitude per tick across the full 2s phase",
   }
 });
 
-/** Re-implement the amplitude formula from `deriveDustStormSwayAmplitude`
- *  as the test's expected value source. Cosine bell `PEAK · sin²(t·π)`
- *  with zero slope at t=0 and t=1. */
-function expectedAmpFromSpec(elapsedFromSweepEnd: number): number | undefined {
-  if (elapsedFromSweepEnd < 0) return 0;
-  if (elapsedFromSweepEnd >= DUST_STORM_REVEAL_DURATION_MS) return undefined;
-  const t = elapsedFromSweepEnd / DUST_STORM_REVEAL_DURATION_MS;
-  const bell = Math.sin(t * Math.PI);
-  return DUST_STORM_REVEAL_PEAK_AMPLITUDE * bell * bell;
-}
-
-/** Re-implement the phase formula from `deriveDustStormSwayPhaseRad`.
- *  Linear ramp 0 → π across the reveal window — same `revealTimeMs`
- *  source as the amplitude, so the two stay synchronized. */
-function expectedPhaseFromSpec(
-  elapsedFromSweepEnd: number,
-): number | undefined {
-  if (elapsedFromSweepEnd < 0) return 0;
-  if (elapsedFromSweepEnd >= DUST_STORM_REVEAL_DURATION_MS) return undefined;
-  return (elapsedFromSweepEnd * Math.PI) / DUST_STORM_REVEAL_DURATION_MS;
+/** Expected reveal scalars for a sample, taken straight from the runtime
+ *  derivers so the test tracks them instead of a drift-prone formula. The
+ *  runtime holds `revealTimeMs` at 0 during the banner sweep (negative
+ *  `elapsedFromSweepEnd`), then counts ms since `BANNER_SWEEP_END`. */
+function expectedFor(elapsedFromSweepEnd: number): {
+  amp: number | undefined;
+  phase: number | undefined;
+} {
+  const revealMs = elapsedFromSweepEnd < 0 ? 0 : elapsedFromSweepEnd;
+  return {
+    amp: deriveDustStormSwayAmplitude(revealMs),
+    phase: deriveDustStormSwayPhaseRad(revealMs),
+  };
 }

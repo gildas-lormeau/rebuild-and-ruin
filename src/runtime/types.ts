@@ -250,11 +250,6 @@ export interface RuntimeConfig {
     haptics?: HapticsObserver;
   };
 
-  /** Enables the camera pitch animation for battle tilt. Defaults to `true`
-   *  in the browser; headless tests pass `false` so `PITCH_SETTLED` events
-   *  stay out of the determinism event log. */
-  cameraTiltEnabled?: boolean;
-
   /** Emit the per-frame `GAME_EVENT.TICK` event. Defaults to `IS_DEV` (true
    *  on the Vite dev server / localhost — covers E2E + local dev — false in
    *  deployed prod). Headless tests pass `true` explicitly because `IS_DEV`

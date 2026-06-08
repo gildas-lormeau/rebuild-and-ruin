@@ -12,6 +12,7 @@ import {
   TILE_SIZE,
   type TileKey,
 } from "../../shared/core/grid.ts";
+import { rayWalkOccluder } from "../../shared/core/occlusion.ts";
 import type {
   CastleData,
   RenderOverlay,
@@ -160,33 +161,25 @@ export function pickHitWorld(
   overlay: RenderOverlay | undefined,
   map: GameMap | undefined,
 ): { wx: number; wy: number } {
-  if (pitch <= 0) return { wx: groundX, wy: groundY };
   const col = Math.floor(groundX / TILE_SIZE);
   if (col < 0 || col >= GRID_COLS) return { wx: groundX, wy: groundY };
-  const groundRow = Math.floor(groundY / TILE_SIZE);
-  const tanP = Math.tan(pitch);
   // Tallest modelled elevation is TOWER_TOP_Y; at π/6 that projects roughly
   // 2 tiles toward the camera. 4 gives safety margin for pitch overshoot
   // without walking the whole column.
-  const maxLookback = 4;
-  const rMax = Math.min(GRID_ROWS - 1, groundRow + maxLookback);
-  for (let r = rMax; r > groundRow; r--) {
-    if (r < 0) continue;
-    const h = targetTopAt(
-      col * TILE_SIZE + TILE_SIZE / 2,
-      r * TILE_SIZE + TILE_SIZE / 2,
-      overlay,
-      map,
-    );
-    if (h <= 0) continue;
-    // Ray enters tile r's volume from the back (Y at Z=(r+1)*TS) and exits
-    // via the top face iff the ray's Y at the tile's front edge is ≤ h.
-    // Equivalent to: r * TILE_SIZE ≤ groundY + h * tan(pitch).
-    if (r * TILE_SIZE <= groundY + h * tanP) {
-      return { wx: groundX, wy: groundY + h * tanP };
-    }
-  }
-  return { wx: groundX, wy: groundY };
+  const occludedY = rayWalkOccluder(
+    groundY,
+    col,
+    pitch,
+    (row, column) =>
+      targetTopAt(
+        column * TILE_SIZE + TILE_SIZE / 2,
+        row * TILE_SIZE + TILE_SIZE / 2,
+        overlay,
+        map,
+      ),
+    4,
+  );
+  return { wx: groundX, wy: occludedY ?? groundY };
 }
 
 /** Top-Y of any targetable entity (wall, tower, cannon, house, grunt)

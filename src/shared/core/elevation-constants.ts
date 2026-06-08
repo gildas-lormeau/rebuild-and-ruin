@@ -36,6 +36,13 @@ export const BALLISTIC_CLEARANCE_MARGIN = 4;
  *  If the geometry would require slowing further than this, the solver
  *  gives up and the ball impacts the obstacle on its natural arc. */
 export const BALLISTIC_MAX_SLOWDOWN = 4;
+/** Settled battle camera tilt (radians). The 3D renderer animates pitch
+ *  up to this during battle; the sim reads it as a FIXED value so the
+ *  aim-occlusion snap (game/aim-occlusion.ts) is deterministic across
+ *  peers — it must never depend on the live, per-peer camera pitch/zoom.
+ *  Kept here (shared/core) so both the camera subsystem and the sim share
+ *  one source. */
+export const BATTLE_TILT_PITCH_RAD = Math.PI / 6;
 /** Muzzle exit altitude — the Y coordinate where a ball leaves the
  *  barrel tip. Slightly below CANNON_TOP_Y so the ball emerges from
  *  the bore rather than the decorative muzzle swell. */

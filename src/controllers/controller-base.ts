@@ -1,6 +1,7 @@
 import { autoPlaceRound1Cannons, nextReadyCannon } from "../game/index.ts";
 import type { Crosshair } from "../shared/core/battle-types.ts";
 import { NORMAL_CANNON_SIZE } from "../shared/core/game-constants.ts";
+import type { WorldPos } from "../shared/core/geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "../shared/core/grid.ts";
 import type {
   CannonPhantom,
@@ -14,6 +15,7 @@ import {
   towerCenterTile,
 } from "../shared/core/spatial.ts";
 import type {
+  AimResolver,
   BattleViewState,
   BuildViewState,
   CannonPlacementPreview,
@@ -77,8 +79,13 @@ export abstract class BaseController implements PlayerController {
    *  Reset in initBattleState() and onLifeLost(). */
   cannonRotationIdx: number | undefined;
 
-  constructor(playerId: ValidPlayerId) {
+  /** Resolves a raw battle-aim input to the occluded crosshair world position.
+   *  Injected at construction: camera-backed for humans, sim-only for AI. */
+  protected readonly aimResolver: AimResolver;
+
+  constructor(playerId: ValidPlayerId, aimResolver: AimResolver) {
     this.playerId = playerId;
+    this.aimResolver = aimResolver;
   }
 
   centerOn(row: number, col: number): void {
@@ -283,6 +290,16 @@ export abstract class BaseController implements PlayerController {
   }
   setCrosshair(x: number, y: number): void {
     this.crosshair = { x, y };
+  }
+
+  /** Resolve a battle-aim input through this controller's occlusion model and
+   *  snap the crosshair onto the result. Base behavior matches the human
+   *  pointer (instant crosshair move); AiController overrides to resolve-only
+   *  so its crosshair can glide toward the target via stepCrosshairToward. */
+  aim(state: BattleViewState, x: number, y: number): WorldPos {
+    const world = this.aimResolver(state, x, y);
+    this.setCrosshair(world.wx, world.wy);
+    return world;
   }
 
   /** Compute a fire intent at the current crosshair position.

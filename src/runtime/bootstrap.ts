@@ -13,6 +13,7 @@ import {
 } from "../shared/core/game-constants.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import type {
+  AimResolver,
   ControllerFactory,
   PlayerController,
 } from "../shared/core/system-interfaces.ts";
@@ -54,6 +55,10 @@ interface BootstrapFromSettingsDeps {
    *  to install `AiAssistedHumanController` for selected slots from
    *  bootstrap onward — see `assistedSlots` in `test/runtime-headless.ts`. */
   readonly controllerFactory?: ControllerFactory;
+  /** Camera-backed aim resolver for human controllers (screen px → occluded
+   *  world). Built in the composition root where the camera exists, then
+   *  handed to the factory at construction. */
+  readonly humanAimResolver: AimResolver;
 }
 
 /** Resolved game configuration from settings + URL overrides.
@@ -137,6 +142,7 @@ export async function bootstrapNewGameFromSettings(
     enterSelection: deps.enterSelection,
     onStateReady: deps.onStateReady,
     controllerFactory: deps.controllerFactory,
+    humanAimResolver: deps.humanAimResolver,
   });
 }
 
@@ -206,6 +212,7 @@ export async function bootstrapGame(deps: InitGameDeps): Promise<void> {
         aiFields.rng,
         aiFields.privateSeed,
         aiFields.personality,
+        deps.humanAimResolver,
       );
     }),
   );

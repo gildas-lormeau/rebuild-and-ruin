@@ -13,11 +13,7 @@ import {
   isSelectionPhase,
   Phase,
 } from "../shared/core/game-phase.ts";
-import type {
-  Tower,
-  TowerIdx,
-  WorldPos,
-} from "../shared/core/geometry-types.ts";
+import type { Tower, TowerIdx } from "../shared/core/geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "../shared/core/grid.ts";
 import { isPlayerEliminated } from "../shared/core/player-types.ts";
 import { towerAtPixel } from "../shared/core/spatial.ts";
@@ -226,7 +222,10 @@ export function dispatchPlacement(
   });
 }
 
-/** Shared battle-fire dispatch — aim and fire for the pointer player. */
+/** Shared battle-fire dispatch — aim and fire for the pointer player.
+ *  Occlusion lives behind the controller's `aim()` seam (camera-backed
+ *  resolver), so this forwards the raw screen pointer instead of calling
+ *  `pickHitWorld` itself — the same seam the AI brain drives. */
 export function dispatchBattleFire(
   x: number,
   y: number,
@@ -235,14 +234,12 @@ export function dispatchBattleFire(
     withPointerPlayer: (
       action: (human: PlayerController & InputReceiver) => void,
     ) => void;
-    coords: { pickHitWorld: (x: number, y: number) => WorldPos };
     gameAction: Pick<GameActionDeps, "fire">;
   },
 ): void {
   if (state.phase !== Phase.BATTLE) return;
   deps.withPointerPlayer((human) => {
-    const w = deps.coords.pickHitWorld(x, y);
-    human.setCrosshair(w.wx, w.wy);
+    human.aim(state, x, y);
     deps.gameAction.fire(human, state);
   });
 }
@@ -389,25 +386,24 @@ export function dispatchPointerMove(
       const w = coords.screenToWorld(x, y);
       human.setCannonCursor(w.wx, w.wy);
     } else if (state.phase === Phase.BATTLE) {
-      const w = coords.pickHitWorld(x, y);
-      human.setCrosshair(w.wx, w.wy);
+      const w = human.aim(state, x, y);
       maybeSendAimUpdate(w.wx, w.wy);
     }
   });
 }
 
-/** Direct world-coord dispatch — used by delta-drag in the touch handler.
- *  Bypasses screen-to-world so the cursor stays at the dragged world
- *  position even if the camera pans during the drag (no feedback loop).
- *  Selection phase falls back to the screen-coord path (delta drag doesn't
- *  apply there). */
+/** Direct world-coord dispatch — used by delta-drag in the touch handler,
+ *  which only fires in WALL_BUILD / CANNON_PLACE (see input-touch-canvas.ts).
+ *  Bypasses screen-to-world so the cursor stays at the dragged world position
+ *  even if the camera pans during the drag (no feedback loop). BATTLE never
+ *  reaches here — it taps to aim/fire through `dispatchPointerMove` →
+ *  `human.aim`, so the crosshair ray-picks (occludes) under tilt. */
 export function dispatchPointerMoveWorld(
   wx: number,
   wy: number,
   state: GameState,
   deps: PointerMoveDeps,
 ): void {
-  const { maybeSendAimUpdate } = deps;
   if (isSelectionPhase(state.phase)) return;
   deps.withPointerPlayer((human) => {
     if (state.phase === Phase.WALL_BUILD) {
@@ -422,9 +418,6 @@ export function dispatchPointerMoveWorld(
       human.setBuildCursor(state, row, col);
     } else if (state.phase === Phase.CANNON_PLACE) {
       human.setCannonCursor(wx, wy);
-    } else if (state.phase === Phase.BATTLE) {
-      human.setCrosshair(wx, wy);
-      maybeSendAimUpdate(wx, wy);
     }
   });
 }

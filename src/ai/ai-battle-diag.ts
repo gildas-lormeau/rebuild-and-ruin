@@ -5,8 +5,7 @@
  * observation-only.
  */
 
-/** Which planner / fallback produced this fire's target tile. Closed
- *  union so adding a new planner is a compile error at the emit site. */
+import type { TilePos } from "../shared/core/geometry-types.ts";
 
 export type FireOrigin =
   // deny_enclosure shares CHAIN.STRUCTURAL's behaviour (surgical wall removal);
@@ -62,6 +61,13 @@ export type PickPath =
 export type AiBattleDiagHook = (event: {
   origin: FireOrigin;
   pickPath?: PickPath;
+  /** The tile the planner wanted to hit (pre-occlusion aim). */
+  intendedTarget?: TilePos;
+  /** The tile actually fired at (`FireIntent` — post-occlusion). When aim
+   *  occlusion redirected onto a camera-near wall, this differs from
+   *  `intendedTarget`. The impact tile (where the ball lands) is on the
+   *  `CANNON_FIRED` bus event in the same sim tick — join by tick. */
+  aimTarget?: TilePos;
 }) => void;
 
 let diagHook: AiBattleDiagHook | undefined = undefined;
@@ -76,12 +82,15 @@ export function isAiBattleDiagHookActive(): boolean {
   return diagHook !== undefined;
 }
 
-/** Emit a fire-decision event with the planner-origin tag and (for standard
- *  shots) the pickTarget sub-branch. */
-export function emitFireDecisionDiag(
-  origin: FireOrigin,
-  pickPath?: PickPath,
-): void {
+/** Emit a fire-decision event with the planner-origin tag, the pickTarget
+ *  sub-branch (standard shots), and the intended (pre-occlusion) + actual
+ *  (post-occlusion) aim tiles so observers can see occlusion redirects. */
+export function emitFireDecisionDiag(event: {
+  origin: FireOrigin;
+  pickPath?: PickPath;
+  intendedTarget?: TilePos;
+  aimTarget?: TilePos;
+}): void {
   if (!diagHook) return;
-  diagHook({ origin, pickPath });
+  diagHook(event);
 }

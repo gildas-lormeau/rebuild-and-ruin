@@ -116,6 +116,9 @@ export function createOnlineRuntimeSessionHelpers(
         // inside `tickBattlePhase` (same code path as host) — no per-bus
         // subscription needed here.
       },
+      // Camera-backed human aim resolver (screen px → occluded world). Only
+      // the local human slot uses it; remote/AI slots resolve their own aim.
+      humanAimResolver: (_state, x, y) => runtime.camera.pickHitWorld(x, y),
     });
   }
 

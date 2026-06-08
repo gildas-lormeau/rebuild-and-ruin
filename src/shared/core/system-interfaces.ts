@@ -22,6 +22,7 @@ import type {
   GameMap,
   PixelPos,
   TilePos,
+  WorldPos,
 } from "./geometry-types.ts";
 import type { TileKey } from "./grid.ts";
 import type { SupplyShip } from "./modifier-defs.ts";
@@ -104,6 +105,10 @@ export interface BattleViewState extends GameViewState {
   readonly rng: Rng;
   readonly timer: number;
   readonly battleCountdown: number;
+  /** Per-tower alive flags (indexed by `map.towers`). Read by the
+   *  aim-occlusion snap so a live tower visually blocks the tile behind it
+   *  (dead towers are debris and don't). */
+  readonly towerAlive: readonly boolean[];
   readonly grunts: readonly Grunt[];
   readonly cannonballs: readonly Cannonball[];
   readonly cannonMaxHp: number;
@@ -308,6 +313,16 @@ export interface BattleController {
   /** Set crosshair to absolute pixel position (mouse). */
   setCrosshair(x: number, y: number): void;
 
+  /** Resolve a battle-aim input through this controller's occlusion model —
+   *  the single seam both a human pointer (`input-dispatch`) and the AI brain
+   *  drive, so neither can aim at a tile the battle tilt hides behind a nearer
+   *  wall / tower. `x,y` are the controller's native pixels (screen px for a
+   *  human pointer, world px for an AI tile-target); the injected `AimResolver`
+   *  encapsulates that modality difference. Returns the resolved world
+   *  position. HumanController snaps the crosshair onto it immediately;
+   *  AiController resolves only (its crosshair glides via stepCrosshairToward). */
+  aim(state: BattleViewState, x: number, y: number): WorldPos;
+
   /** Initialize battle-phase state (cannon rotation index, crosshair position).
    *  Called once at battle start — not a full game reset (see reset() for that).
    *  Scope: resets cannonRotationIdx + centers cursors on home tower. */
@@ -419,7 +434,28 @@ export type ControllerFactory = (
   sharedRng: Rng | undefined,
   privateSeed: number | undefined,
   personality: AiPersonality | undefined,
+  humanAimResolver: AimResolver,
 ) => Promise<PlayerController>;
+
+/** Resolves a controller's raw battle-aim input (native pixels) to the
+ *  occluded crosshair world position the aim actually lands on under the
+ *  battle tilt — the geometry behind the controller `aim()` seam. Two impls:
+ *
+ *  - **Human** — camera-backed (`camera.pickHitWorld`): screen px → live-pitch +
+ *    overlay-height ray-walk → occluded world. Injected at construction because
+ *    it needs the runtime camera (built in `composition.ts`).
+ *  - **AI** — sim-only (`occludedAimWorld`): world px → fixed `BATTLE_TILT_PITCH_RAD`
+ *    + GameState-height ray-walk → occluded world. Camera-independent so AI aim
+ *    stays identical across host / watcher (parity).
+ *
+ *  Both delegate to the shared `rayWalkOccluder`; only pitch source + height
+ *  table differ. The `state` arg is read by the AI resolver and ignored by the
+ *  camera-backed human one (the camera captures its own state). */
+export type AimResolver = (
+  state: BattleViewState,
+  x: number,
+  y: number,
+) => WorldPos;
 
 /** Human input handling — no-op in BaseController, overridden by HumanController. */
 export interface InputReceiver {
