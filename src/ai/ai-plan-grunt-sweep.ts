@@ -4,6 +4,7 @@
  * self-defence and as the inner planner for the charity sweep tactic.
  */
 
+import { aimReachesTile } from "../game/index.ts";
 import { MODIFIER_ID } from "../shared/core/game-constants.ts";
 import type { TilePos } from "../shared/core/geometry-types.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
@@ -41,7 +42,14 @@ export function planGruntSweep(
       ? GRUNT_SWEEP_THRESHOLD_MODIFIER
       : GRUNT_SWEEP_THRESHOLD;
   if (grunts.length <= threshold) return null;
-  const positions = grunts.map((grunt) => ({ row: grunt.row, col: grunt.col }));
+  // Threshold is a threat signal (count of attackers), but only sweep grunts we
+  // can actually hit: a grunt hidden behind a camera-near wall would just
+  // redirect the shot onto that wall (often our own perimeter or, in a charity
+  // sweep, the beneficiary's wall). Skip them so cannons spend on real kills.
+  const positions = grunts
+    .filter((grunt) => aimReachesTile(state, grunt.row, grunt.col))
+    .map((grunt) => ({ row: grunt.row, col: grunt.col }));
+  if (positions.length === 0) return null;
   // Random starting point
   const startIndex = rng.int(0, positions.length - 1);
   [positions[0], positions[startIndex]] = [

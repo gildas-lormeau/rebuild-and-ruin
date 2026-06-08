@@ -54,6 +54,20 @@ export function occludedAimWorld(
   return { wx: center.x, wy: center.y };
 }
 
+/** True when an aim at `(row, col)` lands on that exact tile — i.e. no taller
+ *  camera-near obstacle hides it under the battle tilt. Lets target SELECTION
+ *  skip tiles the aim seam would only redirect onto an occluder (e.g. a grunt
+ *  hidden behind a wall). Camera-independent (fixed pitch + GameState), so it's
+ *  safe to consult from the mirror-simulated AI strategy. */
+export function aimReachesTile(
+  state: BattleViewState,
+  row: number,
+  col: number,
+): boolean {
+  const snapped = occludedAimTile(state, row, col);
+  return snapped.row === row && snapped.col === col;
+}
+
 /** The tile a controller's crosshair would actually land on when aiming at
  *  `(row, col)` under the battle camera tilt. If a taller obstacle sits on
  *  the camera-near side and visually occludes the target, returns that

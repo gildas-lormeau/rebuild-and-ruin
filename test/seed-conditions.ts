@@ -34,6 +34,7 @@
 
 import type { ModifierId } from "../src/shared/core/game-constants.ts";
 import { GAME_EVENT } from "../src/shared/core/game-event-bus.ts";
+import { Phase } from "../src/shared/core/game-phase.ts";
 import { IMPLEMENTED_MODIFIERS } from "../src/shared/core/modifier-defs.ts";
 import {
   IMPLEMENTED_UPGRADES,
@@ -101,6 +102,17 @@ export const SEED_CONDITIONS: Readonly<Record<string, SeedCondition>> = {
     rounds: DEFAULT_ROUNDS,
     match: (sc) => latchRubbleClearingWithEntities(sc),
   },
+  // The generic `upgrade:shield_battery` condition latches on the pick alone,
+  // which can land on a seed where the first picker's shielded cannon never
+  // survives into a BATTLE phase — so the effect-fires step in upgrades.test.ts
+  // has nothing to observe. This variant requires the effect to actually
+  // manifest (first picker holds a shielded cannon during BATTLE), mirroring
+  // that test's probe. Overrides the auto-generated entry above.
+  "upgrade:shield_battery": {
+    mode: "modern",
+    rounds: DEFAULT_ROUNDS,
+    match: (sc) => latchShieldBatteryEffective(sc),
+  },
 };
 
 /** Latch a bus event fire behind a closure flag. Returns the poller. */
@@ -111,6 +123,34 @@ function latchUpgradePicked(
   let seen = false;
   sc.bus.on(GAME_EVENT.UPGRADE_PICKED, (ev) => {
     if (ev.upgradeId === upgradeId) seen = true;
+  });
+  return () => seen;
+}
+
+/** Latch shield_battery's effect: the first player to pick it later holds a
+ *  shielded cannon during a BATTLE phase. Mirrors the effect probe in
+ *  upgrades.test.ts so the recorded seed actually exercises the shield, not
+ *  just the pick. */
+function latchShieldBatteryEffective(sc: Scenario): () => boolean {
+  let picker: number | undefined;
+  let inBattle = false;
+  let seen = false;
+  sc.bus.on(GAME_EVENT.UPGRADE_PICKED, (ev) => {
+    if (ev.upgradeId === "shield_battery" && picker === undefined) {
+      picker = ev.playerId;
+    }
+  });
+  sc.bus.on(GAME_EVENT.PHASE_START, (ev) => {
+    if (ev.phase === Phase.BATTLE) inBattle = true;
+  });
+  sc.bus.on(GAME_EVENT.PHASE_END, (ev) => {
+    if (ev.phase === Phase.BATTLE) inBattle = false;
+  });
+  sc.bus.onAny(() => {
+    if (!inBattle || picker === undefined) return;
+    if (sc.state.players[picker]?.cannons.some((c) => c.shielded === true)) {
+      seen = true;
+    }
   });
   return () => seen;
 }

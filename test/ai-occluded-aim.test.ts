@@ -1,93 +1,90 @@
 /**
- * Behavioral proof of the AI aim-occlusion rule: when a grunt sits just north
- * of a wall, the wall is on the camera-near (south) side under the battle tilt
- * and visually hides the grunt — so the AI's aim is redirected onto the wall
- * (it can't target a tile a human's pointer couldn't reach either).
+ * Behavioral proof of the AI grunt-sweep occlusion rule: under the battle tilt
+ * a wall one tile to the camera-near (south) side of a grunt hides it, so the
+ * aim seam would redirect a shot onto that wall (often the AI's own perimeter
+ * or, in a charity sweep, the beneficiary's wall). The grunt-sweep planner
+ * (`planGruntSweep`, reused by the charity sweep) therefore filters occluded
+ * grunts out of its target list — the only path where the AI aims at a grunt
+ * tile directly — so a sweep never spends a cannon on a grunt it can't hit.
  *
- * We observe it through the fire-decision diag, which now carries the
- * `intendedTarget` (pre-occlusion, the tile the planner wanted) alongside the
- * `aimTarget` (post-occlusion `FireIntent`). The impact tile is joined from the
- * `CANNON_FIRED` bus event, which fires synchronously just before the diag in
- * the same sim tick. A redirect is: intended ≠ aim, the intended tile held a
- * grunt, and the aim landed on a wall — i.e. the AI tried for the grunt and hit
- * the wall in front of it instead.
+ * We watch the fire-decision diag, which carries the `intendedTarget`
+ * (pre-occlusion plan tile) and `aimTarget` (post-occlusion `FireIntent`). For
+ * every grunt-sweep / charity fire we assert the two agree (no redirect) and
+ * that the aim tile is reachable per `aimReachesTile`. Non-vacuity: at least one
+ * sweep fired, and at least one grunt was occluded at some observed tick — so
+ * the avoidance is a real choice, not an empty board.
  *
  * Run with: deno test --no-check test/ai-occluded-aim.test.ts
  */
 
 import { assert } from "@std/assert";
 import { setAiBattleDiagHook } from "../src/ai/ai-battle-diag.ts";
-import { GAME_EVENT } from "../src/shared/core/game-event-bus.ts";
-import type { TilePos } from "../src/shared/core/geometry-types.ts";
-import { packTile } from "../src/shared/core/spatial.ts";
+import { aimReachesTile } from "../src/game/index.ts";
 import { createScenario } from "./scenario.ts";
 
-interface Redirect {
-  round: number;
-  intended: TilePos;
-  aim: TilePos;
-  impact: TilePos | undefined;
-}
+// Origins emitted by CHAIN.GRUNT sweeps: self-defence ("grunt_sweep") and the
+// charity sweep ("charity") — the two tactics that aim at grunt tiles.
+const SWEEP_ORIGINS = new Set(["grunt_sweep", "charity"]);
 
 Deno.test(
-  "AI aim-occlusion: a grunt hidden by a camera-near wall redirects the AI's aim onto the wall",
+  "AI grunt sweep: occluded grunts (hidden behind a camera-near wall) are never targeted",
   async () => {
-    using sc = await createScenario({ seed: 4, mode: "modern", rounds: 6 });
+    // High round cap: seed-4 modern is a 3-way stalemate, so we observe a fixed
+    // span of rounds rather than waiting for a winner (there isn't one). Grunt
+    // counts climb across rounds, so sweeps and wall-occluded grunts both appear.
+    using sc = await createScenario({ seed: 4, mode: "modern", rounds: 30 });
 
-    const redirects: Redirect[] = [];
-    let lastImpact: TilePos | undefined;
-
-    // CANNON_FIRED fires synchronously right before the fire-decision diag in
-    // the same tick, so the most recent one is this shot's landing tile.
-    sc.bus.on(GAME_EVENT.CANNON_FIRED, (ev) => {
-      lastImpact = { row: ev.impactRow, col: ev.impactCol };
-    });
+    let sweepFires = 0;
+    let redirects = 0;
+    let occlusionWasLive = false;
 
     setAiBattleDiagHook((ev) => {
+      // Independent of the fire being observed: confirm the occlusion geometry
+      // actually arises on this board (some grunt sits behind a camera-near
+      // wall right now), so the planner's avoidance is meaningful.
+      if (!occlusionWasLive) {
+        occlusionWasLive = sc.state.grunts.some(
+          (g) => !aimReachesTile(sc.state, g.row, g.col),
+        );
+      }
+
+      if (!ev.origin || !SWEEP_ORIGINS.has(ev.origin)) return;
       const intended = ev.intendedTarget;
       const aim = ev.aimTarget;
       if (!intended || !aim) return;
-      if (intended.row === aim.row && intended.col === aim.col) return;
-      // The intended tile must have held a grunt (the AI's real target) …
-      const intendedGrunt = sc.state.grunts.some(
-        (g) => g.row === intended.row && g.col === intended.col,
+      sweepFires++;
+      // The fix: the planned grunt tile is reachable, so the aim seam leaves it
+      // untouched — intended and aim agree and the aim tile takes no occluder.
+      if (intended.row !== aim.row || intended.col !== aim.col) redirects++;
+      assert(
+        aimReachesTile(sc.state, aim.row, aim.col),
+        `grunt sweep fired at an occluded tile (${aim.row},${aim.col}) — the ` +
+          `shot would snap onto the wall hiding it instead of the grunt`,
       );
-      // … and the aim must have snapped onto a wall (the occluder in front).
-      const aimIsWall = sc.state.players.some((player) =>
-        player.walls.has(packTile(aim.row, aim.col)),
-      );
-      if (!intendedGrunt || !aimIsWall) return;
-      redirects.push({ round: sc.state.round, intended, aim, impact: lastImpact });
     });
 
     try {
-      sc.runGame({ timeoutMs: 450_000 });
+      // Play a fixed span of rounds (the game won't end on its own here).
+      sc.runUntil(() => sc.state.round >= 8, { timeoutMs: 600_000 });
     } finally {
       setAiBattleDiagHook(undefined);
     }
 
+    assert(sweepFires > 0, "expected at least one grunt-sweep / charity fire");
     assert(
-      redirects.length > 0,
-      "expected at least one occlusion redirect: the AI aimed at a grunt hidden " +
-        "by a camera-near wall and its shot snapped onto the wall instead",
+      occlusionWasLive,
+      "expected at least one grunt to be wall-occluded during the run — the " +
+        "test would otherwise be vacuous (no occlusion to avoid)",
+    );
+    assert(
+      redirects === 0,
+      `${redirects}/${sweepFires} grunt-sweep fires were occlusion-redirected ` +
+        `onto a wall; the planner should have skipped those grunts`,
     );
 
-    // The occluding wall sits exactly one tile camera-near (south, row+1) of the
-    // grunt, in the same column (pitch is X-only) — the wall-height geometry.
-    for (const r of redirects) {
-      assert(
-        r.aim.row === r.intended.row + 1 && r.aim.col === r.intended.col,
-        `occluder should be one tile south of the grunt in the same column: ` +
-          `grunt ${JSON.stringify(r.intended)} → aim ${JSON.stringify(r.aim)}`,
-      );
-    }
-
-    const first = redirects[0]!;
     console.log(
-      `\n  ${redirects.length} occlusion redirect(s). First: r${first.round} ` +
-        `grunt(${first.intended.row},${first.intended.col}) → ` +
-        `aim wall(${first.aim.row},${first.aim.col}); ball landed at ` +
-        `(${first.impact?.row},${first.impact?.col})`,
+      `\n  ${sweepFires} grunt-sweep fire(s), 0 redirects; occlusion was live ` +
+        `on the board — the sweep correctly skipped grunts hidden by walls`,
     );
   },
 );
