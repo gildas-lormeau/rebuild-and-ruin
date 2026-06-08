@@ -64,6 +64,7 @@ const files = [
     // "duplicate literal = refactor candidate" signal doesn't apply.
     ignore: ["src/render/3d/sprites/**"],
   }),
+  ...globSync("dev/**/*.ts", { cwd: root }),
   ...globSync("server/**/*.ts", { cwd: root }),
 ].map((f) => path.join(root, f));
 const stringCounts = new Map<string, { count: number; locations: string[] }>();

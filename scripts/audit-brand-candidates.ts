@@ -61,7 +61,11 @@ function main(): void {
     tsConfigFilePath: "tsconfig.json",
     skipAddingFilesFromTsConfig: true,
   });
-  project.addSourceFilesAtPaths(["src/**/*.ts", "server/**/*.ts"]);
+  project.addSourceFilesAtPaths([
+    "src/**/*.ts",
+    "dev/**/*.ts",
+    "server/**/*.ts",
+  ]);
 
   const brandPatterns = collectBrandPatterns(project);
   if (brandPatterns.length === 0) {

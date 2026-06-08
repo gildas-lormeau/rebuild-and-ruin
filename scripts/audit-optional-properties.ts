@@ -100,6 +100,7 @@ function main(): void {
   });
   project.addSourceFilesAtPaths([
     "src/**/*.ts",
+    "dev/**/*.ts",
     "server/**/*.ts",
     "test/**/*.ts",
   ]);

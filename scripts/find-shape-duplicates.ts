@@ -143,7 +143,7 @@ const project = new Project({
   tsConfigFilePath: "tsconfig.json",
   skipAddingFilesFromTsConfig: true,
 });
-const globs = ["src/**/*.ts"];
+const globs = ["src/**/*.ts", "dev/**/*.ts"];
 const shapes: ShapeEntry[] = [];
 const byHash = new Map<string, ShapeEntry[]>();
 const exactDuplicates: Duplicate[] = [];

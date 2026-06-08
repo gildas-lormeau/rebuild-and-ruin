@@ -102,7 +102,7 @@ function main(): void {
   });
 
   // Always load everything so cross-tree references resolve.
-  project.addSourceFilesAtPaths("src/**/*.ts");
+  project.addSourceFilesAtPaths(["src/**/*.ts", "dev/**/*.ts"]);
   project.addSourceFilesAtPaths("server/**/*.ts");
   project.addSourceFilesAtPaths("test/**/*.ts");
 

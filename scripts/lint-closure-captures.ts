@@ -142,6 +142,7 @@ const REFACTOR_CANDIDATE_ROLES: ReadonlySet<ClosureRole> = new Set([
 const ALLOW_MARKER = /lint:allow-closure-captures/;
 const ROOT = path.resolve(import.meta.dirname!, "..");
 const SRC_DIR = path.join(ROOT, "src");
+const DEV_DIR = path.join(ROOT, "dev");
 
 main();
 
@@ -151,7 +152,10 @@ function main(): void {
   const threshold =
     thresholdIdx >= 0 ? Number.parseInt(args[thresholdIdx + 1]!, 10) : 3;
 
-  const files = collectSourceFiles(SRC_DIR);
+  const files = [
+    ...collectSourceFiles(SRC_DIR),
+    ...collectSourceFiles(DEV_DIR),
+  ];
   if (files.length === 0) {
     console.log("✔ No source files to scan");
     return;

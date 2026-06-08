@@ -89,6 +89,7 @@ interface Snapshot {
 
 const ROOT = path.resolve(import.meta.dirname!, "..");
 const SRC_DIR = path.join(ROOT, "src");
+const DEV_DIR = path.join(ROOT, "dev");
 const ALLOW_MARKER = /lint:allow-stale-snapshot/;
 /** Verb prefixes/suffixes that suggest a call mutates its arguments.
  *  Without effect analysis we can't prove a call is impure, so we lean
@@ -176,7 +177,10 @@ const PRIMITIVE_NAME_HINTS = new Set([
 main();
 
 function main(): void {
-  const files = collectSourceFiles(SRC_DIR);
+  const files = [
+    ...collectSourceFiles(SRC_DIR),
+    ...collectSourceFiles(DEV_DIR),
+  ];
   if (files.length === 0) {
     console.log("✔ No source files to scan");
     process.exit(0);

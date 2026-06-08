@@ -438,6 +438,7 @@ function paintHouses(grid: Cell[][], state: GameState): void {
 }
 
 /** 2×2 tower footprints. */
+// lint:allow-repeated-ternary -- `alive` drives three distinct outputs (cell kind + home/non-home glyphs), not a hoistable branch.
 function paintTowers(grid: Cell[][], state: GameState): void {
   const homeIndices = new Set<number>();
   for (const player of state.players) {

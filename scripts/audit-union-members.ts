@@ -135,6 +135,7 @@ const unions: UnionFinding[] = [];
 
 project.addSourceFilesAtPaths([
   "src/**/*.ts",
+  "dev/**/*.ts",
   "server/**/*.ts",
   "test/**/*.ts",
 ]);

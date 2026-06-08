@@ -90,7 +90,7 @@ function main(): void {
     tsConfigFilePath: "tsconfig.json",
     skipAddingFilesFromTsConfig: true,
   });
-  const globs = ["src/**/*.ts"];
+  const globs = ["src/**/*.ts", "dev/**/*.ts"];
   if (includeServer) globs.push("server/**/*.ts");
   for (const glob of globs) project.addSourceFilesAtPaths(glob);
 

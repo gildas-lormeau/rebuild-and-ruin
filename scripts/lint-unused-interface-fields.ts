@@ -140,7 +140,7 @@ function main(): void {
     tsConfigFilePath: "tsconfig.json",
     skipAddingFilesFromTsConfig: true,
   });
-  project.addSourceFilesAtPaths("src/**/*.ts");
+  project.addSourceFilesAtPaths(["src/**/*.ts", "dev/**/*.ts"]);
   project.addSourceFilesAtPaths("server/**/*.ts");
   project.addSourceFilesAtPaths("test/**/*.ts");
 

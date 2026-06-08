@@ -91,7 +91,7 @@ const project = new Project({
 const candidates: { sig: PropertySignature; container: string }[] = [];
 const findings: Finding[] = [];
 
-project.addSourceFilesAtPaths(["src/**/*.ts", "server/**/*.ts"]);
+project.addSourceFilesAtPaths(["src/**/*.ts", "dev/**/*.ts", "server/**/*.ts"]);
 
 for (const sf of project.getSourceFiles()) {
   for (const iface of sf.getInterfaces()) collectFromInterface(iface);

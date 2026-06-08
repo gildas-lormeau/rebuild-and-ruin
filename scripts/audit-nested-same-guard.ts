@@ -81,7 +81,7 @@ function main(): void {
     skipAddingFilesFromTsConfig: true,
   });
 
-  const globs = ["src/**/*.ts"];
+  const globs = ["src/**/*.ts", "dev/**/*.ts"];
   if (includeServer) globs.push("server/**/*.ts");
   if (includeTest) globs.push("test/**/*.ts");
   for (const gl of globs) project.addSourceFilesAtPaths(gl);

@@ -75,13 +75,17 @@ type FnLike =
 
 const ROOT = path.resolve(import.meta.dirname!, "..");
 const SRC_DIR = path.join(ROOT, "src");
+const DEV_DIR = path.join(ROOT, "dev");
 const THRESHOLD = 3;
 const ALLOW_MARKER = /lint:allow-repeated-ternary/;
 
 main();
 
 function main(): void {
-  const files = collectSourceFiles(SRC_DIR);
+  const files = [
+    ...collectSourceFiles(SRC_DIR),
+    ...collectSourceFiles(DEV_DIR),
+  ];
   if (files.length === 0) {
     console.log("✔ No source files to scan");
     process.exit(0);

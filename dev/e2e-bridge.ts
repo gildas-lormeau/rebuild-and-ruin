@@ -419,6 +419,7 @@ function subscribeBus(ref: E2EBridge, deps: E2EBridgeDeps): void {
 }
 
 /** Snapshot all bridge fields from the current frame's runtime state. */
+// lint:allow-repeated-ternary -- `ready`-guarded field defaults interleaved with unguarded assignments; not a single hoistable branch.
 function updateBridgeSnapshots(ref: E2EBridge, deps: E2EBridgeDeps): void {
   const { runtimeState, config } = deps;
 
