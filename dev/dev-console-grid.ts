@@ -9,12 +9,7 @@
 import type { CannonMode } from "../src/shared/core/battle-types.ts";
 import { cannonModeDef } from "../src/shared/core/cannon-mode-defs.ts";
 import { TOWER_SIZE } from "../src/shared/core/game-constants.ts";
-import {
-  GRID_COLS,
-  GRID_ROWS,
-  TILE_SIZE,
-  type TileKey,
-} from "../src/shared/core/grid.ts";
+import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "../src/shared/core/grid.ts";
 import type {
   PlayerId,
   ValidPlayerId,
@@ -413,7 +408,7 @@ function paintTerritoryAndWalls(
     if (isPlayerEliminated(player)) continue;
     if (playerFilter !== undefined && player.id !== playerFilter) continue;
     for (const key of player.interior) {
-      const { row, col } = unpackTile(key as TileKey);
+      const { row, col } = unpackTile(key);
       setCell(grid, row, col, CellKind.Interior, "░", player.id);
     }
     for (const key of player.walls) {

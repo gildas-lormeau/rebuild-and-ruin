@@ -93,7 +93,7 @@ export function findEnclosureCut(
   for (let row = box.minR; row <= box.maxR; row++) {
     for (let col = box.minC; col <= box.maxC; col++) {
       if (reachable[inNode] && !reachable[inNode + boxTiles]) {
-        cut.add(packTile(row, col) as TileKey);
+        cut.add(packTile(row, col));
       }
       inNode++;
     }
