@@ -29,6 +29,7 @@ import {
   countBrokenEnclosures,
   DESTROY_POCKET_MAX_SIZE,
   findEnclosureComponents,
+  isEnclosureBroken,
 } from "./ai-strategy-battle.ts";
 
 type BreachCandidate = {
@@ -69,12 +70,14 @@ export function planFatBreach(
   for (const enemy of enemies) {
     if (enemy.walls.size < FAT_BREACH_MIN_WALLS) continue;
     const interior = getBattleInterior(enemy);
-    const large = findEnclosureComponents(interior).filter(
-      (comp) => comp.length > DESTROY_POCKET_MAX_SIZE,
-    );
-    if (large.length === 0) continue;
-
     const outside = computeOutside(enemy.walls);
+    // Validate only against STILL-INTACT enclosures: an already-breached one
+    // is reached by the live flood whatever the candidate is, so leaving it
+    // in the set would let any diagonal run "validate" on mid-battle re-plans.
+    const large = findEnclosureComponents(interior)
+      .filter((comp) => comp.length > DESTROY_POCKET_MAX_SIZE)
+      .filter((comp) => !isEnclosureBroken(comp, outside));
+    if (large.length === 0) continue;
     const fatCores = collectFatCores(enemy.walls);
     if (fatCores.length === 0) continue;
     // Seed from cores nearest the outer shell first — those produce

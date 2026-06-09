@@ -389,14 +389,25 @@ export function countBrokenEnclosures(
   const newOutside = computeOutside(modifiedWalls);
   let broken = 0;
   for (const comp of enclosures) {
-    for (const tileKey of comp) {
-      if (newOutside.has(tileKey)) {
-        broken++;
-        break;
-      }
-    }
+    if (isEnclosureBroken(comp, newOutside)) broken++;
   }
   return broken;
+}
+
+/** True when any tile of the enclosure component is reached by the outside
+ *  flood. Exposed so plan modules can filter ALREADY-breached enclosures out
+ *  of their validation set against a precomputed live `computeOutside` —
+ *  otherwise, once an enclosure is breached mid-battle, removing ANY segment
+ *  "validates" (the flood reaches it regardless) and re-plans commit whole
+ *  chains against walls that no longer enclose anything. */
+export function isEnclosureBroken(
+  enclosure: readonly TileKey[],
+  outside: ReadonlySet<TileKey>,
+): boolean {
+  for (const tileKey of enclosure) {
+    if (outside.has(tileKey)) return true;
+  }
+  return false;
 }
 
 function collectStrategicWallTargets(
@@ -827,7 +838,7 @@ export function findEnclosureComponents(
 /** Inverse flood-fill interior from a wall set — mirrors `recomputeInterior`
  *  in build-system (grass not reachable from a map edge through non-wall tiles
  *  is interior), but reads the CURRENT walls so breaches are reflected live. */
-function computeLiveInterior(walls: ReadonlySet<TileKey>): Set<TileKey> {
+export function computeLiveInterior(walls: ReadonlySet<TileKey>): Set<TileKey> {
   const outside = computeOutside(walls);
   const interior = new Set<TileKey>();
   for (let row = 0; row < GRID_ROWS; row++) {

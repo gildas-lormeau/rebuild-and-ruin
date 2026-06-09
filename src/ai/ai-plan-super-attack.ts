@@ -10,21 +10,23 @@ import type { BattleViewState } from "../shared/core/system-interfaces.ts";
 import type { Rng } from "../shared/platform/rng.ts";
 import { planWallDemolition } from "./ai-plan-wall-demolition.ts";
 
-/** Plan a super attack: like wall demolition but hit every other tile (stride of 2). */
+/** Plan a super attack: like wall demolition but hit every other tile (stride
+ *  of 2). The stride is applied INSIDE planWallDemolition, before its flood
+ *  validation — so the every-other-tile set that actually gets fired is the
+ *  set proven to breach (striding an already-validated contiguous segment
+ *  could keep holes that breach nothing on a ≥2-thick wall body). */
 export function planSuperAttack(
   state: BattleViewState,
   playerId: ValidPlayerId,
   usableCannonCount: number,
   rng: Rng,
 ): TilePos[] | null {
-  const segment = planWallDemolition(
+  const strided = planWallDemolition(
     state,
     playerId,
     usableCannonCount * 2,
     rng,
+    2,
   );
-  if (!segment) return null;
-  // Keep every other tile
-  const strided = segment.filter((_, i) => i % 2 === 0);
-  return strided.length >= 2 ? strided : null;
+  return strided && strided.length >= 2 ? strided : null;
 }

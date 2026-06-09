@@ -8,7 +8,6 @@
  */
 
 import { cannonShotsRicochet } from "../game/index.ts";
-import { getBattleInterior } from "../shared/core/board-occupancy.ts";
 import type { TilePos } from "../shared/core/geometry-types.ts";
 import type { TileKey } from "../shared/core/grid.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
@@ -22,6 +21,7 @@ import {
 } from "../shared/core/spatial.ts";
 import type { BattleViewState } from "../shared/core/system-interfaces.ts";
 import {
+  computeLiveInterior,
   DESTROY_POCKET_MAX_SIZE,
   findEnclosureComponents,
 } from "./ai-strategy-battle.ts";
@@ -33,9 +33,12 @@ const MAX_POCKET_TARGETS = 5;
 
 /** Plan pocket destruction: find small enclosures (< 2x2) and non-square 4-tile pockets, target one wall per pocket.
  *
- *  Uses getBattleInterior() — interior is intentionally stale during battle
- *  (walls destroyed by cannonballs are not reflected until the next build phase).
- *  Pocket detection uses the last-known enclosure state to pick wall targets. */
+ *  Pockets are recomputed from the LIVE wall set (`computeLiveInterior`), not
+ *  the frozen battle interior — a pocket opened earlier this battle drops out
+ *  on re-plans instead of being re-shot through a different surviving border
+ *  wall (the plan has no rng gate or tactic exclusion, so `replanChain` could
+ *  otherwise loop back into already-opened pockets all battle). Same live-view
+ *  precedent as `pickEnclosureWallTarget`. */
 export function planPocketDestruction(
   state: BattleViewState,
   playerId: ValidPlayerId,
@@ -48,7 +51,7 @@ export function planPocketDestruction(
   // pocket destruction while ricochet is active — the cleanup is worth
   // less than the unintended self-demolition.
   if (cannonShotsRicochet(player)) return null;
-  const interior = getBattleInterior(player);
+  const interior = computeLiveInterior(player.walls);
   if (interior.size === 0) return null;
   const components = findEnclosureComponents(interior);
   const pockets = components.filter(

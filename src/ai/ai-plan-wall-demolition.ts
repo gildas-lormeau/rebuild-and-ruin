@@ -12,6 +12,7 @@ import type { TilePos } from "../shared/core/geometry-types.ts";
 import type { TileKey } from "../shared/core/grid.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import {
+  computeOutside,
   DIRS_4,
   inBounds,
   packTile,
@@ -23,6 +24,7 @@ import {
   countBrokenEnclosures,
   DESTROY_POCKET_MAX_SIZE,
   findEnclosureComponents,
+  isEnclosureBroken,
 } from "./ai-strategy-battle.ts";
 
 /** Minimum connected wall tiles needed to start a wall demolition run. */
@@ -39,28 +41,33 @@ const MAX_WALL_DEMOLITION_TARGETS = 10;
 const MAX_SEED_ATTEMPTS = 5;
 
 /** Plan a wall demolition run: find connected enemy wall segment whose
- *  removal would actually breach a large enclosure. Segments that touch
- *  nothing (e.g. map-edge walls bounding no interior) are rejected and
- *  the planner retries with a new random seed up to MAX_SEED_ATTEMPTS
- *  per enemy. Enemies with no large enclosures (all-pocket interior or
- *  already fully exposed) are skipped entirely. */
+ *  removal would actually breach a STILL-INTACT large enclosure. The random
+ *  length draw and the optional stride (super attack) are applied BEFORE the
+ *  flood validation, so the set that validates is exactly the set that gets
+ *  fired — validating the full walk and then slicing a random prefix could
+ *  drop the very tiles that produced the breach. Already-breached enclosures
+ *  are filtered out up front (the flood reaches them whatever the candidate
+ *  is, which made any segment "validate" on mid-battle re-plans). Failed
+ *  candidates retry with a new random seed up to MAX_SEED_ATTEMPTS per
+ *  enemy; enemies with no intact large enclosures are skipped entirely. */
 export function planWallDemolition(
   state: BattleViewState,
   playerId: ValidPlayerId,
   usableCannonCount: number,
   rng: Rng,
+  stride = 1,
 ): TilePos[] | null {
   const enemies = filterActiveEnemies(state, playerId);
   rng.shuffle(enemies);
   for (const enemy of enemies) {
     if (enemy.walls.size < MIN_WALL_SEGMENT_LENGTH) continue;
     const interior = getBattleInterior(enemy);
-    const largeEnclosures = findEnclosureComponents(interior).filter(
-      (comp) => comp.length > DESTROY_POCKET_MAX_SIZE,
-    );
+    const liveOutside = computeOutside(enemy.walls);
+    const largeEnclosures = findEnclosureComponents(interior)
+      .filter((comp) => comp.length > DESTROY_POCKET_MAX_SIZE)
+      .filter((comp) => !isEnclosureBroken(comp, liveOutside));
     if (largeEnclosures.length === 0) continue;
     const wallKeys = [...enemy.walls];
-    let segment: TileKey[] | undefined;
     for (let attempt = 0; attempt < MAX_SEED_ATTEMPTS; attempt++) {
       const startKey = rng.pick(wallKeys);
       const candidate = findConnectedWalls(
@@ -70,24 +77,24 @@ export function planWallDemolition(
         rng,
       );
       if (candidate.length < MIN_WALL_SEGMENT_LENGTH) continue;
+      const maxLength = Math.min(
+        candidate.length,
+        usableCannonCount,
+        MAX_WALL_DEMOLITION_TARGETS,
+      );
+      const length = rng.int(MIN_WALL_SEGMENT_LENGTH, maxLength);
+      const fired = candidate
+        .slice(0, length)
+        .filter((_, i) => i % stride === 0);
       const modWalls = new Set(enemy.walls);
-      for (const tile of candidate) modWalls.delete(tile);
+      for (const tile of fired) modWalls.delete(tile);
       if (countBrokenEnclosures(modWalls, largeEnclosures) > 0) {
-        segment = candidate;
-        break;
+        return fired.map((k) => {
+          const { row, col } = unpackTile(k);
+          return { row: row, col: col };
+        });
       }
     }
-    if (segment === undefined) continue;
-    const maxLength = Math.min(
-      segment.length,
-      usableCannonCount,
-      MAX_WALL_DEMOLITION_TARGETS,
-    );
-    const length = rng.int(MIN_WALL_SEGMENT_LENGTH, maxLength);
-    return segment.slice(0, length).map((k) => {
-      const { row, col } = unpackTile(k);
-      return { row: row, col: col };
-    });
   }
   return null;
 }
