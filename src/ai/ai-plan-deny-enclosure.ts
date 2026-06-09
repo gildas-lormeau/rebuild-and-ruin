@@ -102,7 +102,11 @@ export function planDenyEnclosure(
   for (const key of targetKeys) {
     const { row, col } = unpackTile(key);
     for (const [dr, dc] of DIRS_4) {
-      const neighborKey = packTile(row + dr, col + dc);
+      const nr = row + dr;
+      const nc = col + dc;
+      // Cut tiles can sit on the map edge (a ring can lean on the border).
+      if (!inBounds(nr, nc)) continue;
+      const neighborKey = packTile(nr, nc);
       if (enemy.walls.has(neighborKey)) expandedKeys.add(neighborKey);
     }
   }
