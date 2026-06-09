@@ -181,9 +181,15 @@ export function pickTarget(
     wallsOnly,
   );
 
-  // Filter out any target tile that already has a cannonball in flight
+  // Filter out any target tile that already has a cannonball in flight.
+  // Cannon candidates aim at the FOOTPRINT CENTER — fractional row/col for
+  // even sizes (+0.5 for the standard 2×2) — and the jittered shot lands in
+  // one of the tiles around that corner, so fractional coords expand to
+  // their floor/ceil tiles. Exact-comparing here silently disabled the
+  // dedup for every even-size cannon candidate (an integer ball tile never
+  // equals an x.5 candidate row).
   const filtered = targets.filter(
-    (tile) => !isTileTargetedByInFlightBall(state, tile.row, tile.col),
+    (tile) => !isTargetAreaInFlight(state, tile.row, tile.col),
   );
   if (filtered.length === 0) return null;
 
@@ -862,6 +868,31 @@ function wallSetStamp(walls: ReadonlySet<TileKey>): number {
   let sum = 0;
   for (const key of walls) sum += (key + 1) * 2654435761;
   return walls.size + sum;
+}
+
+/** Footprint-aware in-flight dedup for pick candidates: integer coords test
+ *  their exact tile; fractional coords (even-size cannon footprint centers)
+ *  test the floor/ceil tiles the jittered aim can land in. Wall/strategic
+ *  callers with guaranteed-integer tiles use `isTileTargetedByInFlightBall`
+ *  directly. */
+function isTargetAreaInFlight(
+  state: BattleViewState,
+  row: number,
+  col: number,
+): boolean {
+  for (const tileRow of tileSpan(row)) {
+    for (const tileCol of tileSpan(col)) {
+      if (isTileTargetedByInFlightBall(state, tileRow, tileCol)) return true;
+    }
+  }
+  return false;
+}
+
+/** Tiles a (possibly fractional) target coordinate resolves to. */
+function tileSpan(coord: number): readonly number[] {
+  return Number.isInteger(coord)
+    ? [coord]
+    : [Math.floor(coord), Math.ceil(coord)];
 }
 
 /** True if any cannonball in flight is targeting (row, col). */
