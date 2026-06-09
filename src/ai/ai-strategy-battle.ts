@@ -12,6 +12,7 @@ import {
   pickSupplyShipTarget,
 } from "../game/index.ts";
 import {
+  type Cannon,
   type Cannonball,
   isBalloonCannon,
   isCannonAlive,
@@ -74,7 +75,8 @@ export type BattleTargetMemory = {
   lastWallTileKey: TileKey | undefined;
 };
 
-/** Packed `(playerId, cannonIdx)` key for the per-cannon shot counter map.
+/** Packed `(cannonTile, playerId, cannonIdx)` key for the per-cannon shot
+ *  counter map (see `shotCountKey` for the layout and why the tile is in it).
  *  Branded so a raw `number` can't be mistakenly fed into shotCounts.get(). */
 export type ShotKey = number & { readonly __shotKey: true };
 
@@ -366,7 +368,7 @@ export function trackShot(
       const cannon = other.cannons[idx]!;
       if (isBalloonCannon(cannon)) continue;
       if (isCannonTile(cannon, row, col)) {
-        const key = shotCountKey(other.id, idx as CannonIdx);
+        const key = shotCountKey(other.id, idx as CannonIdx, cannon);
         shotCounts.set(key, (shotCounts.get(key) ?? 0) + 1);
         return;
       }
@@ -497,7 +499,7 @@ function collectEnemyTargets(
         if (!isCannonAlive(cannon) || isBalloonCannon(cannon)) continue;
         if (isCannonCapturedBy(state, cannon, playerId)) continue;
         // Skip if we've already fired enough shots to destroy it
-        const key = shotCountKey(other.id, idx as CannonIdx);
+        const key = shotCountKey(other.id, idx as CannonIdx, cannon);
         const shots = shotCounts.get(key) ?? 0;
         if (shots >= state.cannonMaxHp) continue;
         const size = cannonSize(cannon.mode);
@@ -526,11 +528,22 @@ function collectEnemyTargets(
   return targets;
 }
 
-/** Stable numeric key for shotCounts: survives cannon object replacement.
- *  Uses a 16-bit shift so cannonIdx has room well beyond any conceivable
- *  per-player cap (slot caps put real values in the low single digits). */
-function shotCountKey(playerId: ValidPlayerId, cannonIdx: CannonIdx): ShotKey {
-  return ((playerId << 16) | cannonIdx) as ShotKey;
+/** Stable numeric key for shotCounts: survives cannon OBJECT replacement
+ *  (checkpoint restore rebuilds the array with identical positions) while
+ *  rolling over on cannon INDEX reuse — a life-loss board reset empties
+ *  `player.cannons`, so the rebuilt board hands indices 0..n to brand-new
+ *  cannons. Folding the cannon's tile into the key gives those fresh cannons
+ *  fresh counters instead of inheriting this index's destroyed-cannon history
+ *  (which permanently blacklisted them once the old count hit cannonMaxHp).
+ *  Layout: tileKey (< TILE_COUNT < 2^11) << 18 | playerId << 16 | cannonIdx. */
+function shotCountKey(
+  playerId: ValidPlayerId,
+  cannonIdx: CannonIdx,
+  cannon: Cannon,
+): ShotKey {
+  return ((packTile(cannon.row, cannon.col) << 18) |
+    (playerId << 16) |
+    cannonIdx) as ShotKey;
 }
 
 /** Pick an enclosure of an eligible enemy, then return a wall bordering it.

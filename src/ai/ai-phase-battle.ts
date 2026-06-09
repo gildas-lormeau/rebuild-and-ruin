@@ -215,7 +215,11 @@ export function tickBattle(
       }
       return {};
     case STEP.PICKING:
-      phase.crosshairTarget = pickAndSnap(host, phase, state);
+      // Keep a staged target (completeStandardFire's anticipatesTarget
+      // pre-pick, or the countdown pick) — only pick fresh when none is set.
+      if (!phase.crosshairTarget) {
+        phase.crosshairTarget = pickAndSnap(host, phase, state);
+      }
       phase.state = { step: STEP.MOVING };
       return {};
     case STEP.MOVING:
@@ -329,38 +333,6 @@ function tickCountdown(
   }
 }
 
-/** Pick a standard target, record the pre-occlusion tile on `phase` (diag), and
- *  return the occlusion-snapped aim. The recorded `intendedTarget` is reported
- *  with the fire so observers can see when occlusion redirected the shot. */
-function pickAndSnap(
-  host: BattleHost,
-  phase: BattlePhase,
-  state: BattleViewState,
-): StrategicPixelPos | null {
-  const picked = host.strategy.pickTarget(state, host.playerId, host.crosshair);
-  phase.intendedTarget = picked
-    ? { row: pxToTile(picked.y), col: pxToTile(picked.x) }
-    : null;
-  return snapAimToOcclusion(host, state, picked);
-}
-
-/** Snap a single-shot aim target through the controller's `aim()` seam so the
- *  AI (and assisted-human) can't aim at a tile a human's crosshair could never
- *  reach: if a nearer wall/tower hides the target under the battle tilt, the
- *  aim redirects onto that occluder (where the pointer pick would land),
- *  carrying the strategic metadata along. The occlusion geometry lives behind
- *  the seam (`host.aim`), not here. Chain targets are snapped at plan time (see
- *  `planBattle`); this covers the standard pick. */
-function snapAimToOcclusion(
-  host: BattleHost,
-  state: BattleViewState,
-  target: StrategicPixelPos | null,
-): StrategicPixelPos | null {
-  if (target === null) return null;
-  const world = host.aim(state, target.x, target.y);
-  return { ...target, x: world.wx, y: world.wy };
-}
-
 /** Chain attack: move crosshair toward next chain target, skip destroyed walls. */
 function tickChainMoving(
   host: BattleHost,
@@ -368,6 +340,8 @@ function tickChainMoving(
   state: BattleViewState,
 ): void {
   if (!phase.chainTargets || phase.chainIdx >= phase.chainTargets.length) {
+    // Drop any stale countdown chain-aim so PICKING picks fresh.
+    phase.crosshairTarget = null;
     phase.state = { step: STEP.PICKING };
     return;
   }
@@ -431,6 +405,8 @@ function tickChainDwelling(
   if (phaseState.timer > 0) return {};
 
   if (!phase.chainTargets || phase.chainIdx >= phase.chainTargets.length) {
+    // Drop any stale countdown chain-aim so PICKING picks fresh.
+    phase.crosshairTarget = null;
     phase.state = { step: STEP.PICKING };
     return {};
   }
@@ -460,6 +436,8 @@ function completeChainFire(
     return;
   }
   if (!phase.chainTargets) {
+    // Drop any stale countdown chain-aim so PICKING picks fresh.
+    phase.crosshairTarget = null;
     phase.state = { step: STEP.PICKING };
     return;
   }
@@ -584,13 +562,46 @@ function completeStandardFire(
     POST_FIRE_THINK_SPREAD_SEC,
   );
   if (host.anticipatesTarget) {
-    phase.crosshairTarget = host.strategy.pickTarget(
-      state,
-      host.playerId,
-      host.crosshair,
-    );
+    // Pre-pick the next target so the barrel tracks it during THINKING and
+    // the crosshair heads straight for it when the think delay expires.
+    // PICKING keeps this staged pick instead of re-rolling (re-picking there
+    // discarded the pre-pick, doubled the RNG draws per shot, and left
+    // `targetMemory` anchored to a wall that was never fired at).
+    phase.crosshairTarget = pickAndSnap(host, phase, state);
   } else {
     phase.crosshairTarget = null;
   }
   phase.state = { step: STEP.THINKING, timer: thinkTime };
+}
+
+/** Pick a standard target, record the pre-occlusion tile on `phase` (diag), and
+ *  return the occlusion-snapped aim. The recorded `intendedTarget` is reported
+ *  with the fire so observers can see when occlusion redirected the shot. */
+function pickAndSnap(
+  host: BattleHost,
+  phase: BattlePhase,
+  state: BattleViewState,
+): StrategicPixelPos | null {
+  const picked = host.strategy.pickTarget(state, host.playerId, host.crosshair);
+  phase.intendedTarget = picked
+    ? { row: pxToTile(picked.y), col: pxToTile(picked.x) }
+    : null;
+  return snapAimToOcclusion(host, state, picked);
+}
+
+/** Snap a single-shot aim target through the controller's `aim()` seam so the
+ *  AI (and assisted-human) can't aim at a tile a human's crosshair could never
+ *  reach: if a nearer wall/tower hides the target under the battle tilt, the
+ *  aim redirects onto that occluder (where the pointer pick would land),
+ *  carrying the strategic metadata along. The occlusion geometry lives behind
+ *  the seam (`host.aim`), not here. Chain targets are snapped at plan time (see
+ *  `planBattle`); this covers the standard pick. */
+function snapAimToOcclusion(
+  host: BattleHost,
+  state: BattleViewState,
+  target: StrategicPixelPos | null,
+): StrategicPixelPos | null {
+  if (target === null) return null;
+  const world = host.aim(state, target.x, target.y);
+  return { ...target, x: world.wx, y: world.wy };
 }

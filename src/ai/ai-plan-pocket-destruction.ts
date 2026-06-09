@@ -14,6 +14,7 @@ import type { TileKey } from "../shared/core/grid.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import {
   DIRS_4,
+  DIRS_8,
   inBounds,
   orderByNearest,
   packTile,
@@ -65,6 +66,18 @@ export function planPocketDestruction(
   const targets: TilePos[] = [];
   const picked = new Set<TileKey>();
   for (const pocket of pockets) {
+    // Opening a pocket turns its tiles into outside, and the enclosure flood
+    // (computeOutside) is 8-directional — a pocket tile touching a large
+    // enclosure's interior even diagonally would de-enclose it. Skip such
+    // pockets entirely.
+    if (
+      pocket.some((key) => {
+        const { row, col } = unpackTile(key);
+        return touchesLargeInterior(row, col, interior, pocketTiles);
+      })
+    ) {
+      continue;
+    }
     let found = false;
     for (const key of pocket) {
       if (found) break;
@@ -75,19 +88,9 @@ export function planPocketDestruction(
         if (!inBounds(nr, nc)) continue;
         const neighborKey = packTile(nr, nc);
         if (!player.walls.has(neighborKey) || picked.has(neighborKey)) continue;
-        // Check that this wall doesn't also border a large enclosure
-        let bordersLarge = false;
-        for (const [dr2, dc2] of DIRS_4) {
-          const ar = nr + dr2;
-          const ac = nc + dc2;
-          if (!inBounds(ar, ac)) continue;
-          const adjacentKey = packTile(ar, ac);
-          if (interior.has(adjacentKey) && !pocketTiles.has(adjacentKey)) {
-            bordersLarge = true;
-            break;
-          }
-        }
-        if (bordersLarge) continue;
+        // The destroyed wall tile joins the outside flood too — reject walls
+        // whose 8-dir neighborhood touches a large enclosure's interior.
+        if (touchesLargeInterior(nr, nc, interior, pocketTiles)) continue;
         targets.push({ row: nr, col: nc });
         picked.add(neighborKey);
         found = true;
@@ -98,6 +101,26 @@ export function planPocketDestruction(
   if (targets.length === 0) return null;
   if (targets.length > MAX_POCKET_TARGETS) targets.length = MAX_POCKET_TARGETS;
   return orderByNearest(targets);
+}
+
+/** True if any 8-dir neighbor of (row, col) is interior of a LARGE enclosure
+ *  (interior tile not belonging to a small pocket). The enclosure flood
+ *  (computeOutside) is 8-directional, so diagonal contact is enough for the
+ *  outside to leak into the large enclosure once (row, col) opens. */
+function touchesLargeInterior(
+  row: number,
+  col: number,
+  interior: ReadonlySet<TileKey>,
+  pocketTiles: ReadonlySet<TileKey>,
+): boolean {
+  for (const [dr, dc] of DIRS_8) {
+    const ar = row + dr;
+    const ac = col + dc;
+    if (!inBounds(ar, ac)) continue;
+    const adjacentKey = packTile(ar, ac);
+    if (interior.has(adjacentKey) && !pocketTiles.has(adjacentKey)) return true;
+  }
+  return false;
 }
 
 /** Check if a 4-tile pocket forms a 2x2 square (can fit a cannon). */
