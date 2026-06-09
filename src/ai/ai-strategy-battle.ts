@@ -113,17 +113,19 @@ const SWEET_SPOT_DISTANCE_RANGE = 5;
  *  targets a given enemy — it's a pure function of that enemy's walls — so it's
  *  computed once and reused across all AI controllers (they import this module).
  *
- *  Versioned by `player.walls.size`: during a battle walls are delete-only
- *  (cannonballs/grunts/modifiers destroy; nothing places until the next build),
- *  so size strictly decreases and the single cache entry — overwritten on every
- *  miss — can never serve a stale topology (a new battle's larger post-build
- *  size forces a miss that overwrites the prior entry before it could shrink
- *  back). Read-only and never written to `player.interior`, so the frozen
- *  battle interior that drives rendering and fire-eligibility is untouched.
- *  Pure function of synced walls → identical on every peer, no wire payload. */
+ *  Versioned by a CONTENT stamp (`wallSetStamp`: size + order-independent
+ *  mixed-key sum), not by `walls.size` alone — size-only versioning served a
+ *  stale topology across battles whenever a build netted zero wall delta
+ *  (placements offset by the wall sweep, Master Builder lockout, AFK player)
+ *  yet moved walls around. The stamp reflects content, so a rebuilt Player
+ *  after a checkpoint join also recomputes to the same components every other
+ *  peer's cache holds. Read-only and never written to `player.interior`, so
+ *  the frozen battle interior that drives rendering and fire-eligibility is
+ *  untouched. Pure function of synced walls → identical on every peer, no
+ *  wire payload. */
 const liveEnclosureCache = new WeakMap<
   Player,
-  { wallCount: number; components: TileKey[][] }
+  { stamp: number; components: TileKey[][] }
 >();
 /** Pockets smaller than this are worth destroying — can't fit a 2×2 cannon.
  *  Distinct from DESTROY_POCKET_MAX_SIZE (build scoring) which is higher (9)
@@ -797,13 +799,13 @@ function pickNearestEnclosure<T extends { tiles: TileKey[] }>(
 
 /** Live enclosure components for an enemy — connected interior regions computed
  *  from the enemy's CURRENT walls (not the frozen battle snapshot). Cached and
- *  shared; recomputed only when the enemy's wall count changes. */
+ *  shared; recomputed only when the enemy's wall-set content changes. */
 function liveEnclosuresOf(enemy: Player): TileKey[][] {
+  const stamp = wallSetStamp(enemy.walls);
   const hit = liveEnclosureCache.get(enemy);
-  if (hit !== undefined && hit.wallCount === enemy.walls.size)
-    return hit.components;
+  if (hit !== undefined && hit.stamp === stamp) return hit.components;
   const components = findEnclosureComponents(computeLiveInterior(enemy.walls));
-  liveEnclosureCache.set(enemy, { wallCount: enemy.walls.size, components });
+  liveEnclosureCache.set(enemy, { stamp, components });
   return components;
 }
 
@@ -848,6 +850,18 @@ export function computeLiveInterior(walls: ReadonlySet<TileKey>): Set<TileKey> {
     }
   }
   return interior;
+}
+
+/** Order-independent content stamp of a wall set: size plus a sum of
+ *  Knuth-multiplicative-mixed packed keys. O(n) integer adds — far cheaper
+ *  than the interior flood it guards — exact in float64 (each mixed term
+ *  < 2^42, ≤ TILE_COUNT terms), and insertion-order-independent so identical
+ *  wall sets stamp identically on every peer. Mixing makes an accidental
+ *  same-size/same-sum collision across topologies negligible. */
+function wallSetStamp(walls: ReadonlySet<TileKey>): number {
+  let sum = 0;
+  for (const key of walls) sum += (key + 1) * 2654435761;
+  return walls.size + sum;
 }
 
 /** True if any cannonball in flight is targeting (row, col). */

@@ -64,8 +64,10 @@ import type {
 } from "./ai-strategy-types.ts";
 import { traitLookup } from "./ai-utils.ts";
 
-/** Shared empty exclusion set for the entry `planBattle` call (no allocation
- *  per battle, and `.size === 0` flags the entry call that rolls focus-fire). */
+/** Shared empty exclusion set `planBattle` falls back to when the entry call
+ *  omits the param (no allocation per battle). Entry-vs-replan is flagged by
+ *  the param being omitted, NOT by set emptiness — a re-plan after a
+ *  defensive-only chain legitimately passes an empty set. */
 const EMPTY_TACTICS: ReadonlySet<TacticId> = new Set();
 /** Chance to focus all fire on the weakest enemy for the entire battle. */
 const FOCUS_FIRE_PROBABILITY = 0.5;
@@ -235,13 +237,16 @@ export class DefaultStrategy implements AiStrategy {
   planBattle(
     state: BattleViewState,
     playerId: ValidPlayerId,
-    excludedTactics: ReadonlySet<TacticId> = EMPTY_TACTICS,
+    replanExcludedTactics?: ReadonlySet<TacticId>,
   ): BattlePlan {
-    // Focus-fire is decided once at battle entry (empty exclusion set). On the
-    // re-plans that follow each finished chain (excludedTactics non-empty) the
-    // entry-time focus is kept — re-rolling it every chain would thrash the
-    // per-shot fallback target and consume RNG mid-battle.
-    if (excludedTactics.size === 0) {
+    const excludedTactics = replanExcludedTactics ?? EMPTY_TACTICS;
+    // Focus-fire is decided once at battle entry (the call that OMITS the
+    // exclusion set). Re-plans after each finished chain always pass their
+    // set — even an empty one (only OFFENSIVE tactics are recorded, so a
+    // battle whose entry chain was defensive re-plans with an empty set) —
+    // and keep the entry-time focus: re-rolling it every chain would thrash
+    // the per-shot fallback target and consume RNG mid-battle.
+    if (replanExcludedTactics === undefined) {
       // Focus fire probability scales with battleTactics
       const focusProb = traitLookup(this.battleTactics, [
         0.2,

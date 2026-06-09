@@ -236,13 +236,16 @@ export interface AiStrategy {
   ): CannonPlacement | undefined;
 
   /** Plan one chain attack. Called at battle entry and again each time a chain
-   *  finishes (multiple attacks per battle). `excludedTactics` lists offensive
-   *  tactics already fired this battle so the cascade skips them (force
-   *  variety); focus-fire is (re-)rolled only on the entry call (empty set). */
+   *  finishes (multiple attacks per battle). The entry call OMITS
+   *  `replanExcludedTactics` — that's what (re-)rolls focus-fire. Re-plans
+   *  always pass the set of offensive tactics already fired this battle so
+   *  the cascade skips them (force variety); the set may legitimately be
+   *  empty (defensive-only chains aren't recorded), which must NOT re-roll
+   *  focus. */
   planBattle(
     state: BattleViewState,
     playerId: ValidPlayerId,
-    excludedTactics?: ReadonlySet<TacticId>,
+    replanExcludedTactics?: ReadonlySet<TacticId>,
   ): BattlePlan;
 
   /** Pick a target to fire at. strategic = wall between obstacles. wallsOnly = skip cannon targets. */
