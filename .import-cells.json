@@ -509,14 +509,6 @@
   },
   {
     "layer": 7,
-    "domain": "ai",
-    "role": "AI charity-sweep tactic planner (delegates to grunt sweep)",
-    "files": [
-      "src/ai/ai-plan-charity-sweep.ts"
-    ]
-  },
-  {
-    "layer": 7,
     "domain": "controllers",
     "role": "human controller",
     "files": [
@@ -889,6 +881,7 @@
       "src/ai/ai-brain.ts",
       "src/ai/ai-build-desperate.ts",
       "src/ai/ai-build-lookahead.ts",
+      "src/ai/ai-plan-charity-sweep.ts",
       "src/ai/ai-plan-deny-enclosure.ts",
       "src/ai/ai-plan-fat-breach.ts",
       "src/ai/ai-plan-pocket-destruction.ts",

@@ -30,6 +30,15 @@ type StructuralHitCandidate = {
   enclosuresBroken: number;
 };
 
+/** Bound on `computeOutside` floods per enemy, shared across the single-tile
+ *  pass and the pair fallback (sibling plans cap floods the same way —
+ *  wall-demolition's MAX_SEED_ATTEMPTS, fat-breach's MAX_FLOODS). Higher than
+ *  the siblings' 5 because candidates here are pre-gated (`bordered.size >= 2`
+ *  — the wall must touch two distinct large enclosures), so each flood is a
+ *  high-quality probe of a divider seam, not a random walk; the budget only
+ *  exists to bound pathological maze layouts. */
+const MAX_STRUCTURAL_FLOODS = 16;
+
 /** Plan a structural hit: find 1–2 wall tiles whose removal breaks 2+ large
  *  enclosures simultaneously.  Analyses each enemy's wall layout, finds
  *  "outer-shell" wall tiles adjacent to the outside flood, and simulates
@@ -124,54 +133,84 @@ function findStructuralHits(
     }
   }
 
-  // 4. Single-tile structural hits
+  // 4. Single-tile structural hits; 5. two-tile pairs only when none exist.
+  // Both passes draw from one shared flood budget.
+  const budget = { floods: 0 };
+  const hits = findSingleTileHits(walls, outerWalls, labels, large, budget);
+  if (hits.length === 0) {
+    hits.push(...findPairHits(walls, outerWalls, labels, large, budget));
+  }
+  return hits;
+}
+
+/** Single-tile pass: outer-shell walls bordering 2+ large enclosures,
+ *  flood-validated against the shared budget. */
+function findSingleTileHits(
+  walls: ReadonlySet<TileKey>,
+  outerWalls: readonly TileKey[],
+  labels: ReadonlyMap<TileKey, number>,
+  large: readonly (readonly TileKey[])[],
+  budget: { floods: number },
+): StructuralHitCandidate[] {
   const hits: StructuralHitCandidate[] = [];
   for (const wallKey of outerWalls) {
+    if (budget.floods >= MAX_STRUCTURAL_FLOODS) return hits;
     const bordered = borderedEnclosures(wallKey, labels);
     if (bordered.size < 2) continue;
 
     const modWalls = new Set(walls);
     modWalls.delete(wallKey);
+    budget.floods++;
     const broken = countBrokenEnclosures(modWalls, large);
     if (broken >= 2) {
       const { row, col } = unpackTile(wallKey);
       hits.push({ tiles: [{ row: row, col: col }], enclosuresBroken: broken });
     }
   }
+  return hits;
+}
 
-  // 5. Two-tile pairs (only when no single-tile hits exist)
-  if (hits.length === 0) {
-    for (const wallKey of outerWalls) {
-      const { row, col } = unpackTile(wallKey);
-      for (const [dr, dc] of DIRS_4) {
-        const nr = row + dr;
-        const nc = col + dc;
-        if (!inBounds(nr, nc)) continue;
-        const neighborKey = packTile(nr, nc);
-        // Deduplicate pairs and ensure neighbor is also a wall
-        if (!walls.has(neighborKey) || neighborKey <= wallKey) continue;
+/** Pair fallback for thick walls: adjacent wall pairs whose combined border
+ *  spans 2+ large enclosures, flood-validated against the shared budget. */
+function findPairHits(
+  walls: ReadonlySet<TileKey>,
+  outerWalls: readonly TileKey[],
+  labels: ReadonlyMap<TileKey, number>,
+  large: readonly (readonly TileKey[])[],
+  budget: { floods: number },
+): StructuralHitCandidate[] {
+  const hits: StructuralHitCandidate[] = [];
+  for (const wallKey of outerWalls) {
+    const { row, col } = unpackTile(wallKey);
+    for (const [dr, dc] of DIRS_4) {
+      if (budget.floods >= MAX_STRUCTURAL_FLOODS) return hits;
+      const nr = row + dr;
+      const nc = col + dc;
+      if (!inBounds(nr, nc)) continue;
+      const neighborKey = packTile(nr, nc);
+      // Deduplicate pairs and ensure neighbor is also a wall
+      if (!walls.has(neighborKey) || neighborKey <= wallKey) continue;
 
-        const bordered = borderedEnclosuresPair(wallKey, neighborKey, labels);
-        if (bordered.size < 2) continue;
+      const bordered = borderedEnclosuresPair(wallKey, neighborKey, labels);
+      if (bordered.size < 2) continue;
 
-        const modWalls = new Set(walls);
-        modWalls.delete(wallKey);
-        modWalls.delete(neighborKey);
-        const broken = countBrokenEnclosures(modWalls, large);
-        if (broken >= 2) {
-          const { row: nr2, col: nc2 } = unpackTile(neighborKey);
-          hits.push({
-            tiles: [
-              { row: row, col: col },
-              { row: nr2, col: nc2 },
-            ],
-            enclosuresBroken: broken,
-          });
-        }
+      const modWalls = new Set(walls);
+      modWalls.delete(wallKey);
+      modWalls.delete(neighborKey);
+      budget.floods++;
+      const broken = countBrokenEnclosures(modWalls, large);
+      if (broken >= 2) {
+        const { row: nr2, col: nc2 } = unpackTile(neighborKey);
+        hits.push({
+          tiles: [
+            { row: row, col: col },
+            { row: nr2, col: nc2 },
+          ],
+          enclosuresBroken: broken,
+        });
       }
     }
   }
-
   return hits;
 }
 

@@ -146,8 +146,19 @@ function findBestBreach(
       if (run.length < 2) continue;
       if (includesUndamagedReinforced(enemy, run)) continue;
 
-      const candidate = growToBreach(enemy.walls, large, run, cap);
-      floods += Math.min(run.length, cap);
+      // Charge the floods growToBreach ACTUALLY ran (it stops at the first
+      // breaching prefix) — pre-charging the full capped run length burned
+      // the whole budget on the first long run and left the best-of search
+      // below comparing nothing.
+      const grown = growToBreach(
+        enemy.walls,
+        large,
+        run,
+        cap,
+        MAX_FLOODS - floods,
+      );
+      floods += grown.floodsUsed;
+      const candidate = grown.candidate;
       if (!candidate) continue;
       if (
         !best ||
@@ -218,17 +229,21 @@ function shellDistance(
   return 2;
 }
 
-/** Grow a prefix of `run` from the shell end until removing it breaches a large
- *  enclosure, capped at `cap` tiles. Returns the minimal breaching prefix, or
- *  undefined when no in-budget prefix breaches. */
+/** Grow a prefix of `run` from the shell end until removing it breaches a
+ *  large enclosure, capped at `cap` tiles and `floodBudget` floods (one flood
+ *  per grown tile). Returns the minimal breaching prefix (or undefined when
+ *  no in-budget prefix breaches) plus the number of floods actually run, so
+ *  the caller charges its shared budget for work done — not for the run's
+ *  full capped length. */
 function growToBreach(
   walls: ReadonlySet<TileKey>,
   large: readonly (readonly TileKey[])[],
   run: readonly TileKey[],
   cap: number,
-): BreachCandidate | undefined {
+  floodBudget: number,
+): { candidate: BreachCandidate | undefined; floodsUsed: number } {
   const mod = new Set(walls);
-  const limit = Math.min(run.length, cap);
+  const limit = Math.min(run.length, cap, floodBudget);
   const prefix: TilePos[] = [];
   for (let i = 0; i < limit; i++) {
     const key = run[i]!;
@@ -237,10 +252,13 @@ function growToBreach(
     prefix.push({ row: row, col: col });
     const broken = countBrokenEnclosures(mod, large);
     if (broken > 0) {
-      return { tiles: prefix, enclosuresBroken: broken };
+      return {
+        candidate: { tiles: prefix, enclosuresBroken: broken },
+        floodsUsed: i + 1,
+      };
     }
   }
-  return undefined;
+  return { candidate: undefined, floodsUsed: limit };
 }
 
 /** True when the run crosses a reinforced wall that hasn't taken its one

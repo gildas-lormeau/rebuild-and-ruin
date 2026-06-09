@@ -210,8 +210,12 @@ export function pickTarget(
       SUPPLY_SHIP_TARGET_PROBABILITY,
       2 * SUPPLY_SHIP_TARGET_PROBABILITY,
     ] as const);
-    if (rand() < shipProb) {
-      const cannons = state.players[playerId]!.cannons;
+    const cannons = state.players[playerId]!.cannons;
+    // Guard the centroid divide: a player firing only a CAPTURED cannon has
+    // an empty own-cannons array (life-loss board reset), and 0/0 would NaN-
+    // poison the lead-prediction aim. The rand() draw stays unconditional so
+    // the roll order matches the cannons-present path.
+    if (rand() < shipProb && cannons.length > 0) {
       let sumRow = 0;
       let sumCol = 0;
       for (const cannon of cannons) {

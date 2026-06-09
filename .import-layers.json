@@ -215,7 +215,6 @@
     "name": "L7",
     "files": [
       "server/room-manager.ts",
-      "src/ai/ai-plan-charity-sweep.ts",
       "src/controllers/controller-human.ts",
       "src/game/game-init.ts",
       "src/game/modifiers/evict-tiles.ts",
@@ -349,6 +348,7 @@
       "src/ai/ai-brain.ts",
       "src/ai/ai-build-desperate.ts",
       "src/ai/ai-build-lookahead.ts",
+      "src/ai/ai-plan-charity-sweep.ts",
       "src/ai/ai-plan-deny-enclosure.ts",
       "src/ai/ai-plan-fat-breach.ts",
       "src/ai/ai-plan-pocket-destruction.ts",
