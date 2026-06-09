@@ -87,6 +87,16 @@ const FAT_BREACH_PROBABILITY = 1 / 4;
  *  offensive tactic, since enclosure denial (not tower kills) is how defensive
  *  players actually lose lives. Scales with battleTactics. */
 const DENY_ENCLOSURE_PROBABILITY = 3 / 4;
+/** Weak-tier (battleTactics 1: chaotic / builder) enclosure-denial chance. The
+ *  ONLY enclosure-breaking tactic enabled at tier 1 — kept small so weak AI
+ *  stays clearly below the tier-2 baseline (0.15 ≪ 0.75) but is no longer 100%
+ *  passive: it now occasionally lands a surgical min-cut instead of only spraying
+ *  walls. deny_enclosure is the right (and only safe) lever here — its
+ *  `rng.bool` already consumes a draw at prob 0, so raising it preserves the
+ *  RNG-stream alignment (structural / fat_breach skip their roll at tier 1, so
+ *  enabling THOSE would shift every downstream draw). Naturally rate-limited by
+ *  the ≥6-usable-cannon gate and planDenyEnclosure finding an affordable cut. */
+const WEAK_DENY_ENCLOSURE_PROBABILITY = 0.15;
 /** Minimum usable cannons to attempt an ice trench (lower than general chain threshold). */
 const ICE_TRENCH_MIN_CANNONS = 4;
 
@@ -334,7 +344,7 @@ export class DefaultStrategy implements AiStrategy {
     // life-loss condition). Re-selectable across re-plans (not excluded), so a
     // multi-attack battle keeps sieging the defender's best fallback ring.
     const denyProb = traitLookup(this.battleTactics, [
-      0,
+      WEAK_DENY_ENCLOSURE_PROBABILITY,
       DENY_ENCLOSURE_PROBABILITY,
       1,
     ]);
