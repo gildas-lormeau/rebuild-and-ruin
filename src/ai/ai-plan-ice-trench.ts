@@ -63,11 +63,13 @@ export function planIceTrench(
 
   const trenchKeys = buildUTrench(frozenTiles, anchor, bestAnchorKey, inward);
 
+  // buildUTrench always seeds at least the anchor tile, so the trench is
+  // never empty here.
   const result: TilePos[] = [];
   for (const key of trenchKeys) {
     result.push(unpackTile(key));
   }
-  return result.length > 0 ? orderByNearest(result) : null;
+  return orderByNearest(result);
 }
 
 /** Precondition: collect grunts on the opposite bank (enemy zone, 4-dir

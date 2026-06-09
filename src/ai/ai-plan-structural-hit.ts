@@ -92,7 +92,13 @@ function findStructuralHits(
   walls: ReadonlySet<TileKey>,
   mapTiles: GameMap["tiles"],
 ): StructuralHitCandidate[] {
-  // 1. Compute outside and interior
+  // 1. Compute outside and interior. Deliberate departure from the sibling
+  //    planners (deny-enclosure, fat-breach, wall-demolition), which take the
+  //    frozen build-time interior (getBattleInterior) and then filter out
+  //    enclosures the live flood already breached. Deriving the interior LIVE
+  //    here drops mid-battle-breached enclosures implicitly (a breach shrinks
+  //    or removes the component), so no separate isEnclosureBroken pass is
+  //    needed — and it stays a pure function of synced walls/map (parity-safe).
   const outside = computeOutside(walls);
   const interior = new Set<TileKey>();
   for (let row = 0; row < GRID_ROWS; row++) {
