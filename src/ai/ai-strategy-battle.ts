@@ -154,7 +154,6 @@ export function pickTarget(
   shotCounts: Map<ShotKey, number>,
   targetMemory: BattleTargetMemory,
   rng: Rng,
-  wallsOnly?: boolean,
   battleTactics = 2,
 ): StrategicPixelPos | null {
   const rand = () => rng.next();
@@ -178,7 +177,6 @@ export function pickTarget(
     focusFirePlayerId,
     switchTarget,
     shotCounts,
-    wallsOnly,
   );
 
   // Filter out any target tile that already has a cannonball in flight.
@@ -197,14 +195,12 @@ export function pickTarget(
   const currentCol = crosshair.x / TILE_SIZE;
 
   // Supply-ship targeting — first early gate so it competes fairly with
-  // the other tactical picks. Skipped during `wallsOnly` (grunt-sweep
-  // mode) since that mode is explicitly about clearing grunts off our
-  // territory, not chasing river bonuses. Gated on `supplyShips != null`
-  // so the rng roll only happens when ships are actually present —
-  // preserves classic-mode determinism (no extra rng consumption when
-  // the modifier is inactive).
+  // the other tactical picks. Gated on `supplyShips != null` so the rng
+  // roll only happens when ships are actually present — preserves
+  // classic-mode determinism (no extra rng consumption when the modifier
+  // is inactive).
   const supplyShips = state.modern?.supplyShips;
-  if (!wallsOnly && supplyShips != null) {
+  if (supplyShips != null) {
     const shipProb = traitLookup(battleTactics, [
       0,
       SUPPLY_SHIP_TARGET_PROBABILITY,
@@ -509,32 +505,29 @@ function collectEnemyTargets(
   focusFirePlayerId: ValidPlayerId | undefined,
   switchTarget: boolean,
   shotCounts: Map<ShotKey, number>,
-  wallsOnly?: boolean,
 ): TargetCandidate[] {
   const targets: TargetCandidate[] = [];
   for (const other of filterActiveEnemies(state, playerId)) {
     if (!isEnemyEligibleForFocus(other.id, focusFirePlayerId, switchTarget))
       continue;
 
-    if (!wallsOnly) {
-      for (let idx = 0; idx < other.cannons.length; idx++) {
-        const cannon = other.cannons[idx]!;
-        if (!isCannonAlive(cannon) || isBalloonCannon(cannon)) continue;
-        if (isCannonCapturedBy(state, cannon, playerId)) continue;
-        // Skip if we've already fired enough shots to destroy it
-        const key = shotCountKey(other.id, idx as CannonIdx, cannon);
-        const shots = shotCounts.get(key) ?? 0;
-        if (shots >= state.cannonMaxHp) continue;
-        const size = cannonSize(cannon.mode);
-        const targetRow = cannon.row + (size - 1) / 2;
-        const targetCol = cannon.col + (size - 1) / 2;
-        targets.push({
-          row: targetRow,
-          col: targetCol,
-          priority: shots > 0,
-          isCannon: true,
-        });
-      }
+    for (let idx = 0; idx < other.cannons.length; idx++) {
+      const cannon = other.cannons[idx]!;
+      if (!isCannonAlive(cannon) || isBalloonCannon(cannon)) continue;
+      if (isCannonCapturedBy(state, cannon, playerId)) continue;
+      // Skip if we've already fired enough shots to destroy it
+      const key = shotCountKey(other.id, idx as CannonIdx, cannon);
+      const shots = shotCounts.get(key) ?? 0;
+      if (shots >= state.cannonMaxHp) continue;
+      const size = cannonSize(cannon.mode);
+      const targetRow = cannon.row + (size - 1) / 2;
+      const targetCol = cannon.col + (size - 1) / 2;
+      targets.push({
+        row: targetRow,
+        col: targetCol,
+        priority: shots > 0,
+        isCannon: true,
+      });
     }
 
     for (const key of other.walls) {

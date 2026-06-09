@@ -248,12 +248,11 @@ export interface AiStrategy {
     replanExcludedTactics?: ReadonlySet<TacticId>,
   ): BattlePlan;
 
-  /** Pick a target to fire at. strategic = wall between obstacles. wallsOnly = skip cannon targets. */
+  /** Pick a target to fire at. strategic = wall between obstacles. */
   pickTarget(
     state: BattleViewState,
     playerId: ValidPlayerId,
     crosshair: PixelPos,
-    wallsOnly?: boolean,
   ): StrategicPixelPos | null;
 
   /** Record a shot at whatever cannon is at the crosshair position. */

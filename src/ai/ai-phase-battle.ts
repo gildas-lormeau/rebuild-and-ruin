@@ -243,7 +243,10 @@ export function tickBattle(
     case STEP.DWELLING:
       return tickDwelling(host, phase, state);
     default:
-      // IDLE and COUNTDOWN are handled by early returns above (lines 126–154).
+      // COUNTDOWN is handled by the countdown early-returns at the top of
+      // this function. IDLE is the pre-battle resting state (createBattlePhase
+      // / resetBattlePhaseKeepOrbit); initBattle always moves to COUNTDOWN
+      // before battle ticks run, so IDLE never ticks here in practice.
       // If a new BattleState step is added, add its case here.
       return {};
   }

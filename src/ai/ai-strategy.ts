@@ -483,7 +483,6 @@ export class DefaultStrategy implements AiStrategy {
     state: BattleViewState,
     playerId: ValidPlayerId,
     crosshair: PixelPos,
-    wallsOnly?: boolean,
   ): StrategicPixelPos | null {
     return pickTarget(
       state,
@@ -493,7 +492,6 @@ export class DefaultStrategy implements AiStrategy {
       this.shotCounts,
       this.battleTargetMemory,
       this.rng,
-      wallsOnly,
       this.battleTactics,
     );
   }

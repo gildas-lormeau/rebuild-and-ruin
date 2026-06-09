@@ -12,9 +12,10 @@ import { orderByNearest, zoneAt } from "../shared/core/spatial.ts";
 import type { BattleViewState } from "../shared/core/system-interfaces.ts";
 import type { Rng } from "../shared/platform/rng.ts";
 
-/** Minimum grunts targeting a player before a grunt sweep is considered.
- *  Lowered during grunt-heavy modifiers (grunt_surge, frozen_river) so the
- *  AI reacts sooner to the increased threat. */
+/** A sweep triggers only with MORE than this many grunts in the victim's
+ *  zone (`<=` comparison — exactly 15 is still below the trigger). Lowered
+ *  during grunt-heavy modifiers (grunt_surge, frozen_river) so the AI reacts
+ *  sooner to the increased threat. */
 const GRUNT_SWEEP_THRESHOLD = 15;
 const GRUNT_SWEEP_THRESHOLD_MODIFIER = 8;
 

@@ -26,7 +26,8 @@ import {
   findEnclosureComponents,
 } from "./ai-strategy-battle.ts";
 
-/** Minimum number of small pockets before pocket destruction triggers. */
+/** Pocket destruction triggers only with MORE than this many small pockets
+ *  (`<=` comparison — 5 pockets is still below the trigger). */
 const POCKET_COUNT_THRESHOLD = 5;
 /** Maximum wall tiles targeted in a single pocket destruction chain. */
 const MAX_POCKET_TARGETS = 5;
