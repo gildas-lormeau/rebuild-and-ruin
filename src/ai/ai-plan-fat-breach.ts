@@ -144,7 +144,6 @@ function findBestBreach(
       if (seen.has(sig)) continue;
       seen.add(sig);
       if (run.length < 2) continue;
-      if (includesUndamagedReinforced(enemy, run)) continue;
 
       // Charge the floods growToBreach ACTUALLY ran (it stops at the first
       // breaching prefix) — pre-charging the full capped run length burned
@@ -156,6 +155,7 @@ function findBestBreach(
         run,
         cap,
         MAX_FLOODS - floods,
+        enemy,
       );
       floods += grown.floodsUsed;
       const candidate = grown.candidate;
@@ -241,12 +241,21 @@ function growToBreach(
   run: readonly TileKey[],
   cap: number,
   floodBudget: number,
+  enemy: Player,
 ): { candidate: BreachCandidate | undefined; floodsUsed: number } {
   const mod = new Set(walls);
   const limit = Math.min(run.length, cap, floodBudget);
   const prefix: TilePos[] = [];
   for (let i = 0; i < limit; i++) {
     const key = run[i]!;
+    // A reinforced wall that hasn't taken its absorbing hit can't be removed
+    // by the chain's single shot, so the binary-removal validation below would
+    // lie about any prefix that includes it — and the prefix can't validly
+    // extend past it. A breach reached BEFORE this tile already returned above;
+    // reaching it means no valid single-shot breach exists along this run.
+    if (shouldAbsorbWallHit(enemy, key)) {
+      return { candidate: undefined, floodsUsed: i };
+    }
     mod.delete(key);
     const { row, col } = unpackTile(key);
     prefix.push({ row: row, col: col });
@@ -259,18 +268,4 @@ function growToBreach(
     }
   }
   return { candidate: undefined, floodsUsed: limit };
-}
-
-/** True when the run crosses a reinforced wall that hasn't taken its one
- *  absorbing hit yet (needs 2 hits, but the chain fires once per tile — the
- *  binary-removal validation would otherwise lie). `shouldAbsorbWallHit`
- *  encapsulates the Reinforced Walls ownership + damagedWalls check. */
-function includesUndamagedReinforced(
-  enemy: Player,
-  run: readonly TileKey[],
-): boolean {
-  for (const key of run) {
-    if (shouldAbsorbWallHit(enemy, key)) return true;
-  }
-  return false;
 }
