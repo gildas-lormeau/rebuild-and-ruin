@@ -100,6 +100,12 @@ export function createNarrativeObserver(): NarrativeObserver {
   let currentRoundModifier: string | null = null;
   let lastEmittedHeader = "";
 
+  /** Shooter of the most recent [FIRE] line — captured at CANNON_FIRED so the
+   *  AI battle-diag hook (which fires synchronously right after, with no
+   *  shooterId of its own) can classify the occluded intended tile from the
+   *  same shooter's perspective. */
+  let lastFireShooterId: number | undefined;
+
   /** Per-player wall-placement accumulator — flushed when the phase
    *  changes (or detach fires). One summary line per player instead of
    *  one line per WALL_PLACED event. */
@@ -336,6 +342,7 @@ export function createNarrativeObserver(): NarrativeObserver {
       // trigger from a trailing "(scoring X)" suffix.
       on(sc, BATTLE_MESSAGE.CANNON_FIRED, (ev) => {
         const shooterId = ev.scoringPlayerId ?? ev.playerId;
+        lastFireShooterId = shooterId;
         const isCaptured = ev.scoringPlayerId !== undefined &&
           ev.scoringPlayerId !== ev.playerId;
         const fireRef = isCaptured
@@ -426,7 +433,27 @@ export function createNarrativeObserver(): NarrativeObserver {
         const last = lines[lines.length - 1];
         if (!last) return;
         if (!last.endsWith("]")) return;
-        lines[lines.length - 1] = `${last.slice(0, -1)} via:${ev.origin}]`;
+        let suffix = ` via:${ev.origin}`;
+        // Aim-occlusion redirect: the planner wanted `intendedTarget` (e.g. a
+        // grunt or cannon hidden behind a camera-near wall under the battle
+        // tilt) but the crosshair snapped onto the nearer occluder, so the
+        // ball strikes a tile the AI never explicitly chose. Surface what it
+        // meant to hit so these redirects are visible in the narrative.
+        const want = ev.intendedTarget;
+        const aim = ev.aimTarget;
+        if (
+          want && aim && (want.row !== aim.row || want.col !== aim.col) &&
+          lastFireShooterId !== undefined
+        ) {
+          const wantTag = identifyImpactTile(
+            sc.state,
+            want.row,
+            want.col,
+            lastFireShooterId,
+          );
+          suffix += ` +occluded←${wantTag}@(${want.row},${want.col})`;
+        }
+        lines[lines.length - 1] = `${last.slice(0, -1)}${suffix}]`;
       });
       subscriptions.push(() => setAiBattleDiagHook(undefined));
     },

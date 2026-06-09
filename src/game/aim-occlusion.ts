@@ -83,13 +83,17 @@ function occludedAimTile(
   // Walk from the camera-near side back toward the target; the first tile
   // whose elevated top the sight-ray crosses is the occluder. The snapped
   // world-Y is where the lifted sight-ray meets that top (matches the
-  // renderer pick's `wy = groundY + h·tan(pitch)` → `pxToTile`).
+  // renderer pick's `wy = groundY + h·tan(pitch)` → `pxToTile`). The target's
+  // own top is passed so only obstacles TALLER than it occlude — an
+  // equal-height neighbour (wall behind wall, cannon behind cannon) leaves
+  // the target's top visible and is correctly not an occluder.
   const occludedY = rayWalkOccluder(
     groundY,
     col,
     BATTLE_TILT_PITCH_RAD,
     (probeRow) => visualTopAt(state, probeRow, col),
     AIM_OCCLUSION_LOOKBACK,
+    visualTopAt(state, row, col),
   );
   if (occludedY === null) return { row, col };
   return { row: pxToTile(occludedY), col };
