@@ -125,7 +125,16 @@ const SWEET_SPOT_DISTANCE_RANGE = 5;
  *  wire payload. */
 const liveEnclosureCache = new WeakMap<
   Player,
-  { stamp: number; components: TileKey[][] }
+  {
+    stamp: number;
+    components: TileKey[][];
+    /** Per-wall distance to the outside flood (`wallDepthToOutside`). Cached
+     *  with `components`: both are pure functions of `walls`, so one stamp
+     *  invalidates both — and the enclosure-wall pick reads `depth` on every
+     *  shot, so recomputing the flood per pick (as the pre-cache code did)
+     *  was the dominant per-shot cost on the sieging path. */
+    depth: ReadonlyMap<TileKey, number>;
+  }
 >();
 /** Pockets smaller than this are worth destroying — can't fit a 2×2 cannon.
  *  Distinct from DESTROY_POCKET_MAX_SIZE (build scoring) which is higher (9)
@@ -418,6 +427,13 @@ export function isEnclosureBroken(
   return false;
 }
 
+/** Inverse flood-fill interior from a wall set — mirrors `recomputeInterior`
+ *  in build-system (grass not reachable from a map edge through non-wall tiles
+ *  is interior), but reads the CURRENT walls so breaches are reflected live. */
+export function computeLiveInterior(walls: ReadonlySet<TileKey>): Set<TileKey> {
+  return interiorFromOutside(walls, computeOutside(walls));
+}
+
 function collectStrategicWallTargets(
   state: BattleViewState,
   playerId: ValidPlayerId,
@@ -563,7 +579,7 @@ function shotCountKey(
 }
 
 /** Pick an enclosure of an eligible enemy, then return a wall bordering it.
- *  Uses a LIVE enclosure view (`liveEnclosuresOf`, recomputed from current
+ *  Uses a LIVE enclosure view (`liveEnclosureDataOf`, recomputed from current
  *  walls) rather than the frozen battle interior — so an enclosure already
  *  breached this battle drops out and the AI redirects fire to a still-intact
  *  tower's enclosure instead of poking an open hole. Reuses the cached
@@ -586,6 +602,7 @@ function pickEnclosureWallTarget(
   type CachedEnclosure = {
     ownerId: ValidPlayerId;
     walls: ReadonlySet<TileKey>;
+    depth: ReadonlyMap<TileKey, number>;
     tiles: TileKey[];
   };
   const allEnclosures: CachedEnclosure[] = [];
@@ -593,10 +610,14 @@ function pickEnclosureWallTarget(
     if (!isEnemyEligibleForFocus(other.id, focusFirePlayerId, switchTarget))
       continue;
     // Live (shared, cached) enclosure components — breached ones are absent.
-    for (const comp of liveEnclosuresOf(other)) {
+    // `depth` rides the same cache entry so the thinnest-barrier scoring below
+    // reads it instead of re-flooding the board on every shot.
+    const data = liveEnclosureDataOf(other);
+    for (const comp of data.components) {
       allEnclosures.push({
         ownerId: other.id,
         walls: other.walls,
+        depth: data.depth,
         tiles: comp,
       });
     }
@@ -671,11 +692,10 @@ function pickEnclosureWallTarget(
   // one column radially — converges on a real breach instead of peeling the
   // redundant inner shell of a double-walled corner (shots the defender need
   // not even repair). Uses only board-visible wall geometry (no peeking).
-  const outside = computeOutside(enclosure.walls);
-  const depth = wallDepthToOutside(enclosure.walls, outside);
+  // `depth` was computed once per wall-set and cached in `liveEnclosureDataOf`.
   const chosen = pickBreachWall(
     borderWalls,
-    depth,
+    enclosure.depth,
     targetMemory.lastWallTileKey,
     rand,
   );
@@ -729,6 +749,104 @@ function pickBreachWall(
   return { row: wall.row, col: wall.col, contiguous: false };
 }
 
+/** Pick the enclosure nearest the reference tile (crosshair), with a top-2
+ *  random tiebreak. Distance is reference→centroid Manhattan; centroid is the
+ *  tile-mean of the component, computed here (only on an enclosure switch).
+ *  Concentrates fire on the closest fortress region instead of a uniform-random
+ *  far jump — the dominant inter-shot scatter source (see pickPath diag). */
+function pickNearestEnclosure<T extends { tiles: TileKey[] }>(
+  enclosures: readonly T[],
+  refRow: number,
+  refCol: number,
+  rand: () => number,
+): T {
+  const scored = enclosures.map((enc) => {
+    let sumRow = 0;
+    let sumCol = 0;
+    for (const key of enc.tiles) {
+      const { row, col } = unpackTile(key);
+      sumRow += row;
+      sumCol += col;
+    }
+    const tileCount = enc.tiles.length;
+    const dist =
+      Math.abs(sumRow / tileCount - refRow) +
+      Math.abs(sumCol / tileCount - refCol);
+    return { enc, dist };
+  });
+  scored.sort((a, b) => a.dist - b.dist);
+  const topCount = Math.min(2, scored.length);
+  return scored[Math.floor(rand() * topCount)]!.enc;
+}
+
+/** Live enclosure data for an enemy — connected interior `components` plus the
+ *  per-wall `depth` to the outside flood, both computed from the enemy's CURRENT
+ *  walls (not the frozen battle snapshot). Cached and shared; recomputed only
+ *  when the enemy's wall-set content changes. Sharing one `computeOutside` flood
+ *  across both outputs (and caching `depth`) keeps the per-shot enclosure-wall
+ *  pick flood-free between wall destructions. */
+function liveEnclosureDataOf(enemy: Player): {
+  components: TileKey[][];
+  depth: ReadonlyMap<TileKey, number>;
+} {
+  const stamp = wallSetStamp(enemy.walls);
+  const hit = liveEnclosureCache.get(enemy);
+  if (hit !== undefined && hit.stamp === stamp) return hit;
+  const outside = computeOutside(enemy.walls);
+  const components = findEnclosureComponents(
+    interiorFromOutside(enemy.walls, outside),
+  );
+  const depth = wallDepthToOutside(enemy.walls, outside);
+  const entry = { stamp, components, depth };
+  liveEnclosureCache.set(enemy, entry);
+  return entry;
+}
+
+/** Find connected components of a tile set using 4-dir connectivity. */
+export function findEnclosureComponents(
+  tileSet: ReadonlySet<TileKey>,
+): TileKey[][] {
+  const visited = new Set<TileKey>();
+  const components: TileKey[][] = [];
+  for (const key of tileSet) {
+    if (visited.has(key)) continue;
+    const component: TileKey[] = [];
+    const queue = [key];
+    visited.add(key);
+    while (queue.length > 0) {
+      const current = queue.pop()!;
+      component.push(current);
+      const { row, col } = unpackTile(current);
+      for (const [dr, dc] of DIRS_4) {
+        const neighborKey = packTile(row + dr, col + dc);
+        if (!visited.has(neighborKey) && tileSet.has(neighborKey)) {
+          visited.add(neighborKey);
+          queue.push(neighborKey);
+        }
+      }
+    }
+    components.push(component);
+  }
+  return components;
+}
+
+/** Interior tiles given a precomputed outside flood — grass neither outside nor
+ *  wall. Split out so `liveEnclosureDataOf` can reuse a single `computeOutside`
+ *  flood for both the interior and the wall-depth map. */
+function interiorFromOutside(
+  walls: ReadonlySet<TileKey>,
+  outside: ReadonlySet<TileKey>,
+): Set<TileKey> {
+  const interior = new Set<TileKey>();
+  for (let row = 0; row < GRID_ROWS; row++) {
+    for (let col = 0; col < GRID_COLS; col++) {
+      const key = packTile(row, col);
+      if (!outside.has(key) && !walls.has(key)) interior.add(key);
+    }
+  }
+  return interior;
+}
+
 /** Distance, in wall tiles, from each enemy wall to the nearest outside tile —
  *  a multi-source BFS seeded at walls 4-adjacent to `outside` (depth 1) and
  *  propagated 4-dir through the wall body. A border wall's value is how many
@@ -768,91 +886,6 @@ function wallDepthToOutside(
     }
   }
   return depth;
-}
-
-/** Pick the enclosure nearest the reference tile (crosshair), with a top-2
- *  random tiebreak. Distance is reference→centroid Manhattan; centroid is the
- *  tile-mean of the component, computed here (only on an enclosure switch).
- *  Concentrates fire on the closest fortress region instead of a uniform-random
- *  far jump — the dominant inter-shot scatter source (see pickPath diag). */
-function pickNearestEnclosure<T extends { tiles: TileKey[] }>(
-  enclosures: readonly T[],
-  refRow: number,
-  refCol: number,
-  rand: () => number,
-): T {
-  const scored = enclosures.map((enc) => {
-    let sumRow = 0;
-    let sumCol = 0;
-    for (const key of enc.tiles) {
-      const { row, col } = unpackTile(key);
-      sumRow += row;
-      sumCol += col;
-    }
-    const tileCount = enc.tiles.length;
-    const dist =
-      Math.abs(sumRow / tileCount - refRow) +
-      Math.abs(sumCol / tileCount - refCol);
-    return { enc, dist };
-  });
-  scored.sort((a, b) => a.dist - b.dist);
-  const topCount = Math.min(2, scored.length);
-  return scored[Math.floor(rand() * topCount)]!.enc;
-}
-
-/** Live enclosure components for an enemy — connected interior regions computed
- *  from the enemy's CURRENT walls (not the frozen battle snapshot). Cached and
- *  shared; recomputed only when the enemy's wall-set content changes. */
-function liveEnclosuresOf(enemy: Player): TileKey[][] {
-  const stamp = wallSetStamp(enemy.walls);
-  const hit = liveEnclosureCache.get(enemy);
-  if (hit !== undefined && hit.stamp === stamp) return hit.components;
-  const components = findEnclosureComponents(computeLiveInterior(enemy.walls));
-  liveEnclosureCache.set(enemy, { stamp, components });
-  return components;
-}
-
-/** Find connected components of a tile set using 4-dir connectivity. */
-export function findEnclosureComponents(
-  tileSet: ReadonlySet<TileKey>,
-): TileKey[][] {
-  const visited = new Set<TileKey>();
-  const components: TileKey[][] = [];
-  for (const key of tileSet) {
-    if (visited.has(key)) continue;
-    const component: TileKey[] = [];
-    const queue = [key];
-    visited.add(key);
-    while (queue.length > 0) {
-      const current = queue.pop()!;
-      component.push(current);
-      const { row, col } = unpackTile(current);
-      for (const [dr, dc] of DIRS_4) {
-        const neighborKey = packTile(row + dr, col + dc);
-        if (!visited.has(neighborKey) && tileSet.has(neighborKey)) {
-          visited.add(neighborKey);
-          queue.push(neighborKey);
-        }
-      }
-    }
-    components.push(component);
-  }
-  return components;
-}
-
-/** Inverse flood-fill interior from a wall set — mirrors `recomputeInterior`
- *  in build-system (grass not reachable from a map edge through non-wall tiles
- *  is interior), but reads the CURRENT walls so breaches are reflected live. */
-export function computeLiveInterior(walls: ReadonlySet<TileKey>): Set<TileKey> {
-  const outside = computeOutside(walls);
-  const interior = new Set<TileKey>();
-  for (let row = 0; row < GRID_ROWS; row++) {
-    for (let col = 0; col < GRID_COLS; col++) {
-      const key = packTile(row, col);
-      if (!outside.has(key) && !walls.has(key)) interior.add(key);
-    }
-  }
-  return interior;
 }
 
 /** Order-independent content stamp of a wall set: size plus a sum of
