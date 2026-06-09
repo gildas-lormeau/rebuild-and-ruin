@@ -53,8 +53,10 @@ const COBBLESTONE_BASE: [number, number, number] = [125, 120, 115];
 const COBBLESTONE_TINT_FACTOR = 0.13;
 // Default terrain palette — sRGB byte triples, mirrored from the original
 // 2D bake. Pre-linearized into uniforms at material init.
-const GRASS_DARK_SRGB: RGB = [45, 140, 45];
-const GRASS_LIGHT_SRGB: RGB = [51, 153, 51];
+const GRASS_DARK_SRGB: RGB = [0, 113, 0];
+// #007100
+const GRASS_LIGHT_SRGB: RGB = [0, 134, 0];
+// #008600
 const GRASS_BATTLE_SRGB: RGB = [
   Math.floor(51 * 0.85),
   Math.floor(153 * 0.85),

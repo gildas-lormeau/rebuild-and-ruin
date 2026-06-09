@@ -57,14 +57,17 @@ const CANNON_HP_DEFAULT_INDEX = 0;
 const SETTINGS_KEY = "castles99_settings";
 // Player castle colors: wall (stone-tinted) and interior (checkerboard light/dark)
 const RED_WALL: RGB = [150, 110, 110];
-const RED_INTERIOR_LIGHT: RGB = [170, 30, 30];
-const RED_INTERIOR_DARK: RGB = [50, 10, 10];
+const RED_INTERIOR_LIGHT: RGB = [154, 0, 0];
+// #9a0000
+const RED_INTERIOR_DARK: RGB = [0, 0, 0];
 const BLUE_WALL: RGB = [100, 105, 140];
-const BLUE_INTERIOR_LIGHT: RGB = [30, 50, 170];
-const BLUE_INTERIOR_DARK: RGB = [10, 15, 50];
+const BLUE_INTERIOR_LIGHT: RGB = [0, 0, 109];
+// #00006d
+const BLUE_INTERIOR_DARK: RGB = [0, 0, 0];
 const GOLD_WALL: RGB = [170, 145, 90];
-const GOLD_INTERIOR_LIGHT: RGB = [190, 130, 20];
-const GOLD_INTERIOR_DARK: RGB = [55, 40, 10];
+const GOLD_INTERIOR_LIGHT: RGB = [190, 69, 0];
+// #be4500
+const GOLD_INTERIOR_DARK: RGB = [0, 0, 0];
 /** Ordered action keys for the controls screen (matches KeyBindings fields). */
 const ACTION_UP = "up";
 const ACTION_DOWN = "down";
