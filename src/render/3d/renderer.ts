@@ -313,13 +313,13 @@ export function createRender3d(
   // once by the first `warmEntityShaders` call. Its job is to hold a
   // live (undisposed) material for every entity shader program so the
   // program stays in three.js's program cache for the whole session.
-  // Several entity managers (cannonballs, the fire/smoke burst effects)
-  // `dispose()` their materials whenever their entity set empties — which
-  // happens during normal battle too, not just at warmup teardown — so
-  // pre-compiling them once isn't enough: the program would be released
-  // and re-linked on the next spawn. A retained clone with a matching
-  // shader cacheKey keeps the program's ref-count ≥ 1, so the manager's
-  // rebuild hits the cache (`acquireProgram`) instead of recompiling.
+  // Some entity managers (e.g. the fire/smoke burst effects) `dispose()`
+  // materials whenever their entity set empties — which happens during
+  // normal battle too, not just at warmup teardown — so pre-compiling
+  // them once isn't enough: the program would be released and re-linked
+  // on the next spawn. A retained clone with a matching shader cacheKey
+  // keeps the program's ref-count ≥ 1, so the manager's rebuild hits the
+  // cache (`acquireProgram`) instead of recompiling.
   const shaderKeepalive = new THREE.Group();
   shaderKeepalive.visible = false;
   shaderKeepalive.name = "shaderKeepalive";
@@ -347,8 +347,8 @@ export function createRender3d(
     for (const mesh of sources) {
       const clone = mesh.clone();
       clone.material = Array.isArray(mesh.material)
-        ? mesh.material.map((mat) => mat.clone())
-        : mesh.material.clone();
+        ? mesh.material.map((mat) => cloneKeepingShaderPatch(mat))
+        : cloneKeepingShaderPatch(mesh.material);
       clone.visible = true;
       clone.frustumCulled = false;
       shaderKeepalive.add(clone);
@@ -778,4 +778,20 @@ export function createRender3d(
 function sunBlendFromPitch(pitch: number, pitchMax: number): number {
   if (pitchMax <= 0) return 0;
   return Math.min(Math.max(pitch / pitchMax, 0), 1);
+}
+
+/** `Material.clone()` copies neither `onBeforeCompile` nor
+ *  `customProgramCacheKey` (both stay at the prototype defaults), so a
+ *  plain clone of an instance-modulated material (walls/grunts/debris,
+ *  see `entities/instance-modulation.ts`) would compile — and keep
+ *  alive — the UNPATCHED program while the patched one stayed
+ *  unprotected. Carry both over so the clone's program cache key
+ *  matches its source. The patchers are module-level (or close over
+ *  material-scoped uniforms), so sharing the function reference is
+ *  safe. */
+function cloneKeepingShaderPatch(mat: THREE.Material): THREE.Material {
+  const clone = mat.clone();
+  clone.onBeforeCompile = mat.onBeforeCompile;
+  clone.customProgramCacheKey = mat.customProgramCacheKey;
+  return clone;
 }
