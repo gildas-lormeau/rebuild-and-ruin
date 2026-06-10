@@ -19,13 +19,11 @@ export interface BonusSquaresManager {
 
 /** Inset size in world pixels — 8 of the 16 tile-width. */
 const INSET_SIZE = 8;
-/** Checker-grass base colors (match `GRASS_DARK` / `GRASS_LIGHT` in
- *  render-map.ts). We pick whichever shade is NOT under the tile so
+/** Checker-grass base colors (match `GRASS_DARK_SRGB` / `GRASS_LIGHT_SRGB`
+ *  in terrain.ts). We pick whichever shade is NOT under the tile so
  *  the inset contrasts against the tile's own grass. */
-const GRASS_DARK = 0x2d8c2d;
-// (45, 140, 45)
-const GRASS_LIGHT = 0x339933;
-// (51, 153, 51)
+const GRASS_DARK = 0x007100;
+const GRASS_LIGHT = 0x008600;
 /** Smooth breathing period in ms. Slower than the old 300ms flash so
  *  the pulse reads as a gentle glow rather than a strobe. */
 const PULSE_PERIOD_MS = 1200;
