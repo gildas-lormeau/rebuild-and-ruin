@@ -166,13 +166,13 @@ const BARREL_DARK: MaterialSpec = {
   roughness: 0.5,
   metalness: 0.7,
 };
-// Warmer, weathered olive for the catapult hull — pushes the chassis
-// toward brown-yellow so the green doesn't dominate the read. Same
-// "tank-shaped" silhouette, but visibly the dustier/older sibling of
-// the regular grunt's bright olive.
+// Muted, darker olive-green for the catapult hull — a cool green that
+// contrasts the warm wooden rig (arm + bowl) in hue so the timber reads
+// against the chassis at game scale. Darker and duller than the regular
+// grunt's bright olive, so the two unit types still read as distinct.
 const CATAPULT_HULL: MaterialSpec = {
   kind: "standard",
-  color: 0x6e6740,
+  color: 0x55602f,
   roughness: 0.9,
   metalness: 0.1,
 };
