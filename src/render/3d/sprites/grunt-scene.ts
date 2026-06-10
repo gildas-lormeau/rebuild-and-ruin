@@ -176,21 +176,23 @@ const CATAPULT_HULL: MaterialSpec = {
   roughness: 0.9,
   metalness: 0.1,
 };
-// Warm saddle-brown wood for the catapult arm + base plate — contrasts
-// the chassis from any camera angle so the silhouette also reads as
-// colour-distinct, not just shape-distinct. Matte (rope-bound timber).
+// Dark walnut for the catapult arm + base plate — the heavy structural
+// timber, deliberately darker than the bowl so the throwing beam reads as
+// the denser member. Contrasts the chassis from any angle. Matte (rope-
+// bound timber).
 const CATAPULT_ARM_WOOD: MaterialSpec = {
   kind: "standard",
-  color: 0x8b5a2b,
+  color: 0x3a2410,
   roughness: 0.95,
   metalness: 0.05,
 };
-// Same wood as the arm, but double-sided so the open spoon-bowl's inner
-// wall renders correctly (the bucket cylinder is openEnded so the bowl
-// looks concave from any camera angle, not like a solid paddle face).
+// Lighter saddle-brown wood for the spoon-bowl — a paler timber than the
+// arm so the scoop stands out as a distinct part at the throwing tip.
+// Double-sided so the open cone's inner wall renders correctly (the
+// bucket cylinder is openEnded so the bowl looks concave from any angle).
 const CATAPULT_BOWL_WOOD: MaterialSpec = {
   kind: "standard",
-  color: 0x4a2f17,
+  color: 0x8b5a2b,
   roughness: 0.95,
   metalness: 0.05,
   side: "double",
