@@ -1,10 +1,10 @@
 /**
- * Linear ramp + damped sine wave shared by fog/rubble overlay derivations.
- * Linear lerp from `start` to `end` over `durationMs`; a sine wave
- * (frequency `1 / wavePeriodMs`) layers on top with peak amplitude at
- * `t = 0`, decaying linearly to zero at `t = 1` so the curve always lands
- * cleanly on the endpoint. Returns a `[0, 1]`-clamped opacity multiplier.
- * Caller stops the ramp at `elapsed >= durationMs` — no short-circuit.
+ * Linear ramp + damped sine wave shared by the modifier-reveal derivations
+ * (fog, rubble-clearing, dust-storm, frostbite). Linear lerp `start`→`end`
+ * over `durationMs`; a sine wave (freq `1 / wavePeriodMs`) decays from peak
+ * at `t = 0` to zero at `t = 1`, landing cleanly on the endpoint. Returns a
+ * `[0, 1]`-clamped multiplier (opacity, or dust-storm sway amplitude).
+ * Caller stops at `elapsed >= durationMs` — no short-circuit.
  */
 
 export function wavedRamp(opts: {

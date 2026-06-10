@@ -227,11 +227,11 @@ export function createGameLifecycle(
     // camera system) already gates on `hasPointerPlayer`, so the demo
     // session reads as inactive regardless of `zoomActivated`'s value.
     teardownSession();
-    // Defensive: lobby.map should already be null here — bootstrapNewGame
-    // consumed it at game-start (see bootstrap.ts ownership transfer)
-    // so in-game tile/house mutations couldn't leak via the cached reference.
-    // We re-null anyway in case a future path re-populates lobby.map during
-    // play; cheaper than auditing every callsite.
+    // Null the stale lobby preview map so the next lobby session
+    // regenerates it fresh from the (possibly new) seed. The in-game map
+    // is a separate object generated in `bootstrap` from the seed
+    // (`createGameFromSeed`), NOT this preview reference, so in-game
+    // tile/house mutations never touched it.
     deps.clearLobbyMap();
     deps.clearGameOver();
     deps.resetInputForLobby();

@@ -82,14 +82,14 @@ export interface RuntimeCamera {
    *  zoom state from tests; not consumed in the runtime hot path
    *  (which uses `updateViewport`'s return value directly). */
   getViewport: () => Viewport | undefined;
-  /** Current camera pitch in radians (animated on phase transitions). 3D mode
-   *  only — 2D mode always returns 0. */
+  /** Current camera pitch in radians (animated on phase transitions). The
+   *  tilt is always-on — the deterministic animation runs on every peer,
+   *  headless included (see 31d05f2f). */
   getPitch: () => number;
-  /** Maximum pitch the camera reaches when fully tilted into the 3D
-   *  battle view. Constant for the lifetime of the runtime; exposed so
-   *  the renderer can normalize `getPitch()` into a `[0, 1]` tilt
-   *  progress without duplicating the constant cross-domain. 2D mode
-   *  returns 0. */
+  /** Maximum pitch the camera reaches when fully tilted into the battle
+   *  view. Constant for the lifetime of the runtime; exposed so the
+   *  renderer can normalize `getPitch()` into a `[0, 1]` tilt progress
+   *  without duplicating the constant cross-domain. */
   getPitchMax: () => number;
   /** Request an immediate pitch=0 ease. Idempotent. Used for "untilt
    *  without unzoom" (pitch only). The transition path already flattens
@@ -97,13 +97,12 @@ export interface RuntimeCamera {
   beginUntilt: () => void;
   /** Start the build→battle tilt animation. Called explicitly at
    *  battle-banner end so the tilt plays unzoomed, before balloons /
-   *  "ready" / auto-zoom into the battle zone. 2D mode: no-op. */
+   *  "ready" / auto-zoom into the battle zone. */
   beginTilt: () => void;
   /** Pitch-animation state machine value. `"flat"` / `"tilted"` are
    *  resting states; `"tilting"` / `"untilting"` indicate an in-progress
-   *  ease. 2D mode always returns `"flat"`. Subscribers that want the
-   *  settle edge (not the polled state) should listen for
-   *  `GAME_EVENT.PITCH_SETTLED` instead. */
+   *  ease. Subscribers that want the settle edge (not the polled state)
+   *  should listen for `GAME_EVENT.PITCH_SETTLED` instead. */
   getPitchState: () => "flat" | "tilting" | "tilted" | "untilting";
   screenToWorld: (x: number, y: number) => WorldPos;
   /** Like `screenToWorld` but returns the world position of the first
@@ -1304,8 +1303,7 @@ export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
    *  those pixels, not a mid-lerp one. Checks `lastVp === undefined`
    *  (updateViewport sets that exactly when currentVp has converged to
    *  fullMapVp) AND pitch settled at 0 (tickPitch parks `currentPitch`
-   *  at `targetPitch` on the settle frame, and in 2D mode pitch is
-   *  hard-zeroed so the second clause is trivially true). */
+   *  at `targetPitch` on the settle frame). */
   function onRenderedFrame(): void {
     if (pendingUnzoomReady === undefined) return;
     if (lastVp !== undefined) return;
@@ -1367,9 +1365,7 @@ export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
   /** Start the build→battle tilt. Called explicitly from the phase
    *  machine at battle-banner end (inside `proceedToBattleFromCtx`) so the
    *  tilt animation plays with the camera already at fullMapVp,
-   *  BEFORE balloons / "ready" / auto-zoom into the battle zone.
-   *  2D mode: no-op — `tickPitch` hard-zeros pitch when the renderer
-   *  isn't 3d, so the target we set here is overwritten next tick. */
+   *  BEFORE balloons / "ready" / auto-zoom into the battle zone. */
   function beginTilt(): void {
     setPitchTarget(TILT_BATTLE_PITCH);
   }

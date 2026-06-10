@@ -2,8 +2,8 @@
  * Phase transition banner strings.
  *
  * Display copy for the banner UI that plays between phase transitions.
- * Owned by shared/ because banner text is a UI concern — the game domain
- * emits phase events, the renderer chooses what to display.
+ * Lives in runtime/ — banner copy is a presentation concern: the game
+ * domain emits phase events, the renderer chooses what to display.
  */
 
 export const BANNER_PLACE_CANNONS = "Place Cannons";

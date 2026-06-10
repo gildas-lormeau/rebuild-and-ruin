@@ -484,11 +484,13 @@ const BATTLE_DONE: Transition = {
  *  no side has fighting capability, so the battle is skipped at the
  *  engine level. `enterBuildSkippingBattle` does the pre-battle cleanup
  *  (burning-pit decay, wall sweep, territory recheck, modifier clear)
- *  then calls `finalizeBattle` + `prepareNextRound` (round increment, upgrade
- *  offer generation). Shows no banner; `postDisplay` routes to
- *  `enter-upgrade-pick` or `enter-wall-build`. Watcher never hits this
- *  transition — the host broadcasts BUILD_START and the watcher routes
- *  through `battle-done`. */
+ *  then calls `finalizeBattle` + `prepareNextRound` (upgrade-offer
+ *  generation, interbattle grunt spawn — the round increment happens
+ *  later, in `round-end`). Shows no banner; `postDisplay` routes to
+ *  `enter-upgrade-pick` or `enter-wall-build`. Dispatched on every peer's
+ *  local tick (`tickCannonPhase` checks `shouldSkipBattle` unconditionally);
+ *  the host additionally broadcasts BUILD_START, a payload-less marker the
+ *  watcher ignores. */
 const CEASEFIRE: Transition = {
   id: "ceasefire",
   from: Phase.CANNON_PLACE,

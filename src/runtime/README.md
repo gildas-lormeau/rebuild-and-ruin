@@ -191,10 +191,9 @@ directly — they receive a `TimingApi` via deps.
   (consumed by selection).
 - **`ui-contracts.ts`** — Sub-system interface aggregator: `UIContext`,
   `BannerState`, `BannerShow`, and every `XSystem` / `XDeps` type
-  shared across the composition root. Also exports
-  `createBannerState()` — a trivial factory intentionally placed here
-  (not in `state.ts`) to keep `state.ts` at L6 in the layer graph.
-  Don't "helpfully" move it. See
+  shared across the composition root. The `createBannerState()` factory
+  lives in `banner-state.ts` (kept out of `state.ts` to hold `state.ts`
+  at L6 in the layer graph — don't "helpfully" move it). See
   [skills/layer-graph-cleanup.md](../../skills/layer-graph-cleanup.md).
 - **`tick-context.ts`** — Shared tick-context types + the
   APPLY/TICK/CHECKPOINT mutation-phase doc. Extracted from
