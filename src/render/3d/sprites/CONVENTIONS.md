@@ -40,16 +40,23 @@ quantization. Use `cells(n)` from `sprite-kit.ts` to read this as "n cells".
 
 ## Procedural scatter bounds
 
-For scenes that scatter rotated rocks/chunks within a footprint, keep:
+For scenes that scatter rotated rocks/chunks within a footprint, the
+guaranteed-safe bound is:
 
 ```
-halfFootprint + 0.707 × maxRockSize ≤ 1   (the ±1 frustum half-width)
+halfFootprint + 0.5 × √(2 + maxFlatness²) × maxRockSize ≤ 1
 ```
 
-The 0.707 factor is the worst-case corner reach of a box of edge length
-`maxRockSize` under random XZ rotation. Breaking this rule means rocks at
-the footprint edge can extend past the sprite frame when rotated to a
-diagonal. Verified visually, not automatically.
+(the ±1 frustum half-width). The size factor is the worst-case corner
+reach of a `maxRockSize × maxRockSize × (flatness · maxRockSize)` box
+under the layout's full 3-axis rotation — ≈ 0.84–0.87 at typical
+flatness ranges, NOT the XZ-only 0.71 diagonal. A variant may exceed
+this hard bound intentionally: the scatter is seeded, so the binding
+check is the actual layout (the wall/tower debris variants overhang by
+up to ~0.16, a deliberate trade for chunky rocks that still read at
+16 px/tile — in game that's a small spill into neighbor tiles, not a
+clip). Verify in the sprite viewer, which hard-anchors X to the ±1
+frame and will flat-cut anything past it.
 
 ## Scene module shape
 
