@@ -21,9 +21,10 @@ interface ScoreDeltaDeps {
  *  including during banner/castle-build animations). Driven by `tick(dt)`
  *  from the main loop; visibility is on the runtime's overlay state. */
 export interface RuntimeScoreDelta {
-  /** Snapshot current player scores before the build phase starts. */
-  capturePreScores: () => void;
-  /** Set pre-scores directly (online watcher receives them from host). */
+  /** Set the round's pre-build scores. Sole producer: ROUND_END's mutate
+   *  captures them right before `finalizeRound` mutates scores via the
+   *  territory + life-penalty awards — every peer (host and watcher) runs
+   *  that mutate locally. */
   setPreScores: (scores: readonly number[]) => void;
   /** Show animated score deltas. `onDone` fires once when animation finishes
    *  (or immediately if no positive deltas exist). */
@@ -45,12 +46,6 @@ export function createScoreDeltaSystem(
 
   /** Fires when the delta animation finishes. */
   let pendingDoneCb: (() => void) | undefined;
-
-  function capturePreScores(): void {
-    runtimeState.scoreDisplay.preScores = runtimeState.state.players.map(
-      (player) => player.score,
-    );
-  }
 
   function setPreScores(scores: readonly number[]): void {
     runtimeState.scoreDisplay.preScores = scores;
@@ -121,7 +116,6 @@ export function createScoreDeltaSystem(
   }
 
   return {
-    capturePreScores,
     setPreScores,
     show,
     tick,

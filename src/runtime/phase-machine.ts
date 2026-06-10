@@ -190,10 +190,9 @@ export interface PhaseTransitionCtx {
   readonly log: (msg: string) => void;
 
   readonly scoreDelta: {
-    // `capturePreScores` is intentionally absent: the round's pre-scores are
-    // captured via `deps.scoreDelta` inside `startBuildPhase`, never through
-    // ctx. Only `setPreScores` (ROUND_END) is driven from the machine, and
-    // it is always provided — not optional.
+    // The round's pre-scores are captured inline in ROUND_END's mutate
+    // (before `finalizeRound` mutates scores) and handed to `setPreScores`
+    // — there is no separate capture hook. Always provided, not optional.
     readonly setPreScores: (scores: readonly number[]) => void;
     readonly show: (onDone: () => void) => void;
     readonly reset: () => void;
@@ -570,8 +569,8 @@ const ENTER_WALL_BUILD: Transition = {
     // Phase flip + entry-time timer anchor (timer must reflect THIS round's
     // upgrade set — see `enterWallBuildPhase` JSDoc for the parity story).
     enterWallBuildPhase(ctx.state);
-    // Per-controller startBuildPhase + scoreDelta reset/capturePreScores
-    // + clearImpacts + accumulator resets. Same on every peer.
+    // Per-controller startBuildPhase + scoreDelta reset + clearImpacts
+    // + accumulator resets. Same on every peer.
     ctx.startBuildPhaseLocal?.();
     return EMPTY_TRANSITION_RESULT;
   },

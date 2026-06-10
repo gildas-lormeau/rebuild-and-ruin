@@ -138,7 +138,6 @@ interface PhaseTicksDeps extends Pick<RuntimeConfig, "log"> {
     onAdvance: () => void;
   };
   scoreDelta: {
-    capturePreScores: () => void;
     setPreScores: (scores: readonly number[]) => void;
     show: (onDone: () => void) => void;
     reset: () => void;
@@ -453,7 +452,6 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     const remotePlayerSlots = runtimeState.frameMeta.remotePlayerSlots;
     deps.log(`startBuildPhase (round=${runtimeState.state.round})`);
     deps.scoreDelta.reset();
-    deps.scoreDelta.capturePreScores();
     if (runtimeState.state.phase !== Phase.WALL_BUILD) {
       throw new Error("startBuildPhase called outside WALL_BUILD");
     }
