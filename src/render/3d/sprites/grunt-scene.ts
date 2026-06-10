@@ -496,7 +496,7 @@ function buildLauncherTop(
       top.bucket.length,
       20,
       1,
-      false,
+      true,
     ),
     createMaterial(top.bucket.material),
   );
