@@ -98,32 +98,25 @@ export function disposeAllBuckets<Bucket extends CapacityBucket>(
 }
 
 /** Build a set of `BucketSubPart`s by running a variant-specific scene
- *  builder into a scratch group, extracting every sub-mesh, optionally
- *  applying a per-part transform (e.g. debris' per-owner flag tint), and
- *  wrapping each as an `InstancedMesh` under `root`. Factors out the
- *  common "scratch → extract → (transform) → wrap" pipeline shared by
- *  walls, cannons, and debris. Callers wrap the returned array in their
- *  own bucket object shape (VariantBucket / MaskBucket / etc.). */
+ *  builder into a scratch group, extracting every sub-mesh, and wrapping
+ *  each as an `InstancedMesh` under `root`. Factors out the common
+ *  "scratch → extract → wrap" pipeline shared by walls, cannons, and
+ *  debris. Callers wrap the returned array in their own bucket object
+ *  shape (VariantBucket / MaskBucket / etc.). */
 export function buildVariantBucket(opts: {
   readonly capacity: number;
   readonly root: THREE.Group;
   readonly ownedMaterials: THREE.Material[];
   readonly scratchBuilder: (scratch: THREE.Group) => void;
   readonly namePrefix: string;
-  readonly transformPart?: (
-    part: ExtractedSubPart,
-    index: number,
-  ) => ExtractedSubPart;
 }): BucketSubPart[] {
   const scratch = new THREE.Group();
   opts.scratchBuilder(scratch);
   const extracted = extractSubParts(scratch);
   const subParts: BucketSubPart[] = [];
-  for (let i = 0; i < extracted.length; i++) {
-    const part = extracted[i]!;
-    const transformed = opts.transformPart ? opts.transformPart(part, i) : part;
+  for (const part of extracted) {
     const wrapped = wrapSubPartAsInstancedMesh(
-      transformed,
+      part,
       opts.capacity,
       opts.root,
       opts.ownedMaterials,
@@ -134,7 +127,7 @@ export function buildVariantBucket(opts: {
     // opaque peers so translucent materials sit underneath without
     // z-fight. Replaces per-variant index-based patches in the entity
     // managers.
-    if (subPartHasTag(transformed, "render-behind")) {
+    if (subPartHasTag(part, "render-behind")) {
       wrapped.instanced.renderOrder = -1;
     }
     subParts.push(wrapped);

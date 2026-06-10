@@ -13,6 +13,7 @@
 // base material and then assign `.map` on the returned material.
 
 import * as THREE from "three";
+import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 
 type MaterialSide = keyof typeof SIDE_MAP_KEYS;
 
@@ -123,6 +124,70 @@ export function measureVariantBoundsY(build: (scratch: THREE.Group) => void): {
   scratch.updateMatrixWorld(true);
   const bbox = new THREE.Box3().setFromObject(scratch);
   return { minY: bbox.min.y, maxY: bbox.max.y };
+}
+
+/**
+ * Bucket every descendant mesh under `group` by material identity
+ * (reference equality on the `material` property — so all merlon bodies
+ * share one bucket, all merlon caps share another, all AO planes a third,
+ * etc.) and merge each bucket's geometries into a single mesh. Each
+ * source mesh's `matrixWorld` is baked into the merged vertex positions
+ * so parented sub-meshes (e.g. caps that are children of merlons,
+ * inheriting any tilt applyWallDamage applied to the parent) merge with
+ * their effective world placement intact. Because the merged mesh is
+ * re-added directly under `group` with an identity local matrix, callers
+ * must invoke this while `group`'s own world transform is identity —
+ * detached scratch groups (the wall/debris builders) qualify.
+ *
+ * Single-mesh buckets are left untouched (e.g. the wall body has its own
+ * unique multi-material array — kept as-is). All other buckets use
+ * `useGroups = false`: every input mesh has a single Material, so
+ * three.js skips group iteration when rendering the merged mesh and the
+ * merge is one drawElements per bucket.
+ */
+export function mergeByMaterial(three: typeof THREE, group: THREE.Group): void {
+  group.updateMatrixWorld(true);
+  type Material = THREE.Material | THREE.Material[];
+  interface Bucket {
+    material: Material;
+    meshes: THREE.Mesh[];
+  }
+  const buckets: Bucket[] = [];
+  group.traverse((obj) => {
+    if (!(obj instanceof three.Mesh)) return;
+    const bucket = buckets.find((entry) => entry.material === obj.material);
+    if (bucket) bucket.meshes.push(obj);
+    else buckets.push({ material: obj.material, meshes: [obj] });
+  });
+
+  for (const bucket of buckets) {
+    if (bucket.meshes.length < 2) continue;
+    const baked = bucket.meshes.map((mesh) =>
+      mesh.geometry.clone().applyMatrix4(mesh.matrixWorld),
+    );
+    // `mergeGeometries` requires the index attribute to exist in all
+    // inputs or in none. Debris buckets mix indexed primitives (box /
+    // cylinder / sphere) with non-indexed icosahedra — de-index the
+    // indexed ones when a bucket is mixed. Homogeneous buckets (all of
+    // wall-scene's) skip this branch entirely.
+    if (baked.some((geom) => geom.index === null)) {
+      for (let i = 0; i < baked.length; i++) {
+        const geom = baked[i]!;
+        if (geom.index !== null) {
+          baked[i] = geom.toNonIndexed();
+          geom.dispose();
+        }
+      }
+    }
+    const merged = mergeGeometries(baked, false);
+    for (const geom of baked) geom.dispose();
+    const mergedMesh = new three.Mesh(merged, bucket.material);
+    for (const mesh of bucket.meshes) {
+      mesh.parent?.remove(mesh);
+      mesh.geometry.dispose();
+    }
+    group.add(mergedMesh);
+  }
 }
 
 /**

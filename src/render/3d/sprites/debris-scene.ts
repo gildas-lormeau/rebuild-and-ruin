@@ -12,6 +12,7 @@ import {
   createMaterial,
   findVariant,
   type MaterialSpec,
+  mergeByMaterial,
 } from "./sprite-kit.ts";
 import {
   BAND_GREEN,
@@ -907,7 +908,26 @@ export function buildDebris(
   scene: THREE.Scene | THREE.Group,
   variant: VariantDescriptor,
 ): void {
-  const mat = (spec: MaterialSpec): THREE.Material => createMaterial(spec);
+  // One material instance per distinct MaterialSpec. Every spec a debris
+  // piece references is a module-level constant (declared above or in
+  // sprite-materials.ts), so reference identity is a valid map key — and
+  // shared material identity is what lets `mergeByMaterial` collapse the
+  // pile below.
+  const materials = new Map<MaterialSpec, THREE.Material>();
+  const mat = (spec: MaterialSpec): THREE.Material => {
+    let material = materials.get(spec);
+    if (material === undefined) {
+      material = createMaterial(spec);
+      materials.set(spec, material);
+    }
+    return material;
+  };
+
+  // Assemble into a detached pile group whose transform stays identity,
+  // so `mergeByMaterial` bakes exactly each rock's local matrix even when
+  // the caller's `scene` carries a transform (the sprite viewer rotates
+  // its subject group).
+  const pile = new three.Group();
 
   // Wall rubble: add an opaque full-tile base plate under the rocks so
   // grass doesn't show through the gaps between pieces. Uses the
@@ -919,7 +939,7 @@ export function buildDebris(
       mat(WALL_STONE_LIGHT),
     );
     plate.position.set(0, 0.01, 0);
-    scene.add(plate);
+    pile.add(plate);
   }
 
   const pieces = debrisLayout(variant);
@@ -932,8 +952,15 @@ export function buildDebris(
     if (piece.rot) mesh.rotation.set(piece.rot[0], piece.rot[1], piece.rot[2]);
     if (piece.scale)
       mesh.scale.set(piece.scale[0], piece.scale[1], piece.scale[2]);
-    scene.add(mesh);
+    pile.add(mesh);
   }
+
+  // Collapse same-material rocks/chunks into one mesh per distinct
+  // material. A 120-rock pile is otherwise 120+ Meshes, and the entity
+  // manager's extract-and-instance pass turns every Mesh into its own
+  // InstancedMesh sub-part — i.e. its own draw call per debris bucket.
+  mergeByMaterial(three, pile);
+  scene.add(pile);
 }
 
 /**

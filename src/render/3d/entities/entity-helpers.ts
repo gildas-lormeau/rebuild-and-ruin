@@ -138,16 +138,10 @@ export function tintNamedMeshes(
   });
 }
 
-/** Pack an RGB tuple into a 24-bit THREE hex integer. */
-export function rgbToHex(rgb: RGB): number {
-  const [red, green, blue] = rgb;
-  return ((red & 0xff) << 16) | ((green & 0xff) << 8) | (blue & 0xff);
-}
-
 /** Clone a material (picking the first entry if an array is passed) and
  *  overwrite its diffuse color. Returns the clone; does not mutate the
  *  source. */
-export function cloneAndTintMaterial(
+function cloneAndTintMaterial(
   source: THREE.Material | THREE.Material[],
   color: number,
 ): THREE.Material {
@@ -160,4 +154,10 @@ export function cloneAndTintMaterial(
     cloned.color.setHex(color);
   }
   return cloned;
+}
+
+/** Pack an RGB tuple into a 24-bit THREE hex integer. */
+function rgbToHex(rgb: RGB): number {
+  const [red, green, blue] = rgb;
+  return ((red & 0xff) << 16) | ((green & 0xff) << 8) | (blue & 0xff);
 }

@@ -3,8 +3,7 @@
  * three share `debris-scene.ts`; live-entity managers skip dead entries so
  * this file owns every rubble mesh. Variants pick by hashed (col,row) for
  * walls, mode/flags for cannons, home vs secondary for towers. Extract-
- * and-instance bucket pattern; `home_tower_debris` forks per ownerId so
- * the flag tints to the owning player.
+ * and-instance bucket pattern, one bucket per variant name.
  */
 
 import * as THREE from "three";
@@ -19,17 +18,13 @@ import {
   TILE_SIZE,
   type TileKey,
 } from "../../../shared/core/grid.ts";
-import type { ValidPlayerId } from "../../../shared/core/player-slot.ts";
 import { unpackTile } from "../../../shared/core/spatial.ts";
 import { wallDestroyAnimAt } from "../../../shared/core/wall-destroy-anim.ts";
 import type { RenderOverlay } from "../../../shared/ui/overlay-types.ts";
-import { getPlayerColor } from "../../../shared/ui/player-config.ts";
 import type { FrameCtx } from "../frame-ctx.ts";
 import { buildDebris, getDebrisVariant } from "../sprites/debris-scene.ts";
 import {
   cannonKind,
-  cloneAndTintMaterial,
-  rgbToHex,
   TILE_2X2_CENTER_OFFSET,
   TILE_3X3_CENTER_OFFSET,
 } from "./entity-helpers.ts";
@@ -54,8 +49,6 @@ export interface DebrisManager {
 }
 
 interface VariantBucket {
-  readonly key: string;
-  readonly variantName: string;
   /** One InstancedMesh per sub-part of the authored debris pile. Shape is
    *  constant for the bucket's lifetime; capacity grows by replacement. */
   subParts: BucketSubPart[];
@@ -65,12 +58,10 @@ interface VariantBucket {
 }
 
 interface DebrisEntry {
-  readonly key: string;
   readonly variantName: string;
   readonly centerPxX: number;
   readonly centerPxZ: number;
   readonly scale: number;
-  readonly ownerId: ValidPlayerId | undefined;
   /** Per-instance alpha multiplier in [0, 1]. 1 for live entries;
    *  held entries carry the runtime-derived fade multiplier. */
   readonly opacity: number;
@@ -94,10 +85,7 @@ export function createDebrisManager(scene: THREE.Scene): DebrisManager {
   root.name = "debris";
   scene.add(root);
 
-  // One bucket per key. Allocated lazily on first use. For every variant
-  // but home_tower_debris, key === variantName. For home_tower_debris,
-  // key === `home_tower_debris:<ownerId>` so the flag chunk can render
-  // with a per-owner tint in the shared material.
+  // One bucket per variant name. Allocated lazily on first use.
   const buckets = new Map<string, VariantBucket>();
   const ownedMaterials: THREE.Material[] = [];
   // Two-tier cache: structural signature gates the expensive bucket
@@ -115,18 +103,15 @@ export function createDebrisManager(scene: THREE.Scene): DebrisManager {
   const scaleVec = new THREE.Vector3();
 
   function ensureBucket(
-    key: string,
     variantName: string,
-    ownerId: ValidPlayerId | undefined,
     required: number,
   ): VariantBucket | undefined {
     return ensureBucketCapacity(
       buckets,
-      key,
+      variantName,
       required,
       INITIAL_CAPACITY,
-      (capacity) =>
-        buildBucket(key, variantName, ownerId, capacity, root, ownedMaterials),
+      (capacity) => buildBucket(variantName, capacity, root, ownedMaterials),
     );
   }
 
@@ -165,12 +150,12 @@ export function createDebrisManager(scene: THREE.Scene): DebrisManager {
     }
 
     const entries = collectEntries(overlay, towers);
-    const byKey = new Map<string, DebrisEntry[]>();
+    const byVariant = new Map<string, DebrisEntry[]>();
     for (const entry of entries) {
-      let list = byKey.get(entry.key);
+      let list = byVariant.get(entry.variantName);
       if (!list) {
         list = [];
-        byKey.set(entry.key, list);
+        byVariant.set(entry.variantName, list);
       }
       list.push(entry);
     }
@@ -178,18 +163,12 @@ export function createDebrisManager(scene: THREE.Scene): DebrisManager {
     if (structuralChanged) {
       lastStructuralSignature = structuralSignature;
 
-      for (const [key, bucket] of buckets) {
-        if (!byKey.has(key)) hideSubParts(bucket.subParts);
+      for (const [variantName, bucket] of buckets) {
+        if (!byVariant.has(variantName)) hideSubParts(bucket.subParts);
       }
 
-      for (const [key, list] of byKey) {
-        const first = list[0]!;
-        const bucket = ensureBucket(
-          key,
-          first.variantName,
-          first.ownerId,
-          list.length,
-        );
+      for (const [variantName, list] of byVariant) {
+        const bucket = ensureBucket(variantName, list.length);
         if (!bucket) continue;
         fillBucket(
           bucket,
@@ -209,7 +188,7 @@ export function createDebrisManager(scene: THREE.Scene): DebrisManager {
     // rebuild also resets `attachInstanceOpacity`'s default-1 fill.
     writeBucketAttribute(
       buckets,
-      byKey,
+      byVariant,
       (bucket) => bucket.opacityAttrs,
       (entry) => entry.opacity,
     );
@@ -256,12 +235,10 @@ function collectWallDebris(
       const { row, col } = unpackTile(key);
       const variantName = wallDebrisVariantName(col, row);
       entries.push({
-        key: variantName,
         variantName,
         centerPxX: (col + 0.5) * TILE_SIZE,
         centerPxZ: (row + 0.5) * TILE_SIZE,
         scale: DEBRIS_SCALE_1X1,
-        ownerId: undefined,
         opacity: debrisOpacityByTileKey.get(key) ?? 1,
       });
     }
@@ -280,20 +257,18 @@ function collectDeadCannonDebris(
         ? TILE_3X3_CENTER_OFFSET
         : TILE_2X2_CENTER_OFFSET;
       entries.push({
-        key: variantName,
         variantName,
         centerPxX: cannon.col * TILE_SIZE + offset,
         centerPxZ: cannon.row * TILE_SIZE + offset,
         scale: DEBRIS_SCALE_2X2,
-        ownerId: undefined,
         opacity: 1,
       });
     }
   }
 }
 
-/** Dead towers. Home towers fork by ownerId so the flag chunk carries
- *  the right color. */
+/** Dead towers. Enclosed (home) towers use the bigger home variant;
+ *  unowned towers use the secondary variant. */
 function collectDeadTowerDebris(
   entries: DebrisEntry[],
   overlay: RenderOverlay,
@@ -309,15 +284,11 @@ function collectDeadTowerDebris(
     const ownerId = enclosedTowers?.get(i);
     const variantName =
       ownerId !== undefined ? "home_tower_debris" : "secondary_tower_debris";
-    const bucketKey =
-      ownerId !== undefined ? `${variantName}:${ownerId}` : variantName;
     entries.push({
-      key: bucketKey,
       variantName,
       centerPxX: tower.col * TILE_SIZE + TILE_2X2_CENTER_OFFSET,
       centerPxZ: tower.row * TILE_SIZE + TILE_2X2_CENTER_OFFSET,
       scale: DEBRIS_SCALE_2X2,
-      ownerId,
       opacity: 1,
     });
   }
@@ -342,12 +313,10 @@ function collectHeldDeadCannonDebris(
       ? TILE_3X3_CENTER_OFFSET
       : TILE_2X2_CENTER_OFFSET;
     entries.push({
-      key: variantName,
       variantName,
       centerPxX: held.col * TILE_SIZE + offset,
       centerPxZ: held.row * TILE_SIZE + offset,
       scale: DEBRIS_SCALE_2X2,
-      ownerId: undefined,
       opacity: rubbleClearingFade,
     });
   }
@@ -453,25 +422,18 @@ function cannonDebrisVariantName(
   }
 }
 
-/** Build a bucket for one key: run `buildDebris` once into a scratch
- *  group, extract every sub-mesh, optionally swap the flag sub-part's
- *  material for a per-owner tinted clone, and wrap each as an
- *  `InstancedMesh` under `root`. Returns `undefined` if the variant is
- *  unknown to its registry. */
+/** Build a bucket for one variant: run `buildDebris` once into a scratch
+ *  group, extract every sub-mesh, and wrap each as an `InstancedMesh`
+ *  under `root`. Returns `undefined` if the variant is unknown to its
+ *  registry. */
 function buildBucket(
-  key: string,
   variantName: string,
-  ownerId: ValidPlayerId | undefined,
   capacity: number,
   root: THREE.Group,
   ownedMaterials: THREE.Material[],
 ): VariantBucket | undefined {
   const variant = getDebrisVariant(variantName);
   if (!variant) return undefined;
-  const flagTint =
-    ownerId !== undefined && variantName === "home_tower_debris"
-      ? rgbToHex(getPlayerColor(ownerId).interiorLight)
-      : undefined;
   const subParts = buildVariantBucket({
     capacity,
     root,
@@ -479,21 +441,7 @@ function buildBucket(
     scratchBuilder: (scratch) => {
       buildDebris(THREE, scratch, variant);
     },
-    namePrefix: `debris-${key}`,
-    // Per-owner flag tint: clone the material for the "flag" sub-part so
-    // multiple owner buckets don't share state. Only home_tower_debris
-    // names a mesh "flag" (see debris-scene.ts), so this is a no-op for
-    // every other variant.
-    transformPart:
-      flagTint !== undefined
-        ? (part) =>
-            part.name === "flag"
-              ? {
-                  ...part,
-                  material: cloneAndTintMaterial(part.material, flagTint),
-                }
-              : part
-        : undefined,
+    namePrefix: `debris-${variantName}`,
   });
   // Attach per-instance opacity so the rubble_clearing fade can write
   // a 0..1 multiplier per slot. Live entries get 1 (no override); held
@@ -501,5 +449,5 @@ function buildBucket(
   const opacityAttrs = subParts.map((part) =>
     attachInstanceOpacity(part.instanced, capacity),
   );
-  return { key, variantName, subParts, opacityAttrs, capacity };
+  return { subParts, opacityAttrs, capacity };
 }
