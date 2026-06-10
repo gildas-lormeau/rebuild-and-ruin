@@ -284,6 +284,13 @@ export function createSfxSubsystem(deps: SfxSubsystemDeps): SfxSubsystem {
   }> = [];
   let paused = false;
   let disposed = false;
+  // Set by `stopAll` (quit-to-menu), cleared when the next game binds its
+  // bus in `subscribeBus`. Read by the chained `ended` handlers below: a
+  // `source.stop()` from `stopAll` itself FIRES `ended` (Web Audio spec),
+  // so without this the welldone→winner-stinger and elechit1→fanfare chains
+  // re-trigger the follow-up sample over the lobby. `disposed` can't cover
+  // this — it's never set in production (no `dispose()` caller).
+  let quiesced = false;
 
   function ensureSamples(): Map<string, PcmSample> | undefined {
     if (samplesByName) return samplesByName;
@@ -382,6 +389,9 @@ export function createSfxSubsystem(deps: SfxSubsystemDeps): SfxSubsystem {
   function subscribeBus(bus: GameEventBus): void {
     if (boundBus === bus) return;
     unbindCurrentBus();
+    // A new game's bus is binding — playback is legitimate again, so lift
+    // the quit-to-menu quiesce that blocked the in-flight `ended` chains.
+    quiesced = false;
     boundBus = bus;
     for (const [eventType, mapping] of Object.entries(SFX_EVENT_MAP) as Array<
       [EventKey, SfxMapping<EventKey>]
@@ -440,7 +450,10 @@ export function createSfxSubsystem(deps: SfxSubsystemDeps): SfxSubsystem {
           // the natural-end `ended` event still fires in that case.
         }
         source.addEventListener("ended", () => {
-          if (disposed) return;
+          // `quiesced`: a quit-to-menu `stopAll` stops this source, which
+          // itself fires `ended` — don't let it kick the fanfare under the
+          // lobby (music.stopAll already ran, so nothing would cancel it).
+          if (disposed || quiesced) return;
           deps.onFirstEnclosure?.(playerId);
         });
       });
@@ -463,7 +476,10 @@ export function createSfxSubsystem(deps: SfxSubsystemDeps): SfxSubsystem {
           return;
         }
         source.addEventListener("ended", () => {
-          if (disposed) return;
+          // `quiesced`: see the enclosure chain — a quit-to-menu `stopAll`
+          // stops welldone, firing `ended`; without this the winner stinger
+          // would play over the lobby.
+          if (disposed || quiesced) return;
           void playSample(winnerSample);
         });
       });
@@ -602,6 +618,12 @@ export function createSfxSubsystem(deps: SfxSubsystemDeps): SfxSubsystem {
   }
 
   function stopAll(): void {
+    // Quiesce BEFORE stopping: each `source.stop()` fires `ended` (async),
+    // and the welldone→winner / elechit1→fanfare chains hang off those
+    // events. The flag (read in those handlers) stops them re-triggering
+    // playback over the lobby. Lifted in `subscribeBus` when the next game
+    // starts.
+    quiesced = true;
     for (const source of activeSources) {
       try {
         source.stop();
