@@ -662,14 +662,18 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     deps.requestRender();
 
     if (state.timer > 0 || state.cannonballs.length > 0) return false;
-    // Safe margin: let impact flashes, ice-thaw, and wall-burn animations
-    // finish before capturing the "old scene" snapshot for the Build banner.
-    // Without this, mid-animation explosion/thaw/burn visuals bake into the
-    // prev-scene image. For destroyedWalls we gate only on the fire-burst
-    // window (`age < WALL_DESTROY_ANIM_DURATION + WALL_BURN_DURATION`); the
+    // Safe margin: let impact flashes, ice-thaw, wall-burn, and shield-
+    // flash animations finish before capturing the "old scene" snapshot
+    // for the Build banner. Without this, mid-animation explosion/thaw/
+    // burn/flash visuals bake into the prev-scene image. For
+    // destroyedWalls we gate only on the fire-burst window
+    // (`age < WALL_DESTROY_ANIM_DURATION + WALL_BURN_DURATION`); the
     // sink + dust + tail-fade beyond that point is continuous visual state
     // — fine to capture mid-anim — and the entry itself lives the full
-    // `IMPACT_ENTRY_LIFETIME`.
+    // `IMPACT_ENTRY_LIFETIME`. shieldFlashes (Reinforced-Walls hit flash,
+    // 0.5s) matters on wirings where pitch is already flat at battle end
+    // (2D renderer) — on the 3D path the 0.6s untilt below would absorb
+    // it, but the gate keeps the snapshot clean on every wiring.
     if (
       battleAnim.impacts.length > 0 ||
       battleAnim.thawing.length > 0 ||
@@ -678,7 +682,8 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       ) ||
       battleAnim.cannonDestroys.length > 0 ||
       battleAnim.gruntKills.length > 0 ||
-      battleAnim.houseDestroys.length > 0
+      battleAnim.houseDestroys.length > 0 ||
+      battleAnim.shieldFlashes.length > 0
     )
       return false;
 
