@@ -225,6 +225,9 @@ export function createMusicSubsystem(): MusicSubsystem {
   // flag cleared there would re-admit the stale in-flight call — the epoch
   // only invalidates calls that began before the quit.
   let playEpoch = 0;
+  // Serializes suspend/resume so a rapid hide→show can't skip the resume —
+  // see `setPaused`.
+  let pauseTransition: Promise<void> = Promise.resolve();
 
   // Tracks whether the tick-derived fade signal has already fired in the
   // current WALL_BUILD phase — prevents re-triggering the ramp every frame
@@ -618,19 +621,28 @@ export function createMusicSubsystem(): MusicSubsystem {
     missingFanfareSongs.clear();
   }
 
-  async function setPaused(nextPaused: boolean): Promise<void> {
+  function setPaused(nextPaused: boolean): Promise<void> {
     paused = nextPaused;
+    // Serialize transitions — same shape as sfx-player's setPaused: a
+    // resume() issued while the suspend() is still in flight reads
+    // `ctx.state` as "running" and no-ops, stranding the context suspended
+    // with `paused = false`. Each chained step applies the LATEST intent.
+    pauseTransition = pauseTransition.then(applyPauseState);
+    return pauseTransition;
+  }
+
+  async function applyPauseState(): Promise<void> {
     const ctx = audioContext;
     if (ctx) {
-      if (nextPaused && ctx.state === AUDIO_CONTEXT_RUNNING) {
+      if (paused && ctx.state === AUDIO_CONTEXT_RUNNING) {
         await ctx.suspend().catch(() => {});
-      } else if (!nextPaused && ctx.state === AUDIO_CONTEXT_SUSPENDED) {
+      } else if (!paused && ctx.state === AUDIO_CONTEXT_SUSPENDED) {
         await ctx.resume().catch(() => {});
       }
     }
-    // Deferred start: if we were asked to play title while paused, kick it off
-    // now that the tab is visible again.
-    if (!nextPaused && wantsTitle && bgPlaying !== BG_TRACK_TITLE) {
+    // Deferred start: if we were asked to play title while paused, kick it
+    // off now that the tab is visible again.
+    if (!paused && wantsTitle && bgPlaying !== BG_TRACK_TITLE) {
       await playBg(BG_TRACK_TITLE);
     }
   }

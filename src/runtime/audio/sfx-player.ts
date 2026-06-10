@@ -284,13 +284,21 @@ export function createSfxSubsystem(deps: SfxSubsystemDeps): SfxSubsystem {
   }> = [];
   let paused = false;
   let disposed = false;
-  // Set by `stopAll` (quit-to-menu), cleared when the next game binds its
-  // bus in `subscribeBus`. Read by the chained `ended` handlers below: a
+  // Bumped by `stopAll` (quit-to-menu / rematch). The chained `ended`
+  // handlers below capture it at event time and bail once it moves: a
   // `source.stop()` from `stopAll` itself FIRES `ended` (Web Audio spec),
   // so without this the welldone→winner-stinger and elechit1→fanfare chains
-  // re-trigger the follow-up sample over the lobby. `disposed` can't cover
-  // this — it's never set in production (no `dispose()` caller).
-  let quiesced = false;
+  // re-trigger the follow-up sample over the lobby. An epoch, not a boolean
+  // (mirrors music-player's `playEpoch`): rematch rebinds the new game's
+  // bus on the same task chain as `stopAll`, BEFORE the audio thread
+  // delivers the stale `ended` events — a flag lifted in `subscribeBus`
+  // would re-admit them and play the previous match's stinger into the new
+  // game. `disposed` can't cover this — it's never set in production (no
+  // `dispose()` caller).
+  let playEpoch = 0;
+  // Serializes suspend/resume so a rapid hide→show can't skip the resume —
+  // see `setPaused`.
+  let pauseTransition: Promise<void> = Promise.resolve();
 
   function ensureSamples(): Map<string, PcmSample> | undefined {
     if (samplesByName) return samplesByName;
@@ -348,11 +356,16 @@ export function createSfxSubsystem(deps: SfxSubsystemDeps): SfxSubsystem {
     const context = ensureContext();
     if (!context) return undefined;
     if (context.state === AUDIO_CONTEXT_SUSPENDED) {
+      const epoch = playEpoch;
       try {
         await context.resume();
       } catch {
         return undefined;
       }
+      // A `stopAll` landing during the resume await couldn't stop this
+      // source — it isn't in `activeSources` yet — so re-check before
+      // starting it.
+      if (disposed || paused || epoch !== playEpoch) return undefined;
     }
     const buffer = decodeSample(sample, context);
     const source = context.createBufferSource();
@@ -390,9 +403,6 @@ export function createSfxSubsystem(deps: SfxSubsystemDeps): SfxSubsystem {
   function subscribeBus(bus: GameEventBus): void {
     if (boundBus === bus) return;
     unbindCurrentBus();
-    // A new game's bus is binding — playback is legitimate again, so lift
-    // the quit-to-menu quiesce that blocked the in-flight `ended` chains.
-    quiesced = false;
     boundBus = bus;
     for (const [eventType, mapping] of Object.entries(SFX_EVENT_MAP) as Array<
       [EventKey, SfxMapping<EventKey>]
@@ -435,6 +445,7 @@ export function createSfxSubsystem(deps: SfxSubsystemDeps): SfxSubsystem {
     const enclosedHandler: GameEventHandler<"towerEnclosed"> = (event) => {
       const towerAlive = deps.getState()?.towerAlive[event.towerIndex] ?? false;
       const playerId = event.playerId;
+      const epoch = playEpoch;
       // Claim the per-phase fanfare slot SYNCHRONOUSLY. One piece can enclose
       // two live towers in a single build step, emitting two TOWER_ENCLOSED
       // events back-to-back on the same synchronous stack — if the
@@ -444,6 +455,7 @@ export function createSfxSubsystem(deps: SfxSubsystemDeps): SfxSubsystem {
       const wantsFanfare = towerAlive && !fanfarePlayedThisPhase.has(playerId);
       if (wantsFanfare) fanfarePlayedThisPhase.add(playerId);
       void playSample("elechit1").then((source) => {
+        if (disposed || epoch !== playEpoch) return;
         if (!wantsFanfare) return;
         if (!deps.onFirstEnclosure) return;
         if (!source || !audioContext) {
@@ -457,10 +469,11 @@ export function createSfxSubsystem(deps: SfxSubsystemDeps): SfxSubsystem {
           // the natural-end `ended` event still fires in that case.
         }
         source.addEventListener("ended", () => {
-          // `quiesced`: a quit-to-menu `stopAll` stops this source, which
-          // itself fires `ended` — don't let it kick the fanfare under the
-          // lobby (music.stopAll already ran, so nothing would cancel it).
-          if (disposed || quiesced) return;
+          // `playEpoch`: a quit-to-menu / rematch `stopAll` stops this
+          // source, which itself fires `ended` — comparing epochs keeps it
+          // from kicking the fanfare under the lobby or into the next game
+          // (music.stopAll already ran, so nothing would cancel it).
+          if (disposed || epoch !== playEpoch) return;
           deps.onFirstEnclosure?.(playerId);
         });
       });
@@ -477,16 +490,19 @@ export function createSfxSubsystem(deps: SfxSubsystemDeps): SfxSubsystem {
     const gameEndHandler: GameEventHandler<"gameEnd"> = (event) => {
       const winnerSample = WINNER_END_SAMPLE_BY_SLOT[event.winner];
       if (!winnerSample) return;
+      const epoch = playEpoch;
       void playSample("welldone").then((source) => {
+        if (disposed || epoch !== playEpoch) return;
         if (!source) {
           void playSample(winnerSample);
           return;
         }
         source.addEventListener("ended", () => {
-          // `quiesced`: see the enclosure chain — a quit-to-menu `stopAll`
-          // stops welldone, firing `ended`; without this the winner stinger
-          // would play over the lobby.
-          if (disposed || quiesced) return;
+          // `playEpoch`: see the enclosure chain — a quit-to-menu / rematch
+          // `stopAll` stops welldone, firing `ended`; comparing epochs keeps
+          // the winner stinger from playing over the lobby or into the next
+          // game.
+          if (disposed || epoch !== playEpoch) return;
           void playSample(winnerSample);
         });
       });
@@ -625,12 +641,12 @@ export function createSfxSubsystem(deps: SfxSubsystemDeps): SfxSubsystem {
   }
 
   function stopAll(): void {
-    // Quiesce BEFORE stopping: each `source.stop()` fires `ended` (async),
-    // and the welldone→winner / elechit1→fanfare chains hang off those
-    // events. The flag (read in those handlers) stops them re-triggering
-    // playback over the lobby. Lifted in `subscribeBus` when the next game
-    // starts.
-    quiesced = true;
+    // Bump the epoch BEFORE stopping: each `source.stop()` fires `ended`
+    // (async), and the welldone→winner / elechit1→fanfare chains hang off
+    // those events. The chains captured the pre-bump epoch and bail once it
+    // moved, so they can't re-trigger playback over the lobby or into a
+    // rematch's new game.
+    playEpoch += 1;
     for (const source of activeSources) {
       try {
         source.stop();
@@ -651,15 +667,25 @@ export function createSfxSubsystem(deps: SfxSubsystemDeps): SfxSubsystem {
     // about to be replaced.
   }
 
-  async function setPaused(next: boolean): Promise<void> {
+  function setPaused(next: boolean): Promise<void> {
     paused = next;
+    // Serialize transitions: a rapid hide→show used to issue resume() while
+    // the suspend() was still in flight — `ctx.state` still read "running",
+    // the resume branch was skipped, and the context ended suspended with
+    // `paused = false` (a looping snare froze until the next one-shot).
+    // Each chained step applies the LATEST `paused` intent.
+    pauseTransition = pauseTransition.then(applyPauseState);
+    return pauseTransition;
+  }
+
+  async function applyPauseState(): Promise<void> {
     if (!audioContext) return;
-    if (next && audioContext.state === AUDIO_CONTEXT_RUNNING) {
+    if (paused && audioContext.state === AUDIO_CONTEXT_RUNNING) {
       // suspend() can reject (browser state races); swallow it like the
       // resume() path below and the music subsystem do — an unhandled
       // rejection here would surface as a console error on every tab-hide.
       await audioContext.suspend().catch(() => {});
-    } else if (!next && audioContext.state === AUDIO_CONTEXT_SUSPENDED) {
+    } else if (!paused && audioContext.state === AUDIO_CONTEXT_SUSPENDED) {
       try {
         await audioContext.resume();
       } catch {
