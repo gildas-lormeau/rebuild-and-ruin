@@ -235,6 +235,7 @@ export function createRenderSystem(deps: RenderSystemDeps): RenderSystem {
       frame: overlayFrame,
       bannerUi,
       inBattle,
+      inBalloonAnim: runtimeState.mode === Mode.BALLOON_ANIM,
       lifeLostDialog: runtimeState.dialogs.lifeLost,
       upgradePickDialog: runtimeState.dialogs.upgradePick,
       povPlayerId: runtimeState.frameMeta.povPlayerId,

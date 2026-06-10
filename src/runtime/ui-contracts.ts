@@ -200,6 +200,12 @@ export interface OnlineOverlayParams {
   lifeLostDialog: LifeLostDialogState | null;
   upgradePickDialog: UpgradePickDialogState | null;
   inBattle: boolean;
+  /** True only during the balloon-flight overlay (Mode.BALLOON_ANIM). Gates
+   *  the balloon render so flights don't show statically through the
+   *  pre-battle tilt — they appear when the tilt settles and BALLOON_ANIM
+   *  engages. The flights themselves are stashed earlier (cannon-place-done),
+   *  so `flights.length` alone would render them too soon. */
+  inBalloonAnim: boolean;
   povPlayerId: ValidPlayerId;
   hasPointerPlayer: boolean;
   upgradePickInteractiveSlots: ReadonlySet<ValidPlayerId>;

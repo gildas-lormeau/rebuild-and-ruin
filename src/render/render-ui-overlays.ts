@@ -303,6 +303,7 @@ export function createOnlineOverlay(
     frame,
     bannerUi,
     inBattle,
+    inBalloonAnim,
     lifeLostDialog,
     upgradePickDialog,
     povPlayerId,
@@ -361,7 +362,9 @@ export function createOnlineOverlay(
       houseDestroys: whenBattle(battleAnim.houseDestroys),
       shieldFlashes: whenBattle(battleAnim.shieldFlashes),
       crosshairs: whenBattle(frame.crosshairs),
-      balloons: buildBattleBalloonsPayload(battleAnim.flights),
+      balloons: inBalloonAnim
+        ? buildBattleBalloonsPayload(battleAnim.flights)
+        : undefined,
       // Fog covers the reveal banner and the battle itself, then lifts the
       // moment battle ends — dwelling through the post-battle banner /
       // upgrade pick would hide state the player needs to see.

@@ -989,13 +989,16 @@ function proceedToBattleFromCtx(ctx: PhaseTransitionCtx): void {
   ctx.beginTilt?.();
 
   // Flights were stashed into runtimeState.battleAnim.flights by
-  // `cannon-place-done`'s `syncBattleAnim` postMutate. We only need to
-  // read the count here to decide whether to flip into BALLOON_ANIM.
+  // `cannon-place-done`'s `syncBattleAnim` postMutate. We only read the
+  // count here to decide what `proceed` does — the BALLOON_ANIM flip is
+  // deferred into `proceed` (below) so balloons don't render or accrue
+  // progress UNTIL the tilt settles. Flipping early let them animate
+  // through the tilt, ahead of the BALLOON_ANIM_START cue.
   const hasFlights = ctx.runtimeState.battleAnim.flights.length > 0;
-  if (hasFlights) ctx.setMode(Mode.BALLOON_ANIM);
 
   const proceed = (): void => {
     if (hasFlights) {
+      ctx.setMode(Mode.BALLOON_ANIM);
       emitGameEvent(ctx.state.bus, GAME_EVENT.BALLOON_ANIM_START, {
         round: ctx.state.round,
       });
@@ -1005,12 +1008,13 @@ function proceedToBattleFromCtx(ctx: PhaseTransitionCtx): void {
   };
 
   // Pitch gate: wait for the tilt we just requested (or any prior tilt
-  // still in progress) to settle before we either start balloons or flip
-  // to battle mode. `awaitPitchSettled` fires `proceed` synchronously if
-  // pitch is already settled (or headless), so this single call covers
-  // both the mid-animation and already-done cases. Closure-stored
-  // callback (not Promise) — runtime ticks synchronously this frame on
-  // settle and a microtask hop would break mock-clock determinism.
+  // still in progress) to settle before we start balloons (flip mode +
+  // emit) or, with no flights, flip to battle mode. `awaitPitchSettled`
+  // fires `proceed` synchronously if pitch is already settled (or
+  // headless without a camera), so this single call covers both the
+  // mid-animation and already-done cases. Closure-stored callback (not
+  // Promise) — runtime ticks synchronously this frame on settle and a
+  // microtask hop would break mock-clock determinism.
   if (ctx.awaitPitchSettled) ctx.awaitPitchSettled(proceed);
   else proceed();
 }
