@@ -42,7 +42,7 @@ export interface MusicSubsystem extends RuntimeMusic {
   // Inherits `activate` + `startTitle` from `RuntimeMusic` (the narrow
   // public surface). The methods below are internal to composition.
   /** Hard-stop the bg track + every in-flight fanfare and clear the
-   *  caller's `wantsTitle` intent. Called on quit-to-menu so neither a
+   *  caller's `wantsBg` intent. Called on quit-to-menu so neither a
    *  looped bg track nor a one-shot TETRIS fanfare outlives the game.
    *  Mirrors sfx-player's `stopAll`. Idempotent. */
   stopAll(): void;
@@ -211,10 +211,16 @@ export function createMusicSubsystem(): MusicSubsystem {
   const missingFanfareSongs = new Set<number>();
   let activatingPromise: Promise<void> | undefined;
 
-  // `wantsTitle` is the caller's intent (lobby said "play title"). `paused`
-  // means the composition told us the host tab is hidden / externally
-  // quieted — we honor wantsTitle but defer the play call until un-paused.
-  let wantsTitle = false;
+  // `wantsBg` is the caller's intent — the bg track most recently requested
+  // via `playBg`, recorded even while paused and cleared by `stopBg` /
+  // `stopAll`. `paused` means the composition told us the host tab is
+  // hidden / soundEnabled is off — cues that land while paused are dropped
+  // by `playBg` but their intent survives here, and `applyPauseState`
+  // restarts the wanted track on unpause (loop tracks only: one-shots like
+  // lifeLost / jaws are moment-anchored, so replaying them on tab re-show
+  // would be stale). Matters in online games, where the sim keeps ticking
+  // under a hidden tab and phase cues fire while silenced.
+  let wantsBg: BgTrack | undefined;
   let paused = false;
   // Bumped by `stopAll`. `playBg` / `playFanfare` capture it before
   // `await activateOnce()` and bail after if it changed — a quit-to-menu
@@ -358,6 +364,9 @@ export function createMusicSubsystem(): MusicSubsystem {
   }
 
   async function playBg(track: BgTrack): Promise<void> {
+    // Record intent BEFORE the paused early-return so a cue that lands
+    // while silenced can be restarted on unpause (see `wantsBg`).
+    wantsBg = track;
     if (paused) return;
     const epoch = playEpoch;
     await activateOnce();
@@ -405,6 +414,10 @@ export function createMusicSubsystem(): MusicSubsystem {
   }
 
   function stopBg(): void {
+    // Stop events fire fine while paused (they only clear state), so
+    // clearing the intent here keeps `wantsBg` accurate across e.g. a
+    // SCORE_OVERLAY_END that lands under a hidden tab.
+    wantsBg = undefined;
     bgPlaying = undefined;
     stopActiveSource();
   }
@@ -421,9 +434,9 @@ export function createMusicSubsystem(): MusicSubsystem {
   }
 
   async function playTitle(): Promise<void> {
-    wantsTitle = true;
-    if (paused) return; // will start when setPaused(false) fires
     if (bgPlaying === BG_TRACK_TITLE) return;
+    // playBg records the intent and defers while paused — the title
+    // starts when setPaused(false) fires.
     await playBg(BG_TRACK_TITLE);
   }
 
@@ -431,7 +444,6 @@ export function createMusicSubsystem(): MusicSubsystem {
     // Invalidate any playBg / playFanfare currently mid-await (activateOnce
     // IDB hydration) so it doesn't start a source after this stop runs.
     playEpoch += 1;
-    wantsTitle = false;
     stopBg();
     for (const source of activeFanfareSources) {
       try {
@@ -523,10 +535,10 @@ export function createMusicSubsystem(): MusicSubsystem {
     };
 
     // Stop the title track the moment any player confirms their starting
-    // castle. After a mid-game reselect the title isn't playing anyway,
-    // so the no-op stop is harmless.
+    // castle (stopBg also drops the `wantsBg` intent). After a mid-game
+    // reselect the title isn't playing anyway, so the no-op stop is
+    // harmless.
     bind(GAME_EVENT.CASTLE_PLACED, () => {
-      wantsTitle = false;
       stopBg();
     });
 
@@ -640,17 +652,18 @@ export function createMusicSubsystem(): MusicSubsystem {
         await ctx.resume().catch(() => {});
       }
     }
-    // Deferred start: if we were asked to play title while paused, kick it
-    // off now that the tab is visible again.
-    if (!paused && wantsTitle && bgPlaying !== BG_TRACK_TITLE) {
-      await playBg(BG_TRACK_TITLE);
+    // Deferred start: cues that landed while paused recorded their intent
+    // in `wantsBg` — restart the wanted track now that we're audible
+    // again. Loops only (title + phase bg): one-shots (lifeLost, jaws)
+    // are moment-anchored and stay dropped.
+    if (!paused && wantsBg?.loop && bgPlaying !== wantsBg) {
+      await playBg(wantsBg);
     }
   }
 
   async function dispose(): Promise<void> {
     unbindCurrentBus();
     stopBg();
-    wantsTitle = false;
     if (audioContext) {
       await audioContext.close().catch(() => {});
       audioContext = undefined;
