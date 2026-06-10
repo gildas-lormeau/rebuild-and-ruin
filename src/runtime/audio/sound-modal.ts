@@ -54,6 +54,14 @@ export function createSoundModal(): SoundModal {
 
   let onClose: (assets: MusicAssets | undefined) => void = () => {};
   let onCloseSync: () => void = () => {};
+  // True while an upload (IDB writes + the multi-second WASM render) is
+  // running. A close during that window must NOT hand assets back yet:
+  // the consumer's refresh would probe IDB mid-write, flag every
+  // not-yet-rendered track as missing, and nothing would re-probe until
+  // the next modal close — those tracks stay silent for the session.
+  let uploadInFlight = false;
+  // Close was clicked mid-upload; the reload is owed when the upload ends.
+  let pendingCloseReload = false;
 
   urlInput.value =
     localStorage.getItem(MUSIC_URL_STORAGE_KEY) || DEFAULT_ARCHIVE_URL;
@@ -85,8 +93,23 @@ export function createSoundModal(): SoundModal {
     modal.hidden = true;
     // Sync first: lets the consumer construct AudioContext / call resume()
     // inside the close-button gesture. Async second: hand back the reloaded
-    // assets once IDB has confirmed them.
+    // assets once IDB has confirmed them — deferred to the upload's end
+    // when one is still writing (see `uploadInFlight`).
     onCloseSync();
+    if (uploadInFlight) {
+      pendingCloseReload = true;
+      return;
+    }
+    void loadStoredAssets().then((assets) => onClose(assets));
+  }
+
+  // Fire the close-reload owed from a close() that landed mid-upload, now
+  // that IDB is settled. Skipped if the modal was reopened in the meantime
+  // — the next real close reloads.
+  function flushDeferredClose(): void {
+    if (!pendingCloseReload) return;
+    pendingCloseReload = false;
+    if (!modal.hidden) return;
     void loadStoredAssets().then((assets) => onClose(assets));
   }
 
@@ -107,6 +130,7 @@ export function createSoundModal(): SoundModal {
     }
     statusOutput.textContent = `Fetching ${url} \u2026`;
     loadUrlButton.disabled = true;
+    uploadInFlight = true;
     try {
       const result = await fetchAndStoreFromArchive(url);
       reportResult(result);
@@ -117,6 +141,8 @@ export function createSoundModal(): SoundModal {
       }`;
     } finally {
       loadUrlButton.disabled = false;
+      uploadInFlight = false;
+      flushDeferredClose();
     }
   }
 
@@ -124,6 +150,7 @@ export function createSoundModal(): SoundModal {
     const files = picker.files;
     if (!files?.length) return;
     statusOutput.textContent = `Saving ${files.length} file(s) \u2026`;
+    uploadInFlight = true;
     try {
       const result = await storeAssets(Array.from(files));
       reportResult(result);
@@ -134,6 +161,8 @@ export function createSoundModal(): SoundModal {
       }`;
     } finally {
       picker.value = "";
+      uploadInFlight = false;
+      flushDeferredClose();
     }
   }
 
