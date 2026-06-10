@@ -352,6 +352,7 @@ export function pickPlacement(
       targetGaps.size > 0 && targetGaps.size <= MANAGEABLE_GAP_LIMIT,
   });
   let placement = bestResult.placement;
+  let fromDesperate = false;
   // Desperate last-resort: if every exterior path returned null AND the
   // player has zero enclosed alive towers (would lose a life at round end)
   // AND some pool piece could close some unenclosed alive ring next pick,
@@ -373,10 +374,16 @@ export function pickPlacement(
       cache,
       placementCtx,
     );
+    fromDesperate = placement !== null;
   }
   // Work-is-done idle: hold the piece rather than bury it as a junk wall when
-  // no enclosure work remains. See suppressIdleWaste.
-  if (placement !== null) {
+  // no enclosure work remains. See suppressIdleWaste. Skip it for a desperate
+  // discard, though — that path only fires when a life is on the line and a
+  // future pool piece can still close a ring, so its whole job is to advance
+  // the bag; suppressIdleWaste's enclosable-work predicate can disagree with
+  // the desperate path's pool-fillable-ring gate and null the discard, which
+  // re-creates the exact build stall the desperate path exists to break.
+  if (placement !== null && !fromDesperate) {
     placement = suppressIdleWaste(placement, {
       state,
       unenclosedTowers,
