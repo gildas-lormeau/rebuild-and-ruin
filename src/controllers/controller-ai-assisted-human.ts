@@ -11,7 +11,6 @@ import type { AiBrain } from "../ai/ai-brain-types.ts";
 import type { AiStrategy } from "../ai/ai-strategy-types.ts";
 import type { ScheduledAction } from "../shared/core/action-schedule.ts";
 import { CannonMode } from "../shared/core/battle-types.ts";
-import { SIM_TICK_DT } from "../shared/core/game-constants.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import type {
   BuildViewState,
@@ -133,17 +132,11 @@ export class AiAssistedHumanController
         if (entry.choice !== null) return;
         entry.choice = choice;
         entry.focusedCard = entry.offers.indexOf(choice);
-        // Apply-time stamp, not decision-time: receivers stamp their
-        // dialog.timer at the same applyAt tick, and the dialog's
-        // reveal-pulse wait (`dialog.timer - latestPick`) gates the
-        // phase transition — a per-peer pickedAtTimer would skew the
-        // WALL_BUILD window across peers. The dialog ticks once per
-        // fixed sim substep, and the schedule drain runs BEFORE the
-        // dialog tick within a substep (see runOneSubStep), so a
-        // receiver's drain-time dialog.timer has advanced safetyTicks-1
-        // increments past this decision-tick value.
-        entry.pickedAtTimer =
-          dialogTimer + (this.safetyTicks - 1) * SIM_TICK_DT;
+        // Decision-time stamp. pickedAtTimer only drives the reveal-pulse
+        // animation — the dialog's post-resolve dwell counts sim ticks
+        // (`resolvedAtSimTick` in subsystems/upgrade-pick.ts), so a
+        // cosmetic cross-peer stamp difference is acceptable.
+        entry.pickedAtTimer = dialogTimer;
       },
     });
   }

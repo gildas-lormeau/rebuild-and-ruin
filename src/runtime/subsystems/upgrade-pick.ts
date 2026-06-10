@@ -10,6 +10,7 @@
 import { DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS } from "../../shared/core/action-schedule.ts";
 import {
   DIALOG_FORCE_GRACE,
+  SIM_TICK_DT,
   UPGRADE_PICK_AUTO_DELAY,
   UPGRADE_PICK_MAX_TIMER,
   UPGRADE_PICK_PULSE_DURATION,
@@ -121,6 +122,15 @@ export function createUpgradePickSystem(
    *  fires, wholesale on dialog teardown. */
   const inFlightPicks = new Set<ValidPlayerId>();
 
+  /** `state.simTick` at which the tick loop first observed every entry
+   *  resolved; undefined while any entry is pending. Anchors the
+   *  reveal-pulse dwell on the shared sim timeline:
+   *  `dialog.timer`/`pickedAtTimer` are dialog-OPEN-relative, so gating
+   *  the transition on them would let cross-peer dialog-open skew shift
+   *  the following WALL_BUILD window (pickedAtTimer is cosmetic — it
+   *  only drives the pulse animation). Cleared on dialog teardown. */
+  let resolvedAtSimTick: number | undefined;
+
   /** Ensure the dialog exists on runtimeState, creating it if needed. */
   function ensureDialog(): UpgradePickDialogState | null {
     if (runtimeState.dialogs.upgradePick)
@@ -201,11 +211,13 @@ export function createUpgradePickSystem(
     // Let the final reveal pulse finish before closing the dialog — the last
     // entry resolves on the same frame as allResolved, so without this the
     // expanding ring animation for that entry never gets any draw frames.
-    const latestPick = dialog.entries.reduce(
-      (latest, entry) => Math.max(latest, entry.pickedAtTimer ?? 0),
-      0,
-    );
-    if (dialog.timer - latestPick < UPGRADE_PICK_PULSE_DURATION) return;
+    // The dwell counts sim ticks from the resolve, NOT dialog.timer vs
+    // pickedAtTimer: entry fills land at lockstep-shared sim ticks, so this
+    // gate fires at the same tick on every peer even when dialog-open times
+    // skew (see `resolvedAtSimTick`).
+    resolvedAtSimTick ??= state.simTick;
+    const pulseElapsed = (state.simTick - resolvedAtSimTick) * SIM_TICK_DT;
+    if (pulseElapsed < UPGRADE_PICK_PULSE_DURATION) return;
 
     deps.log(
       `upgrade picks resolved: ${dialog.entries.map((entry) => `P${entry.playerId}=${entry.choice}`).join(", ")}`,
@@ -219,6 +231,7 @@ export function createUpgradePickSystem(
     // postDisplay flips to the terminal mode.
     runtimeState.dialogs.upgradePick = null;
     inFlightPicks.clear();
+    resolvedAtSimTick = undefined;
     const callback = onResolvedCb;
     onResolvedCb = undefined;
     callback?.(dialog);
@@ -364,6 +377,7 @@ export function createUpgradePickSystem(
       if (dialog === null) {
         onResolvedCb = undefined;
         inFlightPicks.clear();
+        resolvedAtSimTick = undefined;
       }
     },
     tryShow,
