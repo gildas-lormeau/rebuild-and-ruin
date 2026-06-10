@@ -1314,6 +1314,12 @@ export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
     lastAutoZoomPhase = undefined;
     selectionTargetVp = undefined;
     lastBattleCrosshair = undefined;
+    // Drop any parked transition continuations (`awaitCameraFlat` /
+    // `awaitPitchSettled`). They capture the dying session's transition ctx
+    // and GameState; left in place, the next session's first flat rendered
+    // frame would fire them and replay a dead match's phase transition.
+    pendingUnzoomReady = undefined;
+    pendingPitchSettled = undefined;
   }
 
   function resetCamera(): void {
