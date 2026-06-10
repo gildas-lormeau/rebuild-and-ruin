@@ -202,6 +202,15 @@ export function createMusicSubsystem(): MusicSubsystem {
   // quieted — we honor wantsTitle but defer the play call until un-paused.
   let wantsTitle = false;
   let paused = false;
+  // Bumped by `stopAll`. `playBg` / `playFanfare` capture it before
+  // `await activateOnce()` and bail after if it changed — a quit-to-menu
+  // that lands mid-await would otherwise start the source AFTER `stopAll`
+  // ran (so it couldn't be stopped), leaving a track ringing under the
+  // lobby / landing page. An epoch, not a boolean: the lobby's own title
+  // track restarts right after `stopAll` (showLobby → startTitle), so a
+  // flag cleared there would re-admit the stale in-flight call — the epoch
+  // only invalidates calls that began before the quit.
+  let playEpoch = 0;
 
   // Tracks whether the tick-derived fade signal has already fired in the
   // current WALL_BUILD phase — prevents re-triggering the ramp every frame
@@ -321,8 +330,11 @@ export function createMusicSubsystem(): MusicSubsystem {
 
   async function playBg(track: BgTrack): Promise<void> {
     if (paused) return;
+    const epoch = playEpoch;
     await activateOnce();
-    if (paused) return;
+    // A quit-to-menu `stopAll` during the await invalidates this play —
+    // its source would start under the lobby with nothing to stop it.
+    if (paused || epoch !== playEpoch) return;
     const ctx = audioContext;
     const buffer = bgAudioBuffers.get(track.cacheId);
     const pcm = bgBuffers.get(track.cacheId);
@@ -387,6 +399,9 @@ export function createMusicSubsystem(): MusicSubsystem {
   }
 
   function stopAll(): void {
+    // Invalidate any playBg / playFanfare currently mid-await (activateOnce
+    // IDB hydration) so it doesn't start a source after this stop runs.
+    playEpoch += 1;
     wantsTitle = false;
     stopBg();
     for (const source of activeFanfareSources) {
@@ -401,8 +416,11 @@ export function createMusicSubsystem(): MusicSubsystem {
 
   async function playFanfare(playerId: ValidPlayerId): Promise<void> {
     if (paused) return;
+    const epoch = playEpoch;
     await activateOnce();
-    if (paused) return;
+    // See playBg: a quit-to-menu `stopAll` during the await invalidates
+    // this fanfare so it can't ring under the lobby.
+    if (paused || epoch !== playEpoch) return;
     const ctx = audioContext;
     if (!ctx) return;
     const buffer = fanfareBuffers.get(playerId) ?? fanfareBuffers.get(0);
