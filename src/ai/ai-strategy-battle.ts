@@ -203,15 +203,19 @@ export function pickTarget(
     );
   }
 
-  // Filter out any target tile that already has a cannonball in flight.
-  // Cannon candidates aim at the FOOTPRINT CENTER — fractional row/col for
-  // even sizes (+0.5 for the standard 2×2) — and the jittered shot lands in
-  // one of the tiles around that corner, so fractional coords expand to
-  // their floor/ceil tiles. Exact-comparing here silently disabled the
+  // Filter out any target tile that OUR OWN cannonball is already heading at.
+  // Owner-scoped on purpose: reading the exact target tile of an opponent's
+  // in-flight ball is info a human can't act on (they see the arc, not a
+  // tile-precise reticle on enemy shots), so deduping against enemy balls
+  // would be a soft cheat — keep firing symmetric with humans. We only know
+  // where WE aimed. Cannon candidates aim at the FOOTPRINT CENTER — fractional
+  // row/col for even sizes (+0.5 for the standard 2×2) — and the jittered shot
+  // lands in one of the tiles around that corner, so fractional coords expand
+  // to their floor/ceil tiles. Exact-comparing here silently disabled the
   // dedup for every even-size cannon candidate (an integer ball tile never
   // equals an x.5 candidate row).
   const filtered = targets.filter(
-    (tile) => !isTargetAreaInFlight(state, tile.row, tile.col),
+    (tile) => !isTargetAreaInFlight(state, tile.row, tile.col, playerId),
   );
   if (filtered.length === 0) return null;
 
@@ -459,8 +463,10 @@ function collectStrategicWallTargets(
     if (focusFirePlayerId != null && other.id !== focusFirePlayerId) continue;
     for (const key of other.walls) {
       const { row: wallRow, col: wallCol } = unpackTile(key);
-      // Skip walls already targeted by a cannonball in flight
-      if (isTileTargetedByInFlightBall(state, wallRow, wallCol)) continue;
+      // Skip walls already targeted by one of our OWN cannonballs in flight
+      // (owner-scoped — see the fairness note in pickTarget).
+      if (isTileTargetedByInFlightBall(state, wallRow, wallCol, playerId))
+        continue;
       // Track obstacle directions: [north, south, west, east]
       const obstacles = computeCardinalObstacleMask(state, wallRow, wallCol, {
         excludeBalloonCannons: true,
@@ -521,7 +527,7 @@ function collectGruntBlockingWallTargets(
       const neighborKey = packTile(nr, nc);
       if (
         enemy.walls.has(neighborKey) &&
-        !isTileTargetedByInFlightBall(state, nr, nc)
+        !isTileTargetedByInFlightBall(state, nr, nc, playerId)
       ) {
         gruntWalls.push({ row: nr, col: nc });
       }
@@ -691,7 +697,7 @@ function pickEnclosureWallTarget(
       if (
         !seen.has(neighborKey) &&
         enclosure.walls.has(neighborKey) &&
-        !isTileTargetedByInFlightBall(state, nr, nc)
+        !isTileTargetedByInFlightBall(state, nr, nc, playerId)
       ) {
         seen.add(neighborKey);
         borderWalls.push({ row: nr, col: nc });
@@ -924,10 +930,12 @@ function isTargetAreaInFlight(
   state: BattleViewState,
   row: number,
   col: number,
+  playerId: ValidPlayerId,
 ): boolean {
   for (const tileRow of tileSpan(row)) {
     for (const tileCol of tileSpan(col)) {
-      if (isTileTargetedByInFlightBall(state, tileRow, tileCol)) return true;
+      if (isTileTargetedByInFlightBall(state, tileRow, tileCol, playerId))
+        return true;
     }
   }
   return false;
@@ -940,13 +948,21 @@ function tileSpan(coord: number): readonly number[] {
     : [Math.floor(coord), Math.ceil(coord)];
 }
 
-/** True if any cannonball in flight is targeting (row, col). */
+/** True if one of `playerId`'s OWN cannonballs in flight is targeting
+ *  (row, col). Scoped to the effective firer (`scoringPlayerId ?? playerId`,
+ *  so captured-cannon shots count for the capturer) — see the fairness note at
+ *  the call site: the AI must not read opponents' ball targets. */
 function isTileTargetedByInFlightBall(
   state: BattleViewState,
   row: number,
   col: number,
+  playerId: ValidPlayerId,
 ): boolean {
-  return state.cannonballs.some((b) => ballTargeting(b, row, col));
+  return state.cannonballs.some(
+    (b) =>
+      (b.scoringPlayerId ?? b.playerId) === playerId &&
+      ballTargeting(b, row, col),
+  );
 }
 
 /** True if a cannonball in flight is targeting (row, col). */
