@@ -53,6 +53,10 @@ interface RoundRecord {
   gruntDestroys: number[];
   /** Self-wall destructions during battle (intentional pocket cuts), per owner. */
   selfDestroys: number[];
+  /** Did the player lose a life this round (failed to re-enclose any tower at
+   *  end of WALL_BUILD)? The TRUE denial signal — a siege "works" when it makes
+   *  re-enclosure unaffordable, not merely when it breaks the ring mid-battle. */
+  lifeLost: boolean[];
 }
 
 interface HeldVia {
@@ -84,6 +88,10 @@ async function main(): Promise<void> {
   // The round whose BATTLE is currently in progress (enclEnd not yet captured),
   // or null when we're outside a battle window.
   let battleRound: number | null = null;
+  // The round currently in progress (updated on every PHASE_START). LIFE_LOST
+  // fires at finalizeRound (end of WALL_BUILD) before the round increments, so
+  // this attributes the loss to the round whose siege caused it.
+  let curRound = 0;
   let lastRoundEnded = 0;
   let winnerId: number | undefined;
   let gameEnded = false;
@@ -96,12 +104,14 @@ async function main(): Promise<void> {
     enemyDestroyBy: Array.from({ length: playerCount }, () => new Map()),
     gruntDestroys: new Array(playerCount).fill(0),
     selfDestroys: new Array(playerCount).fill(0),
+    lifeLost: new Array(playerCount).fill(false),
   });
 
   const snapshotEnclosures = (): number[] =>
     sc.state.players.map((player) => player.enclosedTowers.length);
 
   sc.bus.on(GAME_EVENT.PHASE_START, (ev) => {
+    curRound = ev.round;
     if (ev.phase === Phase.BATTLE) {
       // Battle starting: enclosedTowers reflects prepareBattleState's recheck.
       const record = records.get(ev.round) ?? blankRecord(ev.round);
@@ -137,6 +147,11 @@ async function main(): Promise<void> {
       const by = record.enemyDestroyBy[owner]!;
       by.set(ev.shooterId, (by.get(ev.shooterId) ?? 0) + 1);
     }
+  });
+
+  sc.bus.on(GAME_EVENT.LIFE_LOST, (ev) => {
+    const record = records.get(curRound);
+    if (record) record.lifeLost[ev.playerId] = true;
   });
 
   sc.bus.on(GAME_EVENT.ROUND_END, (ev) => {
@@ -284,19 +299,44 @@ async function emitViaAnalysis(opts: {
   const heldVia: HeldVia[] = [];
   const grandVia: Record<string, number> = {};
   const grandViaByTier: Record<string, Record<string, number>> = {};
+  // Every breakable-target round: the victim had ≥1 enclosure at battle start
+  // AND took enemy wall destruction. `delta` = enclosures actually lost by
+  // battle end (enclStart − enclEnd). Held rounds are the delta===0 subset.
+  // This is the join needed for attack EFFICIENCY (enclosures broken per shot
+  // of each via origin) — held-only data can't rank attacks.
+  const breakable: Array<{
+    round: number;
+    victim: number;
+    enclStart: number;
+    enclEnd: number;
+    delta: number;
+    lifeLost: boolean;
+    via: Record<string, number>;
+  }> = [];
 
   for (const record of ordered) {
     for (let pid = 0; pid < playerCount; pid++) {
       if (record.enemyDestroys[pid]! === 0) continue;
       const start = record.enclStart[pid]!;
-      if (!(record.enclEnd[pid]! >= start && start > 0)) continue; // held only
+      if (start === 0) continue; // no enclosure to break — not a breakable target
+      const end = record.enclEnd[pid]!;
       const fires = (firesByRound.get(record.round) ?? []).filter(
         (fire) => fire.victim === pid && fire.shooter !== pid,
       );
       const via: Record<string, number> = {};
+      for (const fire of fires) via[fire.origin] = (via[fire.origin] ?? 0) + 1;
+      breakable.push({
+        round: record.round,
+        victim: pid,
+        enclStart: start,
+        enclEnd: end,
+        delta: start - end,
+        lifeLost: record.lifeLost[pid]!,
+        via,
+      });
+      if (end < start) continue; // below: held-only console + grand histograms
       const byShooterTier: Record<string, number> = {};
       for (const fire of fires) {
-        via[fire.origin] = (via[fire.origin] ?? 0) + 1;
         grandVia[fire.origin] = (grandVia[fire.origin] ?? 0) + 1;
         const tierKey = `t${tierNum(fire.shooter)}`;
         byShooterTier[tierKey] = (byShooterTier[tierKey] ?? 0) + 1;
@@ -341,6 +381,7 @@ async function emitViaAnalysis(opts: {
         heldVia,
         grandVia,
         grandViaByTier,
+        breakable,
       },
       null,
       2,
