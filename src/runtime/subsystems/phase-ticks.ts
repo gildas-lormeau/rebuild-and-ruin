@@ -142,6 +142,7 @@ interface PhaseTicksDeps extends Pick<RuntimeConfig, "log"> {
   };
   scoreDelta: {
     capturePreScores: () => void;
+    setPreScores: (scores: readonly number[]) => void;
     show: (onDone: () => void) => void;
     reset: () => void;
   };

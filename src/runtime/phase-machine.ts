@@ -196,8 +196,11 @@ export interface PhaseTransitionCtx {
   readonly log: (msg: string) => void;
 
   readonly scoreDelta: {
-    readonly capturePreScores?: () => void;
-    readonly setPreScores?: (scores: readonly number[]) => void;
+    // `capturePreScores` is intentionally absent: the round's pre-scores are
+    // captured via `deps.scoreDelta` inside `startBuildPhase`, never through
+    // ctx. Only `setPreScores` (ROUND_END) is driven from the machine, and
+    // it is always provided — not optional.
+    readonly setPreScores: (scores: readonly number[]) => void;
     readonly show: (onDone: () => void) => void;
     readonly reset: () => void;
   };
@@ -405,7 +408,7 @@ const ROUND_END: Transition = {
     // `resetZoneState` for eliminated/reselect players — every peer
     // converges identically.
     const { needsReselect, eliminated } = finalizeRound(ctx.state);
-    ctx.scoreDelta.setPreScores?.(preScores);
+    ctx.scoreDelta.setPreScores(preScores);
     ctx.broadcast?.buildEnd?.();
     // Decide game-over BEFORE the life-lost popup. The popup is just a
     // continue/abandon prompt — its choice has no effect when the match
