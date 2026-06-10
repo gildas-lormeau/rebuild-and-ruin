@@ -50,8 +50,11 @@ export function createCannonballsManager(
   root.name = "cannonballs";
   scene.add(root);
 
-  // No player-tinted materials — cannonballs are neutral across
-  // owners (variant encodes "type of shot", not player color).
+  // Stays empty: builder materials are deliberately untracked, so
+  // `clear()` disposes geometry only. The materials are GC'd with their
+  // meshes and their shader programs stay cached via the renderer's
+  // keepalive clones, so the per-set rebuild never relinks a program.
+  // (No player tints either — cannonballs are neutral across owners.)
   const ownedMaterials: THREE.Material[] = [];
   /** Fingerprint of the current mesh set — rebuilt only when this
    *  changes. Positions/scales are rewritten every frame regardless. */

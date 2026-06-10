@@ -40,8 +40,10 @@ interface CrosshairHost {
   color: number;
 }
 
-const CROSSHAIR_READY_CYCLE_MS = 16;
-const CROSSHAIR_IDLE_CYCLE_MS = 4;
+// Pulse angular frequencies — `time` is in seconds when these multiply
+// it (16 rad/s ≈ 2.5 Hz ready blink, 4 rad/s ≈ 0.6 Hz idle breathe).
+const CROSSHAIR_READY_PULSE_RAD_PER_SEC = 16;
+const CROSSHAIR_IDLE_PULSE_RAD_PER_SEC = 4;
 const CROSSHAIR_ARM_READY = 14;
 const CROSSHAIR_ARM_IDLE = 10;
 const CROSSHAIR_ARM_PULSE = 3;
@@ -308,12 +310,14 @@ function crosshairGeometry(
 ): { alpha: number; arm: number; diag: number; gap: number } {
   const alpha = ready
     ? CROSSHAIR_ALPHA_READY_BASE +
-      CROSSHAIR_ALPHA_READY_AMP * Math.sin(time * CROSSHAIR_READY_CYCLE_MS)
+      CROSSHAIR_ALPHA_READY_AMP *
+        Math.sin(time * CROSSHAIR_READY_PULSE_RAD_PER_SEC)
     : CROSSHAIR_ALPHA_IDLE_BASE +
-      CROSSHAIR_ALPHA_IDLE_AMP * Math.sin(time * CROSSHAIR_IDLE_CYCLE_MS);
+      CROSSHAIR_ALPHA_IDLE_AMP *
+        Math.sin(time * CROSSHAIR_IDLE_PULSE_RAD_PER_SEC);
   const arm = ready
     ? CROSSHAIR_ARM_READY +
-      Math.sin(time * CROSSHAIR_READY_CYCLE_MS) * CROSSHAIR_ARM_PULSE
+      Math.sin(time * CROSSHAIR_READY_PULSE_RAD_PER_SEC) * CROSSHAIR_ARM_PULSE
     : CROSSHAIR_ARM_IDLE;
   const diag = Math.round(arm * CROSSHAIR_DIAG_RATIO);
   const gap = ready ? CROSSHAIR_GAP_READY : CROSSHAIR_GAP_IDLE;

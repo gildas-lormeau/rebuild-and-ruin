@@ -1,8 +1,7 @@
 /**
- * Shared math + geometry helpers for the 3D renderer's effects cluster.
- * Factored out of bonus-squares, impacts, fog, thawing — the sinusoidal
- * pulse, per-tile seed hash, tile-set fingerprint, and flat XZ-oriented
- * disc geometry were all repeated verbatim across those modules.
+ * Shared math + geometry helpers for the 3D renderer's effects cluster:
+ * per-tile seed hash, tile-set fingerprint, and flat XZ-oriented disc
+ * geometry.
  */
 
 import * as THREE from "three";
@@ -18,8 +17,7 @@ export function tileSeed(row: number, col: number): number {
 }
 
 /** Fingerprint a set of tile-positioned entries as `"c:r|c:r|..."` so
- *  a manager can early-out when positions haven't changed. Used by
- *  bonus-squares + impacts. */
+ *  a manager can early-out when positions haven't changed. */
 export function tileSignature(
   tiles: readonly { col: number; row: number }[] | undefined,
 ): string {

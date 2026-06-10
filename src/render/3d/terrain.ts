@@ -346,18 +346,21 @@ vec3 linearToSrgbVec(vec3 c) {
   );
 }
 
+// Checker parity convention (mirrors the retired 2D bake): even
+// (col+row) tiles use the LIGHT interior shade but the DARK default
+// grass — the two palettes alternate in opposite phase by design.
 vec3 ownerGrassLinear(int ownerIdx, ivec2 tileRC) {
   if (inBattle) return cobblestoneLinear[ownerIdx];
-  bool isLight = mod(float(tileRC.x + tileRC.y), 2.0) < 0.5;
-  return isLight
+  bool parityEven = mod(float(tileRC.x + tileRC.y), 2.0) < 0.5;
+  return parityEven
     ? interiorLightLinear[ownerIdx]
     : interiorDarkLinear[ownerIdx];
 }
 
 vec3 defaultGrassLinear(ivec2 tileRC) {
   if (inBattle) return grassBattleLinear;
-  bool isLight = mod(float(tileRC.x + tileRC.y), 2.0) < 0.5;
-  return isLight ? grassDarkLinear : grassLightLinear;
+  bool parityEven = mod(float(tileRC.x + tileRC.y), 2.0) < 0.5;
+  return parityEven ? grassDarkLinear : grassLightLinear;
 }
 
 // Sample a per-pixel pattern offset (signed sRGB-byte fraction) and apply

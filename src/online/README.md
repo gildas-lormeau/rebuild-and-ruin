@@ -48,7 +48,7 @@ If you hold those three in mind, the file structure makes sense.
 3. **[runtime/game.ts](./runtime/game.ts)** — Top-level
    wiring for the online client. This is the online equivalent of
    `src/main.ts`: it creates renderer/timing/network, wires everything
-   through `createGameRuntime()` from `runtime-composition.ts`, and
+   through `createGameRuntime()` from `composition.ts`, and
    sets up the `onlinePhaseTicks` bag that passes networking callbacks
    into the per-frame game loop.
 

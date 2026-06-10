@@ -79,9 +79,11 @@ what to draw; render decides how.
 - **`3d/camera.ts`** — viewport → camera transform under pitch.
 - **`3d/lights.ts`** — ambient + directional sun, pitch-blended shadow
   intensity, sun-arc direction (`updateSunDirection`).
-- **`3d/elevation.ts`** — Y-elevation helper for walls/towers under
-  fog/sinkhole; also exports `pickHitWorld` for cursor hit-testing
-  against tilted geometry.
+- **`3d/elevation.ts`** — aim-elevation helpers (`aimElevationAt`,
+  `aimZShift`): crosshairs + cannonballs target the top of the tallest
+  occupant at a tile; also exports `pickHitWorld` for cursor
+  hit-testing against tilted geometry and the shared
+  `ELEVATION_STACK` / `RENDER_ORDER` ground-decal constants.
 - **`3d/terrain.ts`** — terrain mesh + shader (consumes the blurred SDF
   + tile-data textures).
 - **`3d/entities/`** — per-entity-type managers (walls, towers, houses,
@@ -129,7 +131,7 @@ the overlay fields by a runtime subsystem before `drawFrame` is called.
 
 ## How the runtime wires render
 
-`src/runtime/runtime-composition.ts` is the composition root. It picks
+`src/runtime/composition.ts` is the composition root. It picks
 the renderer factory (`createCanvasRenderer` for 2D, `createRender3d`
 for 3D) and injects the per-frame overlay factories from
 `render-ui-overlays.ts` / `render-ui-screens.ts` into the runtime's
@@ -146,7 +148,7 @@ render subsystem via a deps bag.
 ### Add a new UI overlay
 1. Add an overlay factory to `render-ui-screens.ts` (or
    `render-ui-overlays.ts` if it's a thin transformer of runtime state).
-2. Export it; `runtime-composition.ts` imports + wires it via deps.
+2. Export it; `composition.ts` imports + wires it via deps.
 3. Add an `overlay.ui.xxx` field in
    `src/shared/ui/overlay-types.ts` and populate it from the runtime
    subsystem that owns the state.
@@ -173,7 +175,7 @@ adds an effect without touching the scene assembly.
   composition root.** The `typeOnlyFrom` rule in
   `.domain-boundaries.json` says runtime can import render TYPES (e.g.
   `RendererInterface`) but not render FUNCTIONS. The composition root
-  (`runtime/runtime-composition.ts`) is the one place allowed to import
+  (`runtime/composition.ts`) is the one place allowed to import
   render functions and thread them into the runtime via deps.
 
 - **Terrain SDF cache is keyed by `mapVersion`.** A genuine water/grass
@@ -208,7 +210,7 @@ adds an effect without touching the scene assembly.
 
 - **[src/runtime/subsystems/render.ts](../runtime/subsystems/render.ts)** —
   Runtime subsystem that calls into this folder.
-- **[src/runtime/runtime-composition.ts](../runtime/runtime-composition.ts)** —
+- **[src/runtime/composition.ts](../runtime/composition.ts)** —
   Composition root that picks the renderer and wires overlay factories.
 - **[src/shared/ui/overlay-types.ts](../shared/ui/overlay-types.ts)** —
   `RendererInterface`, `RenderOverlay`, `UIOverlay`, `CastleData`,
