@@ -501,8 +501,21 @@ function buildLauncherTop(
     createMaterial(top.bucket.material),
   );
   bucket.rotation.x = -Math.PI / 2;
-  bucket.position.set(0, top.arm.length, top.bucket.length / 2 - cells(1.0));
+  // Sit the bowl forward of the arm-tip plane (z=0, where the beam lives)
+  // so the open cone no longer straddles the shaft — its narrow base docks
+  // at the tip and the body extends up-and-forward.
+  bucket.position.set(0, top.arm.length, -top.bucket.length / 2);
   armPivot.add(bucket);
+
+  // Closed floor — disc sealing the bowl's narrow base where the arm tip
+  // docks, so the beam meets a solid bowl bottom instead of threading
+  // through the open cone into the mouth.
+  const bowlFloor = new three.Mesh(
+    new three.CircleGeometry(top.bucket.radiusInner, 20),
+    createMaterial(top.bucket.material),
+  );
+  bowlFloor.position.set(0, top.arm.length, 0);
+  armPivot.add(bowlFloor);
 }
 
 function addAoDisc(
