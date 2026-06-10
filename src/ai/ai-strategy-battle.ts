@@ -180,13 +180,28 @@ export function pickTarget(
     focusFirePlayerId != null &&
     rand() < TARGET_SWITCH_PROBABILITY;
 
-  const targets = collectEnemyTargets(
+  let targets = collectEnemyTargets(
     state,
     playerId,
     focusFirePlayerId,
     switchTarget,
     shotCounts,
   );
+  // "Switch to the other enemy" only makes sense when another enemy exists.
+  // In a 1v1 endgame the focus enemy is the sole target, so switching filters
+  // away every candidate — fall back to normal targeting rather than forfeiting
+  // the shot. The switchTarget rng draw above already happened and
+  // collectEnemyTargets consumes no rng, so this retry keeps the stream aligned
+  // across peers.
+  if (switchTarget && targets.length === 0) {
+    targets = collectEnemyTargets(
+      state,
+      playerId,
+      focusFirePlayerId,
+      false,
+      shotCounts,
+    );
+  }
 
   // Filter out any target tile that already has a cannonball in flight.
   // Cannon candidates aim at the FOOTPRINT CENTER — fractional row/col for
