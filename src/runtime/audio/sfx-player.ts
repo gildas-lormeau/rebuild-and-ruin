@@ -433,11 +433,17 @@ export function createSfxSubsystem(deps: SfxSubsystemDeps): SfxSubsystem {
     // live-tower enclosure in the same phase still rings.
     const enclosedHandler: GameEventHandler<"towerEnclosed"> = (event) => {
       const towerAlive = deps.getState()?.towerAlive[event.towerIndex] ?? false;
-      const isFirst = !fanfarePlayedThisPhase.has(event.playerId);
       const playerId = event.playerId;
+      // Claim the per-phase fanfare slot SYNCHRONOUSLY. One piece can enclose
+      // two live towers in a single build step, emitting two TOWER_ENCLOSED
+      // events back-to-back on the same synchronous stack — if the
+      // has()/add() straddled the async `playSample().then()` below, both
+      // would read the slot as free and fire the fanfare twice. Reserving it
+      // here closes that window; the `.then` just reads the captured flag.
+      const wantsFanfare = towerAlive && !fanfarePlayedThisPhase.has(playerId);
+      if (wantsFanfare) fanfarePlayedThisPhase.add(playerId);
       void playSample("elechit1").then((source) => {
-        if (!isFirst || !towerAlive) return;
-        fanfarePlayedThisPhase.add(playerId);
+        if (!wantsFanfare) return;
         if (!deps.onFirstEnclosure) return;
         if (!source || !audioContext) {
           deps.onFirstEnclosure(playerId);
