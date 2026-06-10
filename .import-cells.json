@@ -928,6 +928,7 @@
     "domain": "ai",
     "role": "AI strategy orchestrator",
     "files": [
+      "src/ai/ai-plan-max-repair-cost.ts",
       "src/ai/ai-plan-super-attack.ts",
       "src/ai/ai-strategy-build.ts"
     ]

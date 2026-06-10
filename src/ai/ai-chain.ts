@@ -29,6 +29,7 @@ export const CHAIN = {
  *  re-selectable as their live preconditions demand. */
 export const TACTIC = {
   DENY_ENCLOSURE: "deny_enclosure",
+  MAX_REPAIR_COST: "max_repair_cost",
   ICE_TRENCH: "ice_trench",
   GRUNT_SWEEP: "grunt_sweep",
   CHARITY: "charity",

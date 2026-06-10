@@ -365,6 +365,7 @@
   {
     "name": "L12",
     "files": [
+      "src/ai/ai-plan-max-repair-cost.ts",
       "src/ai/ai-plan-super-attack.ts",
       "src/ai/ai-strategy-build.ts",
       "src/controllers/controller-ai-assisted-human.ts",

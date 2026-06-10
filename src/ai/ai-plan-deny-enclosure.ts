@@ -117,6 +117,43 @@ export function planDenyEnclosure(
   return null;
 }
 
+/** The enemy to deny: the focus-fire target when it's still active, else an
+ *  RNG-weighted pick over the weakest-first ranking (the same "weakest" order
+ *  `planBattle` uses) — favouring the weakest defender but not always picking
+ *  it, so independent attackers spread across defenders instead of ganging up. */
+export function pickTargetEnemy(
+  state: BattleViewState,
+  playerId: ValidPlayerId,
+  focusEnemyId: ValidPlayerId | undefined,
+  rng: Rng,
+): Player | undefined {
+  const enemies = filterActiveEnemies(state, playerId);
+  if (enemies.length === 0) return undefined;
+  if (focusEnemyId !== undefined) {
+    const focus = enemies.find((enemy) => enemy.id === focusEnemyId);
+    if (focus) return focus;
+  }
+  return pickWeightedTargetEnemy(enemies, rng);
+}
+
+/**
+ * Pick a target enemy with RNG weighting toward weaker defenders (fewest
+ * enclosed alive towers, then lowest score). The weakest is favoured but not
+ * guaranteed, so multiple independent attackers don't all converge on the
+ * single weakest player. Exported for `planBattle`'s focus-fire selection so
+ * both paths share one ranking + weighting rule.
+ */
+export function pickWeightedTargetEnemy(
+  enemies: readonly Player[],
+  rng: Rng,
+): Player | undefined {
+  const ranked = [...enemies].sort(
+    (a, b) =>
+      a.enclosedTowers.length - b.enclosedTowers.length || a.score - b.score,
+  );
+  return weightedPickByRank(ranked, rng);
+}
+
 /** Order siege targets for chain execution: most boxed-in (hardest to
  *  re-route) first, then a nearest-neighbour walk so consecutive shots
  *  concentrate into one breach. The start tile is rotated among the most
@@ -165,43 +202,6 @@ function planBreaches(
   const modWalls = new Set(walls);
   for (const tile of plan) modWalls.delete(packTile(tile.row, tile.col));
   return countBrokenEnclosures(modWalls, enclosures) > 0;
-}
-
-/** The enemy to deny: the focus-fire target when it's still active, else an
- *  RNG-weighted pick over the weakest-first ranking (the same "weakest" order
- *  `planBattle` uses) — favouring the weakest defender but not always picking
- *  it, so independent attackers spread across defenders instead of ganging up. */
-function pickTargetEnemy(
-  state: BattleViewState,
-  playerId: ValidPlayerId,
-  focusEnemyId: ValidPlayerId | undefined,
-  rng: Rng,
-): Player | undefined {
-  const enemies = filterActiveEnemies(state, playerId);
-  if (enemies.length === 0) return undefined;
-  if (focusEnemyId !== undefined) {
-    const focus = enemies.find((enemy) => enemy.id === focusEnemyId);
-    if (focus) return focus;
-  }
-  return pickWeightedTargetEnemy(enemies, rng);
-}
-
-/**
- * Pick a target enemy with RNG weighting toward weaker defenders (fewest
- * enclosed alive towers, then lowest score). The weakest is favoured but not
- * guaranteed, so multiple independent attackers don't all converge on the
- * single weakest player. Exported for `planBattle`'s focus-fire selection so
- * both paths share one ranking + weighting rule.
- */
-export function pickWeightedTargetEnemy(
-  enemies: readonly Player[],
-  rng: Rng,
-): Player | undefined {
-  const ranked = [...enemies].sort(
-    (a, b) =>
-      a.enclosedTowers.length - b.enclosedTowers.length || a.score - b.score,
-  );
-  return weightedPickByRank(ranked, rng);
 }
 
 /** Min-cut tiles of the enemy tower the defender can most cheaply re-enclose.

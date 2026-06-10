@@ -38,6 +38,7 @@ import {
 import { planFatBreach } from "./ai-plan-fat-breach.ts";
 import { planGruntSweep } from "./ai-plan-grunt-sweep.ts";
 import { planIceTrench } from "./ai-plan-ice-trench.ts";
+import { planMaxRepairCost } from "./ai-plan-max-repair-cost.ts";
 import { planPocketDestruction } from "./ai-plan-pocket-destruction.ts";
 import { planStructuralHit } from "./ai-plan-structural-hit.ts";
 import { planSuperAttack } from "./ai-plan-super-attack.ts";
@@ -87,6 +88,13 @@ const FAT_BREACH_PROBABILITY = 1 / 4;
  *  offensive tactic, since enclosure denial (not tower kills) is how defensive
  *  players actually lose lives. Scales with battleTactics. */
 const DENY_ENCLOSURE_PROBABILITY = 3 / 4;
+/** Chance to launch a re-enclosure-cost-maximising "rubble siege" — a wide
+ *  open-field breach that makes the defender's cheapest ring expensive to
+ *  rebuild, rather than minimising the cut like deny_enclosure. Prototype: tier
+ *  2/3 only, and placed BEFORE deny in the cascade so it draws comparable
+ *  samples (deny still fires the remaining share + when this planner returns
+ *  null), letting the efficiency / re-enclosure-cost metric compare the two. */
+const MAX_REPAIR_COST_PROBABILITY = 0.4;
 /** Weak-tier (battleTactics 1: chaotic / builder) enclosure-denial chance. The
  *  ONLY enclosure-breaking tactic enabled at tier 1 — kept small so weak AI
  *  stays clearly below the tier-2 baseline (0.15 ≪ 0.75) but is no longer 100%
@@ -335,6 +343,35 @@ export class DefaultStrategy implements AiStrategy {
         chainType = CHAIN.GRUNT;
         originTag = "charity";
         tacticId = TACTIC.CHARITY;
+      }
+    }
+
+    // Rubble siege — maximise the defender's re-enclosure COST (wide open-field
+    // breach of their cheapest ring) rather than minimise the cut. Prototype,
+    // tier 2/3, placed before deny so both draw comparable samples. Re-selectable
+    // (not excluded) so a multi-attack battle keeps raising the repair floor.
+    const rubbleProb = traitLookup(this.battleTactics, [
+      0,
+      MAX_REPAIR_COST_PROBABILITY,
+      MAX_REPAIR_COST_PROBABILITY,
+    ]);
+    if (
+      !chainTargets &&
+      usableCannonCount >= CHAIN_ATTACK_MIN_CANNONS &&
+      this.rng.bool(rubbleProb)
+    ) {
+      const rubbleTargets = planMaxRepairCost(
+        state,
+        playerId,
+        this.focusFirePlayerId,
+        usableCannonCount,
+        this.rng,
+      );
+      if (rubbleTargets) {
+        chainTargets = rubbleTargets;
+        chainType = CHAIN.STRUCTURAL;
+        originTag = "max_repair_cost";
+        tacticId = TACTIC.MAX_REPAIR_COST;
       }
     }
 

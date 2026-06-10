@@ -12,6 +12,11 @@ export type FireOrigin =
   // distinct origin so metrics can isolate min-cut enclosure-denial sieges from
   // the broader structural-hit tactic. Set via BattlePlan.originTag.
   | "deny_enclosure"
+  // max_repair_cost shares CHAIN.STRUCTURAL's behaviour (surgical wall removal)
+  // with deny_enclosure but maximises the defender's re-enclosure cost — a wide
+  // open-field breach instead of the min-cut. Distinct origin so the efficiency
+  // metric can separate the two siege philosophies. Set via BattlePlan.originTag.
+  | "max_repair_cost"
   | "pocket"
   | "structural"
   | "wall_chain"
