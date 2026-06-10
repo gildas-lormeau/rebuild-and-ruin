@@ -153,14 +153,16 @@ export function createSoundModal(): SoundModal {
     statusOutput.textContent = parts.join(" ");
   }
 
-  // After a successful upload that produced a complete asset set, render
-  // every track to PCM and persist it. This pushes the slow synth pass out
-  // of the in-game `activate()` path and into the settings flow where the
-  // user already expects to wait. If the asset set is incomplete (still
-  // missing files), skip \u2014 the next upload will trigger this again.
+  // After a successful upload that completed the music set, render every
+  // track to PCM and persist it. This pushes the slow synth pass out of
+  // the in-game `activate()` path and into the settings flow where the
+  // user already expects to wait. `loadStoredAssets` is the gate: it needs
+  // RAMP.AD + the XMIs (the render inputs) and tolerates a missing
+  // SOUND.RSC \u2014 that file is SFX-only and optional, so it must not block
+  // the render (`result.missing` includes it). If the music set is still
+  // incomplete this returns undefined and the next upload retries.
   async function maybeRenderAfterUpload(result: StoreResult): Promise<void> {
     if (!result.accepted.length) return;
-    if (result.missing.length) return;
     const assets = await loadStoredAssets();
     if (!assets) return;
     statusOutput.textContent = "Rendering music \u2026";
