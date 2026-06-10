@@ -63,7 +63,6 @@ import {
 import type { BannerShow } from "./banner-state.ts";
 import { resolveAfterLifeLost } from "./dialogs/life-lost-core.ts";
 import type { RuntimeState } from "./state.ts";
-import type { TimingApi } from "./timing-api.ts";
 
 type TransitionId =
   | "castle-done"
@@ -172,11 +171,6 @@ interface BattleLifecycle {
 export interface PhaseTransitionCtx {
   readonly state: GameState;
   readonly runtimeState: RuntimeState;
-  /** Injected timing primitives. Transition display steps that schedule
-   *  fallback timers (e.g. `proceedToBattleFromCtx`'s pitch-settle watchdog) MUST
-   *  route through here so headless tests on the mock clock observe the
-   *  same timing as production. */
-  readonly timing: TimingApi;
 
   readonly showBanner: BannerShow;
   /** Hide whatever banner is currently on screen. The display runner

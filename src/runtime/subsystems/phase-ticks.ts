@@ -72,14 +72,11 @@ import {
   ACCUM_MODIFIER_REVEAL,
   resetAccum,
 } from "../timer-accums.ts";
-import type { TimingApi } from "../timing-api.ts";
 import type { OnlinePhaseTicks, RuntimeConfig } from "../types.ts";
 import type { RuntimeLifeLost } from "./life-lost.ts";
 
 interface PhaseTicksDeps extends Pick<RuntimeConfig, "log"> {
   runtimeState: RuntimeState;
-  /** Injected timing primitives — replaces bare `performance.now()` access. */
-  timing: TimingApi;
   /** Network send — closes over RuntimeConfig.network.send at the call site.
    *  Used by `tickBattlePhase` to broadcast raw battle events (fire, tower
    *  damage, impact) which are themselves protocol messages. */
@@ -339,7 +336,6 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     return {
       state: runtimeState.state,
       runtimeState,
-      timing: deps.timing,
       showBanner: deps.showBanner,
       hideBanner: deps.hideBanner,
       awaitCameraFlat: deps.awaitCameraFlat,

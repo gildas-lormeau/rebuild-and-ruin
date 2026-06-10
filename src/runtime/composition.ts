@@ -649,7 +649,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
 
   const phaseTicks: PhaseTicksSystem = createPhaseTicksSystem({
     runtimeState,
-    timing,
     send: config.network.send,
     log: config.log,
     sendOpponentCannonPlaced: (msg) =>
