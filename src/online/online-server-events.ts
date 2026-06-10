@@ -380,7 +380,10 @@ function handleCannonPhantom(
  *  gameplay mode (simTick + schedule drain run during the dialog), so the
  *  apply fires at the same logical tick on every peer — `dialogResolved`
  *  + `eliminatePlayers` (which mutates `state.players[pid].lives`) land in
- *  lockstep. */
+ *  lockstep.
+ *
+ *  Ownership: hosts only accept choices for slots they see as remote
+ *  humans — same check as `handleUpgradePick` and the action handlers. */
 function handleLifeLostChoice(
   msg: LifeLostChoiceMsg,
   deps: HandleServerIncrementalDeps,
@@ -388,19 +391,27 @@ function handleLifeLostChoice(
   deps.log(
     `life_lost_choice from P${msg.playerId}: ${msg.choice} applyAt=${msg.applyAt} (dialog=${deps.getLifeLostDialog() ? "active" : "null"})`,
   );
+  if (!isRemoteHumanAction(msg.playerId, deps)) return DROPPED;
   const validated = parseLifeLostChoice(msg.choice);
   if (validated === null) return DROPPED;
   const playerId = msg.playerId;
+  const round = msg.round;
   deps.schedule({
     applyAt: msg.applyAt,
     playerId,
     apply: () => {
-      applyLifeLostChoiceToDialog(
-        playerId,
-        validated,
-        deps.getLifeLostDialog(),
-        deps.session.earlyLifeLostChoices,
-      );
+      const dialog = deps.getLifeLostDialog();
+      if (!dialog) {
+        // Dialog not built yet on this peer — queue for the show()-time
+        // drain, round-stamped so a stale choice (own dialog already
+        // closed) can't resolve a future round's dialog.
+        deps.session.earlyLifeLostChoices.set(playerId, {
+          choice: validated,
+          round,
+        });
+        return;
+      }
+      applyLifeLostChoiceToDialog(playerId, validated, dialog);
     },
   });
   return APPLIED;
@@ -442,16 +453,20 @@ function handleUpgradePick(
   if (!isRemoteHumanAction(msg.playerId, deps)) return DROPPED;
   const playerId = msg.playerId;
   const choice = msg.choice;
+  const round = msg.round;
   deps.schedule({
     applyAt: msg.applyAt,
     playerId,
     apply: () => {
-      applyUpgradePickChoiceToDialog(
-        playerId,
-        choice,
-        deps.getUpgradePickDialog(),
-        deps.session.earlyUpgradePickChoices,
-      );
+      const dialog = deps.getUpgradePickDialog();
+      if (!dialog) {
+        // Dialog not built yet on this peer — queue for the tryShow()-
+        // time drain, round-stamped so a stale pick (own dialog already
+        // closed) can't resolve a future round's dialog.
+        deps.session.earlyUpgradePickChoices.set(playerId, { choice, round });
+        return;
+      }
+      applyUpgradePickChoiceToDialog(playerId, choice, dialog);
     },
   });
   return APPLIED;

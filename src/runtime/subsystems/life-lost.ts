@@ -1,5 +1,6 @@
 import { DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS } from "../../shared/core/action-schedule.ts";
 import {
+  DIALOG_FORCE_GRACE,
   LIFE_LOST_AUTO_DELAY,
   LIFE_LOST_MAX_TIMER,
 } from "../../shared/core/game-constants.ts";
@@ -77,10 +78,16 @@ interface LifeLostSystemDeps {
    *  local sim built the dialog. Called once inside `show()` immediately
    *  after the dialog is written to runtime state. The drain iterates
    *  its session-side queue, calls `apply` for each entry, then clears
-   *  the queue. The system owns the find/validate/write of each entry.
+   *  the queue. The system owns the find/validate/write of each entry —
+   *  including rejecting stale rounds (a choice queued after its own
+   *  dialog already closed must not leak into a future round's dialog).
    *  Undefined in local play. */
   applyEarlyChoices?: (
-    apply: (playerId: ValidPlayerId, choice: ResolvedChoice) => boolean,
+    apply: (
+      playerId: ValidPlayerId,
+      choice: ResolvedChoice,
+      round: number,
+    ) => boolean,
   ) => void;
 }
 
@@ -119,6 +126,13 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
    *  tick loop reads it to invoke the caller's onResolved callback.
    *  Tick is gated on Mode.LIFE_LOST. */
   let onResolvedCb: OnLifeLostResolved | undefined;
+
+  /** Slots with a choice sent but not yet applied (online lockstep window
+   *  between send and `applyAt`). Blocks duplicate sends while the entry
+   *  still reads as PENDING — both from repeat clicks and from the
+   *  max-timer force loop re-firing every tick. Cleared per-slot when the
+   *  scheduled apply fires, wholesale on dialog teardown. */
+  const inFlightChoices = new Set<ValidPlayerId>();
 
   /** Drive the life-lost flow to completion. Either resolves
    *  immediately (nothing to show) and calls `onResolved([], [])`, or
@@ -159,7 +173,11 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
     runtimeState.dialogs.lifeLost = dialog;
     onResolvedCb = onResolved;
     setMode(runtimeState, Mode.LIFE_LOST);
-    deps.applyEarlyChoices?.((playerId, choice) => {
+    deps.applyEarlyChoices?.((playerId, choice, round) => {
+      // Stale-round guard: a choice whose applyAt landed after its own
+      // dialog closed gets queued by the wire path — it belongs to a
+      // PREVIOUS round's dialog and must not resolve this one.
+      if (round !== runtimeState.state.round) return false;
       const entry = dialog.entries.find(
         (candidate) =>
           candidate.playerId === playerId &&
@@ -196,6 +214,7 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
           LIFE_LOST_AUTO_DELAY,
           state,
         ),
+      (entry) => forceResolveEntry(entry, dialog),
     );
 
     deps.requestRender();
@@ -209,10 +228,42 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
     const continuing = continuingPlayers(dialog);
     const abandoned = abandonedPlayers(dialog);
     runtimeState.dialogs.lifeLost = null;
+    inFlightChoices.clear();
 
     const callback = onResolvedCb;
     onResolvedCb = undefined;
     callback?.(continuing, abandoned);
+  }
+
+  /** Max-timer force-resolve, ownership-routed. The entry's OWNING peer
+   *  (local, non-auto slot) funnels the forced ABANDON through the same
+   *  lockstep path as a click — force-vs-click ordering is serialized on
+   *  one machine, so every peer applies the same resolution at the same
+   *  logical tick. Non-owning peers only backstop after an extra
+   *  `DIALOG_FORCE_GRACE` window (owner unreachable), with the same
+   *  value the owner would have sent, so a slow wire can't fork the
+   *  dialog and a dead peer can't hang it. */
+  function forceResolveEntry(
+    entry: LifeLostEntry,
+    dialog: LifeLostDialogState,
+  ): void {
+    if (isLocallyDriven(entry)) {
+      scheduleOrApplyChoice(entry.playerId, LifeLostChoice.ABANDON);
+      return;
+    }
+    if (dialog.timer >= LIFE_LOST_MAX_TIMER + DIALOG_FORCE_GRACE) {
+      applyLifeLostChoice(entry, LifeLostChoice.ABANDON);
+    }
+  }
+
+  /** True when this machine owns the entry's input: not auto-resolving
+   *  (real human) and not driven by a remote peer. Mirrors
+   *  `interactiveSlots` in subsystems/upgrade-pick.ts. */
+  function isLocallyDriven(entry: LifeLostEntry): boolean {
+    return (
+      !entry.autoResolve &&
+      !runtimeState.frameMeta.remotePlayerSlots.has(entry.playerId)
+    );
   }
 
   function toggleFocus(playerId: ValidPlayerId): void {
@@ -244,6 +295,8 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
       withPendingEntry(playerId, (entry) => applyLifeLostChoice(entry, choice));
       return;
     }
+    if (inFlightChoices.has(playerId)) return;
+    inFlightChoices.add(playerId);
     const applyAt =
       runtimeState.state.simTick + DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS;
     deps.sendLifeLostChoice(choice, playerId, applyAt);
@@ -251,6 +304,7 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
       applyAt,
       playerId,
       apply: () => {
+        inFlightChoices.delete(playerId);
         applyLifeLostChoiceToDialog(
           playerId,
           choice,
@@ -286,7 +340,10 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
      *  with null in production; the type permits a value for symmetry). */
     set: (dialog: LifeLostDialogState | null) => {
       runtimeState.dialogs.lifeLost = dialog;
-      if (dialog === null) onResolvedCb = undefined;
+      if (dialog === null) {
+        onResolvedCb = undefined;
+        inFlightChoices.clear();
+      }
     },
     show,
     tick: tickLifeLostDialogSystem,

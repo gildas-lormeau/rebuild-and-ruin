@@ -60,8 +60,19 @@ export interface OnlineSession {
   roomGameMode: GameMode;
   keepaliveTimer: ReturnType<typeof setInterval> | null;
   lobbyStartTime: number;
-  earlyLifeLostChoices: Map<ValidPlayerId, ResolvedChoice>;
-  earlyUpgradePickChoices: Map<ValidPlayerId, string>;
+  /** Wire-arrived dialog choices whose scheduled apply found no open
+   *  dialog (arrived before the local sim built it). Drained — and
+   *  round-validated — by the dialog subsystems on show()/tryShow();
+   *  the `round` stamp (sender's `state.round` at decision time) lets
+   *  the drain reject a stale choice from an already-closed dialog. */
+  earlyLifeLostChoices: Map<
+    ValidPlayerId,
+    { choice: ResolvedChoice; round: number }
+  >;
+  earlyUpgradePickChoices: Map<
+    ValidPlayerId,
+    { choice: string; round: number }
+  >;
 }
 
 /** Network deduplication maps — tracks the last-sent value per player for each

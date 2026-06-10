@@ -282,6 +282,7 @@ export async function createHeadlessRuntime(
       () => (action) =>
         runtimeHolder.current!.runtimeState.actionSchedule.schedule(action),
       DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS,
+      () => runtimeHolder.current!.runtimeState.state.round,
     )
     : undefined;
 
@@ -580,6 +581,7 @@ export async function reinstallAssistedControllers(
             send,
             schedule,
             DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS,
+            () => runtime.runtimeState.state.round,
           )
           : createAiController(pid, strategyRng, personality),
     },
@@ -598,6 +600,7 @@ function buildAssistedControllerFactory(
   send: (msg: GameMessage) => void,
   getSchedule: () => (action: ScheduledAction<GameState>) => void,
   safetyTicks: number,
+  getRound: () => number,
 ): ControllerFactory {
   const assistedSet = new Set<ValidPlayerId>(assistedSlots);
   return async (
@@ -642,6 +645,7 @@ function buildAssistedControllerFactory(
       send,
       (action) => getSchedule()(action),
       safetyTicks,
+      getRound,
     );
   };
 }
@@ -655,6 +659,7 @@ async function constructAssistedController(
   send: (msg: GameMessage) => void,
   schedule: (action: ScheduledAction<GameState>) => void,
   safetyTicks: number,
+  getRound: () => number,
 ): Promise<PlayerController> {
   const { AiAssistedHumanController } = await import(
     "../src/controllers/controller-ai-assisted-human.ts"
@@ -668,14 +673,23 @@ async function constructAssistedController(
       sendCannonPlaced: (payload) =>
         send({ type: MESSAGE.OPPONENT_CANNON_PLACED, ...payload }),
       sendCannonFired: (msg) => send(msg),
+      // `round` is stamped here at the wire boundary, mirroring the
+      // production wrappers in src/runtime/composition.ts.
       sendUpgradePick: (choice, applyAt) =>
-        send({ type: MESSAGE.UPGRADE_PICK, playerId: slot, choice, applyAt }),
+        send({
+          type: MESSAGE.UPGRADE_PICK,
+          playerId: slot,
+          choice,
+          applyAt,
+          round: getRound(),
+        }),
       sendLifeLostChoice: (choice, applyAt) =>
         send({
           type: MESSAGE.LIFE_LOST_CHOICE,
           playerId: slot,
           choice,
           applyAt,
+          round: getRound(),
         }),
     },
     schedule,

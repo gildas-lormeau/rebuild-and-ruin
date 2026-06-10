@@ -9,6 +9,7 @@
 
 import { DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS } from "../../shared/core/action-schedule.ts";
 import {
+  DIALOG_FORCE_GRACE,
   UPGRADE_PICK_AUTO_DELAY,
   UPGRADE_PICK_MAX_TIMER,
   UPGRADE_PICK_PULSE_DURATION,
@@ -61,7 +62,11 @@ interface UpgradePickSystemDeps {
    *  owns the find/validate/write of each entry.
    *  Undefined in local play. */
   readonly applyEarlyChoices?: (
-    apply: (playerId: ValidPlayerId, choice: UpgradeId) => boolean,
+    apply: (
+      playerId: ValidPlayerId,
+      choice: UpgradeId,
+      round: number,
+    ) => boolean,
   ) => void;
 }
 
@@ -151,7 +156,11 @@ export function createUpgradePickSystem(
     deps.log(
       `upgrade pick: ${dialog.entries.length} players, round=${runtimeState.state.round}`,
     );
-    deps.applyEarlyChoices?.((playerId, choice) => {
+    deps.applyEarlyChoices?.((playerId, choice, round) => {
+      // Stale-round guard: a pick whose applyAt landed after its own
+      // dialog closed gets queued by the wire path — it belongs to a
+      // PREVIOUS round's dialog and must not resolve this one.
+      if (round !== runtimeState.state.round) return false;
       const entry = dialog.entries.find(
         (candidate) =>
           candidate.playerId === playerId && candidate.choice === null,
@@ -182,11 +191,7 @@ export function createUpgradePickSystem(
           dialog.timer,
           state,
         ),
-      (entry) =>
-        runtimeState.controllers[entry.playerId]!.forceUpgradePick(
-          entry,
-          state,
-        ),
+      (entry) => forceResolveEntry(entry, dialog),
     );
 
     deps.requestRender();
@@ -217,6 +222,47 @@ export function createUpgradePickSystem(
     const callback = onResolvedCb;
     onResolvedCb = undefined;
     callback?.(dialog);
+  }
+
+  /** Max-timer force-resolve, ownership-routed. The entry's OWNING peer
+   *  (local, non-auto slot) funnels the forced pick through the same
+   *  lockstep path as a click — force-vs-click ordering is serialized on
+   *  one machine, so every peer applies the same resolution at the same
+   *  logical tick. Non-owning peers only backstop after an extra
+   *  `DIALOG_FORCE_GRACE` window (owner unreachable), writing the same
+   *  seed-derived pick the owner would have sent (`forceUpgradePick`
+   *  derives it from state alone), so a slow wire can't fork the dialog
+   *  and a dead peer can't hang it. Mirrors `forceResolveEntry` in
+   *  subsystems/life-lost.ts. */
+  function forceResolveEntry(
+    entry: UpgradePickEntry,
+    dialog: UpgradePickDialogState,
+  ): void {
+    const forced = runtimeState.controllers[entry.playerId]!.forceUpgradePick(
+      entry,
+      runtimeState.state,
+    );
+    if (isLocallyDriven(entry)) {
+      scheduleOrApplyPick(entry, entry.offers.indexOf(forced));
+      return;
+    }
+    if (dialog.timer >= UPGRADE_PICK_MAX_TIMER + DIALOG_FORCE_GRACE) {
+      resolveUpgradePickEntry(
+        entry,
+        entry.offers.indexOf(forced),
+        dialog.timer,
+      );
+    }
+  }
+
+  /** True when this machine owns the entry's input: not auto-resolving
+   *  (real human) and not driven by a remote peer. Same predicate as
+   *  `interactiveSlots` below. */
+  function isLocallyDriven(entry: UpgradePickEntry): boolean {
+    return (
+      !entry.autoResolve &&
+      !runtimeState.frameMeta.remotePlayerSlots.has(entry.playerId)
+    );
   }
 
   function moveFocus(playerId: ValidPlayerId, dir: number): void {

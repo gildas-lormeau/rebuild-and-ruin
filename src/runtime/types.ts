@@ -116,21 +116,30 @@ export interface OnlineActions {
 /** Online-only drain hooks for wire-arrived dialog choices that landed
  *  before the local sim made the dialog interactable. The session-side
  *  queues (`earlyLifeLostChoices`, `earlyUpgradePickChoices`) accumulate
- *  these in two windows:
- *    - life-lost: the brief gap between host broadcast and the non-host
- *      peer's local ROUND_END building the dialog.
- *    - upgrade-pick: the banner-preview window where the dialog exists
- *      for rendering but `Mode.UPGRADE_PICK` isn't active yet, so the
- *      wire path's `getUpgradePickDialog` returns null.
+ *  these when a choice's scheduled apply fires with no open dialog —
+ *  normally the brief gap between the sender's decision and this peer
+ *  building the dialog (life-lost: ROUND_END skew; upgrade-pick: the
+ *  banner-preview window before `Mode.UPGRADE_PICK` is active).
  *  Each drain is called once when the corresponding subsystem makes the
  *  dialog interactable; it iterates its session queue, calls `apply` for
- *  each pending entry, then clears the queue. */
+ *  each pending entry, then clears the queue. `round` is the sender's
+ *  `state.round` at decision time — the subsystem rejects entries from
+ *  a different round (a choice that arrived after its own dialog closed
+ *  must not resolve a future round's dialog). */
 interface OnlineDialogDrains {
   drainLifeLost: (
-    apply: (playerId: ValidPlayerId, choice: ResolvedChoice) => boolean,
+    apply: (
+      playerId: ValidPlayerId,
+      choice: ResolvedChoice,
+      round: number,
+    ) => boolean,
   ) => void;
   drainUpgradePick: (
-    apply: (playerId: ValidPlayerId, choice: UpgradeId) => boolean,
+    apply: (
+      playerId: ValidPlayerId,
+      choice: UpgradeId,
+      round: number,
+    ) => boolean,
   ) => void;
 }
 

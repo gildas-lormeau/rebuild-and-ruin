@@ -33,19 +33,23 @@ type ControllerLifeLostTick = (entry: LifeLostEntry) => void;
  *
  *  Drives dialog-layer state only: increments `dialog.timer`, delegates
  *  each pending auto-resolve entry to the per-entry `tickEntry` callback,
- *  and applies the max-timer safety net (ABANDON) as a hard fallback.
- *  `tickEntry` dispatches to the controller that owns each slot.
+ *  and delegates max-timer expiry to `forceResolve`. Both callbacks
+ *  dispatch to the subsystem, which owns ownership routing (owner-funnel
+ *  vs grace backstop) and the entry write.
  *
  *  Returns true when all entries are resolved.
  *  @param dt — Delta time in seconds (not ms).
  *  @param maxTimer — Global force-resolve deadline in seconds.
- *  @param tickEntry — Per-entry tick (closed over state + dt + autoDelay). */
+ *  @param tickEntry — Per-entry tick (closed over state + dt + autoDelay).
+ *  @param forceResolve — Called every tick past `maxTimer` for each
+ *    still-pending entry; must eventually resolve it. */
 // Shares the auto-resolve + force-resolve loop with tickUpgradePickDialog via tickDialogWithFallback.
 export function tickLifeLostDialog(
   dialog: LifeLostDialogState,
   dt: number,
   maxTimer: number,
   tickEntry: ControllerLifeLostTick,
+  forceResolve: (entry: LifeLostEntry) => void,
 ): boolean {
   return tickDialogWithFallback<LifeLostEntry>({
     dialog,
@@ -56,9 +60,7 @@ export function tickLifeLostDialog(
     tickEntry: (entry) => {
       tickEntry(entry);
     },
-    forceResolve: (entry) => {
-      entry.choice = LifeLostChoice.ABANDON;
-    },
+    forceResolve,
   });
 }
 
@@ -137,20 +139,18 @@ export function focusedLifeLostChoice(entry: LifeLostEntry): ResolvedChoice {
 }
 
 /** Apply a lockstep-scheduled life-lost choice to whichever peer's dialog
- *  state is live at drain time. If the dialog isn't open yet (wire arrived
- *  before the local sim built the dialog), queue the choice for the
- *  early-drain on `show()`. Shared between originator and receiver so the
- *  apply behaves identically on every peer. */
+ *  state is live at drain time. Shared between originator and receiver so
+ *  the apply behaves identically on every peer; a choice that lost the
+ *  first-wins race (entry already resolved) or arrived with no dialog
+ *  open is a silent no-op — the RECEIVER's schedule closure handles the
+ *  no-dialog case by round-stamped early-queueing (see
+ *  `handleLifeLostChoice` in online-server-events.ts). */
 export function applyLifeLostChoiceToDialog(
   playerId: ValidPlayerId,
   choice: ResolvedChoice,
   dialog: LifeLostDialogState | null,
-  earlyChoices?: Map<ValidPlayerId, ResolvedChoice>,
 ): void {
-  if (!dialog) {
-    earlyChoices?.set(playerId, choice);
-    return;
-  }
+  if (!dialog) return;
   const entry = dialog.entries.find((e) => e.playerId === playerId);
   if (entry && entry.choice === LifeLostChoice.PENDING) {
     entry.choice = choice;

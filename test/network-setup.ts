@@ -49,7 +49,6 @@ import {
 } from "../src/online/online-presence-state.ts";
 import type { ValidPlayerId } from "../src/shared/core/player-slot.ts";
 import type { UpgradeId } from "../src/shared/core/upgrade-defs.ts";
-import type { ResolvedChoice } from "../src/shared/ui/interaction-types.ts";
 import type {
   OnlinePhaseTicks,
   RuntimeConfig,
@@ -456,14 +455,14 @@ function buildDialogDrains(
 ): NonNullable<RuntimeConfig["onlineDialogDrains"]> {
   return {
     drainLifeLost: (apply) => {
-      for (const [pid, choice] of session.earlyLifeLostChoices) {
-        apply(pid, choice as ResolvedChoice);
+      for (const [pid, queued] of session.earlyLifeLostChoices) {
+        apply(pid, queued.choice, queued.round);
       }
       session.earlyLifeLostChoices.clear();
     },
     drainUpgradePick: (apply) => {
-      for (const [pid, choice] of session.earlyUpgradePickChoices) {
-        apply(pid, choice as UpgradeId);
+      for (const [pid, queued] of session.earlyUpgradePickChoices) {
+        apply(pid, queued.choice as UpgradeId, queued.round);
       }
       session.earlyUpgradePickChoices.clear();
     },

@@ -171,6 +171,16 @@ export const WALL_BUILD_INTERVAL = 160;
 export const LIFE_LOST_AUTO_DELAY = 2.0;
 /** Maximum time before the life-lost dialog auto-resolves (seconds). */
 export const LIFE_LOST_MAX_TIMER = 10.0;
+/** Extra dialog-timer wait (seconds) before a NON-OWNING peer force-
+ *  resolves another machine's still-pending dialog entry (life-lost and
+ *  upgrade-pick). The owning peer force-resolves at the dialog's max
+ *  timer through the lockstep send path, so force-vs-click ordering is
+ *  serialized on one machine; this grace absorbs cross-peer dialog-open
+ *  skew plus wire latency so the owner's resolution normally lands
+ *  first. The backstop value matches what the owner would send (ABANDON
+ *  / the seed-derived forced pick), so even a missed window converges
+ *  on the same choice. */
+export const DIALOG_FORCE_GRACE = 2.0;
 /** Maximum frame delta time in seconds (caps large frame gaps). */
 export const MAX_FRAME_DT = 0.1;
 /** Fixed simulation tick step (seconds). The game loop accumulates real

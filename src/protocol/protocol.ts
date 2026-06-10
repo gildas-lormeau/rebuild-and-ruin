@@ -65,12 +65,14 @@ export type ClientMessage =
       choice: ResolvedChoice;
       playerId?: ValidPlayerId;
       applyAt: number;
+      round: number;
     }
   | {
       type: "upgradePick";
       playerId: ValidPlayerId;
       choice: string;
       applyAt: number;
+      round: number;
     }
   | { type: "ping" };
 
@@ -386,6 +388,11 @@ interface LifeLostChoiceForwardedMessage {
   playerId: ValidPlayerId;
   choice: ResolvedChoice;
   applyAt: number;
+  /** Sender's `state.round` at decision time. Receivers stamp it onto
+   *  early-queued choices so the show-time drain can reject a choice
+   *  whose own dialog already closed (it must not leak into a future
+   *  round's dialog). */
+  round: number;
 }
 
 /** Upgrade pick choice, relayed to every peer.
@@ -401,6 +408,9 @@ interface UpgradePickForwardedMessage {
   playerId: ValidPlayerId;
   choice: string;
   applyAt: number;
+  /** Sender's `state.round` at decision time — same stale-round guard
+   *  as `lifeLostChoice` above. */
+  round: number;
 }
 
 /** Crosshair position update (for spectator rendering, not validated). */

@@ -589,12 +589,16 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
 
   const lifeLost: LifeLostSystem = createLifeLostSystem({
     runtimeState,
+    // `round` is stamped here at the wire boundary (protocol metadata for
+    // the receivers' stale-round guard), not threaded through the
+    // subsystem's decision path.
     sendLifeLostChoice: (choice, playerId, applyAt) =>
       config.network.send({
         type: "lifeLostChoice",
         choice,
         playerId,
         applyAt,
+        round: runtimeState.state.round,
       }),
     log: config.log,
     requestRender,
@@ -612,7 +616,13 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     log: config.log,
     requestRender,
     sendUpgradePick: (playerId, choice, applyAt) =>
-      config.network.send({ type: "upgradePick", playerId, choice, applyAt }),
+      config.network.send({
+        type: "upgradePick",
+        playerId,
+        choice,
+        applyAt,
+        round: runtimeState.state.round,
+      }),
     applyEarlyChoices: config.onlineDialogDrains?.drainUpgradePick,
   });
 

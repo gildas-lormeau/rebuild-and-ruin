@@ -23,7 +23,6 @@ import {
 } from "../../shared/core/game-constants.ts";
 import type { ValidPlayerId } from "../../shared/core/player-slot.ts";
 import type { UpgradeId } from "../../shared/core/upgrade-defs.ts";
-import type { ResolvedChoice } from "../../shared/ui/interaction-types.ts";
 import { MAX_PLAYERS, PLAYER_NAMES } from "../../shared/ui/player-config.ts";
 import { canvas, worldCanvas } from "../online-dom.ts";
 import {
@@ -206,10 +205,10 @@ const runtime: GameRuntime = createGameRuntime({
     drainLifeLost: (apply) => {
       const queue = ctx.session.earlyLifeLostChoices;
       if (queue.size === 0) return;
-      for (const [pid, choice] of queue) {
-        const applied = apply(pid, choice as ResolvedChoice);
+      for (const [pid, queued] of queue) {
+        const applied = apply(pid, queued.choice, queued.round);
         devLog(
-          `drain life_lost queued P${pid}=${choice} -> ${applied ? "applied" : "stale"}`,
+          `drain life_lost queued P${pid}=${queued.choice} r${queued.round} -> ${applied ? "applied" : "stale"}`,
         );
       }
       queue.clear();
@@ -217,10 +216,10 @@ const runtime: GameRuntime = createGameRuntime({
     drainUpgradePick: (apply) => {
       const queue = ctx.session.earlyUpgradePickChoices;
       if (queue.size === 0) return;
-      for (const [pid, choice] of queue) {
-        const applied = apply(pid, choice as UpgradeId);
+      for (const [pid, queued] of queue) {
+        const applied = apply(pid, queued.choice as UpgradeId, queued.round);
         devLog(
-          `drain upgrade_pick queued P${pid}=${choice} -> ${applied ? "applied" : "stale"}`,
+          `drain upgrade_pick queued P${pid}=${queued.choice} r${queued.round} -> ${applied ? "applied" : "stale"}`,
         );
       }
       queue.clear();
