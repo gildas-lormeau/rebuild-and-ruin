@@ -29,7 +29,6 @@ export interface EnclosureAnalysis {
   otherUnenclosed: Tower[];
   allCastlesEnclosed: boolean;
   effectiveSkipHome: boolean;
-  homeHasRingGaps: boolean;
 }
 
 /** Result of target selection — which gaps to fill and the bounding rect. */
@@ -56,7 +55,6 @@ export interface TargetContext {
   bankHugging: boolean;
   cursorPos: TilePos | undefined;
   effectiveSkipHome: boolean;
-  homeHasRingGaps: boolean;
   homeTowerEnclosed: boolean;
   allCastlesEnclosed: boolean;
   unenclosedTowers: Tower[];

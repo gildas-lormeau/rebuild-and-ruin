@@ -91,10 +91,7 @@ import type {
   Scored,
   ScoringContext,
 } from "./ai-build-types.ts";
-import {
-  hasMeaningfulHomeRingGaps,
-  isTowerEnclosable,
-} from "./ai-castle-rect.ts";
+import { isTowerEnclosable } from "./ai-castle-rect.ts";
 import { findEnclosureCut } from "./ai-min-cut.ts";
 
 type BuildSkillConfig = (typeof BUILD_SKILL_TABLE)[number];
@@ -225,7 +222,6 @@ export function pickPlacement(
     otherUnenclosed,
     allCastlesEnclosed,
     effectiveSkipHome,
-    homeHasRingGaps,
   } = analyzeEnclosures(state, player, castle, homeWasBroken);
   const walls = player.walls;
 
@@ -254,7 +250,6 @@ export function pickPlacement(
     bankHugging,
     cursorPos,
     effectiveSkipHome,
-    homeHasRingGaps,
     homeTowerEnclosed,
     allCastlesEnclosed,
     unenclosedTowers,
@@ -1091,7 +1086,7 @@ function analyzeEnclosures(
   );
 
   // `outside` is still needed for the 4-dir diagonal-leak disambiguation
-  // (towerReachesOutsideCardinal) and for hasMeaningfulHomeRingGaps. The
+  // (towerReachesOutsideCardinal). The
   // 8-dir "is this tower enclosed by my walls" question is answered by
   // player.enclosedTowers, which recheckTerritory keeps in sync via the same
   // computeOutside-derived interior.
@@ -1168,15 +1163,6 @@ function analyzeEnclosures(
     effectiveSkipHome = true;
   }
 
-  const homeHasRingGaps = hasMeaningfulHomeRingGaps(
-    homeTowerEnclosed,
-    castle,
-    player.walls,
-    outside,
-    state,
-    getInterior(player),
-  );
-
   return {
     outside,
     homeTowerEnclosed,
@@ -1185,7 +1171,6 @@ function analyzeEnclosures(
     otherUnenclosed,
     allCastlesEnclosed,
     effectiveSkipHome,
-    homeHasRingGaps,
   };
 }
 

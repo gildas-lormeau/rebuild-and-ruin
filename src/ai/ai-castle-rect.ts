@@ -33,7 +33,6 @@ import {
   isWater,
   manhattanDistance,
   packTile,
-  towerReachesOutsideCardinal,
   unpackTile,
 } from "../shared/core/spatial.ts";
 import type {
@@ -116,24 +115,6 @@ export function scoreBuildTowerTarget(
       (dead ? DEAD_TOWER_PENALTY : 0) -
       obstructionRatio * OBSTRUCTION_PENALTY * (1 - progress),
   };
-}
-
-export function hasMeaningfulHomeRingGaps(
-  homeTowerEnclosed: boolean,
-  castle: TileRect & { tower: Tower },
-  walls: ReadonlySet<TileKey>,
-  outside: ReadonlySet<TileKey>,
-  state: BuildViewState,
-  interior: ReadonlySet<TileKey>,
-): boolean {
-  if (!homeTowerEnclosed) return true;
-  if (castle.top > castle.bottom || castle.left > castle.right) return false;
-
-  // Verify with 4-dir BFS: if the tower can't reach outside orthogonally,
-  // ring gaps are cosmetic and not worth pursuing.
-  if (!towerReachesOutsideCardinal(castle.tower, walls, outside)) return false;
-
-  return findReachableRingGaps(castle, walls, state, interior).size > 0;
 }
 
 /**
