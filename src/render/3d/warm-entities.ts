@@ -3,8 +3,8 @@
  * (`renderer.warmEntityShaders`). Positions are arbitrary — only the SET
  * of distinct meshes/variants matters, so we cluster everything into a
  * small tile block and cover every variant that picks a different
- * geometry/material (cannon modes + tiers, cannonball iron/fire/mortar,
- * the burst effects aged into their active window). Warmup-only data.
+ * geometry/material (cannon modes/tiers, cannonball iron/fire/mortar, aged
+ * burst effects, a dead cannon linking the shared rubble program).
  */
 
 import {
@@ -58,7 +58,7 @@ export function buildWarmupOverlay(map: GameMap): RenderOverlay {
   return {
     phase: Phase.BATTLE,
     castles: [
-      warmCastle(0, CannonMode.NORMAL, 1),
+      warmCastle(0, CannonMode.NORMAL, 1, true),
       warmCastle(5, CannonMode.SUPER, 2),
       warmCastle(10, CannonMode.BALLOON, 3),
       warmCastle(15, CannonMode.RAMPART, 1),
@@ -93,11 +93,15 @@ export function buildWarmupOverlay(map: GameMap): RenderOverlay {
 }
 
 /** A castle carrying one cannon of `mode` at the given tier, plus a short
- *  wall run so the walls manager links its tile-mesh variants. */
+ *  wall run so the walls manager links its tile-mesh variants. With
+ *  `withDeadCannon`, an extra hp:0 cannon is added (kept separate from the
+ *  live one so the live variant still links) — the debris manager builds a
+ *  bucket for it, warming the shared debris shader program. */
 function warmCastle(
   rowOffset: number,
   mode: CannonMode,
   cannonTier: 1 | 2 | 3,
+  withDeadCannon = false,
 ): CastleData {
   const row = WARM_ROW + rowOffset;
   const walls = new Set<TileKey>([
@@ -106,16 +110,26 @@ function warmCastle(
     key(row, WARM_COL + 2),
     key(row + 1, WARM_COL),
   ]);
-  const cannon: Cannon = {
-    row: row + 3,
-    col: WARM_COL,
-    hp: 4,
-    mode,
-  };
+  const cannons: Cannon[] = [
+    {
+      row: row + 3,
+      col: WARM_COL,
+      hp: 4,
+      mode,
+    },
+  ];
+  if (withDeadCannon) {
+    cannons.push({
+      row: row + 3,
+      col: WARM_COL + 4,
+      hp: 0,
+      mode: CannonMode.NORMAL,
+    });
+  }
   return {
     walls,
     interior: emptyFreshInterior(),
-    cannons: [cannon],
+    cannons,
     playerId: PID0,
     // Mark one wall as damaged so the reinforced-walls crack variant links.
     damagedWalls: new Set<TileKey>([key(row, WARM_COL + 2)]),
