@@ -67,8 +67,6 @@ export interface RuntimeSelection {
 
 interface SelectionSystemDeps {
   runtimeState: RuntimeState;
-  /** True when this client is the host (drives castle wall generation + broadcasts). */
-  hostAtFrameStart: () => boolean;
 
   // Networking (named sends — protocol knowledge stays in composition root)
   sendTowerSelected: (
@@ -77,7 +75,6 @@ interface SelectionSystemDeps {
     confirmed: boolean,
     applyAt?: number,
   ) => void;
-  sendSelectStart: (timer: number) => void;
   log: (msg: string) => void;
 
   camera: Pick<

@@ -436,7 +436,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
 
   const selection = createSelectionSystem({
     runtimeState,
-    hostAtFrameStart: config.network.amHost,
     sendTowerSelected: (pid, idx, confirmed, applyAt) =>
       config.network.send({
         type: "opponentTowerSelected",
@@ -445,8 +444,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
         confirmed,
         applyAt,
       }),
-    sendSelectStart: (timer) =>
-      config.network.send({ type: "selectStart", timer }),
     log: config.log,
     camera,
     syncSelectionOverlay: updateSelectionOverlay,
