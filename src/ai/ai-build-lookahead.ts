@@ -92,5 +92,9 @@ function gapCentroid(gaps: ReadonlySet<TileKey>): {
     sumCol += col;
     count++;
   }
+  // Callers only reach here with a non-empty ring (poolFillableTowerRing
+  // returns null on zero gaps, guarded at the call site). Guard the divide
+  // anyway so a future caller passing an empty set can't NaN-poison the anchor.
+  if (count === 0) return { row: 0, col: 0 };
   return { row: sumRow / count, col: sumCol / count };
 }

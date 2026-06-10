@@ -232,9 +232,13 @@ export function createCannonPlacementContext(
 }
 
 /** Return the next single cannon placement the AI would make, given the
- *  current `player.cannons` and pending budget flags in `ctx`. Each call
- *  consumes at most one special-placement budget (super / rampart /
- *  balloon) — after those are exhausted it falls through to the highest-
+ *  current `player.cannons` and pending budget flags in `ctx`. A call PLACES
+ *  at most one special cannon — it returns on the first special (super /
+ *  rampart / balloon) whose gate passes. But it RETIRES every pending special
+ *  flag it reaches: a special whose slot/mode gate fails this call is flipped
+ *  off and never retried (slotsLeft only shrinks and the normal-candidate
+ *  count only falls, so a skipped special can't become placeable on a later
+ *  call). After the specials are retired it falls through to the highest-
  *  scoring NORMAL slot. Returns `undefined` when out of slots or no legal
  *  position remains. */
 export function nextCannonPlacement(
