@@ -322,8 +322,9 @@ export function applyUpgradePicks(
  *  BUILD_START checkpoint is sent. Returns null if not applicable.
  *
  *  `upcomingRound` is the round whose UPGRADE_PICK these offers will fill.
- *  The caller passes `state.round + 1` because state.round doesn't advance
- *  until `resolveAfterLifeLost` (postDisplay of round-end). */
+ *  The caller (prepareNextRound, at `battle-done`) passes `state.round + 1`
+ *  because state.round doesn't advance until this round's `round-end` mutate
+ *  (end of the upcoming WALL_BUILD) — so it's still the closing round here. */
 export function generateUpgradeOffers(
   state: GameState,
   upcomingRound: number,

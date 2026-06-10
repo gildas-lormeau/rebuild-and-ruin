@@ -294,16 +294,25 @@ export interface PhaseTransitionCtx {
 
   // ── Host-only hooks ──
 
+  /** Host-only phase markers. Each is a payload-less sync signal that
+   *  receivers IGNORE on the wire — `online-server-lifecycle.ts` acks
+   *  them but runs no engine work, because under the clone-everywhere
+   *  model every peer already dispatched the matching transition (and ran
+   *  its engine work) from its own local tick. The per-field comment names
+   *  the transition that did that work; the marker just lets the host
+   *  signal "I reached here" for tracing / liveness, NOT to drive state. */
   readonly broadcast?: {
+    /** CANNON_PLACE-entry marker — receivers ran `enterCannonPhase` from
+     *  their own `castle-done` / `advance-to-cannon` tick. */
     readonly cannonStart?: () => void;
-    /** Phase-marker signal — watcher runs `prepareBattle` locally on
-     *  receipt. No payload. */
+    /** BATTLE-entry marker — receivers ran `prepareBattle` from their own
+     *  `cannon-place-done` tick. */
     readonly battleStart?: () => void;
-    /** Phase-marker signal — watcher runs `finalizeBattle` + `prepareNextRound`
-     *  locally on receipt. No payload; both sides derive identical state. */
+    /** WALL_BUILD-entry marker — receivers ran `finalizeBattle` +
+     *  `prepareNextRound` from their own `battle-done` / `ceasefire` tick. */
     readonly buildStart?: () => void;
-    /** Phase-marker signal — watcher runs `finalizeRound` locally
-     *  on receipt. No payload. */
+    /** Round-close marker — receivers ran `finalizeRound` from their own
+     *  `round-end` tick. */
     readonly buildEnd?: () => void;
   };
 

@@ -147,21 +147,25 @@ interface SelectStartMessage {
   timer: number;
 }
 
-/** Start of cannon placement phase — phase-marker signal. Watcher runs the
- *  source-phase prefix + `enterCannonPhase` locally on receipt; no payload.
- *  See `CANNON_ENTRY_WATCHER_STEP` in `runtime/phase-machine.ts`. */
+/** Start of CANNON_PLACE — payload-less phase marker. Receivers IGNORE it
+ *  on the wire (`online-server-lifecycle.ts` acks but runs no engine work);
+ *  under clone-everywhere they already ran `enterCannonPhase` from their own
+ *  `castle-done` / `advance-to-cannon` tick. The marker is a host liveness /
+ *  trace signal, not a state driver. */
 interface CannonStartMessage {
   type: "cannonStart";
 }
 
-/** Start of battle — phase-marker signal. Watcher runs
- *  `prepareBattle` locally on receipt; no payload. */
+/** Start of BATTLE — payload-less phase marker. Receivers ignore it on the
+ *  wire, having already run `prepareBattle` from their own `cannon-place-done`
+ *  tick. */
 interface BattleStartMessage {
   type: "battleStart";
 }
 
-/** Start of build phase — phase-marker signal. Watcher runs
- *  `finalizeBattle` + `prepareNextRound` locally on receipt; no payload. */
+/** Start of WALL_BUILD — payload-less phase marker. Receivers ignore it on
+ *  the wire, having already run `finalizeBattle` + `prepareNextRound` from
+ *  their own `battle-done` / `ceasefire` tick. */
 interface BuildStartMessage {
   type: "buildStart";
 }
@@ -174,11 +178,12 @@ interface BuildStartMessage {
  *  handler / online-compat check; semantically it's also the round-end
  *  barrier.
  *
- *  Watcher runs `finalizeRound` (score + life penalties + ROUND_END emit)
- *  locally on receipt; no payload. The `state.round++` + ROUND_START emit
- *  happen later, in `resolveAfterLifeLost` (postDisplay of round-end),
- *  after the life-lost dialog resolves and before the game-over check —
- *  every peer dispatches the same way. */
+ *  Payload-less phase marker; receivers ignore it on the wire, having run
+ *  `finalizeRound` (score + life penalties + ROUND_END emit) from their own
+ *  `round-end` mutate. That same mutate peeks game-over against the closing
+ *  round and — when the game continues — increments `state.round` + emits
+ *  ROUND_START, all BEFORE the score-overlay / life-lost dialog display (not
+ *  in `resolveAfterLifeLost`). Every peer dispatches the same way. */
 interface BuildEndMessage {
   type: "buildEnd";
 }

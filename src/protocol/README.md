@@ -13,7 +13,7 @@ Host ──WebSocket──> Server (relay) ──WebSocket──> Players / Watc
 
 ### Key Principles
 - **Deterministic from seed**: all clients derive the map, towers, zones, and houses from the seed. The `init` message only carries the seed + settings — no map data.
-- **Bare-marker phase checkpoints**: `cannonStart`, `battleStart`, `buildStart`, `buildEnd` carry no payload. The watcher runs the same engine fn locally on receipt (source-phase prefix + `enterCannonPhase`, `prepareBattle`, `finalizeBattle` + `prepareNextRound`, `finalizeRound`). Watcher and host produce byte-identical state from synced RNG. The only payload-bearing wire snapshot of RNG state is `fullState`, used during host-migration / late-join recovery.
+- **Bare-marker phase checkpoints**: `cannonStart`, `battleStart`, `buildStart`, `buildEnd` carry no payload, and receivers IGNORE them on the wire. Under clone-everywhere every peer dispatches the matching transition — and runs its engine fn (`enterCannonPhase`, `prepareBattle`, `finalizeBattle` + `prepareNextRound`, `finalizeRound`) — from its own local tick, so host and watcher derive byte-identical state from synced RNG without the marker driving anything. The marker is a host liveness / trace signal only. The one payload-bearing wire snapshot of RNG state is `fullState`, used during host-migration / late-join recovery.
 - **Events during phases**: incremental updates (piece placed, cannon fired, wall destroyed) streamed in real-time.
 - **Lockstep apply scheduling**: every state-mutating originator-driven message (`opponentPiecePlaced`, `opponentCannonPlaced`, `opponentTowerSelected` confirmed, `opponentCannonPhaseDone`, `cannonFired`) carries `applyAt = senderSimTick + SAFETY`. Both originator and receiver enqueue the apply for that tick; the queue drains at the top of each sim tick keyed off the shared `state.simTick` counter, so mutations and their RNG-consuming cascades fire at the same logical tick across peers — closing within-phase divergences (recheckTerritory grunt-respawn drift, AI cannon-fire grunt-spawn drift, castle-wall clumsy-builder drift) that wire delay would otherwise open.
 - **Local AI on every peer**: AI selections, castle wall plans, modifier tiles, bonus square placement, and grunt spawns all advance from `state.rng`. Watchers run the same code paths as host — no wire payload needed for any of these.
@@ -84,7 +84,7 @@ Sent inside `createRoom`, `roomCreated`, and `roomJoined`:
 
 ### Host → All (Phase Transitions / Checkpoints)
 
-All four phase-marker checkpoints (`cannonStart`, `battleStart`, `buildStart`, `buildEnd`) carry only `{ type }` — the watcher runs the matching engine fn locally on receipt, deriving every mutation from synced state + RNG. `init`, `selectStart`, and `gameOver` carry bootstrap / phase-entry / terminal-frame payloads but no derived game state.
+All four phase-marker checkpoints (`cannonStart`, `battleStart`, `buildStart`, `buildEnd`) carry only `{ type }` and are ignored on receipt — each peer runs the matching engine fn from its own local tick (deriving every mutation from synced state + RNG), so the marker drives nothing. `init`, `selectStart`, and `gameOver` carry bootstrap / phase-entry / terminal-frame payloads but no derived game state.
 
 | Message | When | Payload | Watcher action |
 |---------|------|---------|----------------|
@@ -172,7 +172,7 @@ Round 1 is special: CASTLE_SELECT auto-builds the initial castle walls inline, t
 - **MODIFIER_REVEAL** between CANNON_PLACE and BATTLE — entered only when a modifier rolled during `prepareBattleState`. 2s banner + dwell, then BATTLE.
 - **UPGRADE_PICK** between BATTLE and WALL_BUILD — entered from round 3 when upgrade offers are present. Upgrade offers are generated locally on every peer inside `prepareNextRound` (synced RNG); players respond with `upgradePick` messages which the host applies and re-broadcasts.
 
-Each transition is marked by a bare-marker checkpoint from the host. Watchers run the matching engine fn locally on receipt and render incremental events until the next checkpoint.
+Each transition is marked by a bare-marker checkpoint from the host, which receivers ignore — every peer runs the matching engine fn from its own local tick and renders incremental events until the next checkpoint. The marker is a liveness / trace signal, not a state driver.
 
 ## Host Migration
 

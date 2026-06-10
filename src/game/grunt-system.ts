@@ -346,8 +346,9 @@ export function recomputeGruntTargetedWalls(state: GameState): void {
  *  PRECONDITION: interior must be fresh (recheckTerritory already called).
  *
  *  `upcomingRound` is the round whose battle these grunts will join. The
- *  caller (prepareNextRound) passes `state.round + 1` because state.round
- *  doesn't advance until `resolveAfterLifeLost` (postDisplay of round-end). */
+ *  caller (prepareNextRound, at `battle-done`) passes `state.round + 1`
+ *  because state.round doesn't advance until this round's `round-end` mutate
+ *  (end of the upcoming WALL_BUILD) — so it's still the closing round here. */
 export function spawnInterbattleGrunts(
   state: GameState,
   upcomingRound: number,
