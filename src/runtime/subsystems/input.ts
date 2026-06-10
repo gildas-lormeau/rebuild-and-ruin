@@ -463,12 +463,17 @@ function buildGameOverDeps(
   gameOverClick: (canvasX: number, canvasY: number) => void,
 ): RegisterOnlineInputDeps["gameOver"] {
   return {
-    getFocused: () => runtimeState.frame.gameOver?.focused ?? FOCUS_REMATCH,
+    // Fallback (no overlay) is MENU — see `getGameOverFocused` in
+    // game-lifecycle.ts: confirming into a rematch with no game-over
+    // screen would boot a game under whatever UI replaced it.
+    getFocused: () => runtimeState.frame.gameOver?.focused ?? FOCUS_MENU,
     setFocused: (focused: GameOverFocus) => {
-      if (runtimeState.frame.gameOver) {
-        runtimeState.frame.gameOver.focused = focused;
-        render();
-      }
+      const gameOver = runtimeState.frame.gameOver;
+      if (!gameOver) return;
+      // Rematch can't take focus while hidden (online game-over screen).
+      if (focused === FOCUS_REMATCH && !gameOver.showRematch) return;
+      gameOver.focused = focused;
+      render();
     },
     click: gameOverClick,
   };
@@ -560,11 +565,13 @@ function buildOverlayActionDeps(
         runtimeState.mode === Mode.STOPPED &&
         runtimeState.frame.gameOver !== undefined,
       toggleFocus: () => {
-        if (!runtimeState.frame.gameOver) return;
-        runtimeState.frame.gameOver.focused =
-          runtimeState.frame.gameOver.focused === FOCUS_REMATCH
-            ? FOCUS_MENU
-            : FOCUS_REMATCH;
+        const gameOver = runtimeState.frame.gameOver;
+        if (!gameOver) return;
+        // Menu is the only button when rematch is hidden (online) —
+        // nothing to toggle to.
+        if (!gameOver.showRematch) return;
+        gameOver.focused =
+          gameOver.focused === FOCUS_REMATCH ? FOCUS_MENU : FOCUS_REMATCH;
         render();
       },
       confirm: async () => {

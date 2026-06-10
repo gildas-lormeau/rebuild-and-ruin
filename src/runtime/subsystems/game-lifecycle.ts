@@ -313,8 +313,11 @@ export function buildLifecycleDeps(
     showLobby: config.showLobby,
 
     hitTestGameOver: wiringDeps.hitTestGameOver,
+    // Fallback (no overlay, e.g. STOPPED via route-level shutdown) is
+    // MENU: confirming into a rematch with no game-over screen would
+    // boot a game under whatever UI replaced it.
     getGameOverFocused: () =>
-      runtimeState.frame.gameOver?.focused ?? FOCUS_REMATCH,
+      runtimeState.frame.gameOver?.focused ?? FOCUS_MENU,
     isTouchDevice: wiringDeps.isTouchDevice,
   };
 }

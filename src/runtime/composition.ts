@@ -576,7 +576,10 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
         return gameOverButtonHitTest(canvasX, canvasY, gameOver);
       },
       isTouchDevice: IS_TOUCH_DEVICE,
-      buildGameOverOverlay,
+      // Online sessions hide the Rematch button — rematch rebuilds a
+      // local game from lobby state, which is nonsense with remote slots.
+      buildGameOverOverlay: (winnerId, players) =>
+        buildGameOverOverlay(winnerId, players, !isOnline),
     }),
   );
 

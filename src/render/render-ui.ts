@@ -446,7 +446,12 @@ export function drawGameOver(
   overlayCtx.save();
   const gameOverData = overlay.ui.gameOver;
   const sorted = [...gameOverData.scores].sort((a, b) => b.score - a.score);
-  const layout = gameOverLayout(W, H, gameOverData.scores);
+  const layout = gameOverLayout(
+    W,
+    H,
+    gameOverData.scores,
+    gameOverData.showRematch,
+  );
   const { panelW, panelH, px, py, btnW, btnY, rematchX, menuX } = layout;
 
   drawGameOverPanel(overlayCtx, W, px, py, panelW, panelH, gameOverData.winner);
@@ -458,6 +463,7 @@ export function drawGameOver(
     rematchX,
     menuX,
     gameOverData.focused,
+    gameOverData.showRematch,
   );
   overlayCtx.restore();
 }
@@ -855,24 +861,27 @@ function drawGameOverButtons(
   rematchX: number,
   menuX: number,
   focused: GameOverOverlay["focused"],
+  showRematch: boolean,
 ): void {
   overlayCtx.textAlign = TEXT_ALIGN_CENTER;
   overlayCtx.textBaseline = TEXT_BASELINE_MIDDLE;
 
-  const rematchFocused = focused === FOCUS_REMATCH;
-  drawButton(
-    overlayCtx,
-    rematchX,
-    btnY,
-    btnW,
-    GAMEOVER_BTN_H,
-    {
-      fill: BTN_CONTINUE.fill(rematchFocused ? OP_FOCUS : OP_IDLE),
-      ...focusedButtonStyle(BTN_CONTINUE, rematchFocused, TEXT_LIGHT),
-      font: FONT_BUTTON,
-    },
-    "Rematch",
-  );
+  if (showRematch) {
+    const rematchFocused = focused === FOCUS_REMATCH;
+    drawButton(
+      overlayCtx,
+      rematchX,
+      btnY,
+      btnW,
+      GAMEOVER_BTN_H,
+      {
+        fill: BTN_CONTINUE.fill(rematchFocused ? OP_FOCUS : OP_IDLE),
+        ...focusedButtonStyle(BTN_CONTINUE, rematchFocused, TEXT_LIGHT),
+        font: FONT_BUTTON,
+      },
+      "Rematch",
+    );
+  }
 
   const menuFocused = focused === FOCUS_MENU;
   drawButton(

@@ -58,6 +58,13 @@ export interface GameOverOverlay {
     eliminated: boolean;
   }[];
   focused: GameOverFocus;
+  /** False in online sessions: rematch rebuilds a LOCAL game from lobby
+   *  state (`bootstrapNewGameFromSettings`), which would seat local
+   *  keyboard controllers in remote players' slots with the socket still
+   *  live. Online exits go through Menu instead. Gates the button's
+   *  draw, hit-test, and focus — `focused` can never be `rematch` while
+   *  this is false. */
+  showRematch: boolean;
 }
 
 /** Per-frame data written by tick functions, read by render(). */

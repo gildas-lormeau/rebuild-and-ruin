@@ -453,6 +453,7 @@ export function buildGameOverOverlay(
     score: number;
     eliminated: boolean;
   }[],
+  showRematch: boolean,
 ): GameOverOverlay {
   return {
     winner: PLAYER_NAMES[winnerId] ?? `Player ${winnerId + 1}`,
@@ -462,7 +463,8 @@ export function buildGameOverOverlay(
       color: getPlayerColor(player.id).wall,
       eliminated: player.eliminated,
     })),
-    focused: FOCUS_REMATCH,
+    focused: showRematch ? FOCUS_REMATCH : FOCUS_MENU,
+    showRematch,
   };
 }
 
@@ -479,9 +481,11 @@ export function gameOverButtonHitTest(
     MAP_PX_W,
     MAP_PX_H,
     gameOver.scores,
+    gameOver.showRematch,
   );
 
   if (
+    gameOver.showRematch &&
     tileX >= rematchX &&
     tileX <= rematchX + btnW &&
     tileY >= btnY &&
@@ -504,6 +508,7 @@ export function gameOverLayout(
   W: number,
   H: number,
   scores: GameOverOverlay["scores"],
+  showRematch: boolean,
 ): GameOverLayout {
   const sorted = [...scores].sort((a, b) => b.score - a.score);
   const tableH = sorted.length * GAMEOVER_ROW_H;
@@ -520,7 +525,10 @@ export function gameOverLayout(
     btnW,
     btnY: py + panelH - GAMEOVER_BTN_H - 10,
     rematchX: px + 10,
-    menuX: px + panelW - 10 - btnW,
+    // Menu is the only button when rematch is hidden — center it.
+    menuX: showRematch
+      ? px + panelW - 10 - btnW
+      : px + Math.round((panelW - btnW) / 2),
   };
 }
 

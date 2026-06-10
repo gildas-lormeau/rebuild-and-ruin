@@ -7,7 +7,7 @@
 
 import { MESSAGE, type ServerMessage } from "../protocol/protocol.ts";
 import type { GameRuntime } from "../runtime/handle.ts";
-import { FOCUS_REMATCH } from "../shared/ui/interaction-types.ts";
+import { FOCUS_MENU } from "../shared/ui/interaction-types.ts";
 import { PLAYER_COLORS } from "../shared/ui/player-config.ts";
 
 export function handleGameOverTransition(
@@ -22,7 +22,8 @@ export function handleGameOverTransition(
         ...score,
         color: PLAYER_COLORS[idx % PLAYER_COLORS.length]!.wall,
       })),
-      focused: FOCUS_REMATCH,
+      focused: FOCUS_MENU,
+      showRematch: false,
     };
   });
 }
