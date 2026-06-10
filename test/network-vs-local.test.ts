@@ -34,6 +34,7 @@ import { assert, assertEquals } from "@std/assert";
 import { createScenario, type Scenario } from "./scenario.ts";
 import { createNetworkedPair, runNetworkedToEnd } from "./network-setup.ts";
 import { Mode } from "../src/shared/ui/ui-mode.ts";
+import { PLAYER_NAMES } from "../src/shared/ui/player-config.ts";
 import type { ValidPlayerId } from "../src/shared/core/player-slot.ts";
 import type { PieceShape } from "../src/shared/core/pieces.ts";
 
@@ -281,6 +282,81 @@ for (const stress of ASSISTED_STRESS) {
     },
   );
 }
+
+Deno.test(
+  "network: a remote human's upgrade entry waits for the wire pick (no local AI prediction)",
+  async () => {
+    const slot = 1 as ValidPlayerId;
+    const { host, watcher, pump } = await createNetworkedPair({
+      seed: 42,
+      mode: "modern",
+      rounds: 5,
+      assistedSlots: [slot],
+    });
+
+    // Lockstep-pump until the watcher's pick dialog is interactable
+    // (round 3), stopping the moment it opens — before the host's
+    // assisted slot has had time to commit + broadcast its pick.
+    for (
+      let step = 0;
+      step < 60_000 && watcher.mode() !== Mode.UPGRADE_PICK;
+      step++
+    ) {
+      host.tick(1);
+      await pump();
+      watcher.tick(1);
+    }
+    assertEquals(
+      watcher.mode(),
+      Mode.UPGRADE_PICK,
+      "watcher never reached the upgrade-pick dialog",
+    );
+    const pickSent = () =>
+      host.sentMessages.some((msg) => {
+        const m = msg as { type: string; playerId?: number };
+        return m.type === "upgradePick" && m.playerId === slot;
+      });
+    assert(!pickSent(), "host must not have broadcast its pick yet");
+
+    // Starve the wire: tick ONLY the watcher well past the AI auto-delay
+    // (~2s; 300 frames = 5s, safely under the 17s grace backstop). The
+    // assisted slot is a remote human from the watcher's view, so its
+    // entry must stay pending — the old shouldAutoResolve non-host
+    // branch had the watcher's local AI controller fill it right here,
+    // forking the sims whenever the prediction disagreed with the
+    // owner's actual pick.
+    const remoteEntry = () =>
+      watcher.overlay().ui?.upgradePick?.entries.find(
+        (entry) => entry.playerName === PLAYER_NAMES[slot],
+      );
+    watcher.tick(300);
+    const starved = remoteEntry();
+    assert(starved, "watcher overlay should still show the pick dialog");
+    assertEquals(
+      starved.resolved,
+      false,
+      "remote human's entry must wait for the wire, not a local AI prediction",
+    );
+
+    // Resume the wire: the host commits + broadcasts; the watcher's
+    // entry resolves from the message (or the dialog closes fully
+    // resolved, which implies the same).
+    for (
+      let step = 0;
+      step < 10_000 && !(remoteEntry()?.resolved ?? true);
+      step++
+    ) {
+      host.tick(1);
+      await pump();
+      watcher.tick(1);
+    }
+    assert(pickSent(), "host should have broadcast the assisted pick");
+    assert(
+      remoteEntry()?.resolved ?? true,
+      "the wire pick should resolve the watcher's entry",
+    );
+  },
+);
 
 function snapshotState(sc: Scenario): StateSnapshot {
   return {

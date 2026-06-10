@@ -31,9 +31,11 @@ import { type RuntimeState, setMode } from "../state.ts";
 export interface RuntimeLifeLost {
   /** Read current dialog state. Used by watcher-mode to sync overlay display. */
   get: () => LifeLostDialogState | null;
-  /** Replace dialog state. Used by watcher-mode to apply host-broadcast state.
-   *  Passing `null` also clears any pending `onResolved` callback so a
-   *  force-clear (rematch, host-promote) can't fire it later. */
+  /** Replace dialog state. Only ever called with `null` in production
+   *  (session reset / host promote / teardown) — dialogs are always built
+   *  locally on every peer, never received over the wire. Passing `null`
+   *  also clears any pending `onResolved` callback so a force-clear
+   *  (rematch, host-promote) can't fire it later. */
   set: (d: LifeLostDialogState | null) => void;
   /** Drive the life-lost flow to completion: create the dialog, either
    *  resolve immediately (all pre-resolved — only eliminations) or
@@ -158,8 +160,6 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
       needsReselect,
       eliminated,
       state: runtimeState.state,
-      hostAtFrameStart: runtimeState.frameMeta.hostAtFrameStart,
-      myPlayerId: runtimeState.frameMeta.myPlayerId,
       remotePlayerSlots,
       needsLocalInput: (playerId) =>
         !runtimeState.controllers[playerId]!.autoResolvesLifeLost(),

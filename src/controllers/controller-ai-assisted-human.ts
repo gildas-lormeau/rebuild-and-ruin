@@ -11,6 +11,7 @@ import type { AiBrain } from "../ai/ai-brain-types.ts";
 import type { AiStrategy } from "../ai/ai-strategy-types.ts";
 import type { ScheduledAction } from "../shared/core/action-schedule.ts";
 import { CannonMode } from "../shared/core/battle-types.ts";
+import { SIM_TICK_DT } from "../shared/core/game-constants.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import type {
   BuildViewState,
@@ -60,6 +61,15 @@ export class AiAssistedHumanController
   override readonly kind = "human" as const;
   private readonly senders: AssistedSenders;
   private readonly safetyTicks: number;
+  private readonly scheduleAction: (action: ScheduledAction<GameState>) => void;
+  /** True while a dialog commit awaits its lockstep `applyAt` tick (the
+   *  entry still reads as pending, so the dialog tick keeps calling us —
+   *  these flags stop the AI from re-deciding and re-broadcasting every
+   *  tick of that window). Reset inside the scheduled apply; controllers
+   *  are rebuilt per game, so a reset dropped with the action schedule
+   *  (rematch) can't leak across games. */
+  private pendingUpgradePick = false;
+  private pendingLifeLost = false;
 
   constructor(playerId: ValidPlayerId, opts: AssistedControllerOptions) {
     // Inject a networked commit port: piece/cannon/fire commits schedule on
@@ -78,9 +88,16 @@ export class AiAssistedHumanController
     );
     this.senders = opts.senders;
     this.safetyTicks = opts.safetyTicks;
+    this.scheduleAction = opts.schedule;
   }
 
-  // ── Upgrade pick: AI animates + commits; pick broadcast via senders.sendUpgradePick ──
+  // ── Upgrade pick: AI animates + decides; the COMMIT rides the lockstep
+  //    queue, mirroring a real human's pick (decision at T, apply at
+  //    T+SAFETY on every peer including this one). Letting `super` keep
+  //    its direct write here skewed the dialog's resolution tick across
+  //    peers (owner at T, receivers at T+SAFETY) — that skew shifted the
+  //    following WALL_BUILD window and let the build-end gate accept a
+  //    late piece on one peer and reject it on another. ──
 
   override tickUpgradePick(
     entry: UpgradePickEntry,
@@ -89,6 +106,7 @@ export class AiAssistedHumanController
     dialogTimer: number,
     state: UpgradePickViewState,
   ): void {
+    if (this.pendingUpgradePick) return;
     const wasCommitted = entry.choice !== null;
     super.tickUpgradePick(
       entry,
@@ -97,17 +115,37 @@ export class AiAssistedHumanController
       dialogTimer,
       state,
     );
-    if (!wasCommitted && entry.choice !== null) {
-      // Local mutation already landed via `super.tickUpgradePick`. The wire
-      // payload carries `applyAt` so receivers schedule the apply on the
-      // lockstep queue (same shape as `sendLifeLostChoice` below); peers
-      // whose entry is already filled no-op via the pending-entry guard in
-      // `applyUpgradePickChoiceToDialog`.
-      this.senders.sendUpgradePick(
-        entry.choice,
-        state.simTick + this.safetyTicks,
-      );
-    }
+    if (wasCommitted || entry.choice === null) return;
+    // `super` committed with local-AI semantics (direct write). Re-stage
+    // the commit through the lockstep queue: undo the write, broadcast,
+    // and apply locally at the same `applyAt` every receiver uses.
+    const choice = entry.choice;
+    entry.choice = null;
+    entry.pickedAtTimer = null;
+    const applyAt = state.simTick + this.safetyTicks;
+    this.pendingUpgradePick = true;
+    this.senders.sendUpgradePick(choice, applyAt);
+    this.scheduleAction({
+      applyAt,
+      playerId: this.playerId,
+      apply: () => {
+        this.pendingUpgradePick = false;
+        if (entry.choice !== null) return;
+        entry.choice = choice;
+        entry.focusedCard = entry.offers.indexOf(choice);
+        // Apply-time stamp, not decision-time: receivers stamp their
+        // dialog.timer at the same applyAt tick, and the dialog's
+        // reveal-pulse wait (`dialog.timer - latestPick`) gates the
+        // phase transition — a per-peer pickedAtTimer would skew the
+        // WALL_BUILD window across peers. The dialog ticks once per
+        // fixed sim substep, and the schedule drain runs BEFORE the
+        // dialog tick within a substep (see runOneSubStep), so a
+        // receiver's drain-time dialog.timer has advanced safetyTicks-1
+        // increments past this decision-tick value.
+        entry.pickedAtTimer =
+          dialogTimer + (this.safetyTicks - 1) * SIM_TICK_DT;
+      },
+    });
   }
 
   override forceUpgradePick(
@@ -119,7 +157,8 @@ export class AiAssistedHumanController
     return choice;
   }
 
-  // ── Life-lost: AI auto-resolves; broadcast the committed choice ──
+  // ── Life-lost: AI decides; the COMMIT rides the lockstep queue, same
+  //    shape (and same skew rationale) as tickUpgradePick above. ──
 
   override tickLifeLost(
     entry: LifeLostEntry,
@@ -127,18 +166,23 @@ export class AiAssistedHumanController
     autoDelaySeconds: number,
     state: GameViewState,
   ): void {
+    if (this.pendingLifeLost) return;
     const wasPending = entry.choice === LifeLostChoice.PENDING;
     super.tickLifeLost(entry, dt, autoDelaySeconds, state);
-    if (wasPending && entry.choice !== LifeLostChoice.PENDING) {
-      // Local mutation already landed via `super.tickLifeLost`. The wire
-      // payload carries `applyAt` for protocol uniformity — receivers
-      // schedule the apply, which no-ops via the PENDING guard since
-      // their own deterministic local tick has already set `entry.choice`.
-      this.senders.sendLifeLostChoice(
-        entry.choice,
-        state.simTick + this.safetyTicks,
-      );
-    }
+    if (!wasPending || entry.choice === LifeLostChoice.PENDING) return;
+    const choice = entry.choice;
+    entry.choice = LifeLostChoice.PENDING;
+    const applyAt = state.simTick + this.safetyTicks;
+    this.pendingLifeLost = true;
+    this.senders.sendLifeLostChoice(choice, applyAt);
+    this.scheduleAction({
+      applyAt,
+      playerId: this.playerId,
+      apply: () => {
+        this.pendingLifeLost = false;
+        if (entry.choice === LifeLostChoice.PENDING) entry.choice = choice;
+      },
+    });
   }
 
   // ── InputReceiver stubs (v1 — no real human input handled yet) ──

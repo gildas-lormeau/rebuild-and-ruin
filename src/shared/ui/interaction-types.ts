@@ -1,5 +1,5 @@
 import type { TileKey } from "../core/grid.ts";
-import type { PlayerId, ValidPlayerId } from "../core/player-slot.ts";
+import type { ValidPlayerId } from "../core/player-slot.ts";
 import type { UpgradeId } from "../core/upgrade-defs.ts";
 import type { Mode } from "./ui-mode.ts";
 
@@ -75,8 +75,6 @@ export interface ControlsState {
 export type GameOverFocus = "rematch" | "menu";
 
 export interface AutoResolveDeps {
-  readonly hostAtFrameStart: boolean;
-  readonly myPlayerId: PlayerId;
   readonly remotePlayerSlots: ReadonlySet<ValidPlayerId>;
   /** True if this player's entry waits for local UI input (i.e. should
    *  NOT auto-resolve). Wired from the controller's
@@ -106,13 +104,22 @@ export const LIFE_LOST_FOCUS_ABANDON = 1;
 export const FOCUS_REMATCH: GameOverFocus = "rematch";
 export const FOCUS_MENU: GameOverFocus = "menu";
 
-/** True when this player's dialog entry should auto-resolve (no local input needed).
- *  Host checks controller identity; non-host only resolves its own slot. */
+/** True when this player's dialog entry should auto-resolve (no local
+ *  input needed): the slot is driven by a local AI controller AND not
+ *  owned by a remote human. Role-independent — on every peer, a remote
+ *  human's entry waits for the wire choice (lockstep `applyAt`; the
+ *  `DIALOG_FORCE_GRACE` backstop covers a vanished owner), and
+ *  mirror-simulated AI slots resolve locally from state. The old
+ *  non-host branch (`playerId !== myPlayerId`) made non-host peers
+ *  PREDICT a real remote human's choice with the locally-installed AI
+ *  controller — forking the sims whenever the prediction disagreed with
+ *  the human's actual pick. It dated from a never-built design where
+ *  watchers received host-broadcast dialog state. */
 export function shouldAutoResolve(
   playerId: ValidPlayerId,
   deps: AutoResolveDeps,
 ): boolean {
-  return deps.hostAtFrameStart
-    ? !deps.needsLocalInput(playerId) && !deps.remotePlayerSlots.has(playerId)
-    : playerId !== deps.myPlayerId;
+  return (
+    !deps.needsLocalInput(playerId) && !deps.remotePlayerSlots.has(playerId)
+  );
 }

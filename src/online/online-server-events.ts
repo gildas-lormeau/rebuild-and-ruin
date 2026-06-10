@@ -366,13 +366,13 @@ function handleCannonPhantom(
 }
 
 /** Apply a remote slot's life-lost choice via the lockstep action queue.
- *  Same clone-everywhere shape as `handleUpgradePick`: runs on host AND
- *  watcher because a real human's controller has no local AI brain to fill
- *  `entry.choice`. AI / assisted controllers fill `entry.choice`
- *  deterministically from state on every peer (see `aiChooseLifeLost`), so
- *  a wire-arrived duplicate is silently dropped by the
+ *  Same clone-everywhere shape as `handleUpgradePick`: a remote human's
+ *  entry never auto-resolves on any peer (`shouldAutoResolve`), so this
+ *  wire signal is its only resolution path — pure-AI entries resolve
+ *  locally from state on every peer and are never broadcast. The
  *  `entry.choice === LifeLostChoice.PENDING` guard inside
- *  `applyLifeLostChoiceToDialog`.
+ *  `applyLifeLostChoiceToDialog` silently drops a self-echo (the relay
+ *  bouncing the originator's own broadcast back).
  *
  *  Lockstep `applyAt`: originator stamps `applyAt = senderSimTick +
  *  SAFETY` and schedules its own apply for the same tick; this receiver
@@ -425,14 +425,14 @@ function parseLifeLostChoice(raw: unknown): ResolvedChoice | null {
 }
 
 /** Apply a remote slot's upgrade pick via the lockstep action queue.
- *  Runs on host AND watcher under clone-everywhere — the watcher needs
- *  the wire signal because a real human's controller has no local AI
- *  brain to fill `entry.choice` itself. AI / assisted-human controllers
- *  tick locally on every peer and pick deterministically from state
- *  (`aiPickUpgrade` derives a private Rng from state.rng.seed + round +
- *  playerId), so a wire-arrived pick that lost the first-wins race is a
- *  harmless no-op under the pending-entry guard in
- *  `applyUpgradePickChoiceToDialog`.
+ *  Runs on host AND watcher under clone-everywhere — a remote human's
+ *  entry never auto-resolves on any peer (`shouldAutoResolve`), so this
+ *  wire signal is its only resolution path. Pure-AI entries resolve
+ *  locally from state on every peer (`aiPickUpgrade` derives a private
+ *  Rng from state.rng.seed + round + playerId) and are never broadcast.
+ *  The pending-entry guard in `applyUpgradePickChoiceToDialog` silently
+ *  drops a self-echo (the relay bouncing the originator's own broadcast
+ *  back).
  *
  *  Lockstep `applyAt`: originator stamps `applyAt = senderSimTick +
  *  SAFETY` and schedules its own apply for that tick (see

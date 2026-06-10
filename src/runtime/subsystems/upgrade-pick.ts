@@ -37,9 +37,11 @@ export interface RuntimeUpgradePick {
    *  prefer this over `runtimeState.dialogs.upgradePick` when doing a
    *  single targeted read from outside the owning subsystem. */
   get: () => UpgradePickDialogState | null;
-  /** Replace dialog state. Used by watcher-mode to apply host-broadcast state.
-   *  Passing `null` also clears any pending `onResolved` callback so a
-   *  force-clear (rematch, host-promote) can't fire it later. */
+  /** Replace dialog state. Only ever called with `null` in production
+   *  (session reset / host promote / teardown) — dialogs are always built
+   *  locally on every peer, never received over the wire. Passing `null`
+   *  also clears any pending `onResolved` callback so a force-clear
+   *  (rematch, host-promote) can't fire it later. */
   set: (dialog: UpgradePickDialogState | null) => void;
 }
 
@@ -125,8 +127,6 @@ export function createUpgradePickSystem(
       return runtimeState.dialogs.upgradePick;
     const dialog = createUpgradePickDialog({
       state: runtimeState.state,
-      hostAtFrameStart: runtimeState.frameMeta.hostAtFrameStart,
-      myPlayerId: runtimeState.frameMeta.myPlayerId,
       remotePlayerSlots: runtimeState.frameMeta.remotePlayerSlots,
       needsLocalInput: (playerId) =>
         !runtimeState.controllers[playerId]!.autoResolvesUpgradePick(),
