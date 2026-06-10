@@ -173,6 +173,7 @@ export function createSelectionSystem(
     // `strategy.rng`, so every peer derives identical `homeTower`
     // sequences without wire chatter. Remote humans (other peers' input)
     // come in via OPPONENT_TOWER_SELECTED.
+    const human = deps.pointerPlayer();
     for (const pid of slots) {
       const zone = state.playerZones[pid];
       if (zone === undefined) continue;
@@ -180,7 +181,11 @@ export function createSelectionSystem(
       if (!isRemotePlayer(pid, remotePlayerSlots)) {
         ctrl.selectTower(state, zone);
       }
-      if (isHuman(ctrl)) {
+      // Auto-zoom to the initial tower on mobile — local human only.
+      // Remote humans also run this loop (their slots get a deterministic
+      // initial homeTower above), and the camera holds a single selection
+      // viewport, so an ungated call would frame an opponent's zone.
+      if (isHuman(ctrl) && human && pid === human.playerId) {
         const player = state.players[pid];
         if (player?.homeTower)
           deps.camera.setSelectionViewport(
