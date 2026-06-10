@@ -403,6 +403,12 @@ export interface RegisterOnlineInputDeps {
 
   // --- Game over ---
   gameOver: {
+    /** True while the game-over overlay is on screen. Gates the
+     *  STOPPED-mode keyboard branch: the document-level listener outlives
+     *  the session, so without this gate Enter/Space after a route-level
+     *  exit would trigger rematch/showLobby behind whatever replaced the
+     *  game (including a different entry module's runtime). */
+    isActive: () => boolean;
     getFocused: () => GameOverFocus;
     setFocused: (focused: GameOverFocus) => void;
     click: (x: number, y: number) => void;

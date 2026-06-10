@@ -932,6 +932,11 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       // (subsystems/lobby tickLobby, online initFromServer); this covers the
       // quit-back-to-menu paths so callers don't repeat the assignment.
       runtimeState.lobby.active = false;
+      // Drop the sticky game-over overlay (clearFrameData preserves it by
+      // design). Leaving it set would keep the STOPPED-mode keyboard path
+      // armed after a route-level exit — Enter/Space behind the landing
+      // page would re-trigger rematch() with no game-over screen visible.
+      runtimeState.frame.gameOver = undefined;
       // Same session teardown returnToLobby runs — critically clearing
       // the demo auto-return timer: after an all-AI demo's game-over,
       // exiting the route within the return delay would otherwise leave

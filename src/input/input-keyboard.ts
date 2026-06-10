@@ -111,6 +111,12 @@ async function handleKeyStopped(
   deps: RegisterOnlineInputDeps,
 ): Promise<void> {
   const { gameOver, rematch, showLobby } = deps;
+  // Only act while the game-over overlay is actually on screen. The
+  // document-level listener outlives the session (and a second entry
+  // module's listener can coexist), so an ungated STOPPED branch would
+  // turn stray Enter/Space/confirm keys into hidden rematch/showLobby
+  // calls behind the landing page or a live game in the other module.
+  if (!gameOver.isActive()) return;
   if (
     e.key === KEY_LEFT ||
     e.key === KEY_RIGHT ||

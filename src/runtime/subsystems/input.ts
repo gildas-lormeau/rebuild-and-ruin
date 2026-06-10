@@ -463,6 +463,7 @@ function buildGameOverDeps(
   gameOverClick: (canvasX: number, canvasY: number) => void,
 ): RegisterOnlineInputDeps["gameOver"] {
   return {
+    isActive: () => runtimeState.frame.gameOver !== undefined,
     // Fallback (no overlay) is MENU — see `getGameOverFocused` in
     // game-lifecycle.ts: confirming into a rematch with no game-over
     // screen would boot a game under whatever UI replaced it.
