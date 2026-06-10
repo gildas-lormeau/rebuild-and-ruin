@@ -84,13 +84,12 @@ interface LobbySystem {
 export function createLobbySystem(deps: LobbySystemDeps): LobbySystem {
   const { runtimeState, uiCtx } = deps;
 
-  let cachedConfirmKeys: Map<string, number> | undefined;
-
+  // Built fresh on each lobby keypress (the only caller) rather than cached:
+  // the controls screen rebinds keys in place (and saves) mid-session, so a
+  // cached map would leave the lobby joining on the OLD confirm key until a
+  // reload. Rebuilding a handful of entries per keypress is negligible.
   function getConfirmKeys(): Map<string, number> {
-    if (!cachedConfirmKeys) {
-      cachedConfirmKeys = buildLobbyConfirmKeys(uiCtx.settings.keyBindings);
-    }
-    return cachedConfirmKeys;
+    return buildLobbyConfirmKeys(uiCtx.settings.keyBindings);
   }
 
   /** Refresh lobby seed + map preview when the seed changed *or* no map
