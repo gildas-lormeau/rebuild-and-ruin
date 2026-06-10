@@ -115,6 +115,15 @@ export interface ScenarioOptions {
    *  Pair them via `createNetworkedPair({ ... })` in `network-setup.ts`
    *  when you need a full two-runtime loopback. */
   online?: "host" | "watcher";
+  /** Network-pair option: when true, the harness HOST mirrors production's
+   *  `onEndGame` hook (`src/online/runtime/game.ts`) and pushes the
+   *  authoritative GAME_OVER payload into its outbound wire sink at game
+   *  end. Default false — delivering GAME_OVER through `pump()` stops the
+   *  watcher the moment it arrives, which under the lockstep cadence is
+   *  BEFORE the watcher's own final round-end mutate runs, breaking the
+   *  end-state parity assertions most pair tests exist for. Opt in only
+   *  when the test targets the GAME_OVER receive path itself. */
+  broadcastGameOver?: boolean;
   /** Initial dev speed multiplier (1..16, integer). Drives the sub-step
    *  loop in `mainLoop` — at speed=N, each tick advances the game by N
    *  normal-sized sub-steps instead of one inflated dt. Used by tests

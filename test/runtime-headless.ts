@@ -146,6 +146,11 @@ interface HeadlessRuntimeOptions {
    *  same path as production online play. Undefined = local
    *  immediate-apply (all non-network tests). */
   onlineDialogDrains?: RuntimeConfig["onlineDialogDrains"];
+  /** Forwarded to `RuntimeConfig.onEndGame` — fires when this runtime's
+   *  local game-over detection ends the game. Network tests use it to
+   *  emit the production GAME_OVER payload into the wire sink, mirroring
+   *  the `onEndGame` wiring in `src/online/runtime/game.ts`. */
+  onEndGame?: RuntimeConfig["onEndGame"];
   /** When true, the headless runtime calls `enableMobileZoom()` on the
    *  camera so per-phase memory, edge-pan, follow-crosshair, and the
    *  CAMERA_TARGET event emitter all run during tests. Defaults to false
@@ -385,6 +390,7 @@ export async function createHeadlessRuntime(
         ? buildHeadlessHostPhaseTicks((msg) => networkObserver?.sent?.(msg))
         : undefined),
     onlineDialogDrains,
+    onEndGame: opts.onEndGame,
     observers: hapticsObserver ? { haptics: hapticsObserver } : undefined,
     // IS_DEV is false under Deno, so headless must opt in explicitly to keep
     // the per-frame TICK event flowing to test subscribers (reveal/fade tests).

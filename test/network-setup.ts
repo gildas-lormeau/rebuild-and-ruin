@@ -42,6 +42,8 @@ import {
   type DedupMaps,
   type OnlineSession,
 } from "../src/online/online-session.ts";
+import { createGameOverPayload } from "../src/online/online-serialize.ts";
+import { PLAYER_NAMES } from "../src/shared/ui/player-config.ts";
 import type { OnlineClient } from "../src/online/online-stores.ts";
 import {
   createOnlinePresenceState,
@@ -263,6 +265,16 @@ async function buildHostRuntime(opts: ScenarioOptions): Promise<RuntimeBuild> {
     // online lockstep branch (broadcast + applyAt schedule), matching a
     // production host.
     onlineDialogDrains: buildDialogDrains(createSession()),
+    // Opt-in (see `ScenarioOptions.broadcastGameOver`): mirror production's
+    // host-side GAME_OVER broadcast so tests can exercise the watcher's
+    // MESSAGE.GAME_OVER receive path.
+    onEndGame: opts.broadcastGameOver
+      ? (winner, gameState) =>
+          sentMessages.push(
+            createGameOverPayload(winner, gameState, PLAYER_NAMES)
+              .serverPayload,
+          )
+      : undefined,
   });
   headless.runtime.runtimeState.state.debugTag = "HOST";
   if (opts.testHooks) {

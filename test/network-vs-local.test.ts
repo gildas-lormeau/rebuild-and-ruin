@@ -358,6 +358,71 @@ Deno.test(
   },
 );
 
+// NOTE: there is no sibling test for a stale upgrade-pick / life-lost
+// DIALOG leaking onto a frozen watcher's game-over screen. Those dialogs
+// are dismissed independently by the phase-transition handler
+// (online-server-lifecycle.ts) — a frozen watcher still receives the next
+// round's BUILD_START before GAME_OVER, which clears the modal — so any
+// such test would pass even with `resetUpgradePickDialog` removed from
+// teardownSession (the clear there is defense-in-depth symmetry with
+// `resetLifeLostDialog`, not the sole guard). The BANNER has no phase-
+// transition dismissal, which is why only it gets a regression test.
+Deno.test(
+  "network: GAME_OVER on a frozen watcher clears the stale banner",
+  async () => {
+    const { host, watcher, pump } = await createNetworkedPair({
+      seed: 1,
+      mode: "classic",
+      rounds: 3,
+      broadcastGameOver: true,
+    });
+
+    // Lockstep-pump until a final-round banner is on the watcher's screen.
+    for (
+      let step = 0;
+      step <
+        60_000 &&
+        !(watcher.banner() !== null && watcher.state.round === 3);
+      step++
+    ) {
+      host.tick(1);
+      await pump();
+      watcher.tick(1);
+    }
+    assert(
+      watcher.banner() !== null && watcher.state.round === 3,
+      "watcher never showed a final-round banner",
+    );
+
+    // Freeze the watcher mid-banner; host plays the final round to the end.
+    for (
+      let step = 0;
+      step < 120_000 && host.mode() !== Mode.STOPPED;
+      step++
+    ) {
+      host.tick(1);
+      await pump();
+    }
+    assertEquals(host.mode(), Mode.STOPPED, "host never finished the game");
+    await pump();
+
+    assertEquals(
+      watcher.mode(),
+      Mode.STOPPED,
+      "GAME_OVER message should stop the frozen watcher",
+    );
+    assert(
+      watcher.overlay().ui?.gameOver,
+      "game-over screen should be painted",
+    );
+    assertEquals(
+      watcher.banner(),
+      null,
+      "stale banner leaked onto the game-over screen",
+    );
+  },
+);
+
 function snapshotState(sc: Scenario): StateSnapshot {
   return {
     rngState: sc.state.rng.getState(),
