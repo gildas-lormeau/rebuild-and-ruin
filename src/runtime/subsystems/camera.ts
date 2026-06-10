@@ -189,7 +189,6 @@ interface CameraDeps {
    *  `pointerPlayer()` cache still holds the lobby's stale `null`). */
   hasPointerPlayer: () => boolean;
   getFrameDt: () => number;
-  setFrameAnnouncement: (text: string) => void;
   getPointerPlayerCrosshair?: () => { x: number; y: number } | null;
   /** Pointer player's active phantoms — raw shapes only. The camera derives
    *  the tile-space bounding box from these when it needs to edge-pan
