@@ -119,6 +119,16 @@ export function createSelectionSystem(
 ): RuntimeSelection {
   const { runtimeState } = deps;
 
+  /** Slots with a confirm broadcast but not yet applied (the lockstep window
+   *  between the `sendTowerSelected` broadcast and `applyAt`). Blocks
+   *  duplicate sends while the selection still reads as unconfirmed — both
+   *  from a repeat confirm press and from the timer-expiry auto-confirm loop
+   *  re-firing every tick. Cleared per-slot when the scheduled apply fires,
+   *  wholesale on selection reset. Mirrors `inFlightChoices` in
+   *  subsystems/life-lost.ts (the dialogs grew this guard; selection drifted
+   *  behind). */
+  const inFlightConfirms = new Set<ValidPlayerId>();
+
   /** Clear all selection tracking state — call before entering a new selection
    *  round (initial selection or reselection). Resets selectionStates map and
    *  overlay selection display. Banner prev-scene snapshots no longer need
@@ -128,6 +138,7 @@ export function createSelectionSystem(
    *  undefined. */
   function resetSelectionState(): void {
     runtimeState.selection.states.clear();
+    inFlightConfirms.clear();
     resetOverlaySelection();
   }
 
@@ -287,6 +298,11 @@ export function createSelectionSystem(
     // immediate-apply semantics — clone-everywhere already guarantees both
     // peers run the same logic at the same simTick.
     if (isLocalHumanBroadcast) {
+      // Already broadcast this slot's confirm — the apply hasn't flipped
+      // `confirmed` yet, so block the re-send (timer-expiry loop / repeat
+      // press) instead of spamming the wire + schedule with no-op dupes.
+      if (inFlightConfirms.has(pid)) return false;
+      inFlightConfirms.add(pid);
       const applyAt =
         runtimeState.state.simTick + DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS;
       const towerIdx = selectionState.highlighted;
@@ -294,7 +310,10 @@ export function createSelectionSystem(
       runtimeState.actionSchedule.schedule({
         applyAt,
         playerId: pid,
-        apply: () => applyConfirmedSelection(pid),
+        apply: () => {
+          inFlightConfirms.delete(pid);
+          applyConfirmedSelection(pid);
+        },
       });
       return false;
     }
@@ -484,6 +503,7 @@ export function createSelectionSystem(
   function reset(): void {
     runtimeState.selection.castleBuilds = [];
     runtimeState.selection.states.clear();
+    inFlightConfirms.clear();
   }
 
   // ---------------------------------------------------------------------------

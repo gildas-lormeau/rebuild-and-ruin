@@ -33,6 +33,7 @@
 import { assert, assertEquals } from "@std/assert";
 import { createScenario, type Scenario } from "./scenario.ts";
 import { createNetworkedPair, runNetworkedToEnd } from "./network-setup.ts";
+import { DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS } from "../src/shared/core/action-schedule.ts";
 import { Mode } from "../src/shared/ui/ui-mode.ts";
 import { PLAYER_NAMES } from "../src/shared/ui/player-config.ts";
 import type { ValidPlayerId } from "../src/shared/core/player-slot.ts";
@@ -182,6 +183,55 @@ for (const stress of STRESS_TRIPLES) {
  *  runs only emit lifecycle messages — that's the only host-side proof
  *  that the wire was actually used. The assisted-human tests have their
  *  own bespoke assertion for slot-specific human-input broadcasts. */
+Deno.test(
+  "network: a local human's castle confirm broadcasts exactly once (in-flight guard)",
+  async () => {
+    const slot = 1 as ValidPlayerId;
+    const { host, watcher, pump } = await createNetworkedPair({
+      seed: 42,
+      mode: "classic",
+      rounds: 3,
+      assistedSlots: [slot],
+    });
+
+    const confirmsSent = () =>
+      host.sentMessages.filter((msg) => {
+        const m = msg as { type: string; playerId?: number; confirmed?: boolean };
+        return (
+          m.type === "opponentTowerSelected" &&
+          m.playerId === slot &&
+          m.confirmed === true
+        );
+      }).length;
+
+    // Drive round-1 CASTLE_SELECT until the assisted slot's confirm has
+    // first hit the wire. The slot is a `kind:"human"` controller, so the
+    // confirm takes the lockstep broadcast path; its AI brain keeps
+    // reporting "done" every tick of the send→applyAt window, which without
+    // an in-flight guard re-broadcasts the confirm on each of those ticks.
+    for (
+      let step = 0;
+      step < 60_000 && confirmsSent() === 0;
+      step++
+    ) {
+      host.tick(1);
+      await pump();
+      watcher.tick(1);
+    }
+    assert(confirmsSent() >= 1, "assisted slot never broadcast its confirm");
+    // Let the full send→applyAt window (and then some) elapse so any
+    // per-tick duplicate sends would have all fired.
+    host.tick(DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS * 3);
+
+    assertEquals(
+      confirmsSent(),
+      1,
+      "the lockstep confirm should broadcast exactly once, not once per " +
+        "tick of the send→applyAt window",
+    );
+  },
+);
+
 function assertWireExercised(host: Scenario, label: string): void {
   const lifecycleTypes = new Set(["cannonStart", "battleStart", "buildStart"]);
   const lifecycle = host.sentMessages.filter((msg) =>
