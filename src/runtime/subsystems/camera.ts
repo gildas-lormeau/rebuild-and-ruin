@@ -275,6 +275,14 @@ export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
     | { readonly kind: "pinch"; readonly viewport: Viewport };
   const FULL_MAP_TARGET: UserTarget = { kind: "fullMap" };
   let target: UserTarget = FULL_MAP_TARGET;
+  // True when the CURRENT fullMap target was set by `unzoomForOverlays`
+  // (an overlay/transition forced the unzoom), i.e. it is restore-eligible.
+  // `onPinchEnd`'s pinch-out snap sets this false: that fullMap is a
+  // deliberate "show me everything" gesture, NOT overlay residue, so
+  // `restoreCameraAfterOverlay` must leave it alone (otherwise the snap
+  // lasts one frame before being silently re-zoomed to the phase default,
+  // and the emitted CAMERA_TARGET event no longer matches the camera).
+  let fullMapFromOverlay = false;
 
   // Engine-driven override — only honoured while in SELECTION / CASTLE_BUILD.
   let castleFrameVp: Viewport | undefined;
@@ -882,6 +890,9 @@ export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
   function unzoomForOverlays(_state: GameState, frameCtx: FrameContext): void {
     if (!frameCtx.shouldUnzoom) return;
     if (target.kind === "fullMap" && castleFrameVp === undefined) return;
+    // Mark this fullMap as overlay-driven so the post-overlay restore fires
+    // for it (a user pinch-out, in contrast, sets fullMapFromOverlay false).
+    fullMapFromOverlay = true;
     setTargetSilent(FULL_MAP_TARGET);
     castleFrameVp = undefined;
   }
@@ -959,10 +970,14 @@ export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
   ): void {
     if (frameCtx.shouldUnzoom || frameCtx.isTransition) return;
     if (target.kind !== "fullMap") return;
+    // Only restore a fullMap that an overlay produced — never a deliberate
+    // pinch-out (fullMapFromOverlay false), which the user wants to keep.
+    if (!fullMapFromOverlay) return;
     if (!mobileAutoZoomActive()) return;
     const next = defaultTargetForPhase(state.phase);
     if (!next) return;
     setTargetSilent(next);
+    fullMapFromOverlay = false;
   }
 
   /** Consume the pending selection-zoom target once the "Select your home
@@ -1183,6 +1198,9 @@ export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
     if (target.viewport.w >= fullMapVp.w * PINCH_FULL_MAP_SNAP) {
       setTargetSilent(FULL_MAP_TARGET);
       userZoomRatio = undefined;
+      // User-intended fullMap — not overlay residue, so the per-frame
+      // restore must leave it (otherwise the snap survives one frame).
+      fullMapFromOverlay = false;
     }
     // Emit the settled target on gesture end (intermediate per-frame
     // updates during pinch are continuous motion and intentionally not
@@ -1314,6 +1332,9 @@ export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
     lastAutoZoomPhase = undefined;
     selectionTargetVp = undefined;
     lastBattleCrosshair = undefined;
+    // This teardown fullMap is neither overlay-driven nor user-intended; a
+    // stale `true` could spuriously restore on the next game's first frame.
+    fullMapFromOverlay = false;
     // Drop any parked transition continuations (`awaitCameraFlat` /
     // `awaitPitchSettled`). They capture the dying session's transition ctx
     // and GameState; left in place, the next session's first flat rendered
