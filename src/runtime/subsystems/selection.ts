@@ -77,10 +77,7 @@ interface SelectionSystemDeps {
   ) => void;
   log: (msg: string) => void;
 
-  camera: Pick<
-    RuntimeCamera,
-    "setCastleBuildViewport" | "setSelectionViewport"
-  >;
+  camera: Pick<RuntimeCamera, "setSelectionViewport">;
   /** Render-domain: sync overlay highlights from selectionStates (injected from composition root). */
   syncSelectionOverlay: (
     overlay: RenderOverlay,
@@ -448,7 +445,7 @@ export function createSelectionSystem(
     deps.flushPendingRender();
     // castle-done's mutate handles finalizeRoundCleanup (round > 1) +
     // finalizeFreshCastles + finalizeCastleConstruction +
-    // clearCastleBuildViewport + enterCannonPhase + cannon-start broadcast.
+    // enterCannonPhase + cannon-start broadcast.
     deps.dispatchCastleDone();
   }
 
@@ -462,12 +459,10 @@ export function createSelectionSystem(
   function startPlayerCastleBuild(playerId: ValidPlayerId): void {
     const plan = prepareCastleWallsForPlayer(runtimeState.state, playerId);
     if (!plan) return;
-    const human = deps.pointerPlayer();
     runtimeState.selection.castleBuilds.push(createCastleBuildState([plan]));
-    // Only zoom to the human player's castle build
-    if (human && playerId === human.playerId) {
-      deps.camera.setCastleBuildViewport(playerId);
-    }
+    // No castle-build zoom here: the moment the human confirms, the
+    // mobile unzoom (main-loop's `humanCastleConfirmed` → full map) takes
+    // over so the player watches every castle auto-build at once.
   }
 
   /** Tick castle build animations. Returns true if any wall tiles were placed

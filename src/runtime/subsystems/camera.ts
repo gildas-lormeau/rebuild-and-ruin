@@ -14,7 +14,6 @@ import {
   VIEWPORT_SNAP_THRESHOLD,
   ZONE_AUTO_ZOOM_RATIO,
   ZONE_PAD_SELECTION,
-  ZONE_PAD_WITH_WALLS,
   ZOOM_LERP_SPEED,
 } from "../../shared/core/game-constants.ts";
 import {
@@ -158,10 +157,8 @@ export interface RuntimeCamera {
   /** Full reset for rematch. */
   resetCamera: () => void;
 
-  // Castle build viewport
+  // Selection zoom
   setSelectionViewport: (towerRow: number, towerCol: number) => void;
-  setCastleBuildViewport: (playerId: ValidPlayerId) => void;
-  clearCastleBuildViewport: () => void;
 
   // Mobile zoom
   enableMobileZoom: () => void;
@@ -251,12 +248,12 @@ export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
   //
   // A separate `castleFrameVp` is an engine-driven OVERRIDE that wins over
   // the user target while the UI is in `Mode.SELECTION` or `Mode.CASTLE_BUILD`
-  // — it locks the camera onto the home tower / castle ring during the
-  // non-interactive auto-build sequence. It's set by `setSelectionViewport`
-  // / `setCastleBuildViewport` and cleared by `clearCastleBuildViewport`
-  // (phase machine, just before enterCannonPhase). User-target writes
-  // during these modes still update `target` silently — the queued zone /
-  // pinch takes effect the moment the lock clears.
+  // — it locks the camera onto the home tower during tower selection. It's
+  // set when `handleSelectionZoom` consumes the parked `setSelectionViewport`
+  // target and cleared by `unzoomForOverlays` (the human-confirm /
+  // transition unzoom) or `clearAllZoomState`. User-target writes during
+  // these modes still update `target` silently — the queued zone / pinch
+  // takes effect the moment the lock clears.
   //
   // updateViewport() lerps currentVp toward the resolved target each tick.
 
@@ -473,28 +470,6 @@ export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
       state.map.zones,
       zoneId,
     );
-  }
-
-  /** Frame the ideal castle ring around the player's home tower —
-   *  homeTower edges ± (ideal gap + wall) tiles. Independent of the
-   *  actual wall plan: clumsy-builder variations and modifier-driven
-   *  ring shrink (high_tide) are intentionally ignored so the viewport
-   *  is deterministic and doesn't tightly hug the noisy wall layout
-   *  during auto-build. */
-  function computeCastleBuildViewport(playerId: ValidPlayerId): Viewport {
-    const state = deps.getState();
-    const homeTower = state?.players[playerId]?.homeTower;
-    if (!homeTower) return fullMapVp;
-    // Ideal interior gap (2) + wall ring (1) = 3 tiles outside the tower's
-    // 2×2 footprint on each side.
-    const RING_PAD = 3;
-    const tileBounds: TileBounds = {
-      minR: homeTower.row - RING_PAD,
-      maxR: homeTower.row + 1 + RING_PAD,
-      minC: homeTower.col - RING_PAD,
-      maxC: homeTower.col + 1 + RING_PAD,
-    };
-    return fitTileBoundsToViewport(tileBounds, ZONE_PAD_WITH_WALLS);
   }
 
   // --- Camera target events ---
@@ -1409,18 +1384,6 @@ export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
     selectionTargetVp = { row: towerRow, col: towerCol };
   }
 
-  function setCastleBuildViewport(playerId: ValidPlayerId): void {
-    if (!mobileAutoZoomActive()) return;
-    castleFrameVp = computeCastleBuildViewport(playerId);
-  }
-
-  function clearCastleBuildViewport(): void {
-    castleFrameVp = undefined;
-    // Per-phase camera memory takes over from here — applyPhaseCameraOnEnter
-    // (in handlePhaseChangeZoom) seeds the user target on the next phase
-    // entry (CANNON_PLACE round 1 → home zone default).
-  }
-
   function enableMobileZoom(): void {
     mobileZoomEnabled = true;
   }
@@ -1510,8 +1473,6 @@ export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
     clearAllZoomState,
     resetCamera,
     setSelectionViewport,
-    setCastleBuildViewport,
-    clearCastleBuildViewport,
     enableMobileZoom,
     isMobileAutoZoom: mobileAutoZoomActive,
     computeBattleTarget,

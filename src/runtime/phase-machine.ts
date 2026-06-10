@@ -314,9 +314,6 @@ export interface PhaseTransitionCtx {
 
   // ── Castle-select / reselect hooks ──
 
-  /** Clear the camera's castle-build viewport (zoom-out after castle
-   *  construction). Host-only. */
-  readonly clearCastleBuildViewport?: () => void;
   /** Per-local-controller cannon-phase init after `enterCannonPhase`:
    *  `placeCannons(state, maxSlots)` + `cannonCursor` + `startCannonPhase`.
    *  Host-only. The hook re-derives per-player prep from state via
@@ -636,7 +633,6 @@ const CASTLE_DONE: Transition = {
     if (ctx.state.round > 1) finalizeRoundCleanup(ctx.state);
     finalizeFreshCastles(ctx.state);
     finalizeCastleConstruction(ctx.state);
-    ctx.clearCastleBuildViewport?.();
     enterCannonPhase(ctx.state);
     ctx.broadcast?.cannonStart?.();
     return EMPTY_TRANSITION_RESULT;
