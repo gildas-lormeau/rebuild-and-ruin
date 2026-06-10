@@ -402,7 +402,9 @@ export function trackShot(
   for (const other of filterActiveEnemies(state, playerId)) {
     for (let idx = 0; idx < other.cannons.length; idx++) {
       const cannon = other.cannons[idx]!;
-      if (isBalloonCannon(cannon)) continue;
+      // Match collectEnemyTargets' filter: a dead cannon is never offered as a
+      // target, so its shot-count key would never be read — don't bump it.
+      if (!isCannonAlive(cannon) || isBalloonCannon(cannon)) continue;
       if (isCannonTile(cannon, row, col)) {
         const key = shotCountKey(other.id, idx as CannonIdx, cannon);
         shotCounts.set(key, (shotCounts.get(key) ?? 0) + 1);
