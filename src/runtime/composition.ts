@@ -925,6 +925,12 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       // (subsystems/lobby tickLobby, online initFromServer); this covers the
       // quit-back-to-menu paths so callers don't repeat the assignment.
       runtimeState.lobby.active = false;
+      // Same session teardown returnToLobby runs — critically clearing
+      // the demo auto-return timer: after an all-AI demo's game-over,
+      // exiting the route within the return delay would otherwise leave
+      // the timer to fire behind the landing page (mode still STOPPED),
+      // re-enter the lobby, and loop hidden demo games with audio.
+      lifecycle.teardownSession();
       audio.stopAll();
     },
 

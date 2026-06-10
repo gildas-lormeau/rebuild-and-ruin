@@ -25,6 +25,7 @@ import {
   finalizeRoundCleanup,
   type GameOverOutcome,
   peekGameOverOutcome,
+  peekLastPlayerStanding,
   prepareBattle,
   prepareNextRound,
   recheckTerritory,
@@ -884,19 +885,30 @@ function routePostBattleToBuild(ctx: PhaseTransitionCtx): void {
   else runTransitionInline("enter-wall-build", ctx);
 }
 
-/** Shared post-life-lost routing. Two branches:
+/** Shared post-life-lost routing. Three branches:
  *
  *    1. `result.gameOverOutcome` set — the round-end mutate already
  *       detected game-over via `peekGameOverOutcome`. The life-lost
  *       popup was suppressed (its choice would be moot). Emit GAME_END
  *       NOW (after the score overlay, not at decision time so SFX
  *       observers fire in the right order) and dispatch onGameOver.
- *    2. otherwise — the dialog populated `result.continuing`. Dispatch
+ *    2. the dialog's ABANDON/AFK eliminations just dropped the alive
+ *       count to one or fewer — those land in the dialog's `finish`
+ *       callback, AFTER the mutate's peek, so re-check
+ *       last-player-standing here. Without this the lone survivor plays
+ *       a full pointless round (cannon, battle against nobody, build)
+ *       before the next round-end notices. Only the alive-count
+ *       condition is rechecked: `state.round` was already advanced by
+ *       the mutate, so re-running the round-limit branch would end the
+ *       game one scheduled round early. GAME_END here carries the
+ *       already-advanced round — same stamp quirk as the score overlay.
+ *    3. otherwise — the dialog populated `result.continuing`. Dispatch
  *       continue/reselect via `resolveAfterLifeLost`.
  *
  *  Route handlers (`onGameOver` / `onReselect` / `onAdvance`) are
  *  wired identically on every peer, so each peer dispatches the next
- *  transition locally. */
+ *  transition locally; the dialog resolves with identical entries on
+ *  every peer (lockstep choices), so branch 2 fires identically too. */
 function routeLifeLostResolution(
   ctx: PhaseTransitionCtx,
   result: TransitionResult,
@@ -909,6 +921,12 @@ function routeLifeLostResolution(
       result.gameOverOutcome.winner,
       result.gameOverOutcome.reason,
     );
+    return;
+  }
+  const lateOutcome = peekLastPlayerStanding(ctx.state);
+  if (lateOutcome) {
+    emitGameEnd(ctx.state, lateOutcome);
+    route.onGameOver(lateOutcome.winner, lateOutcome.reason);
     return;
   }
   resolveAfterLifeLost({

@@ -159,11 +159,12 @@ export function applyLifeLostChoiceToDialog(
 
 /** Dispatch the continue / reselect branch after the life-lost dialog
  *  resolves. Game-over is no longer decided here — the round-end mutate
- *  has already peeked the outcome via `peekGameOverOutcome` and routed
- *  to `onGameOver` directly (skipping this dialog entirely when the
- *  game is going to end). So by the time we get here, we know the game
- *  continues; the only question is whether any player has to reselect
- *  their castle. */
+ *  peeks the outcome via `peekGameOverOutcome` before the dialog, and
+ *  `routeLifeLostResolution` re-checks last-player-standing after the
+ *  dialog's own ABANDON/AFK eliminations; both route to `onGameOver`
+ *  without reaching this function. So by the time we get here, we know
+ *  the game continues; the only question is whether any player has to
+ *  reselect their castle. */
 export function resolveAfterLifeLost(deps: ResolveAfterLifeLostDeps): void {
   const { continuing, onReselect, onAdvance } = deps;
   if (continuing.length > 0) onReselect(continuing);

@@ -1,12 +1,18 @@
 import { assert, assertEquals, assertGreater } from "@std/assert";
 import {
   createScenario,
+  pressKeyAndSettle,
+  settleLobbyExit,
   waitForModifier,
   waitForPhase,
   waitUntilRound,
 } from "./scenario.ts";
 import { GAME_EVENT } from "../src/shared/core/game-event-bus.ts";
+import { LOBBY_TIMER } from "../src/shared/core/game-constants.ts";
 import { Phase } from "../src/shared/core/game-phase.ts";
+import { isPlayerAlive } from "../src/shared/core/player-types.ts";
+import { PLAYER_KEY_BINDINGS } from "../src/shared/ui/player-config.ts";
+import { Mode } from "../src/shared/ui/ui-mode.ts";
 import { packTile, unpackTile } from "../src/shared/core/spatial.ts";
 import {
   GRID_COLS,
@@ -562,3 +568,88 @@ Deno.test("scenario: ai-build-diag wall-placed hook fires", async () => {
   assertGreater(cellsSeen, 0, "wall-placed events should carry cell tiles");
   assert(sawPieceName, "wall-placed events should carry piece shape name");
 });
+
+Deno.test(
+  "scenario: life-lost ABANDON that leaves one player alive ends the game immediately",
+  async () => {
+    // Two keyboard humans + one AI, joined through the real lobby input
+    // path. The humans idle through every phase, so battle damage breaks
+    // their auto-built castles and each eventually gets a life-lost
+    // dialog; the test ABANDONs every dialog through the keyboard path.
+    // When an abandon drops the alive count to one, the post-dialog
+    // recheck in routeLifeLostResolution must end the game right there —
+    // not after the surviving AI plays a full pointless solo round.
+    using sc = await createScenario({
+      seed: 42,
+      rounds: 15,
+      autoStartGame: false,
+    });
+
+    const p0 = PLAYER_KEY_BINDINGS[0]!;
+    const p1 = PLAYER_KEY_BINDINGS[1]!;
+
+    // Join P0 + P1 via their confirm keys, then spam P0's to skip the
+    // lobby timer (same path as the input-lobby key-join test).
+    await pressKeyAndSettle(sc, p0.confirm);
+    await pressKeyAndSettle(sc, p1.confirm);
+    for (let i = 0; i <= LOBBY_TIMER; i++) {
+      await pressKeyAndSettle(sc, p0.confirm);
+    }
+    sc.runUntil(() => !sc.lobbyActive(), { timeoutMs: LOBBY_TIMER * 1000 });
+    await settleLobbyExit(sc);
+
+    let winner = -1;
+    sc.bus.on(GAME_EVENT.GAME_END, (ev) => {
+      winner = ev.winner;
+    });
+    const gameEnded = () => winner !== -1;
+    const aliveIds = () =>
+      sc.state.players.filter(isPlayerAlive).map((p) => p.id);
+
+    // Abandon every life-lost dialog until one of them is terminal. Keys
+    // for a player with no pending entry are no-ops, so both humans'
+    // ABANDON sequences are sent at every dialog regardless of whose
+    // life was lost; AI entries auto-resolve CONTINUE on their own.
+    for (let dialogs = 0; dialogs < 20 && !gameEnded(); dialogs++) {
+      sc.runUntil(() => sc.mode() === Mode.LIFE_LOST || gameEnded(), {
+        timeoutMs: 600_000,
+      });
+      if (gameEnded()) break;
+      await pressKeyAndSettle(sc, p0.left);
+      await pressKeyAndSettle(sc, p0.confirm);
+      await pressKeyAndSettle(sc, p1.left);
+      await pressKeyAndSettle(sc, p1.confirm);
+      sc.runUntil(() => sc.mode() !== Mode.LIFE_LOST || gameEnded(), {
+        timeoutMs: 60_000,
+      });
+      if (aliveIds().length <= 1) {
+        // Terminal dialog: the recheck must end the game before any
+        // further phase — without it the lone AI plays a full solo
+        // round (cannon → battle → build) before the next round-end
+        // notices last-player-standing.
+        sc.runUntil(
+          () => gameEnded() || sc.state.phase === Phase.CANNON_PLACE,
+          { timeoutMs: 60_000 },
+        );
+        assert(
+          gameEnded(),
+          "GAME_END must fire directly after the eliminating dialog",
+        );
+        assert(
+          sc.state.phase !== Phase.CANNON_PLACE,
+          "the lone survivor must not play another round",
+        );
+        assertEquals(
+          winner,
+          aliveIds()[0],
+          "the sole alive player wins last-player-standing",
+        );
+        return;
+      }
+    }
+    assert(
+      false,
+      `expected an eliminating ABANDON dialog before game end (winner=${winner})`,
+    );
+  },
+);

@@ -47,6 +47,7 @@ export {
   eliminatePlayers,
   emitGameEnd,
   peekGameOverOutcome,
+  peekLastPlayerStanding,
 } from "./game-over.ts";
 export { getGruntTargetTower, moveGrunts } from "./grunt-movement.ts";
 export { generateMap } from "./map-generation.ts";
