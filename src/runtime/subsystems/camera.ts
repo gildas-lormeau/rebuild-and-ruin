@@ -274,14 +274,23 @@ export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
     | { readonly kind: "pinch"; readonly viewport: Viewport };
   const FULL_MAP_TARGET: UserTarget = { kind: "fullMap" };
   let target: UserTarget = FULL_MAP_TARGET;
-  // True when the CURRENT fullMap target was set by `unzoomForOverlays`
-  // (an overlay/transition forced the unzoom), i.e. it is restore-eligible.
-  // `onPinchEnd`'s pinch-out snap sets this false: that fullMap is a
-  // deliberate "show me everything" gesture, NOT overlay residue, so
-  // `restoreCameraAfterOverlay` must leave it alone (otherwise the snap
-  // lasts one frame before being silently re-zoomed to the phase default,
-  // and the emitted CAMERA_TARGET event no longer matches the camera).
-  let fullMapFromOverlay = false;
+  // Pre-overlay user target parked by `unzoomForOverlays` so the camera is
+  // restored exactly as it was when the overlay (pause / quit / life-lost
+  // dialog) closes — pause must be camera-invisible. (Re-deriving the
+  // phase default instead used to strand the BATTLE camera on the stale
+  // start-of-battle zone after a mid-battle pause, with the crosshair
+  // off-screen.) Stamped with the phase it was parked in: restore fires
+  // only into the SAME phase, because the per-frame restore runs BEFORE
+  // `handlePhaseChangeZoom` in the tick — on the first frame after a
+  // one-way unzoom episode that ended in a phase change (human-done /
+  // phase-ending / transition), an unstamped restore would resurrect the
+  // old phase's pan before the new phase re-anchors.
+  // undefined = the current fullMap is NOT overlay residue and must not be
+  // restored over: `onPinchEnd`'s pinch-out snap clears it (a deliberate
+  // "show me everything" gesture — restoring over it would undo the snap
+  // one frame later, desyncing the emitted CAMERA_TARGET event), as do
+  // phase entry (`handlePhaseChangeZoom`) and `clearAllZoomState`.
+  let overlayParked: { target: UserTarget; phase: Phase } | undefined;
 
   // Engine-driven override — only honoured while in SELECTION / CASTLE_BUILD.
   let castleFrameVp: Viewport | undefined;
@@ -866,12 +875,17 @@ export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
    *  needs a flat scene), not to every transition frame, so flattening
    *  here would fight `beginTilt` (which runs in BALLOON_ANIM /
    *  BANNER postDisplay, where isTransition is still true). */
-  function unzoomForOverlays(_state: GameState, frameCtx: FrameContext): void {
+  function unzoomForOverlays(state: GameState, frameCtx: FrameContext): void {
     if (!frameCtx.shouldUnzoom) return;
     if (target.kind === "fullMap" && castleFrameVp === undefined) return;
-    // Mark this fullMap as overlay-driven so the post-overlay restore fires
-    // for it (a user pinch-out, in contrast, sets fullMapFromOverlay false).
-    fullMapFromOverlay = true;
+    // Park the outgoing target (with its phase) so the post-overlay
+    // restore puts the camera back exactly where it was — the early-return
+    // above makes this once per unzoom episode. A fullMap target isn't
+    // worth parking (restoring it is a no-op), so selection episodes that
+    // only clear `castleFrameVp` park nothing.
+    if (target.kind !== "fullMap") {
+      overlayParked = { target, phase: state.phase };
+    }
     setTargetSilent(FULL_MAP_TARGET);
     castleFrameVp = undefined;
   }
@@ -887,6 +901,9 @@ export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
     notTransition: boolean,
   ): void {
     if (state.phase === lastAutoZoomPhase || !notTransition) return;
+    // A real phase entry invalidates any overlay-parked pan — the phase
+    // default (applyPhaseCameraOnEnter) owns the new phase's anchor.
+    overlayParked = undefined;
     applyPhaseCameraOnEnter(state);
     lastAutoZoomPhase = state.phase;
   }
@@ -938,26 +955,25 @@ export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
     setTargetAndEmit(next, "phaseEnter");
   }
 
-  /** Re-anchor to the phase default after an overlay (pause / quit / life-
-   *  lost dialog) cleared the target via unzoomForOverlays. Silent (no
-   *  event) because the overlay close is not a user-intent change. No-op
-   *  while the overlay is still up or some target other than fullMap is
-   *  already set. Mirrors `applyPhaseCameraOnEnter` minus the BATTLE
-   *  crosshair seeding (no phase change happened). */
+  /** Restore the camera exactly as it was before an overlay (pause / quit /
+   *  life-lost dialog) cleared the target via unzoomForOverlays. Silent
+   *  (no event) because the overlay close is not a user-intent change.
+   *  No-op while the overlay is still up, when some target other than
+   *  fullMap is already set, when nothing was parked (deliberate
+   *  pinch-out fullMap, which the user wants to keep), or when the parked
+   *  target belongs to a different phase (one-way unzoom — the phase
+   *  entry re-anchors via applyPhaseCameraOnEnter instead). */
   function restoreCameraAfterOverlay(
     state: GameState,
     frameCtx: FrameContext,
   ): void {
     if (frameCtx.shouldUnzoom || frameCtx.isTransition) return;
     if (target.kind !== "fullMap") return;
-    // Only restore a fullMap that an overlay produced — never a deliberate
-    // pinch-out (fullMapFromOverlay false), which the user wants to keep.
-    if (!fullMapFromOverlay) return;
+    if (!overlayParked || overlayParked.phase !== state.phase) return;
     if (!mobileAutoZoomActive()) return;
-    const next = defaultTargetForPhase(state.phase);
-    if (!next) return;
-    setTargetSilent(next);
-    fullMapFromOverlay = false;
+    const { target: parked } = overlayParked;
+    overlayParked = undefined;
+    setTargetSilent(parked);
   }
 
   /** Consume the pending selection-zoom target once the "Select your home
@@ -1180,7 +1196,7 @@ export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
       userZoomRatio = undefined;
       // User-intended fullMap — not overlay residue, so the per-frame
       // restore must leave it (otherwise the snap survives one frame).
-      fullMapFromOverlay = false;
+      overlayParked = undefined;
     }
     // Emit the settled target on gesture end (intermediate per-frame
     // updates during pinch are continuous motion and intentionally not
@@ -1312,8 +1328,9 @@ export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
     selectionTargetVp = undefined;
     lastBattleCrosshair = undefined;
     // This teardown fullMap is neither overlay-driven nor user-intended; a
-    // stale `true` could spuriously restore on the next game's first frame.
-    fullMapFromOverlay = false;
+    // stale parked target could spuriously restore on the next game's
+    // first frame.
+    overlayParked = undefined;
     // Drop any parked transition continuations (`awaitCameraFlat` /
     // `awaitPitchSettled`). They capture the dying session's transition ctx
     // and GameState; left in place, the next session's first flat rendered
