@@ -395,6 +395,15 @@ function openDatabase(): Promise<IDBDatabase> {
     request.onsuccess = () => resolve(request.result);
     request.onerror = () =>
       reject(request.error ?? new Error("IndexedDB open failed"));
+    // Fires when a future DB_VERSION bump finds another tab holding an
+    // old-version connection — the open then never reaches success/error,
+    // and without this the promise would hang forever (musicAssetsReady
+    // never resolves → sfx.activate() awaits indefinitely, silent SFX
+    // with no error). Fail fast instead; callers already catch and report.
+    request.onblocked = () =>
+      reject(
+        new Error("IndexedDB open blocked — close other tabs of this game"),
+      );
   });
 }
 
