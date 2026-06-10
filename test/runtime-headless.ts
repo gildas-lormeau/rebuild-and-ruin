@@ -97,7 +97,7 @@ interface HeadlessRuntimeOptions {
   /** Override `amHost` on the runtime's network api. Defaults to `true`
    *  (the production "no peers" shape). Network-pair tests pass
    *  `() => false` for the watcher half — this flips the broadcast gate
-   *  in `buildHostPhaseCtx` so the watcher's transitions don't emit
+   *  in `buildPhaseCtx` so the watcher's transitions don't emit
    *  wire messages even though it runs the same `tickGame` as the host. */
   amHost?: () => boolean;
   /** Optional renderer override. When provided, replaces the default no-op

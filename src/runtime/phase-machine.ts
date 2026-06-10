@@ -243,7 +243,9 @@ export interface PhaseTransitionCtx {
    *  battle state. Used by `battle-done` host mutate. */
   readonly endBattleLocalControllers?: () => void;
   /** Save the human player's crosshair position so it can be restored at
-   *  the start of the next battle (touch UX). Host-only, no-op otherwise. */
+   *  the start of the next battle (touch UX). Wired on every peer;
+   *  composition gates it on IS_TOUCH_DEVICE, so it's absent on
+   *  non-touch wirings. */
   readonly saveBattleCrosshair?: () => void;
   /** Run `cb` once the in-flight pitch animation completes (in either
    *  direction). `proceedToBattleFromCtx` uses it to hold balloon-anim start
@@ -257,10 +259,11 @@ export interface PhaseTransitionCtx {
    *  contexts can skip it (2D wiring also skips — the renderer has no
    *  tilt axis). */
   readonly beginTilt?: () => void;
-  /** Host-only per-frame setup when WALL_BUILD begins: score-delta reset,
-   *  cannon facing reset, per-controller startBuildPhase, clear impacts,
-   *  accumulator resets. Called from `battle-done` postDisplay, after the
-   *  BUILD banner finishes sweeping. */
+  /** Per-peer setup when WALL_BUILD begins: score-delta reset,
+   *  per-LOCAL-controller startBuildPhase, clear impacts, accumulator
+   *  resets. Called from `enter-wall-build`'s mutate (before the banner's
+   *  B-snapshot — see that transition's doc) on every peer; "local" means
+   *  the controllers this peer drives (AI + own human), not host role. */
   readonly startBuildPhaseLocal?: () => void;
   /** Run `enterBuildSkippingBattle(state)` — the engine-level phase flip
    *  that the ceasefire path uses when no one can fight. Separate from
@@ -316,10 +319,11 @@ export interface PhaseTransitionCtx {
 
   /** Per-local-controller cannon-phase init after `enterCannonPhase`:
    *  `placeCannons(state, maxSlots)` + `cannonCursor` + `startCannonPhase`.
-   *  Host-only. The hook re-derives per-player prep from state via
-   *  `prepareControllerCannonPhase` — `enterCannonPhase` has already
-   *  populated `state.cannonLimits` / facings, so the work is idempotent
-   *  and the entry struct doesn't need to thread through ctx. */
+   *  Wired on every peer — "local" means the controllers this peer drives
+   *  (AI + own human), not host role. The hook re-derives per-player prep
+   *  from state via `prepareControllerCannonPhase` — `enterCannonPhase`
+   *  has already populated `state.cannonLimits` / facings, so the work is
+   *  idempotent and the entry struct doesn't need to thread through ctx. */
   readonly initLocalCannonControllers?: () => void;
 
   /** Fire-and-forget: pre-compile the shadow-pass permutation of every
@@ -336,7 +340,8 @@ export interface PhaseTransitionCtx {
 
   /** End-game side effects (set game-over frame, stop sound, switch to
    *  Mode.STOPPED, arm demo timer). Used by `round-limit-reached` /
-   *  `last-player-standing` transitions. Host-only. */
+   *  `last-player-standing` transitions. Wired on every peer — watchers
+   *  run it from their own local dispatch. */
   readonly endGame?: (winner: { id: ValidPlayerId }) => void;
   /** Winner determined by the life-lost resolution. Threaded through via
    *  ctx so the mutate can pass it to `endGame`. */
@@ -431,9 +436,10 @@ const ROUND_END: Transition = {
 };
 /** `battle-done` — BATTLE prep transition. Runs engine post-battle
  *  housekeeping in two halves: `finalizeBattle` (combo bonuses, battle
- *  cleanup, inGracePeriod clear, lastModifierId snapshot, ROUND_END emit)
- *  followed by `prepareNextRound` (round increment, ROUND_START, grunt
- *  spawn, upgrade offer generation, piece bag init). Broadcasts BUILD_START.
+ *  cleanup, inGracePeriod clear, lastModifierId snapshot) followed by
+ *  `prepareNextRound` (interbattle grunt spawn, upgrade offer generation,
+ *  bonus-square replenish, piece bag init — round increment and
+ *  ROUND_START happen later, in `round-end`). Broadcasts BUILD_START.
  *  Does NOT flip the phase and shows no banner — `postDisplay` routes to
  *  `enter-upgrade-pick` (when offers were generated) or `enter-wall-build`,
  *  each of which delegates the phase entry to game/ + shows its own banner.
@@ -554,11 +560,10 @@ const UPGRADE_PICK_DONE: Transition = {
  *  slice of the banner sweep shows no piece previews and they pop in
  *  at banner end.
  *
- *  postDisplay (host): flips to Mode.GAME (behavioral gate for
- *  input/tick dispatch — not visible state, so not needed before the
- *  B-snapshot).
- *  postDisplay (watcher): anchors the phase timer at banner-end and
- *  flips to Mode.GAME. */
+ *  postDisplay flips to Mode.GAME — identical on every peer (behavioral
+ *  gate for input/tick dispatch — not visible state, so not needed
+ *  before the B-snapshot). The phase timer is anchored in `mutate` via
+ *  `enterWallBuildPhase`, not here. */
 const ENTER_WALL_BUILD: Transition = {
   id: "enter-wall-build",
   from: [Phase.BATTLE, Phase.CANNON_PLACE, Phase.UPGRADE_PICK],

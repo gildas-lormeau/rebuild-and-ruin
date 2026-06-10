@@ -179,10 +179,11 @@ export function enterBuildSkippingBattle(state: GameState): void {
  *
  *  Does NOT emit `ROUND_END` (that fires from `finalizeRound` once the
  *  build-phase score is computed) and does NOT increment `state.round`
- *  (that happens later, in `resolveAfterLifeLost`, after the life-lost
- *  dialog resolves). The round being closed isn't actually finished
- *  here — it stays open through UPGRADE_PICK and WALL_BUILD until the
- *  score is finalized. */
+ *  (that happens in the `round-end` transition's mutate, right after
+ *  `finalizeRound` — before the score overlay / life-lost dialog
+ *  display, and skipped entirely on the game-over branch). The round
+ *  being closed isn't actually finished here — it stays open through
+ *  UPGRADE_PICK and WALL_BUILD until the score is finalized. */
 export function finalizeBattle(state: GameState): void {
   awardComboBonuses(state);
   cleanupBattleArtifacts(state);
@@ -213,11 +214,12 @@ export function finalizeBattle(state: GameState): void {
  *  watcher / headless must produce identical RNG sequences. Callers must
  *  init controllers afterwards (resetCannonFacings + startBuildPhase loop).
  *
- *  Does NOT increment `state.round` — that happens much later, in
- *  `resolveAfterLifeLost`, after the life-lost dialog resolves. Helpers
- *  that need to know the round they're seeding for receive
- *  `upcomingRound` as an explicit parameter so the timing knowledge ("we're
- *  called pre-increment") lives only in this function, not in every helper. */
+ *  Does NOT increment `state.round` — that happens later, in the
+ *  `round-end` transition's mutate at the end of WALL_BUILD (and is
+ *  skipped on the game-over branch). Helpers that need to know the
+ *  round they're seeding for receive `upcomingRound` as an explicit
+ *  parameter so the timing knowledge ("we're called pre-increment")
+ *  lives only in this function, not in every helper. */
 export function prepareNextRound(state: GameState): void {
   const upcomingRound = state.round + 1;
 

@@ -176,7 +176,7 @@ export function createLocalNetworkApi(opts: {
   /** Optional override — defaults to `true` to match local/test "no peers"
    *  play where the runtime is the only authority. Network tests that
    *  build a host + watcher pair set `false` on the watcher side; this
-   *  flips the broadcast gate in `buildHostPhaseCtx` (no `ctx.broadcast`
+   *  flips the broadcast gate in `buildPhaseCtx` (no `ctx.broadcast`
    *  on watchers) so transitions don't emit wire messages even though
    *  every peer runs the same `tickGame`. */
   amHost?: () => boolean;

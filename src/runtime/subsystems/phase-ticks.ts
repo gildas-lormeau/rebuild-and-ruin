@@ -130,8 +130,8 @@ interface PhaseTicksDeps extends Pick<RuntimeConfig, "log"> {
   /** Handlers called after the life-lost dialog resolves. `onGameOver`
    *  dispatches the game-over transition; `onReselect` seeds the
    *  reselect queue and enters the castle-reselect flow; `onAdvance`
-   *  dispatches `advance-to-cannon`. Host-only — watcher path builds
-   *  its own route bundle in `online-phase-transitions.ts`. */
+   *  dispatches `advance-to-cannon`. Wired identically on every peer —
+   *  each routes its own dialog resolution locally. */
   lifeLostRoute: {
     onGameOver: (winner: { id: ValidPlayerId }, reason: GameOverReason) => void;
     onReselect: (continuing: readonly ValidPlayerId[]) => void;
@@ -173,8 +173,11 @@ interface PhaseTicksDeps extends Pick<RuntimeConfig, "log"> {
    *  before firing the battle-done banner capture. */
   beginUntilt: () => void;
   /** Pitch state machine. Gates the battle-done transition so the
-   *  banner snapshot captures a flat scene — wait until `"flat"` (or
-   *  fall through on the safety timeout). */
+   *  banner snapshot captures a flat scene — `tickBattlePhase` returns
+   *  false until this reads `"flat"`. There is no timeout: the wait
+   *  can't hang because the camera's pitch ease is a fixed tick-driven
+   *  ease advanced every substep, and `beginUntilt` is re-requested
+   *  each tick. */
   getPitchState: () => "flat" | "tilting" | "tilted" | "untilting";
   /** Snap every cannon's eased displayed facing to its rest target.
    *  Called once at battle-end (after `resetCannonFacings`, after the
@@ -289,11 +292,11 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
   // -------------------------------------------------------------------------
 
   function dispatchAdvanceToCannon() {
-    runTransition("advance-to-cannon", buildHostPhaseCtx());
+    runTransition("advance-to-cannon", buildPhaseCtx());
   }
 
   function dispatchCastleDone() {
-    runTransition("castle-done", buildHostPhaseCtx());
+    runTransition("castle-done", buildPhaseCtx());
   }
 
   function dispatchGameOver(
@@ -301,7 +304,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     reason: GameOverReason,
   ) {
     runTransition(reason, {
-      ...buildHostPhaseCtx(),
+      ...buildPhaseCtx(),
       winner,
     });
   }
@@ -313,21 +316,22 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
   function startBattle() {
     const { state } = runtimeState;
     if (shouldSkipBattle(state)) {
-      runTransition("ceasefire", buildHostPhaseCtx());
+      runTransition("ceasefire", buildPhaseCtx());
       return;
     }
-    runTransition("cannon-place-done", buildHostPhaseCtx());
+    runTransition("cannon-place-done", buildPhaseCtx());
   }
 
-  /** Single host-side `PhaseTransitionCtx` factory shared by every call
-   *  site (advance-to-cannon, ceasefire, cannon-place-done, battle-done,
-   *  round-end, plus the deferred castle-done / game-over once they land
-   *  here too).
+  /** Single `PhaseTransitionCtx` factory shared by every call site
+   *  (advance-to-cannon, ceasefire, cannon-place-done, battle-done,
+   *  round-end, castle-done, game-over) and run on every peer — the only
+   *  host-gated field is `broadcast`; everything else is populated
+   *  unconditionally (clone-everywhere model).
    *
-   *  Every hook any host-role mutate/postDisplay might need is populated.
-   *  Hooks the active transition doesn't read are inert — the cost of
-   *  including them is one closure allocation per `runTransition` call. */
-  function buildHostPhaseCtx(): PhaseTransitionCtx {
+   *  Every hook any mutate/postDisplay might need is populated. Hooks the
+   *  active transition doesn't read are inert — the cost of including
+   *  them is one closure allocation per `runTransition` call. */
+  function buildPhaseCtx(): PhaseTransitionCtx {
     const remotePlayerSlots = runtimeState.frameMeta.remotePlayerSlots;
     const local = localControllers(runtimeState.controllers, remotePlayerSlots);
     const isHost = runtimeState.frameMeta.hostAtFrameStart;
@@ -596,7 +600,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     deps.requestRender();
     if (runtimeState.state.timer > 0) return false;
     resetAccum(runtimeState.accum, ACCUM_MODIFIER_REVEAL);
-    runTransition("enter-battle", buildHostPhaseCtx());
+    runTransition("enter-battle", buildPhaseCtx());
     return true;
   }
 
@@ -710,7 +714,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     // untilt). Render-only — no effect on game state or determinism.
     deps.snapCannonRotationToRest();
 
-    runTransition("battle-done", buildHostPhaseCtx());
+    runTransition("battle-done", buildPhaseCtx());
     return true;
   }
 
@@ -774,7 +778,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     if (state.timer > 0) return false;
 
     // --- End of phase: delegate to the round-end transition ---
-    runTransition("round-end", buildHostPhaseCtx());
+    runTransition("round-end", buildPhaseCtx());
     return true;
   }
 

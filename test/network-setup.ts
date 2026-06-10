@@ -314,7 +314,7 @@ async function buildWatcherRuntime(
     remotePlayerSlots: remoteHumans,
     onlinePhaseTicks: buildWatcherPhaseTicks(),
     onlineDialogDrains: buildDialogDrains(client.ctx.session),
-    // amHost=false flips the broadcast gate in `buildHostPhaseCtx`
+    // amHost=false flips the broadcast gate in `buildPhaseCtx`
     // (no `ctx.broadcast` on watcher), so watcher transitions don't emit
     // wire messages even though they run the same code as host.
     amHost: () => false,

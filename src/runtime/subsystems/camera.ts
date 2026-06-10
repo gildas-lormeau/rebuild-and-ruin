@@ -116,9 +116,13 @@ export interface RuntimeCamera {
   onPinchUpdate: (midX: number, midY: number, scale: number) => void;
   onPinchEnd: () => void;
 
-  /** Snap the camera so `(wx, wy)` is at the viewport center (current zoom
-   *  preserved). Used by touch handlers on single-finger touchstart so a
-   *  tap re-centers wherever the player pressed. */
+  /** Tap-nudge (despite the name, NOT a snap-to-center): when a
+   *  single-finger tap lands in the outer 12.5%-per-edge ring of the
+   *  current viewport, smoothly pan (zoom preserved) just far enough to
+   *  bring the tap point inside the inner comfort zone. Taps inside the
+   *  comfort zone, during the selection castle-frame override, while a
+   *  nudge is in flight, or at full map are no-ops. Used by touch
+   *  handlers on single-finger touchstart. */
   centerCameraOnTap: (wx: number, wy: number) => void;
 
   // Zone queries
@@ -522,12 +526,14 @@ export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
 
   // --- Auto-zoom ---
   //
-  // Camera persists across BUILD / CANNON_PLACE / BATTLE phase changes —
-  // the user `target` is recorded into per-phase memory each frame and
-  // restored on phase re-entry (zone or pinch identity preserved). The
-  // zone kind is only ever installed by the touch zone-cycle button or
-  // by the battle crosshair-follow / life-lost holdLifeLostZoom paths
-  // (explicit user navigation), never by phase transitions directly.
+  // No per-phase camera memory: every entry into BUILD / CANNON_PLACE /
+  // BATTLE re-anchors to that phase's default zone via
+  // `applyPhaseCameraOnEnter` (home zone for build/cannon, the crosshair-
+  // target enemy for battle), which installs a `zone` target directly
+  // from the phase transition. Only the pinch zoom *ratio* persists
+  // across phases (`userZoomRatio`); the pan does not. Zone targets are
+  // also installed by the touch zone-cycle button, battle
+  // crosshair-follow, and life-lost holdLifeLostZoom.
 
   // --- Per-frame tick ---
 
@@ -870,10 +876,11 @@ export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
     castleFrameVp = undefined;
   }
 
-  /** Drive per-phase camera memory on phase entry — applyPhaseCameraOnEnter
-   *  restores or defaults the zoom for the new phase (BUILD/CANNON/BATTLE).
-   *  CASTLE_SELECT has no per-phase memory; its deferred zoom is handled
-   *  by handleSelectionZoom (via setSelectionViewport's pending target). */
+  /** Re-anchor the camera on phase entry — applyPhaseCameraOnEnter
+   *  installs the new phase's default target (BUILD/CANNON/BATTLE; no
+   *  per-phase memory, see the Auto-zoom block above). CASTLE_SELECT has
+   *  no phase default; its deferred zoom is handled by
+   *  handleSelectionZoom (via setSelectionViewport's pending target). */
   function handlePhaseChangeZoom(
     state: GameState,
     _frameCtx: FrameContext,
@@ -884,8 +891,8 @@ export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
     lastAutoZoomPhase = state.phase;
   }
 
-  /** Maps a Phase to its per-phase camera slot, or null when the phase has
-   *  no per-phase camera memory (selection / modifier-reveal). */
+  /** Maps a Phase to its auto-anchor slot, or null when the phase has no
+   *  camera auto-anchor (selection / modifier-reveal / upgrade-pick). */
   function phaseSlot(phase: Phase): "build" | "cannon" | "battle" | null {
     if (phase === Phase.WALL_BUILD) return "build";
     if (phase === Phase.CANNON_PLACE) return "cannon";

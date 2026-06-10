@@ -124,11 +124,19 @@ export function createUpgradePickSystem(
 
   /** `state.simTick` at which the tick loop first observed every entry
    *  resolved; undefined while any entry is pending. Anchors the
-   *  reveal-pulse dwell on the shared sim timeline:
-   *  `dialog.timer`/`pickedAtTimer` are dialog-OPEN-relative, so gating
-   *  the transition on them would let cross-peer dialog-open skew shift
-   *  the following WALL_BUILD window (pickedAtTimer is cosmetic — it
-   *  only drives the pulse animation). Cleared on dialog teardown. */
+   *  reveal-pulse dwell on the sim-tick timeline instead of
+   *  `dialog.timer`/`pickedAtTimer`, which are dialog-OPEN-relative and
+   *  skew cross-peer with dialog-open times (pickedAtTimer is cosmetic —
+   *  it only drives the pulse animation).
+   *
+   *  NOT a cross-peer same-tick guarantee: human picks land at
+   *  lockstep-shared sim ticks, but AI entries resolve off the per-peer
+   *  dialog timer, so the observed tick (and the following
+   *  `enter-wall-build` dispatch) can skew across peers when an AI
+   *  resolves last. That's safe — game ticks are suspended in the dialog
+   *  modes, so no shared-RNG consumer runs in the window, and phase-entry
+   *  tick skew is tolerated architecture-wide (camera-gated transitions).
+   *  Cleared on dialog teardown. */
   let resolvedAtSimTick: number | undefined;
 
   /** Ensure the dialog exists on runtimeState, creating it if needed. */
@@ -212,9 +220,9 @@ export function createUpgradePickSystem(
     // entry resolves on the same frame as allResolved, so without this the
     // expanding ring animation for that entry never gets any draw frames.
     // The dwell counts sim ticks from the resolve, NOT dialog.timer vs
-    // pickedAtTimer: entry fills land at lockstep-shared sim ticks, so this
-    // gate fires at the same tick on every peer even when dialog-open times
-    // skew (see `resolvedAtSimTick`).
+    // pickedAtTimer (dialog-open-relative, cross-peer skewed). See
+    // `resolvedAtSimTick` for why the resolve tick itself can still skew
+    // across peers (AI picks) and why that's safe.
     resolvedAtSimTick ??= state.simTick;
     const pulseElapsed = (state.simTick - resolvedAtSimTick) * SIM_TICK_DT;
     if (pulseElapsed < UPGRADE_PICK_PULSE_DURATION) return;

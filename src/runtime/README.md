@@ -205,7 +205,7 @@ directly — they receive a `TimingApi` via deps.
   upgrade-pick), and postDisplay side-effects. `runTransition(id, ctx)`
   is the single entry point — captures the scene, runs mutate, walks
   the display, fires postDisplay. The actual model is clone-everywhere:
-  the only `PhaseTransitionCtx` builder is `buildHostPhaseCtx` in
+  the only `PhaseTransitionCtx` builder is `buildPhaseCtx` in
   [`subsystems/phase-ticks.ts`](subsystems/phase-ticks.ts), used on every
   peer; role differences (host has wire `broadcast`, watcher doesn't)
   live in optional `ctx` fields populated only where they apply, not in

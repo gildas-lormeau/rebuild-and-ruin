@@ -36,7 +36,7 @@ import type { TimingApi } from "./timing-api.ts";
  *  Under clone-everywhere, every peer runs the same phase ticks locally
  *  and dispatches transitions itself. The only role-gated fields are the
  *  four `broadcast*` phase markers, gated by `frameMeta.hostAtFrameStart`
- *  at the call site in `buildHostPhaseCtx` (subsystems/phase-ticks.ts) — only
+ *  at the call site in `buildPhaseCtx` (subsystems/phase-ticks.ts) — only
  *  the host emits to the wire. Every other field is called unconditionally
  *  on every peer (each self-gates by ownership where relevant).
  *
