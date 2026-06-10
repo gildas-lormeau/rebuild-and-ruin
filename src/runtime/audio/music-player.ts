@@ -201,6 +201,14 @@ export function createMusicSubsystem(): MusicSubsystem {
   const bgBuffers = new Map<string, CachedPcm>();
   const fanfareBuffers = new Map<number, AudioBuffer>();
   const bgAudioBuffers = new Map<string, AudioBuffer>();
+  // Ids/songs found absent in IDB on a prior activateOnce. activateOnce
+  // clears `activatingPromise` in its finally (so a post-upload activate
+  // re-reads), which means an asset-less user would otherwise re-probe IDB
+  // (open + read + close per id) on EVERY music cue, forever. Skipping
+  // known-missing entries bounds that to one probe per id until the next
+  // `refreshBuffers` (sound-modal upload) clears these sets.
+  const missingBgIds = new Set<string>();
+  const missingFanfareSongs = new Set<number>();
   let activatingPromise: Promise<void> | undefined;
 
   // `wantsTitle` is the caller's intent (lobby said "play title"). `paused`
@@ -265,53 +273,8 @@ export function createMusicSubsystem(): MusicSubsystem {
       if (ctx.state === AUDIO_CONTEXT_SUSPENDED) {
         await ctx.resume().catch(() => {});
       }
-      // Hydrate bg tracks from the upload-time PCM cache. Skip tracks
-      // already loaded — repeat calls (e.g. after a settings-modal upload)
-      // only pay the IDB cost for newly-cached entries. Missing entries
-      // (cache wiped, render failed, user hasn't uploaded yet) leave the
-      // track silent — playBg gracefully no-ops.
-      for (const spec of PRERENDER_BG_TRACKS) {
-        if (bgAudioBuffers.has(spec.id)) continue;
-        const pcm = await loadPcmCache(spec.id).catch((error) => {
-          console.warn(`[music] cache read failed for ${spec.id}:`, error);
-          return undefined;
-        });
-        if (!pcm) continue;
-        bgBuffers.set(spec.id, pcm);
-        bgAudioBuffers.set(spec.id, pcmToAudioBuffer(ctx, pcm));
-      }
-      // Hydrate fanfares the same way; map every slot that uses each
-      // sub-song to the same AudioBuffer (slots 0 and 3 share song 4).
-      const fanfareAudioBySong = new Map<number, AudioBuffer>();
-      for (const songIndex of PRERENDER_FANFARE_SONGS) {
-        if (
-          // already loaded for some slot? skip the IDB read.
-          [...fanfareBuffers.entries()].some(
-            ([slot, buf]) =>
-              FANFARE_SONG_BY_SLOT[slot] === songIndex && buf !== undefined,
-          )
-        ) {
-          continue;
-        }
-        const pcm = await loadPcmCache(fanfareCacheId(songIndex)).catch(
-          (error) => {
-            console.warn(
-              `[music] cache read failed for fanfare ${songIndex}:`,
-              error,
-            );
-            return undefined;
-          },
-        );
-        if (!pcm) continue;
-        fanfareAudioBySong.set(songIndex, pcmToAudioBuffer(ctx, pcm));
-      }
-      for (let slot = 0; slot < FANFARE_SONG_BY_SLOT.length; slot += 1) {
-        if (fanfareBuffers.has(slot)) continue;
-        const songIndex = FANFARE_SONG_BY_SLOT[slot] ?? FANFARE_SONG_BY_SLOT[0];
-        if (songIndex === undefined) continue;
-        const buffer = fanfareAudioBySong.get(songIndex);
-        if (buffer) fanfareBuffers.set(slot, buffer);
-      }
+      await hydrateBgTracks(ctx);
+      await hydrateFanfares(ctx);
     })();
     // Clear the in-flight handle once the load resolves, so a later
     // call (e.g. after the settings modal closes with new PCM in IDB)
@@ -321,6 +284,63 @@ export function createMusicSubsystem(): MusicSubsystem {
       activatingPromise = undefined;
     });
     return activatingPromise;
+  }
+
+  /** Hydrate bg tracks from the upload-time PCM cache. Skips tracks already
+   *  loaded (repeat calls only pay the IDB cost for newly-cached entries)
+   *  and ids known-missing (so an asset-less user doesn't re-probe IDB on
+   *  every cue). A still-missing entry leaves the track silent — playBg
+   *  gracefully no-ops. */
+  async function hydrateBgTracks(ctx: AudioContext): Promise<void> {
+    for (const spec of PRERENDER_BG_TRACKS) {
+      if (bgAudioBuffers.has(spec.id)) continue;
+      if (missingBgIds.has(spec.id)) continue;
+      const pcm = await loadPcmCache(spec.id).catch((error) => {
+        console.warn(`[music] cache read failed for ${spec.id}:`, error);
+        return undefined;
+      });
+      if (!pcm) {
+        missingBgIds.add(spec.id);
+        continue;
+      }
+      bgBuffers.set(spec.id, pcm);
+      bgAudioBuffers.set(spec.id, pcmToAudioBuffer(ctx, pcm));
+    }
+  }
+
+  /** Hydrate fanfares the same way as bg tracks; map every slot that uses
+   *  each sub-song to the same AudioBuffer (slots 0 and 3 share song 4). */
+  async function hydrateFanfares(ctx: AudioContext): Promise<void> {
+    const fanfareAudioBySong = new Map<number, AudioBuffer>();
+    for (const songIndex of PRERENDER_FANFARE_SONGS) {
+      const alreadyLoaded = [...fanfareBuffers.entries()].some(
+        ([slot, buf]) =>
+          FANFARE_SONG_BY_SLOT[slot] === songIndex && buf !== undefined,
+      );
+      if (alreadyLoaded) continue;
+      if (missingFanfareSongs.has(songIndex)) continue;
+      const pcm = await loadPcmCache(fanfareCacheId(songIndex)).catch(
+        (error) => {
+          console.warn(
+            `[music] cache read failed for fanfare ${songIndex}:`,
+            error,
+          );
+          return undefined;
+        },
+      );
+      if (!pcm) {
+        missingFanfareSongs.add(songIndex);
+        continue;
+      }
+      fanfareAudioBySong.set(songIndex, pcmToAudioBuffer(ctx, pcm));
+    }
+    for (let slot = 0; slot < FANFARE_SONG_BY_SLOT.length; slot += 1) {
+      if (fanfareBuffers.has(slot)) continue;
+      const songIndex = FANFARE_SONG_BY_SLOT[slot] ?? FANFARE_SONG_BY_SLOT[0];
+      if (songIndex === undefined) continue;
+      const buffer = fanfareAudioBySong.get(songIndex);
+      if (buffer) fanfareBuffers.set(slot, buffer);
+    }
   }
 
   function stopActiveSource(): void {
@@ -592,6 +612,10 @@ export function createMusicSubsystem(): MusicSubsystem {
     bgBuffers.clear();
     bgAudioBuffers.clear();
     fanfareBuffers.clear();
+    // Re-probe IDB for previously-missing entries — the upload may have
+    // just rendered them.
+    missingBgIds.clear();
+    missingFanfareSongs.clear();
   }
 
   async function setPaused(nextPaused: boolean): Promise<void> {

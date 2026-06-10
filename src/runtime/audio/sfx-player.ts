@@ -383,6 +383,7 @@ export function createSfxSubsystem(deps: SfxSubsystemDeps): SfxSubsystem {
     // registers as a transition, not a continuation.
     stopSnareLoop();
     lastSignals = { countdownActive: false };
+    lastPhase = undefined;
     fanfarePlayedThisPhase.clear();
   }
 
@@ -654,7 +655,10 @@ export function createSfxSubsystem(deps: SfxSubsystemDeps): SfxSubsystem {
     paused = next;
     if (!audioContext) return;
     if (next && audioContext.state === AUDIO_CONTEXT_RUNNING) {
-      await audioContext.suspend();
+      // suspend() can reject (browser state races); swallow it like the
+      // resume() path below and the music subsystem do — an unhandled
+      // rejection here would surface as a console error on every tab-hide.
+      await audioContext.suspend().catch(() => {});
     } else if (!next && audioContext.state === AUDIO_CONTEXT_SUSPENDED) {
       try {
         await audioContext.resume();
