@@ -112,9 +112,12 @@ export function createOnlineRuntimeSessionHelpers(
       },
       enterSelection: () => runtime.selection.enter(),
       onStateReady: () => {
-        // Watcher visuals + stats are populated from `result.impactEvents`
-        // inside `tickBattlePhase` (same code path as host) — no per-bus
-        // subscription needed here.
+        // Bind sound/haptics observers to the fresh `state.bus` — without
+        // this, online matches play with the entire SFX event map, fanfare,
+        // and haptics silently dead. Watcher visuals + stats need no
+        // subscription: they're populated from `result.impactEvents` inside
+        // `tickBattlePhase` (same code path as host).
+        runtime.bindStateObservers();
       },
       // Camera-backed human aim resolver (screen px → occluded world). Only
       // the local human slot uses it; remote/AI slots resolve their own aim.

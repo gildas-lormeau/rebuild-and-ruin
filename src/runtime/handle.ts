@@ -33,6 +33,13 @@ export interface GameRuntime {
   phaseTicks: RuntimePhaseTicks;
   music: RuntimeMusic;
   sfx: RuntimeSfx;
+  /** Bind the bus-driven observers (haptics, music cues, SFX event map) to
+   *  the current `state.bus`. Each bootstrap creates a fresh bus, so every
+   *  bootstrap path must call this from its `onStateReady` hook — the local
+   *  startGame path does it internally; online's initFromServer calls it
+   *  through this handle. Skipping it silences all bus-driven audio/haptics
+   *  for the match. */
+  bindStateObservers: () => void;
   /** Quit-to-menu cleanup shared by both entry points (local + online).
    *  Sets mode to STOPPED, stops any active bg track, and silences
    *  in-flight SFX. Wired to the GAME_EXIT_EVENT (back-button / hash

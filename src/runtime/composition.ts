@@ -531,6 +531,17 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   // Game lifecycle (delegated to subsystems/game-lifecycle.ts)
   // -------------------------------------------------------------------------
 
+  // Bind the bus-driven observers (haptics + music cues + SFX event map) to
+  // the current game's `state.bus`. Every bootstrap creates a fresh bus, so
+  // this must run once per game right after the state is installed — BOTH
+  // bootstrap paths (local startGame below, online initFromServer via the
+  // runtime handle) call it from their `onStateReady` hook.
+  function bindStateObservers(): void {
+    haptics.subscribeBus(runtimeState.state.bus);
+    audio.music.subscribeBus(runtimeState.state.bus);
+    audio.sfx.subscribeBus(runtimeState.state.bus);
+  }
+
   const lifecycle = createGameLifecycle(
     buildLifecycleDeps({
       runtimeState,
@@ -546,11 +557,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
             clearFrameData,
             resetUIState: () => lifecycle.resetUIState(),
             enterSelection: selection.enter,
-            onStateReady: () => {
-              haptics.subscribeBus(runtimeState.state.bus);
-              audio.music.subscribeBus(runtimeState.state.bus);
-              audio.sfx.subscribeBus(runtimeState.state.bus);
-            },
+            onStateReady: bindStateObservers,
             controllerFactory: config.controllerFactory,
             // Camera-backed human aim resolver: screen px → occluded world via
             // the live camera pitch + overlay heights. AI controllers ignore
@@ -935,6 +942,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     },
 
     upgradePick,
+    bindStateObservers,
 
     // Cross-cutting orchestration
     mainLoop,
