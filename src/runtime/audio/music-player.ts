@@ -62,6 +62,12 @@ export interface MusicSubsystem extends RuntimeMusic {
    *  so music doesn't keep looping in a backgrounded tab. No-op until
    *  `activate()` has run. */
   setPaused(paused: boolean): Promise<void>;
+  /** Drop the in-memory PCM + AudioBuffer caches so the next `activate()`
+   *  re-hydrates from the (possibly changed) IDB cache. Call when the user
+   *  re-uploads music via the sound modal — `activateOnce` skips already-
+   *  loaded ids, so without this the old buffers play forever. Mirrors
+   *  `sfx.refreshSamples`. */
+  refreshBuffers(): void;
   /** Release the bus listener and stop playback. */
   dispose(): Promise<void>;
 }
@@ -578,6 +584,16 @@ export function createMusicSubsystem(): MusicSubsystem {
     await activateOnce();
   }
 
+  function refreshBuffers(): void {
+    // Drop the hydrated PCM + AudioBuffer caches; activateOnce() re-reads
+    // from IDB on next play. The currently-playing source keeps its own
+    // buffer reference, so playback isn't cut — the next phase's playBg
+    // picks up the new music. The AudioContext + bus binding stay.
+    bgBuffers.clear();
+    bgAudioBuffers.clear();
+    fanfareBuffers.clear();
+  }
+
   async function setPaused(nextPaused: boolean): Promise<void> {
     paused = nextPaused;
     const ctx = audioContext;
@@ -617,6 +633,7 @@ export function createMusicSubsystem(): MusicSubsystem {
     subscribeBus,
     tickPresentation,
     setPaused,
+    refreshBuffers,
     dispose,
   };
 }

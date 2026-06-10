@@ -202,6 +202,12 @@ export function createGameLifecycle(
   async function rematch(): Promise<void> {
     deps.clearDemoTimer();
     deps.clearGameOver();
+    // Cut the game-over audio (welldone + winner stinger, any score-screen
+    // bg) before the new game. `returnToLobby` already does this via
+    // `stopAudio`; rematch skipped it, so the previous match's victory
+    // stinger bled into the next game's opening. The bootstrap's
+    // `subscribeBus` re-arms playback for the new bus.
+    deps.stopAudio();
     await startGame();
   }
 
