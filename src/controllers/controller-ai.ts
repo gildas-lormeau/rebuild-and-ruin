@@ -356,7 +356,7 @@ export class AiController extends BaseController implements AiAnimatable {
     this.brain.build.reset();
     this.brain.cannon.reset();
     this.brain.battle.resetKeepOrbit();
-    this.strategy.onLifeLost();
+    this.strategy.reset();
   }
 
   // -----------------------------------------------------------------------
