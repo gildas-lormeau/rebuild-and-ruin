@@ -63,7 +63,10 @@ import {
 import { setMode } from "../src/runtime/state.ts";
 import { createStubElement } from "./stub-dom.ts";
 import type { GameRuntime } from "../src/runtime/handle.ts";
-import type { OnlinePhaseTicks } from "../src/runtime/types.ts";
+import type {
+  OnlinePhaseTicks,
+  RuntimeConfig,
+} from "../src/runtime/types.ts";
 import type { TimingApi } from "../src/runtime/timing-api.ts";
 
 /** Test observer for the headless `network.send` seam. Receives every
@@ -136,6 +139,13 @@ interface HeadlessRuntimeOptions {
    *  driven default (broadcasts forwarded to `networkObserver`) or an
    *  empty bag for non-host. */
   onlinePhaseTicks?: OnlinePhaseTicks;
+  /** Production-shaped dialog drains over a peer session's early-choice
+   *  queues (life-lost / upgrade-pick). Presence flips the dialog
+   *  subsystems onto their online lockstep branch (broadcast + applyAt
+   *  schedule instead of immediate apply), so network tests exercise the
+   *  same path as production online play. Undefined = local
+   *  immediate-apply (all non-network tests). */
+  onlineDialogDrains?: RuntimeConfig["onlineDialogDrains"];
   /** When true, the headless runtime calls `enableMobileZoom()` on the
    *  camera so per-phase memory, edge-pan, follow-crosshair, and the
    *  CAMERA_TARGET event emitter all run during tests. Defaults to false
@@ -254,6 +264,7 @@ export async function createHeadlessRuntime(
     remotePlayerSlots,
     hapticsObserver,
     onlinePhaseTicks: onlinePhaseTicksOverride,
+    onlineDialogDrains,
     assistedSlots,
   } = opts;
 
@@ -372,6 +383,7 @@ export async function createHeadlessRuntime(
       (hostMode
         ? buildHeadlessHostPhaseTicks((msg) => networkObserver?.sent?.(msg))
         : undefined),
+    onlineDialogDrains,
     observers: hapticsObserver ? { haptics: hapticsObserver } : undefined,
     // IS_DEV is false under Deno, so headless must opt in explicitly to keep
     // the per-frame TICK event flowing to test subscribers (reveal/fade tests).
@@ -656,8 +668,8 @@ async function constructAssistedController(
       sendCannonPlaced: (payload) =>
         send({ type: MESSAGE.OPPONENT_CANNON_PLACED, ...payload }),
       sendCannonFired: (msg) => send(msg),
-      sendUpgradePick: (choice) =>
-        send({ type: MESSAGE.UPGRADE_PICK, playerId: slot, choice }),
+      sendUpgradePick: (choice, applyAt) =>
+        send({ type: MESSAGE.UPGRADE_PICK, playerId: slot, choice, applyAt }),
       sendLifeLostChoice: (choice, applyAt) =>
         send({
           type: MESSAGE.LIFE_LOST_CHOICE,

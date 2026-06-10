@@ -66,7 +66,12 @@ export type ClientMessage =
       playerId?: ValidPlayerId;
       applyAt: number;
     }
-  | { type: "upgradePick"; playerId: ValidPlayerId; choice: string }
+  | {
+      type: "upgradePick";
+      playerId: ValidPlayerId;
+      choice: string;
+      applyAt: number;
+    }
   | { type: "ping" };
 
 /** Sent once when a client connects. All clients derive map/houses/zones from the seed. */
@@ -383,11 +388,19 @@ interface LifeLostChoiceForwardedMessage {
   applyAt: number;
 }
 
-/** Upgrade pick choice forwarded from a non-host client to the host. */
+/** Upgrade pick choice, relayed to every peer.
+ *
+ *  Lockstep `applyAt`: originator stamps `applyAt = senderSimTick + SAFETY`
+ *  and schedules its own apply for that tick; receivers schedule an
+ *  identical apply at `msg.applyAt`, so `entry.choice` flips at the same
+ *  logical tick on every peer (same shape as `lifeLostChoice` above —
+ *  `Mode.UPGRADE_PICK` is likewise a gameplay mode, so simTick advances
+ *  and the action schedule drains during the dialog). */
 interface UpgradePickForwardedMessage {
   type: "upgradePick";
   playerId: ValidPlayerId;
   choice: string;
+  applyAt: number;
 }
 
 /** Crosshair position update (for spectator rendering, not validated). */

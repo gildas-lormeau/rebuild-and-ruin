@@ -8,6 +8,7 @@ import { applyCannonAtDrain } from "../game/cannon-system.ts";
 import { canPlacePiece, highlightTowerSelection } from "../game/index.ts";
 import { MESSAGE, type ServerMessage } from "../protocol/protocol.ts";
 import { applyLifeLostChoiceToDialog } from "../runtime/dialogs/life-lost-core.ts";
+import { applyUpgradePickChoiceToDialog } from "../runtime/dialogs/upgrade-pick-core.ts";
 import { isHostInContext, isRemotePlayer } from "../runtime/tick-context.ts";
 import type { ScheduledAction } from "../shared/core/action-schedule.ts";
 import {
@@ -23,19 +24,10 @@ import {
   LifeLostChoice,
   type LifeLostDialogState,
   type ResolvedChoice,
+  type UpgradePickDialogState,
 } from "../shared/ui/interaction-types.ts";
 import type { OnlineSession } from "./online-session.ts";
 import { type RemoteCrosshairTargets } from "./online-types.ts";
-
-interface UpgradePickChoiceEntry {
-  playerId: ValidPlayerId;
-  choice: string | null;
-  offers: readonly string[];
-}
-
-interface UpgradePickChoiceDialog {
-  entries: UpgradePickChoiceEntry[];
-}
 
 export interface HandleServerIncrementalDeps {
   log: (msg: string) => void;
@@ -64,7 +56,7 @@ export interface HandleServerIncrementalDeps {
   ) => void;
   allSelectionsConfirmed: () => boolean;
   getLifeLostDialog: () => LifeLostDialogState | null;
-  getUpgradePickDialog: () => UpgradePickChoiceDialog | null;
+  getUpgradePickDialog: () => UpgradePickDialogState | null;
 }
 
 type TowerSelectedMsg = Extract<
@@ -421,35 +413,47 @@ function parseLifeLostChoice(raw: unknown): ResolvedChoice | null {
   return null;
 }
 
-/** Apply a remote slot's upgrade pick. Runs on host AND watcher under
- *  clone-everywhere — the watcher needs the wire signal because a real
- *  human's controller has no local AI brain to fill `entry.choice`
- *  itself. AI / assisted-human controllers also tick locally on every
- *  peer and pick deterministically from state (`aiPickUpgrade` derives a
- *  private Rng from state.rng.seed + round + playerId), so a wire-arrived
- *  pick that matches an already-filled entry is a harmless duplicate. */
+/** Apply a remote slot's upgrade pick via the lockstep action queue.
+ *  Runs on host AND watcher under clone-everywhere — the watcher needs
+ *  the wire signal because a real human's controller has no local AI
+ *  brain to fill `entry.choice` itself. AI / assisted-human controllers
+ *  tick locally on every peer and pick deterministically from state
+ *  (`aiPickUpgrade` derives a private Rng from state.rng.seed + round +
+ *  playerId), so a wire-arrived pick that lost the first-wins race is a
+ *  harmless no-op under the pending-entry guard in
+ *  `applyUpgradePickChoiceToDialog`.
+ *
+ *  Lockstep `applyAt`: originator stamps `applyAt = senderSimTick +
+ *  SAFETY` and schedules its own apply for that tick (see
+ *  `scheduleOrApplyPick` in subsystems/upgrade-pick.ts); this receiver
+ *  schedules an identical apply at `msg.applyAt`, so `entry.choice`
+ *  flips at the same logical tick on every peer.
+ *
+ *  Ownership: hosts only accept picks for slots they see as remote
+ *  humans — a spectating client must not decide a slot the host owns
+ *  locally or an AI slot it mirror-simulates. */
 function handleUpgradePick(
   msg: UpgradePickMsg,
   deps: HandleServerIncrementalDeps,
 ): HandleResult {
   deps.log(
-    `upgrade_pick from P${msg.playerId}: ${msg.choice} (dialog=${deps.getUpgradePickDialog() ? "active" : "null"})`,
+    `upgrade_pick from P${msg.playerId}: ${msg.choice} applyAt=${msg.applyAt} (dialog=${deps.getUpgradePickDialog() ? "active" : "null"})`,
   );
-  const dialog = deps.getUpgradePickDialog();
-  if (dialog) {
-    const entry = dialog.entries.find(
-      (entry) =>
-        entry.playerId === msg.playerId &&
-        entry.choice === null &&
-        entry.offers.includes(msg.choice),
-    );
-    if (entry) {
-      entry.choice = msg.choice;
-      return APPLIED;
-    }
-    return DROPPED;
-  }
-  deps.session.earlyUpgradePickChoices.set(msg.playerId, msg.choice);
+  if (!isRemoteHumanAction(msg.playerId, deps)) return DROPPED;
+  const playerId = msg.playerId;
+  const choice = msg.choice;
+  deps.schedule({
+    applyAt: msg.applyAt,
+    playerId,
+    apply: () => {
+      applyUpgradePickChoiceToDialog(
+        playerId,
+        choice,
+        deps.getUpgradePickDialog(),
+        deps.session.earlyUpgradePickChoices,
+      );
+    },
+  });
   return APPLIED;
 }
 

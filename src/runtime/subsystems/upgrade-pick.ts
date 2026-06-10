@@ -7,6 +7,7 @@
  * subsystems/input.ts.
  */
 
+import { DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS } from "../../shared/core/action-schedule.ts";
 import {
   UPGRADE_PICK_AUTO_DELAY,
   UPGRADE_PICK_MAX_TIMER,
@@ -20,6 +21,7 @@ import type {
 } from "../../shared/ui/interaction-types.ts";
 import { Mode } from "../../shared/ui/ui-mode.ts";
 import {
+  applyUpgradePickChoiceToDialog,
   createUpgradePickDialog,
   moveUpgradePickFocus,
   resolveUpgradePickEntry,
@@ -47,6 +49,7 @@ interface UpgradePickSystemDeps {
   readonly sendUpgradePick: (
     playerId: ValidPlayerId,
     choice: UpgradeId,
+    applyAt: number,
   ) => void;
 
   /** Online-only drain for wire-arrived picks that landed during the
@@ -105,6 +108,12 @@ export function createUpgradePickSystem(
    *  finalized dialog. Tick is gated on Mode.UPGRADE_PICK. */
   let onResolvedCb: OnUpgradePickResolved | undefined;
 
+  /** Slots with a pick sent but not yet applied (online lockstep window
+   *  between send and `applyAt`). Blocks duplicate sends while the entry
+   *  still reads as pending. Cleared per-slot when the scheduled apply
+   *  fires, wholesale on dialog teardown. */
+  const inFlightPicks = new Set<ValidPlayerId>();
+
   /** Ensure the dialog exists on runtimeState, creating it if needed. */
   function ensureDialog(): UpgradePickDialogState | null {
     if (runtimeState.dialogs.upgradePick)
@@ -145,12 +154,12 @@ export function createUpgradePickSystem(
     deps.applyEarlyChoices?.((playerId, choice) => {
       const entry = dialog.entries.find(
         (candidate) =>
-          candidate.playerId === playerId &&
-          candidate.choice === null &&
-          candidate.offers.includes(choice),
+          candidate.playerId === playerId && candidate.choice === null,
       );
       if (!entry) return false;
-      entry.choice = choice;
+      const cardIdx = entry.offers.indexOf(choice);
+      if (cardIdx < 0) return false;
+      resolveUpgradePickEntry(entry, cardIdx, dialog.timer);
       return true;
     });
     return true;
@@ -204,6 +213,7 @@ export function createUpgradePickSystem(
     // on dialog state. Mode stays on UPGRADE_PICK; the chain's
     // postDisplay flips to the terminal mode.
     runtimeState.dialogs.upgradePick = null;
+    inFlightPicks.clear();
     const callback = onResolvedCb;
     onResolvedCb = undefined;
     callback?.(dialog);
@@ -213,16 +223,50 @@ export function createUpgradePickSystem(
     withPendingEntry(playerId, (entry) => moveUpgradePickFocus(entry, dir));
   }
 
-  function resolveAndSend(entry: UpgradePickEntry, cardIdx: number): void {
+  /** Lockstep-when-online: in local play, resolve the entry immediately;
+   *  in online play, broadcast with `applyAt` and schedule the local apply
+   *  at the same `applyAt` so every peer's `entry.choice` write lands at
+   *  the same logical tick — mirrors `scheduleOrApplyChoice` in
+   *  subsystems/life-lost.ts. `applyEarlyChoices` is the online signal
+   *  (undefined in local). `inFlightPicks` blocks re-sends while a pick
+   *  awaits its applyAt tick (the entry still reads as pending). A pick
+   *  in flight when the max-timer deadline hits can still lose to the
+   *  local force-pick — the per-peer deadline is the remaining
+   *  cross-peer ordering gap, shared with life-lost. */
+  function scheduleOrApplyPick(entry: UpgradePickEntry, cardIdx: number): void {
     const dialog = runtimeState.dialogs.upgradePick;
     if (!dialog) return;
-    const choice = resolveUpgradePickEntry(entry, cardIdx, dialog.timer);
-    deps.sendUpgradePick(entry.playerId, choice);
+    if (deps.applyEarlyChoices === undefined) {
+      resolveUpgradePickEntry(entry, cardIdx, dialog.timer);
+      return;
+    }
+    const playerId = entry.playerId;
+    if (inFlightPicks.has(playerId)) return;
+    inFlightPicks.add(playerId);
+    // Snap focus to the clicked card for immediate visual feedback; the
+    // scheduled apply re-asserts it. Cosmetic-only until applyAt.
+    entry.focusedCard = cardIdx;
+    const choice = entry.offers[cardIdx]!;
+    const applyAt =
+      runtimeState.state.simTick + DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS;
+    deps.sendUpgradePick(playerId, choice, applyAt);
+    runtimeState.actionSchedule.schedule({
+      applyAt,
+      playerId,
+      apply: () => {
+        inFlightPicks.delete(playerId);
+        applyUpgradePickChoiceToDialog(
+          playerId,
+          choice,
+          runtimeState.dialogs.upgradePick,
+        );
+      },
+    });
   }
 
   function confirmChoice(playerId: ValidPlayerId): void {
     withPendingEntry(playerId, (entry) =>
-      resolveAndSend(entry, entry.focusedCard),
+      scheduleOrApplyPick(entry, entry.focusedCard),
     );
   }
 
@@ -230,7 +274,7 @@ export function createUpgradePickSystem(
   function pickDirect(playerId: ValidPlayerId, cardIdx: number): void {
     withPendingEntry(playerId, (entry) => {
       if (cardIdx < 0 || cardIdx >= entry.offers.length) return;
-      resolveAndSend(entry, cardIdx);
+      scheduleOrApplyPick(entry, cardIdx);
     });
   }
 
@@ -271,7 +315,10 @@ export function createUpgradePickSystem(
     get: () => runtimeState.dialogs.upgradePick,
     set: (dialog) => {
       runtimeState.dialogs.upgradePick = dialog;
-      if (dialog === null) onResolvedCb = undefined;
+      if (dialog === null) {
+        onResolvedCb = undefined;
+        inFlightPicks.clear();
+      }
     },
     tryShow,
     tick,

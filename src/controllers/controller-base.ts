@@ -1,4 +1,5 @@
 import { autoPlaceRound1Cannons, nextReadyCannon } from "../game/index.ts";
+import { deriveAiStrategySeed } from "../shared/core/ai-seed.ts";
 import type { Crosshair } from "../shared/core/battle-types.ts";
 import { NORMAL_CANNON_SIZE } from "../shared/core/game-constants.ts";
 import type { WorldPos } from "../shared/core/geometry-types.ts";
@@ -28,6 +29,7 @@ import type {
 } from "../shared/core/system-interfaces.ts";
 import type { UpgradeId } from "../shared/core/upgrade-defs.ts";
 import type { ZoneId } from "../shared/core/zone-id.ts";
+import { Rng } from "../shared/platform/rng.ts";
 import { Action } from "../shared/ui/input-action.ts";
 import type {
   LifeLostEntry,
@@ -344,15 +346,24 @@ export abstract class BaseController implements PlayerController {
     _state: UpgradePickViewState,
   ): void {}
 
-  /** Deterministic max-timer fallback: random offer drawn from `state.rng`
-   *  so host and peer converge without a broadcast. Auto-resolving
-   *  controllers commit `entry.choice` long before max-timer expiry, so
-   *  this path is reached only for entries still pending at the deadline
-   *  (typically humans who didn't pick). */
+  /** Deterministic max-timer fallback: random offer drawn from a private
+   *  Rng derived from `(state.rng.seed, round, playerId)` — every peer
+   *  reproduces the same pick from state alone, so host and peer converge
+   *  without a broadcast. Deliberately does NOT draw from the shared
+   *  lockstep `state.rng`: the deadline fires at per-peer local ticks, so
+   *  a human pick racing it could consume the draw on one peer and not
+   *  another, desyncing every subsequent shared draw. Mirrors
+   *  `aiPickUpgrade` / `aiChooseLifeLost`. Auto-resolving controllers
+   *  commit `entry.choice` long before max-timer expiry, so this path is
+   *  reached only for entries still pending at the deadline (typically
+   *  humans who didn't pick). */
   forceUpgradePick(
     entry: UpgradePickEntry,
     state: UpgradePickViewState,
   ): UpgradeId {
-    return entry.offers[Math.floor(state.rng.next() * entry.offers.length)]!;
+    const pickRng = new Rng(
+      deriveAiStrategySeed(state.rng.seed, state.round, entry.playerId),
+    );
+    return entry.offers[Math.floor(pickRng.next() * entry.offers.length)]!;
   }
 }

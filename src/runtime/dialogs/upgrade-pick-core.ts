@@ -7,6 +7,7 @@
  * choices. Consumed by subsystems/upgrade-pick.ts.
  */
 
+import type { ValidPlayerId } from "../../shared/core/player-slot.ts";
 import type { GameState } from "../../shared/core/types.ts";
 import type { UpgradeId } from "../../shared/core/upgrade-defs.ts";
 import {
@@ -108,6 +109,32 @@ export function moveUpgradePickFocus(
 ): void {
   entry.focusedCard =
     (entry.focusedCard + dir + entry.offers.length) % entry.offers.length;
+}
+
+/** Apply a lockstep-scheduled upgrade pick to whichever peer's dialog
+ *  state is live at drain time. If the dialog isn't open yet (wire
+ *  arrived before the local sim built the dialog), queue the choice for
+ *  the early-drain on `tryShow()`. Shared between originator and
+ *  receiver so the apply behaves identically on every peer — mirrors
+ *  `applyLifeLostChoiceToDialog` in life-lost-core.ts. The choice is
+ *  untrusted wire data on the receiver, so membership in the entry's
+ *  offers doubles as validation; a pick that lost the first-wins race
+ *  (entry already resolved) is a silent no-op. */
+export function applyUpgradePickChoiceToDialog(
+  playerId: ValidPlayerId,
+  choice: string,
+  dialog: UpgradePickDialogState | null,
+  earlyChoices?: Map<ValidPlayerId, string>,
+): void {
+  if (!dialog) {
+    earlyChoices?.set(playerId, choice);
+    return;
+  }
+  const entry = dialog.entries.find((e) => e.playerId === playerId);
+  if (!entry || entry.choice !== null) return;
+  const cardIdx = entry.offers.findIndex((offer) => offer === choice);
+  if (cardIdx < 0) return;
+  resolveUpgradePickEntry(entry, cardIdx, dialog.timer);
 }
 
 /** Resolve a pending entry by picking a specific card. Returns the chosen upgrade. */

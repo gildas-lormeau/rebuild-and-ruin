@@ -48,7 +48,12 @@ import {
   type OnlinePresenceState,
 } from "../src/online/online-presence-state.ts";
 import type { ValidPlayerId } from "../src/shared/core/player-slot.ts";
-import type { OnlinePhaseTicks } from "../src/runtime/types.ts";
+import type { UpgradeId } from "../src/shared/core/upgrade-defs.ts";
+import type { ResolvedChoice } from "../src/shared/ui/interaction-types.ts";
+import type {
+  OnlinePhaseTicks,
+  RuntimeConfig,
+} from "../src/runtime/types.ts";
 import { Mode } from "../src/shared/ui/ui-mode.ts";
 import {
   createHeadlessRuntime,
@@ -254,6 +259,11 @@ async function buildHostRuntime(opts: ScenarioOptions): Promise<RuntimeBuild> {
     ...base,
     hostMode: true,
     onlinePhaseTicks: buildHostPhaseTicks((msg) => sentMessages.push(msg)),
+    // One-way host never receives, so its early-choice queues stay empty —
+    // the drains' job here is flipping the dialog subsystems onto the
+    // online lockstep branch (broadcast + applyAt schedule), matching a
+    // production host.
+    onlineDialogDrains: buildDialogDrains(createSession()),
   });
   headless.runtime.runtimeState.state.debugTag = "HOST";
   if (opts.testHooks) {
@@ -292,6 +302,7 @@ async function buildWatcherRuntime(
     hostMode: false,
     remotePlayerSlots: remoteHumans,
     onlinePhaseTicks: buildWatcherPhaseTicks(),
+    onlineDialogDrains: buildDialogDrains(client.ctx.session),
     // amHost=false flips the broadcast gate in `buildHostPhaseCtx`
     // (no `ctx.broadcast` on watcher), so watcher transitions don't emit
     // wire messages even though they run the same code as host.
@@ -337,11 +348,13 @@ async function buildBidirectionalHost(
   const sentMessages: GameMessage[] = [];
   const peerOpts: ScenarioOptions = { ...opts, assistedSlots };
   const base = buildHeadlessOptions(peerOpts, sentMessages);
+  const client = buildPeerClient(remotePlayerSlots, true);
   const headless = await createHeadlessRuntime({
     ...base,
     hostMode: true,
     remotePlayerSlots,
     onlinePhaseTicks: buildHostPhaseTicks((msg) => sentMessages.push(msg)),
+    onlineDialogDrains: buildDialogDrains(client.ctx.session),
   });
   headless.runtime.runtimeState.state.debugTag = "HOST";
   if (opts.testHooks) {
@@ -352,7 +365,6 @@ async function buildBidirectionalHost(
   // `createMessageHandler` returns a per-instance closure (not the
   // singleton `handleServerMessage`) so two peers in the same process
   // each dispatch into their OWN runtime — no module-state collision.
-  const client = buildPeerClient(remotePlayerSlots, true);
   const handler = createMessageHandler({
     runtime: headless.runtime,
     initFromServer: () => Promise.resolve(),
@@ -390,19 +402,20 @@ async function buildBidirectionalWatcher(
   const sentMessages: GameMessage[] = [];
   const peerOpts: ScenarioOptions = { ...opts, assistedSlots };
   const base = buildHeadlessOptions(peerOpts, sentMessages);
+  const client = buildPeerClient(remotePlayerSlots, false);
   const headless = await createHeadlessRuntime({
     ...base,
     hostMode: false,
     remotePlayerSlots,
     onlinePhaseTicks: buildWatcherPhaseTicks(),
     amHost: () => false,
+    onlineDialogDrains: buildDialogDrains(client.ctx.session),
   });
   headless.runtime.runtimeState.state.debugTag = "WATCHER";
   if (opts.testHooks) {
     headless.runtime.runtimeState.state.testHooks = opts.testHooks;
   }
 
-  const client = buildPeerClient(remotePlayerSlots, false);
   const handler = createMessageHandler({
     runtime: headless.runtime,
     initFromServer: () => Promise.resolve(),
@@ -432,6 +445,31 @@ function buildWatcherPhaseTicks(): OnlinePhaseTicks {
  *  dispatcher's `isRemoteHumanAction` validation (host accepts only
  *  remote-human-slot actions; watcher accepts everything) routes
  *  correctly on each peer. */
+/** Production-shaped dialog drains over a peer session's early-choice
+ *  queues — mirrors the `onlineDialogDrains` wiring in
+ *  `src/online/runtime/game.ts` (minus dev logging). Presence of these
+ *  drains is what flips the life-lost / upgrade-pick subsystems onto the
+ *  online lockstep branch (broadcast + applyAt schedule), so harness
+ *  peers exercise the same dialog wire path as production online play. */
+function buildDialogDrains(
+  session: OnlineSession,
+): NonNullable<RuntimeConfig["onlineDialogDrains"]> {
+  return {
+    drainLifeLost: (apply) => {
+      for (const [pid, choice] of session.earlyLifeLostChoices) {
+        apply(pid, choice as ResolvedChoice);
+      }
+      session.earlyLifeLostChoices.clear();
+    },
+    drainUpgradePick: (apply) => {
+      for (const [pid, choice] of session.earlyUpgradePickChoices) {
+        apply(pid, choice as UpgradeId);
+      }
+      session.earlyUpgradePickChoices.clear();
+    },
+  };
+}
+
 function buildPeerClient(
   remotePlayerSlots: ReadonlySet<ValidPlayerId>,
   isHost: boolean,

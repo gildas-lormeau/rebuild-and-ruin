@@ -36,7 +36,7 @@ import { AiController } from "./controller-ai.ts";
  *  Extends the port's CommitSenders (piece/cannon/fire) with the
  *  upgrade/life-lost senders the commit port doesn't touch. */
 interface AssistedSenders extends CommitSenders {
-  sendUpgradePick: (choice: UpgradeId) => void;
+  sendUpgradePick: (choice: UpgradeId, applyAt: number) => void;
   sendLifeLostChoice: (choice: ResolvedChoice, applyAt: number) => void;
 }
 
@@ -98,7 +98,15 @@ export class AiAssistedHumanController
       state,
     );
     if (!wasCommitted && entry.choice !== null) {
-      this.senders.sendUpgradePick(entry.choice);
+      // Local mutation already landed via `super.tickUpgradePick`. The wire
+      // payload carries `applyAt` so receivers schedule the apply on the
+      // lockstep queue (same shape as `sendLifeLostChoice` below); peers
+      // whose entry is already filled no-op via the pending-entry guard in
+      // `applyUpgradePickChoiceToDialog`.
+      this.senders.sendUpgradePick(
+        entry.choice,
+        state.simTick + this.safetyTicks,
+      );
     }
   }
 
@@ -107,7 +115,7 @@ export class AiAssistedHumanController
     state: UpgradePickViewState,
   ): UpgradeId {
     const choice = super.forceUpgradePick(entry, state);
-    this.senders.sendUpgradePick(choice);
+    this.senders.sendUpgradePick(choice, state.simTick + this.safetyTicks);
     return choice;
   }
 

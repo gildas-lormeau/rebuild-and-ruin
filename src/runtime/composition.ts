@@ -608,8 +608,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     runtimeState,
     log: config.log,
     requestRender,
-    sendUpgradePick: (playerId, choice) =>
-      config.network.send({ type: "upgradePick", playerId, choice }),
+    sendUpgradePick: (playerId, choice, applyAt) =>
+      config.network.send({ type: "upgradePick", playerId, choice, applyAt }),
     applyEarlyChoices: config.onlineDialogDrains?.drainUpgradePick,
   });
 

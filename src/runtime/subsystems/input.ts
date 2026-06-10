@@ -448,8 +448,11 @@ function guardedDialogClick<TH extends { playerId: ValidPlayerId }>(
   return (x, y) => {
     const hit = hitTest(x, y);
     if (!hit) return;
+    // No pointer player (eliminated/spectating local human, pure watcher)
+    // means no dialog authority — falling through would let a dead player
+    // race the owning peer's pick/choice for any panel on the dialog.
     const active = pointerPlayer();
-    if (active && hit.playerId !== active.playerId) return;
+    if (!active || hit.playerId !== active.playerId) return;
     onHit(hit);
   };
 }
