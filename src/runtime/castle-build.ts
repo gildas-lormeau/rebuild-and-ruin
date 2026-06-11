@@ -1,6 +1,7 @@
 /**
- * Shared castle-build animation helpers.
- * Used by both main.ts (local play) and online-client.ts (online play).
+ * Castle-build animation helpers. Sole consumer: the selection
+ * sub-system (`subsystems/selection.ts`), which drives the wall-build
+ * animation at the end of both CASTLE_SELECT cycles.
  */
 
 import { emitGameEvent, GAME_EVENT } from "../shared/core/game-event-bus.ts";

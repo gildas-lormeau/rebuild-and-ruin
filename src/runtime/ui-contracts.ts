@@ -214,13 +214,13 @@ export interface OnlineOverlayParams {
     px: number;
     py: number;
   };
-  /** 2D-overlay scalars driven by the active modifier-reveal pulse, one
-   *  field per consumer (`fogRevealOpacity`, `rubbleClearingFade`,
-   *  `frostbiteRevealProgress`, `sapperRevealIntensity`,
-   *  `gruntSurgeRevealIntensity`). Built by
-   *  `deriveRevealOverlayFields` in `subsystems/render.ts` from the single
-   *  resolved `revealTimeMs` — bespoke per-modifier `revealTimeFor`
-   *  plumbing does not live here. Spread into `overlay.battle`. */
+  /** 2D-overlay scalars driven by the active modifier-reveal pulse — the
+   *  per-modifier fields of `RevealOverlayBattleFields` (see its `Pick`
+   *  in `modifier-effects/registry.ts` for the full list). Built by
+   *  `deriveRevealOverlayFields` in `modifier-effects/registry.ts` from
+   *  the single resolved `revealTimeMs` — bespoke per-modifier
+   *  `revealTimeFor` plumbing does not live here. Spread into
+   *  `overlay.battle`. */
   revealOverlayFields: RevealOverlayBattleFields;
 }
 

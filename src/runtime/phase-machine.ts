@@ -374,9 +374,9 @@ const STEP_LIFE_LOST_DIALOG = "life-lost-dialog" as const;
  *  three handlers — every peer dispatches the next transition (game-over
  *  / reselect / continue) identically.
  *
- *  The `to` phase is nominally CANNON_PLACE but this transition itself
- *  does NOT enter a new phase: the routed follow-up (castle-done /
- *  advance-to-cannon → enter-cannon-place, or game-over) flips it. */
+ *  This transition itself does NOT enter a new phase: the routed
+ *  follow-up (castle-done / advance-to-cannon → enter-cannon-place, or
+ *  game-over) flips it. */
 const ROUND_END: Transition = {
   id: "round-end",
   from: Phase.WALL_BUILD,

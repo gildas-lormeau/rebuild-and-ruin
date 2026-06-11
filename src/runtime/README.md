@@ -16,8 +16,8 @@ narrow, documented reason:
 - [bootstrap.ts](./bootstrap.ts) — imports
   `controllers/controller-factory.ts` because its whole job is turning
   lobby settings into a controller set.
-- [types.ts](./types.ts) — type-only imports from `protocol/` for
-  `NetworkApi` / `BattleStartData` shapes.
+- [types.ts](./types.ts) — type-only imports from `protocol/` for the
+  `GameMessage` / `ServerMessage` wire shapes used by `NetworkApi`.
 
 The purity contract is enforced by `.domain-boundaries.json` plus the
 tier classification in `.import-layers.json` (roots-tier files are
@@ -189,11 +189,12 @@ directly — they receive a `TimingApi` via deps.
   controllers + initial game state from lobby settings.
 - **`castle-build.ts`** — Castle wall animation primitives
   (consumed by selection).
-- **`ui-contracts.ts`** — Sub-system interface aggregator: `UIContext`,
-  `BannerState`, `BannerShow`, and every `XSystem` / `XDeps` type
-  shared across the composition root. The `createBannerState()` factory
-  lives in `banner-state.ts` (kept out of `state.ts` to hold `state.ts`
-  at L6 in the layer graph — don't "helpfully" move it). See
+- **`ui-contracts.ts`** — Sub-system interface aggregator: `UIContext`
+  and every `XSystem` / `XDeps` type shared across the composition
+  root. The banner types (`BannerState`, `BannerShow`) and the
+  `createBannerState()` factory live in `banner-state.ts` (kept out of
+  `state.ts` to hold `state.ts` at L6 in the layer graph — don't
+  "helpfully" move it). See
   [skills/layer-graph-cleanup.md](../../skills/layer-graph-cleanup.md).
 - **`tick-context.ts`** — Shared tick-context types + the
   APPLY/TICK/CHECKPOINT mutation-phase doc. Extracted from
@@ -257,7 +258,9 @@ Key points that confuse first-time readers:
   and the approved sub-folders (`browser/`, `dialogs/`,
   `modifier-effects/`, `audio/`). All cross-subsystem wiring happens in
   the composition root via the `deps` object. This is enforced by
-  `lint-architecture.ts`.
+  `lint-architecture.ts`, with one carve-out: `import type` between
+  sub-systems is allowed (erased at compile time, no runtime coupling)
+  so a sub-system can reference another's public interface contract.
 
   **The "no cross-imports" rule is about CODE, not STATE.** Sub-systems
   share state via the `runtimeState` bag by design — every sub-system

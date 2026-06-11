@@ -75,9 +75,9 @@ type LifecycleEvent =
       round: number;
     }
   /** Phase-transition banner was removed from screen by an explicit
-   *  `hideBanner()` call — lifecycle teardown between non-banner display
-   *  steps (dialogs, score overlays) or the end of a banner chain. Most
-   *  banner-end consumers want this one; use it when you need "this
+   *  `hideBanner()` call — `runDisplay`'s end-of-sequence hide (once per
+   *  display sequence, before postDisplay) or host-promotion teardown.
+   *  Most banner-end consumers want this one; use it when you need "this
    *  banner went away on its own schedule" (not because another banner
    *  clobbered it). */
   | {

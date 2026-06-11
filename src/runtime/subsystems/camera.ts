@@ -100,8 +100,8 @@ export interface RuntimeCamera {
   beginTilt: () => void;
   /** Pitch-animation state machine value. `"flat"` / `"tilted"` are
    *  resting states; `"tilting"` / `"untilting"` indicate an in-progress
-   *  ease. Subscribers that want the settle edge (not the polled state)
-   *  should listen for `GAME_EVENT.PITCH_SETTLED` instead. */
+   *  ease. Callers that want the settle edge as a one-shot continuation
+   *  (not the polled state) use the internal `awaitPitchSettled` instead. */
   getPitchState: () => "flat" | "tilting" | "tilted" | "untilting";
   screenToWorld: (x: number, y: number) => WorldPos;
   /** Like `screenToWorld` but returns the world position of the first
@@ -567,10 +567,11 @@ export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
   /** Snap to the local pov player's home zone while they have an unresolved
    *  life-lost entry. Runs before `unzoomForOverlays` — `lifeLostKeepZoom`
    *  also gates `shouldUnzoom` off in `computeFrameContext`, so the
-   *  overlay-unzoom path won't fight us. The zone is set silently to keep
-   *  the touch zone-cycle button color in sync without firing a user-target
-   *  event (the popup-driven snap isn't user intent). Idempotent across
-   *  frames: a no-op once the target already matches the local zone. */
+   *  overlay-unzoom path won't fight us. The zone is set via
+   *  `setCameraZoneInternal`, which keeps the touch zone-cycle button color
+   *  in sync and emits CAMERA_TARGET attributed to `"lifeLostHold"` (so
+   *  fixtures can tell the popup-driven snap from user intent). Idempotent
+   *  across frames: a no-op once the target already matches the local zone. */
   function holdLifeLostZoom(_state: GameState, frameCtx: FrameContext): void {
     if (!frameCtx.lifeLostKeepZoom) return;
     if (!mobileAutoZoomActive()) return;
@@ -1185,9 +1186,10 @@ export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
     emitCameraTarget("userPinch");
   }
 
-  /** Tap-nudge: when a single-finger tap lands in the outer 25% ring of the
-   *  current viewport, smoothly pan (preserving zoom) so the tap point
-   *  enters the inner 75% comfort zone. Tap inside the inner 75% → no-op.
+  /** Tap-nudge: when a single-finger tap lands in the outer
+   *  12.5%-per-edge ring of the current viewport, smoothly pan (preserving
+   *  zoom) so the tap point enters the inner 75% comfort zone. Tap inside
+   *  the comfort zone → no-op.
    *
    *  Animation always finishes (per spec) — additional touches don't cancel
    *  the in-flight tween. New gestures interact with the pinch handler
