@@ -11,7 +11,11 @@ import {
 import type { MutableAccums } from "../runtime/timer-accums.ts";
 import type { AiPersonality } from "../shared/core/ai-personality.ts";
 import { deriveAiStrategySeed } from "../shared/core/ai-seed.ts";
-import { BATTLE_TIMER } from "../shared/core/game-constants.ts";
+import {
+  BATTLE_TIMER,
+  MODIFIER_REVEAL_TIMER,
+  SELECT_TIMER,
+} from "../shared/core/game-constants.ts";
 import { Phase } from "../shared/core/game-phase.ts";
 import type { PlayerId, ValidPlayerId } from "../shared/core/player-slot.ts";
 import { isPlayerEliminated } from "../shared/core/player-types.ts";
@@ -107,15 +111,31 @@ export function skipCastleBuildAnimation(state: GameState): void {
 }
 
 /**
- * Rebuild per-phase accumulators from `state.timer` after a checkpoint
- * apply (FULL_STATE) or host promotion.
+ * Rebuild per-phase accumulators from `state.timer` after a FULL_STATE
+ * apply (host promotion broadcast, mid-game checkpoint rehydrate).
  *
  * Every peer ticks accumulators identically (`accum.X += dt`, with
- * `state.timer = max - accum.X` via `advancePhaseTimer`). When the
- * authoritative `state.timer` arrives via FULL_STATE — or when a peer
- * is promoted to host and starts authoring timer ticks — the local
- * accumulators may not match the new timer value, so we recompute them
- * from `state.timer` to preserve the `timer = max - elapsed` invariant.
+ * `state.timer = max - accum.X` via `advancePhaseTimer`). When an
+ * authoritative `state.timer` arrives via FULL_STATE, the local
+ * accumulators may not match it — without this resync, the next
+ * `advancePhaseTimer` OVERWRITES the restored timer with
+ * `max - localAccum`, and since phase exits are timer-driven that's a
+ * cross-peer transition-timing divergence, not a cosmetic glitch.
+ * Total over every timed phase: a phase without a recompute branch
+ * here silently restarts that phase's timer on the applying peer.
+ *
+ * Two accums are deliberately PRESERVED, not zeroed — neither is
+ * derivable from `state.timer`, and both production callers (the
+ * promoted host syncing against its own state, a running watcher
+ * applying the new host's broadcast) already hold correct local values:
+ *  - `grunt`: cross-phase step-interval clock. Zeroing it on one peer
+ *    restarts its grunt cadence while the others' grunts step on
+ *    schedule — board divergence within the build phase.
+ *  - `selectAnnouncement`: consumed-flag for the game-start BANNER_SELECT
+ *    window. Reselect cycles skip the announcement ONLY because this
+ *    accum is never reset after game start (see `tickSelection`);
+ *    zeroing it replays the announcement on one peer, gating its
+ *    selection ticks a full window behind every other peer.
  */
 export function syncAccumulatorsFromTimer(
   state: GameState,
@@ -124,9 +144,8 @@ export function syncAccumulatorsFromTimer(
   accum.build = 0;
   accum.cannon = 0;
   accum.battle = 0;
-  accum.grunt = 0;
   accum.select = 0;
-  accum.selectAnnouncement = 0;
+  accum.modifierReveal = 0;
 
   if (state.phase === Phase.WALL_BUILD) {
     accum.build = state.buildTimer + buildTimerBonus(state) - state.timer;
@@ -134,5 +153,12 @@ export function syncAccumulatorsFromTimer(
     accum.cannon = state.cannonPlaceTimer - state.timer;
   } else if (state.phase === Phase.BATTLE) {
     accum.battle = BATTLE_TIMER - state.timer;
+  } else if (state.phase === Phase.MODIFIER_REVEAL) {
+    accum.modifierReveal = MODIFIER_REVEAL_TIMER - state.timer;
+  } else if (state.phase === Phase.CASTLE_SELECT && state.timer > 0) {
+    // timer === 0 is the round-1 announcement window (stage A holds the
+    // timer at 0) or the countdown-expiry tick — in both, elapsed can't
+    // be derived; leave `select` at 0 (countdown from full).
+    accum.select = SELECT_TIMER - state.timer;
   }
 }

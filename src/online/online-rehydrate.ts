@@ -1,11 +1,14 @@
 /**
- * Mid-game checkpoint rehydration — drop a captured `FullStateMessage`
- * into a freshly-booted runtime so it can continue ticking from that
- * moment. Used by phase-test fixtures past round 1, where AI replay
- * would be too slow to be useful.
+ * FULL_STATE application — drop a captured `FullStateMessage` into a
+ * runtime so it can continue ticking from that moment. Two variants:
+ * `applyMidGameCheckpoint` for a freshly-booted runtime (controllers
+ * rebuilt, accums at zero; used by phase-test fixtures past round 1) and
+ * `applyFullStateToRunningRuntime` for an already-running peer adopting
+ * the new host's broadcast at host migration (controllers kept).
  */
 
 import type { FullStateMessage } from "../protocol/protocol.ts";
+import { clearBalloonFlights } from "../runtime/battle-anim.ts";
 import {
   createAiController,
   ensureAiModulesLoaded,
@@ -80,13 +83,46 @@ export async function applyMidGameCheckpoint(
   return { balloonFlights };
 }
 
+/** Apply a `FullStateMessage` to an already-RUNNING runtime — the
+ *  host-migration path on every surviving watcher (the new host
+ *  broadcasts its state; receivers adopt it mid-tick). Controllers are
+ *  kept (unlike `applyMidGameCheckpoint`, which rebuilds them for a
+ *  fresh boot); local accumulators are resynced so the next
+ *  `advancePhaseTimer` continues from the restored authoritative
+ *  `state.timer` instead of overwriting it with `max - localAccum` — a
+ *  cross-phase jump (migration straddling a phase boundary) would
+ *  otherwise tick the new phase against a stale accum from the old one
+ *  (e.g. last battle's elapsed → this battle ends instantly).
+ *
+ *  Production caller: `online/runtime/session.ts:restoreFullState`.
+ *  The networked test harness wires this same function so watcher
+ *  parity tests exercise the production apply path. */
+export function applyFullStateToRunningRuntime(
+  runtime: GameRuntime,
+  msg: FullStateMessage,
+): void {
+  const state = runtime.runtimeState.state;
+  const result = restoreFullStateSnapshot(state, msg);
+  if (!result) return;
+
+  syncAccumulatorsFromTimer(state, runtime.runtimeState.accum);
+
+  const flights = result.balloonFlights ?? [];
+  const inBattle = state.phase === Phase.BATTLE;
+  setMode(
+    runtime.runtimeState,
+    resolveModeAfterFullState(state.phase, inBattle && flights.length > 0),
+  );
+  runtime.runtimeState.selection.castleBuilds = [];
+  runtime.lifeLost.set(null);
+  runtime.runtimeState.frame.announcement = undefined;
+  if (inBattle) runtime.runtimeState.battleAnim.flights = flights;
+  else clearBalloonFlights(runtime.runtimeState.battleAnim);
+}
+
 /** Map a restored phase to the runtime Mode the main loop should dispatch.
- *  Exported so the watcher path (`online/runtime/session.ts:restoreFullState`)
- *  uses the same logic without duplicating it. */
-export function resolveModeAfterFullState(
-  phase: Phase,
-  hasBalloons: boolean,
-): Mode {
+ *  Shared by the fresh-boot and running-runtime apply paths above. */
+function resolveModeAfterFullState(phase: Phase, hasBalloons: boolean): Mode {
   if (phase === Phase.CASTLE_SELECT) return Mode.SELECTION;
   if (phase === Phase.BATTLE && hasBalloons) return Mode.BALLOON_ANIM;
   return Mode.GAME;

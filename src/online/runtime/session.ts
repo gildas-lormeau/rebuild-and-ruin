@@ -9,13 +9,11 @@
 import { generateMap } from "../../game/index.ts";
 import type { FullStateMessage, InitMessage } from "../../protocol/protocol.ts";
 import { ROUTE_ONLINE } from "../../protocol/routes.ts";
-import { clearBalloonFlights } from "../../runtime/battle-anim.ts";
 import { bootstrapGame } from "../../runtime/bootstrap.ts";
 import type { GameRuntime } from "../../runtime/handle.ts";
 import { setMode, setRuntimeGameState } from "../../runtime/state.ts";
 import type { TimingApi } from "../../runtime/timing-api.ts";
 import type { GameMode } from "../../shared/core/game-constants.ts";
-import { Phase } from "../../shared/core/game-phase.ts";
 import { Rng } from "../../shared/platform/rng.ts";
 import { MAX_PLAYERS } from "../../shared/ui/player-config.ts";
 import { Mode } from "../../shared/ui/ui-mode.ts";
@@ -24,9 +22,8 @@ import {
   buildRoomCodeOverlay,
   hideRoomCodeOverlay,
 } from "../online-lobby-ui.ts";
-import { resolveModeAfterFullState } from "../online-rehydrate.ts";
+import { applyFullStateToRunningRuntime } from "../online-rehydrate.ts";
 import { GAME_CONTAINER_ACTIVE, navigateTo } from "../online-router.ts";
-import { restoreFullStateSnapshot } from "../online-serialize.ts";
 import type { OnlineSession } from "../online-session.ts";
 
 interface OnlineRuntimeSessionDeps {
@@ -126,24 +123,7 @@ export function createOnlineRuntimeSessionHelpers(
   }
 
   function restoreFullState(msg: FullStateMessage): void {
-    const runtime = deps.getRuntime();
-    const state = runtime.runtimeState.state;
-    const result = restoreFullStateSnapshot(state, msg);
-    if (!result) return;
-
-    const flights = result.balloonFlights ?? [];
-    const inBattle = state.phase === Phase.BATTLE;
-    setMode(
-      runtime.runtimeState,
-      resolveModeAfterFullState(state.phase, inBattle && flights.length > 0),
-    );
-    runtime.runtimeState.selection.castleBuilds = [];
-    runtime.lifeLost.set(null);
-    runtime.runtimeState.frame.announcement = undefined;
-    if (inBattle) runtime.runtimeState.battleAnim.flights = flights;
-    else clearBalloonFlights(runtime.runtimeState.battleAnim);
-    // Phase timer / battle countdown read straight from `state` — both
-    // peers now use dt-based decrement, no separate wall-clock anchor.
+    applyFullStateToRunningRuntime(deps.getRuntime(), msg);
   }
 
   return {

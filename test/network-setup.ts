@@ -42,6 +42,7 @@ import {
   type DedupMaps,
   type OnlineSession,
 } from "../src/online/online-session.ts";
+import { applyFullStateToRunningRuntime } from "../src/online/online-rehydrate.ts";
 import { createGameOverPayload } from "../src/online/online-serialize.ts";
 import { PLAYER_NAMES } from "../src/shared/ui/player-config.ts";
 import type { OnlineClient } from "../src/online/online-stores.ts";
@@ -356,7 +357,10 @@ async function buildWatcherRuntime(
   initDeps({
     runtime: headless.runtime,
     initFromServer: () => Promise.resolve(),
-    restoreFullState: () => {},
+    // Production FULL_STATE apply — watcher/host peers must adopt a
+    // migration broadcast exactly like a real client (timer + accum
+    // resync included), so parity tests exercise the real path.
+    restoreFullState: (msg) => applyFullStateToRunningRuntime(headless.runtime, msg),
     showWaitingRoom: () => {},
     client,
   });
@@ -404,7 +408,10 @@ async function buildBidirectionalHost(
   const handler = createMessageHandler({
     runtime: headless.runtime,
     initFromServer: () => Promise.resolve(),
-    restoreFullState: () => {},
+    // Production FULL_STATE apply — watcher/host peers must adopt a
+    // migration broadcast exactly like a real client (timer + accum
+    // resync included), so parity tests exercise the real path.
+    restoreFullState: (msg) => applyFullStateToRunningRuntime(headless.runtime, msg),
     showWaitingRoom: () => {},
     client,
   });
@@ -455,7 +462,10 @@ async function buildBidirectionalWatcher(
   const handler = createMessageHandler({
     runtime: headless.runtime,
     initFromServer: () => Promise.resolve(),
-    restoreFullState: () => {},
+    // Production FULL_STATE apply — watcher/host peers must adopt a
+    // migration broadcast exactly like a real client (timer + accum
+    // resync included), so parity tests exercise the real path.
+    restoreFullState: (msg) => applyFullStateToRunningRuntime(headless.runtime, msg),
     showWaitingRoom: () => {},
     client,
   });

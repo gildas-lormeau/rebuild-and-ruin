@@ -1,16 +1,24 @@
 /**
  * Online subsystem unit tests — fast, pure-logic tests for online infrastructure.
  *
- * Covers: DedupChannel, host-migration sequence.
+ * Covers: DedupChannel, host-migration sequence, FULL_STATE accumulator
+ * resync contract.
  *
  * Run with: deno test --no-check test/online-unit.test.ts
  */
 
-import { assert, assertEquals } from "@std/assert";
+import { assert, assertAlmostEquals, assertEquals } from "@std/assert";
 import { MESSAGE, type FullStateMessage, type ServerMessage } from "../src/protocol/protocol.ts";
 import { createDedupChannel } from "../src/shared/core/phantom-types.ts";
 import { handleServerLifecycleMessage } from "../src/online/online-server-lifecycle.ts";
-import type { GameMode } from "../src/shared/core/game-constants.ts";
+import { syncAccumulatorsFromTimer } from "../src/online/online-host-promotion.ts";
+import type { MutableAccums } from "../src/runtime/timer-accums.ts";
+import { Phase } from "../src/shared/core/game-phase.ts";
+import {
+  type GameMode,
+  MODIFIER_REVEAL_TIMER,
+  SELECT_TIMER,
+} from "../src/shared/core/game-constants.ts";
 import type { GameState } from "../src/shared/core/types.ts";
 import type { PlayerId, ValidPlayerId } from "../src/shared/core/player-slot.ts";
 
@@ -150,5 +158,82 @@ function makeFullState(migrationSeq: number): FullStateMessage {
     frozenTiles: null,
     sinkholeTiles: null,
     exposedRiverbedTiles: null,
+  };
+}
+
+Deno.test("syncAccumulatorsFromTimer: MODIFIER_REVEAL recomputes elapsed from state.timer", () => {
+  const accum = garbageAccums();
+  const state = {
+    phase: Phase.MODIFIER_REVEAL,
+    timer: 0.8,
+  } as unknown as GameState;
+  syncAccumulatorsFromTimer(state, accum);
+  assertAlmostEquals(
+    accum.modifierReveal,
+    MODIFIER_REVEAL_TIMER - 0.8,
+    1e-9,
+    "reveal elapsed must be recomputed so the next tick continues from the checkpointed timer",
+  );
+});
+
+Deno.test("syncAccumulatorsFromTimer: stale modifierReveal is zeroed outside MODIFIER_REVEAL", () => {
+  const accum = garbageAccums();
+  const state = { phase: Phase.BATTLE, timer: 12 } as unknown as GameState;
+  syncAccumulatorsFromTimer(state, accum);
+  assertEquals(
+    accum.modifierReveal,
+    0,
+    "a peer jumped out of a mid-flight reveal must not carry stale elapsed into the next reveal",
+  );
+});
+
+Deno.test("syncAccumulatorsFromTimer: CASTLE_SELECT recomputes the selection countdown", () => {
+  const accum = garbageAccums();
+  const state = {
+    phase: Phase.CASTLE_SELECT,
+    timer: 10,
+  } as unknown as GameState;
+  syncAccumulatorsFromTimer(state, accum);
+  assertAlmostEquals(
+    accum.select,
+    SELECT_TIMER - 10,
+    1e-9,
+    "mid-reselect restore must not restart the selection countdown from full",
+  );
+});
+
+Deno.test("syncAccumulatorsFromTimer: preserves grunt and selectAnnouncement (not derivable from state.timer)", () => {
+  const accum = garbageAccums();
+  const state = {
+    phase: Phase.CANNON_PLACE,
+    timer: 5,
+    cannonPlaceTimer: 20,
+  } as unknown as GameState;
+  syncAccumulatorsFromTimer(state, accum);
+  assertAlmostEquals(
+    accum.grunt,
+    0.4,
+    1e-9,
+    "grunt interval clock must survive — zeroing it desyncs grunt steps between the promoted host and watchers",
+  );
+  assertAlmostEquals(
+    accum.selectAnnouncement,
+    7,
+    1e-9,
+    "announcement consumed-flag must survive — zeroing it replays the select announcement on one peer only",
+  );
+});
+
+/** Accums holding deliberately-wrong values so every assertion proves the
+ *  sync actually wrote (or deliberately preserved) the field. */
+function garbageAccums(): MutableAccums {
+  return {
+    battle: 9,
+    cannon: 9,
+    select: 9,
+    selectAnnouncement: 7,
+    build: 9,
+    grunt: 0.4,
+    modifierReveal: 1.5,
   };
 }

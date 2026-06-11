@@ -39,7 +39,10 @@ import {
 } from "./network-setup.ts";
 import { DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS } from "../src/shared/core/action-schedule.ts";
 import { Mode } from "../src/shared/ui/ui-mode.ts";
+import { Phase } from "../src/shared/core/game-phase.ts";
 import { PLAYER_NAMES } from "../src/shared/ui/player-config.ts";
+import { createFullStateMessage } from "../src/online/online-serialize.ts";
+import type { ServerMessage } from "../src/protocol/protocol.ts";
 import type { ValidPlayerId } from "../src/shared/core/player-slot.ts";
 import type { PieceShape } from "../src/shared/core/pieces.ts";
 
@@ -524,3 +527,73 @@ function assertPlayersConverge(
     );
   }
 }
+
+// ── FULL_STATE timer adoption on a running watcher ───────────────────
+// At host migration the new host broadcasts a FULL_STATE captured at an
+// arbitrary mid-phase moment. A running watcher must ADOPT the message's
+// authoritative `state.timer` — its local accumulators have to be
+// resynced, or the next `advancePhaseTimer` overwrites the restored
+// timer with `max - localAccum` and the watcher's phase exit lands on a
+// different tick than every other peer (transition-timing divergence).
+Deno.test(
+  "running watcher adopts FULL_STATE timer instead of reverting to its local accumulators",
+  async () => {
+    const { host, watcher, pump } = await createNetworkedPair({
+      seed: 42,
+      mode: "classic",
+      rounds: 3,
+    });
+
+    // Run the pair in lockstep until both sit early in round 1's closing
+    // WALL_BUILD with plenty of timer left. Mode.GAME matters: the phase
+    // flips during the transition banner, but the build timer only ticks
+    // once the display chain ends and mode returns to GAME.
+    let steps = 0;
+    while (
+      !(
+        host.state.phase === Phase.WALL_BUILD &&
+        watcher.state.phase === Phase.WALL_BUILD &&
+        host.mode() === Mode.GAME &&
+        watcher.mode() === Mode.GAME &&
+        host.state.timer > 10
+      )
+    ) {
+      host.tick(1);
+      watcher.tick(1);
+      await pump();
+      if (++steps > 60_000) {
+        throw new Error("pair never reached WALL_BUILD with timer > 10");
+      }
+    }
+
+    // Skew: advance the host alone ~2s deeper into the build phase (the
+    // watcher stalls, modelling the lag that makes migration broadcast a
+    // timer the receiving peer does not have locally).
+    for (let i = 0; i < 120; i++) host.tick(1);
+    assertEquals(
+      host.state.phase,
+      Phase.WALL_BUILD,
+      "host must still be in WALL_BUILD after the skew",
+    );
+    const authoritativeTimer = host.state.timer;
+    const watcherLocalTimer = watcher.state.timer;
+    assert(
+      watcherLocalTimer - authoritativeTimer > 1.5,
+      `precondition: timers must differ (watcher=${watcherLocalTimer}, host=${authoritativeTimer})`,
+    );
+
+    // Deliver the migration-style FULL_STATE and tick the watcher once.
+    await watcher.deliverMessage(
+      createFullStateMessage(host.state, 1) as ServerMessage,
+    );
+    watcher.tick(1);
+
+    const adopted = Math.abs(watcher.state.timer - authoritativeTimer) < 0.5;
+    assert(
+      adopted,
+      `watcher must continue from the FULL_STATE timer (${authoritativeTimer.toFixed(2)}), ` +
+        `not revert toward its local accumulator value (${watcherLocalTimer.toFixed(2)}); ` +
+        `got ${watcher.state.timer.toFixed(2)}`,
+    );
+  },
+);
