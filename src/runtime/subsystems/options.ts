@@ -158,13 +158,16 @@ export function createOptionsSystem(deps: OptionsSystemDeps): OptionsSystem {
 
   function closeOptions(): void {
     blurSeedInput();
+    // Persist on BOTH close paths: in-game changes (haptics, left-handed
+    // d-pad, …) are applied live but would be lost on reload without the
+    // save — only the lobby branch used to write.
+    saveSettings(uiCtx.settings);
     const context = runtimeState.optionsUI.context;
     if (context.kind === "gameplay") {
       uiCtx.setMode(context.returnMode);
       uiCtx.setOptionsContext({ kind: "lobby" });
     } else {
       uiCtx.setMode(Mode.LOBBY);
-      saveSettings(uiCtx.settings);
       deps.refreshLobbySeed(); // regenerate map preview with (possibly changed) seed
       deps.updateDpad(false); // back to lobby — disable d-pad
     }
