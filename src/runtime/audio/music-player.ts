@@ -222,15 +222,24 @@ export function createMusicSubsystem(): MusicSubsystem {
   // under a hidden tab and phase cues fire while silenced.
   let wantsBg: BgTrack | undefined;
   let paused = false;
-  // Bumped by `stopAll`. `playBg` / `playFanfare` capture it before
-  // `await activateOnce()` and bail after if it changed — a quit-to-menu
+  // Bumped by `stopAll`. `playFanfare` captures it before
+  // `await activateOnce()` and bails after if it changed — a quit-to-menu
   // that lands mid-await would otherwise start the source AFTER `stopAll`
-  // ran (so it couldn't be stopped), leaving a track ringing under the
+  // ran (so it couldn't be stopped), leaving a jingle ringing under the
   // lobby / landing page. An epoch, not a boolean: the lobby's own title
   // track restarts right after `stopAll` (showLobby → startTitle), so a
   // flag cleared there would re-admit the stale in-flight call — the epoch
   // only invalidates calls that began before the quit.
   let playEpoch = 0;
+  // Bg-only sibling of `playEpoch`, bumped by `stopBg` (and therefore by
+  // `stopAll`, which routes through it). `playBg` checks THIS epoch: a
+  // stop cue that lands while a playBg awaits IDB hydration (first cues
+  // of a session, or right after a sound-modal `refreshBuffers`) must
+  // invalidate that play, or the stale looped source starts after the
+  // stop ran and rings until the next cue. Separate from `playEpoch` so
+  // a bg stop can't cancel a pending fanfare — fanfare jingles are
+  // independent of the bg track and only die on quit (`stopAll`).
+  let bgEpoch = 0;
   // Serializes suspend/resume so a rapid hide→show can't skip the resume —
   // see `setPaused`.
   let pauseTransition: Promise<void> = Promise.resolve();
@@ -368,11 +377,12 @@ export function createMusicSubsystem(): MusicSubsystem {
     // while silenced can be restarted on unpause (see `wantsBg`).
     wantsBg = track;
     if (paused) return;
-    const epoch = playEpoch;
+    const epoch = bgEpoch;
     await activateOnce();
-    // A quit-to-menu `stopAll` during the await invalidates this play —
-    // its source would start under the lobby with nothing to stop it.
-    if (paused || epoch !== playEpoch) return;
+    // Any `stopBg` during the await (quit-to-menu `stopAll`, battle-banner
+    // stop cue, …) invalidates this play — its source would start AFTER
+    // the stop ran, with nothing left to stop it.
+    if (paused || epoch !== bgEpoch) return;
     const ctx = audioContext;
     const buffer = bgAudioBuffers.get(track.cacheId);
     const pcm = bgBuffers.get(track.cacheId);
@@ -414,6 +424,8 @@ export function createMusicSubsystem(): MusicSubsystem {
   }
 
   function stopBg(): void {
+    // Invalidate any playBg mid-await — see `bgEpoch`.
+    bgEpoch += 1;
     // Stop events fire fine while paused (they only clear state), so
     // clearing the intent here keeps `wantsBg` accurate across e.g. a
     // SCORE_OVERLAY_END that lands under a hidden tab.
