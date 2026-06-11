@@ -57,7 +57,6 @@ export interface PointerMoveDeps {
   withPointerPlayer: WithPointerPlayer;
   coords: {
     screenToWorld: (x: number, y: number) => WorldPos;
-    pickHitWorld: (x: number, y: number) => WorldPos;
     pixelToTile: (x: number, y: number) => { row: number; col: number };
   };
   gameAction: Pick<

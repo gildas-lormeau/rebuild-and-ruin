@@ -35,10 +35,8 @@ import { Phase } from "../../shared/core/game-phase.ts";
 import type { TileKey } from "../../shared/core/grid.ts";
 import {
   type CannonPhantomPayload,
-  type CannonPlacedPayload,
   cannonPhantomKey,
   type PiecePhantomPayload,
-  type PiecePlacedPayload,
   piecePhantomKey,
 } from "../../shared/core/phantom-types.ts";
 import type { ValidPlayerId } from "../../shared/core/player-slot.ts";
@@ -77,17 +75,13 @@ import type { RuntimeLifeLost } from "./life-lost.ts";
 
 interface PhaseTicksDeps extends Pick<RuntimeConfig, "log"> {
   runtimeState: RuntimeState;
-  /** Network send — closes over RuntimeConfig.network.send at the call site.
-   *  Used by `tickBattlePhase` to broadcast raw battle events (fire, tower
-   *  damage, impact) which are themselves protocol messages. */
-  send: RuntimeConfig["network"]["send"];
-
   // Pre-built typed-payload senders — protocol knowledge stays in the
   // composition root. For local play these close over the config's no-op
   // network.send; for online they prepend the message type and send.
-  sendOpponentCannonPlaced: (msg: CannonPlacedPayload) => void;
+  // Only the phantom previews and the cannon-done flag broadcast from
+  // here — placement broadcasts go through the `OnlineActions` wrappers
+  // on the human-input path, never through phase ticks.
   sendOpponentCannonPhantom: (msg: CannonPhantomPayload) => void;
-  sendOpponentPiecePlaced: (msg: PiecePlacedPayload) => void;
   sendOpponentPhantom: (msg: PiecePhantomPayload) => void;
   /** Broadcast "I'm done placing cannons" for a local human-kind slot.
    *  No-op for local play; emits `OPPONENT_CANNON_PHASE_DONE` online with
@@ -209,10 +203,10 @@ interface PhaseTicksDeps extends Pick<RuntimeConfig, "log"> {
 }
 
 /** Public phase-ticks handle exposed on `GameRuntime`. Narrow surface —
- *  most callers go through the orchestrator, not the handle. */
+ *  most callers go through the orchestrator, not the handle. Sole
+ *  consumer: host promotion's castle-build skip (`promote.ts`). */
 export interface RuntimePhaseTicks {
   dispatchAdvanceToCannon: () => void;
-  beginBattle: () => void;
 }
 
 export interface PhaseTicksSystem {
@@ -232,7 +226,6 @@ export interface PhaseTicksSystem {
   dispatchGameOver: (outcome: GameOverOutcome) => void;
   startBattle: () => void;
   tickBalloonAnim: (dt: number) => void;
-  beginBattle: () => void;
   startBuildPhase: () => void;
   tickCannonPhase: (dt: number) => boolean;
   tickBattleCountdown: (dt: number) => void;
@@ -838,7 +831,6 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     dispatchGameOver,
     startBattle,
     tickBalloonAnim,
-    beginBattle,
     startBuildPhase,
     tickCannonPhase,
     tickBattleCountdown,

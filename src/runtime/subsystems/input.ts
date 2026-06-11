@@ -130,7 +130,6 @@ interface InputSystemDeps {
     RuntimeCamera,
     | "pixelToTile"
     | "screenToWorld"
-    | "pickHitWorld"
     | "onPinchStart"
     | "onPinchUpdate"
     | "onPinchEnd"
@@ -220,7 +219,6 @@ export function createInputSystem(deps: InputSystemDeps): InputSystem {
   const coordsDeps: RegisterOnlineInputDeps["coords"] = {
     pixelToTile: camera.pixelToTile,
     screenToWorld: camera.screenToWorld,
-    pickHitWorld: camera.pickHitWorld,
     onPinchStart: camera.onPinchStart,
     onPinchUpdate: camera.onPinchUpdate,
     onPinchEnd: camera.onPinchEnd,

@@ -646,14 +646,9 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
 
   const phaseTicks: PhaseTicksSystem = createPhaseTicksSystem({
     runtimeState,
-    send: config.network.send,
     log: config.log,
-    sendOpponentCannonPlaced: (msg) =>
-      config.network.send({ type: "opponentCannonPlaced", ...msg }),
     sendOpponentCannonPhantom: (msg) =>
       config.network.send({ type: "opponentCannonPhantom", ...msg }),
-    sendOpponentPiecePlaced: (msg) =>
-      config.network.send({ type: "opponentPiecePlaced", ...msg }),
     sendOpponentPhantom: (msg) =>
       config.network.send({ type: "opponentPhantom", ...msg }),
     sendOpponentCannonPhaseDone: (playerId, applyAt) =>
@@ -712,7 +707,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
 
   const uiCtx: UIContext = {
     getState: () => safeState(runtimeState),
-    getOverlay: () => runtimeState.overlay,
     settings: runtimeState.settings,
     getMode: () => runtimeState.mode,
     setMode: (mode) => {
@@ -902,12 +896,10 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       startGame: lifecycle.startGame,
       rematch: lifecycle.rematch,
       resetUIState: lifecycle.resetUIState,
-      teardownSession: lifecycle.teardownSession,
       finalizeGameOver: lifecycle.finalizeGameOver,
     },
     phaseTicks: {
       dispatchAdvanceToCannon: phaseTicks.dispatchAdvanceToCannon,
-      beginBattle: phaseTicks.beginBattle,
     },
     music: {
       activate: audio.music.activate,

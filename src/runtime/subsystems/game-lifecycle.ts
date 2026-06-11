@@ -83,12 +83,6 @@ export interface RuntimeLifecycle {
    *  the "finish game 1, start game 2 on the same runtime" path. */
   rematch: () => void | Promise<void>;
   resetUIState: () => void;
-  /** Per-session reset matrix shared by `endGame` and `returnToLobby`.
-   *  Exposed so the online watcher's game-over handler can run the same
-   *  cleanup before flipping Mode.STOPPED — without it, watchers see
-   *  lingering score deltas, life-lost / upgrade-pick dialogs, stale
-   *  banners, and stale camera zoom on the game-over screen. */
-  teardownSession: () => void;
   /** Shared game-over terminal sequence: caller-supplied frame paint →
    *  teardown → render → Mode.STOPPED. Used by the host's `endGame`, the
    *  watcher's MESSAGE.GAME_OVER handler (paints from authoritative
@@ -102,6 +96,10 @@ interface GameLifecycleSystem extends RuntimeLifecycle {
   endGame: (winner: { id: ValidPlayerId }) => void;
   returnToLobby: () => void;
   gameOverClick: (canvasX: number, canvasY: number) => void | Promise<void>;
+  /** Per-session reset matrix shared by `endGame`, `returnToLobby`, and
+   *  the composition root's `shutdown`. Internal to the wiring — online
+   *  paths run it indirectly through `finalizeGameOver`. */
+  teardownSession: () => void;
 }
 
 interface LifecycleWiringDeps {
