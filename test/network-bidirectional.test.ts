@@ -46,16 +46,11 @@ import { createScenario, type Scenario } from "./scenario.ts";
 import { assert, assertEquals } from "@std/assert";
 import { Mode } from "../src/shared/ui/ui-mode.ts";
 import type { ValidPlayerId } from "../src/shared/core/player-slot.ts";
-import { createBidirectionalNetworkedPair } from "./network-setup.ts";
-
-interface PlayerSnapshot {
-  readonly id: number;
-  readonly lives: number;
-  readonly walls: number;
-  readonly cannons: number;
-  readonly enclosedTowers: number;
-  readonly score: number;
-}
+import {
+  createBidirectionalNetworkedPair,
+  type PlayerParitySnapshot,
+  snapshotPlayers,
+} from "./network-setup.ts";
 
 type SnapshotMode = "phase" | "tick";
 
@@ -356,20 +351,9 @@ async function runBidirectionalToEnd(
   );
 }
 
-function snapshotPlayers(sc: Scenario): PlayerSnapshot[] {
-  return sc.state.players.map((player) => ({
-    id: player.id,
-    lives: player.lives,
-    walls: player.walls.size,
-    cannons: player.cannons.length,
-    enclosedTowers: player.enclosedTowers.length,
-    score: player.score,
-  }));
-}
-
 function assertPlayersConverge(
-  watcher: readonly PlayerSnapshot[],
-  host: readonly PlayerSnapshot[],
+  watcher: readonly PlayerParitySnapshot[],
+  host: readonly PlayerParitySnapshot[],
   label: string,
 ): void {
   assertEquals(

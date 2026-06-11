@@ -13,19 +13,18 @@ import { createScenario as _ } from "./scenario.ts";
 import "./test-globals.ts";
 import { GAME_EVENT } from "../src/shared/core/game-event-bus.ts";
 import type { GameState } from "../src/shared/core/types.ts";
-import { createNetworkedPair, runNetworkedToEnd } from "./network-setup.ts";
+import {
+  createNetworkedPair,
+  type PlayerParitySnapshot,
+  runNetworkedToEnd,
+} from "./network-setup.ts";
 
 interface Snap {
   readonly round: number;
   readonly phase: string;
-  readonly players: {
-    id: number;
-    lives: number;
-    cannons: number;
-    walls: number;
-    enclosedTowers: number;
-    score: number;
-  }[];
+  // Same shape as the shared parity snapshot, but built from GameState
+  // with its own semantics (`cannons` counts alive cannons only).
+  readonly players: PlayerParitySnapshot[];
   readonly towerAlive: boolean[];
   readonly grunts: { row: number; col: number }[];
   readonly cannonballs: number;

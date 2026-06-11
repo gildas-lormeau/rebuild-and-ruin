@@ -138,24 +138,25 @@ export interface RuntimeCamera {
   setCameraZone: (zone: ZoneId) => void;
 
   // Lifecycle commands
-  /** Run `cb` once the next-rendered frame is at fullMap AND pitch is at
-   *  0. Fires synchronously when both already hold. Flattens the pitch
-   *  target as part of the call. Does NOT trigger the viewport unzoom —
-   *  `unzoomForOverlays` (driven by `shouldUnzoom`, which includes
-   *  `isTransition`) owns that. Pair with `setMode(Mode.TRANSITION)`
-   *  before the call. `captureScene()` called inside `cb` reads full-map
-   *  flat pixels. */
-  awaitCameraFlat: (callback: () => void) => void;
+  /** Cosmetic hard-cut of the displayed viewport to fullMapVp at
+   *  transition dispatch. Parks the outgoing user target (same semantics
+   *  as `unzoomForOverlays`, which would otherwise park it next tick)
+   *  and pins `currentVp` so the banner's uniform map→display scale
+   *  assumption (render-map.ts) holds from the first sweep frame.
+   *  Game-state timing must NEVER wait on the camera — transition
+   *  mutates run at the dispatch tick on every peer (see
+   *  `runTransition`'s LOCKSTEP INVARIANT) — so the displayed viewport
+   *  snaps instead of being awaited. No-op on desktop, which never
+   *  leaves fullmap. Does NOT touch pitch: battle-done's pre-dispatch
+   *  untilt gate (phase-ticks) is the sole pitch-flatten owner, and
+   *  every other transition dispatches from flat phases. */
+  snapToFullMapForTransition: () => void;
   /** Run `cb` once the in-flight pitch animation completes (in either
    *  direction — `flat` and `tilted` both count as settled). Fires
    *  synchronously when pitch is already settled. Used by the phase machine's
    *  battle-banner postDisplay to gate balloon-anim / battle-mode entry
    *  behind the build→battle tilt-in. Caller-overwrite semantics. */
   awaitPitchSettled: (callback: () => void) => void;
-  /** Post-render hook — called by the render loop after drawFrame.
-   *  Fires any pending `awaitCameraFlat` callback when the viewport has
-   *  converged to fullMapVp and pitch is settled. */
-  onRenderedFrame: () => void;
   /** Full unzoom: clear all zoom state for returnToLobby/endGame. */
   clearAllZoomState: () => void;
   /** Full reset for rematch. */
@@ -327,12 +328,6 @@ export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
   };
   const currentVp: Viewport = { ...fullMapVp };
   let lastVp: Viewport | undefined;
-
-  // Pre-transition unzoom choreography — parked callback fired by the
-  // post-render hook once drawFrame has rendered a full-map flat frame.
-  // Parked via `awaitCameraFlat`; the flatten itself runs in
-  // `unzoomForOverlays` whenever `frameCtx.shouldUnzoom` is set.
-  let pendingUnzoomReady: (() => void) | undefined;
 
   // Tilt-settle choreography — parked callback fired when `tickPitch`
   // finishes the in-flight animation. Parked via `awaitPitchSettled`;
@@ -870,11 +865,10 @@ export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
    *  Triggers: UI overlays (paused / quit / life-lost), mobile human-done
    *  predicates, phase-ending on desktop, and phase transitions.
    *
-   *  Does NOT touch pitch — that's `awaitCameraFlat`'s job. Pitch flatten
-   *  is coupled to "a display chain is about to run" (banner capture
-   *  needs a flat scene), not to every transition frame, so flattening
-   *  here would fight `beginTilt` (which runs in BALLOON_ANIM /
-   *  BANNER postDisplay, where isTransition is still true). */
+   *  Does NOT touch pitch — battle-done's pre-dispatch untilt gate
+   *  (phase-ticks) owns the flatten. Flattening here would fight
+   *  `beginTilt` (which runs in BALLOON_ANIM / BANNER postDisplay,
+   *  where isTransition is still true). */
   function unzoomForOverlays(state: GameState, frameCtx: FrameContext): void {
     if (!frameCtx.shouldUnzoom) return;
     if (target.kind === "fullMap" && castleFrameVp === undefined) return;
@@ -1243,31 +1237,25 @@ export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
 
   // --- Lifecycle commands ---
 
-  /** Run `cb` once the next-rendered frame is at fullMap AND pitch is at
-   *  0. Callers (the phase machine's `runTransition`) wait for this before
-   *  running mutate + display, which guarantees the banner's prev-scene
-   *  capture reads a full-map-rendered, flat pre-mutation frame. Fires
-   *  synchronously when both conditions already hold.
-   *
-   *  Flattens the pitch target as part of the call — battle→build
-   *  transitions need the banner to capture a flat scene, and this is
-   *  the one point where we know "a display chain is about to run"
-   *  (after postDisplay, `beginTilt` may re-tilt and we must not
-   *  undo that from the overlay-unzoom path).
-   *
-   *  Viewport flatten is separate, driven by `unzoomForOverlays` on
-   *  `frameCtx.shouldUnzoom` (which includes `isTransition`, so
-   *  `setMode(Mode.TRANSITION)` before this call drives convergence). */
-  function awaitCameraFlat(callback: () => void): void {
-    setPitchTarget(0);
-    // Already flat (viewport at fullMap AND pitch at 0)? Fire synchronously
-    // — the runtime ticks on a mock clock in tests, so deferring would
-    // change replay timing.
-    if (lastVp === undefined && currentPitch === 0 && targetPitch === 0) {
-      callback();
-      return;
+  /** See `RuntimeCamera.snapToFullMapForTransition`. The target-parking
+   *  block mirrors `unzoomForOverlays` (which early-returns afterward —
+   *  the target is already fullMap — so the park stays once-per-episode);
+   *  the snap additionally pins the rendered viewport so the first
+   *  banner frame doesn't show a mid-lerp crop. */
+  function snapToFullMapForTransition(): void {
+    // Only callable from `runTransition`, where a session is always
+    // installed — the null check is for the type, not a reachable state.
+    const state = deps.getState();
+    if (target.kind !== "fullMap" && state) {
+      overlayParked = { target, phase: state.phase };
     }
-    pendingUnzoomReady = callback;
+    setTargetSilent(FULL_MAP_TARGET);
+    castleFrameVp = undefined;
+    currentVp.x = fullMapVp.x;
+    currentVp.y = fullMapVp.y;
+    currentVp.w = fullMapVp.w;
+    currentVp.h = fullMapVp.h;
+    lastVp = undefined;
   }
 
   /** Run `cb` once the in-flight pitch animation completes (in either
@@ -1294,22 +1282,6 @@ export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
     pendingPitchSettled = callback;
   }
 
-  /** Post-render hook. Called by the render loop AFTER drawFrame so the
-   *  parked `onReady` fires on the frame whose pixels reflect the
-   *  full-map flat view — any `captureScene` inside the callback reads
-   *  those pixels, not a mid-lerp one. Checks `lastVp === undefined`
-   *  (updateViewport sets that exactly when currentVp has converged to
-   *  fullMapVp) AND pitch settled at 0 (tickPitch parks `currentPitch`
-   *  at `targetPitch` on the settle frame). */
-  function onRenderedFrame(): void {
-    if (pendingUnzoomReady === undefined) return;
-    if (lastVp !== undefined) return;
-    if (currentPitch !== 0 || targetPitch !== 0) return;
-    const ready = pendingUnzoomReady;
-    pendingUnzoomReady = undefined;
-    ready();
-  }
-
   /** Clear every camera-target / tracking field. Used by both `teardownSession`
    *  (game-over / quit-to-lobby) and `resetCamera` (rematch bootstrap). The
    *  goal is "no field can leak across game boundaries". The platform flag
@@ -1331,11 +1303,10 @@ export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
     // stale parked target could spuriously restore on the next game's
     // first frame.
     overlayParked = undefined;
-    // Drop any parked transition continuations (`awaitCameraFlat` /
-    // `awaitPitchSettled`). They capture the dying session's transition ctx
-    // and GameState; left in place, the next session's first flat rendered
-    // frame would fire them and replay a dead match's phase transition.
-    pendingUnzoomReady = undefined;
+    // Drop any parked transition continuation (`awaitPitchSettled`). It
+    // captures the dying session's transition ctx and GameState; left in
+    // place, the next session's first pitch-settle frame would fire it
+    // and replay a dead match's phase transition.
     pendingPitchSettled = undefined;
   }
 
@@ -1488,9 +1459,8 @@ export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
     centerCameraOnTap,
     povPlayerId,
     getEnemyZones,
-    awaitCameraFlat,
+    snapToFullMapForTransition,
     awaitPitchSettled,
-    onRenderedFrame,
     getCameraZone: getZoneTarget,
     getViewedZone,
     setCameraZone,

@@ -32,20 +32,18 @@
 
 import { assert, assertEquals } from "@std/assert";
 import { createScenario, type Scenario } from "./scenario.ts";
-import { createNetworkedPair, runNetworkedToEnd } from "./network-setup.ts";
+import {
+  createNetworkedPair,
+  type PlayerParitySnapshot,
+  runNetworkedToEnd,
+} from "./network-setup.ts";
 import { DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS } from "../src/shared/core/action-schedule.ts";
 import { Mode } from "../src/shared/ui/ui-mode.ts";
 import { PLAYER_NAMES } from "../src/shared/ui/player-config.ts";
 import type { ValidPlayerId } from "../src/shared/core/player-slot.ts";
 import type { PieceShape } from "../src/shared/core/pieces.ts";
 
-interface PlayerSnapshot {
-  readonly id: number;
-  readonly lives: number;
-  readonly walls: number;
-  readonly cannons: number;
-  readonly enclosedTowers: number;
-  readonly score: number;
+interface PlayerSnapshot extends PlayerParitySnapshot {
   readonly currentPiece: PieceShape | undefined;
   readonly bagQueueLen: number | null;
 }

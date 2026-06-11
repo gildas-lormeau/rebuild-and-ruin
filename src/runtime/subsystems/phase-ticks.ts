@@ -105,11 +105,14 @@ interface PhaseTicksDeps extends Pick<RuntimeConfig, "log"> {
 
   // Sibling systems / parent callbacks
   requestRender: () => void;
-  /** Run `cb` after the camera has converged to fullMapVp with pitch
-   *  flat — threaded through to `PhaseTransitionCtx` so `runTransition`
-   *  can gate every mutate + display step on convergence. See
-   *  `RuntimeCamera.awaitCameraFlat`. */
-  awaitCameraFlat: (callback: () => void) => void;
+  /** Prime the banner's pre-mutation prev-scene — threaded through to
+   *  `PhaseTransitionCtx` so `runTransition` captures it at the dispatch
+   *  tick, before the mutate. See `BannerSystem.primePrevScene`. */
+  primeBannerPrevScene: () => void;
+  /** Cosmetic viewport hard-cut to fullMapVp at transition dispatch —
+   *  threaded through to `PhaseTransitionCtx`. See
+   *  `RuntimeCamera.snapToFullMapForTransition`. */
+  snapCameraToFullMap: () => void;
   /** Run `cb` after the in-flight pitch animation completes — threaded
    *  through to `PhaseTransitionCtx` so `proceedToBattleFromCtx`'s postDisplay
    *  can gate balloon-anim entry on the build→battle tilt-in completing.
@@ -335,7 +338,8 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       runtimeState,
       showBanner: deps.showBanner,
       hideBanner: deps.hideBanner,
-      awaitCameraFlat: deps.awaitCameraFlat,
+      primeBannerPrevScene: deps.primeBannerPrevScene,
+      snapCameraToFullMap: deps.snapCameraToFullMap,
       setMode: (mode) => setMode(runtimeState, mode),
       log: deps.log,
       scoreDelta: deps.scoreDelta,

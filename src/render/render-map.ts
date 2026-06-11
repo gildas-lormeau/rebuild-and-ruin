@@ -354,8 +354,8 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
   // and carried to the display by the normal blit; the snapshot clips to
   // the region above (`newScene`) or below (`prevScene`) the strip to
   // keep the strip visible on top. During a banner the viewport is
-  // always at fullMapVp (awaitCameraFlat gates the banner display chain
-  // on convergence), so map→display is a uniform SCALE multiply.
+  // always at fullMapVp (`runTransition` snaps the camera to fullmap at
+  // dispatch), so map→display is a uniform SCALE multiply.
   // Together, the two sides form a progressive reveal of the new scene
   // over the old — both frozen for the duration of the sweep, so the
   // live renderer never repaints world contents during a banner.

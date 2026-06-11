@@ -94,12 +94,6 @@ interface RenderSystemDeps {
     viewport: Viewport | null | undefined,
     now: number,
   ) => HTMLCanvasElement | undefined;
-  /** Post-drawFrame hook — invoked once per tick after the scene has
-   *  been blitted to the display canvas. Used by the camera to fire
-   *  any pending `awaitCameraFlat` callback on the frame where the
-   *  viewport converged to fullMapVp, guaranteeing that a subsequent
-   *  `captureScene` inside that callback sees the full-map pixels. */
-  readonly onRenderedFrame: () => void;
   readonly logThrottled: (key: string, msg: string) => void;
   readonly scoreDeltaProgress: () => number;
   readonly upgradePickInteractiveSlots: () => ReadonlySet<ValidPlayerId>;
@@ -132,12 +126,15 @@ interface RenderSystemDeps {
 interface RenderSystem {
   /** Standard per-tick render: build overlay, draw to visible canvas, update touch controls. */
   render: () => void;
-  /** Flash-free offscreen capture for banner B-snapshot. Rebuilds the overlay
-   *  against the current post-mutation state and renders into offscreen-only
-   *  targets (the visible canvas is never written). Returns a banner-owned
-   *  bridge canvas, or undefined when no scene has been rendered yet. Does
-   *  NOT invoke touch-controls updates or the `onRenderedFrame` hook —
-   *  those belong to the live frame loop, not to a capture. */
+  /** Flash-free offscreen capture for banner snapshots (B for every
+   *  banner; primed pre-mutation A via `BannerSystem.primePrevScene`).
+   *  Rebuilds the overlay against the current state and renders into
+   *  offscreen-only targets at fullMapVp — NOT the displayed viewport,
+   *  which on a touch peer may still be zoomed at transition dispatch
+   *  (the visible canvas is never written). Returns a banner-owned
+   *  bridge canvas, or undefined when no scene has been rendered yet.
+   *  Does NOT invoke touch-controls updates — those belong to the live
+   *  frame loop, not to a capture. */
   captureSceneOffscreen: () => HTMLCanvasElement | undefined;
 }
 
@@ -302,7 +299,6 @@ export function createRenderSystem(deps: RenderSystemDeps): RenderSystem {
       deps.timing.now(),
       runtimeState.banner !== null,
     );
-    deps.onRenderedFrame();
 
     // Update touch controls (loupe, d-pad, zoom, quit, floating actions).
     // Touch reads the phantom union from `runtimeState.overlay` (just
@@ -344,14 +340,18 @@ export function createRenderSystem(deps: RenderSystemDeps): RenderSystem {
 
   function captureSceneOffscreen(): HTMLCanvasElement | undefined {
     if (!isStateInstalled(runtimeState)) return undefined;
-    // Rebuild overlay so the capture reflects the post-mutation state —
-    // callers (banner system) typically mutate state between the A and B
-    // captures without running a live `render()` in between.
+    // Rebuild overlay so the capture reflects the current state — the
+    // banner system calls this both pre-mutation (primed A) and
+    // post-mutation (B) without running a live `render()` in between.
     refreshOverlay();
+    // viewport=undefined → fullMapVp. Banner snapshots are always
+    // full-map: the displayed viewport may still be zoomed at transition
+    // dispatch (per-peer cosmetic state) and must not leak into the
+    // captured scene.
     return deps.captureSceneOffscreen(
       runtimeState.state.map,
       runtimeState.overlay,
-      deps.updateViewport(),
+      undefined,
       deps.timing.now(),
     );
   }

@@ -21,19 +21,35 @@ interface BannerSystemDeps {
   readonly runtimeState: RuntimeState;
   readonly log: (msg: string) => void;
   readonly requestRender: () => void;
-  /** A-snapshot: current display pixels copied into a banner-owned bridge
-   *  canvas. `undefined` in headless / pre-first-frame. */
-  readonly rendererCaptureScene: () => HTMLCanvasElement | undefined;
-  /** B-snapshot: full pipeline rendered to offscreen-only targets (FBO
-   *  readback 3D / hidden sibling canvas 2D) so the visible canvas never
-   *  flashes the post-mutation scene before the sweep reveals it.
+  /** Fallback A-snapshot: current display pixels copied into a
+   *  banner-owned bridge canvas. Used when no primed prev-scene exists
+   *  (non-first banners of a chain, watcher checkpoint replays).
    *  `undefined` in headless / pre-first-frame. */
+  readonly rendererCaptureScene: () => HTMLCanvasElement | undefined;
+  /** Full pipeline rendered to offscreen-only targets at fullMapVp (FBO
+   *  readback 3D / hidden sibling canvas 2D) so the visible canvas never
+   *  flashes the captured scene. Used for every banner's B-snapshot and,
+   *  via `primePrevScene`, for the pre-mutation A-snapshot of a
+   *  transition's first banner. `undefined` in headless /
+   *  pre-first-frame. */
   readonly captureSceneOffscreen: () => HTMLCanvasElement | undefined;
 }
 
 interface BannerSystem {
   showBanner: (opts: BannerShowOpts) => void;
   hideBanner: () => void;
+  /** Render the current state offscreen at fullMapVp and stash it as the
+   *  next `showBanner`'s prev-scene. Called by the phase machine's
+   *  `runTransition` BEFORE the mutate: the transition mutate runs at the
+   *  dispatch tick (lockstep — it must not wait for the displayed camera
+   *  to converge), so the pre-mutation scene has to be captured here
+   *  rather than read back from the display pixels, which may still show
+   *  a zoomed viewport on a touch peer. Consumed by the first showBanner
+   *  of the transition chain; overwritten by the next prime; cleared on
+   *  reset. A stale prime left by a bannerless chain is consumed by the
+   *  next out-of-chain banner (watcher checkpoint replays) — cosmetic
+   *  worst case: one sweep starts from a slightly older scene. */
+  primePrevScene: () => void;
   /** Silent reset for teardown paths (rematch, quit-to-lobby). Does not
    *  emit BANNER_HIDDEN — teardown isn't a narrative banner-end beat. */
   reset: () => void;
@@ -54,14 +70,22 @@ export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
   // inside the fire path).
   let onDone: (() => void) | undefined;
 
+  // Pre-mutation prev-scene primed by `primePrevScene` (see interface doc).
+  let primedPrevScene: HTMLCanvasElement | undefined;
+
+  function primePrevScene(): void {
+    primedPrevScene = captureSceneOffscreen();
+  }
+
   function showBanner(opts: BannerShowOpts) {
     assertStateInstalled(runtimeState);
-    // prevScene = current display pixels (pre-mutation for the first
-    // banner of a transition; previous banner's B-snapshot otherwise).
-    // newScene = post-mutation scene rendered offscreen so the user
-    // never sees the new state before the sweep reveals it. Both are
-    // frozen for the duration of the sweep.
-    const prevCanvas = rendererCaptureScene();
+    // prevScene = the primed pre-mutation offscreen capture for the first
+    // banner of a transition chain; current display pixels (the previous
+    // banner's B-snapshot) otherwise. newScene = post-mutation scene
+    // rendered offscreen so the user never sees the new state before the
+    // sweep reveals it. Both are frozen for the duration of the sweep.
+    const prevCanvas = primedPrevScene ?? rendererCaptureScene();
+    primedPrevScene = undefined;
     const prevScene = prevCanvas ? { canvas: prevCanvas } : undefined;
     const newCanvas = captureSceneOffscreen();
     const newScene = newCanvas ? { canvas: newCanvas } : undefined;
@@ -127,6 +151,7 @@ export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
   function reset(): void {
     runtimeState.banner = createBannerState();
     onDone = undefined;
+    primedPrevScene = undefined;
   }
 
   function tickBanner(dt: number) {
@@ -148,5 +173,5 @@ export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
     requestRender();
   }
 
-  return { showBanner, hideBanner, reset, tickBanner };
+  return { showBanner, hideBanner, primePrevScene, reset, tickBanner };
 }

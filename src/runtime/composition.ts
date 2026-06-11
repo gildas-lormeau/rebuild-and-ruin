@@ -417,6 +417,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   const {
     showBanner,
     hideBanner,
+    primePrevScene: primeBannerPrevScene,
     reset: resetBanner,
     tickBanner,
   } = createBannerSystem({
@@ -495,7 +496,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
         sunTFromState(runtimeState.state),
         camera.getPitchMax(),
       ),
-    onRenderedFrame: camera.onRenderedFrame,
     logThrottled: config.logThrottled,
     scoreDeltaProgress: () => scoreDelta.progress(),
     upgradePickInteractiveSlots: () => upgradePick.interactiveSlots(),
@@ -664,7 +664,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       }),
     online: config.onlinePhaseTicks,
     requestRender,
-    awaitCameraFlat: camera.awaitCameraFlat,
+    primeBannerPrevScene,
+    snapCameraToFullMap: camera.snapToFullMapForTransition,
     awaitPitchSettled: camera.awaitPitchSettled,
     showBanner,
     hideBanner,

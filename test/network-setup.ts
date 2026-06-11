@@ -118,6 +118,31 @@ export interface BidirectionalNetworkedPairOptions extends ScenarioOptions {
   readonly wireDelayFrames?: number;
 }
 
+/** Per-player parity snapshot shared by the cross-peer convergence
+ *  suites (`network-bidirectional`, `camera-zoom-parity`). Captures the
+ *  game-state fields that must match on every peer at game end.
+ *  `network-vs-local` extends this with deeper mid-phase fields
+ *  (currentPiece, bag length). */
+export interface PlayerParitySnapshot {
+  readonly id: number;
+  readonly lives: number;
+  readonly walls: number;
+  readonly cannons: number;
+  readonly enclosedTowers: number;
+  readonly score: number;
+}
+
+export function snapshotPlayers(sc: Scenario): PlayerParitySnapshot[] {
+  return sc.state.players.map((player) => ({
+    id: player.id,
+    lives: player.lives,
+    walls: player.walls.size,
+    cannons: player.cannons.length,
+    enclosedTowers: player.enclosedTowers.length,
+    score: player.score,
+  }));
+}
+
 /** Dispatch target for `createScenario({ online: "host" | "watcher" })`.
  *  Delegates to the role-specific builder. */
 export async function createOnlineScenario(

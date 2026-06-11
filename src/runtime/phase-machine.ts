@@ -177,13 +177,16 @@ export interface PhaseTransitionCtx {
    *  (so postDisplay hooks run against a clean screen). Banner steps
    *  never need this — `showBanner` overwrites cleanly. */
   readonly hideBanner: () => void;
-  /** Run `cb` once the camera has converged to fullMapVp with pitch
-   *  flat. `runTransition` sets `Mode.TRANSITION` (which drives
-   *  `shouldUnzoom` true) then calls this; `cb` fires on the first
-   *  fullMapVp + flat-pitch frame so every mutate + display step runs
-   *  against a full-map viewport. Fires synchronously when both already
-   *  hold. See `RuntimeCamera.awaitCameraFlat`. */
-  readonly awaitCameraFlat: (callback: () => void) => void;
+  /** Render the current (pre-mutation) state offscreen at fullMapVp and
+   *  hand it to the banner system as the next banner's prev-scene.
+   *  Called by `runTransition` BEFORE the mutate — the snapshot must
+   *  show the old board, and it must not depend on the displayed
+   *  camera (per-peer cosmetic state). See `BannerSystem.primePrevScene`. */
+  readonly primeBannerPrevScene: () => void;
+  /** Cosmetic hard-cut of the displayed viewport to fullMapVp at
+   *  transition dispatch (no-op on desktop, which never leaves fullmap).
+   *  See `RuntimeCamera.snapToFullMapForTransition`. */
+  readonly snapCameraToFullMap: () => void;
   readonly setMode: (m: Mode) => void;
   readonly log: (msg: string) => void;
 
@@ -816,19 +819,34 @@ const BY_ID: ReadonlyMap<TransitionId, Transition> = new Map(
  *
  *  Callback-based, not Promise-based: the tick loop is synchronous so
  *  microtasks don't flush between ticks; every wait threads through the
- *  subsystem's own callback. */
+ *  subsystem's own callback.
+ *
+ *  LOCKSTEP INVARIANT: the mutate runs synchronously at the dispatch
+ *  tick. Dispatch is sim-driven (phase timers / drained actions), so
+ *  every peer mutates at the same `simTick` and the scheduled-action
+ *  drain interleaves identically everywhere. Deferring the mutate behind
+ *  anything per-peer (rendered-frame camera convergence was the historic
+ *  bug) lets in-flight `applyAt` actions land pre-mutate on one peer and
+ *  post-mutate on another, and offsets the next phase's entry tick —
+ *  both diverge game state across peers (see
+ *  test/camera-zoom-parity.test.ts). */
 export function runTransition(id: TransitionId, ctx: PhaseTransitionCtx): void {
   const transition = resolveTransition(id, ctx);
 
   // Mode.TRANSITION held for the entire transition; postDisplay flips to
-  // the terminal mode. isTransition → shouldUnzoom drives the flatten;
-  // awaitCameraFlat fires `executeTransition` once the camera has
-  // converged (synchronously if it's already at fullMap + flat pitch).
+  // the terminal mode.
   ctx.setMode(Mode.TRANSITION);
 
-  ctx.awaitCameraFlat(() => {
-    executeTransition(transition, ctx);
-  });
+  // Banner prev-scene: rendered offscreen at fullMapVp from the
+  // pre-mutation state, NOW, so the mutate doesn't have to wait for the
+  // displayed camera. The displayed viewport then hard-cuts to fullmap —
+  // a per-peer cosmetic snap that keeps the banner strip's uniform
+  // map→display scale assumption true (see render-map.ts) from the
+  // first sweep frame.
+  ctx.primeBannerPrevScene();
+  ctx.snapCameraToFullMap();
+
+  executeTransition(transition, ctx);
 }
 
 /** Post-cannon-place prep route: dispatch to `enter-modifier-reveal`
@@ -954,8 +972,8 @@ function clearBattleAnim(ctx: PhaseTransitionCtx): void {
 function proceedToBattleFromCtx(ctx: PhaseTransitionCtx): void {
   // Spec: `battle banner → tilt → balloons (skip if none) → ready → zoom`.
   // Tilt begins here (at battle-banner end) so it plays UNZOOMED, before
-  // anything else. The phase machine has already reached fullMapVp via
-  // `awaitCameraFlat`, and `handlePhaseChangeZoom` no longer implicitly
+  // anything else. The phase machine snapped to fullMapVp at dispatch
+  // (`snapCameraToFullMap`), and `handlePhaseChangeZoom` no longer implicitly
   // engages the tilt / auto-zoom — auto-zoom re-engages when mode flips
   // back to GAME inside `battle.begin`, which also starts the "ready"
   // countdown, so the zoom lerp and "ready" cue start together.
@@ -1027,15 +1045,12 @@ function runPickerModalThenDispatch(ctx: PhaseTransitionCtx): void {
   if (!picker.tryShow(finish)) finish(null);
 }
 
-/** Run a transition synchronously, bypassing the `awaitCameraFlat` wait.
- *  Used ONLY when dispatched from inside another transition's
- *  `postDisplay`: the outer transition already unzoomed the camera and
- *  the unzoom state hasn't changed between then and now. Parks the
- *  parent runTransition's inner flow so the inner transition's mutate
- *  + display + postDisplay runs in-line without spending a frame on
- *  an extra unzoom round-trip. Without this, every prep → entry pair
- *  (e.g. `cannon-place-done` → `enter-battle`) would emit an extra
- *  tick between them, diverging the determinism stream.
+/** Run a transition without re-priming the banner prev-scene or
+ *  re-snapping the camera. Used ONLY when dispatched from inside another
+ *  transition's `postDisplay`: the outer `runTransition` already primed
+ *  and snapped at dispatch, and the chain's first banner consumes that
+ *  prime — an inner banner's prev-scene is the previous banner's
+ *  new-scene (display pixels), exactly as `showBanner` falls back to.
  *
  *  `seedResult`: optional fields merged onto the inner mutate's return.
  *  Used to thread `modifierDiff` / `flights` from a prep transition
@@ -1086,10 +1101,11 @@ function executeTransition(
   seedResult?: Partial<TransitionResult>,
 ): void {
   // `showBanner` owns the A/B capture per banner (see
-  // `subsystems/banner.ts`). The transition runner doesn't snapshot
-  // anything — each banner reads the current display pixels as its
-  // own prev-scene (A), forces a render to flush any queued mutation,
-  // and captures the resulting pixels as its new-scene (B).
+  // `subsystems/banner.ts`). The chain's FIRST banner consumes the
+  // pre-mutation prev-scene primed by `runTransition`; later banners
+  // read the current display pixels (the previous banner's swept end
+  // state) as their prev-scene (A). Every banner renders the current
+  // (post-mutation) state offscreen as its new-scene (B).
   const mutated = transition.mutate(ctx);
   const result: TransitionResult = seedResult
     ? { ...mutated, ...seedResult }
@@ -1202,7 +1218,7 @@ function runLifeLostDialogStep(
   }
   // Spec: `max time of build phase → scores → zoom → life lost popup`.
   // The score overlay just finished unzoomed (runTransition's
-  // setMode(TRANSITION) + awaitCameraFlat gated display on fullMapVp).
+  // setMode(TRANSITION) + snapCameraToFullMap put the display on fullMapVp).
   // The camera reads `lifeLostKeepZoom` from FrameContext and snaps to the
   // local pov player's zone via `holdLifeLostZoom` once the dialog opens —
   // this used to be a poke from here (`engageAutoZoom`) that lost the race
