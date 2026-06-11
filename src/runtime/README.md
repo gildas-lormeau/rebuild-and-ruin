@@ -58,8 +58,10 @@ src/runtime/
 ├── ui-contracts.ts         shared UI/overlay/touch contracts
 ├── banner-state.ts         BannerState type + null-init constructor
 ├── banner-messages.ts      phase-transition banner string constants
+├── battle-aim.ts           battle-start crosshair targeting policy
 ├── battle-anim.ts          battle-event → render-anim translation
 ├── castle-build.ts         castle wall animation primitives
+├── camera-pitch.ts         pitch (battle-tilt) state machine primitives
 ├── camera-projection.ts    camera-projection math
 ├── input-actions.ts        local-play action surface
 ├── tick-context.ts         shared tick-context types (APPLY/TICK/CHECKPOINT)
@@ -172,7 +174,7 @@ factories so the helpers can be tested in isolation. Consumed by
 |---|---|
 | `dialogs/life-lost-core.ts` | life-lost dialog state helpers |
 | `dialogs/upgrade-pick-core.ts` | upgrade-pick dialog state helpers |
-| `dialogs/dialog-tick.ts` | shared auto-resolve + force-resolve loop |
+| `dialogs/dialog-tick.ts` | shared auto-resolve + force-resolve loop, plus the lockstep helpers both dialog subsystems delegate to (`scheduleOrApplyDialogChoice`, `isLocallyDrivenEntry`, `findPendingDialogEntry`) |
 
 ### Browser bindings (`browser/`)
 Browser-API wrappers used only by entry points (`src/main.ts`,
