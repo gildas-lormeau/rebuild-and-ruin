@@ -43,24 +43,18 @@ import type {
   PiecePhantom,
 } from "../../shared/core/phantom-types.ts";
 import type { ValidPlayerId } from "../../shared/core/player-slot.ts";
-import {
-  bestEnemyZone,
-  enemyZones,
-  isPlayerEliminated,
-  playerByZone,
-  zoneByPlayer,
-} from "../../shared/core/player-types.ts";
+import { enemyZones, zoneByPlayer } from "../../shared/core/player-types.ts";
 import {
   cannonSize,
   castleCenterPx as castleCenterPxShared,
   pxToTile,
-  towerCenterPx,
   zoneAt,
 } from "../../shared/core/spatial.ts";
 import type { FrameContext, GameState } from "../../shared/core/types.ts";
-import type { ZoneCell, ZoneId } from "../../shared/core/zone-id.ts";
+import type { ZoneId } from "../../shared/core/zone-id.ts";
 import type { RenderOverlay } from "../../shared/ui/overlay-types.ts";
 import { isInteractiveMode, Mode } from "../../shared/ui/ui-mode.ts";
+import { battleTargetPosition } from "../battle-aim.ts";
 import {
   createPitchAnim,
   easeOutCubic,
@@ -177,13 +171,6 @@ export interface RuntimeCamera {
   // Mobile zoom
   enableMobileZoom: () => void;
   isMobileAutoZoom: () => boolean;
-
-  // Touch battle targeting
-  /** Compute target position for human crosshair at battle start (touch devices).
-   *  Returns null when no target is applicable. Caller applies to controller. */
-  computeBattleTarget: () => { x: number; y: number } | null;
-  /** Store a crosshair position for restoration at the next battle start. */
-  saveBattleCrosshair: (pos: { x: number; y: number }) => void;
 }
 
 /** EXCEPTION: CameraDeps uses all-getter pattern (late binding) because camera state
@@ -191,6 +178,11 @@ export interface RuntimeCamera {
 interface CameraDeps {
   getState: () => GameState | undefined;
   getCtx: () => FrameContext;
+  /** Persisted last battle crosshair (`RuntimeState.lastBattleCrosshair`) —
+   *  read-only here; the composition root's battle-aim seeding owns the
+   *  writes. Anchors the battle-entry camera on the zone the crosshair
+   *  will restore into (see `battleTargetZone`). */
+  getLastBattleCrosshair: () => { x: number; y: number } | undefined;
   /** "Is a human player driving the pointer right now?" — the gate inside
    *  `mobileAutoZoomActive()`. Must be cache-independent because the
    *  predicate runs both from `main-loop.ts` while `FrameContext` is itself
@@ -1244,7 +1236,6 @@ export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
     lastBattleCrosshairZone = undefined;
     lastAutoZoomPhase = undefined;
     selectionTargetVp = undefined;
-    lastBattleCrosshair = undefined;
     // This teardown fullMap is neither overlay-driven nor user-intended; a
     // stale parked target could spuriously restore on the next game's
     // first frame.
@@ -1329,53 +1320,24 @@ export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
     mobileZoomEnabled = true;
   }
 
-  // --- Touch battle targeting ---
-
-  /** Crosshair position from the previous battle (null = first battle). */
-  let lastBattleCrosshair: { x: number; y: number } | undefined;
-
-  /** Compute target position for the human crosshair at battle start (touch devices).
-   *  Delegates targeting logic to battleTargetPosition(); camera owns only the
-   *  mobile-zoom guard and lastBattleCrosshair state. */
-  function computeBattleTarget(): { x: number; y: number } | null {
-    const state = deps.getState();
-    if (!state) return null;
-    if (!mobileAutoZoomActive()) return null;
-
-    const target = battleTargetPosition(
-      state.players,
-      state.playerZones,
-      state.map.zones,
-      povPlayerId(),
-      lastBattleCrosshair,
-    );
-    if (target) lastBattleCrosshair = { x: target.x, y: target.y };
-    return target;
-  }
-
-  /** Store a crosshair position for restoration at the next battle start. */
-  function saveBattleCrosshair(pos: { x: number; y: number }): void {
-    lastBattleCrosshair = { x: pos.x, y: pos.y };
-  }
-
   /** Zone the battle-start crosshair will occupy — the restored last-aimed
    *  enemy (if still alive) or, failing that, the best enemy. The camera
-   *  frames THIS zone on battle entry so it always agrees with where
-   *  `applyBattleTarget` drops the crosshair. Framing `bestEnemyZone`
-   *  independently let the two disagree: fight enemy B last round → the
-   *  crosshair restores onto B, but the camera framed best-enemy A, so the
-   *  crosshair sat off-screen. Read-only — does NOT consume
-   *  `lastBattleCrosshair`. Null when there's no enemy or the target is
-   *  off-grid. */
+   *  frames THIS zone on battle entry so it always agrees with where the
+   *  composition root's battle-aim seeding drops the crosshair. Framing
+   *  `bestEnemyZone` independently let the two disagree: fight enemy B
+   *  last round → the crosshair restores onto B, but the camera framed
+   *  best-enemy A, so the crosshair sat off-screen. Read-only — does NOT
+   *  consume `lastBattleCrosshair`. Null when there's no enemy or the
+   *  target is off-grid. */
   function battleTargetZone(): ZoneId | null {
     const state = deps.getState();
     if (!state) return null;
     const target = battleTargetPosition(
       state.players,
       state.playerZones,
-      state.map.zones,
+      state.map,
       povPlayerId(),
-      lastBattleCrosshair,
+      deps.getLastBattleCrosshair(),
     );
     if (!target) return null;
     return zoneAtPixel(state.map, target.x, target.y) ?? null;
@@ -1412,50 +1374,7 @@ export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
     setSelectionViewport,
     enableMobileZoom,
     isMobileAutoZoom: mobileAutoZoomActive,
-    computeBattleTarget,
-    saveBattleCrosshair,
   };
-}
-
-/** Compute the crosshair target for battle start (touch devices).
- *  - If `lastPos` targets a living enemy, return it.
- *  - Otherwise aim at the best enemy's home tower.
- *  Returns null when no valid target exists. */
-function battleTargetPosition(
-  players: readonly {
-    eliminated: boolean;
-    score: number;
-    homeTower: TilePos | null;
-  }[],
-  playerZones: readonly ZoneId[],
-  zones: readonly (readonly ZoneCell[])[],
-  myPid: number,
-  lastPos: { x: number; y: number } | undefined,
-): { x: number; y: number } | null {
-  // Restore last position if targeted opponent is alive
-  if (lastPos) {
-    const row = pxToTile(lastPos.y);
-    const col = pxToTile(lastPos.x);
-    const zone = zones[row]?.[col];
-    if (zone !== undefined && zone !== 0) {
-      const pid = playerByZone(playerZones, zone);
-      if (
-        pid !== undefined &&
-        pid !== myPid &&
-        !isPlayerEliminated(players[pid])
-      ) {
-        return { x: lastPos.x, y: lastPos.y };
-      }
-    }
-  }
-
-  // First battle or opponent died: aim at best enemy's home tower
-  const zone = bestEnemyZone(players, playerZones, myPid);
-  if (zone === null) return null;
-  const pid = playerByZone(playerZones, zone);
-  const tower = pid !== undefined ? players[pid]?.homeTower : null;
-  if (!tower) return null;
-  return towerCenterPx(tower);
 }
 
 /** Map a world-pixel point to its zone id, or undefined when the tile is

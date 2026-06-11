@@ -59,6 +59,7 @@ import type { RendererInterface } from "../shared/ui/overlay-types.ts";
 import { MAX_SEED_LENGTH, SEED_CUSTOM } from "../shared/ui/player-config.ts";
 import { cycleOption } from "../shared/ui/settings-ui.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
+import { battleTargetPosition } from "./battle-aim.ts";
 import { bootstrapNewGameFromSettings } from "./bootstrap.ts";
 import {
   createCachedContainerHeight,
@@ -371,6 +372,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     getCtx: () => runtimeState.frameMeta,
     hasPointerPlayer,
     getFrameDt: () => runtimeState.frameDt,
+    getLastBattleCrosshair: () => runtimeState.lastBattleCrosshair,
     getPointerPlayerCrosshair: () => {
       const h = pointerPlayer();
       if (!h) return null;
@@ -629,13 +631,26 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
 
   // -------------------------------------------------------------------------
   // Touch battle targeting — seeds the pointer-player's crosshair from the
-  // saved camera target when BATTLE phase begins. Consumed by phase-ticks
-  // `onBeginBattle` (touch only).
+  // persisted `runtimeState.lastBattleCrosshair` when BATTLE phase begins.
+  // Consumed by phase-ticks `onBeginBattle` (touch only). The composition
+  // root owns the field's writes (here + the round-end save below); the
+  // camera reads it for its battle-entry zone anchor so the framed zone
+  // always agrees with where the crosshair lands.
   // -------------------------------------------------------------------------
 
   function applyBattleTarget(): void {
-    const target = camera.computeBattleTarget();
+    const state = safeState(runtimeState);
+    if (!state) return;
+    if (!camera.isMobileAutoZoom()) return;
+    const target = battleTargetPosition(
+      state.players,
+      state.playerZones,
+      state.map,
+      camera.povPlayerId(),
+      runtimeState.lastBattleCrosshair,
+    );
     if (!target) return;
+    runtimeState.lastBattleCrosshair = { x: target.x, y: target.y };
     const h = pointerPlayer();
     if (h) h.setCrosshair(target.x, target.y);
   }
@@ -680,7 +695,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
           const h = pointerPlayer();
           if (!h) return;
           const ch = h.getCrosshair();
-          camera.saveBattleCrosshair({ x: ch.x, y: ch.y });
+          runtimeState.lastBattleCrosshair = { x: ch.x, y: ch.y };
         }
       : undefined,
     onBeginBattle: IS_TOUCH_DEVICE ? applyBattleTarget : undefined,

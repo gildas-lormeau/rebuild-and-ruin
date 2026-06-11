@@ -147,6 +147,13 @@ export interface RuntimeState {
    *  number without seeing banner state directly. One field for all
    *  modifiers because only one modifier is ever revealing at a time. */
   modifierRevealPlayStartMs: number | undefined;
+  /** Last battle crosshair position of the pointer player (touch devices),
+   *  persisted across rounds so the next battle restores aim onto the same
+   *  enemy (see `battle-aim.ts`). Written by the composition root's
+   *  battle-aim seeding (battle-entry apply + round-end save); read by the
+   *  camera's battle-entry zone anchor; cleared by session teardown /
+   *  `resetTransientState`. Pov-local presentational state — never synced. */
+  lastBattleCrosshair: { x: number; y: number } | undefined;
   /** Per-frame context (dt, mode, etc.). Populated by `computeFrameContext`
    *  on every mainLoop tick. Holds a placeholder until the first tick — same
    *  rules as `state`: check `isStateInstalled(runtimeState)` before accessing. */
@@ -232,6 +239,7 @@ export function resetTransientState(runtimeState: RuntimeState): void {
   runtimeState.optionsUI.context = { kind: "lobby" };
   runtimeState.actionSchedule.reset();
   runtimeState.modifierRevealPlayStartMs = undefined;
+  runtimeState.lastBattleCrosshair = undefined;
 }
 
 /** Create initial runtime state. `state` and `frameMeta` are not yet valid:
@@ -261,6 +269,7 @@ export function createRuntimeState(): RuntimeState {
     battleAnim: createBattleAnimState(),
     banner: createBannerState(),
     modifierRevealPlayStartMs: undefined,
+    lastBattleCrosshair: undefined,
     // Placeholder until the first mainLoop tick populates frame context.
     // Guarded by `stateInstalled` (same lifecycle as `state`).
     frameMeta: null as unknown as FrameContext,
