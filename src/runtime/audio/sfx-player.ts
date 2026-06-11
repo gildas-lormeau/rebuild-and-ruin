@@ -52,7 +52,7 @@ export interface SfxSubsystem extends RuntimeSfx {
   /** Compute continuous presentational signals from the current game
    *  state and react to transitions since the last call. Called once per
    *  frame by the runtime after state mutation — pure enough to skip
-   *  when paused / disposed. */
+   *  when paused. */
   tickPresentation(state: GameState): void;
   /** Suspend/resume the AudioContext — wired to `visibilitychange`. */
   setPaused(paused: boolean): Promise<void>;
@@ -61,7 +61,6 @@ export interface SfxSubsystem extends RuntimeSfx {
    *  on quit-to-menu so a long sample doesn't outlive the game. The
    *  AudioContext stays open so the next match can play normally. */
   stopAll(): void;
-  dispose(): Promise<void>;
 }
 
 interface SfxSignals {
@@ -283,7 +282,6 @@ export function createSfxSubsystem(deps: SfxSubsystemDeps): SfxSubsystem {
     handler: GameEventHandler<EventKey>;
   }> = [];
   let paused = false;
-  let disposed = false;
   // Bumped by `stopAll` (quit-to-menu / rematch). The chained `ended`
   // handlers below capture it at event time and bail once it moves: a
   // `source.stop()` from `stopAll` itself FIRES `ended` (Web Audio spec),
@@ -293,8 +291,7 @@ export function createSfxSubsystem(deps: SfxSubsystemDeps): SfxSubsystem {
   // bus on the same task chain as `stopAll`, BEFORE the audio thread
   // delivers the stale `ended` events — a flag lifted in `subscribeBus`
   // would re-admit them and play the previous match's stinger into the new
-  // game. `disposed` can't cover this — it's never set in production (no
-  // `dispose()` caller).
+  // game.
   let playEpoch = 0;
   // Serializes suspend/resume so a rapid hide→show can't skip the resume —
   // see `setPaused`.
@@ -349,7 +346,7 @@ export function createSfxSubsystem(deps: SfxSubsystemDeps): SfxSubsystem {
   async function playSample(
     name: string,
   ): Promise<AudioBufferSourceNode | undefined> {
-    if (disposed || paused) return undefined;
+    if (paused) return undefined;
     const samples = ensureSamples();
     const sample = samples?.get(name);
     if (!sample) return undefined;
@@ -365,7 +362,7 @@ export function createSfxSubsystem(deps: SfxSubsystemDeps): SfxSubsystem {
       // A `stopAll` landing during the resume await couldn't stop this
       // source — it isn't in `activeSources` yet — so re-check before
       // starting it.
-      if (disposed || paused || epoch !== playEpoch) return undefined;
+      if (paused || epoch !== playEpoch) return undefined;
     }
     const buffer = decodeSample(sample, context);
     const source = context.createBufferSource();
@@ -391,7 +388,7 @@ export function createSfxSubsystem(deps: SfxSubsystemDeps): SfxSubsystem {
     }
     boundBus = undefined;
     boundHandlers.length = 0;
-    // Rematch / dispose shouldn't leave a snare loop ringing. Also reset
+    // Rematch shouldn't leave a snare loop ringing. Also reset
     // the derived-signal memory so the next game's first critical frame
     // registers as a transition, not a continuation.
     stopSnareLoop();
@@ -455,7 +452,7 @@ export function createSfxSubsystem(deps: SfxSubsystemDeps): SfxSubsystem {
       const wantsFanfare = towerAlive && !fanfarePlayedThisPhase.has(playerId);
       if (wantsFanfare) fanfarePlayedThisPhase.add(playerId);
       void playSample("elechit1").then((source) => {
-        if (disposed || epoch !== playEpoch) return;
+        if (epoch !== playEpoch) return;
         if (!wantsFanfare) return;
         if (!deps.onFirstEnclosure) return;
         if (!source || !audioContext) {
@@ -473,7 +470,7 @@ export function createSfxSubsystem(deps: SfxSubsystemDeps): SfxSubsystem {
           // source, which itself fires `ended` — comparing epochs keeps it
           // from kicking the fanfare under the lobby or into the next game
           // (music.stopAll already ran, so nothing would cancel it).
-          if (disposed || epoch !== playEpoch) return;
+          if (epoch !== playEpoch) return;
           deps.onFirstEnclosure?.(playerId);
         });
       });
@@ -492,7 +489,7 @@ export function createSfxSubsystem(deps: SfxSubsystemDeps): SfxSubsystem {
       if (!winnerSample) return;
       const epoch = playEpoch;
       void playSample("welldone").then((source) => {
-        if (disposed || epoch !== playEpoch) return;
+        if (epoch !== playEpoch) return;
         if (!source) {
           void playSample(winnerSample);
           return;
@@ -502,7 +499,7 @@ export function createSfxSubsystem(deps: SfxSubsystemDeps): SfxSubsystem {
           // `stopAll` stops welldone, firing `ended`; comparing epochs keeps
           // the winner stinger from playing over the lobby or into the next
           // game.
-          if (disposed || epoch !== playEpoch) return;
+          if (epoch !== playEpoch) return;
           void playSample(winnerSample);
         });
       });
@@ -576,7 +573,7 @@ export function createSfxSubsystem(deps: SfxSubsystemDeps): SfxSubsystem {
   }
 
   function tickPresentation(state: GameState): void {
-    if (disposed || paused) return;
+    if (paused) return;
     // Entering an enclosure-producing phase (CASTLE_SELECT — initial or
     // reselect cycle — or WALL_BUILD): pre-add players who already hold
     // at least one enclosed alive tower. This suppresses the fanfare for
@@ -605,7 +602,7 @@ export function createSfxSubsystem(deps: SfxSubsystemDeps): SfxSubsystem {
   }
 
   function startSnareLoop(): void {
-    if (snareSource || disposed || paused) return;
+    if (snareSource || paused) return;
     const samples = ensureSamples();
     const sample = samples?.get("snarerl1");
     if (!sample) return;
@@ -694,23 +691,6 @@ export function createSfxSubsystem(deps: SfxSubsystemDeps): SfxSubsystem {
     }
   }
 
-  async function dispose(): Promise<void> {
-    disposed = true;
-    unbindCurrentBus();
-    if (audioContext) {
-      try {
-        await audioContext.close();
-      } catch {
-        // ignore — context may already be closed
-      }
-      audioContext = undefined;
-    }
-    buffers.clear();
-    samplesByName = undefined;
-    nextAllowedMsBySample.clear();
-    fanfarePlayedThisPhase.clear();
-  }
-
   function refreshSamples(): void {
     // Drop the parsed SOUND.RSC directory and the decoded AudioBuffer cache;
     // ensureSamples() will reparse from the current asset bytes on next play.
@@ -728,7 +708,6 @@ export function createSfxSubsystem(deps: SfxSubsystemDeps): SfxSubsystem {
     tickPresentation,
     setPaused,
     stopAll,
-    dispose,
   };
 }
 

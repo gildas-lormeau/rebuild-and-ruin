@@ -568,7 +568,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       getUpgradePick: () => upgradePick,
       scoreDelta,
       input: {
-        resetForLobby: (runtimeState) => input.resetForLobby(runtimeState),
+        resetForLobby: () => input.resetForLobby(),
       },
       stopAudio: audio.stopAll,
       hitTestGameOver: (canvasX, canvasY) => {

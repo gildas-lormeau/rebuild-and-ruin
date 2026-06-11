@@ -119,7 +119,7 @@ interface LifecycleWiringDeps {
   readonly getLifeLost: () => Pick<RuntimeLifeLost, "set">;
   readonly getUpgradePick: () => Pick<RuntimeUpgradePick, "set">;
   readonly scoreDelta: { reset: () => void };
-  readonly input: { resetForLobby: (rs: RuntimeState) => void };
+  readonly input: { resetForLobby: () => void };
   readonly stopAudio: () => void;
 
   // Game-over UI
@@ -314,8 +314,7 @@ export function buildLifecycleDeps(
     clearLobbyMap: () => {
       runtimeState.lobby.map = null;
     },
-    resetInputForLobby: () =>
-      wiringDeps.input.resetForLobby(wiringDeps.runtimeState),
+    resetInputForLobby: () => wiringDeps.input.resetForLobby(),
     stopAudio: wiringDeps.stopAudio,
 
     clearDemoTimer: () => {

@@ -47,27 +47,6 @@ export function screenToWorld(
   };
 }
 
-/** Fit a world rect into the canvas, preserving canvas aspect ratio.
- *  The resulting camera's visible area fully contains `rect` and is centered
- *  on the rect's center. Letterboxing is along whichever axis has slack.
- *  Pitch-independent because the 3D renderer's frustum compensation keeps
- *  the visible ground-Y extent equal to `rect.h` across pitch. */
-export function fitWorldRect(
-  state: CameraState,
-  rect: Viewport,
-  canvas: CanvasSize,
-): CameraState {
-  assertPitchInRange(state.pitch);
-  const zoomX = canvas.w / rect.w;
-  const zoomY = canvas.h / rect.h;
-  const zoom = Math.min(zoomX, zoomY);
-  return {
-    center: { x: rect.x + rect.w / 2, y: rect.y + rect.h / 2 },
-    zoom,
-    pitch: state.pitch,
-  };
-}
-
 export function worldToScreen(
   state: CameraState,
   canvas: CanvasSize,

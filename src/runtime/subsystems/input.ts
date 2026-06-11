@@ -204,7 +204,7 @@ type MutableTouchHandles = {
 };
 
 interface InputSystem {
-  resetForLobby(runtimeState: RuntimeState): void;
+  resetForLobby(): void;
 }
 
 export function createInputSystem(deps: InputSystemDeps): InputSystem {
@@ -250,7 +250,7 @@ export function createInputSystem(deps: InputSystemDeps): InputSystem {
     setupTouchControls(inputDeps, touch, deps);
   }
 
-  function resetForLobby(runtimeState: RuntimeState): void {
+  function resetForLobby(): void {
     runtimeState.inputTracking.mouseJoinedSlot = null;
     touch.floatingActions?.update(false, 0, 0, false, false);
     touch.dpad?.update(null);

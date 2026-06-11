@@ -68,8 +68,6 @@ export interface MusicSubsystem extends RuntimeMusic {
    *  loaded ids, so without this the old buffers play forever. Mirrors
    *  `sfx.refreshSamples`. */
   refreshBuffers(): void;
-  /** Release the bus listener and stop playback. */
-  dispose(): Promise<void>;
 }
 
 type BgTrackId = "title" | "cannon" | "build" | "score" | "lifeLost" | "jaws";
@@ -331,9 +329,8 @@ export function createMusicSubsystem(): MusicSubsystem {
   async function hydrateFanfares(ctx: AudioContext): Promise<void> {
     const fanfareAudioBySong = new Map<number, AudioBuffer>();
     for (const songIndex of PRERENDER_FANFARE_SONGS) {
-      const alreadyLoaded = [...fanfareBuffers.entries()].some(
-        ([slot, buf]) =>
-          FANFARE_SONG_BY_SLOT[slot] === songIndex && buf !== undefined,
+      const alreadyLoaded = [...fanfareBuffers.keys()].some(
+        (slot) => FANFARE_SONG_BY_SLOT[slot] === songIndex,
       );
       if (alreadyLoaded) continue;
       if (missingFanfareSongs.has(songIndex)) continue;
@@ -354,8 +351,8 @@ export function createMusicSubsystem(): MusicSubsystem {
     }
     for (let slot = 0; slot < FANFARE_SONG_BY_SLOT.length; slot += 1) {
       if (fanfareBuffers.has(slot)) continue;
-      const songIndex = FANFARE_SONG_BY_SLOT[slot] ?? FANFARE_SONG_BY_SLOT[0];
-      if (songIndex === undefined) continue;
+      // In-bounds by the loop condition — the index access can't miss.
+      const songIndex = FANFARE_SONG_BY_SLOT[slot]!;
       const buffer = fanfareAudioBySong.get(songIndex);
       if (buffer) fanfareBuffers.set(slot, buffer);
     }
@@ -673,19 +670,6 @@ export function createMusicSubsystem(): MusicSubsystem {
     }
   }
 
-  async function dispose(): Promise<void> {
-    unbindCurrentBus();
-    stopBg();
-    if (audioContext) {
-      await audioContext.close().catch(() => {});
-      audioContext = undefined;
-    }
-    bgBuffers.clear();
-    bgAudioBuffers.clear();
-    fanfareBuffers.clear();
-    activatingPromise = undefined;
-  }
-
   return {
     activate,
     startTitle: playTitle,
@@ -695,6 +679,5 @@ export function createMusicSubsystem(): MusicSubsystem {
     tickPresentation,
     setPaused,
     refreshBuffers,
-    dispose,
   };
 }

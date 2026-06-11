@@ -63,6 +63,12 @@ export function createScoreDeltaSystem(
       players,
       scoreDisplay.preScores,
     ).map((delta) => {
+      // REACHABLE null: a player queued for reselect has homeTower nulled
+      // by the life penalty's board reset but can still close the round
+      // with a positive delta (territory scored before the penalty) —
+      // seed 0 classic hits this on its first reselect. Their delta
+      // paints at the map origin; a nicer anchor (last home zone) would
+      // need state the reset already discarded.
       const homeTower = players[delta.playerId]!.homeTower;
       const px = homeTower ? towerCenterPx(homeTower) : { x: 0, y: 0 };
       return { ...delta, cx: px.x, cy: px.y - TILE_SIZE };
@@ -70,7 +76,7 @@ export function createScoreDeltaSystem(
 
     if (scoreDisplay.deltas.length > 0) {
       // Camera is already at fullMapVp — the score overlay is reached via
-      // `runTransition`, whose display chain was gated on camera convergence.
+      // `runTransition`, which snaps the camera to fullmap at dispatch.
       scoreDisplay.deltaTimer = SCORE_DELTA_DISPLAY_TIME;
       pendingDoneCb = onDone;
       emitGameEvent(runtimeState.state.bus, GAME_EVENT.SCORE_OVERLAY_START, {

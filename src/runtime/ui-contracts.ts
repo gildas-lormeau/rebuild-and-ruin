@@ -283,7 +283,7 @@ export type CreateDpadFn = (
 export type CreateZoneCycleButtonFn = (
   deps: ZoomButtonDeps,
   container: HTMLElement,
-) => { update: (active?: boolean) => void };
+) => { update: (active: boolean) => void };
 
 export type CreateFloatingActionsFn = (
   deps: FloatingActionsDeps,
@@ -293,7 +293,7 @@ export type CreateFloatingActionsFn = (
 export type CreateQuitButtonFn = (
   deps: QuitButtonDeps,
   container: HTMLElement,
-) => { update: (phase?: Phase | null) => void };
+) => { update: (phase: Phase | null) => void };
 
 export interface FloatingActionsHandle {
   /** Reposition + show/hide based on current phantom screen coords. */

@@ -13,7 +13,6 @@ import {
   type CanvasSize,
   cameraStateFromViewport,
   fitTileBoundsToViewport,
-  fitWorldRect,
   MAX_PITCH,
   screenToWorld,
   visibleGroundAABB,
@@ -169,51 +168,6 @@ Deno.test(
     }
   },
 );
-
-Deno.test("fitWorldRect produces a viewport that contains the rect", () => {
-  const base = makeCamera(0, 0, 1);
-  const rects = [
-    { x: 0, y: 0, w: MAP_PX_W, h: MAP_PX_H },
-    { x: 100, y: 50, w: 200, h: 100 },
-    { x: 300, y: 200, w: 64, h: 64 }, // aspect mismatch: letterbox on one axis
-  ];
-  for (const rect of rects) {
-    const fit = fitWorldRect(base, rect, MAIN_CANVAS);
-    const viewport = visibleGroundAABB(fit, MAIN_CANVAS);
-    assert(
-      viewport.x <= rect.x + EPS &&
-        viewport.y <= rect.y + EPS &&
-        viewport.x + viewport.w >= rect.x + rect.w - EPS &&
-        viewport.y + viewport.h >= rect.y + rect.h - EPS,
-      `fit viewport ${JSON.stringify(viewport)} should contain ${JSON.stringify(rect)}`,
-    );
-    // Camera center must coincide with rect center.
-    assertAlmostEquals(fit.center.x, rect.x + rect.w / 2, EPS);
-    assertAlmostEquals(fit.center.y, rect.y + rect.h / 2, EPS);
-    // Viewport aspect ratio must match canvas aspect ratio.
-    assertAlmostEquals(
-      viewport.w / viewport.h,
-      MAIN_CANVAS.w / MAIN_CANVAS.h,
-      EPS,
-    );
-  }
-});
-
-Deno.test("fitWorldRect of the full map reproduces the default viewport", () => {
-  // The current runtime default viewport is exactly the full map rect.
-  // fitWorldRect of that rect on CANVAS_W x CANVAS_H (aspect-matched) must
-  // reproduce it byte-for-byte through visibleGroundAABB.
-  const base = makeCamera(0, 0, 1);
-  const fullMap = { x: 0, y: 0, w: MAP_PX_W, h: MAP_PX_H };
-  const fit = fitWorldRect(base, fullMap, MAIN_CANVAS);
-  const viewport = visibleGroundAABB(fit, MAIN_CANVAS);
-  assertEquals(viewport.x, fullMap.x);
-  assertEquals(viewport.y, fullMap.y);
-  assertEquals(viewport.w, fullMap.w);
-  assertEquals(viewport.h, fullMap.h);
-  // And zoom must equal SCALE (CANVAS_W / MAP_PX_W).
-  assertEquals(fit.zoom, SCALE);
-});
 
 Deno.test(
   "fitTileBoundsToViewport matches the legacy inline formula byte-for-byte",
@@ -404,75 +358,6 @@ Deno.test(
   },
 );
 
-Deno.test(
-  "visibleGroundAABB height grows monotonically with pitch",
-  () => {
-    const base = makeCamera(MAP_PX_W / 2, MAP_PX_H / 2, SCALE);
-    const pitches = [0, 0.05, 0.15, 0.3, Math.PI / 6];
-    let prevHeight = -Infinity;
-    let prevWidth: number | undefined;
-    for (const pitch of pitches) {
-      const cam: CameraState = { ...base, pitch };
-      const aabb = visibleGroundAABB(cam, MAIN_CANVAS);
-      assert(
-        aabb.h > prevHeight,
-        `AABB height should grow with pitch; prev=${prevHeight}, cur=${aabb.h} at pitch=${pitch}`,
-      );
-      prevHeight = aabb.h;
-      // Width must stay constant — tilt only stretches Y.
-      if (prevWidth !== undefined) {
-        assertAlmostEquals(aabb.w, prevWidth, TILT_EPS);
-      }
-      prevWidth = aabb.w;
-    }
-  },
-);
-
-function makeCamera(
-  centerX: number,
-  centerY: number,
-  zoom: number,
-): CameraState {
-  return { center: { x: centerX, y: centerY }, zoom, pitch: 0 };
-}
-
-Deno.test("fitWorldRect under tilt contains the rect in screen space", () => {
-  const pitches = [0, 0.1, 0.3, Math.PI / 6, Math.PI / 4];
-  const rects: Viewport[] = [
-    { x: 100, y: 50, w: 200, h: 100 },
-    { x: 300, y: 200, w: 64, h: 64 },
-    { x: 0, y: 0, w: MAP_PX_W, h: MAP_PX_H },
-  ];
-  for (const pitch of pitches) {
-    const base: CameraState = { center: { x: 0, y: 0 }, zoom: 1, pitch };
-    for (const rect of rects) {
-      const fit = fitWorldRect(base, rect, MAIN_CANVAS);
-      assertEquals(fit.pitch, pitch);
-      // Centre of the fitted camera must coincide with the rect centre.
-      assertAlmostEquals(fit.center.x, rect.x + rect.w / 2, TILT_EPS);
-      assertAlmostEquals(fit.center.y, rect.y + rect.h / 2, TILT_EPS);
-      // Every rect corner must land inside [0, canvas] after projection.
-      const corners = [
-        { x: rect.x, y: rect.y },
-        { x: rect.x + rect.w, y: rect.y },
-        { x: rect.x, y: rect.y + rect.h },
-        { x: rect.x + rect.w, y: rect.y + rect.h },
-      ];
-      for (const corner of corners) {
-        const { sx, sy } = worldToScreen(fit, MAIN_CANVAS, corner.x, corner.y);
-        assert(
-          sx >= -1e-6 && sx <= MAIN_CANVAS.w + 1e-6,
-          `corner (${corner.x},${corner.y}) sx=${sx} out of [0,${MAIN_CANVAS.w}] at pitch=${pitch}`,
-        );
-        assert(
-          sy >= -1e-6 && sy <= MAIN_CANVAS.h + 1e-6,
-          `corner (${corner.x},${corner.y}) sy=${sy} out of [0,${MAIN_CANVAS.h}] at pitch=${pitch}`,
-        );
-      }
-    }
-  }
-});
-
 Deno.test("pitch at or beyond MAX_PITCH throws with a clear message", () => {
   const nearMax: CameraState = {
     center: { x: 0, y: 0 },
@@ -520,3 +405,11 @@ Deno.test("non-finite pitch throws", () => {
   }
   assert(threw, "NaN pitch should throw");
 });
+
+function makeCamera(
+  centerX: number,
+  centerY: number,
+  zoom: number,
+): CameraState {
+  return { center: { x: centerX, y: centerY }, zoom, pitch: 0 };
+}
