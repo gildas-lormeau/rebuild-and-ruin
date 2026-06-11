@@ -70,6 +70,7 @@
     "files": [
       "src/runtime/banner-messages.ts",
       "src/runtime/browser/dom.ts",
+      "src/runtime/camera-pitch.ts",
       "src/runtime/modifier-effects/bell-pulse.ts",
       "src/runtime/modifier-effects/ramp.ts",
       "src/runtime/modifier-effects/waved-ramp.ts",

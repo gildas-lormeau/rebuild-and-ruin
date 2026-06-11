@@ -62,6 +62,15 @@ import type { ZoneCell, ZoneId } from "../../shared/core/zone-id.ts";
 import type { RenderOverlay } from "../../shared/ui/overlay-types.ts";
 import { isInteractiveMode, Mode } from "../../shared/ui/ui-mode.ts";
 import {
+  createPitchAnim,
+  easeOutCubic,
+  isPitchSettled,
+  type PitchState,
+  resetPitchAnim,
+  setPitchTarget as setPitchAnimTarget,
+  tickPitchAnim,
+} from "../camera-pitch.ts";
+import {
   cameraStateFromViewport,
   fitTileBoundsToViewport,
   screenToWorld as projectScreenToWorld,
@@ -102,7 +111,7 @@ export interface RuntimeCamera {
    *  resting states; `"tilting"` / `"untilting"` indicate an in-progress
    *  ease. Callers that want the settle edge as a one-shot continuation
    *  (not the polled state) use the internal `awaitPitchSettled` instead. */
-  getPitchState: () => "flat" | "tilting" | "tilted" | "untilting";
+  getPitchState: () => PitchState;
   screenToWorld: (x: number, y: number) => WorldPos;
   /** Like `screenToWorld` but returns the world position of the first
    *  elevated-geometry hit under battle tilt (walls/towers/etc). At
@@ -218,24 +227,11 @@ interface CameraDeps {
   ) => { wx: number; wy: number };
 }
 
-/** Camera pitch state machine.
- *  - `flat`: settled at pitch 0 (build / select / lobby / upgrade-pick).
- *  - `tilting`: easing from flat → battle (or from interrupted untilt back up).
- *  - `tilted`: settled at the battle 3/4 view pitch.
- *  - `untilting`: easing battle → flat (or from an interrupted tilt back down).
- *
- *  Call sites that need the settle edge as a one-shot continuation
- *  park a callback via `awaitPitchSettled(cb)`. Call sites that already
- *  poll per tick (phase-ticks' untilt wait) read `getPitchState()`. */
-type PitchState = "flat" | "tilting" | "tilted" | "untilting";
-
 const CANVAS_SIZE = { w: CANVAS_W, h: CANVAS_H } as const;
 /** Target pitch when entering battle: 30° classic isometric / Rampart 3/4
  *  view. Single source in shared/core so the sim's aim-occlusion snap reads
  *  the same settled value (see `BATTLE_TILT_PITCH_RAD`). */
 const TILT_BATTLE_PITCH = BATTLE_TILT_PITCH_RAD;
-/** Pitch animation duration (seconds). CSS `transition: Xms ease-out` equivalent. */
-const PITCH_DURATION = 0.6;
 
 export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
   // --- Internal state ---
@@ -329,42 +325,20 @@ export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
   const currentVp: Viewport = { ...fullMapVp };
   let lastVp: Viewport | undefined;
 
-  // Tilt-settle choreography — parked callback fired when `tickPitch`
-  // finishes the in-flight animation. Parked via `awaitPitchSettled`;
-  // the phase machine uses it to gate balloon-anim / battle-mode entry
-  // behind the build→battle tilt-in.
-  let pendingPitchSettled: (() => void) | undefined;
-
-  // Pitch animation — targetPitch is re-set on phase-enter (see
-  // handlePhaseChangeZoom); currentPitch eases toward target each tick
-  // in tickCamera.
+  // Pitch animation state machine — extracted to `camera-pitch.ts`
+  // (target is re-set on phase-enter via handlePhaseChangeZoom; `current`
+  // eases toward it each tick in tickCamera).
   // TODO(step-6): loupe (render-loupe.ts) and auto-zoom fit
   // (fitTileBoundsToViewport) are pitch-agnostic; under tilt the loupe
   // crop and zone fit are slightly off. Cosmetic at 30°; fix in step 6.
-  let currentPitch = 0;
-  let targetPitch = 0;
-  let pitchAnimFrom = 0;
-  let pitchAnimElapsed = PITCH_DURATION;
-  let pitchState: PitchState = "flat";
+  const pitch = createPitchAnim();
 
-  function setPitchTarget(next: number): void {
-    if (next === targetPitch) return;
-    pitchAnimFrom = currentPitch;
-    targetPitch = next;
-    pitchAnimElapsed = 0;
-    // Entering an animation: `tilting` if the new target is non-zero,
-    // `untilting` otherwise. Covers mid-anim reversals too (e.g. a
-    // paused battle-enter that gets undone before the animation
-    // settles) since direction is derived from the target, not the
-    // prior state.
-    pitchState = next > 0 ? "tilting" : "untilting";
-  }
-
-  function firePitchSettled(): void {
-    const callback = pendingPitchSettled;
-    pendingPitchSettled = undefined;
-    callback?.();
-  }
+  // Tilt-settle choreography — parked callback fired off `tickPitchAnim`'s
+  // settle edge. Parked via `awaitPitchSettled`; the phase machine uses it
+  // to gate balloon-anim / battle-mode entry behind the build→battle
+  // tilt-in. Lives here (not on PitchAnim) so the low-layer primitive
+  // never stores a subsystem closure.
+  let pendingPitchSettled: (() => void) | undefined;
 
   // --- Target accessors ---
 
@@ -824,28 +798,11 @@ export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
     }
   }
 
-  /** Ease currentPitch toward targetPitch each frame. `awaitPitchSettled`
-   *  fires synchronously when pitch is already settled, so callers don't need
-   *  to pre-check. */
   function tickPitch(): void {
-    if (pitchAnimElapsed >= PITCH_DURATION) {
-      if (currentPitch !== targetPitch) currentPitch = targetPitch;
-      return;
-    }
-    const dt = deps.getFrameDt();
-    if (dt <= 0) return;
-    pitchAnimElapsed = Math.min(PITCH_DURATION, pitchAnimElapsed + dt);
-    const t = pitchAnimElapsed / PITCH_DURATION;
-    const eased = easeOutCubic(t);
-    currentPitch = pitchAnimFrom + (targetPitch - pitchAnimFrom) * eased;
-    // Settle on the tick that crosses the duration boundary. We only
-    // fire the event here (not in the `>= PITCH_DURATION` early-exit
-    // above) so it triggers exactly once per animation, not on every
-    // idle frame that follows.
-    if (pitchAnimElapsed >= PITCH_DURATION) {
-      currentPitch = targetPitch;
-      pitchState = targetPitch > 0 ? "tilted" : "flat";
-      firePitchSettled();
+    if (tickPitchAnim(pitch, deps.getFrameDt())) {
+      const callback = pendingPitchSettled;
+      pendingPitchSettled = undefined;
+      callback?.();
     }
   }
 
@@ -1055,7 +1012,7 @@ export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
   function screenToWorld(x: number, y: number): WorldPos {
     const viewport = getViewport();
     if (!viewport) return { wx: x / SCALE, wy: y / SCALE };
-    const state = cameraStateFromViewport(viewport, CANVAS_SIZE, currentPitch);
+    const state = cameraStateFromViewport(viewport, CANVAS_SIZE, pitch.current);
     const { x: wx, y: wy } = projectScreenToWorld(state, CANVAS_SIZE, x, y);
     return { wx, wy };
   }
@@ -1064,7 +1021,7 @@ export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
   function worldToScreen(wx: number, wy: number): { sx: number; sy: number } {
     const viewport = getViewport();
     if (!viewport) return { sx: wx * SCALE, sy: wy * SCALE };
-    const state = cameraStateFromViewport(viewport, CANVAS_SIZE, currentPitch);
+    const state = cameraStateFromViewport(viewport, CANVAS_SIZE, pitch.current);
     return projectWorldToScreen(state, CANVAS_SIZE, wx, wy);
   }
 
@@ -1086,14 +1043,14 @@ export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
    *  lands on the object the user sees. */
   function pickHitWorld(x: number, y: number): WorldPos {
     const ground = screenToWorld(x, y);
-    if (currentPitch <= 0 || !deps.pickElevatedHit) return ground;
+    if (pitch.current <= 0 || !deps.pickElevatedHit) return ground;
     const state = deps.getState();
     if (!state) return ground;
     const overlay = deps.getOverlay?.();
     const hit = deps.pickElevatedHit(
       ground.wx,
       ground.wy,
-      currentPitch,
+      pitch.current,
       overlay,
       state.map,
     );
@@ -1264,8 +1221,7 @@ export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
    *  would defer to a microtask the runtime can't schedule, breaking
    *  mock-clock determinism. */
   function awaitPitchSettled(callback: () => void): void {
-    const state = getPitchState();
-    if (state === "flat" || state === "tilted") {
+    if (isPitchSettled(pitch)) {
       callback();
       return;
     }
@@ -1276,7 +1232,7 @@ export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
    *  (game-over / quit-to-lobby) and `resetCamera` (rematch bootstrap). The
    *  goal is "no field can leak across game boundaries". The platform flag
    *  (`mobileZoomEnabled`) survives because it reflects the device, not the
-   *  session. The rendered-frame state (`currentVp`, `currentPitch`) also
+   *  session. The rendered-frame state (`currentVp`, `pitch.current`) also
    *  survives because clearing it on quit would jump-cut the visible
    *  viewport mid-transition; on rematch we want the snap, so
    *  `resetCamera` does it explicitly. */
@@ -1311,18 +1267,14 @@ export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
     // `getViewport()` reports a fullmap-equal viewport (instead of the
     // "at full map" undefined) until the first updateViewport tick.
     lastVp = undefined;
-    currentPitch = 0;
-    targetPitch = 0;
-    pitchAnimFrom = 0;
-    pitchAnimElapsed = PITCH_DURATION;
-    pitchState = "flat";
+    resetPitchAnim(pitch);
   }
 
   /** Request an immediate untilt. Idempotent. Standalone path for the
    *  rare "flatten pitch but keep zoom" case; the transition path goes
    *  through `unzoomForOverlays` (flattens pitch + clears viewport). */
   function beginUntilt(): void {
-    setPitchTarget(0);
+    setPitchAnimTarget(pitch, 0);
   }
 
   /** Start the build→battle tilt. Called explicitly from the phase
@@ -1330,14 +1282,14 @@ export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
    *  tilt animation plays with the camera already at fullMapVp,
    *  BEFORE balloons / "ready" / auto-zoom into the battle zone. */
   function beginTilt(): void {
-    setPitchTarget(TILT_BATTLE_PITCH);
+    setPitchAnimTarget(pitch, TILT_BATTLE_PITCH);
   }
 
   /** Current pitch state machine value. Sites that need the settle edge as a
    *  one-shot continuation use `awaitPitchSettled` instead — this getter is
    *  for call sites that already poll per tick. */
   function getPitchState(): PitchState {
-    return pitchState;
+    return pitch.state;
   }
 
   function setCameraZone(zone: ZoneId): void {
@@ -1435,7 +1387,7 @@ export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
     tickCamera,
     updateViewport,
     getViewport,
-    getPitch: () => currentPitch,
+    getPitch: () => pitch.current,
     getPitchMax: () => TILT_BATTLE_PITCH,
     beginUntilt,
     beginTilt,
@@ -1517,13 +1469,6 @@ function zoneAtPixel(map: GameMap, px: number, py: number): ZoneId | undefined {
     return undefined;
   }
   return zoneAt(map, row, col);
-}
-
-/** Cubic ease-out. Written as repeated multiplication (not `**`) so the
- *  float results stay bit-identical with the historical inline forms —
- *  `tickPitch`'s settle frame feeds the battle-done dispatch gate. */
-function easeOutCubic(t: number): number {
-  return 1 - (1 - t) * (1 - t) * (1 - t);
 }
 
 /** Pull a world point inside a viewport's inset comfort rect: returns the

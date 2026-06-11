@@ -56,6 +56,7 @@ const ALLOWED_RUNTIME_BASENAMES = new Set([
   "battle-anim.ts", // pure battle-event-to-render-anim translation, consumed by subsystems/phase-ticks
   "banner-messages.ts", // phase transition banner string constants
   "camera-projection.ts", // pure camera-projection math, consumed by subsystems/camera
+  "camera-pitch.ts", // pitch (battle-tilt) state machine primitives, consumed by subsystems/camera
   "timer-accums.ts", // pure phase-timer accumulator helpers, consumed by subsystems/phase-ticks + selection
 ]);
 /** Sub-folders inside `runtime/` containing primitives/clusters that
