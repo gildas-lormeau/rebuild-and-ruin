@@ -87,7 +87,6 @@ export function createDefaultAiBrain(): AiBrain {
       setOrbitAngle: (angle) => {
         battlePhase.orbitAngle = angle;
       },
-      getCrosshairTarget: () => battlePhase.crosshairTarget,
     },
     chooseLifeLost: aiChooseLifeLost,
     tickUpgradePick: tickAiUpgradePickEntry,

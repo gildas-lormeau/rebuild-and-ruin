@@ -180,6 +180,9 @@ export interface BattleHost {
   readonly playerId: ValidPlayerId;
   readonly strategy: AiStrategy;
   crosshair: PixelPos;
+  /** When true, the battle brain keeps aiming (think/pick/move/dwell) while
+   *  every cannon reloads — like a human, who can move the crosshair freely
+   *  during reload — instead of freezing until one is ready. */
   readonly anticipatesTarget: boolean;
   scaledDelay(base: number, spread: number): number;
   stepCrosshairToward(tx: PixelPos["x"], ty: PixelPos["y"]): boolean;

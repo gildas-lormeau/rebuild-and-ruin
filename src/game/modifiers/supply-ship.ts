@@ -242,7 +242,7 @@ export function supplyShipBuildTimerBonus(state: GameState): number {
  *
  *  Pool priority (highest first):
  *    1. ships already engaged by one of my in-flight cannonballs — the
- *       AI's `anticipatesTarget` pre-pick runs immediately after firing,
+ *       AI re-picks a think-delay (~0.1–0.3s) after firing, usually well
  *       before the previous ball has landed, so `ship.hp` hasn't
  *       decremented yet. Without this engagement signal the AI scatters
  *       shots across all three ships and never lands the two-hit combo

@@ -163,7 +163,6 @@
         { "file": "src/shared/core/system-interfaces.ts", "interface": "UpgradePickController" },
         { "file": "src/shared/core/system-interfaces.ts", "interface": "LifeLostController" },
         { "file": "src/shared/core/system-interfaces.ts", "interface": "InputReceiver" },
-        { "file": "src/shared/core/system-interfaces.ts", "interface": "AiAnimatable" },
         { "file": "src/shared/core/system-interfaces.ts", "interface": "HapticsObserver" }
       ]
     }

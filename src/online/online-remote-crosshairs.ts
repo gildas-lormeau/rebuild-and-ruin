@@ -1,16 +1,15 @@
 /**
  * Remote-crosshair handling — host broadcasts the local controller's crosshair
- * (deduped); host and watcher merge interpolated remote crosshairs into the
- * frame. Remotes lerp toward the latest received target to mask dedup-cadence
- * staleness; local AI wobble comes from `getCrosshair()` and is not on the
- * wire. Crosshairs are the only remote-driven entity needing client-side
+ * (deduped, pixel-rounded); host and watcher merge interpolated remote
+ * crosshairs into the frame. Human and AI crosshairs ride the same channel:
+ * remotes lerp toward the latest received position to mask dedup-cadence
+ * staleness. Crosshairs are the only remote-driven entity needing client-side
  * smoothing — phantoms swap discretely, cannonballs are deterministic.
  */
 
 import { canPlayerFire, nextReadyCannon } from "../game/index.ts";
 import { type GameMessage, MESSAGE } from "../protocol/protocol.ts";
 import type { Crosshair } from "../shared/core/battle-types.ts";
-import { isAiAnimatable } from "../shared/core/controller-guards.ts";
 import { CROSSHAIR_SPEED } from "../shared/core/game-constants.ts";
 import type { PixelPos } from "../shared/core/geometry-types.ts";
 import type { DedupChannel } from "../shared/core/phantom-types.ts";
@@ -49,15 +48,13 @@ export function broadcastLocalCrosshair(
   ch: { x: number; y: number },
   deps: BroadcastDeps,
 ): void {
-  const target =
-    (isAiAnimatable(ctrl) ? ctrl.getCrosshairTarget() : null) ?? ch;
-  const key = formatAimDedupKey(target.x, target.y);
+  const key = formatAimDedupKey(ch.x, ch.y);
   if (!deps.lastSentAimTarget.shouldSend(ctrl.playerId, key)) return;
   deps.send({
     type: MESSAGE.AIM_UPDATE,
     playerId: ctrl.playerId,
-    x: target.x,
-    y: target.y,
+    x: ch.x,
+    y: ch.y,
   });
 }
 

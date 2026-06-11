@@ -29,7 +29,6 @@ import type {
 } from "../shared/core/geometry-types.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import {
-  type AiAnimatable,
   type BattleViewState,
   type BuildViewState,
   type CannonPlacementPreview,
@@ -65,7 +64,7 @@ const _assertAiControllerSatisfiesAllHosts = (
   controller: AiController,
 ): AllAiPhaseHosts => controller;
 
-export class AiController extends BaseController implements AiAnimatable {
+export class AiController extends BaseController {
   override readonly kind: "ai" | "human" = "ai";
   /** Pluggable AI strategy (decision-making). */
   readonly strategy: AiStrategy;
@@ -102,14 +101,6 @@ export class AiController extends BaseController implements AiAnimatable {
    *  crosshair instantly. The brain stores the result as its aim target. */
   override aim(state: BattleViewState, x: number, y: number): WorldPos {
     return this.aimResolver(state, x, y);
-  }
-
-  // -----------------------------------------------------------------------
-  // AiAnimatable interface
-  // -----------------------------------------------------------------------
-
-  getCrosshairTarget(): PixelPos | null {
-    return this.brain.battle.getCrosshairTarget();
   }
 
   /** When true, castle rects hug the river bank (plug approach).
@@ -152,7 +143,7 @@ export class AiController extends BaseController implements AiAnimatable {
     return this.strategy.cursorSkill === 1 ? Infinity : 0;
   }
 
-  /** Whether the AI pre-picks next target while firing (cursorSkill >= 2). */
+  /** Whether the AI keeps aiming while every cannon reloads (cursorSkill >= 2). */
   get anticipatesTarget(): boolean {
     return this.strategy.cursorSkill >= 2;
   }

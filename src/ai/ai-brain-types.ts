@@ -6,7 +6,6 @@
  * with the default one without touching the controller.
  */
 
-import type { PixelPos } from "../shared/core/geometry-types.ts";
 import type {
   BattleViewState,
   BuildViewState,
@@ -93,8 +92,6 @@ interface AiBrainBattle {
   /** Seed the pre-battle orbit angle — called by the controller from
    *  `onResetBattle` so each battle re-rolls a fresh orbit from `strategy.rng`. */
   setOrbitAngle(angle: number): void;
-  /** Latest crosshair target for `AiAnimatable.getCrosshairTarget()`. */
-  getCrosshairTarget(): PixelPos | null;
 }
 
 export interface AiBrain {

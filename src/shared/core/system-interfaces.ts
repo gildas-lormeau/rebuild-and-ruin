@@ -20,7 +20,6 @@ import type { Phase } from "./game-phase.ts";
 import type {
   BonusSquare,
   GameMap,
-  PixelPos,
   TilePos,
   WorldPos,
 } from "./geometry-types.ts";
@@ -160,7 +159,7 @@ export type CannonPlacementPreview = CannonPhantom;
 /** Identity, lifecycle, and cursor centering — the minimal slice every consumer needs. */
 export interface ControllerIdentity {
   readonly playerId: ValidPlayerId;
-  /** Discriminant for isHuman/isAiAnimatable type guards (string union, not enum — only two values). */
+  /** Discriminant for the isHuman type guard (string union, not enum — only two values). */
   readonly kind: "human" | "ai";
 
   /** Update key bindings (no-op for AI). */
@@ -499,12 +498,6 @@ export interface InputReceiver {
   cycleCannonMode(state: CannonViewState, maxSlots: number): void;
 
   getCannonPlaceMode(): CannonMode;
-}
-
-/** AI rendering queries — returns null in BaseController, overridden by AiController. */
-export interface AiAnimatable {
-  /** AI's current crosshair target (null for human — driven by mouse/keyboard). */
-  getCrosshairTarget(): PixelPos | null;
 }
 
 /** Reason a haptic call was made — lets the observer (and future debug

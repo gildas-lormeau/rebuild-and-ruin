@@ -6,7 +6,7 @@
  * readable and testable.
  */
 
-import { nextReadyCannon } from "../game/index.ts";
+import { canPlayerFire, nextReadyCannon } from "../game/index.ts";
 import { SIM_TICK_DT } from "../shared/core/game-constants.ts";
 import type { TilePos } from "../shared/core/geometry-types.ts";
 import { packTile, pxToTile, tileCenterPx } from "../shared/core/spatial.ts";
@@ -165,7 +165,17 @@ export function tickBattle(
   phase: BattlePhase,
   state: BattleViewState,
 ): BattleTickResult {
-  if (!nextReadyCannon(state, host.playerId)) return {};
+  // No ready cannon: freeze the brain until one reloads — except for
+  // anticipatesTarget AIs, which keep aiming through the reload (the dwell
+  // states' CANNON_RETRY_WAIT fires the moment a cannon comes back).
+  // `canPlayerFire` still freezes them once truly disarmed (every cannon
+  // dead and the last ball landed), so a cannonless brain can't spin.
+  if (
+    !nextReadyCannon(state, host.playerId) &&
+    !(host.anticipatesTarget && canPlayerFire(state, host.playerId))
+  ) {
+    return {};
+  }
 
   // Cannon barrels follow the crosshair cosmetically (computed by the
   // cannon-animator from `host.crosshair`), so the brain only steers the
@@ -215,11 +225,7 @@ export function tickBattle(
       }
       return {};
     case STEP.PICKING:
-      // Keep a staged target (completeStandardFire's anticipatesTarget
-      // pre-pick, or the countdown pick) — only pick fresh when none is set.
-      if (!phase.crosshairTarget) {
-        phase.crosshairTarget = pickAndSnap(host, phase, state);
-      }
+      phase.crosshairTarget = pickAndSnap(host, phase, state);
       phase.state = { step: STEP.MOVING };
       return {};
     case STEP.MOVING:
@@ -254,11 +260,10 @@ export function tickBattle(
 
 /** Apply the controller's fire-commit result to the brain's
  *  CHAIN_DWELLING or DWELLING state. On success: trackShot + advance
- *  (chain → next target / end-of-chain pivot, standard → next pick /
- *  pre-pick when `anticipatesTarget`). On failure: hold the dwell with
- *  CANNON_RETRY_WAIT so the same aim is retried once a cannon is
- *  ready. Phase.state.step (preserved across the commit) discriminates
- *  the two paths. */
+ *  (chain → next target / end-of-chain pivot, standard → think then
+ *  pick fresh). On failure: hold the dwell with CANNON_RETRY_WAIT so
+ *  the same aim is retried once a cannon is ready. Phase.state.step
+ *  (preserved across the commit) discriminates the two paths. */
 export function onBattleFireResult(
   host: BattleHost,
   phase: BattlePhase,
@@ -515,7 +520,7 @@ function recordTactic(
 /** Standard fire: dwell on target then produce a fire intent at the
  *  current crosshair. Brain holds DWELLING until the controller reports
  *  the commit result via `onBattleFireResult` — `trackShot` and the
- *  post-fire `pickTarget` only run after a successful commit.
+ *  post-fire think only run after a successful commit.
  *  CANNON_RETRY_WAIT semantics for "no cannon ready" survive moving the
  *  commit out of the brain. */
 function tickDwelling(
@@ -536,8 +541,8 @@ function tickDwelling(
   const origin: FireOrigin =
     host.strategy.focusFirePlayerId !== undefined ? "focus_fire" : "default";
   // pickPath is the sub-branch of pickTarget that produced the tile we're
-  // firing at — still on crosshairTarget here (overwritten only later in
-  // completeStandardFire's anticipatesTarget pre-pick).
+  // firing at — still on crosshairTarget here (nulled only after the
+  // commit resolves in completeStandardFire).
   return {
     commit: intent,
     origin,
@@ -559,22 +564,14 @@ function completeStandardFire(
     return;
   }
   host.strategy.trackShot(state, host.playerId, host.crosshair);
-  // Random thinking delay before picking next target
-  const thinkTime = host.scaledDelay(
-    POST_FIRE_THINK_SEC,
-    POST_FIRE_THINK_SPREAD_SEC,
-  );
-  if (host.anticipatesTarget) {
-    // Pre-pick the next target so the barrel tracks it during THINKING and
-    // the crosshair heads straight for it when the think delay expires.
-    // PICKING keeps this staged pick instead of re-rolling (re-picking there
-    // discarded the pre-pick, doubled the RNG draws per shot, and left
-    // `targetMemory` anchored to a wall that was never fired at).
-    phase.crosshairTarget = pickAndSnap(host, phase, state);
-  } else {
-    phase.crosshairTarget = null;
-  }
-  phase.state = { step: STEP.THINKING, timer: thinkTime };
+  // Random thinking delay before picking next target. The pick itself
+  // happens in PICKING, after the delay — against the board as it is
+  // then, not as it was at fire time.
+  phase.crosshairTarget = null;
+  phase.state = {
+    step: STEP.THINKING,
+    timer: host.scaledDelay(POST_FIRE_THINK_SEC, POST_FIRE_THINK_SPREAD_SEC),
+  };
 }
 
 /** Pick a standard target, record the pre-occlusion tile on `phase` (diag), and
