@@ -38,6 +38,7 @@ import {
   runNetworkedToEnd,
 } from "./network-setup.ts";
 import { DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS } from "../src/shared/core/action-schedule.ts";
+import { GAME_EVENT } from "../src/shared/core/game-event-bus.ts";
 import { Mode } from "../src/shared/ui/ui-mode.ts";
 import { Phase } from "../src/shared/core/game-phase.ts";
 import { PLAYER_NAMES } from "../src/shared/ui/player-config.ts";
@@ -595,5 +596,72 @@ Deno.test(
         `not revert toward its local accumulator value (${watcherLocalTimer.toFixed(2)}); ` +
         `got ${watcher.state.timer.toFixed(2)}`,
     );
+  },
+);
+
+// ── FULL_STATE mid-score-overlay must not double-fire the display chain ──
+// At host migration every surviving peer adopts the new host's FULL_STATE
+// (phase WALL_BUILD, timer 0 when the old host died inside a round-end
+// display) and re-dispatches `round-end` on its next tick. When the apply
+// lands while the peer's OWN score overlay is still ticking, the re-run's
+// `scoreDelta.show()` must REPLACE the in-flight overlay (banner-style):
+// keeping the stale continuation armed fires BOTH display chains — the
+// stale one then routes `advance-to-cannon` from the phase the fresh chain
+// already advanced, and the phase machine's source-phase guard throws.
+Deno.test(
+  "running watcher adopting FULL_STATE mid-score-overlay does not double-fire the display chain",
+  async () => {
+    const { host, watcher, pump } = await createNetworkedPair({
+      seed: 42,
+      mode: "classic",
+      rounds: 3,
+    });
+
+    let overlayActive = false;
+    watcher.bus.on(GAME_EVENT.SCORE_OVERLAY_START, () => {
+      overlayActive = true;
+    });
+    watcher.bus.on(GAME_EVENT.SCORE_OVERLAY_END, () => {
+      overlayActive = false;
+    });
+
+    // Run the pair in lockstep until the watcher sits mid score-overlay
+    // (round-end display). The host is at the same lockstep moment, so its
+    // state is the mid-overlay WALL_BUILD snapshot a freshly promoted host
+    // would broadcast.
+    let steps = 0;
+    while (!overlayActive) {
+      host.tick(1);
+      watcher.tick(1);
+      await pump();
+      if (++steps > 60_000) {
+        throw new Error("watcher never reached a score overlay");
+      }
+    }
+    assertEquals(
+      watcher.state.phase,
+      Phase.WALL_BUILD,
+      "precondition: round-end displays with the phase still at WALL_BUILD",
+    );
+
+    // Migration-style apply landing mid-overlay.
+    await watcher.deliverMessage(
+      createFullStateMessage(host.state, 1) as ServerMessage,
+    );
+
+    // The watcher re-runs round-end from the restored snapshot. Tick it
+    // alone (the experiment forks it from the host) through the replacement
+    // overlay and the life-lost step; a stale second continuation throws
+    // the source-phase guard inside tick().
+    let ticks = 0;
+    while (watcher.state.phase === Phase.WALL_BUILD) {
+      watcher.tick(1);
+      if (++ticks > 60_000) {
+        throw new Error("watcher never advanced past WALL_BUILD");
+      }
+    }
+    // Run well past the original overlay's expiry so a stale continuation
+    // (which fires when the OLD deltaTimer drains) gets its chance to blow.
+    watcher.tick(1_200);
   },
 );

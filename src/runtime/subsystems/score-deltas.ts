@@ -27,7 +27,9 @@ export interface RuntimeScoreDelta {
    *  that mutate locally. */
   setPreScores: (scores: readonly number[]) => void;
   /** Show animated score deltas. `onDone` fires once when animation finishes
-   *  (or immediately if no positive deltas exist). */
+   *  (or immediately if no positive deltas exist). Calling while an overlay
+   *  is active REPLACES it — the previous `onDone` is dropped, banner-style
+   *  (a FULL_STATE apply mid-overlay re-dispatches round-end). */
   show: (onDone: () => void) => void;
   /** Tick the display timer (called every frame from mainLoop). */
   tick: (dt: number) => void;
@@ -53,11 +55,15 @@ export function createScoreDeltaSystem(
 
   function show(onDone: () => void): void {
     const scoreDisplay = runtimeState.scoreDisplay;
-    // Guard: prevent re-entrancy (onDone callbacks must not restart the display)
-    if (scoreDisplay.deltaTimer > 0) {
-      onDone();
-      return;
-    }
+    // Replace semantics (mirrors showBanner): a second show() while the
+    // overlay is still ticking — a FULL_STATE apply landing mid-overlay
+    // makes this peer re-dispatch round-end — drops the stale chain's
+    // continuation and restarts the overlay for the new chain. Letting
+    // both continuations fire routes postDisplay twice; the stale one
+    // then dispatches from a phase the fresh chain already advanced
+    // (source-phase guard throw — see the mid-score-overlay test in
+    // test/network-vs-local.test.ts).
+    pendingDoneCb = undefined;
     const players = runtimeState.state.players;
     scoreDisplay.deltas = computeScoreDeltas(
       players,
@@ -83,6 +89,10 @@ export function createScoreDeltaSystem(
         round: runtimeState.state.round,
       });
     } else {
+      // Also kills a replaced overlay's leftover timer — without this an
+      // empty re-show would leave the old timer draining toward an
+      // orphaned SCORE_OVERLAY_END.
+      scoreDisplay.deltaTimer = 0;
       onDone();
     }
   }
@@ -90,8 +100,8 @@ export function createScoreDeltaSystem(
   /** Tick the score delta display timer (mode-independent — counts during banner/castle-build).
    *  Lifecycle: show() sets deltas+timer+onDone → this ticks down →
    *  clears deltas and fires onDone exactly once when the timer expires.
-   *  Re-entrancy: onDone must NOT call show() — that would restart
-   *  the timer and create an infinite display loop. */
+   *  Re-entrancy: onDone must NOT call show() — each call would restart
+   *  the overlay and the display would never end. */
   function tick(dt: number): void {
     const scoreDisplay = runtimeState.scoreDisplay;
     if (scoreDisplay.deltaTimer <= 0) return;
