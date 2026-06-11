@@ -1307,6 +1307,10 @@ export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
     currentVp.y = fullMapVp.y;
     currentVp.w = fullMapVp.w;
     currentVp.h = fullMapVp.h;
+    // `lastVp` aliases `currentVp` while zoomed; without this,
+    // `getViewport()` reports a fullmap-equal viewport (instead of the
+    // "at full map" undefined) until the first updateViewport tick.
+    lastVp = undefined;
     currentPitch = 0;
     targetPitch = 0;
     pitchAnimFrom = 0;
