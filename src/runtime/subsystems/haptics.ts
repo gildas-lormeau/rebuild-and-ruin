@@ -46,7 +46,7 @@ interface HapticsSubsystem {
 // floor — from the pulses used in progressier's public vibration demo and
 // confirmed in /haptics-test.html — is 100–150ms; anything shorter fires
 // the API but typically isn't felt.
-const HAPTIC_TAP_MS = 50;
+const HAPTIC_TAP_MS = 100;
 const HAPTIC_WALL_HIT_MS = 200;
 const HAPTIC_PHASE_CHANGE_MS = 250;
 const HAPTIC_CANNON_DAMAGED_MS = 300;
