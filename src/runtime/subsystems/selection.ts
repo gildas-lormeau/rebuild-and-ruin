@@ -194,6 +194,14 @@ export function createSelectionSystem(
 
     syncSelectionOverlay();
     resetAccum(runtimeState.accum, ACCUM_SELECT);
+    // Arm the announcement stage by cycle type (see tickSelection's
+    // two-stage timer): the BANNER_SELECT window plays only at game
+    // start; reselect cycles (round > 1) skip straight to the countdown.
+    // Armed explicitly on every entry so the skip never depends on the
+    // accumulator happening to retain its game-start value across rounds
+    // and FULL_STATE applies.
+    (runtimeState.accum as MutableAccums).selectAnnouncement =
+      state.round > 1 ? SELECT_ANNOUNCEMENT_DURATION : 0;
   }
 
   function syncSelectionOverlay(): void {
@@ -348,7 +356,10 @@ export function createSelectionSystem(
     // countdown) → selection countdown. Phase A holds `state.timer` at 0
     // so the UI shows the banner instead of a counter; Phase B drives the
     // standard `timer = SELECT_TIMER - elapsed` countdown via the shared
-    // helper that every other phase tick uses.
+    // helper that every other phase tick uses. Whether phase A runs at
+    // all is decided at entry: `enterTowerSelection` arms
+    // `selectAnnouncement` at 0 for the game-start cycle and at
+    // SELECT_ANNOUNCEMENT_DURATION (already consumed) for reselects.
     if (accum.selectAnnouncement < SELECT_ANNOUNCEMENT_DURATION) {
       (accum as MutableAccums).selectAnnouncement += dt;
       runtimeState.frame.announcement = BANNER_SELECT;

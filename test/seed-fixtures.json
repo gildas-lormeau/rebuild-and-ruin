@@ -14,6 +14,7 @@
   "modifier:sinkhole_then_high_tide": 6,
   "modifier:supply_ship": 0,
   "modifier:wildfire": 0,
+  "selection:reselect-cycle": 0,
   "upgrade:architect": 1,
   "upgrade:ceasefire": 1,
   "upgrade:clear_the_field": 1,

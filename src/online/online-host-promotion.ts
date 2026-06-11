@@ -132,9 +132,8 @@ export function skipCastleBuildAnimation(state: GameState): void {
  *    restarts its grunt cadence while the others' grunts step on
  *    schedule — board divergence within the build phase.
  *  - `selectAnnouncement`: consumed-flag for the game-start BANNER_SELECT
- *    window. Reselect cycles skip the announcement ONLY because this
- *    accum is never reset after game start (see `tickSelection`);
- *    zeroing it replays the announcement on one peer, gating its
+ *    window, armed by cycle type in `enterTowerSelection`; zeroing it
+ *    mid-cycle replays the announcement on one peer, gating its
  *    selection ticks a full window behind every other peer.
  */
 export function syncAccumulatorsFromTimer(

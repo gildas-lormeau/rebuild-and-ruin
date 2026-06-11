@@ -1,6 +1,7 @@
 import { assert, assertEquals, assertGreater } from "@std/assert";
 import {
   createScenario,
+  loadSeed,
   pressKeyAndSettle,
   settleLobbyExit,
   waitForModifier,
@@ -653,3 +654,35 @@ Deno.test(
     );
   },
 );
+
+Deno.test("scenario: select announcement plays at game start and is skipped on reselect", async () => {
+  const sc = await loadSeed("selection:reselect-cycle");
+
+  // Game-start cycle: the BANNER_SELECT announcement window holds the
+  // phase timer at 0 before the countdown starts (tickSelection stage A).
+  assertEquals(sc.state.phase, Phase.CASTLE_SELECT);
+  assertEquals(sc.state.round, 1);
+  sc.tick(2);
+  assertEquals(
+    sc.state.timer,
+    0,
+    "game-start selection holds the timer at 0 during the announcement window",
+  );
+
+  // Reach a reselect cycle: a player lost a life (CONTINUE) and re-picks
+  // a castle at round > 1 — the seed condition guarantees one occurs.
+  sc.runUntil(
+    () => sc.state.phase === Phase.CASTLE_SELECT && sc.state.round > 1,
+    { timeoutMs: 1_200_000 },
+  );
+  // The countdown must start immediately: reselect cycles skip the
+  // announcement (armed consumed at entry). A replayed announcement
+  // would hold the timer at 0 for a full window, offsetting this peer's
+  // selection ticks from every other peer online.
+  sc.tick(2);
+  assertGreater(
+    sc.state.timer,
+    0,
+    "reselect skips the announcement; the selection countdown starts immediately",
+  );
+});

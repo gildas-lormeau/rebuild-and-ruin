@@ -102,6 +102,16 @@ export const SEED_CONDITIONS: Readonly<Record<string, SeedCondition>> = {
     rounds: DEFAULT_ROUNDS,
     match: (sc) => latchRubbleClearingWithEntities(sc),
   },
+  // A reselect cycle: some player lost a life (chose CONTINUE) and is
+  // re-picking a castle mid-game. Pins selection-entry behavior that
+  // differs from the game-start cycle (the BANNER_SELECT announcement
+  // window plays only at game start).
+  "selection:reselect-cycle": {
+    mode: "classic",
+    rounds: DEFAULT_ROUNDS,
+    match: (sc) => () =>
+      sc.state.phase === Phase.CASTLE_SELECT && sc.state.round > 1,
+  },
   // The generic `upgrade:shield_battery` condition latches on the pick alone,
   // which can land on a seed where the first picker's shielded cannon never
   // survives into a BATTLE phase — so the effect-fires step in upgrades.test.ts

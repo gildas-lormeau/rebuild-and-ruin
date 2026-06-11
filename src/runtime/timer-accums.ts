@@ -19,7 +19,7 @@ export interface TimerAccums {
 
 /** Mutable view of TimerAccums — use ONLY inside blessed mutation sites:
  *  - advancePhaseTimer() / tickGruntsIfDue() in tick-context.ts
- *  - tickSelection() in selection.ts
+ *  - tickSelection() / enterTowerSelection() in selection.ts
  *  - syncAccumulatorsFromTimer() in online-host-promotion.ts, called on
  *    every FULL_STATE apply (host promotion, watcher restore, rehydrate)
  *  - resetAccum() below — phase-boundary resets in runtime sub-systems
