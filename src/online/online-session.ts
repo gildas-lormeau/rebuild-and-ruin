@@ -160,8 +160,9 @@ export function sendAimUpdate(
 
 /** Build a dedup-channel key for aim/crosshair sends. Pixel-rounded so
  *  sub-pixel jitter doesn't bust the dedup. Shared between sendAimUpdate
- *  (the local-player path) and broadcastLocalCrosshair (the host-side
- *  AI broadcast path) — both feed the same `dedup.aimTarget` channel. */
+ *  (the input-driven path) and broadcastLocalCrosshair (the per-frame
+ *  syncCrosshairs path, local human only — AI crosshairs never hit the
+ *  wire) — both feed the same `dedup.aimTarget` channel. */
 export function formatAimDedupKey(x: number, y: number): string {
   return `${Math.round(x)},${Math.round(y)}`;
 }

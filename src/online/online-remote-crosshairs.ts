@@ -1,10 +1,10 @@
 /**
- * Remote-crosshair handling — host broadcasts the local controller's crosshair
- * (deduped, pixel-rounded); host and watcher merge interpolated remote
- * crosshairs into the frame. Human and AI crosshairs ride the same channel:
- * remotes lerp toward the latest received position to mask dedup-cadence
- * staleness. Crosshairs are the only remote-driven entity needing client-side
- * smoothing — phantoms swap discretely, cannonballs are deterministic.
+ * Remote-crosshair handling — each peer broadcasts its local human's
+ * crosshair (deduped, pixel-rounded) and merges interpolated remote ones
+ * into the frame. Only human crosshairs hit the wire: AI controllers tick
+ * on every peer, so AI crosshairs are derived locally. Remotes lerp toward
+ * the latest received position to mask dedup-cadence staleness; crosshairs
+ * are the only remote-driven entity needing such smoothing.
  */
 
 import { canPlayerFire, nextReadyCannon } from "../game/index.ts";
