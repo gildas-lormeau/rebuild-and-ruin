@@ -1105,6 +1105,11 @@ export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
   function onPinchStart(midX: number, midY: number): void {
     const { mode } = deps.getCtx();
     if (!isInteractiveMode(mode)) return;
+    // While the engine's castle-frame override owns the viewport
+    // (tower-frame zoom during CASTLE_SELECT), reject the gesture —
+    // accepted pinch writes would tug-of-war against the per-frame lerp
+    // back to `castleFrameVp`. Same guard as `centerCameraOnTap`.
+    if (castleFrameVp) return;
     activePinch = {
       startVp: { ...currentVp },
       startMidX: midX,
@@ -1115,6 +1120,9 @@ export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
   function onPinchUpdate(midX: number, midY: number, scale: number): void {
     const { mode } = deps.getCtx();
     if (!activePinch || !isInteractiveMode(mode)) return;
+    // The override can also engage mid-gesture (selection zoom consuming
+    // its deferred target) — stop updating rather than fight it.
+    if (castleFrameVp) return;
     const newW = Math.max(
       MIN_ZOOM_W,
       Math.min(fullMapVp.w, activePinch.startVp.w * scale),

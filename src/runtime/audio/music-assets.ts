@@ -312,10 +312,10 @@ async function writeEntries(
   } finally {
     database.close();
   }
-  // Any successful write invalidates the rendered PCM (different bank,
-  // different XMI → different audio). Wipe the cache so the next render
-  // pass starts clean. Cheap when the cache is empty.
-  if (accepted.length > 0) await clearPcmCache();
+  // A music-input write invalidates the rendered PCM (different bank,
+  // different XMI → different audio). SOUND.RSC is SFX-only — the render
+  // reads the XMIs + RAMP.AD, so an SFX-only upload keeps the cache.
+  if (accepted.some((key) => key !== SOUND_RSC_KEY)) await clearPcmCache();
   const missing: AssetKey[] = [];
   const presentKeys = new Set<AssetKey>(accepted);
   const status = await listStoredAssets();

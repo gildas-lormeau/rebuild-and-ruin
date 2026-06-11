@@ -287,6 +287,12 @@ export function createOptionsSystem(deps: OptionsSystemDeps): OptionsSystem {
     // Disable pause when other human players are connected
     if (deps.remotePlayerSlots().size > 0) return false;
     if (!isInteractiveMode(uiCtx.getMode())) return false;
+    // No ENTERING pause while the ESC-quit countdown runs — the countdown
+    // keeps ticking through pause (it's a UI affordance, not game state)
+    // and its announcement would mask the PAUSED text. Un-pausing stays
+    // allowed: ESC works while paused (quitting a paused game is legal),
+    // so the countdown can begin during a pause and must not trap it.
+    if (runtimeState.quit.pending && !uiCtx.getPaused()) return false;
     const next = !uiCtx.getPaused();
     uiCtx.setPaused(next);
     uiCtx.getFrame().announcement = next ? "PAUSED" : undefined;
