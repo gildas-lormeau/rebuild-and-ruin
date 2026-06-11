@@ -192,6 +192,11 @@ export function gruntAttackTowers(
   const events: TowerKilledMessage[] = [];
   const wallEvents: ImpactEvent[] = [];
   for (const grunt of state.grunts) {
+    // 1 action point per battle: a grunt that already completed a swing
+    // this battle is done — no wall→tower or wall→wall chaining (this
+    // also stops catapults re-routing to the next blocking wall).
+    if (grunt.attackDone) continue;
+
     // Attack target is derived from the grunt's CURRENT zone every tick —
     // a grunt attacks the nearest live tower in its current territory that
     // it's in range of, regardless of where it was originally heading.
@@ -200,9 +205,11 @@ export function gruntAttackTowers(
     const attackTarget = nearestAttackableTowerInZone(state, grunt, deadZones);
 
     // Catapult path-blocking: a wall between a catapult and its attack
-    // target diverts the shot to the wall. Re-evaluated per-tick so that
-    // after destroying one wall, the next wall in path is automatically
-    // picked up. Sets attackingWall + targetedWall when blocked.
+    // target diverts the shot to the wall. Re-evaluated per-tick so a
+    // blocking wall destroyed by other means mid-swing (cannonball) re-
+    // routes the swing — chaining past the catapult's own completed swing
+    // is stopped by the attackDone gate above. Sets attackingWall +
+    // targetedWall when blocked.
     if (grunt.kind === "catapult") {
       maybeRouteCatapultToBlockingWall(state, grunt, attackTarget);
     }
@@ -216,41 +223,9 @@ export function gruntAttackTowers(
     if (grunt.attackingWall) {
       if (grunt.targetedWall !== undefined) {
         if (tickGruntAttackTimer(grunt, dt)) {
-          // Wall survives if a Reinforced Walls absorption or nearby allied
-          // Rampart shields it; shield side effects applied directly (no bus
-          // events — matches today's silent grunt wall removal).
-          // Interior-staleness contract: see battle-system.ts applyImpactEvent JSDoc.
-          const { row, col } = unpackTile(grunt.targetedWall);
-          const result = resolveWallShield(state, row, col, grunt.targetedWall);
-          if (result?.absorbed) {
-            applyWallShield(state, result);
-          } else if (result) {
-            // Emit WALL_DESTROYED so the watcher mirrors the wall set
-            // mid-battle. shooterId omitted — no scoring on grunt-broken
-            // walls. The host applies the mutation locally here (calling
-            // applyImpactEvent would cycle the import — battle-system
-            // already imports from this file); the event is bubbled to
-            // `tickBattlePhase` via `wallEvents` for wire broadcast and
-            // watcher-side `applyImpactEvent`.
-            const owner = state.players[result.playerId];
-            if (owner) deletePlayerWallBattle(owner, grunt.targetedWall);
-            // Mirror applyImpactEvent: clear targetedWall on every grunt
-            // that was aiming at this wall (grunts don't move, no repick).
-            const destroyedKey = grunt.targetedWall;
-            for (const other of state.grunts) {
-              if (other.targetedWall === destroyedKey)
-                other.targetedWall = undefined;
-            }
-            const event: ImpactEvent = {
-              type: BATTLE_MESSAGE.WALL_DESTROYED,
-              row: row,
-              col: col,
-              playerId: result.playerId,
-            };
-            wallEvents.push(event);
-            state.bus.emit(event.type, event);
-          }
+          completeWallSwing(state, grunt.targetedWall, wallEvents);
           delete grunt.attackingWall;
+          grunt.attackDone = true;
         }
         continue;
       }
@@ -274,6 +249,7 @@ export function gruntAttackTowers(
         };
         events.push(towerEvent);
         state.bus.emit(BATTLE_MESSAGE.TOWER_KILLED, towerEvent);
+        grunt.attackDone = true;
       }
     } else {
       // Reset timer if no longer adjacent to attackable tower
@@ -386,6 +362,46 @@ export function spawnGruntGroupOnZone(
   }
 }
 
+/** Resolve a completed wall swing. The wall survives if a Reinforced Walls
+ *  absorption or nearby allied Rampart shields it; shield side effects are
+ *  applied directly (no bus events — matches today's silent grunt wall
+ *  removal). Otherwise the wall is destroyed: WALL_DESTROYED is emitted so
+ *  the watcher mirrors the wall set mid-battle. shooterId omitted — no
+ *  scoring on grunt-broken walls. The host applies the mutation locally
+ *  here (calling applyImpactEvent would cycle the import — battle-system
+ *  already imports from this file); the event is bubbled to
+ *  `tickBattlePhase` via `wallEvents` for wire broadcast and watcher-side
+ *  `applyImpactEvent`.
+ *  Interior-staleness contract: see battle-system.ts applyImpactEvent JSDoc. */
+function completeWallSwing(
+  state: GameState,
+  targetedWall: TileKey,
+  wallEvents: ImpactEvent[],
+): void {
+  const { row, col } = unpackTile(targetedWall);
+  const result = resolveWallShield(state, row, col, targetedWall);
+  if (result?.absorbed) {
+    applyWallShield(state, result);
+    return;
+  }
+  if (!result) return;
+  const owner = state.players[result.playerId];
+  if (owner) deletePlayerWallBattle(owner, targetedWall);
+  // Mirror applyImpactEvent: clear targetedWall on every grunt that was
+  // aiming at this wall (grunts don't move, no repick).
+  for (const other of state.grunts) {
+    if (other.targetedWall === targetedWall) other.targetedWall = undefined;
+  }
+  const event: ImpactEvent = {
+    type: BATTLE_MESSAGE.WALL_DESTROYED,
+    row: row,
+    col: col,
+    playerId: result.playerId,
+  };
+  wallEvents.push(event);
+  state.bus.emit(event.type, event);
+}
+
 /** Nearest live tower in the grunt's current zone that the grunt is in
  *  attack range of (4-dir adjacency for regular grunts, Manhattan ≤ 3
  *  for catapults). Returns undefined when the grunt is off-zone (e.g.
@@ -442,10 +458,13 @@ function computeGruntTargetedWall(
 /** Per-tick check for catapults: if a wall sits between the catapult and
  *  its in-zone attack target, tag that wall as the attack target so the
  *  existing wall-attack flow handles destruction. When the blocking wall
- *  changes or disappears, reset the attack countdown so the catapult
- *  starts a fresh swing on the new target. Caller passes the precomputed
- *  attack target (`nearestAttackableTowerInZone`); no-op when undefined
- *  (no in-zone tower in catapult's range). */
+ *  changes or disappears mid-swing (e.g. a cannonball broke it), reset the
+ *  attack countdown so the catapult starts a fresh swing on the new
+ *  target. Never runs after the catapult's own swing completes — the
+ *  1-action-point gate in `gruntAttackTowers` skips spent grunts before
+ *  this pre-pass. Caller passes the precomputed attack target
+ *  (`nearestAttackableTowerInZone`); no-op when undefined (no in-zone
+ *  tower in catapult's range). */
 function maybeRouteCatapultToBlockingWall(
   state: GameState,
   grunt: Grunt,

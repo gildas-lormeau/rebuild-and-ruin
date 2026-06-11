@@ -192,8 +192,12 @@ export function finalizeBattle(state: GameState): void {
   // End of the protected battle — clear the fresh-castle grace period flag.
   for (const player of state.players) player.inGracePeriod = false;
   // Reset per-battle grunt decisions — fresh `targetedWall` is recomputed
-  // for the next battle in `finalizeRoundCleanup` (end of WALL_BUILD).
-  for (const grunt of state.grunts) grunt.targetedWall = undefined;
+  // for the next battle in `finalizeRoundCleanup` (end of WALL_BUILD);
+  // `attackDone` action points refresh every battle.
+  for (const grunt of state.grunts) {
+    grunt.targetedWall = undefined;
+    delete grunt.attackDone;
+  }
   // Clear the active instant modifier (dust-storm jitter buffer,
   // rubble-clearing held snapshot) so WALL_BUILD + next-CANNON_PLACE
   // checkpoints don't carry stale battle-only state.

@@ -526,6 +526,7 @@ function gruntWireFields(grunt: SerializedGrunt): SerializedGrunt {
     attackCountdown: grunt.attackCountdown,
     blockedRounds: grunt.blockedRounds,
     attackingWall: grunt.attackingWall,
+    attackDone: grunt.attackDone,
     chipped: grunt.chipped,
     kind: grunt.kind,
     slowSkip: grunt.slowSkip,

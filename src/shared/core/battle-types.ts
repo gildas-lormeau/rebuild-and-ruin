@@ -42,6 +42,12 @@ export interface Grunt extends TilePos {
    *  tile-key tracker to keep in sync. Stale flags from a prior frostbite
    *  round are reset in `frostbiteImpl.apply` if frostbite re-rolls. */
   chipped?: true;
+  /** Set when this grunt completes a swing (wall break or tower kill)
+   *  during the current battle. Grunts have 1 action point per battle —
+   *  once spent, the grunt is idle until the next battle (no chaining
+   *  wall→tower or wall→wall, catapults included). Cleared for every
+   *  grunt in `finalizeBattle`. */
+  attackDone?: true;
   /** Optional variant tag. Absence = regular grunt. "catapult" = slower
    *  variant that can attack towers from Manhattan distance ≤ 3 (bypasses
    *  up to two rows of cannons shielding the tower). Gated by the
