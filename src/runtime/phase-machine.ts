@@ -395,8 +395,10 @@ const ROUND_END: Transition = {
     const preScores = ctx.state.players.map((player) => player.score);
     // Phase A only: scoring + life penalties. The wall sweep, dead-zone
     // grunt sweep, and targetedWall recompute are deferred to `finalizeRoundCleanup`,
-    // called from `advance-to-cannon` / `castle-done` (round > 1) /
-    // game-over flows so the cannons banner reveals them.
+    // called from `advance-to-cannon` / `castle-done` (round > 1) so the
+    // cannons banner reveals them. The game-over routes never run it —
+    // the final board keeps its un-swept walls and dead-zone grunts
+    // (cosmetic only: scoring already happened here in Phase A).
     // `applyLifePenalties` inside finalizeRound already runs
     // `resetZoneState` for eliminated/reselect players — every peer
     // converges identically.

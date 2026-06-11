@@ -404,9 +404,12 @@ export function finalizeRound(state: GameState): {
 }
 
 /** Phase B — wall + grunt cleanup deferred from `finalizeRound`.
- *  Called from the transition that fires the cannons banner (or the
- *  reselect / game-over flows) so the sweeps reveal under the banner
- *  instead of popping during the score overlay.
+ *  Called from the transitions that fire the cannons banner
+ *  (`advance-to-cannon`, and `castle-done` for round > 1 reselects) so
+ *  the sweeps reveal under the banner instead of popping during the
+ *  score overlay. The game-over routes never run it — the final board
+ *  keeps its un-swept state (cosmetic only: scoring already closed in
+ *  Phase A).
  *
  *  `recomputeAllTerritory` refreshes interior after the wall mutation to
  *  keep the `walls epoch == interior epoch` invariant that downstream
