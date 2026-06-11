@@ -12,7 +12,6 @@ import {
   type CameraState,
   type CanvasSize,
   cameraStateFromViewport,
-  fitTileBounds,
   fitTileBoundsToViewport,
   fitWorldRect,
   MAX_PITCH,
@@ -268,7 +267,7 @@ Deno.test(
 );
 
 Deno.test(
-  "fitTileBounds + visibleGroundAABB equals fitTileBoundsToViewport",
+  "cameraStateFromViewport ∘ fitTileBoundsToViewport round-trips through visibleGroundAABB",
   () => {
     const cases: Array<{ bounds: TileBounds; pad: number }> = [
       { bounds: { minR: 10, maxR: 11, minC: 10, maxC: 11 }, pad: 0 },
@@ -289,7 +288,7 @@ Deno.test(
     ];
     for (const { bounds, pad } of cases) {
       const direct = fitTileBoundsToViewport(bounds, pad);
-      const state = fitTileBounds(bounds, pad);
+      const state = cameraStateFromViewport(direct, MAIN_CANVAS);
       assertEquals(state.pitch, 0);
       const viaState = visibleGroundAABB(state, MAIN_CANVAS);
       assertAlmostEquals(viaState.x, direct.x, EPS);

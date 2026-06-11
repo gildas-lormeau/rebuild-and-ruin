@@ -10,8 +10,6 @@
 import { MAX_ZOOM_VIEWPORT_RATIO } from "../shared/core/game-constants.ts";
 import type { TileBounds, Viewport } from "../shared/core/geometry-types.ts";
 import {
-  CANVAS_H,
-  CANVAS_W,
   GRID_COLS,
   GRID_ROWS,
   MAP_PX_H,
@@ -30,7 +28,6 @@ export interface CanvasSize {
   readonly h: number;
 }
 
-const MAIN_CANVAS: CanvasSize = { w: CANVAS_W, h: CANVAS_H };
 /** Hard upper bound on |pitch|. π/3 (60°) is far enough from π/2 that the
  *  `cos(pitch)` foreshortening factor (~0.5) still leaves plenty of vertical
  *  resolution; going past this the ground plane starts to approach edge-on
@@ -103,14 +100,6 @@ export function visibleGroundAABB(
   };
 }
 
-/** Fit a padded tile-bounds rect into the main canvas, preserving map aspect
- *  ratio and respecting the max-zoom policy. Returns a pitch=0 CameraState
- *  whose `visibleGroundAABB(state, MAIN_CANVAS)` matches the flat-viewport form. */
-export function fitTileBounds(bounds: TileBounds, pad: number): CameraState {
-  const viewport = fitTileBoundsToViewport(bounds, pad);
-  return cameraStateFromViewport(viewport, MAIN_CANVAS);
-}
-
 /** Inverse of {@link visibleGroundAABB} at pitch=0: recover a CameraState that
  *  reproduces `viewport` when re-projected onto `canvas`. `canvas` is
  *  required because zoom depends on the ratio of canvas to viewport size.
@@ -132,8 +121,12 @@ export function cameraStateFromViewport(
   };
 }
 
-/** Flat-viewport form of {@link fitTileBounds}. Implicitly targets the main
- *  canvas (via MAP_PX_W/H) — callers in subsystems/camera rely on this contract.
+/** Fit a padded tile-bounds rect into a main-canvas-shaped viewport,
+ *  preserving map aspect ratio and respecting the max-zoom policy.
+ *  Implicitly targets the main canvas (via MAP_PX_W/H) — callers in
+ *  subsystems/camera rely on this contract. Composing with
+ *  {@link cameraStateFromViewport} yields a pitch=0 CameraState whose
+ *  `visibleGroundAABB` reproduces this viewport (pinned by test).
  *
  *  Pitch-agnostic by design: the function inputs are a tile-bounds rect plus
  *  a padding, neither of which knows about camera tilt. Under tilt the
