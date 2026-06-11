@@ -8,9 +8,9 @@ import {
 } from "../shared/core/player-types.ts";
 import type { GameState } from "../shared/core/types.ts";
 
-/** Reason a game-over fires — threaded into the phase machine's transition
- *  id so each path stays distinct in telemetry / tests / future divergence. */
-export type GameOverReason = "last-player-standing" | "round-limit-reached";
+/** Reason a game-over fires. Carried on `GameOverOutcome` so the runtime
+ *  can log which path ended the match; not consumed by game flow. */
+type GameOverReason = "last-player-standing" | "round-limit-reached";
 
 export interface GameOverOutcome {
   winner: { id: ValidPlayerId };

@@ -1,4 +1,4 @@
-import type { GameOverReason } from "../../game/index.ts";
+import type { GameOverOutcome } from "../../game/index.ts";
 import {
   advanceBattleCountdown,
   allCannonPlaceDone,
@@ -133,7 +133,7 @@ interface PhaseTicksDeps extends Pick<RuntimeConfig, "log"> {
    *  dispatches `advance-to-cannon`. Wired identically on every peer —
    *  each routes its own dialog resolution locally. */
   lifeLostRoute: {
-    onGameOver: (winner: { id: ValidPlayerId }, reason: GameOverReason) => void;
+    onGameOver: (outcome: GameOverOutcome) => void;
     onReselect: (continuing: readonly ValidPlayerId[]) => void;
     onAdvance: () => void;
   };
@@ -165,8 +165,8 @@ interface PhaseTicksDeps extends Pick<RuntimeConfig, "log"> {
   };
   /** End-game side effects (set game-over frame, stop sound, switch to
    *  Mode.STOPPED, arm demo timer). Wired to `lifecycle.endGame` from
-   *  composition. The machine's `round-limit-reached` /
-   *  `last-player-standing` mutate calls this through `ctx.endGame`. */
+   *  composition. The machine's `game-over` mutate calls this through
+   *  `ctx.endGame`. */
   endGame: (winner: { id: ValidPlayerId }) => void;
   /** Request an immediate untilt ease at battle-end. Called every tick
    *  while the phase-ticks system waits for `getPitchState() === "flat"`
@@ -224,12 +224,9 @@ export interface PhaseTicksSystem {
    *  `finalizeFreshCastles` + `finalizeCastleConstruction` +
    *  `enterCannonPhase`. */
   dispatchCastleDone: () => void;
-  /** Dispatch the game-over transition (`last-player-standing` or
-   *  `round-limit-reached`); the mutate calls `ctx.endGame(winner)`. */
-  dispatchGameOver: (
-    winner: { id: ValidPlayerId },
-    reason: GameOverReason,
-  ) => void;
+  /** Dispatch the `game-over` transition; the mutate logs the outcome's
+   *  reason and calls `ctx.endGame(winner)`. */
+  dispatchGameOver: (outcome: GameOverOutcome) => void;
   startBattle: () => void;
   tickBalloonAnim: (dt: number) => void;
   beginBattle: () => void;
@@ -299,13 +296,10 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     runTransition("castle-done", buildPhaseCtx());
   }
 
-  function dispatchGameOver(
-    winner: { id: ValidPlayerId },
-    reason: GameOverReason,
-  ) {
-    runTransition(reason, {
+  function dispatchGameOver(outcome: GameOverOutcome) {
+    runTransition("game-over", {
       ...buildPhaseCtx(),
-      winner,
+      gameOverOutcome: outcome,
     });
   }
 

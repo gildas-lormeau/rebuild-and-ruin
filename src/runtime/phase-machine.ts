@@ -7,7 +7,6 @@
  * events are observation-only — never control flow.
  */
 
-import type { GameOverReason } from "../game/index.ts";
 import {
   applyUpgradePicks,
   eliminatePlayers,
@@ -76,8 +75,7 @@ type TransitionId =
   | "enter-upgrade-pick"
   | "upgrade-pick-done"
   | "enter-wall-build"
-  | "round-limit-reached"
-  | "last-player-standing";
+  | "game-over";
 
 /** Opaque result produced by a transition's mutate fn, threaded through the
  *  display steps. `modifierDiff` and `flights` are always present — use
@@ -144,7 +142,7 @@ interface Transition {
    *  listed phases (used by entry transitions like `enter-battle` that
    *  may be dispatched from either CANNON_PLACE directly or from
    *  MODIFIER_REVEAL after the modifier banner). `"*"` opts out of the
-   *  guard entirely (game-over transitions may fire from any phase). */
+   *  guard entirely (the game-over transition may fire from any phase). */
   readonly from: Phase | readonly Phase[] | "*";
   readonly mutate: MutateFn;
   /** Shared post-mutation sync. Runs after mutate, before display. */
@@ -225,10 +223,7 @@ export interface PhaseTransitionCtx {
    *  the reselect queue). Optional so transitions that don't include a
    *  life-lost-dialog step can omit. */
   readonly lifeLostRoute?: {
-    readonly onGameOver: (
-      winner: { id: ValidPlayerId },
-      reason: GameOverReason,
-    ) => void;
+    readonly onGameOver: (outcome: GameOverOutcome) => void;
     readonly onReselect: (continuing: readonly ValidPlayerId[]) => void;
     readonly onAdvance: () => void;
   };
@@ -339,13 +334,14 @@ export interface PhaseTransitionCtx {
   // ── Game-over hooks ──
 
   /** End-game side effects (set game-over frame, stop sound, switch to
-   *  Mode.STOPPED, arm demo timer). Used by `round-limit-reached` /
-   *  `last-player-standing` transitions. Wired on every peer — watchers
-   *  run it from their own local dispatch. */
+   *  Mode.STOPPED, arm demo timer). Used by the `game-over` transition.
+   *  Wired on every peer — watchers run it from their own local
+   *  dispatch. */
   readonly endGame?: (winner: { id: ValidPlayerId }) => void;
-  /** Winner determined by the life-lost resolution. Threaded through via
-   *  ctx so the mutate can pass it to `endGame`. */
-  readonly winner?: { id: ValidPlayerId };
+  /** Outcome decided by the life-lost resolution. Threaded through via
+   *  ctx so the `game-over` mutate can log the reason and pass the
+   *  winner to `endGame`. */
+  readonly gameOverOutcome?: GameOverOutcome;
 }
 
 /** Default "no battle-entry data" result. Every transition whose mutate
@@ -377,8 +373,7 @@ const STEP_LIFE_LOST_DIALOG = "life-lost-dialog" as const;
  *
  *  The `to` phase is nominally CANNON_PLACE but this transition itself
  *  does NOT enter a new phase: the next transition (castle-done /
- *  advance-to-cannon / round-limit-reached / last-player-standing)
- *  flips it. */
+ *  advance-to-cannon / game-over) flips it. */
 const ROUND_END: Transition = {
   id: "round-end",
   from: Phase.WALL_BUILD,
@@ -671,36 +666,25 @@ const ADVANCE_TO_CANNON: Transition = {
   display: cannonEntryDisplay,
   postDisplay: cannonEntryPostDisplay,
 };
-/** `round-limit-reached` — the round counter went past `maxRounds`.
- *  The winner is whoever has the highest score among alive players.
- *  Dispatched on every peer's local tick; the host additionally
- *  broadcasts GAME_OVER, which non-host peers consume in
- *  `handleGameOverTransition` to paint the authoritative score frame
- *  (idempotent with the locally-detected game-over). */
-const gameOverMutate: MutateFn = (ctx) => {
-  if (!ctx.winner) {
-    throw new Error(
-      "round-limit-reached / last-player-standing dispatched without ctx.winner",
-    );
-  }
-  ctx.endGame?.(ctx.winner);
-  return EMPTY_TRANSITION_RESULT;
-};
-const ROUND_LIMIT_REACHED: Transition = {
-  id: "round-limit-reached",
+/** `game-over` — the match ended; `GameOverOutcome.reason` says why
+ *  (`round-limit-reached` or `last-player-standing`). The winner is
+ *  whoever has the highest score among alive players. Dispatched on
+ *  every peer's local tick; the host additionally broadcasts GAME_OVER,
+ *  which non-host peers consume in `handleGameOverTransition` to paint
+ *  the authoritative score frame (idempotent with the locally-detected
+ *  game-over). */
+const GAME_OVER: Transition = {
+  id: "game-over",
   from: "*",
-  mutate: gameOverMutate,
-  display: [],
-};
-/** `last-player-standing` — one or fewer players still alive.
- *  Same shape as `round-limit-reached`; kept as a distinct id because the
- *  trigger semantic differs, which is useful for telemetry / tests.
- *  See `round-limit-reached` for the GAME_OVER wire / local-detection
- *  interplay. */
-const LAST_PLAYER_STANDING: Transition = {
-  id: "last-player-standing",
-  from: "*",
-  mutate: gameOverMutate,
+  mutate: (ctx) => {
+    const outcome = ctx.gameOverOutcome;
+    if (!outcome) {
+      throw new Error("game-over dispatched without ctx.gameOverOutcome");
+    }
+    ctx.log(`game over: ${outcome.reason} (winner P${outcome.winner.id})`);
+    ctx.endGame?.(outcome.winner);
+    return EMPTY_TRANSITION_RESULT;
+  },
   display: [],
 };
 /** `cannon-place-done` — CANNON_PLACE prep transition. Runs engine
@@ -815,8 +799,7 @@ const TRANSITIONS: readonly Transition[] = [
   ENTER_WALL_BUILD,
   CASTLE_DONE,
   ADVANCE_TO_CANNON,
-  ROUND_LIMIT_REACHED,
-  LAST_PLAYER_STANDING,
+  GAME_OVER,
 ];
 /** Fast lookup from id → entry. Rebuilt once at module load. */
 const BY_ID: ReadonlyMap<TransitionId, Transition> = new Map(
@@ -925,16 +908,13 @@ function routeLifeLostResolution(
   if (!route) return;
   if (result.gameOverOutcome) {
     emitGameEnd(ctx.state, result.gameOverOutcome);
-    route.onGameOver(
-      result.gameOverOutcome.winner,
-      result.gameOverOutcome.reason,
-    );
+    route.onGameOver(result.gameOverOutcome);
     return;
   }
   const lateOutcome = peekLastPlayerStanding(ctx.state);
   if (lateOutcome) {
     emitGameEnd(ctx.state, lateOutcome);
-    route.onGameOver(lateOutcome.winner, lateOutcome.reason);
+    route.onGameOver(lateOutcome);
     return;
   }
   resolveAfterLifeLost({
@@ -1089,7 +1069,7 @@ function resolveTransition(
 
   // Source-phase guard: every peer dispatches transitions from its own
   // local tick, so the source phase is always known. Bypass for `*`
-  // (game-over transitions may fire from any phase).
+  // (the game-over transition may fire from any phase).
   if (transition.from !== "*") {
     const currentPhase = ctx.state.phase;
     const allowed = Array.isArray(transition.from)

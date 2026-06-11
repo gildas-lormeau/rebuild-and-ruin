@@ -674,8 +674,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     // subsystem no longer owns the dispatchers — it just drives the
     // dialog and reports the `continuing` list back.
     lifeLostRoute: {
-      onGameOver: (winner, reason) =>
-        phaseTicks.dispatchGameOver(winner, reason),
+      onGameOver: (outcome) => phaseTicks.dispatchGameOver(outcome),
       onReselect: (continuing) => selection.enter(continuing),
       onAdvance: selection.advanceToCannonPhase,
     },

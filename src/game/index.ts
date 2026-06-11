@@ -42,7 +42,7 @@ export {
   executePlacePiece,
 } from "./game-actions.ts";
 export { applyGameConfig, createGameFromSeed } from "./game-init.ts";
-export type { GameOverOutcome, GameOverReason } from "./game-over.ts";
+export type { GameOverOutcome } from "./game-over.ts";
 export {
   eliminatePlayers,
   emitGameEnd,
