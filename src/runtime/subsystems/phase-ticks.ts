@@ -199,7 +199,7 @@ interface PhaseTicksDeps extends Pick<RuntimeConfig, "log"> {
   beginTilt: () => void;
   /** Fire-and-forget renderer hook to pre-link shadow-pass shader
    *  programs. Threaded through to `PhaseTransitionCtx.warmShadowPermutations`
-   *  and called from `cannonEntryPostDisplay`. Undefined for renderers
+   *  and called from `enter-cannon-place`'s postDisplay. Undefined for renderers
    *  without a 3D pipeline (2D, headless stub). See the comment on the
    *  ctx field for the BATTLE-entry hitch this avoids. */
   warmShadowPermutations?: () => Promise<void>;
@@ -213,16 +213,16 @@ export interface RuntimePhaseTicks {
 }
 
 export interface PhaseTicksSystem {
-  /** Dispatch the `advance-to-cannon` transition (post-life-lost continue
-   *  path). The mutate runs `enterCannonPhase` only — castle finalize was
-   *  already done by an earlier transition. */
+  /** Dispatch the `advance-to-cannon` prep transition (post-life-lost
+   *  continue path). The mutate runs `finalizeRoundCleanup` only — the
+   *  phase entry is owned by the routed `enter-cannon-place`. */
   dispatchAdvanceToCannon: () => void;
-  /** Dispatch the `castle-done` transition. Used by both the round-1
+  /** Dispatch the `castle-done` prep transition. Used by both the round-1
    *  initial-selection path and the reselect cycle. The mutate runs
    *  `finalizeRoundCleanup` (gated on `round > 1` because round 1 has no
    *  prior round to clean up after — cleanup-deferral, not cycle-type) +
-   *  `finalizeFreshCastles` + `finalizeCastleConstruction` +
-   *  `enterCannonPhase`. */
+   *  `finalizeFreshCastles` + `finalizeCastleConstruction`, then routes
+   *  to `enter-cannon-place`. */
   dispatchCastleDone: () => void;
   /** Dispatch the `game-over` transition; the mutate logs the outcome's
    *  reason and calls `ctx.endGame(winner)`. */

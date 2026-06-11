@@ -66,6 +66,7 @@ import type { RuntimeState } from "./state.ts";
 type TransitionId =
   | "castle-done"
   | "advance-to-cannon"
+  | "enter-cannon-place"
   | "round-end"
   | "cannon-place-done"
   | "enter-modifier-reveal"
@@ -322,9 +323,9 @@ export interface PhaseTransitionCtx {
   readonly initLocalCannonControllers?: () => void;
 
   /** Fire-and-forget: pre-compile the shadow-pass permutation of every
-   *  entity material on the renderer. Called from `cannonEntryPostDisplay`
-   *  so the GPU links shadow programs in the background during the
-   *  cannon-place banner — by the time the camera tilts into BATTLE
+   *  entity material on the renderer. Called from `enter-cannon-place`'s
+   *  postDisplay so the GPU links shadow programs in the background during
+   *  the cannon-place banner — by the time the camera tilts into BATTLE
    *  (which flips `sun.castShadow` on), three.js finds the programs
    *  already linked and skips the ~84ms blocking recompile that would
    *  otherwise hit the critical frame. Idempotent across calls.
@@ -372,8 +373,8 @@ const STEP_LIFE_LOST_DIALOG = "life-lost-dialog" as const;
  *  / reselect / continue) identically.
  *
  *  The `to` phase is nominally CANNON_PLACE but this transition itself
- *  does NOT enter a new phase: the next transition (castle-done /
- *  advance-to-cannon / game-over) flips it. */
+ *  does NOT enter a new phase: the routed follow-up (castle-done /
+ *  advance-to-cannon → enter-cannon-place, or game-over) flips it. */
 const ROUND_END: Transition = {
   id: "round-end",
   from: Phase.WALL_BUILD,
@@ -583,28 +584,39 @@ const ENTER_WALL_BUILD: Transition = {
     ctx.setMode(Mode.GAME);
   },
 };
-/** Shared cannon-entry postDisplay for every transition that enters
- *  CANNON_PLACE (`castle-done`, `advance-to-cannon`). Initializes local
- *  cannon controllers (placeCannons + cursor + startCannonPhase) and
- *  flips to Mode.GAME. */
-const cannonEntryPostDisplay: PostDisplayFn = (ctx) => {
-  ctx.initLocalCannonControllers?.();
-  ctx.setMode(Mode.GAME);
-  // Fire-and-forget: the renderer's program cache makes repeat calls
-  // ~free, so we don't need an explicit once-per-session guard. By the
-  // time the camera tilts in to BATTLE the GPU has linked the shadow
-  // permutation, so the BATTLE-entry frame doesn't pay for it.
-  void ctx.warmShadowPermutations?.();
-};
-const cannonEntryDisplay: readonly DisplayStep[] = [
-  {
-    kind: STEP_BANNER,
-    bannerKind: "cannon-place",
-    text: BANNER_PLACE_CANNONS,
-    subtitle: BANNER_PLACE_CANNONS_SUB,
+/** `enter-cannon-place` — CANNON_PLACE entry. Flips the phase via
+ *  `enterCannonPhase` (cannon limits + facings) and shows the "Place
+ *  Cannons" banner. Dispatched inline from `castle-done` or
+ *  `advance-to-cannon` prep — the same shared-entry shape as
+ *  `enter-battle` with its two predecessors. postDisplay initializes
+ *  local cannon controllers (placeCannons + cursor + startCannonPhase)
+ *  and flips to Mode.GAME. */
+const ENTER_CANNON_PLACE: Transition = {
+  id: "enter-cannon-place",
+  from: [Phase.CASTLE_SELECT, Phase.WALL_BUILD],
+  mutate: (ctx) => {
+    enterCannonPhase(ctx.state);
+    return EMPTY_TRANSITION_RESULT;
   },
-];
-/** `castle-done` — CASTLE_SELECT → CANNON_PLACE.
+  display: [
+    {
+      kind: STEP_BANNER,
+      bannerKind: "cannon-place",
+      text: BANNER_PLACE_CANNONS,
+      subtitle: BANNER_PLACE_CANNONS_SUB,
+    },
+  ],
+  postDisplay: (ctx) => {
+    ctx.initLocalCannonControllers?.();
+    ctx.setMode(Mode.GAME);
+    // Fire-and-forget: the renderer's program cache makes repeat calls
+    // ~free, so we don't need an explicit once-per-session guard. By the
+    // time the camera tilts in to BATTLE the GPU has linked the shadow
+    // permutation, so the BATTLE-entry frame doesn't pay for it.
+    void ctx.warmShadowPermutations?.();
+  },
+};
+/** `castle-done` — CASTLE_SELECT prep transition.
  *
  *  Fires at the end of every castle-build cycle: round 1's initial selection
  *  and any mid-game reselection after a life loss. Body order:
@@ -616,13 +628,13 @@ const cannonEntryDisplay: readonly DisplayStep[] = [
  *       players (drives off `player.inGracePeriod`, set at confirm-time).
  *    3. `finalizeCastleConstruction` — claims territory + spawns houses /
  *       bonus squares.
- *    4. `enterCannonPhase` — sets the phase + computes cannon limits +
- *       returns per-player init data.
  *
- *  Host broadcasts CANNON_START so watchers can apply the checkpoint.
+ *  Does NOT flip the phase and shows no banner — `postDisplay` routes
+ *  inline to `enter-cannon-place`, which owns the phase entry + banner.
+ *
+ *  Host broadcasts CANNON_START, a payload-less phase-advance marker.
  *  Watchers run the same body locally — derived state matches byte-for-byte
- *  from synced state + RNG so no wire payload is needed; the broadcast is
- *  just a phase-advance marker. */
+ *  from synced state + RNG so no wire payload is needed. */
 const CASTLE_DONE: Transition = {
   id: "castle-done",
   from: Phase.CASTLE_SELECT,
@@ -633,38 +645,34 @@ const CASTLE_DONE: Transition = {
     if (ctx.state.round > 1) finalizeRoundCleanup(ctx.state);
     finalizeFreshCastles(ctx.state);
     finalizeCastleConstruction(ctx.state);
-    enterCannonPhase(ctx.state);
     ctx.broadcast?.cannonStart?.();
     return EMPTY_TRANSITION_RESULT;
   },
   postMutate: clearBattleAnim,
-  display: cannonEntryDisplay,
-  postDisplay: cannonEntryPostDisplay,
+  display: [],
+  postDisplay: (ctx) => runTransitionInline("enter-cannon-place", ctx),
 };
-/** `advance-to-cannon` — WALL_BUILD → CANNON_PLACE after the life-lost
+/** `advance-to-cannon` — WALL_BUILD prep transition, after the life-lost
  *  dialog resolves with "continue" (no reselect, no game over).
  *
  *  Unlike `castle-done`, this path has no fresh-castle prefix: there's no
  *  new castle to finalize and `finalizeRound` already ran inside the
  *  preceding `round-end` transition. The mutate runs `finalizeRoundCleanup`
- *  (Phase B sweeps) under the cannons banner, flips the phase via
- *  `enterCannonPhase`, and broadcasts.
+ *  (Phase B sweeps) under the cannons banner reveal and broadcasts;
+ *  `postDisplay` routes inline to `enter-cannon-place`.
  *
  *  Triggered from `routeLifeLostResolution`'s `onAdvance` callback. */
 const ADVANCE_TO_CANNON: Transition = {
   id: "advance-to-cannon",
   from: Phase.WALL_BUILD,
   mutate: (ctx) => {
-    // Phase B cleanup (deferred from round-end) runs under the
-    // cannons banner reveal, then cannon phase entry.
     finalizeRoundCleanup(ctx.state);
-    enterCannonPhase(ctx.state);
     ctx.broadcast?.cannonStart?.();
     return EMPTY_TRANSITION_RESULT;
   },
   postMutate: clearBattleAnim,
-  display: cannonEntryDisplay,
-  postDisplay: cannonEntryPostDisplay,
+  display: [],
+  postDisplay: (ctx) => runTransitionInline("enter-cannon-place", ctx),
 };
 /** `game-over` — the match ended; `GameOverOutcome.reason` says why
  *  (`round-limit-reached` or `last-player-standing`). The winner is
@@ -799,6 +807,7 @@ const TRANSITIONS: readonly Transition[] = [
   ENTER_WALL_BUILD,
   CASTLE_DONE,
   ADVANCE_TO_CANNON,
+  ENTER_CANNON_PLACE,
   GAME_OVER,
 ];
 /** Fast lookup from id → entry. Rebuilt once at module load. */
