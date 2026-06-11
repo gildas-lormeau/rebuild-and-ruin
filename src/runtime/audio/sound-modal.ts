@@ -123,6 +123,15 @@ export function createSoundModal(): SoundModal {
   }
 
   async function handleLoadFromUrl(): Promise<void> {
+    // Single-flight: the URL button disables itself, but the file pickers
+    // stay clickable during a URL load (and vice versa). Two overlapping
+    // uploads would let the first `finally` clear `uploadInFlight` while
+    // the second is still writing — exactly the mid-write close the flag
+    // exists to prevent.
+    if (uploadInFlight) {
+      statusOutput.textContent = "Another upload is still running …";
+      return;
+    }
     const url = urlInput.value.trim();
     if (!url) {
       statusOutput.textContent = "Please enter a URL.";
@@ -147,6 +156,13 @@ export function createSoundModal(): SoundModal {
   }
 
   async function handleLoadFromFiles(picker: HTMLInputElement): Promise<void> {
+    // Single-flight — see handleLoadFromUrl. Clear the picker so the same
+    // file can be re-selected once the running upload finishes.
+    if (uploadInFlight) {
+      picker.value = "";
+      statusOutput.textContent = "Another upload is still running …";
+      return;
+    }
     const files = picker.files;
     if (!files?.length) return;
     statusOutput.textContent = `Saving ${files.length} file(s) \u2026`;
