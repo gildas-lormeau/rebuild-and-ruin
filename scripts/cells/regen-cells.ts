@@ -109,7 +109,7 @@ const LABELS: Record<string, string> = {
   "2::protocol": "checkpoint payload types",
   "2::render": "3D camera, debug, sprite scenes & UI theme",
   "2::render/3d/effects": "effect terrain SDF texture",
-  "2::runtime": "camera projection math",
+  "2::runtime": "camera projection math & dialog lockstep helpers",
   "2::shared": "derived shared types & UI configs",
 
   // L3 — wire payloads & shared definitions
@@ -138,9 +138,9 @@ const LABELS: Record<string, string> = {
   "6::online": "online lobby UI & session state",
   "6::render": "render contracts & overlay helpers",
   "6::runtime":
-    "runtime cores: state, tick context, dialog cores & overlay registry",
+    "runtime cores: state, tick context, dialog cores, overlay registry & battle-aim targeting",
   "6::runtime/audio": "audio players (music + sfx)",
-  "6::runtime/subsystems": "camera & haptics — leaf-depth subsystem factories",
+  "6::runtime/subsystems": "haptics — leaf-depth subsystem factory",
   "6::server": "server game-room",
   "6::shared": "shared wall mutators, occupancy queries, guards & deps",
 

@@ -263,7 +263,7 @@
   {
     "layer": 2,
     "domain": "runtime",
-    "role": "camera projection math",
+    "role": "camera projection math & dialog lockstep helpers",
     "files": [
       "src/runtime/camera-projection.ts",
       "src/runtime/dialogs/dialog-tick.ts"
@@ -458,7 +458,7 @@
   {
     "layer": 6,
     "domain": "runtime",
-    "role": "runtime cores: state, tick context, dialog cores & overlay registry",
+    "role": "runtime cores: state, tick context, dialog cores, overlay registry & battle-aim targeting",
     "files": [
       "src/runtime/battle-aim.ts",
       "src/runtime/dialogs/life-lost-core.ts",
@@ -483,7 +483,7 @@
     "layer": 6,
     "domain": "runtime",
     "subdomain": "subsystems",
-    "role": "camera & haptics — leaf-depth subsystem factories",
+    "role": "haptics — leaf-depth subsystem factory",
     "files": [
       "src/runtime/subsystems/haptics.ts"
     ]
