@@ -7,7 +7,6 @@
  * subsystems/input.ts.
  */
 
-import { DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS } from "../../shared/core/action-schedule.ts";
 import {
   DIALOG_FORCE_GRACE,
   SIM_TICK_DT,
@@ -22,6 +21,11 @@ import type {
   UpgradePickEntry,
 } from "../../shared/ui/interaction-types.ts";
 import { Mode } from "../../shared/ui/ui-mode.ts";
+import {
+  findPendingDialogEntry,
+  isLocallyDrivenEntry,
+  scheduleOrApplyDialogChoice,
+} from "../dialogs/dialog-tick.ts";
 import {
   applyUpgradePickChoiceToDialog,
   createUpgradePickDialog,
@@ -263,7 +267,7 @@ export function createUpgradePickSystem(
       entry,
       runtimeState.state,
     );
-    if (isLocallyDriven(entry)) {
+    if (isLocallyDrivenEntry(entry, runtimeState.frameMeta.remotePlayerSlots)) {
       scheduleOrApplyPick(entry, entry.offers.indexOf(forced));
       return;
     }
@@ -276,58 +280,39 @@ export function createUpgradePickSystem(
     }
   }
 
-  /** True when this machine owns the entry's input: not auto-resolving
-   *  (real human) and not driven by a remote peer. Same predicate as
-   *  `interactiveSlots` below. */
-  function isLocallyDriven(entry: UpgradePickEntry): boolean {
-    return (
-      !entry.autoResolve &&
-      !runtimeState.frameMeta.remotePlayerSlots.has(entry.playerId)
-    );
-  }
-
   function moveFocus(playerId: ValidPlayerId, dir: number): void {
     withPendingEntry(playerId, (entry) => moveUpgradePickFocus(entry, dir));
   }
 
-  /** Lockstep-when-online: in local play, resolve the entry immediately;
-   *  in online play, broadcast with `applyAt` and schedule the local apply
-   *  at the same `applyAt` so every peer's `entry.choice` write lands at
-   *  the same logical tick — mirrors `scheduleOrApplyChoice` in
-   *  subsystems/life-lost.ts. `applyEarlyChoices` is the online signal
-   *  (undefined in local). `inFlightPicks` blocks re-sends while a pick
-   *  awaits its applyAt tick (the entry still reads as pending). A pick
-   *  in flight when the max-timer deadline hits can still lose to the
-   *  local force-pick — the per-peer deadline is the remaining
+  /** Lockstep-when-online pick — see `scheduleOrApplyDialogChoice`.
+   *  `applyEarlyChoices` is the online signal (undefined in local). A
+   *  pick in flight when the max-timer deadline hits can still lose to
+   *  the local force-pick — the per-peer deadline is the remaining
    *  cross-peer ordering gap, shared with life-lost. */
   function scheduleOrApplyPick(entry: UpgradePickEntry, cardIdx: number): void {
     const dialog = runtimeState.dialogs.upgradePick;
     if (!dialog) return;
-    if (deps.applyEarlyChoices === undefined) {
-      resolveUpgradePickEntry(entry, cardIdx, dialog.timer);
-      return;
-    }
     const playerId = entry.playerId;
-    if (inFlightPicks.has(playerId)) return;
-    inFlightPicks.add(playerId);
-    // Snap focus to the clicked card for immediate visual feedback; the
-    // scheduled apply re-asserts it. Cosmetic-only until applyAt.
-    entry.focusedCard = cardIdx;
     const choice = entry.offers[cardIdx]!;
-    const applyAt =
-      runtimeState.state.simTick + DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS;
-    deps.sendUpgradePick(playerId, choice, applyAt);
-    runtimeState.actionSchedule.schedule({
-      applyAt,
+    scheduleOrApplyDialogChoice({
+      online: deps.applyEarlyChoices !== undefined,
       playerId,
-      apply: () => {
-        inFlightPicks.delete(playerId);
+      inFlight: inFlightPicks,
+      simTick: runtimeState.state.simTick,
+      schedule: (action) => runtimeState.actionSchedule.schedule(action),
+      applyLocal: () => resolveUpgradePickEntry(entry, cardIdx, dialog.timer),
+      send: (applyAt) => {
+        // Snap focus to the clicked card for immediate visual feedback;
+        // the scheduled apply re-asserts it. Cosmetic-only until applyAt.
+        entry.focusedCard = cardIdx;
+        deps.sendUpgradePick(playerId, choice, applyAt);
+      },
+      applyAtTick: () =>
         applyUpgradePickChoiceToDialog(
           playerId,
           choice,
           runtimeState.dialogs.upgradePick,
-        );
-      },
+        ),
     });
   }
 
@@ -348,8 +333,10 @@ export function createUpgradePickSystem(
   function findPendingEntry(
     playerId: ValidPlayerId,
   ): UpgradePickEntry | undefined {
-    return runtimeState.dialogs.upgradePick?.entries.find(
-      (entry) => entry.playerId === playerId && entry.choice === null,
+    return findPendingDialogEntry(
+      runtimeState.dialogs.upgradePick?.entries,
+      playerId,
+      (entry) => entry.choice === null,
     );
   }
 

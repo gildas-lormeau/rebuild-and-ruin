@@ -390,12 +390,7 @@ export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
       const state = deps.getState();
       if (!state) return undefined;
       const view = target.viewport;
-      const row = pxToTile(view.y + view.h / 2);
-      const col = pxToTile(view.x + view.w / 2);
-      if (row < 0 || row >= GRID_ROWS || col < 0 || col >= GRID_COLS) {
-        return undefined;
-      }
-      return zoneAt(state.map, row, col);
+      return zoneAtPixel(state.map, view.x + view.w / 2, view.y + view.h / 2);
     }
     return undefined;
   }
@@ -633,12 +628,7 @@ export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
     const margin = TILE_SIZE;
     const w = currentVp.w;
     const h = currentVp.h;
-    let x = currentVp.x;
-    let y = currentVp.y;
-    if (ch.x < x + margin) x = ch.x - margin;
-    else if (ch.x > x + w - margin) x = ch.x - w + margin;
-    if (ch.y < y + margin) y = ch.y - margin;
-    else if (ch.y > y + h - margin) y = ch.y - h + margin;
+    const { x, y } = pullPointIntoInset(currentVp, ch.x, ch.y, margin, margin);
     if (x === currentVp.x && y === currentVp.y) return;
     setTargetSilent({
       kind: "pinch",
@@ -658,10 +648,7 @@ export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
   function currentCrosshairZone(state: GameState): ZoneId | null {
     const ch = deps.getPointerPlayerCrosshair?.();
     if (!ch) return null;
-    const row = pxToTile(ch.y);
-    const col = pxToTile(ch.x);
-    if (row < 0 || row >= GRID_ROWS || col < 0 || col >= GRID_COLS) return null;
-    return zoneAt(state.map, row, col) ?? null;
+    return zoneAtPixel(state.map, ch.x, ch.y) ?? null;
   }
 
   // --- Edge-pan ---
@@ -824,7 +811,7 @@ export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
       tapNudge.elapsed + deps.getFrameDt(),
     );
     const t = tapNudge.elapsed / TAP_NUDGE_DURATION;
-    const eased = 1 - (1 - t) * (1 - t) * (1 - t); // cubic ease-out
+    const eased = easeOutCubic(t);
     const nx = tapNudge.fromX + (tapNudge.toX - tapNudge.fromX) * eased;
     const ny = tapNudge.fromY + (tapNudge.toY - tapNudge.fromY) * eased;
     pinch.x = nx;
@@ -848,7 +835,7 @@ export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
     if (dt <= 0) return;
     pitchAnimElapsed = Math.min(PITCH_DURATION, pitchAnimElapsed + dt);
     const t = pitchAnimElapsed / PITCH_DURATION;
-    const eased = 1 - (1 - t) * (1 - t) * (1 - t); // cubic ease-out
+    const eased = easeOutCubic(t);
     currentPitch = pitchAnimFrom + (targetPitch - pitchAnimFrom) * eased;
     // Settle on the tick that crosses the duration boundary. We only
     // fire the event here (not in the `>= PITCH_DURATION` early-exit
@@ -1213,16 +1200,9 @@ export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
     else if (target.kind === "zone") seed = computeZoneViewport(target.zone);
     else return;
     const { x: curX, y: curY, w, h } = seed;
-    const insetX = w * 0.125;
-    const insetY = h * 0.125;
-    let toX = curX;
-    let toY = curY;
-    if (wx < curX + insetX) toX = wx - insetX;
-    else if (wx > curX + w - insetX) toX = wx - w + insetX;
-    if (wy < curY + insetY) toY = wy - insetY;
-    else if (wy > curY + h - insetY) toY = wy - h + insetY;
-    toX = Math.max(0, Math.min(MAP_PX_W - w, toX));
-    toY = Math.max(0, Math.min(MAP_PX_H - h, toY));
+    const pulled = pullPointIntoInset(seed, wx, wy, w * 0.125, h * 0.125);
+    const toX = Math.max(0, Math.min(MAP_PX_W - w, pulled.x));
+    const toY = Math.max(0, Math.min(MAP_PX_H - h, pulled.y));
     if (toX === curX && toY === curY) return;
 
     const pinch = ensurePinchTarget(seed);
@@ -1432,10 +1412,7 @@ export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
       lastBattleCrosshair,
     );
     if (!target) return null;
-    const row = pxToTile(target.y);
-    const col = pxToTile(target.x);
-    if (row < 0 || row >= GRID_ROWS || col < 0 || col >= GRID_COLS) return null;
-    return zoneAt(state.map, row, col) ?? null;
+    return zoneAtPixel(state.map, target.x, target.y) ?? null;
   }
 
   // --- Return public API ---
@@ -1513,4 +1490,44 @@ function battleTargetPosition(
   const tower = pid !== undefined ? players[pid]?.homeTower : null;
   if (!tower) return null;
   return towerCenterPx(tower);
+}
+
+/** Map a world-pixel point to its zone id, or undefined when the tile is
+ *  off-grid. Callers that treat "no zone" as null append `?? null` —
+ *  `zoneAt` already returns undefined over river / letterbox tiles
+ *  (zone 0 is `floodFillZones`' water sentinel; player zones start at 1). */
+function zoneAtPixel(map: GameMap, px: number, py: number): ZoneId | undefined {
+  const row = pxToTile(py);
+  const col = pxToTile(px);
+  if (row < 0 || row >= GRID_ROWS || col < 0 || col >= GRID_COLS) {
+    return undefined;
+  }
+  return zoneAt(map, row, col);
+}
+
+/** Cubic ease-out. Written as repeated multiplication (not `**`) so the
+ *  float results stay bit-identical with the historical inline forms —
+ *  `tickPitch`'s settle frame feeds the battle-done dispatch gate. */
+function easeOutCubic(t: number): number {
+  return 1 - (1 - t) * (1 - t) * (1 - t);
+}
+
+/** Pull a world point inside a viewport's inset comfort rect: returns the
+ *  viewport origin shifted the minimal amount so the point sits at least
+ *  `insetX`/`insetY` from every edge (origin unchanged when the point is
+ *  already inside). Shared by the crosshair edge-follow and the tap-nudge. */
+function pullPointIntoInset(
+  viewport: Viewport,
+  px: number,
+  py: number,
+  insetX: number,
+  insetY: number,
+): { x: number; y: number } {
+  let x = viewport.x;
+  let y = viewport.y;
+  if (px < viewport.x + insetX) x = px - insetX;
+  else if (px > viewport.x + viewport.w - insetX) x = px - viewport.w + insetX;
+  if (py < viewport.y + insetY) y = py - insetY;
+  else if (py > viewport.y + viewport.h - insetY) y = py - viewport.h + insetY;
+  return { x, y };
 }

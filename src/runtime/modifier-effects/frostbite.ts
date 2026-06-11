@@ -6,14 +6,21 @@
  * round via the binary `frostbite` flag.
  */
 
-import { deriveModifierRamp } from "./ramp.ts";
+import {
+  deriveModifierRamp,
+  MODIFIER_REVEAL_RAMP_DURATION_MS,
+  MODIFIER_REVEAL_WAVE_PEAK_AMPLITUDE,
+  MODIFIER_REVEAL_WAVE_PERIOD_MS,
+} from "./ramp.ts";
 import { wavedRamp } from "./waved-ramp.ts";
 
 /** Intensity held during the snapshot — grunts faintly cooling. */
 export const FROSTBITE_REVEAL_FLOOR = 0.2;
-export const FROSTBITE_REVEAL_RAMP_DURATION_MS = 1100;
-export const FROSTBITE_REVEAL_WAVE_PERIOD_MS = 320;
-export const FROSTBITE_REVEAL_WAVE_PEAK_AMPLITUDE = 0.3;
+export const FROSTBITE_REVEAL_RAMP_DURATION_MS =
+  MODIFIER_REVEAL_RAMP_DURATION_MS;
+export const FROSTBITE_REVEAL_WAVE_PERIOD_MS = MODIFIER_REVEAL_WAVE_PERIOD_MS;
+export const FROSTBITE_REVEAL_WAVE_PEAK_AMPLITUDE =
+  MODIFIER_REVEAL_WAVE_PEAK_AMPLITUDE;
 
 export function deriveFrostbiteRevealProgress(
   revealTimeMs: number | undefined,

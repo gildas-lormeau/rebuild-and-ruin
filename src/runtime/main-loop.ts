@@ -48,7 +48,10 @@ interface FrameContextInputs {
   lifeLostLocalPending: boolean;
   isSelectionReady: boolean;
   hasPointerPlayer: boolean;
-  pointerPlayerId: ValidPlayerId | null;
+  /** Resolved point-of-view slot — online: myPlayerId, local: pointer
+   *  player slot, demo: 0. Derived once per substep by the caller (the
+   *  same value feeds the lifeLostLocalPending check). */
+  povPlayerId: ValidPlayerId;
   myPlayerId: PlayerId;
   hostAtFrameStart: boolean;
   remotePlayerSlots: ReadonlySet<ValidPlayerId>;
@@ -172,10 +175,10 @@ export function createRuntimeLoop(deps: RuntimeLoopDeps): {
     const humanId: ValidPlayerId | null = isActivePlayer(myId)
       ? myId
       : (pointer?.playerId ?? null);
-    // Mirrors the povPlayerId derivation inside computeFrameContext:
-    // online → myId, local → pointer slot, demo → 0. Keeps the dialog
-    // membership check off the lifeLost types tier (interaction-types
-    // is a leaf, runtime/state shouldn't import it) by computing here.
+    // Single povPlayerId derivation — online → myId, local → pointer
+    // slot, demo → 0. Feeds both the dialog membership check below
+    // (computed here so this layer doesn't import the lifeLost types
+    // tier) and `frameMeta.povPlayerId` via computeFrameContext.
     const povSlot: ValidPlayerId = isActivePlayer(myId)
       ? myId
       : ((pointer?.playerId ?? 0) as ValidPlayerId);
@@ -198,7 +201,7 @@ export function createRuntimeLoop(deps: RuntimeLoopDeps): {
       lifeLostLocalPending,
       isSelectionReady: deps.isSelectionReady(),
       hasPointerPlayer: pointer !== null,
-      pointerPlayerId: pointer?.playerId ?? null,
+      povPlayerId: povSlot,
       myPlayerId: myId,
       hostAtFrameStart: deps.amHost(),
       remotePlayerSlots: deps.remotePlayerSlots(),
@@ -322,7 +325,7 @@ function computeFrameContext(inputs: FrameContextInputs): FrameContext {
     lifeLostLocalPending,
     isSelectionReady,
     hasPointerPlayer,
-    pointerPlayerId,
+    povPlayerId,
     myPlayerId,
     hostAtFrameStart,
     remotePlayerSlots,
@@ -352,11 +355,6 @@ function computeFrameContext(inputs: FrameContextInputs): FrameContext {
     phaseEnding ||
     isTransition ||
     (mobileAutoZoom && (humanCannonsComplete || humanCastleConfirmed));
-
-  // Online: myPlayerId. Local: pointer player slot. Demo: 0.
-  const povPlayerId: ValidPlayerId = isActivePlayer(myPlayerId)
-    ? myPlayerId
-    : (pointerPlayerId ?? (0 as ValidPlayerId));
 
   return {
     myPlayerId,

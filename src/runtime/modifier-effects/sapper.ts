@@ -8,12 +8,19 @@
  */
 
 import { bellPulse } from "./bell-pulse.ts";
-import { deriveModifierRamp } from "./ramp.ts";
+import {
+  deriveModifierRamp,
+  MODIFIER_REVEAL_RAMP_DURATION_MS,
+  MODIFIER_REVEAL_THREAT_PEAK_INTENSITY,
+  MODIFIER_REVEAL_THREAT_PULSE_PERIOD_MS,
+} from "./ramp.ts";
 
-export const SAPPER_REVEAL_PULSE_PERIOD_MS = 280;
+export const SAPPER_REVEAL_PULSE_PERIOD_MS =
+  MODIFIER_REVEAL_THREAT_PULSE_PERIOD_MS;
 /** Peak tint mix at the bell's apex; lower values = subtler tint. */
-export const SAPPER_REVEAL_PEAK_INTENSITY = 0.85;
-export const SAPPER_REVEAL_RAMP_DURATION_MS = 1100;
+export const SAPPER_REVEAL_PEAK_INTENSITY =
+  MODIFIER_REVEAL_THREAT_PEAK_INTENSITY;
+export const SAPPER_REVEAL_RAMP_DURATION_MS = MODIFIER_REVEAL_RAMP_DURATION_MS;
 
 export function deriveSapperRevealIntensity(
   revealTimeMs: number | undefined,

@@ -70,7 +70,6 @@
     "files": [
       "src/runtime/banner-messages.ts",
       "src/runtime/browser/dom.ts",
-      "src/runtime/dialogs/dialog-tick.ts",
       "src/runtime/modifier-effects/bell-pulse.ts",
       "src/runtime/modifier-effects/ramp.ts",
       "src/runtime/modifier-effects/waved-ramp.ts",
@@ -265,7 +264,8 @@
     "domain": "runtime",
     "role": "camera projection math",
     "files": [
-      "src/runtime/camera-projection.ts"
+      "src/runtime/camera-projection.ts",
+      "src/runtime/dialogs/dialog-tick.ts"
     ]
   },
   {

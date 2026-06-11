@@ -234,17 +234,6 @@ export interface Dpad {
   setConfirmValid(valid: boolean): void;
 }
 
-export interface FloatingActions {
-  update(
-    visible: boolean,
-    x: number,
-    y: number,
-    nearTop: boolean,
-    leftHanded: boolean,
-  ): void;
-  setConfirmValid(valid: boolean): void;
-}
-
 export interface ZoomButton {
   update(active: boolean): void;
 }
@@ -443,7 +432,7 @@ export interface TouchControlsDeps {
   leftHanded: boolean;
   pointerPlayer: () => (PlayerController & InputReceiver) | null;
   dpad: Dpad | null;
-  floatingActions: FloatingActions | null;
+  floatingActions: FloatingActionsHandle | null;
   zoneCycleButton: ZoomButton | null;
   quitButton: QuitButton | null;
   loupeHandle: LoupeHandle | null;

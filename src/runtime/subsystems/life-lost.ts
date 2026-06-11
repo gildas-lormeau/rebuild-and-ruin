@@ -1,4 +1,3 @@
-import { DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS } from "../../shared/core/action-schedule.ts";
 import {
   DIALOG_FORCE_GRACE,
   LIFE_LOST_AUTO_DELAY,
@@ -12,6 +11,11 @@ import {
   type ResolvedChoice,
 } from "../../shared/ui/interaction-types.ts";
 import { Mode } from "../../shared/ui/ui-mode.ts";
+import {
+  findPendingDialogEntry,
+  isLocallyDrivenEntry,
+  scheduleOrApplyDialogChoice,
+} from "../dialogs/dialog-tick.ts";
 import {
   abandonedPlayers,
   applyLifeLostChoice,
@@ -247,23 +251,13 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
     entry: LifeLostEntry,
     dialog: LifeLostDialogState,
   ): void {
-    if (isLocallyDriven(entry)) {
+    if (isLocallyDrivenEntry(entry, runtimeState.frameMeta.remotePlayerSlots)) {
       scheduleOrApplyChoice(entry.playerId, LifeLostChoice.ABANDON);
       return;
     }
     if (dialog.timer >= LIFE_LOST_MAX_TIMER + DIALOG_FORCE_GRACE) {
       applyLifeLostChoice(entry, LifeLostChoice.ABANDON);
     }
-  }
-
-  /** True when this machine owns the entry's input: not auto-resolving
-   *  (real human) and not driven by a remote peer. Mirrors
-   *  `interactiveSlots` in subsystems/upgrade-pick.ts. */
-  function isLocallyDriven(entry: LifeLostEntry): boolean {
-    return (
-      !entry.autoResolve &&
-      !runtimeState.frameMeta.remotePlayerSlots.has(entry.playerId)
-    );
   }
 
   function toggleFocus(playerId: ValidPlayerId): void {
@@ -283,43 +277,39 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
     scheduleOrApplyChoice(playerId, choice);
   }
 
-  /** Lockstep-when-online: in local play, mutate `entry.choice` immediately;
-   *  in online play, broadcast with `applyAt` and schedule the local apply
-   *  at the same `applyAt` so every peer's mutation lands at the same logical
-   *  tick. `applyEarlyChoices` is the online-signal (undefined in local). */
+  /** Lockstep-when-online choice — see `scheduleOrApplyDialogChoice`.
+   *  `applyEarlyChoices` is the online-signal (undefined in local). */
   function scheduleOrApplyChoice(
     playerId: ValidPlayerId,
     choice: ResolvedChoice,
   ): void {
-    if (deps.applyEarlyChoices === undefined) {
-      withPendingEntry(playerId, (entry) => applyLifeLostChoice(entry, choice));
-      return;
-    }
-    if (inFlightChoices.has(playerId)) return;
-    inFlightChoices.add(playerId);
-    const applyAt =
-      runtimeState.state.simTick + DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS;
-    deps.sendLifeLostChoice(choice, playerId, applyAt);
-    runtimeState.actionSchedule.schedule({
-      applyAt,
+    scheduleOrApplyDialogChoice({
+      online: deps.applyEarlyChoices !== undefined,
       playerId,
-      apply: () => {
-        inFlightChoices.delete(playerId);
+      inFlight: inFlightChoices,
+      simTick: runtimeState.state.simTick,
+      schedule: (action) => runtimeState.actionSchedule.schedule(action),
+      applyLocal: () =>
+        withPendingEntry(playerId, (entry) =>
+          applyLifeLostChoice(entry, choice),
+        ),
+      send: (applyAt) => deps.sendLifeLostChoice(choice, playerId, applyAt),
+      applyAtTick: () =>
         applyLifeLostChoiceToDialog(
           playerId,
           choice,
           runtimeState.dialogs.lifeLost,
-        );
-      },
+        ),
     });
   }
 
   function findPendingEntry(
     playerId: ValidPlayerId,
   ): LifeLostEntry | undefined {
-    return runtimeState.dialogs.lifeLost?.entries.find(
-      (entry) =>
-        entry.playerId === playerId && entry.choice === LifeLostChoice.PENDING,
+    return findPendingDialogEntry(
+      runtimeState.dialogs.lifeLost?.entries,
+      playerId,
+      (entry) => entry.choice === LifeLostChoice.PENDING,
     );
   }
 

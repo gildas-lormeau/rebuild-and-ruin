@@ -7,7 +7,11 @@
  * reset, no pause, the storm IS the buildup that just finished.
  */
 
-import { deriveModifierRamp } from "./ramp.ts";
+import {
+  deriveModifierRamp,
+  MODIFIER_REVEAL_RAMP_DURATION_MS,
+  MODIFIER_REVEAL_WAVE_PERIOD_MS,
+} from "./ramp.ts";
 import { wavedRamp } from "./waved-ramp.ts";
 
 /** Amplitude at reveal start — a slight breeze rather than dead-still
@@ -15,9 +19,8 @@ import { wavedRamp } from "./waved-ramp.ts";
  *  pattern. */
 const DUST_STORM_REVEAL_FLOOR = 0.1;
 /** Subtle pulse layered on the linear ramp; gives the buildup a
- *  "gusty" texture instead of a metronome ramp. Period matches
- *  fog/frostbite/rubble (320ms). */
-const DUST_STORM_REVEAL_WAVE_PERIOD_MS = 320;
+ *  "gusty" texture instead of a metronome ramp. */
+const DUST_STORM_REVEAL_WAVE_PERIOD_MS = MODIFIER_REVEAL_WAVE_PERIOD_MS;
 /** Small enough that the linear ramp dominates — the pulse adds
  *  texture rather than overwhelming the rising trend. */
 const DUST_STORM_REVEAL_WAVE_PEAK_AMPLITUDE = 0.05;
@@ -30,9 +33,7 @@ const DUST_STORM_SWAY_PERIOD_SEC = 3.2;
 /** Angular speed in rad/sec — derived once. */
 const DUST_STORM_SWAY_ANGULAR_SPEED_RAD_PER_SEC =
   (2 * Math.PI) / DUST_STORM_SWAY_PERIOD_SEC;
-/** Reveal duration. Matches sibling overlays (fog/frostbite/rubble)
- *  for a uniform reveal-window across modifiers. */
-export const DUST_STORM_REVEAL_DURATION_MS = 1100;
+export const DUST_STORM_REVEAL_DURATION_MS = MODIFIER_REVEAL_RAMP_DURATION_MS;
 /** Amplitude at reveal end. Battle eases from this to 1.0 over its
  *  own first second — keeps the handoff smooth (no sudden full gust). */
 export const DUST_STORM_REVEAL_PEAK_AMPLITUDE = 0.5;

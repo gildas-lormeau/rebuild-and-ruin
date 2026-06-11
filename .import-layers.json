@@ -20,7 +20,6 @@
       "src/runtime/audio/music-assets.ts",
       "src/runtime/banner-messages.ts",
       "src/runtime/browser/dom.ts",
-      "src/runtime/dialogs/dialog-tick.ts",
       "src/runtime/modifier-effects/bell-pulse.ts",
       "src/runtime/modifier-effects/ramp.ts",
       "src/runtime/modifier-effects/waved-ramp.ts",
@@ -101,6 +100,7 @@
       "src/render/3d/sprites/wall-scene.ts",
       "src/render/render-ui-theme.ts",
       "src/runtime/camera-projection.ts",
+      "src/runtime/dialogs/dialog-tick.ts",
       "src/shared/core/battle-events.ts",
       "src/shared/ui/interaction-types.ts",
       "src/shared/ui/player-config.ts"

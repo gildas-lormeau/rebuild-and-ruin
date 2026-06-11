@@ -38,7 +38,7 @@ import type {
   CreateBannerUiFn,
   CreateOnlineOverlayFn,
   Dpad,
-  FloatingActions,
+  FloatingActionsHandle,
   QuitButton,
   TouchControlsDeps,
   ZoomButton,
@@ -106,7 +106,7 @@ interface RenderSystemDeps {
   readonly pointerPlayer: () => (PlayerController & InputReceiver) | null;
   readonly getTouch: () => {
     dpad: Dpad | null;
-    floatingActions: FloatingActions | null;
+    floatingActions: FloatingActionsHandle | null;
     zoneCycleButton: ZoomButton | null;
     quitButton: QuitButton | null;
     loupeHandle: LoupeHandle | null;
