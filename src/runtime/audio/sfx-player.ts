@@ -18,8 +18,10 @@ import type { ValidPlayerId } from "../../shared/core/player-slot.ts";
 import { cannonTier } from "../../shared/core/player-types.ts";
 import type { GameState } from "../../shared/core/types.ts";
 import {
-  AUDIO_CONTEXT_RUNNING,
   AUDIO_CONTEXT_SUSPENDED,
+  audioContextCanSuspend,
+  audioContextNeedsResume,
+  isAudioContextInterrupted,
 } from "../../shared/platform/platform.ts";
 import {
   type PcmSample,
@@ -314,15 +316,22 @@ export function createSfxSubsystem(deps: SfxSubsystemDeps): SfxSubsystem {
   }
 
   async function activate(): Promise<void> {
-    if (deps.assetsReady) await deps.assetsReady;
+    // Resume FIRST — activate() runs inside the user gesture, and the
+    // async body executes synchronously up to its first await, so the
+    // resume() call still lands inside the gesture's activation window.
+    // Awaiting `assetsReady` (an IndexedDB load) before resuming used to
+    // consume the gesture and leave the context suspended — the exact
+    // hazard music's `activateOnce` orders around ("Resume now — we're
+    // inside the home-page click").
     const context = ensureContext();
-    if (context && context.state === AUDIO_CONTEXT_SUSPENDED) {
+    if (context && audioContextNeedsResume(context)) {
       try {
         await context.resume();
       } catch {
         // Browser may refuse outside a user gesture — caller handles the retry.
       }
     }
+    if (deps.assetsReady) await deps.assetsReady;
     ensureSamples();
   }
 
@@ -352,6 +361,11 @@ export function createSfxSubsystem(deps: SfxSubsystemDeps): SfxSubsystem {
     if (!sample) return undefined;
     const context = ensureContext();
     if (!context) return undefined;
+    // iOS interruption (phone call, Siri): DROP the one-shot. It's
+    // moment-anchored — resume() wouldn't settle until the interruption
+    // ends, and every source scheduled meanwhile would burst out at once
+    // on release.
+    if (isAudioContextInterrupted(context)) return undefined;
     if (context.state === AUDIO_CONTEXT_SUSPENDED) {
       const epoch = playEpoch;
       try {
@@ -677,12 +691,12 @@ export function createSfxSubsystem(deps: SfxSubsystemDeps): SfxSubsystem {
 
   async function applyPauseState(): Promise<void> {
     if (!audioContext) return;
-    if (paused && audioContext.state === AUDIO_CONTEXT_RUNNING) {
+    if (paused && audioContextCanSuspend(audioContext)) {
       // suspend() can reject (browser state races); swallow it like the
       // resume() path below and the music subsystem do — an unhandled
       // rejection here would surface as a console error on every tab-hide.
       await audioContext.suspend().catch(() => {});
-    } else if (!paused && audioContext.state === AUDIO_CONTEXT_SUSPENDED) {
+    } else if (!paused && audioContextNeedsResume(audioContext)) {
       try {
         await audioContext.resume();
       } catch {

@@ -17,8 +17,8 @@ import { Phase } from "../../shared/core/game-phase.ts";
 import type { ValidPlayerId } from "../../shared/core/player-slot.ts";
 import type { GameState } from "../../shared/core/types.ts";
 import {
-  AUDIO_CONTEXT_RUNNING,
-  AUDIO_CONTEXT_SUSPENDED,
+  audioContextCanSuspend,
+  audioContextNeedsResume,
 } from "../../shared/platform/platform.ts";
 import {
   type CachedPcm,
@@ -298,7 +298,7 @@ export function createMusicSubsystem(): MusicSubsystem {
       const ctx = ensureAudioContext();
       if (!ctx) return;
       // Resume now (we're inside the home-page click). Safe to call repeatedly.
-      if (ctx.state === AUDIO_CONTEXT_SUSPENDED) {
+      if (audioContextNeedsResume(ctx)) {
         await ctx.resume().catch(() => {});
       }
       await hydrateBgTracks(ctx);
@@ -680,9 +680,9 @@ export function createMusicSubsystem(): MusicSubsystem {
   async function applyPauseState(): Promise<void> {
     const ctx = audioContext;
     if (ctx) {
-      if (paused && ctx.state === AUDIO_CONTEXT_RUNNING) {
+      if (paused && audioContextCanSuspend(ctx)) {
         await ctx.suspend().catch(() => {});
-      } else if (!paused && ctx.state === AUDIO_CONTEXT_SUSPENDED) {
+      } else if (!paused && audioContextNeedsResume(ctx)) {
         await ctx.resume().catch(() => {});
       }
     }
