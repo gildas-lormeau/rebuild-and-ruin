@@ -9,7 +9,12 @@ import { Phase } from "../src/shared/core/game-phase.ts";
 import type { ValidPlayerId } from "../src/shared/core/player-slot.ts";
 import { MAX_PLAYERS } from "../src/shared/ui/player-config.ts";
 import { Mode } from "../src/shared/ui/ui-mode.ts";
-import { clickAndSettle, createScenario } from "./scenario.ts";
+import {
+  clickAndSettle,
+  createScenario,
+  pressKeyAndSettle,
+  waitForPhase,
+} from "./scenario.ts";
 
 Deno.test(
   "selection zoom: mobile auto-zoom engages once the selection announcement ends",
@@ -105,6 +110,35 @@ Deno.test(
         return vp !== undefined && vp.w < MAP_PX_W;
       },
       { timeoutMs: (SELECT_ANNOUNCEMENT_DURATION + 2) * 1000 },
+    );
+  },
+);
+
+// Teardown regression: quitting (or game-over) mid-battle previously left
+// `pitch.current` at the battle tilt — `clearAllZoomState` deliberately
+// preserved rendered-frame state, but the lobby and game-over screens
+// render `getPitch()` unconditionally and nothing ever eases it back
+// (Mode.STOPPED never ticks the anim; the lobby has no untilt owner), so
+// the board drew at the 30° battle tilt indefinitely.
+Deno.test(
+  "camera: quitting mid-battle snaps the pitch flat for the lobby",
+  async () => {
+    using sc = await createScenario({ seed: 42, mode: "classic", rounds: 3 });
+    waitForPhase(sc, Phase.BATTLE);
+    sc.runUntil(() => sc.camera.getPitchState() === "tilted", {
+      timeoutMs: 30_000,
+    });
+
+    // Double-ESC: arm the quit countdown, then confirm — routes through
+    // lifecycle.returnToLobby → teardownSession → clearAllZoomState.
+    await pressKeyAndSettle(sc, "Escape");
+    await pressKeyAndSettle(sc, "Escape");
+    assertEquals(sc.mode(), Mode.LOBBY, "double-ESC should quit to the lobby");
+    assertEquals(
+      sc.camera.getPitch(),
+      0,
+      "teardown must snap the battle tilt flat — nothing eases it after " +
+        "the session dies",
     );
   },
 );

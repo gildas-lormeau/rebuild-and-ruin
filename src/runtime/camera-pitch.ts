@@ -92,10 +92,9 @@ export function isPitchSettled(anim: PitchAnim): boolean {
   return anim.state === "flat" || anim.state === "tilted";
 }
 
-/** Snap to settled-flat (rematch bootstrap — see `resetCamera`). The
- *  caller drops its parked settle continuation separately
- *  (`clearAllZoomState`) because a dying session's continuation must
- *  never run. */
+/** Snap to settled-flat (session teardown + rematch — see
+ *  `clearAllZoomState`). The caller drops its parked settle continuation
+ *  separately because a dying session's continuation must never run. */
 export function resetPitchAnim(anim: PitchAnim): void {
   snapPitchAnim(anim, 0);
 }

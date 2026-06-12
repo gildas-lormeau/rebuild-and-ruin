@@ -1231,10 +1231,15 @@ export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
    *  (game-over / quit-to-lobby) and `resetCamera` (rematch bootstrap). The
    *  goal is "no field can leak across game boundaries". The platform flag
    *  (`mobileZoomEnabled`) survives because it reflects the device, not the
-   *  session. The rendered-frame state (`currentVp`, `pitch.current`) also
-   *  survives because clearing it on quit would jump-cut the visible
-   *  viewport mid-transition; on rematch we want the snap, so
-   *  `resetCamera` does it explicitly. */
+   *  session. The rendered-frame viewport (`currentVp`) survives: its
+   *  target is reset to full-map below, lobby substeps lerp it home, and
+   *  rematch snaps it explicitly in `resetCamera`. The pitch must SNAP
+   *  flat instead — the lobby and game-over screens render `getPitch()`
+   *  unconditionally and nothing ever eases it back (Mode.STOPPED never
+   *  ticks the anim; the lobby has no untilt owner), so a mid-battle
+   *  quit/game-over otherwise draws them at the 30° battle tilt forever.
+   *  No jump-cut concern: both paths replace the canvas content
+   *  wholesale. */
   function clearAllZoomState(): void {
     setTargetSilent(FULL_MAP_TARGET);
     tapNudge = undefined;
@@ -1252,6 +1257,7 @@ export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
     // place, the next session's first pitch-settle frame would fire it
     // and replay a dead match's phase transition.
     pendingPitchSettled = undefined;
+    resetPitchAnim(pitch);
   }
 
   function resetCamera(): void {
@@ -1265,7 +1271,6 @@ export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
     // `getViewport()` reports a fullmap-equal viewport (instead of the
     // "at full map" undefined) until the first updateViewport tick.
     lastVp = undefined;
-    resetPitchAnim(pitch);
   }
 
   /** Request an immediate untilt. Idempotent. Standalone path for the
