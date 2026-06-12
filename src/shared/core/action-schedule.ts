@@ -41,10 +41,10 @@ export interface ActionSchedule<S> {
   reset: () => void;
 }
 
-/** Default lockstep buffer depth in sim ticks. Must exceed the worst-case
+/** Lockstep buffer depth in sim ticks. Must exceed the worst-case
  *  cross-peer wire latency. At 60Hz sim this absorbs ~133ms of jitter,
- *  comfortably above typical LAN/WAN WebSocket round-trips. Per-runtime
- *  override via `RuntimeConfig.actionScheduleSafetyTicks`. */
+ *  comfortably above typical LAN/WAN WebSocket round-trips. Hardcoded —
+ *  every originator stamps with this same constant. */
 export const DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS = 8;
 
 export function createActionSchedule<S>(): ActionSchedule<S> {

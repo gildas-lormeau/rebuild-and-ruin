@@ -32,7 +32,7 @@ export const MODIFIER_EFFECT_FACTORIES: readonly ModifierEffectFactory[] = [
   // (frostbite, rubble_clearing, sapper, grunt_surge have NO factory
   // entry here — their runtime-derived overlay multipliers piggyback on
   // the existing entity managers (grunts.ts / walls.ts / debris.ts /
-  // pits.ts). See `src/runtime/*-overlay.ts` for the derive functions.
+  // pits.ts). See `src/runtime/modifier-effects/` for the derive functions.
   // Owned-sinkhole bank tinting is now a fragment-shader override on the
   // terrain mesh — see `terrain.ts` + `effects/terrain-sdf-texture.ts` +
   // `effects/terrain-tile-data.ts`. No registry entry needed.)

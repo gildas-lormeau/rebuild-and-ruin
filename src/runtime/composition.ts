@@ -730,9 +730,11 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     getPaused: () => isPaused(runtimeState),
     setPaused: (paused) => {
       // `setPaused` is called from the user-facing pause toggle
-      // (options menu / pause key). Clearing the pause leaves any
-      // visibility-driven pause in place — but in practice the
-      // tab has to be visible for a user to hit the toggle at all.
+      // (options menu / pause key). `pausedBy` is a single-owner slot,
+      // so clearing also clears a visibility-driven pause — acceptable
+      // because the tab must be visible for the user to hit the toggle
+      // at all. (Online play never reaches here: togglePause and
+      // mid-game F1 are disabled while online.)
       runtimeState.pausedBy = paused ? "user" : "none";
     },
     optionsCursor: {

@@ -204,8 +204,10 @@ directly — they receive a `TimingApi` via deps.
   without a peer dependency.
 - **`phase-machine.ts`** — Pure data-driven phase-transition state
   machine. The `TRANSITIONS` table declares each transition's mutate,
-  display steps (banner / score-overlay / life-lost-dialog /
-  upgrade-pick), and postDisplay side-effects. `runTransition(id, ctx)`
+  display steps (banner / score-overlay / life-lost-dialog — the
+  upgrade-pick modal is NOT a display step; UPGRADE_PICK is a real
+  phase whose entry banner's postDisplay arms the dialog), and
+  postDisplay side-effects. `runTransition(id, ctx)`
   is the single entry point — captures the scene, runs mutate, walks
   the display, fires postDisplay. The actual model is clone-everywhere:
   the only `PhaseTransitionCtx` builder is `buildPhaseCtx` in

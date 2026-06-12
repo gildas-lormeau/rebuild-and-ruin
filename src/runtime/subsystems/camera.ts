@@ -95,8 +95,9 @@ export interface RuntimeCamera {
    *  without duplicating the constant cross-domain. */
   getPitchMax: () => number;
   /** Request an immediate pitch=0 ease. Idempotent. Used for "untilt
-   *  without unzoom" (pitch only). The transition path already flattens
-   *  pitch via `unzoomForOverlays` on `shouldUnzoom`. */
+   *  without unzoom" (pitch only) — battle-done's pre-dispatch untilt
+   *  gate (phase-ticks) is the sole flatten owner; `unzoomForOverlays`
+   *  deliberately never touches pitch. */
   beginUntilt: () => void;
   /** Start the build→battle tilt animation. Called explicitly at
    *  battle-banner end so the tilt plays unzoomed, before balloons /

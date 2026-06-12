@@ -117,8 +117,11 @@ export class HumanController extends BaseController implements InputReceiver {
 
   // Human's cannonTick is pure (no RNG/timer advancement), so calling it at
   // dt=0 from startCannonPhase seeds currentCannonPhantom before the first
-  // real tick runs — ensuring the CANNON_PLACE banner's B-snapshot captures
-  // the preview. Mirrors onStartBuildPhase below.
+  // real tick runs — the first post-banner GAME frame renders with the
+  // preview already in place instead of one tick late. (Unlike
+  // onStartBuildPhase below, this does NOT land in the entry banner's
+  // B-snapshot: cannon priming runs in the banner's postDisplay, after
+  // both scenes were captured; build priming runs in the mutate, before.)
   override startCannonPhase(state: CannonViewState): void {
     super.startCannonPhase(state);
     this.currentCannonPhantom = this.cannonTick(state, 0);
