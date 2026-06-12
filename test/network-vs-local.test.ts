@@ -1135,6 +1135,112 @@ Deno.test(
   },
 );
 
+// ── Adoption in the battle-done untilt window ────────────────────────
+// battle-done gates on the camera untilt settling flat — deterministic
+// because every peer starts the ease at the same gate tick. A FULL_STATE
+// landing mid-untilt snaps adopters to the settled battle pose
+// (snapPitchToPhase maps BATTLE → "tilted"), so they restart the full
+// 0.6s ease — while a promoted host keeping its partial ease settles
+// (and dispatches battle-done) earlier. The next phase's timer then
+// primes at offset sim ticks on each survivor: a permanent
+// phase-boundary skew. The promoted host must snap to the same settled
+// pose before serializing so every peer restarts the ease together.
+Deno.test(
+  "host migration during the battle-done untilt keeps the build-entry tick aligned",
+  async () => {
+    const trio = await createMigrationTrio({
+      seed: 42,
+      mode: "classic",
+      rounds: 4,
+    });
+    const { host, promotable, observer, pumpHost, pumpPromoted } = trio;
+
+    // Lockstep all three until the promotable sits inside the battle-done
+    // untilt window (battle resolved, camera easing back toward flat).
+    let steps = 0;
+    while (
+      !(
+        promotable.state.phase === Phase.BATTLE &&
+        promotable.mode() === Mode.GAME &&
+        promotable.camera.getPitchState() === "untilting"
+      )
+    ) {
+      host.tick(1);
+      await pumpHost();
+      promotable.tick(1);
+      observer.tick(1);
+      if (host.mode() === Mode.STOPPED) {
+        throw new Error("game ended before the untilt window");
+      }
+      if (++steps > 200_000) {
+        throw new Error("untilt window never reached");
+      }
+    }
+    // Advance ~15 ticks INTO the 0.6s (~36-tick) ease so the promoted
+    // peer holds a meaningful partial ease at the snapshot — the skew a
+    // kept ease produces equals the elapsed portion, and a 1-tick-old
+    // ease would make this test green-by-luck against an off-by-one.
+    for (let i = 0; i < 15; i++) {
+      host.tick(1);
+      await pumpHost();
+      promotable.tick(1);
+      observer.tick(1);
+    }
+    assertEquals(
+      promotable.camera.getPitchState(),
+      "untilting",
+      "staging: the promotable must still be mid-untilt at the migration",
+    );
+
+    // Capture each survivor's sim tick at its next build-phase entry —
+    // the observable that pins the battle-done dispatch alignment.
+    let promotedBuildTick: number | null = null;
+    let observerBuildTick: number | null = null;
+    promotable.bus.on(GAME_EVENT.PHASE_START, (ev) => {
+      if (ev.phase === Phase.WALL_BUILD && promotedBuildTick === null) {
+        promotedBuildTick = promotable.state.simTick;
+      }
+    });
+    observer.bus.on(GAME_EVENT.PHASE_START, (ev) => {
+      if (ev.phase === Phase.WALL_BUILD && observerBuildTick === null) {
+        observerBuildTick = observer.state.simTick;
+      }
+    });
+
+    // Kill the host mid-untilt; both watchers learn at the same tick.
+    trio.promotableSession.myPlayerId = 0 as ValidPlayerId;
+    const hostLeft = {
+      type: MESSAGE.HOST_LEFT,
+      newHostPlayerId: 0 as ValidPlayerId,
+      disconnectedPlayerId: null,
+    } as ServerMessage;
+    await promotable.deliverMessage(hostLeft);
+    await observer.deliverMessage(hostLeft);
+    await pumpPromoted();
+
+    let ticks = 0;
+    while (promotedBuildTick === null || observerBuildTick === null) {
+      promotable.tick(1);
+      await pumpPromoted();
+      observer.tick(1);
+      if (++ticks > 30_000) {
+        throw new Error(
+          `build phase never reached after migration ` +
+            `(promoted=${Phase[promotable.state.phase]} ` +
+            `observer=${Phase[observer.state.phase]})`,
+        );
+      }
+    }
+    assertEquals(
+      observerBuildTick,
+      promotedBuildTick,
+      "both survivors must dispatch battle-done (and prime the build " +
+        "timer) at the same sim tick — a mid-untilt adoption must not " +
+        "restart the ease on one peer only",
+    );
+  },
+);
+
 // ── Adoption in the cannon-banner window: self-human prime ───────────
 // A FULL_STATE landing while the adopting peer is mid enter-cannon-place
 // banner sweep tears the banner down (hideBanner), dropping the armed

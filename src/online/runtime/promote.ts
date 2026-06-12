@@ -201,6 +201,25 @@ function skipPendingAnimations(): void {
     _runtime.phaseTicks.skipBattleIntro();
     _client.devLog("Skipped battle intro → battle begun");
   }
+  // Battle-done untilt repair: promotion landing inside the pre-banner
+  // untilt window (Mode.GAME — battle resolved, camera easing back to
+  // flat before battle-done may dispatch). Adopting watchers snap to the
+  // settled battle pose (`snapPitchToPhase` maps BATTLE → "tilted") and
+  // restart the full ease at the first post-snapshot gate tick; the
+  // promoted peer keeping its partial ease would settle — and dispatch
+  // battle-done — that many ticks earlier, priming the next phase's
+  // timer at offset sim ticks on each survivor (permanent phase-boundary
+  // skew). Snap to the same settled pose BEFORE the broadcast so every
+  // peer restarts the ease together. Cosmetic cost: the untilt replays
+  // once from the top on the promoted peer.
+  if (
+    _runtime.runtimeState.state.phase === Phase.BATTLE &&
+    modeAtPromotion === Mode.GAME &&
+    _runtime.camera.getPitchState() !== "tilted"
+  ) {
+    _runtime.camera.snapPitchSettled("tilted");
+    _client.devLog("Snapped mid-untilt pitch → settled battle pose");
+  }
   // Cannon-entry repair: promotion landing in the enter-cannon-place
   // banner sweep — the teardown above just dropped the banner `onDone`
   // whose postDisplay runs `initLocalCannonControllers`. AI slots get
