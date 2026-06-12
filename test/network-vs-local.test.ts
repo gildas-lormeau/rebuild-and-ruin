@@ -33,6 +33,7 @@
 import { assert, assertEquals } from "@std/assert";
 import { createScenario, type Scenario } from "./scenario.ts";
 import {
+  createMigrationTrio,
   createNetworkedPair,
   type NetworkedPair,
   type PlayerParitySnapshot,
@@ -480,60 +481,6 @@ Deno.test(
     );
   },
 );
-
-function snapshotState(sc: Scenario): StateSnapshot {
-  return {
-    rngState: sc.state.rng.getState(),
-    players: snapshotPlayers(sc),
-  };
-}
-
-function snapshotPlayers(sc: Scenario): PlayerSnapshot[] {
-  return sc.state.players.map((player) => ({
-    id: player.id,
-    lives: player.lives,
-    walls: player.walls.size,
-    cannons: player.cannons.length,
-    enclosedTowers: player.enclosedTowers.length,
-    score: player.score,
-    currentPiece: player.currentPiece,
-    bagQueueLen: player.bag ? player.bag.queue.length : null,
-  }));
-}
-
-function assertStateConverges(
-  actual: StateSnapshot,
-  expected: StateSnapshot,
-  label: string,
-): void {
-  assertEquals(
-    actual.rngState,
-    expected.rngState,
-    `${label}: state.rng position diverged ` +
-      `(actual=${actual.rngState} expected=${expected.rngState}) — ` +
-      `parity break, downstream stochastic outcomes will desync`,
-  );
-  assertPlayersConverge(actual.players, expected.players, label);
-}
-
-function assertPlayersConverge(
-  watcher: readonly PlayerSnapshot[],
-  host: readonly PlayerSnapshot[],
-  label: string,
-): void {
-  assertEquals(
-    watcher.length,
-    host.length,
-    `${label}: player count diverged`,
-  );
-  for (let i = 0; i < host.length; i++) {
-    assertEquals(
-      watcher[i],
-      host[i],
-      `${label}: player ${i} state diverged`,
-    );
-  }
-}
 
 // ── FULL_STATE timer adoption on a running watcher ───────────────────
 // At host migration the new host broadcasts a FULL_STATE captured at an
@@ -1030,6 +977,134 @@ async function promoteWatcherDuringBattleIntro(
           `(phase=${Phase[watcher.state.phase]} mode=${watcher.mode()})`,
       );
     }
+  }
+}
+
+// ── Two-survivor migration parity ────────────────────────────────────
+// Host migration with a SECOND surviving watcher: post-migration, the
+// promoted peer and the kept-controller watcher must keep playing the
+// same game. AI identity is a cross-peer contract — if the promoted host
+// re-derives AI rngs/personalities while the watcher keeps its
+// state.rng-backed controllers, their decision streams differ AND the
+// watcher keeps consuming shared-stream draws the host no longer makes,
+// so every later stochastic outcome desyncs with no reconciliation
+// (phase markers are ignored under clone-everywhere). The one-survivor
+// promote tests above structurally can't see this — they run the
+// promoted peer alone.
+Deno.test(
+  "host migration with a second surviving watcher: both survivors stay in parity",
+  async () => {
+    const trio = await createMigrationTrio({
+      seed: 42,
+      mode: "classic",
+      rounds: 4,
+    });
+    const { host, promotable, observer, pumpHost, pumpPromoted } = trio;
+
+    // Lockstep all three machines to a mid-build moment in round 2 —
+    // brains mid-plan, so the migration lands in a live window.
+    let steps = 0;
+    while (
+      !(
+        host.state.round === 2 &&
+        host.state.phase === Phase.WALL_BUILD &&
+        host.mode() === Mode.GAME
+      )
+    ) {
+      host.tick(1);
+      await pumpHost();
+      promotable.tick(1);
+      observer.tick(1);
+      if (host.mode() === Mode.STOPPED) {
+        throw new Error("game ended before the migration window");
+      }
+      if (++steps > 120_000) {
+        throw new Error("migration window never reached");
+      }
+    }
+
+    // Kill the host: seat + promote one watcher; the other only learns
+    // the host changed. Production message order — HOST_LEFT reaches
+    // every peer before the new host's FULL_STATE exists.
+    trio.promotableSession.myPlayerId = 0 as ValidPlayerId;
+    const sentBefore = promotable.sentMessages.length;
+    const hostLeft = {
+      type: MESSAGE.HOST_LEFT,
+      newHostPlayerId: 0 as ValidPlayerId,
+      disconnectedPlayerId: null,
+    } as ServerMessage;
+    await promotable.deliverMessage(hostLeft);
+    await observer.deliverMessage(hostLeft);
+    assert(
+      promotable.sentMessages
+        .slice(sentBefore)
+        .some((msg) => msg.type === MESSAGE.FULL_STATE),
+      "promotion must broadcast FULL_STATE",
+    );
+    await pumpPromoted();
+
+    // Both survivors run to game end, promoted-peer broadcasts flowing.
+    await runNetworkedToEnd(promotable, observer, pumpPromoted);
+
+    assertStateConverges(
+      snapshotState(observer),
+      snapshotState(promotable),
+      "observer vs promoted host",
+    );
+  },
+);
+
+function snapshotState(sc: Scenario): StateSnapshot {
+  return {
+    rngState: sc.state.rng.getState(),
+    players: snapshotPlayers(sc),
+  };
+}
+
+function snapshotPlayers(sc: Scenario): PlayerSnapshot[] {
+  return sc.state.players.map((player) => ({
+    id: player.id,
+    lives: player.lives,
+    walls: player.walls.size,
+    cannons: player.cannons.length,
+    enclosedTowers: player.enclosedTowers.length,
+    score: player.score,
+    currentPiece: player.currentPiece,
+    bagQueueLen: player.bag ? player.bag.queue.length : null,
+  }));
+}
+
+function assertStateConverges(
+  actual: StateSnapshot,
+  expected: StateSnapshot,
+  label: string,
+): void {
+  assertEquals(
+    actual.rngState,
+    expected.rngState,
+    `${label}: state.rng position diverged ` +
+      `(actual=${actual.rngState} expected=${expected.rngState}) — ` +
+      `parity break, downstream stochastic outcomes will desync`,
+  );
+  assertPlayersConverge(actual.players, expected.players, label);
+}
+
+function assertPlayersConverge(
+  watcher: readonly PlayerSnapshot[],
+  host: readonly PlayerSnapshot[],
+  label: string,
+): void {
+  assertEquals(
+    watcher.length,
+    host.length,
+    `${label}: player count diverged`,
+  );
+  for (let i = 0; i < host.length; i++) {
+    assertEquals(
+      watcher[i],
+      host[i],
+      `${label}: player ${i} state diverged`,
+    );
   }
 }
 

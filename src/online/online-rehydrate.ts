@@ -19,11 +19,12 @@ import { setMode } from "../runtime/state.ts";
 import type { BalloonFlight } from "../shared/core/battle-types.ts";
 import { filterAliveEnclosedTowers } from "../shared/core/board-occupancy.ts";
 import { Phase } from "../shared/core/game-phase.ts";
-import type { PlayerId } from "../shared/core/player-slot.ts";
+import type { PlayerId, ValidPlayerId } from "../shared/core/player-slot.ts";
 import { isPlayerAlive } from "../shared/core/player-types.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
 import {
   rebuildControllersForPhase,
+  reprimeAiControllersForPhase,
   syncAccumulatorsFromTimer,
 } from "./online-host-promotion.ts";
 import { restoreFullStateSnapshot } from "./online-serialize.ts";
@@ -71,7 +72,6 @@ export async function applyMidGameCheckpoint(
       rollPersonality: rollAiPersonality,
       create: createAiController,
     },
-    undefined,
   );
 
   syncAccumulatorsFromTimer(state, runtime.runtimeState.accum);
@@ -90,12 +90,20 @@ export async function applyMidGameCheckpoint(
  *  host-migration path on every surviving watcher (the new host
  *  broadcasts its state; receivers adopt it mid-tick). Controllers are
  *  kept (unlike `applyMidGameCheckpoint`, which rebuilds them for a
- *  fresh boot); local accumulators are resynced so the next
- *  `advancePhaseTimer` continues from the restored authoritative
- *  `state.timer` instead of overwriting it with `max - localAccum` — a
- *  cross-phase jump (migration straddling a phase boundary) would
- *  otherwise tick the new phase against a stale accum from the old one
- *  (e.g. last battle's elapsed → this battle ends instantly).
+ *  fresh boot) — the new host keeps its controllers too, so AI identity
+ *  stays a cross-peer contract across the migration; kept AI brains are
+ *  re-primed from the adopted snapshot (`reprimeAiControllersForPhase`,
+ *  same call the promoted host makes after serializing). Local
+ *  accumulators are resynced so the next `advancePhaseTimer` continues
+ *  from the restored authoritative `state.timer` instead of overwriting
+ *  it with `max - localAccum` — a cross-phase jump (migration straddling
+ *  a phase boundary) would otherwise tick the new phase against a stale
+ *  accum from the old one (e.g. last battle's elapsed → this battle ends
+ *  instantly).
+ *
+ *  `remotePlayerSlots` must be the session's LIVE set (not a frame-start
+ *  snapshot): the old host's PLAYER_LEFT always precedes this message,
+ *  and its seat must re-prime here exactly like on the new host.
  *
  *  Production caller: `online/runtime/session.ts:restoreFullState`.
  *  The networked test harness wires this same function so watcher
@@ -103,12 +111,22 @@ export async function applyMidGameCheckpoint(
 export function applyFullStateToRunningRuntime(
   runtime: GameRuntime,
   msg: FullStateMessage,
+  remotePlayerSlots: ReadonlySet<ValidPlayerId>,
 ): void {
   const state = runtime.runtimeState.state;
   const result = restoreFullStateSnapshot(state, msg);
   if (!result) return;
 
   syncAccumulatorsFromTimer(state, runtime.runtimeState.accum);
+
+  // Kept AI brains restart from the adopted snapshot — right after the
+  // rng restore, before anything else can draw, mirroring the promoted
+  // host's post-serialize call so both replay identical init draws.
+  reprimeAiControllersForPhase(
+    state,
+    runtime.runtimeState.controllers,
+    remotePlayerSlots,
+  );
 
   // Discard scheduled actions the snapshot already contains. Entries
   // stamped at or before the snapshot's tick were drained into the

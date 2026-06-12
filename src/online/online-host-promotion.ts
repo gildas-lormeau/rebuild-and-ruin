@@ -1,6 +1,8 @@
 /**
- * Host promotion helpers — pure functions for controller rebuild and
- * accumulator sync during host migration.
+ * FULL_STATE adoption helpers — pure functions shared by host migration
+ * (controller re-prime + accumulator sync, on every surviving peer) and
+ * the fresh-boot checkpoint apply (controller rebuild, phase-test
+ * fixtures).
  */
 
 import {
@@ -30,7 +32,7 @@ interface AiPromotionDeps {
    *  so `rollPersonality` can run synchronously. */
   readonly ensureLoaded: () => Promise<void>;
   /** Sync personality roll (requires `ensureLoaded` to have resolved). */
-  readonly rollPersonality: (rng: Rng, difficulty?: number) => AiPersonality;
+  readonly rollPersonality: (rng: Rng) => AiPersonality;
   /** Construct an AI controller for the given slot. */
   readonly create: (
     id: ValidPlayerId,
@@ -40,15 +42,64 @@ interface AiPromotionDeps {
 }
 
 /**
+ * Re-prime kept AI controllers from a freshly-adopted FULL_STATE so every
+ * surviving peer's AI brains restart from the same snapshot moment.
+ *
+ * Controllers are KEPT across host migration on every peer — AI identity
+ * (strategy rng, personality) is a cross-peer contract, and for pure-AI /
+ * takeover slots the strategy rng IS `state.rng`, the shared stream the
+ * snapshot just restored. What cannot be kept is brain phase state: each
+ * peer's brains ticked to their own local position while the snapshot
+ * froze one authoritative moment, so without this re-init their decision
+ * timing (and the `state.rng` draws it triggers) would drift apart.
+ *
+ * Cross-peer draw contract — phase init itself draws from the strategy
+ * rng, so every peer must re-prime the SAME slots in the SAME order from
+ * the SAME rng cursor:
+ *  - slots: kind "ai", seat not driven by a connected human, player
+ *    alive. Peer-identical because each peer's `remotePlayerSlots` plus
+ *    its own human seat (kind "human", skipped) union to the seated-human
+ *    set, which every peer derives from the same ordered server stream.
+ *  - order: controller-array (= slot) order.
+ *  - cursor: the promoted host calls this AFTER serializing the snapshot;
+ *    every watcher calls it right after applying that snapshot.
+ */
+export function reprimeAiControllersForPhase(
+  state: GameState,
+  controllers: readonly PlayerController[],
+  remotePlayerSlots: ReadonlySet<ValidPlayerId>,
+): void {
+  for (const ctrl of controllers) {
+    if (ctrl.kind !== "ai") continue;
+    if (remotePlayerSlots.has(ctrl.playerId)) continue;
+    const player = state.players[ctrl.playerId];
+    if (!player || isPlayerEliminated(player)) continue;
+    if (state.phase === Phase.WALL_BUILD) {
+      ctrl.startBuildPhase(state);
+    } else if (state.phase === Phase.CANNON_PLACE) {
+      primeControllerForCannonPhase(ctrl, state);
+    } else if (state.phase === Phase.BATTLE) {
+      ctrl.initBattleState(state);
+    }
+    // CASTLE_SELECT (initial or reselect) — AI driven by the selection
+    // system; MODIFIER_REVEAL / UPGRADE_PICK — no brain phase to prime.
+  }
+}
+
+/**
  * Return a new controller array with non-self slots replaced by fresh AI
- * controllers initialized for the current game phase. Called during host promotion.
+ * controllers initialized for the current game phase. Fresh-boot path
+ * only (`applyMidGameCheckpoint` — phase-test fixtures): a just-booted
+ * runtime holds round-1 controllers whose identity draws came off the
+ * boot-time shared stream, so a mid-game snapshot needs new, privately
+ * seeded ones. Host promotion does NOT rebuild — surviving peers keep
+ * their controllers (see `reprimeAiControllersForPhase`).
  */
 export async function rebuildControllersForPhase(
   state: GameState,
   controllers: readonly PlayerController[],
   myPlayerId: PlayerId,
   aiDeps: AiPromotionDeps,
-  difficulty: number | undefined,
 ): Promise<PlayerController[]> {
   // Pre-load AI modules so rollPersonality can run synchronously inside
   // the per-slot loop (matches the bootstrap path).
@@ -64,13 +115,13 @@ export async function rebuildControllersForPhase(
         deriveAiStrategySeed(state.rng.seed, state.round, pid),
       );
       // Roll personality from a separate, deterministic Rng. We must NOT
-      // touch state.rng here — promotion-time construction runs only on
-      // the new host, so any state.rng draw would drift the watcher's
-      // canonical sequence.
+      // touch state.rng here — identity must be a pure function of the
+      // snapshot (seed, round, slot), never of construction-time draws
+      // off the canonical stream.
       const personalityRng = new Rng(
         deriveAiStrategySeed(state.rng.seed ^ 1, state.round, pid),
       );
-      const personality = aiDeps.rollPersonality(personalityRng, difficulty);
+      const personality = aiDeps.rollPersonality(personalityRng);
       const ctrl = await aiDeps.create(pid, strategyRng, personality);
 
       // Initialize AI for the current phase

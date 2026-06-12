@@ -67,7 +67,9 @@ export interface HandleServerLifecycleDeps {
 
   migration: {
     playerNames: readonly string[];
-    promoteToHost: () => Promise<void>;
+    /** Synchronous by design: no async window between HOST_LEFT receipt
+     *  and the FULL_STATE broadcast (controllers are kept, not rebuilt). */
+    promoteToHost: () => void;
     restoreFullState: (msg: FullStateMessage) => void;
   };
 }
@@ -195,7 +197,7 @@ export async function handleServerLifecycleMessage(
       );
       deps.session.hostMigrationSeq++;
       if (msg.newHostPlayerId === deps.session.myPlayerId) {
-        await deps.migration.promoteToHost();
+        deps.migration.promoteToHost();
         deps.ui.setAnnouncement("You are now the host");
       } else {
         const name =

@@ -141,7 +141,14 @@ export function createOnlineRuntimeSessionHelpers(
   }
 
   function restoreFullState(msg: FullStateMessage): void {
-    applyFullStateToRunningRuntime(deps.getRuntime(), msg);
+    // Live session set, not frameMeta's frame-start snapshot — the old
+    // host's PLAYER_LEFT lands in the same inter-frame window as this
+    // message, and its seat must already count as AI-driven here.
+    applyFullStateToRunningRuntime(
+      deps.getRuntime(),
+      msg,
+      deps.session.remotePlayerSlots,
+    );
   }
 
   return {

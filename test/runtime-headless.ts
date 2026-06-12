@@ -594,7 +594,6 @@ export async function reinstallAssistedControllers(
           )
           : createAiController(pid, strategyRng, personality),
     },
-    undefined,
   );
 }
 

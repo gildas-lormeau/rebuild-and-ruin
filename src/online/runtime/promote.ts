@@ -1,25 +1,20 @@
 /**
  * Host promotion — runs when this client is promoted from watcher to host
- * after the previous host disconnects. Resets networking, rebuilds
- * controllers, syncs accumulators, broadcasts the authoritative full state.
- * Runtime injected via `initPromote()` (second of three `initOnlineRuntime`
- * init calls, between `initWs` and `initDeps`); `promoteToHost()` throws if
- * called first.
+ * after the previous host disconnects. Resets networking, syncs
+ * accumulators, broadcasts the authoritative full state, re-primes the
+ * kept AI controllers. Runtime injected via `initPromote()` (second of
+ * three `initOnlineRuntime` init calls, between `initWs` and `initDeps`);
+ * `promoteToHost()` throws if called first.
  */
 
 import { primeControllerForCannonPhase } from "../../game/index.ts";
-import {
-  createAiController,
-  ensureAiModulesLoaded,
-  rollAiPersonality,
-} from "../../runtime/bootstrap.ts";
 import type { GameRuntime } from "../../runtime/handle.ts";
 import { setMode } from "../../runtime/state.ts";
 import { Phase } from "../../shared/core/game-phase.ts";
 import { assertNever } from "../../shared/platform/utils.ts";
 import { Mode } from "../../shared/ui/ui-mode.ts";
 import {
-  rebuildControllersForPhase,
+  reprimeAiControllersForPhase,
   syncAccumulatorsFromTimer,
 } from "../online-host-promotion.ts";
 import { createFullStateMessage } from "../online-serialize.ts";
@@ -41,28 +36,25 @@ export function initPromote(runtime: GameRuntime, client: OnlineClient): void {
 
 /** Promote this client to host. Order matters:
  *  1. Reset networking (clear stale watcher/dedup state)
- *  2. Rebuild controllers (create AI for vacant slots in current phase)
- *  3. Sync accumulators (align timing with game state timers)
- *  4. Skip pending UI animations (banner/balloon left over from old host)
- *  5. Broadcast full state (must be last — state must be coherent first)
+ *  2. Sync accumulators (align timing with game state timers)
+ *  3. Skip pending UI animations (banner/balloon left over from old host)
+ *  4. Broadcast full state (state must be coherent first)
+ *  5. Re-prime kept AI controllers (AFTER the serialize — re-prime draws
+ *     from state.rng, and watchers replay the same draws right after
+ *     applying the snapshot, so both sides draw from the identical rng
+ *     cursor the snapshot captured)
+ *
+ *  Controllers are KEPT, not rebuilt: this peer was mirror-ticking every
+ *  AI slot as a watcher right up to this call, exactly like the other
+ *  survivors — AI identity is a cross-peer contract and must not change
+ *  on one peer only (see `reprimeAiControllersForPhase`).
  */
-export async function promoteToHost(): Promise<void> {
+export function promoteToHost(): void {
   if (!_runtime) throw new Error("promoteToHost() called before initPromote()");
   _client.devLog("PROMOTING TO HOST");
   _client.ctx.session.isHost = true; // eslint-disable-line no-restricted-syntax -- host promotion
 
   _client.resetNetworking(RESET_SCOPE_HOST_PROMOTION);
-  _runtime.runtimeState.controllers = await rebuildControllersForPhase(
-    _runtime.runtimeState.state,
-    _runtime.runtimeState.controllers,
-    _client.ctx.session.myPlayerId,
-    {
-      ensureLoaded: ensureAiModulesLoaded,
-      rollPersonality: rollAiPersonality,
-      create: createAiController,
-    },
-    _runtime.runtimeState.settings.difficulty,
-  );
   syncAccumulatorsFromTimer(
     _runtime.runtimeState.state,
     _runtime.runtimeState.accum,
@@ -83,9 +75,8 @@ export async function promoteToHost(): Promise<void> {
   // tick so the snapshot includes its effects. Adopting watchers drop
   // every entry stamped <= snapshot.simTick on apply
   // (applyFullStateToRunningRuntime) on the premise that the snapshot
-  // already contains it — an entry that arrived during the async rebuild
-  // above and is still queued here would otherwise fire on the new host
-  // only, after the broadcast.
+  // already contains it — an entry still queued here would otherwise
+  // fire on the new host only, after the broadcast.
   _runtime.runtimeState.actionSchedule.drainUpTo(
     _runtime.runtimeState.state.simTick,
     _runtime.runtimeState.state,
@@ -96,6 +87,13 @@ export async function promoteToHost(): Promise<void> {
       _client.ctx.session.hostMigrationSeq,
       _runtime.runtimeState.battleAnim.flights,
     ),
+  );
+  // AFTER the serialize, deliberately — see the ordering note in the
+  // promoteToHost doc above.
+  reprimeAiControllersForPhase(
+    _runtime.runtimeState.state,
+    _runtime.runtimeState.controllers,
+    _client.ctx.session.remotePlayerSlots,
   );
   _client.devLog("Promotion complete, now running as host");
 }
@@ -160,15 +158,15 @@ function skipPendingAnimations(): void {
   }
   // Cannon-entry repair: promotion landing in the enter-cannon-place
   // banner sweep — the teardown above just dropped the banner `onDone`
-  // whose postDisplay runs `initLocalCannonControllers`.
-  // `rebuildControllersForPhase` primed every slot it rebuilt for the
-  // phase, but it KEEPS the self slot, so the promoted player would
-  // start the round with last round's cannon mode + cursor and no
-  // phantom seed. Mirror `forceResolveRoundEndPhase` (phase-machine.ts),
-  // which re-runs the init when it skips this same banner — here only
-  // the kept slot still needs it. No accum work: enterCannonPhase primed
-  // `state.timer` in the mutate and `syncAccumulatorsFromTimer` above
-  // already rebuilt the accums from it.
+  // whose postDisplay runs `initLocalCannonControllers`. AI slots get
+  // their prime from the post-broadcast `reprimeAiControllersForPhase`
+  // in promoteToHost, but that skips the self slot (kind "human"), so
+  // the promoted player would start the round with last round's cannon
+  // mode + cursor and no phantom seed. Mirror `forceResolveRoundEndPhase`
+  // (phase-machine.ts), which re-runs the init when it skips this same
+  // banner — here only the self slot still needs it. No accum work:
+  // enterCannonPhase primed `state.timer` in the mutate and
+  // `syncAccumulatorsFromTimer` above already rebuilt the accums from it.
   if (
     _runtime.runtimeState.state.phase === Phase.CANNON_PLACE &&
     modeAtPromotion === Mode.TRANSITION

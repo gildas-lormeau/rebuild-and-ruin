@@ -87,7 +87,7 @@ Deno.test("lifecycle drops stale full_state after host migration", () => {
     },
     migration: {
       playerNames: ["P1", "P2", "P3"],
-      promoteToHost: async () => {},
+      promoteToHost: () => {},
       restoreFullState: () => {
         applyCalls++;
       },

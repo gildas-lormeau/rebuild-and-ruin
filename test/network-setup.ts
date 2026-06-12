@@ -135,6 +135,35 @@ export interface BidirectionalNetworkedPairOptions extends ScenarioOptions {
   readonly wireDelayFrames?: number;
 }
 
+/** Three-machine topology for host-migration parity tests: the original
+ *  host plus TWO surviving watchers. The flagged desync class only exists
+ *  with a second survivor — the promoted peer and a kept-controller
+ *  watcher must keep playing the SAME game after the migration broadcast.
+ *
+ *  `promotable` is wired for production promotion (`initPromote` /
+ *  `initDeps` module singletons — it must be the last watcher built);
+ *  `observer` dispatches through a per-instance `createMessageHandler`
+ *  closure so both watchers can receive in one process. Pure-AI on every
+ *  machine: every slot mirror-ticks locally on all three, so any
+ *  post-migration controller asymmetry between the survivors shows up as
+ *  state.rng / board divergence. */
+export interface MigrationTrio {
+  readonly host: Scenario;
+  /** Watcher wired for production `promoteToHost` (owns the singletons). */
+  readonly promotable: Scenario;
+  /** Second surviving watcher — receives the promotion FULL_STATE. */
+  readonly observer: Scenario;
+  /** The promotable watcher's session. Migration tests seat it
+   *  (`myPlayerId`) before delivering HOST_LEFT. */
+  readonly promotableSession: OnlineSession;
+  /** Forward pending host broadcasts to BOTH watchers. */
+  readonly pumpHost: () => Promise<void>;
+  /** Forward pending promotable-watcher broadcasts (the promotion
+   *  FULL_STATE, then its post-promotion lifecycle messages) to the
+   *  observer. */
+  readonly pumpPromoted: () => Promise<void>;
+}
+
 /** Per-player parity snapshot shared by the cross-peer convergence
  *  suites (`network-bidirectional`, `camera-zoom-parity`). Captures the
  *  game-state fields that must match on every peer at game end.
@@ -298,6 +327,59 @@ export async function runNetworkedToEnd(
   );
 }
 
+/** Build the host + two-watcher topology for host-migration parity
+ *  tests. See `MigrationTrio`. */
+export async function createMigrationTrio(
+  opts: ScenarioOptions,
+): Promise<MigrationTrio> {
+  const hostBuild = await buildHostRuntime(opts);
+  // Observer first: `buildWatcherRuntime` binds the module-level
+  // initDeps/initPromote singletons to the most recently built watcher,
+  // and the promotable peer must own them. The observer routes through a
+  // per-instance handler instead, so the two never collide.
+  const observerBuild = await buildBidirectionalWatcher(
+    opts,
+    [],
+    new Set<ValidPlayerId>(),
+  );
+  const promotableBuild = await buildWatcherRuntime(opts);
+
+  let toPromotable = 0;
+  let toObserver = 0;
+  const pumpHost = async () => {
+    const msgs = hostBuild.sentMessages;
+    for (; toPromotable < msgs.length; toPromotable++) {
+      await promotableBuild.scenario.deliverMessage(
+        msgs[toPromotable] as ServerMessage,
+      );
+    }
+    for (; toObserver < msgs.length; toObserver++) {
+      await observerBuild.scenario.deliverMessage(
+        msgs[toObserver] as ServerMessage,
+      );
+    }
+  };
+
+  let fromPromoted = 0;
+  const pumpPromoted = async () => {
+    const msgs = promotableBuild.sentMessages;
+    for (; fromPromoted < msgs.length; fromPromoted++) {
+      await observerBuild.scenario.deliverMessage(
+        msgs[fromPromoted] as ServerMessage,
+      );
+    }
+  };
+
+  return {
+    host: hostBuild.scenario,
+    promotable: promotableBuild.scenario,
+    observer: observerBuild.scenario,
+    promotableSession: promotableBuild.client!.ctx.session,
+    pumpHost,
+    pumpPromoted,
+  };
+}
+
 async function buildHostRuntime(opts: ScenarioOptions): Promise<RuntimeBuild> {
   const sentMessages: GameMessage[] = [];
   const base = buildHeadlessOptions(opts, sentMessages);
@@ -383,7 +465,7 @@ async function buildWatcherRuntime(
     // Production FULL_STATE apply — watcher/host peers must adopt a
     // migration broadcast exactly like a real client (timer + accum
     // resync included), so parity tests exercise the real path.
-    restoreFullState: (msg) => applyFullStateToRunningRuntime(headless.runtime, msg),
+    restoreFullState: (msg) => applyFullStateToRunningRuntime(headless.runtime, msg, client.ctx.session.remotePlayerSlots),
     showWaitingRoom: () => {},
     client,
   });
@@ -443,7 +525,7 @@ async function buildBidirectionalHost(
     // Production FULL_STATE apply — watcher/host peers must adopt a
     // migration broadcast exactly like a real client (timer + accum
     // resync included), so parity tests exercise the real path.
-    restoreFullState: (msg) => applyFullStateToRunningRuntime(headless.runtime, msg),
+    restoreFullState: (msg) => applyFullStateToRunningRuntime(headless.runtime, msg, client.ctx.session.remotePlayerSlots),
     showWaitingRoom: () => {},
     client,
   });
@@ -497,7 +579,7 @@ async function buildBidirectionalWatcher(
     // Production FULL_STATE apply — watcher/host peers must adopt a
     // migration broadcast exactly like a real client (timer + accum
     // resync included), so parity tests exercise the real path.
-    restoreFullState: (msg) => applyFullStateToRunningRuntime(headless.runtime, msg),
+    restoreFullState: (msg) => applyFullStateToRunningRuntime(headless.runtime, msg, client.ctx.session.remotePlayerSlots),
     showWaitingRoom: () => {},
     client,
   });
