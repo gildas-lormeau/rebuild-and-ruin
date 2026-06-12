@@ -7,6 +7,7 @@
  * the new host's broadcast at host migration (controllers kept).
  */
 
+import { primeControllerForCannonPhase } from "../game/index.ts";
 import type { FullStateMessage } from "../protocol/protocol.ts";
 import { clearBalloonFlights } from "../runtime/battle-anim.ts";
 import {
@@ -115,6 +116,10 @@ export function applyFullStateToRunningRuntime(
   remotePlayerSlots: ReadonlySet<ValidPlayerId>,
 ): void {
   const state = runtime.runtimeState.state;
+  // Captured before the restore overwrites them — the self-human prime
+  // below keys off where THIS peer was when the snapshot landed.
+  const prePhase = state.phase;
+  const preMode = runtime.runtimeState.mode;
   const result = restoreFullStateSnapshot(state, msg);
   if (!result) return;
 
@@ -137,6 +142,16 @@ export function applyFullStateToRunningRuntime(
     remotePlayerSlots,
   );
 
+  const flights = result.balloonFlights ?? [];
+  const inBattle = state.phase === Phase.BATTLE;
+  const balloonAnimPending = inBattle && flights.length > 0;
+  primeSelfHumanControllersAfterAdoption(
+    runtime,
+    prePhase,
+    preMode,
+    balloonAnimPending,
+  );
+
   // Discard scheduled actions the snapshot already contains. Entries
   // stamped at or before the snapshot's tick were drained into the
   // promoting host's state right before it serialized (promote.ts), and
@@ -152,11 +167,9 @@ export function applyFullStateToRunningRuntime(
   // than the double-apply class this discard removes.
   runtime.runtimeState.actionSchedule.discardUpTo(state.simTick);
 
-  const flights = result.balloonFlights ?? [];
-  const inBattle = state.phase === Phase.BATTLE;
   setMode(
     runtime.runtimeState,
-    resolveModeAfterFullState(state.phase, inBattle && flights.length > 0),
+    resolveModeAfterFullState(state.phase, balloonAnimPending),
   );
   runtime.runtimeState.selection.castleBuilds = [];
   runtime.lifeLost.set(null);
@@ -221,6 +234,49 @@ export function applyFullStateToRunningRuntime(
     }
   }
   snapPitchToPhase(runtime, state.phase);
+}
+
+/** Mirror of promote.ts's cannon-entry / battle-intro repairs, for the
+ *  ADOPTING peer's own seat. `reprimeAiControllersForPhase` covers kind
+ *  "ai" slots only, and the `hideBanner()` teardown in the apply drops
+ *  the entry banner's armed postDisplay (`initLocalCannonControllers` /
+ *  `beginBattle`) — so a self human slot that never ran the adopted
+ *  phase's entry init locally would play CANNON_PLACE with last round's
+ *  cannon mode + cursor and no phantom seed, or BATTLE with a stale
+ *  crosshair + rotation index. "Never ran it" = anything but
+ *  already-mid-phase in the SAME phase (`Mode.GAME`) when the snapshot
+ *  landed: the entry banner sweep, the balloon flyover, or a
+ *  cross-boundary skew adoption landing in a phase this peer hasn't
+ *  entered. Skipped when the adopted snapshot carries balloon flights —
+ *  the flyover's end runs `beginBattle`, which primes every local slot.
+ *  Controller-local writes only (cursor/mode/phantom/crosshair; human
+ *  slots draw zero `state.rng`), so peers that skip this stay in parity
+ *  — the promoted host has primed self-only this way since da8e3d51.
+ *  WALL_BUILD needs no branch: its entry init runs in the transition's
+ *  mutate (`startBuildPhaseLocal`), and `buildTick` re-derives cursor
+ *  clamp + phantom from live state every tick. */
+function primeSelfHumanControllersAfterAdoption(
+  runtime: GameRuntime,
+  prePhase: Phase,
+  preMode: Mode,
+  balloonAnimPending: boolean,
+): void {
+  const state = runtime.runtimeState.state;
+  const missedCannonEntry =
+    state.phase === Phase.CANNON_PLACE &&
+    !(prePhase === Phase.CANNON_PLACE && preMode === Mode.GAME);
+  const missedBattleEntry =
+    state.phase === Phase.BATTLE &&
+    !balloonAnimPending &&
+    !(prePhase === Phase.BATTLE && preMode === Mode.GAME);
+  if (!missedCannonEntry && !missedBattleEntry) return;
+  for (const ctrl of runtime.runtimeState.controllers) {
+    if (ctrl.kind !== "human") continue;
+    const player = state.players[ctrl.playerId];
+    if (!player || !isPlayerAlive(player)) continue;
+    if (missedCannonEntry) primeControllerForCannonPhase(ctrl, state);
+    else ctrl.initBattleState(state);
+  }
 }
 
 /** Reconcile the camera pitch with the adopted phase. Pitch is local

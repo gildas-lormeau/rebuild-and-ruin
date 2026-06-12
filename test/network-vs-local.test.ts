@@ -33,6 +33,7 @@
 import { assert, assertEquals } from "@std/assert";
 import { createScenario, type Scenario } from "./scenario.ts";
 import {
+  createBidirectionalNetworkedPair,
   createMigrationTrio,
   createNetworkedPair,
   type NetworkedPair,
@@ -1129,6 +1130,82 @@ Deno.test(
       snapshotState(observer),
       snapshotState(promotable),
       "skewed observer vs promoted host",
+    );
+  },
+);
+
+// ── Adoption in the cannon-banner window: self-human prime ───────────
+// A FULL_STATE landing while the adopting peer is mid enter-cannon-place
+// banner sweep tears the banner down (hideBanner), dropping the armed
+// postDisplay that runs `initLocalCannonControllers`. AI slots recover
+// via `reprimeAiControllersForPhase`, but that covers kind "ai" only —
+// the peer's OWN seat (kind "human") must be primed by the apply itself,
+// the same self-repair the promoted host runs in promote.ts. Un-primed,
+// the seat keeps last round's exhausted cannon plan + stale cursor: the
+// assisted-human stand-in (kind "human", AI brain) places nothing for
+// the whole phase. Written red against the missing prime.
+Deno.test(
+  "FULL_STATE landing in the cannon-banner window primes the adopting peer's own seat",
+  async () => {
+    const pair = await createBidirectionalNetworkedPair({
+      seed: 42,
+      mode: "classic",
+      rounds: 4,
+      assistedSlotsHost: [],
+      assistedSlotsWatcher: [1 as ValidPlayerId],
+    });
+    const { host, watcher, pump } = pair;
+
+    // Lockstep both peers into round 2's enter-cannon-place banner sweep.
+    let steps = 0;
+    while (
+      !(
+        watcher.state.round === 2 &&
+        watcher.state.phase === Phase.CANNON_PLACE &&
+        watcher.mode() === Mode.TRANSITION
+      )
+    ) {
+      host.tick(1);
+      watcher.tick(1);
+      await pump();
+      if (host.mode() === Mode.STOPPED) {
+        throw new Error("game ended before the cannon banner window");
+      }
+      if (++steps > 120_000) {
+        throw new Error("cannon banner window never reached");
+      }
+    }
+
+    const cannonsBefore = watcher.state.players[1]!.cannons.length;
+
+    // A migration snapshot lands mid-sweep: serialize the lockstep host's
+    // state at this tick and deliver it through the production receive
+    // path (lifecycle FULL_STATE → applyFullStateToRunningRuntime).
+    await watcher.deliverMessage(
+      createFullStateMessage(host.state, 1) as ServerMessage,
+    );
+    assertEquals(
+      watcher.mode(),
+      Mode.GAME,
+      "adoption must land in Mode.GAME (banner skipped)",
+    );
+
+    // The primed seat plans + places this round's cannons; run the
+    // adopting peer to the end of its cannon phase and count them.
+    let ticks = 0;
+    while (watcher.state.phase === Phase.CANNON_PLACE) {
+      host.tick(1);
+      watcher.tick(1);
+      await pump();
+      if (++ticks > 30_000) {
+        throw new Error("cannon phase never ended after adoption");
+      }
+    }
+    const placed = watcher.state.players[1]!.cannons.length - cannonsBefore;
+    assert(
+      placed > 0,
+      `the adopting peer's own seat must place cannons after a mid-banner ` +
+        `adoption (placed=${placed})`,
     );
   },
 );
