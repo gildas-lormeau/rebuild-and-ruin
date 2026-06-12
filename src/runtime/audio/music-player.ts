@@ -238,6 +238,18 @@ export function createMusicSubsystem(): MusicSubsystem {
   // a bg stop can't cancel a pending fanfare — fanfare jingles are
   // independent of the bg track and only die on quit (`stopAll`).
   let bgEpoch = 0;
+  // Hydration sibling of `playEpoch`/`bgEpoch` (which cover playback).
+  // Bumped by `refreshBuffers` (sound-modal upload). The hydrate loops
+  // capture it on entry and bail after every await once it moves: the
+  // sound modal's close-click runs `activate()` synchronously (gesture-
+  // bound context resume) even while an upload is still writing, and an
+  // IDB read STARTED against the mid-write store can RESOLVE after the
+  // upload committed and `refreshBuffers` cleared the caches (readonly
+  // transactions serialize behind the write). A straddling loop would
+  // then re-add `missingBgIds` entries — or cache the superseded
+  // upload's PCM — right after the clear, leaving those tracks silent
+  // or stale until the NEXT upload.
+  let hydrationEpoch = 0;
   // Serializes suspend/resume so a rapid hide→show can't skip the resume —
   // see `setPaused`.
   let pauseTransition: Promise<void> = Promise.resolve();
@@ -308,6 +320,7 @@ export function createMusicSubsystem(): MusicSubsystem {
    *  every cue). A still-missing entry leaves the track silent — playBg
    *  gracefully no-ops. */
   async function hydrateBgTracks(ctx: AudioContext): Promise<void> {
+    const epoch = hydrationEpoch;
     for (const spec of PRERENDER_BG_TRACKS) {
       if (bgAudioBuffers.has(spec.id)) continue;
       if (missingBgIds.has(spec.id)) continue;
@@ -315,6 +328,10 @@ export function createMusicSubsystem(): MusicSubsystem {
         console.warn(`[music] cache read failed for ${spec.id}:`, error);
         return undefined;
       });
+      // Read started before a `refreshBuffers` — its result describes a
+      // superseded store. Record NOTHING (neither missing nor PCM) and
+      // abandon; the next activateOnce re-hydrates from the fresh store.
+      if (epoch !== hydrationEpoch) return;
       if (!pcm) {
         missingBgIds.add(spec.id);
         continue;
@@ -327,6 +344,7 @@ export function createMusicSubsystem(): MusicSubsystem {
   /** Hydrate fanfares the same way as bg tracks; map every slot that uses
    *  each sub-song to the same AudioBuffer (slots 0 and 3 share song 4). */
   async function hydrateFanfares(ctx: AudioContext): Promise<void> {
+    const epoch = hydrationEpoch;
     const fanfareAudioBySong = new Map<number, AudioBuffer>();
     for (const songIndex of PRERENDER_FANFARE_SONGS) {
       const alreadyLoaded = [...fanfareBuffers.keys()].some(
@@ -343,6 +361,8 @@ export function createMusicSubsystem(): MusicSubsystem {
           return undefined;
         },
       );
+      // Same stale-read bail as hydrateBgTracks — see the comment there.
+      if (epoch !== hydrationEpoch) return;
       if (!pcm) {
         missingFanfareSongs.add(songIndex);
         continue;
@@ -629,6 +649,11 @@ export function createMusicSubsystem(): MusicSubsystem {
   }
 
   function refreshBuffers(): void {
+    // Invalidate any in-flight hydration FIRST: its IDB reads describe
+    // the pre-upload store, and one resolving after the clears below
+    // would re-poison `missingBgIds` / cache superseded PCM (see
+    // `hydrationEpoch`).
+    hydrationEpoch++;
     // Drop the hydrated PCM + AudioBuffer caches; activateOnce() re-reads
     // from IDB on next play. The currently-playing source keeps its own
     // buffer reference, so playback isn't cut — the next phase's playBg
