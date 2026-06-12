@@ -97,11 +97,22 @@ export function isPitchSettled(anim: PitchAnim): boolean {
  *  (`clearAllZoomState`) because a dying session's continuation must
  *  never run. */
 export function resetPitchAnim(anim: PitchAnim): void {
-  anim.current = 0;
-  anim.target = 0;
-  anim.animFrom = 0;
+  snapPitchAnim(anim, 0);
+}
+
+/** Snap to a settled pose (flat for target 0, tilted otherwise) with no
+ *  ease in flight. FULL_STATE adoption snaps pitch to the adopted
+ *  phase's settled pose: the snapshot skips the transition choreography
+ *  that owns `beginTilt`/`beginUntilt`, so the local ease state is from
+ *  a superseded timeline — left in place, the next battle-done untilt
+ *  gate counts a different number of ease ticks on this peer than on
+ *  the others. */
+export function snapPitchAnim(anim: PitchAnim, target: number): void {
+  anim.current = target;
+  anim.target = target;
+  anim.animFrom = target;
   anim.animElapsed = PITCH_DURATION;
-  anim.state = "flat";
+  anim.state = target > 0 ? "tilted" : "flat";
 }
 
 /** Cubic ease-out. Written as repeated multiplication (not `**`) so the

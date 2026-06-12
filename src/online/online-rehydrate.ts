@@ -79,6 +79,7 @@ export async function applyMidGameCheckpoint(
     runtime.runtimeState,
     resolveModeAfterFullState(state.phase, balloonFlights.length > 0),
   );
+  snapPitchToPhase(runtime, state.phase);
 
   return { balloonFlights };
 }
@@ -126,6 +127,21 @@ export function applyFullStateToRunningRuntime(
   runtime.runtimeState.frame.announcement = undefined;
   if (inBattle) runtime.runtimeState.battleAnim.flights = flights;
   else clearBalloonFlights(runtime.runtimeState.battleAnim);
+  snapPitchToPhase(runtime, state.phase);
+}
+
+/** Reconcile the camera pitch with the adopted phase. Pitch is local
+ *  per-peer state, but it GATES sim dispatch: battle-done waits for the
+ *  untilt ease to settle (phase-ticks), normally deterministic because
+ *  every peer runs the same tilt choreography from the same transitions.
+ *  A snapshot apply skips that choreography, so without the snap one
+ *  peer can sit flat where the others are tilted — the next gate then
+ *  dispatches the transition at different sim ticks per peer (and the
+ *  adopted battle renders untilted). BATTLE is tilted from the moment
+ *  the mode leaves TRANSITION (balloons run post-tilt-settle); every
+ *  other phase is flat. */
+function snapPitchToPhase(runtime: GameRuntime, phase: Phase): void {
+  runtime.camera.snapPitchSettled(phase === Phase.BATTLE ? "tilted" : "flat");
 }
 
 /** Map a restored phase to the runtime Mode the main loop should dispatch.

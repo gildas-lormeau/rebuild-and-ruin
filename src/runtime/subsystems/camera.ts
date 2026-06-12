@@ -62,6 +62,7 @@ import {
   type PitchState,
   resetPitchAnim,
   setPitchTarget as setPitchAnimTarget,
+  snapPitchAnim,
   tickPitchAnim,
 } from "../camera-pitch.ts";
 import {
@@ -106,6 +107,15 @@ export interface RuntimeCamera {
    *  ease. Callers that want the settle edge as a one-shot continuation
    *  (not the polled state) use the internal `awaitPitchSettled` instead. */
   getPitchState: () => PitchState;
+  /** Hard-set the pitch machine to a settled pose and drop any parked
+   *  settle continuation. FULL_STATE adoption path (online-rehydrate):
+   *  the snapshot skips the transition choreography that owns
+   *  `beginTilt`/`beginUntilt`, so the local ease + parked continuation
+   *  belong to a superseded timeline — left in place, this peer renders
+   *  the adopted battle at the wrong pose and the next battle-done
+   *  untilt gate (phase-ticks) counts a different number of ease ticks
+   *  here than on every other peer, skewing the dispatch tick. */
+  snapPitchSettled: (settled: "flat" | "tilted") => void;
   screenToWorld: (x: number, y: number) => WorldPos;
   /** Like `screenToWorld` but returns the world position of the first
    *  elevated-geometry hit under battle tilt (walls/towers/etc). At
@@ -1283,6 +1293,15 @@ export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
     return pitch.state;
   }
 
+  /** See `RuntimeCamera.snapPitchSettled`. The parked continuation is
+   *  dropped, not fired: on the adoption path the snapshot apply itself
+   *  sets the mode/flights the continuation would have set, so firing
+   *  it would replay a superseded transition step. */
+  function snapPitchSettled(settled: "flat" | "tilted"): void {
+    pendingPitchSettled = undefined;
+    snapPitchAnim(pitch, settled === "tilted" ? TILT_BATTLE_PITCH : 0);
+  }
+
   function setCameraZone(zone: ZoneId): void {
     setCameraZoneInternal(zone, "userZone");
   }
@@ -1354,6 +1373,7 @@ export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
     beginUntilt,
     beginTilt,
     getPitchState,
+    snapPitchSettled,
     screenToWorld,
     pickHitWorld,
     worldToScreen,

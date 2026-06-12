@@ -870,3 +870,112 @@ Deno.test(
     }
   },
 );
+
+// ── FULL_STATE adoption must reconcile the camera pitch ──────────────
+// Pitch is per-peer local state, but it GATES sim dispatch: battle-done
+// waits for the untilt ease to settle (phase-ticks), which is
+// deterministic only because every peer runs the same tilt choreography
+// from the same transitions. A snapshot apply skips that choreography —
+// without the reconcile, a peer that adopts mid-battle sits flat where
+// every other peer is tilted (and renders the battle untilted); the
+// next battle-done gate then dispatches at different sim ticks per
+// peer, splitting where in-flight applyAt actions land relative to the
+// mutate.
+Deno.test(
+  "running watcher adopting a mid-battle FULL_STATE snaps pitch to tilted",
+  async () => {
+    const pair = await createNetworkedPair({ seed: 42, mode: "classic", rounds: 3 });
+    const { host, watcher } = pair;
+
+    await runPairUntil(
+      pair,
+      () =>
+        host.state.phase === Phase.WALL_BUILD &&
+        watcher.state.phase === Phase.WALL_BUILD &&
+        host.mode() === Mode.GAME &&
+        watcher.mode() === Mode.GAME,
+      "both peers mid-build",
+    );
+    assertEquals(
+      watcher.camera.getPitchState(),
+      "flat",
+      "precondition: build phase runs flat",
+    );
+
+    // Host alone advances into the next round's battle (its own
+    // transition choreography tilts it); the watcher stays parked
+    // mid-build, flat.
+    let ticks = 0;
+    while (
+      !(host.state.phase === Phase.BATTLE && host.mode() === Mode.GAME)
+    ) {
+      host.tick(1);
+      if (++ticks > 60_000) throw new Error("host never reached BATTLE");
+    }
+    assertEquals(
+      host.camera.getPitchState(),
+      "tilted",
+      "precondition: the host's own battle runs tilted",
+    );
+
+    await watcher.deliverMessage(
+      createFullStateMessage(host.state, 1) as ServerMessage,
+    );
+    assertEquals(
+      watcher.camera.getPitchState(),
+      "tilted",
+      "adopting a mid-battle snapshot must snap pitch to the battle pose — " +
+        "a flat peer passes the next battle-done untilt gate instantly " +
+        "while every tilted peer takes the full ease",
+    );
+  },
+);
+
+Deno.test(
+  "running watcher adopting a mid-build FULL_STATE snaps pitch to flat",
+  async () => {
+    const pair = await createNetworkedPair({ seed: 42, mode: "classic", rounds: 3 });
+    const { host, watcher } = pair;
+
+    await runPairUntil(
+      pair,
+      () =>
+        host.state.phase === Phase.BATTLE &&
+        watcher.state.phase === Phase.BATTLE &&
+        host.mode() === Mode.GAME &&
+        watcher.mode() === Mode.GAME,
+      "both peers mid-battle",
+    );
+    assertEquals(
+      watcher.camera.getPitchState(),
+      "tilted",
+      "precondition: both peers tilted in battle",
+    );
+
+    // Host alone finishes the battle (untilting through its own
+    // battle-done gate) and enters the build phase; the watcher stays
+    // parked mid-battle, tilted.
+    let ticks = 0;
+    while (
+      !(host.state.phase === Phase.WALL_BUILD && host.mode() === Mode.GAME)
+    ) {
+      host.tick(1);
+      if (++ticks > 60_000) throw new Error("host never reached WALL_BUILD");
+    }
+    assertEquals(
+      host.camera.getPitchState(),
+      "flat",
+      "precondition: the host untilted through its own battle-done",
+    );
+
+    await watcher.deliverMessage(
+      createFullStateMessage(host.state, 1) as ServerMessage,
+    );
+    assertEquals(
+      watcher.camera.getPitchState(),
+      "flat",
+      "adopting a mid-build snapshot must snap pitch flat — a tilted peer " +
+        "spends untilt ease ticks at the next gate that no other peer spends",
+    );
+  },
+);
