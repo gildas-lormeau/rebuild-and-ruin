@@ -919,6 +919,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     phaseTicks: {
       resolveUpgradePickNow: phaseTicks.resolveUpgradePickNow,
       skipBattleIntro: phaseTicks.skipBattleIntro,
+      resolveRoundEndNow: phaseTicks.resolveRoundEndNow,
     },
     music: {
       activate: audio.music.activate,

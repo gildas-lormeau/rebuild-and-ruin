@@ -33,6 +33,13 @@ export interface RuntimeScoreDelta {
   show: (onDone: () => void) => void;
   /** Tick the display timer (called every frame from mainLoop). */
   tick: (dt: number) => void;
+  /** Finish an active overlay immediately: clear the display and fire the
+   *  pending `runDisplay` continuation, exactly as a natural timer expiry
+   *  would. No-op when no overlay is active. Host-promotion repair — the
+   *  round-end fast-forward (`forceResolveRoundEndPhase`) uses this to
+   *  hand control to the life-lost dialog step synchronously instead of
+   *  tearing the chain down (which would orphan the round-end routing). */
+  finishNow: () => void;
   /** Animation progress 0→1 (0 = just started, 1 = done). */
   progress: () => number;
   /** Clear all score delta state (timer, deltas, pending callback). Safe to
@@ -106,16 +113,27 @@ export function createScoreDeltaSystem(
     const scoreDisplay = runtimeState.scoreDisplay;
     if (scoreDisplay.deltaTimer <= 0) return;
     scoreDisplay.deltaTimer -= dt;
-    if (scoreDisplay.deltaTimer <= 0) {
-      scoreDisplay.deltas = [];
-      scoreDisplay.deltaTimer = 0;
-      emitGameEvent(runtimeState.state.bus, GAME_EVENT.SCORE_OVERLAY_END, {
-        round: runtimeState.state.round,
-      });
-      const callback = pendingDoneCb;
-      pendingDoneCb = undefined;
-      callback?.();
-    }
+    if (scoreDisplay.deltaTimer <= 0) finishOverlay();
+  }
+
+  /** Shared expiry tail: clear the display, emit the END beat, fire the
+   *  continuation once. Reached by the natural tick countdown and by
+   *  `finishNow` (host-promotion fast-forward). */
+  function finishOverlay(): void {
+    const scoreDisplay = runtimeState.scoreDisplay;
+    scoreDisplay.deltas = [];
+    scoreDisplay.deltaTimer = 0;
+    emitGameEvent(runtimeState.state.bus, GAME_EVENT.SCORE_OVERLAY_END, {
+      round: runtimeState.state.round,
+    });
+    const callback = pendingDoneCb;
+    pendingDoneCb = undefined;
+    callback?.();
+  }
+
+  function finishNow(): void {
+    if (runtimeState.scoreDisplay.deltaTimer <= 0) return;
+    finishOverlay();
   }
 
   function progress(): number {
@@ -135,6 +153,7 @@ export function createScoreDeltaSystem(
     setPreScores,
     show,
     tick,
+    finishNow,
     progress,
     reset,
   };

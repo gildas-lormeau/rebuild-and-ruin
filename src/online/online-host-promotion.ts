@@ -133,7 +133,14 @@ export function syncAccumulatorsFromTimer(
     // a snapshot captured mid-bonus-build must not read as further
     // elapsed than it is. `extraBuildTimeSeconds` rides in FULL_STATE.
     accum.build = wallBuildTimerMax(state) - state.timer;
-  } else if (state.phase === Phase.CANNON_PLACE) {
+  } else if (state.phase === Phase.CANNON_PLACE && state.timer > 0) {
+    // timer === 0 is the cannons-banner window: `enterCannonPhase` primes
+    // the timer to 0 and the banner's postDisplay starts the real
+    // countdown via `resetAccum` (the promotion repair that skips the
+    // banner does the same). Reading 0 as "fully elapsed" here would make
+    // every applying peer skip cannon placement for the round; leave
+    // `cannon` at 0 (countdown from full) — same ambiguity rule as the
+    // CASTLE_SELECT branch below.
     accum.cannon = state.cannonPlaceTimer - state.timer;
   } else if (state.phase === Phase.BATTLE) {
     accum.battle = BATTLE_TIMER - state.timer;

@@ -672,35 +672,27 @@ Deno.test(
   },
 );
 
-// ── Host promotion during UPGRADE_PICK must not stall the match ──────
-// UPGRADE_PICK is the only phase with no self-driving timer: its exit is
-// dispatched by the pick dialog's resolution callback (modal window) or
-// by the enter-upgrade-pick banner's postDisplay arming that dialog
-// (banner window). Promotion tears both down and forces Mode.GAME, where
-// tickGame no-ops the UPGRADE_PICK phase — without the phase repair in
-// promote.ts, `enter-wall-build` is never dispatched again and every
-// peer hangs forever. The promoted peer must force-resolve the picks and
-// advance to WALL_BUILD BEFORE broadcasting FULL_STATE, so watchers
-// receive a snapshot that ticks forward on its own.
+Deno.test(
+  "watcher promoted while the pick modal is open force-resolves picks and continues",
+  async () => {
+    await promoteWatcherMidUpgradePick(
+      (watcher) => watcher.mode() === Mode.UPGRADE_PICK,
+      "modal window",
+    );
+  },
+);
 
-async function runPairUntil(
-  pair: NetworkedPair,
-  done: () => boolean,
-  label: string,
-): Promise<void> {
-  let steps = 0;
-  while (!done()) {
-    pair.host.tick(1);
-    await pair.pump();
-    pair.watcher.tick(1);
-    if (pair.host.mode() === Mode.STOPPED) {
-      throw new Error(`${label}: game ended before the target condition`);
-    }
-    if (++steps > 120_000) {
-      throw new Error(`${label}: condition never reached`);
-    }
-  }
-}
+Deno.test(
+  "watcher promoted during the upgrade-pick entry banner force-resolves picks and continues",
+  async () => {
+    await promoteWatcherMidUpgradePick(
+      (watcher) =>
+        watcher.state.phase === Phase.UPGRADE_PICK &&
+        watcher.mode() === Mode.TRANSITION,
+      "banner window",
+    );
+  },
+);
 
 async function promoteWatcherMidUpgradePick(
   windowReached: (watcher: Scenario) => boolean,
@@ -767,28 +759,6 @@ async function promoteWatcherMidUpgradePick(
     }
   }
 }
-
-Deno.test(
-  "watcher promoted while the pick modal is open force-resolves picks and continues",
-  async () => {
-    await promoteWatcherMidUpgradePick(
-      (watcher) => watcher.mode() === Mode.UPGRADE_PICK,
-      "modal window",
-    );
-  },
-);
-
-Deno.test(
-  "watcher promoted during the upgrade-pick entry banner force-resolves picks and continues",
-  async () => {
-    await promoteWatcherMidUpgradePick(
-      (watcher) =>
-        watcher.state.phase === Phase.UPGRADE_PICK &&
-        watcher.mode() === Mode.TRANSITION,
-      "banner window",
-    );
-  },
-);
 
 // ── FULL_STATE adoption mid-pick must clear the local dialog ─────────
 // A watcher sitting in its own pick modal when the new host's
@@ -981,16 +951,32 @@ Deno.test(
   },
 );
 
-// ── Host promotion during the battle intro must begin the battle ─────
-// The battle-entry display chain owns the intro: the enter-battle
-// banner's sweep-end runs proceedToBattleFromCtx (tilt + balloon flip),
-// and the tilt/balloon steps end in beginBattle (controller
-// battle-state init, ready countdown + battleReady cue, battle accum
-// reset, Mode.GAME). Promotion landing in any of those windows tears
-// the owning step down (hideBanner / forced mode), so without the
-// repair the promoted peer runs the battle with no ready countdown, a
-// flat camera, and lingering balloon flights — and broadcasts that
-// half-begun state to every watcher.
+Deno.test(
+  "watcher promoted during the battle banner/tilt window begins the battle",
+  async () => {
+    await promoteWatcherDuringBattleIntro(
+      (watcher) =>
+        watcher.state.phase === Phase.BATTLE &&
+        watcher.mode() === Mode.TRANSITION,
+      "banner/tilt window",
+      42,
+    );
+  },
+);
+
+Deno.test(
+  "watcher promoted during the balloon flyover begins the battle",
+  async () => {
+    // Seed 104: a propaganda-balloon capture (the only producer of
+    // balloon flights) resolves at round 3's battle entry. If AI
+    // retuning drifts it, re-scan seeds for `mode() === BALLOON_ANIM`.
+    await promoteWatcherDuringBattleIntro(
+      (watcher) => watcher.mode() === Mode.BALLOON_ANIM,
+      "balloon window",
+      104,
+    );
+  },
+);
 
 async function promoteWatcherDuringBattleIntro(
   windowReached: (watcher: Scenario) => boolean,
@@ -1048,28 +1034,233 @@ async function promoteWatcherDuringBattleIntro(
 }
 
 Deno.test(
-  "watcher promoted during the battle banner/tilt window begins the battle",
+  "watcher promoted during the round-end score overlay routes past round-end",
   async () => {
-    await promoteWatcherDuringBattleIntro(
+    const pair = await createNetworkedPair({
+      seed: 1,
+      mode: "classic",
+      rounds: 5,
+    });
+    let overlaySeen = false;
+    pair.watcher.bus.on(GAME_EVENT.SCORE_OVERLAY_START, () => {
+      overlaySeen = true;
+    });
+    await promoteWatcherDuringRoundEnd(
+      pair,
       (watcher) =>
-        watcher.state.phase === Phase.BATTLE &&
+        overlaySeen &&
+        watcher.state.phase === Phase.WALL_BUILD &&
         watcher.mode() === Mode.TRANSITION,
-      "banner/tilt window",
-      42,
+      "score-overlay window",
     );
   },
 );
 
 Deno.test(
-  "watcher promoted during the balloon flyover begins the battle",
+  "watcher promoted during the life-lost dialog force-continues into reselect",
   async () => {
-    // Seed 104: a propaganda-balloon capture (the only producer of
-    // balloon flights) resolves at round 3's battle entry. If AI
-    // retuning drifts it, re-scan seeds for `mode() === BALLOON_ANIM`.
-    await promoteWatcherDuringBattleIntro(
-      (watcher) => watcher.mode() === Mode.BALLOON_ANIM,
-      "balloon window",
-      104,
+    // Seed 0 classic reaches a reselect cycle (see seed-fixtures.json
+    // "selection:reselect-cycle") — its round-end shows the life-lost
+    // dialog. If AI retuning drifts it, re-scan for LIFE_LOST_DIALOG_SHOW.
+    const pair = await createNetworkedPair({
+      seed: 0,
+      mode: "classic",
+      rounds: 12,
+    });
+    let reselectPids: readonly ValidPlayerId[] = [];
+    pair.watcher.bus.on(GAME_EVENT.LIFE_LOST_DIALOG_SHOW, (ev) => {
+      reselectPids = ev.needsReselect;
+    });
+    const fullState = await promoteWatcherDuringRoundEnd(
+      pair,
+      (watcher) => watcher.mode() === Mode.LIFE_LOST,
+      "dialog window",
     );
+    // A visible dialog implies pending (= reselect-eligible) entries; the
+    // repair forces CONTINUE, so the route must be the reselect cycle and
+    // the snapshot must carry it.
+    assertEquals(fullState.phase, Phase[Phase.CASTLE_SELECT]);
+    assert(reselectPids.length > 0, "dialog window implies reselect entries");
+    for (const pid of reselectPids) {
+      assert(
+        pair.watcher.state.players[pid]!.homeTower !== null,
+        `P${pid} must have re-picked a castle after the forced CONTINUE`,
+      );
+    }
   },
 );
+
+async function promoteWatcherDuringRoundEnd(
+  pair: NetworkedPair,
+  windowReached: (watcher: Scenario) => boolean,
+  label: string,
+): Promise<FullStateMessage> {
+  const { watcher } = pair;
+  await runPairUntil(pair, () => windowReached(watcher), label);
+  // round++ already ran in round-end's mutate — the window's round value
+  // is the NEW round; a re-dispatched mutate would increment it again.
+  const roundAtWindow = watcher.state.round;
+  const livesAtWindow = watcher.state.players.map((p) => p.lives);
+  let roundEndsAfterWindow = 0;
+  watcher.bus.on(GAME_EVENT.ROUND_END, () => {
+    roundEndsAfterWindow++;
+  });
+
+  pair.watcherSession.myPlayerId = 0 as ValidPlayerId;
+  const sentBefore = watcher.sentMessages.length;
+  await watcher.deliverMessage({
+    type: MESSAGE.HOST_LEFT,
+    newHostPlayerId: 0 as ValidPlayerId,
+    disconnectedPlayerId: null,
+  } as ServerMessage);
+
+  // The repair must route past round-end before broadcasting — a snapshot
+  // parked at WALL_BUILD timer=0 makes every applying watcher re-dispatch
+  // round-end and double-run its mutate.
+  assert(
+    watcher.state.phase !== Phase.WALL_BUILD,
+    `${label}: promotion must route past round-end ` +
+      `(phase=${Phase[watcher.state.phase]})`,
+  );
+  const fullState = watcher.sentMessages
+    .slice(sentBefore)
+    .find((msg) => msg.type === MESSAGE.FULL_STATE) as
+    | FullStateMessage
+    | undefined;
+  assert(fullState, `${label}: promotion must broadcast FULL_STATE`);
+  assert(
+    fullState.phase !== Phase[Phase.WALL_BUILD],
+    `${label}: FULL_STATE must carry the routed phase, not the closed ` +
+      `WALL_BUILD`,
+  );
+  assertEquals(
+    watcher.state.players.map((p) => p.lives),
+    livesAtWindow,
+    `${label}: the round-end life penalties must not re-apply`,
+  );
+
+  // The promoted peer runs the match alone — it must reach the next
+  // battle WITHOUT closing another round on the way (a re-dispatched
+  // round-end emits a second ROUND_END and skips a round number).
+  let battleReached = false;
+  watcher.bus.on(GAME_EVENT.PHASE_START, (ev) => {
+    if (ev.phase === Phase.BATTLE) battleReached = true;
+  });
+  let ticks = 0;
+  while (!battleReached && watcher.mode() !== Mode.STOPPED) {
+    watcher.tick(1);
+    if (++ticks > 60_000) {
+      throw new Error(
+        `${label}: stalled after promotion ` +
+          `(phase=${Phase[watcher.state.phase]} mode=${watcher.mode()})`,
+      );
+    }
+  }
+  assertEquals(
+    roundEndsAfterWindow,
+    0,
+    `${label}: round-end must not re-run after promotion`,
+  );
+  assertEquals(
+    watcher.state.round,
+    roundAtWindow,
+    `${label}: the round counter must not advance again before the next ` +
+      `battle`,
+  );
+  return fullState;
+}
+
+// ── FULL_STATE adoption mid-dialog must arm the reselect cycle ───────
+// The repair above broadcasts a snapshot already INSIDE the reselect
+// cycle while surviving watchers still sit in their own life-lost
+// dialogs. Reselect entry is otherwise purely local (no SELECT_START is
+// broadcast mid-game), so the apply must arm the local selection
+// subsystem for the adopted CASTLE_SELECT phase — an unarmed watcher has
+// zero selection entries, instantly "confirms" the cycle, and advances
+// with the reselecting player's homeTower still null (it never re-picks).
+Deno.test(
+  "running watcher adopting a reselect FULL_STATE mid-dialog arms selection",
+  async () => {
+    const pair = await createNetworkedPair({
+      seed: 0,
+      mode: "classic",
+      rounds: 12,
+    });
+    const { host, watcher } = pair;
+    let reselectPids: readonly ValidPlayerId[] = [];
+    watcher.bus.on(GAME_EVENT.LIFE_LOST_DIALOG_SHOW, (ev) => {
+      reselectPids = ev.needsReselect;
+    });
+
+    await runPairUntil(
+      pair,
+      () =>
+        host.mode() === Mode.LIFE_LOST && watcher.mode() === Mode.LIFE_LOST,
+      "both peers mid-dialog",
+    );
+    assert(reselectPids.length > 0, "dialog window implies reselect entries");
+
+    // The host alone resolves its dialog (AI entries auto-CONTINUE) and
+    // enters the reselect cycle — its state is the snapshot shape a
+    // promoted host's round-end repair broadcasts.
+    let ticks = 0;
+    while (host.state.phase !== Phase.CASTLE_SELECT) {
+      host.tick(1);
+      if (++ticks > 60_000) {
+        throw new Error("host never resolved its life-lost dialog");
+      }
+    }
+
+    await watcher.deliverMessage(
+      createFullStateMessage(host.state, 1) as ServerMessage,
+    );
+    assertEquals(
+      Phase[watcher.state.phase],
+      Phase[Phase.CASTLE_SELECT],
+      "watcher must adopt the snapshot phase",
+    );
+    assertEquals(watcher.mode(), Mode.SELECTION);
+
+    // The adopted cycle must actually run: the reselecting player re-picks
+    // a castle before the next cannon phase. An unarmed selection skips
+    // the cycle and leaves homeTower null for good.
+    ticks = 0;
+    while (
+      watcher.state.phase !== Phase.CANNON_PLACE &&
+      watcher.mode() !== Mode.STOPPED
+    ) {
+      watcher.tick(1);
+      if (++ticks > 60_000) {
+        throw new Error(
+          `watcher stalled after adoption ` +
+            `(phase=${Phase[watcher.state.phase]} mode=${watcher.mode()})`,
+        );
+      }
+    }
+    for (const pid of reselectPids) {
+      assert(
+        watcher.state.players[pid]!.homeTower !== null,
+        `P${pid} must have re-picked a castle in the adopted reselect cycle`,
+      );
+    }
+  },
+);
+
+async function runPairUntil(
+  pair: NetworkedPair,
+  done: () => boolean,
+  label: string,
+): Promise<void> {
+  let steps = 0;
+  while (!done()) {
+    pair.host.tick(1);
+    await pair.pump();
+    pair.watcher.tick(1);
+    if (pair.host.mode() === Mode.STOPPED) {
+      throw new Error(`${label}: game ended before the target condition`);
+    }
+    if (++steps > 120_000) {
+      throw new Error(`${label}: condition never reached`);
+    }
+  }
+}

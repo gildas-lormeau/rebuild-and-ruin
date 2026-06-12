@@ -197,6 +197,9 @@ export interface PhaseTransitionCtx {
     readonly setPreScores: (scores: readonly number[]) => void;
     readonly show: (onDone: () => void) => void;
     readonly reset: () => void;
+    /** Fire an active overlay's continuation now (natural-expiry shape).
+     *  Used only by `forceResolveRoundEndPhase`. */
+    readonly finishNow: () => void;
   };
 
   /** Life-lost dialog hooks. Only required for transitions whose `display`
@@ -219,6 +222,9 @@ export interface PhaseTransitionCtx {
         abandoned: readonly ValidPlayerId[],
       ) => void,
     ) => boolean;
+    /** Resolve an open dialog now (pending entries → CONTINUE), firing
+     *  the armed `onResolved`. Used only by `forceResolveRoundEndPhase`. */
+    readonly forceResolveAll: () => void;
   };
   /** Post-life-lost dispatch bundle. `ROUND_END`'s postDisplay runs
    *  `resolveAfterLifeLost` with these three handlers — wired identically
@@ -868,6 +874,41 @@ export function runTransition(id: TransitionId, ctx: PhaseTransitionCtx): void {
  *  phase that ticks forward on its own. */
 export function forceResolveUpgradePickPhase(ctx: PhaseTransitionCtx): void {
   finishUpgradePick(ctx, ctx.upgradePick?.forceResolveAll() ?? null);
+}
+
+/** Force the round-end display chain to its conclusion. Host-promotion
+ *  repair — see `RuntimePhaseTicks.resolveRoundEndNow`.
+ *
+ *  Round-end's mutate already ran at dispatch (finalizeRound + round++),
+ *  but the transition does not flip the phase: the exit routing lives in
+ *  postDisplay, reached only through the display chain (score-overlay
+ *  continuation → life-lost dialog resolution). Tearing the chain down —
+ *  the generic promotion teardown — orphans that routing; Mode.GAME's
+ *  tickBuildPhase then re-dispatches round-end over the closed WALL_BUILD
+ *  (timer 0) and re-runs its mutate: double life penalties, double
+ *  territory scoring, a skipped round number. So fast-forward instead:
+ *  finish the overlay (its continuation arms the dialog step
+ *  synchronously), force-resolve the dialog, and let postDisplay route
+ *  with the ORIGINAL mutate result — including the game-over outcome,
+ *  which cannot be re-derived after round++ (re-running the round-limit
+ *  peek against the advanced round would end the game a round early).
+ *
+ *  The routed `enter-cannon-place` banner is skipped like every promotion
+ *  teardown: watchers adopt the FULL_STATE broadcast straight into a
+ *  ticking mode, so the promoted peer must enter the same condition
+ *  instead of dwelling in banner cosmetics. Hiding the banner drops its
+ *  postDisplay continuation, so its body runs here. The reselect route
+ *  needs no skip (`selection.enter` owns mode + timer; a reselect cycle
+ *  shows no banner) and the game-over route tears itself down via
+ *  `endGame`. */
+export function forceResolveRoundEndPhase(ctx: PhaseTransitionCtx): void {
+  ctx.scoreDelta.finishNow();
+  ctx.lifeLost?.forceResolveAll();
+  if (ctx.state.phase === Phase.CANNON_PLACE) {
+    ctx.hideBanner();
+    ctx.initLocalCannonControllers?.();
+    ctx.setMode(Mode.GAME);
+  }
 }
 
 /** Post-cannon-place prep route: dispatch to `enter-modifier-reveal`

@@ -64,6 +64,14 @@ export interface RuntimeLifeLost {
     ) => void,
   ) => boolean;
   tick: (dt: number) => void;
+  /** Resolve an open dialog immediately: pending entries are written as
+   *  CONTINUE, then the armed `onResolved` callback fires with the final
+   *  lists, exactly as the tick loop would. No-op when no dialog is open.
+   *  Host-promotion repair (`forceResolveRoundEndPhase`) — CONTINUE, not
+   *  the max-timer backstop's ABANDON: that backstop is an
+   *  unresponsiveness penalty, and a host disconnect is not the
+   *  remaining players' fault. */
+  forceResolveAll: () => void;
   panelPos: (playerId: ValidPlayerId) => { px: number; py: number };
 }
 
@@ -229,6 +237,14 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
       `lifeLostDialog resolved: ${dialog.entries.map((e) => `P${e.playerId}=${e.choice}(auto=${e.autoResolve})`).join(", ")} timer=${dialog.timer.toFixed(1)}s`,
     );
 
+    resolveDialogNow(dialog);
+  }
+
+  /** Shared resolution tail: compute the final lists, tear the dialog
+   *  down, fire the armed callback once. Reached by the tick loop (every
+   *  entry resolved) and by `forceResolveAll` (host-promotion
+   *  fast-forward). */
+  function resolveDialogNow(dialog: LifeLostDialogState): void {
     const continuing = continuingPlayers(dialog);
     const abandoned = abandonedPlayers(dialog);
     runtimeState.dialogs.lifeLost = null;
@@ -237,6 +253,20 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
     const callback = onResolvedCb;
     onResolvedCb = undefined;
     callback?.(continuing, abandoned);
+  }
+
+  function forceResolveAll(): void {
+    const dialog = runtimeState.dialogs.lifeLost;
+    if (!dialog) return;
+    for (const entry of dialog.entries) {
+      if (entry.choice === LifeLostChoice.PENDING) {
+        applyLifeLostChoice(entry, LifeLostChoice.CONTINUE);
+      }
+    }
+    deps.log(
+      `lifeLostDialog force-resolved: ${dialog.entries.map((e) => `P${e.playerId}=${e.choice}`).join(", ")}`,
+    );
+    resolveDialogNow(dialog);
   }
 
   /** Max-timer force-resolve, ownership-routed. The entry's OWNING peer
@@ -337,6 +367,7 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
     },
     show,
     tick: tickLifeLostDialogSystem,
+    forceResolveAll,
     panelPos: deps.panelPos,
     // Extra — needed by game-runtime internals
     sendLifeLostChoice: deps.sendLifeLostChoice,

@@ -56,6 +56,7 @@ import {
   tickBalloonFlights,
 } from "../battle-anim.ts";
 import {
+  forceResolveRoundEndPhase,
   forceResolveUpgradePickPhase,
   type PhaseTransitionCtx,
   runTransition,
@@ -128,7 +129,7 @@ interface PhaseTicksDeps extends Pick<RuntimeConfig, "log"> {
    *  cleanup. Banner steps overwrite via `showBanner` and never need
    *  to hide explicitly. */
   hideBanner: () => void;
-  lifeLost: Pick<RuntimeLifeLost, "show">;
+  lifeLost: Pick<RuntimeLifeLost, "show" | "forceResolveAll">;
   /** Handlers called after the life-lost dialog resolves. `onGameOver`
    *  dispatches the game-over transition; `onReselect` seeds the
    *  reselect queue and enters the castle-reselect flow; `onAdvance`
@@ -143,6 +144,7 @@ interface PhaseTicksDeps extends Pick<RuntimeConfig, "log"> {
     setPreScores: (scores: readonly number[]) => void;
     show: (onDone: () => void) => void;
     reset: () => void;
+    finishNow: () => void;
   };
   /** Save human crosshair at end of battle so it can be restored next battle. */
   saveBattleCrosshair?: () => void;
@@ -225,6 +227,10 @@ export interface RuntimePhaseTicks {
    *  and the Mode.GAME flip never run. See promote.ts
    *  `skipPendingAnimations`. */
   skipBattleIntro: () => void;
+  /** Fast-forward the round-end display chain (score overlay + life-lost
+   *  dialog) to its routed conclusion. Host-promotion repair — see
+   *  `forceResolveRoundEndPhase` in phase-machine.ts. */
+  resolveRoundEndNow: () => void;
 }
 
 export interface PhaseTicksSystem {
@@ -236,6 +242,8 @@ export interface PhaseTicksSystem {
   resolveUpgradePickNow: () => void;
   /** Host-promotion repair — see `RuntimePhaseTicks.skipBattleIntro`. */
   skipBattleIntro: () => void;
+  /** Host-promotion repair — see `RuntimePhaseTicks.resolveRoundEndNow`. */
+  resolveRoundEndNow: () => void;
   /** Dispatch the `castle-done` prep transition. Used by both the round-1
    *  initial-selection path and the reselect cycle. The mutate runs
    *  `finalizeRoundCleanup` (gated on `round > 1` because round 1 has no
@@ -403,6 +411,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       warmShadowPermutations: deps.warmShadowPermutations,
       lifeLost: {
         show: deps.lifeLost.show,
+        forceResolveAll: deps.lifeLost.forceResolveAll,
       },
       lifeLostRoute: deps.lifeLostRoute,
       notifyLifeLost: (pid) => {
@@ -851,6 +860,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
   return {
     dispatchAdvanceToCannon,
     resolveUpgradePickNow: () => forceResolveUpgradePickPhase(buildPhaseCtx()),
+    resolveRoundEndNow: () => forceResolveRoundEndPhase(buildPhaseCtx()),
     skipBattleIntro: () => {
       clearBalloonFlights(runtimeState.battleAnim);
       beginBattle();

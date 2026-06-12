@@ -17,8 +17,10 @@ import {
 import type { GameRuntime } from "../runtime/handle.ts";
 import { setMode } from "../runtime/state.ts";
 import type { BalloonFlight } from "../shared/core/battle-types.ts";
+import { filterAliveEnclosedTowers } from "../shared/core/board-occupancy.ts";
 import { Phase } from "../shared/core/game-phase.ts";
 import type { PlayerId } from "../shared/core/player-slot.ts";
+import { isPlayerAlive } from "../shared/core/player-types.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
 import {
   rebuildControllersForPhase,
@@ -116,6 +118,14 @@ export function applyFullStateToRunningRuntime(
   );
   runtime.runtimeState.selection.castleBuilds = [];
   runtime.lifeLost.set(null);
+  // A score overlay mid-display when the snapshot lands is superseded the
+  // same way: promotion fast-forwards the round-end chain into the
+  // snapshot (`forceResolveRoundEndPhase`), so the local overlay's armed
+  // `runDisplay` continuation must not survive the apply. Its tick is
+  // mode-independent — left armed, it fires against the adopted
+  // post-round-end state and dispatches the round-end routing from a
+  // phase the snapshot already advanced (source-phase guard throw).
+  runtime.scoreDelta.reset();
   // Same teardown as the life-lost dialog: a pick dialog mid-flight when
   // the new host's snapshot lands is superseded — promotion force-resolves
   // the picks into the snapshot before broadcasting (promote.ts), so the
@@ -127,6 +137,30 @@ export function applyFullStateToRunningRuntime(
   runtime.runtimeState.frame.announcement = undefined;
   if (inBattle) runtime.runtimeState.battleAnim.flights = flights;
   else clearBalloonFlights(runtime.runtimeState.battleAnim);
+  // Reselect entry is purely local (no SELECT_START is broadcast
+  // mid-game): a snapshot inside the reselect cycle can land on a peer
+  // still parked in its own round-end display, which never entered
+  // selection — unarmed, the adopted CASTLE_SELECT never resolves (zero
+  // entries, nothing dispatches castle-done). Arm it for the players the
+  // snapshot says are re-picking, derived with the same predicate the
+  // life penalty used: alive with no alive enclosed tower (their zone
+  // was reset; they have not rebuilt). The size gate keeps a peer that
+  // entered the cycle locally (lockstep, the normal case) on its own
+  // mid-cycle progress.
+  if (
+    state.phase === Phase.CASTLE_SELECT &&
+    runtime.selection.getStates().size === 0
+  ) {
+    runtime.selection.enter(
+      state.players
+        .filter(
+          (player) =>
+            isPlayerAlive(player) &&
+            filterAliveEnclosedTowers(player, state).length === 0,
+        )
+        .map((player) => player.id),
+    );
+  }
   snapPitchToPhase(runtime, state.phase);
 }
 
