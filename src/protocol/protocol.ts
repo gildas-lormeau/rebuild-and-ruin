@@ -224,6 +224,14 @@ export interface FullStateMessage extends SerializedModifierTiles {
    *  joining mid-game or a post-migration host picks up the
    *  authoritative tick count for the lockstep action-queue. */
   simTick: number;
+  /** The promoting host's cross-phase grunt step clock (accum.grunt) at
+   *  serialize time. Not derivable from GameState: an adopting peer's
+   *  local clock ticked past the snapshot by its own wire-delay skew,
+   *  and a skewed clock steps grunts at different sim ticks than the
+   *  host — board divergence inside the next WALL_BUILD. Optional for
+   *  recorded-fixture back-compat; absent means keep the local clock
+   *  (the zero-skew assumption older captures were recorded under). */
+  gruntAccum?: number;
   players: SerializedPlayer[];
   grunts: SerializedGrunt[];
   /** Match-lifetime grunt-spawn rotation counter

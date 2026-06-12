@@ -1054,6 +1054,85 @@ Deno.test(
   },
 );
 
+// ── Skewed adoption: strategy transients ─────────────────────────────
+// Same trio topology, but the observer's sim runs PAST the snapshot
+// before adopting it — the production shape, where the FULL_STATE
+// arrives a wire-delay late and the apply rewinds GameState to the
+// snapshot tick. Anything that ticked past the snapshot locally and is
+// NOT in the snapshot re-diverges the match after an otherwise clean
+// adoption. This test pinned three such survivors when written red:
+// strategy/brain transients (lastTargetTowerIndex feeds the next build
+// pick verbatim via planEnclosureTarget's anti-churn short-circuit →
+// wiped by ctrl.reset() in the re-prime), the cross-phase grunt step
+// clock (accum.grunt → now rides FullStateMessage.gruntAccum; kept, it
+// stepped grunts at different ticks and deadlocked the round-end
+// dialogs), and the piece bags (queue + currentPiece are past rng draws
+// → re-dealt symmetrically at adoption). Promote mid-build and give the
+// observer a ~3s head start (a few placements + grunt steps) before it
+// adopts.
+Deno.test(
+  "host migration adopted with sim-tick skew: survivors stay in parity",
+  async () => {
+    const trio = await createMigrationTrio({
+      seed: 7,
+      mode: "classic",
+      rounds: 4,
+    });
+    const { host, promotable, observer, pumpHost, pumpPromoted } = trio;
+
+    // Lockstep all three to round 2's build, then ~1.5s further in so
+    // the AIs are mid-plan with live pick cursors.
+    let steps = 0;
+    while (
+      !(
+        host.state.round === 2 &&
+        host.state.phase === Phase.WALL_BUILD &&
+        host.mode() === Mode.GAME
+      )
+    ) {
+      host.tick(1);
+      await pumpHost();
+      promotable.tick(1);
+      observer.tick(1);
+      if (host.mode() === Mode.STOPPED) {
+        throw new Error("game ended before the migration window");
+      }
+      if (++steps > 120_000) {
+        throw new Error("migration window never reached");
+      }
+    }
+    for (let i = 0; i < 90; i++) {
+      host.tick(1);
+      await pumpHost();
+      promotable.tick(1);
+      observer.tick(1);
+    }
+
+    // Promote one watcher now; its FULL_STATE freezes this tick.
+    trio.promotableSession.myPlayerId = 0 as ValidPlayerId;
+    const hostLeft = {
+      type: MESSAGE.HOST_LEFT,
+      newHostPlayerId: 0 as ValidPlayerId,
+      disconnectedPlayerId: null,
+    } as ServerMessage;
+    await promotable.deliverMessage(hostLeft);
+
+    // Wire delay: the observer keeps simulating ~3s past the snapshot
+    // (fires land, transients mutate) before the migration reaches it.
+    observer.tick(180);
+    await observer.deliverMessage(hostLeft);
+    await pumpPromoted();
+
+    await runNetworkedToEnd(promotable, observer, pumpPromoted);
+
+    assertStateConverges(
+      snapshotState(observer),
+      snapshotState(promotable),
+      "skewed observer vs promoted host",
+    );
+  },
+);
+
 function snapshotState(sc: Scenario): StateSnapshot {
   return {
     rngState: sc.state.rng.getState(),

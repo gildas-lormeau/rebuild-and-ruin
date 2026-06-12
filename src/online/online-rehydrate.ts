@@ -24,6 +24,7 @@ import { isPlayerAlive } from "../shared/core/player-types.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
 import {
   rebuildControllersForPhase,
+  redealPlayerBagsForAdoption,
   reprimeAiControllersForPhase,
   syncAccumulatorsFromTimer,
 } from "./online-host-promotion.ts";
@@ -117,11 +118,19 @@ export function applyFullStateToRunningRuntime(
   const result = restoreFullStateSnapshot(state, msg);
   if (!result) return;
 
-  syncAccumulatorsFromTimer(state, runtime.runtimeState.accum);
+  // The grunt step clock rides the message (third argument): it is the
+  // one accumulator the resync cannot rebuild (cross-phase, not
+  // derivable from state.timer), and the local copy ticked past the
+  // snapshot by this peer's wire-delay skew — kept, it steps grunts at
+  // different sim ticks than the new host. Absent only in pre-field
+  // captures (fixtures), where keep-local is the recorded behavior.
+  syncAccumulatorsFromTimer(state, runtime.runtimeState.accum, msg.gruntAccum);
 
   // Kept AI brains restart from the adopted snapshot — right after the
   // rng restore, before anything else can draw, mirroring the promoted
-  // host's post-serialize call so both replay identical init draws.
+  // host's post-serialize calls so both replay identical draws. Bags
+  // first: the re-prime's build picks read the freshly-dealt piece.
+  redealPlayerBagsForAdoption(state);
   reprimeAiControllersForPhase(
     state,
     runtime.runtimeState.controllers,

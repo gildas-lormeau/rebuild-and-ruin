@@ -14,6 +14,7 @@ import { Phase } from "../../shared/core/game-phase.ts";
 import { assertNever } from "../../shared/platform/utils.ts";
 import { Mode } from "../../shared/ui/ui-mode.ts";
 import {
+  redealPlayerBagsForAdoption,
   reprimeAiControllersForPhase,
   syncAccumulatorsFromTimer,
 } from "../online-host-promotion.ts";
@@ -86,10 +87,13 @@ export function promoteToHost(): void {
       _runtime.runtimeState.state,
       _client.ctx.session.hostMigrationSeq,
       _runtime.runtimeState.battleAnim.flights,
+      _runtime.runtimeState.accum.grunt,
     ),
   );
   // AFTER the serialize, deliberately — see the ordering note in the
-  // promoteToHost doc above.
+  // promoteToHost doc above. Bags first: the re-prime's build picks read
+  // the freshly-dealt currentPiece.
+  redealPlayerBagsForAdoption(_runtime.runtimeState.state);
   reprimeAiControllersForPhase(
     _runtime.runtimeState.state,
     _runtime.runtimeState.controllers,

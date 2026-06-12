@@ -7,6 +7,7 @@
 
 import {
   primeControllerForCannonPhase,
+  useSmallPieces,
   wallBuildTimerMax,
 } from "../game/index.ts";
 import type { MutableAccums } from "../runtime/timer-accums.ts";
@@ -19,7 +20,11 @@ import {
 } from "../shared/core/game-constants.ts";
 import { Phase } from "../shared/core/game-phase.ts";
 import type { PlayerId, ValidPlayerId } from "../shared/core/player-slot.ts";
-import { isPlayerEliminated } from "../shared/core/player-types.ts";
+import {
+  initPlayerBag,
+  isPlayerEliminated,
+  isPlayerSeated,
+} from "../shared/core/player-types.ts";
 import type { PlayerController } from "../shared/core/system-interfaces.ts";
 import type { GameState } from "../shared/core/types.ts";
 import { Rng } from "../shared/platform/rng.ts";
@@ -39,6 +44,30 @@ interface AiPromotionDeps {
     rng: Rng,
     personality: AiPersonality,
   ) => Promise<PlayerController>;
+}
+
+/**
+ * Re-deal build-phase piece bags from the just-adopted shared rng — the
+ * bag mirror of `reprimeAiControllersForPhase`, same call discipline
+ * (promoted host AFTER serializing, every watcher right after applying,
+ * both BEFORE the controller re-prime, whose build picks read
+ * `currentPiece`). Bags are deliberately never serialized (see
+ * `Player.bag`): the queue and the in-hand `currentPiece` are PAST rng
+ * draws, and an adopting peer's copies advanced past the snapshot during
+ * its wire-delay skew — kept, its AI picks plan against different pieces
+ * than the host's and the match re-diverges. Decided entirely from
+ * serialized state, never from local bag presence (a skew window that
+ * crossed build-end cleared bags on some peers only): every seated
+ * player gets a fresh deal stamped like `prepareNextRound`'s
+ * (upcomingRound = round + 1). A one-shot supply small-pieces bias is
+ * gone with the original deal — symmetric on every peer, migration-only.
+ */
+export function redealPlayerBagsForAdoption(state: GameState): void {
+  if (state.phase !== Phase.WALL_BUILD) return;
+  for (const player of state.players) {
+    if (!isPlayerSeated(player)) continue;
+    initPlayerBag(player, state.round + 1, state.rng, useSmallPieces(player));
+  }
 }
 
 /**
@@ -74,6 +103,18 @@ export function reprimeAiControllersForPhase(
     if (remotePlayerSlots.has(ctrl.playerId)) continue;
     const player = state.players[ctrl.playerId];
     if (!player || isPlayerEliminated(player)) continue;
+    // Wipe transient decision memory BEFORE the phase init. Strategy
+    // transients (per-shot counts, battle target memory, the
+    // lastTargetTowerIndex pick short-circuit) are not in the snapshot,
+    // and each peer's copy ticked past the snapshot by its own local
+    // skew — a surviving difference feeds the very next pick
+    // (planEnclosureTarget reuses lastTargetTowerIndex verbatim) and
+    // re-diverges the adopted match. reset() draws nothing; the
+    // re-roll draws all live in the init calls below. Skipped
+    // mid-CASTLE_SELECT: reset would idle the selection brain the
+    // selection system armed at cycle entry, and none of the transient
+    // mutation sites (fires, build picks) run during that cycle.
+    if (state.phase !== Phase.CASTLE_SELECT) ctrl.reset();
     if (state.phase === Phase.WALL_BUILD) {
       ctrl.startBuildPhase(state);
     } else if (state.phase === Phase.CANNON_PLACE) {
@@ -152,13 +193,15 @@ export async function rebuildControllersForPhase(
  * Total over every timed phase: a phase without a recompute branch
  * here silently restarts that phase's timer on the applying peer.
  *
- * Two accums are deliberately PRESERVED, not zeroed — neither is
- * derivable from `state.timer`, and both production callers (the
- * promoted host syncing against its own state, a running watcher
- * applying the new host's broadcast) already hold correct local values:
+ * Two accums are deliberately left untouched here — neither is
+ * derivable from `state.timer`:
  *  - `grunt`: cross-phase step-interval clock. Zeroing it on one peer
  *    restarts its grunt cadence while the others' grunts step on
- *    schedule — board divergence within the build phase.
+ *    schedule — board divergence within the build phase. Correct only
+ *    on the promoted host (syncing against its own state); an adopting
+ *    watcher's local clock ticked past the snapshot by its wire-delay
+ *    skew, so the migration apply overwrites it from
+ *    `FullStateMessage.gruntAccum` right after this call.
  *  - `selectAnnouncement`: consumed-flag for the game-start BANNER_SELECT
  *    window, armed by cycle type in `enterTowerSelection`; zeroing it
  *    mid-cycle replays the announcement on one peer, gating its
@@ -167,12 +210,14 @@ export async function rebuildControllersForPhase(
 export function syncAccumulatorsFromTimer(
   state: GameState,
   accum: MutableAccums,
+  gruntAccum?: number,
 ): void {
   accum.build = 0;
   accum.cannon = 0;
   accum.battle = 0;
   accum.select = 0;
   accum.modifierReveal = 0;
+  if (gruntAccum !== undefined) accum.grunt = gruntAccum;
 
   if (state.phase === Phase.WALL_BUILD) {
     // Three-term max (base + upgrade bonus + drained supply-ship seconds):

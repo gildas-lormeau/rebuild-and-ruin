@@ -97,4 +97,5 @@ export {
   shouldAbsorbWallHit,
   shouldSkipBattle,
   tickBuildUpgrades,
+  useSmallPieces,
 } from "./upgrade-system.ts";

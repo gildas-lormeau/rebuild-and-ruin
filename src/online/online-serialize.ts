@@ -55,6 +55,7 @@ export function createFullStateMessage(
   state: GameState,
   migrationSeq: number,
   flights?: readonly { flight: BalloonFlight; progress: number }[],
+  gruntAccum?: number,
 ): FullStateMessage {
   return {
     type: MESSAGE.FULL_STATE,
@@ -67,6 +68,7 @@ export function createFullStateMessage(
     shotsFired: state.shotsFired,
     rngState: state.rng.getState(),
     simTick: state.simTick,
+    gruntAccum,
     players: serializePlayers(state),
     grunts: serializeGrunts(state),
     gruntSpawnSeq: state.gruntSpawnSeq,
@@ -455,6 +457,8 @@ function validateFullState(
   if (Phase[msg.phase as keyof typeof Phase] === undefined)
     return `invalid phase "${msg.phase}"`;
   if (!Number.isFinite(msg.rngState)) return "non-finite rngState";
+  if (msg.gruntAccum !== undefined && !Number.isFinite(msg.gruntAccum))
+    return "non-finite gruntAccum";
 
   const playerCount = state.players.length;
   const towerCount = state.map.towers.length;
