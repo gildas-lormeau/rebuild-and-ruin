@@ -19,6 +19,7 @@ import {
   CANNON_MODE_IDS,
   toCannonMode,
 } from "../shared/core/cannon-mode-defs.ts";
+import type { TowerIdx } from "../shared/core/geometry-types.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import { isPlayerEliminated } from "../shared/core/player-types.ts";
 import { inBoundsStrict } from "../shared/core/spatial.ts";
@@ -57,6 +58,7 @@ export interface HandleServerIncrementalDeps {
     playerId: ValidPlayerId,
     source?: "local" | "network",
     applyAt?: number,
+    towerIdx?: TowerIdx,
   ) => void;
   allSelectionsConfirmed: () => boolean;
   getLifeLostDialog: () => LifeLostDialogState | null;
@@ -167,12 +169,20 @@ function handleTowerSelected(
       // Lockstep: both host and watcher schedule
       // `confirmTowerSelection + startPlayerCastleBuild` for the wire-
       // supplied `applyAt`, so castle-wall RNG consumption fires at the
-      // same logical sim tick on every peer. The "network" source skips
+      // same logical sim tick on every peer. `msg.towerIdx` rides along
+      // so the scheduled apply commits the originator's broadcast tower
+      // even when a later hover message crosses the drain boundary and
+      // moves the live highlight. The "network" source skips
       // sendTowerSelected (the server already relayed the message; an
       // echo would be redundant). When `applyAt` is missing (older wire
       // shape, defensive), the immediate-apply fallback inside
       // `confirmSelectionAndStartBuild` runs.
-      deps.confirmSelectionAndStartBuild(msg.playerId, "network", msg.applyAt);
+      deps.confirmSelectionAndStartBuild(
+        msg.playerId,
+        "network",
+        msg.applyAt,
+        msg.towerIdx,
+      );
     }
   }
   return APPLIED;

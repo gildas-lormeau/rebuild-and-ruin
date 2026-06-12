@@ -33,6 +33,7 @@ import {
   MAX_PLAYERS,
   PLAYER_KEY_BINDINGS,
 } from "../src/shared/ui/player-config.ts";
+import { MESSAGE, type ServerMessage } from "../src/protocol/protocol.ts";
 import { DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS } from "../src/shared/core/action-schedule.ts";
 import { GAME_EVENT } from "../src/shared/core/game-event-bus.ts";
 import { Phase } from "../src/shared/core/game-phase.ts";
@@ -404,6 +405,122 @@ Deno.test(
     await pressKeyAndSettle(sc, bindings.confirm);
     sc.tick(DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS + 5);
     assertEquals(placed, 1, "confirm works once the announcement ends");
+  },
+);
+
+// ── a confirm commits the tower it broadcast, not the drain-time one ──
+// Human confirms are lockstep-scheduled: the press broadcasts a captured
+// `towerIdx` and defers the apply by DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS.
+// Highlight input stays open during that window (`highlightTowerSelection`
+// rejects only `confirmed`, which flips at drain) — so the apply must
+// commit the CAPTURED tower. Committing the live highlight instead means
+// a post-confirm hover flips the castle offline, and online the originator
+// and receivers can commit DIFFERENT towers (a hover message crossing the
+// drain boundary), forking homeTower, the castle ring, and state.rng.
+Deno.test(
+  "selection: a hover inside the confirm's lockstep window must not flip the committed tower",
+  async () => {
+    using sc = await createScenario({ seed: 42, autoStartGame: false });
+    const bindings = PLAYER_KEY_BINDINGS[0]!;
+    for (let i = 0; i <= LOBBY_TIMER; i++) {
+      await pressKeyAndSettle(sc, bindings.confirm);
+    }
+    sc.runUntil(() => !sc.lobbyActive(), { timeoutMs: LOBBY_TIMER * 1000 });
+    await settleLobbyExit(sc);
+    assertEquals(sc.mode(), Mode.SELECTION, "precondition: in selection");
+
+    const placedAt: { row: number; col: number }[] = [];
+    sc.bus.on(GAME_EVENT.CASTLE_PLACED, (ev) => {
+      if (ev.playerId === 0) placedAt.push({ row: ev.row, col: ev.col });
+    });
+
+    // Past the announcement window, browse once (deterministic non-initial
+    // tower), then confirm — the press captures + broadcasts this tower.
+    sc.tick(90);
+    await pressKeyAndSettle(sc, bindings.up);
+    const confirmedTower = sc.state.players[0]!.homeTower!;
+    await pressKeyAndSettle(sc, bindings.confirm);
+
+    // Still inside the safety window: keep browsing. The highlight (and
+    // player.homeTower with it) moves — that's the open window.
+    await pressKeyAndSettle(sc, bindings.up);
+    const hoverTower = sc.state.players[0]!.homeTower!;
+    assert(
+      hoverTower !== confirmedTower,
+      "precondition: the post-confirm hover moved the highlight " +
+        "(zone needs >1 tower for this seed/slot)",
+    );
+
+    sc.tick(DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS + 5);
+    assertEquals(placedAt.length, 1, "exactly one castle placed for slot 0");
+    assertEquals(
+      placedAt[0],
+      { row: confirmedTower.row, col: confirmedTower.col },
+      "the committed castle must sit on the tower captured at the confirm " +
+        "press (the broadcast towerIdx), not the drain-time highlight",
+    );
+  },
+);
+
+// Receiver side of the same window: a watcher receives the confirm
+// (towerIdx captured by the originator) and schedules it for `applyAt`,
+// but applies hover messages at RECEIVE time. A hover crossing the drain
+// boundary must not flip what the scheduled confirm commits — the wire
+// towerIdx is the cross-peer contract.
+Deno.test(
+  "selection: a hover crossing the drain boundary must not flip a remote confirm (receiver)",
+  async () => {
+    using sc = await createScenario({
+      seed: 42,
+      mode: "classic",
+      rounds: 3,
+      online: "watcher",
+      assistedSlots: [1 as ValidPlayerId],
+    });
+    assertEquals(sc.mode(), Mode.SELECTION, "precondition: in selection");
+
+    const zone = sc.state.playerZones[1];
+    const zoneTowers = sc.state.map.towers.filter(
+      (tower) => tower.zone === zone,
+    );
+    assertGreater(
+      zoneTowers.length,
+      1,
+      "precondition: slot 1's zone needs two towers for this seed",
+    );
+    const towerA = zoneTowers[0]!;
+    const towerB = zoneTowers[1]!;
+
+    const placedAt: { row: number; col: number }[] = [];
+    sc.bus.on(GAME_EVENT.CASTLE_PLACED, (ev) => {
+      if (ev.playerId === 1) placedAt.push({ row: ev.row, col: ev.col });
+    });
+
+    // The remote human confirms tower A (lockstep-scheduled), then a
+    // hover for tower B lands before the drain — receive-time highlight
+    // application is immediate by design.
+    await sc.deliverMessage({
+      type: MESSAGE.OPPONENT_TOWER_SELECTED,
+      playerId: 1,
+      towerIdx: towerA.index,
+      confirmed: true,
+      applyAt: sc.state.simTick + DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS,
+    } as ServerMessage);
+    await sc.deliverMessage({
+      type: MESSAGE.OPPONENT_TOWER_SELECTED,
+      playerId: 1,
+      towerIdx: towerB.index,
+      confirmed: false,
+    } as ServerMessage);
+
+    sc.tick(DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS + 5);
+    assertEquals(placedAt.length, 1, "exactly one castle placed for slot 1");
+    assertEquals(
+      placedAt[0],
+      { row: towerA.row, col: towerA.col },
+      "the scheduled confirm must commit the wire towerIdx, not the " +
+        "highlight a later hover moved",
+    );
   },
 );
 

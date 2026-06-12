@@ -17,6 +17,7 @@ import type { GameRuntime } from "../../runtime/handle.ts";
 import { isSessionLive } from "../../runtime/state.ts";
 import { DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS } from "../../shared/core/action-schedule.ts";
 import { MIGRATION_ANNOUNCEMENT_DURATION } from "../../shared/core/game-constants.ts";
+import type { TowerIdx } from "../../shared/core/geometry-types.ts";
 import type { ValidPlayerId } from "../../shared/core/player-slot.ts";
 import { PLAYER_NAMES } from "../../shared/ui/player-config.ts";
 import { Mode } from "../../shared/ui/ui-mode.ts";
@@ -152,8 +153,14 @@ function buildIncrementalDeps(
       playerId: ValidPlayerId,
       source?: "local" | "network",
       applyAt?: number,
+      towerIdx?: TowerIdx,
     ) => {
-      init.runtime.selection.confirmAndStartBuild(playerId, source, applyAt);
+      init.runtime.selection.confirmAndStartBuild(
+        playerId,
+        source,
+        applyAt,
+        towerIdx,
+      );
     },
     allSelectionsConfirmed: () => init.runtime.selection.allConfirmed(),
     getLifeLostDialog: () => init.runtime.lifeLost.get(),

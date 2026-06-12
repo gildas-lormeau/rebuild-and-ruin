@@ -55,6 +55,9 @@ export interface RuntimeSelection {
     pid: ValidPlayerId,
     source?: "local" | "network",
     applyAt?: number,
+    /** Wire-supplied tower for network confirms — re-asserted at the
+     *  scheduled apply so the commit matches the originator's broadcast. */
+    towerIdx?: TowerIdx,
   ) => boolean;
   allConfirmed: () => boolean;
   isReady: () => boolean;
@@ -296,8 +299,33 @@ export function createSelectionSystem(
    *  state.rng-consuming castle-wall plan). Caller decides when this fires
    *  — locally driven human confirmations and network-received confirms
    *  defer this to the lockstep `applyAt`; AI / non-human local
-   *  confirmations apply immediately. */
-  function applyConfirmedSelection(pid: ValidPlayerId): void {
+   *  confirmations apply immediately.
+   *
+   *  Scheduled applies pass `towerIdx` (the tower captured at broadcast
+   *  time) and it is re-asserted here: highlight input stays open during
+   *  the lockstep window, so the live `selectionState.highlighted` at
+   *  drain may not be the tower the confirm broadcast — and the wire
+   *  towerIdx is the cross-peer contract (every peer must commit the
+   *  same tower at the same applyAt, or homeTower / castle ring /
+   *  state.rng fork). Immediate applies omit it: an AI that moves and
+   *  confirms in the same tick has a stale `highlighted`, and its live
+   *  `player.homeTower` is the truth. */
+  function applyConfirmedSelection(
+    pid: ValidPlayerId,
+    towerIdx?: TowerIdx,
+  ): void {
+    if (towerIdx !== undefined) {
+      const zone = runtimeState.state.playerZones[pid];
+      if (zone !== undefined) {
+        highlightTowerSelection(
+          runtimeState.state,
+          runtimeState.selection.states,
+          towerIdx,
+          zone,
+          pid,
+        );
+      }
+    }
     const result = confirmTowerSelection(
       runtimeState.state,
       runtimeState.selection.states,
@@ -318,6 +346,7 @@ export function createSelectionSystem(
     pid: ValidPlayerId,
     source: "local" | "network" = "local",
     applyAtFromWire?: number,
+    towerIdxFromWire?: TowerIdx,
   ): boolean {
     const selectionState = runtimeState.selection.states.get(pid);
     const allConfirmed = () =>
@@ -348,7 +377,7 @@ export function createSelectionSystem(
         playerId: pid,
         apply: () => {
           inFlightConfirms.delete(pid);
-          applyConfirmedSelection(pid);
+          applyConfirmedSelection(pid, towerIdx);
         },
       });
       return false;
@@ -358,7 +387,7 @@ export function createSelectionSystem(
       runtimeState.actionSchedule.schedule({
         applyAt: applyAtFromWire,
         playerId: pid,
-        apply: () => applyConfirmedSelection(pid),
+        apply: () => applyConfirmedSelection(pid, towerIdxFromWire),
       });
       return false;
     }
