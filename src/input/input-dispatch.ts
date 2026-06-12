@@ -114,7 +114,10 @@ export function dispatchModeTap(
   y: number,
   mode: Mode,
   deps: {
-    gameOver: { click: (x: number, y: number) => void };
+    gameOver: {
+      isActive: () => boolean;
+      click: (x: number, y: number) => void;
+    };
     options: {
       click: (x: number, y: number) => void;
       clickControls: (x: number, y: number) => void;
@@ -138,7 +141,14 @@ export function dispatchModeTap(
 ): boolean {
   const { gameOver, options, lifeLost, lobby } = deps;
   if (mode === Mode.STOPPED) {
-    gameOver.click(x, y);
+    // Mirror `handleKeyStopped`'s gate (input-keyboard.ts): act only while
+    // the game-over overlay is actually on screen. STOPPED without an
+    // overlay is a torn-down session (route-level shutdown, online
+    // disconnect announcement) — on touch, `gameOverClick`'s tap-anywhere
+    // fallback would EXECUTE the no-overlay FOCUS_MENU default and open a
+    // lobby under whatever UI replaced the game. The tap is still
+    // consumed: STOPPED must never leak taps into game handlers.
+    if (gameOver.isActive()) gameOver.click(x, y);
     return true;
   }
   if (mode === Mode.OPTIONS) {

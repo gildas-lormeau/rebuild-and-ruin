@@ -21,6 +21,7 @@ import {
 import { MAP_PX_H, MAP_PX_W, SCALE } from "../src/shared/core/grid.ts";
 import { MAX_PLAYERS } from "../src/shared/ui/player-config.ts";
 import { Mode } from "../src/shared/ui/ui-mode.ts";
+import { dispatchModeTap } from "../src/input/input-dispatch.ts";
 import { createScenario, settleLobbyExit, tapAndSettle } from "./scenario.ts";
 
 Deno.test(
@@ -92,3 +93,55 @@ function slotCenterCanvas(slotIndex: number): { x: number; y: number } {
   const tileY = layout.rectY + layout.rectH / 2;
   return { x: tileX * SCALE, y: tileY * SCALE };
 }
+
+// ── STOPPED taps require a visible game-over overlay ─────────────────
+// Mirror of handleKeyStopped's gate (input-keyboard.ts, b5c304e7):
+// Mode.STOPPED without an overlay is a torn-down session (route-level
+// shutdown, online disconnect announcement). The tap router used to call
+// gameOver.click unconditionally — on touch devices, gameOverClick's
+// tap-anywhere fallback then EXECUTES the no-overlay FOCUS_MENU default
+// (returnToLobby), opening a lobby over whatever UI replaced the game.
+// The headless platform reads as non-touch, so the full-pipeline flavor
+// of this bug can't reproduce here; the gate's contract is asserted at
+// the router seam (same shape as online-unit.test.ts's dispatcher tests).
+Deno.test("dispatchModeTap: STOPPED tap is consumed but not forwarded without a game-over overlay", () => {
+  const clicks: { x: number; y: number }[] = [];
+  const never = () => {
+    throw new Error("non-game-over dep must not be touched in STOPPED");
+  };
+  const makeDeps = (overlayVisible: boolean) => ({
+    gameOver: {
+      isActive: () => overlayVisible,
+      click: (x: number, y: number) => {
+        clicks.push({ x, y });
+      },
+    },
+    options: {
+      click: never,
+      clickControls: never,
+      close: never,
+      closeControls: never,
+      getControlsState: never,
+    },
+    lifeLost: { get: () => null, click: never },
+    upgradePick: { get: () => null, click: never },
+    lobby: { isActive: () => false, click: never },
+  });
+
+  // No overlay: the tap must still be consumed (STOPPED never leaks taps
+  // into game handlers) but gameOver.click must NOT fire.
+  assert(
+    dispatchModeTap(10, 20, Mode.STOPPED, makeDeps(false)),
+    "STOPPED tap must be consumed",
+  );
+  assertEquals(
+    clicks.length,
+    0,
+    "no overlay → the tap router must not forward to gameOver.click " +
+      "(on touch, the tap-anywhere fallback would execute returnToLobby)",
+  );
+
+  // Overlay visible: forwarding works as before.
+  assert(dispatchModeTap(10, 20, Mode.STOPPED, makeDeps(true)));
+  assertEquals(clicks, [{ x: 10, y: 20 }]);
+});
