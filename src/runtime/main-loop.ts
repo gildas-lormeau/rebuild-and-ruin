@@ -155,6 +155,15 @@ export function createRuntimeLoop(deps: RuntimeLoopDeps): {
     // on the scheduled-actions queue — every peer must increment in
     // lockstep for cross-peer determinism.
     //
+    // Gated on the pause flag for the same reason: a paused substep skips
+    // `tickMode` (the pause gate in `tickMainLoop` below), so counting it
+    // would detach simTick from game progress — and draining would apply
+    // scheduled actions under a frozen sim. The gate never skews peers:
+    // pause is local-only (`togglePause` and mid-game F1 are disabled
+    // while online — a unilateral freeze desyncs every mirror-ticking
+    // peer; `isSessionLive` already implies a gameplay mode, so this
+    // matches the `tickMainLoop` skip exactly).
+    //
     // Drain runs immediately after the increment, before any phase-tick
     // logic. This is the single point where wire-broadcast actions
     // mutate state on every peer — both originator and receiver enqueue
@@ -162,7 +171,7 @@ export function createRuntimeLoop(deps: RuntimeLoopDeps): {
     // and `applyPiecePlacement` (and friends) fire in identical order on
     // every peer. RNG-consuming downstream logic (recheckTerritory →
     // removeEnclosedGruntsAndRespawn) consumes state.rng identically.
-    if (isSessionLive(deps.runtimeState)) {
+    if (isSessionLive(deps.runtimeState) && !isPaused(deps.runtimeState)) {
       deps.runtimeState.state.simTick++;
       deps.runtimeState.actionSchedule.drainUpTo(
         deps.runtimeState.state.simTick,

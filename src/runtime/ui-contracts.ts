@@ -312,13 +312,6 @@ export interface RegisterOnlineInputDeps {
   getMode: () => Mode;
   setMode: (mode: Mode) => void;
   isOnline: boolean;
-  /** True while any remote human is connected — same NetworkApi source
-   *  as `togglePause`'s gate (subsystems/options.ts). Gates mid-game
-   *  options entry in `handleKeyF1`: Mode.OPTIONS freezes the local sim
-   *  and online has no freeze-recovery, so the frozen peer's pending
-   *  life-lost entry gets force-ABANDONed on every other peer while it
-   *  later resolves CONTINUE locally — a permanent dialog fork. */
-  hasRemoteHumans: () => boolean;
   settings: {
     keyBindings: KeyBindings[];
     seedMode: SeedMode;

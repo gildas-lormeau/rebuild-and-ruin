@@ -43,6 +43,7 @@ import {
   createScenario,
   pressKeyAndSettle,
   settleLobbyExit,
+  waitForPhase,
 } from "./scenario.ts";
 
 Deno.test(
@@ -186,17 +187,18 @@ Deno.test(
   },
 );
 
-// ── F1 options entry is gated while remote humans are connected ──────
+// ── F1 options entry is gated while online ───────────────────────────
 // Mode.OPTIONS is not a ticking mode: opening mid-game options freezes
-// the local sim. Fine locally — but with remote humans connected the
-// other peers keep ticking, their life-lost grace backstop
-// force-ABANDONs the frozen player's pending dialog entry, and the
-// frozen peer later resolves CONTINUE: a permanent cross-peer dialog
-// fork. F1's gameplay branch now shares togglePause's rule
-// (subsystems/options.ts): no sim-freezing UI while remote humans are
-// connected.
+// the local sim. Fine locally — but online every other peer keeps
+// mirror-ticking: their life-lost grace backstop force-ABANDONs the
+// frozen player's pending dialog entry, and the frozen peer later
+// resolves CONTINUE: a permanent cross-peer dialog fork. F1's gameplay
+// branch shares togglePause's rule (subsystems/options.ts): no
+// sim-freezing UI while online at all — seated-humans checks can't
+// stand in, because unseated spectators are invisible to clients and
+// mirror-tick too.
 Deno.test(
-  "keyboard: F1 mid-game is consumed without opening options while remote humans are connected",
+  "keyboard: F1 mid-game is consumed without opening options while online",
   async () => {
     // Watcher runtime with slot 1 driven by a remote human — the same
     // remotePlayerSlots wiring production uses (network-setup.ts).
@@ -218,14 +220,78 @@ Deno.test(
     assertEquals(
       sc.mode(),
       Mode.SELECTION,
-      "F1 must not freeze the local sim while remote humans are connected " +
-        "(Mode.OPTIONS stops simTick; the peers keep ticking and fork the dialogs)",
+      "F1 must not freeze the local sim while online " +
+        "(Mode.OPTIONS stops the sim; the peers keep ticking and fork the dialogs)",
     );
   },
 );
 
 Deno.test(
-  "keyboard: F1 mid-game still opens options without remote humans",
+  "keyboard: F1 mid-game is consumed for an online host with no seated remote humans",
+  async () => {
+    // The spectator hole: unseated watchers are invisible to clients
+    // (the server broadcasts no join/leave for them), so a host alone
+    // with AI cannot prove nobody is mirror-ticking. The gate must key
+    // on being online at all, not on seated remote humans.
+    using sc = await createScenario({
+      seed: 42,
+      mode: "classic",
+      rounds: 3,
+      online: "host",
+    });
+    assertEquals(sc.mode(), Mode.SELECTION);
+
+    sc.input.pressKey("F1");
+    sc.tick(2);
+    assertEquals(
+      sc.mode(),
+      Mode.SELECTION,
+      "an online host must not freeze its sim in mid-game options — " +
+        "an unseated spectator may be mirror-ticking",
+    );
+  },
+);
+
+Deno.test(
+  "keyboard: pause is refused for an online host with no seated remote humans",
+  async () => {
+    using sc = await createScenario({
+      seed: 42,
+      mode: "classic",
+      rounds: 3,
+      online: "host",
+    });
+    assertEquals(sc.mode(), Mode.SELECTION);
+
+    await pressKeyAndSettle(sc, "p");
+    // An engaged pause would freeze tickMode and the game would never
+    // leave CASTLE_SELECT; a refused pause lets the all-AI selection
+    // run to the next phase.
+    waitForPhase(sc, Phase.CANNON_PLACE, { timeoutMs: 60_000 });
+  },
+);
+
+Deno.test("keyboard: local pause freezes simTick with the sim", async () => {
+  using sc = await createScenario({ seed: 42, mode: "classic", rounds: 3 });
+  assertEquals(sc.mode(), Mode.SELECTION);
+
+  await pressKeyAndSettle(sc, "p");
+  const pausedAt = sc.state.simTick;
+  sc.tick(10);
+  assertEquals(
+    sc.state.simTick,
+    pausedAt,
+    "paused substeps skip tickMode and must not count — simTick is the " +
+      "applyAt basis and must track actual game ticks",
+  );
+
+  await pressKeyAndSettle(sc, "p");
+  sc.tick(10);
+  assertGreater(sc.state.simTick, pausedAt, "unpausing resumes the counter");
+});
+
+Deno.test(
+  "keyboard: F1 mid-game still opens options in local play",
   async () => {
     using sc = await createScenario({ seed: 42, mode: "classic", rounds: 3 });
     assertEquals(sc.mode(), Mode.SELECTION);

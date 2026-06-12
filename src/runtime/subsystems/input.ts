@@ -302,7 +302,6 @@ function buildInputDeps(
       setMode(runtimeState, mode);
     },
     isOnline: deps.isOnline,
-    hasRemoteHumans: () => deps.network.remotePlayerSlots().size > 0,
     settings: runtimeState.settings,
     getControllers: () => runtimeState.controllers,
     isHuman,

@@ -41,7 +41,6 @@ interface OptionsSystemDeps {
   setDpadLeftHanded: (left: boolean) => void;
   refreshLobbySeed: () => void;
   isOnline: boolean;
-  remotePlayerSlots: () => ReadonlySet<ValidPlayerId>;
   onCloseOptions?: () => void;
   /** Open the HTML Sound modal (player-supplied Rampart file loader). */
   showSoundModal: () => void;
@@ -284,8 +283,13 @@ export function createOptionsSystem(deps: OptionsSystemDeps): OptionsSystem {
   }
 
   function togglePause(): boolean {
-    // Disable pause when other human players are connected
-    if (deps.remotePlayerSlots().size > 0) return false;
+    // Never pause while online. Pause is not a wire input: a paused peer
+    // freezes its sim while every other peer mirror-ticks on, with no
+    // reconciliation to catch back up. "No remote humans seated" cannot
+    // stand in for "no other peers" — spectators are invisible to
+    // clients by design (the server broadcasts no join/leave for them)
+    // and they mirror-tick too.
+    if (deps.isOnline) return false;
     if (!isInteractiveMode(uiCtx.getMode())) return false;
     // No ENTERING pause while the ESC-quit countdown runs — the countdown
     // keeps ticking through pause (it's a UI affordance, not game state)

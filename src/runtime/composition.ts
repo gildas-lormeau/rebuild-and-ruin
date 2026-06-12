@@ -768,7 +768,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       touchHandles.dpad?.setLeftHanded(left),
     refreshLobbySeed: () => lobby.refreshSeed(),
     isOnline,
-    remotePlayerSlots: config.network.remotePlayerSlots,
     onCloseOptions: config.onCloseOptions,
     showSoundModal: audio.showSoundModal,
     getSoundReady: audio.getSoundReady,
