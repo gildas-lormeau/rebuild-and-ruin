@@ -1324,10 +1324,10 @@ export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
    *  `frameCtx.isSelectionReady` becomes true (within ≤1 frame if the
    *  announcement has already finished).
    *
-   *  Does NOT gate on `mobileAutoZoomActive()` here — this is called from
-   *  `enterTowerSelection` during bootstrap, BEFORE `setMode(SELECTION)`
-   *  flips, so `isSessionLive` (and therefore `hasPointerPlayer`) is still
-   *  false at this exact moment. Gate at consume time instead. */
+   *  Does NOT gate on `mobileAutoZoomActive()` here — the park is
+   *  unconditional and cheap, and gating at consume time decides against
+   *  the frame that actually applies the zoom rather than the
+   *  between-frames moment `enterTowerSelection` parks it. */
   function setSelectionViewport(towerRow: number, towerCol: number): void {
     selectionTargetVp = { row: towerRow, col: towerCol };
   }

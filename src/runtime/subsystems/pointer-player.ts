@@ -20,9 +20,8 @@ interface PointerPlayerLookup {
   /** Return the human controller that owns mouse/touch input, or null in demo mode. */
   pointerPlayer: () => (PlayerController & InputReceiver) | null;
   /** Cache-independent boolean: true iff at least one alive human controller
-   *  exists right now. Use from paths that run between frames (bootstrap →
-   *  enterTowerSelection) where `pointerPlayer()`'s per-frame cache would
-   *  still hold the lobby tick's stale `null`. */
+   *  exists right now. The cheaper shape for per-tick gates (camera
+   *  auto-zoom) that only need existence, not the resolved controller. */
   hasPointerPlayer: () => boolean;
   withPointerPlayer: WithPointerPlayer;
   /** Clear the per-frame cache. Must be called at the start of each frame. */
@@ -44,9 +43,15 @@ export function createPointerPlayerLookup(
 
   function pointerPlayer(): (PlayerController & InputReceiver) | null {
     if (cached !== undefined) return cached;
-    if (!isSessionLive(runtimeState)) {
-      return (cached = null);
-    }
+    // The not-live bail is NOT cached — it's a liveness gate, not a
+    // lookup result. Bootstrap's awaits let lobby substeps run (each
+    // refreshing the cache for its own frame), and `enterTowerSelection`
+    // then reads BETWEEN frames, after setState + setMode(SELECTION)
+    // made the session live. Memoizing the lobby tick's null handed it
+    // a stale null and silently skipped parking the round-1 mobile
+    // auto-zoom viewport. Skipping the cache costs nothing here: this
+    // path does no controller scan.
+    if (!isSessionLive(runtimeState)) return null;
     // Prefer the player who joined via mouse/trackpad
     if (runtimeState.inputTracking.mouseJoinedSlot !== null) {
       const ctrl = runtimeState.controllers.find(
