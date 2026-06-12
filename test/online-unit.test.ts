@@ -62,6 +62,12 @@ Deno.test("lifecycle drops stale full_state after host migration", () => {
       lobbyStartTime: 0,
       occupiedSlots: new Set<ValidPlayerId>(),
       remotePlayerSlots: new Set<ValidPlayerId>(),
+      pendingSeatTakeovers: new Map<ValidPlayerId, number | null>(),
+    },
+    takeover: {
+      isGameLive: () => false,
+      beginAsHost: () => {},
+      schedule: () => {},
     },
     lobby: {
       showWaitingRoom: () => {},

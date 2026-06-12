@@ -141,14 +141,12 @@ export function createOnlineRuntimeSessionHelpers(
   }
 
   function restoreFullState(msg: FullStateMessage): void {
-    // Live session set, not frameMeta's frame-start snapshot — the old
+    // Live session, not frameMeta's frame-start snapshot — the old
     // host's PLAYER_LEFT lands in the same inter-frame window as this
-    // message, and its seat must already count as AI-driven here.
-    applyFullStateToRunningRuntime(
-      deps.getRuntime(),
-      msg,
-      deps.session.remotePlayerSlots,
-    );
+    // message. Its seat is parked in pendingSeatTakeovers (never flipped
+    // at wall-clock receipt); the apply reconciles already-snapshotted
+    // takeovers and the promoted host re-stamps the rest (promote.ts).
+    applyFullStateToRunningRuntime(deps.getRuntime(), msg, deps.session);
   }
 
   return {

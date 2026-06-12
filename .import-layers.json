@@ -224,6 +224,7 @@
       "src/game/zone-recompute.ts",
       "src/input/input-dispatch.ts",
       "src/online/online-remote-crosshairs.ts",
+      "src/online/online-seat-takeover.ts",
       "src/online/online-server-lifecycle.ts",
       "src/online/online-stores.ts",
       "src/render/3d/effects/bonus-squares.ts",

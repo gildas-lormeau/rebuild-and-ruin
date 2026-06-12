@@ -558,6 +558,7 @@
     "role": "online server lifecycle, remote crosshairs & stores",
     "files": [
       "src/online/online-remote-crosshairs.ts",
+      "src/online/online-seat-takeover.ts",
       "src/online/online-server-lifecycle.ts",
       "src/online/online-stores.ts"
     ]

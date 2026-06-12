@@ -445,6 +445,27 @@ interface AimUpdateMessage {
   y: number;
 }
 
+/** Host-only: hand a departed non-host player's seat to local AI at a
+ *  lockstep tick. PLAYER_LEFT receipt is wall-clock — each peer flipping
+ *  `remotePlayerSlots` at its own arrival instant races the
+ *  tick-synchronized boundary instants that read the set (phase-entry
+ *  controller init, dialog `shouldAutoResolve` freeze, selection entry):
+ *  an arrival spread crossing one initializes the seat on one peer only,
+ *  a permanent desync. Instead PLAYER_LEFT only parks the seat in
+ *  `pendingSeatTakeovers`; the host stamps `applyAt = simTick + SAFETY`
+ *  and every peer (host included) flips the seat sets AND phase-inits
+ *  its takeover brain inside the scheduled apply at that tick. The
+ *  departing-host case rides the same path: the promoted host re-issues
+ *  stamps for still-unstamped pending seats right after its FULL_STATE
+ *  broadcast (see promote.ts). */
+interface SeatTakeoverMessage {
+  type: "seatTakeover";
+  /** The departed player's seat — the slot being handed to local AI. */
+  playerId: ValidPlayerId;
+  /** Lockstep apply tick: host `simTick + SAFETY`. */
+  applyAt: number;
+}
+
 export type ServerMessage =
   // Connection
   | InitMessage
@@ -486,7 +507,8 @@ export type ServerMessage =
   // Forwarded client messages
   | LifeLostChoiceForwardedMessage
   | UpgradePickForwardedMessage
-  // Host migration
+  // Host migration / membership
+  | SeatTakeoverMessage
   | HostLeftMessage
   | FullStateMessage;
 
@@ -536,7 +558,8 @@ export const MESSAGE = {
   OPPONENT_TOWER_SELECTED: "opponentTowerSelected",
   OPPONENT_CANNON_PHASE_DONE: "opponentCannonPhaseDone",
   AIM_UPDATE: "aimUpdate",
-  // Host migration
+  // Host migration / membership
+  SEAT_TAKEOVER: "seatTakeover",
   HOST_LEFT: "hostLeft",
 } as const;
 export const DEFAULT_CANNON_HP = 3;

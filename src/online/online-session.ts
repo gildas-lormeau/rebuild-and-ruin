@@ -73,6 +73,18 @@ export interface OnlineSession {
     ValidPlayerId,
     { choice: string; round: number }
   >;
+  /** Seats whose PLAYER_LEFT arrived mid-game but whose lockstep
+   *  seat→AI flip has not applied yet. Value = the stamped `applyAt`
+   *  once known (host stamps at receipt; watchers learn it from the
+   *  SEAT_TAKEOVER broadcast), or null while unstamped (the host died
+   *  before broadcasting — the promoted host re-issues these after its
+   *  FULL_STATE, see promote.ts). The slot-set triple (occupiedSlots /
+   *  remotePlayerSlots / lobby.joined) stays UNTOUCHED until the flip
+   *  applies — wall-clock mutation is exactly the cross-peer race the
+   *  lockstep flip exists to close. Entries are consumed by the flip
+   *  apply, the adoption reconcile (online-rehydrate.ts), or the
+   *  next-game INIT flush (online-server-lifecycle.ts). */
+  pendingSeatTakeovers: Map<ValidPlayerId, number | null>;
 }
 
 /** Network deduplication maps — tracks the last-sent value per player for each
@@ -112,6 +124,7 @@ export function createSession(): OnlineSession {
     lobbyStartTime: 0,
     earlyLifeLostChoices: new Map(),
     earlyUpgradePickChoices: new Map(),
+    pendingSeatTakeovers: new Map(),
   };
 }
 
@@ -139,6 +152,7 @@ export function resetSessionState(session: OnlineSession): void {
   session.remotePlayerSlots.clear();
   session.earlyLifeLostChoices.clear();
   session.earlyUpgradePickChoices.clear();
+  session.pendingSeatTakeovers.clear();
 }
 
 export function sendAimUpdate(

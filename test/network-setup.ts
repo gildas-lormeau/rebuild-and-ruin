@@ -121,6 +121,9 @@ export interface BidirectionalNetworkedPair {
    *  Increments the internal frame counter on each call — call EXACTLY
    *  once per pair of host/watcher ticks. */
   readonly pump: () => Promise<void>;
+  /** Peer sessions — seat-takeover tests assert slot-set membership. */
+  readonly hostSession: OnlineSession;
+  readonly watcherSession: OnlineSession;
 }
 
 export interface BidirectionalNetworkedPairOptions extends ScenarioOptions {
@@ -156,6 +159,9 @@ export interface MigrationTrio {
   /** The promotable watcher's session. Migration tests seat it
    *  (`myPlayerId`) before delivering HOST_LEFT. */
   readonly promotableSession: OnlineSession;
+  /** The observer's session — seat-takeover tests assert slot-set
+   *  membership after the lockstep flip. */
+  readonly observerSession: OnlineSession;
   /** Forward pending host broadcasts to BOTH watchers. */
   readonly pumpHost: () => Promise<void>;
   /** Forward pending promotable-watcher broadcasts (the promotion
@@ -240,8 +246,9 @@ export async function createBidirectionalNetworkedPair(
 ): Promise<BidirectionalNetworkedPair> {
   const hostAssisted = opts.assistedSlotsHost;
   const watcherAssisted = opts.assistedSlotsWatcher;
-  const hostRemote = new Set<ValidPlayerId>(watcherAssisted);
-  const watcherRemote = new Set<ValidPlayerId>(hostAssisted);
+  const extra = opts.extraRemoteSlots ?? [];
+  const hostRemote = new Set<ValidPlayerId>([...watcherAssisted, ...extra]);
+  const watcherRemote = new Set<ValidPlayerId>([...hostAssisted, ...extra]);
   const wireDelay = opts.wireDelayFrames ?? 0;
 
   const hostBuild = await buildBidirectionalHost(opts, hostAssisted, hostRemote);
@@ -294,6 +301,8 @@ export async function createBidirectionalNetworkedPair(
     host: hostBuild.scenario,
     watcher: watcherBuild.scenario,
     pump,
+    hostSession: hostBuild.client!.ctx.session,
+    watcherSession: watcherBuild.client!.ctx.session,
   };
 }
 
@@ -340,7 +349,7 @@ export async function createMigrationTrio(
   const observerBuild = await buildBidirectionalWatcher(
     opts,
     [],
-    new Set<ValidPlayerId>(),
+    new Set<ValidPlayerId>(opts.extraRemoteSlots ?? []),
   );
   const promotableBuild = await buildWatcherRuntime(opts);
 
@@ -375,6 +384,7 @@ export async function createMigrationTrio(
     promotable: promotableBuild.scenario,
     observer: observerBuild.scenario,
     promotableSession: promotableBuild.client!.ctx.session,
+    observerSession: observerBuild.client!.ctx.session,
     pumpHost,
     pumpPromoted,
   };
@@ -386,6 +396,13 @@ async function buildHostRuntime(opts: ScenarioOptions): Promise<RuntimeBuild> {
   const headless = await createHeadlessRuntime({
     ...base,
     hostMode: true,
+    // `extraRemoteSlots` is deliberately NOT applied here: the one-way
+    // host has no message handler, so a phantom remote seat could never
+    // receive its selection confirm and the host would hang at
+    // CASTLE_SELECT. It plays the seat as local AI instead — divergent
+    // from the watchers, but this host only emits ignored phase markers
+    // and exists to be killed; trio takeover tests key their lockstep
+    // windows off the promotable watcher's state.
     onlinePhaseTicks: buildHostPhaseTicks((msg) => sentMessages.push(msg)),
     // One-way host never receives, so its early-choice queues stay empty —
     // the drains' job here is flipping the dialog subsystems onto the
@@ -432,7 +449,10 @@ async function buildWatcherRuntime(
   // skips these slots in the tick loop, so the wire is the only mutation
   // path for them. For pure-AI tests this is empty — no remote humans,
   // every slot ticks locally as deterministic AI.
-  const remoteHumans = new Set<ValidPlayerId>(opts.assistedSlots ?? []);
+  const remoteHumans = new Set<ValidPlayerId>([
+    ...(opts.assistedSlots ?? []),
+    ...(opts.extraRemoteSlots ?? []),
+  ]);
 
   // Promotion FULL_STATE broadcasts go through `client.send` (not the
   // runtime's network observer) — capture them in the same sink.
@@ -442,7 +462,11 @@ async function buildWatcherRuntime(
   const headless = await createHeadlessRuntime({
     ...base,
     hostMode: false,
-    remotePlayerSlots: remoteHumans,
+    // The SESSION's set, not a copy — production reads it live
+    // (`() => ctx.session.remotePlayerSlots`), and the lifecycle
+    // handlers + lockstep seat-takeover apply mutate it. A separate
+    // copy would hide those flips from the runtime's tick filter.
+    remotePlayerSlots: client.ctx.session.remotePlayerSlots,
     onlinePhaseTicks: buildWatcherPhaseTicks(),
     onlineDialogDrains: buildDialogDrains(client.ctx.session),
     // amHost=false flips the broadcast gate in `buildPhaseCtx`
@@ -465,7 +489,8 @@ async function buildWatcherRuntime(
     // Production FULL_STATE apply — watcher/host peers must adopt a
     // migration broadcast exactly like a real client (timer + accum
     // resync included), so parity tests exercise the real path.
-    restoreFullState: (msg) => applyFullStateToRunningRuntime(headless.runtime, msg, client.ctx.session.remotePlayerSlots),
+    restoreFullState: (msg) =>
+      applyFullStateToRunningRuntime(headless.runtime, msg, client.ctx.session),
     showWaitingRoom: () => {},
     client,
   });
@@ -502,11 +527,16 @@ async function buildBidirectionalHost(
   const sentMessages: GameMessage[] = [];
   const peerOpts: ScenarioOptions = { ...opts, assistedSlots };
   const base = buildHeadlessOptions(peerOpts, sentMessages);
-  const client = buildPeerClient(remotePlayerSlots, true);
+  // `client.send` carries host-originated lifecycle broadcasts (the
+  // lockstep SEAT_TAKEOVER stamp) — same sink as the network observer.
+  const client = buildPeerClient(remotePlayerSlots, true, (msg) =>
+    sentMessages.push(msg),
+  );
   const headless = await createHeadlessRuntime({
     ...base,
     hostMode: true,
-    remotePlayerSlots,
+    // The SESSION's set, not a copy — see buildWatcherRuntime.
+    remotePlayerSlots: client.ctx.session.remotePlayerSlots,
     onlinePhaseTicks: buildHostPhaseTicks((msg) => sentMessages.push(msg)),
     onlineDialogDrains: buildDialogDrains(client.ctx.session),
   });
@@ -525,14 +555,15 @@ async function buildBidirectionalHost(
     // Production FULL_STATE apply — watcher/host peers must adopt a
     // migration broadcast exactly like a real client (timer + accum
     // resync included), so parity tests exercise the real path.
-    restoreFullState: (msg) => applyFullStateToRunningRuntime(headless.runtime, msg, client.ctx.session.remotePlayerSlots),
+    restoreFullState: (msg) =>
+      applyFullStateToRunningRuntime(headless.runtime, msg, client.ctx.session),
     showWaitingRoom: () => {},
     client,
   });
   headless.subscribeNetworkMessage(handler);
 
   const scenario = wrapHeadless(headless, sentMessages);
-  return { scenario, headless, sentMessages };
+  return { scenario, headless, sentMessages, client };
 }
 
 /** Host-side `OnlinePhaseTicks` with real broadcast emitters. Checkpoint
@@ -559,11 +590,14 @@ async function buildBidirectionalWatcher(
   const sentMessages: GameMessage[] = [];
   const peerOpts: ScenarioOptions = { ...opts, assistedSlots };
   const base = buildHeadlessOptions(peerOpts, sentMessages);
-  const client = buildPeerClient(remotePlayerSlots, false);
+  const client = buildPeerClient(remotePlayerSlots, false, (msg) =>
+    sentMessages.push(msg),
+  );
   const headless = await createHeadlessRuntime({
     ...base,
     hostMode: false,
-    remotePlayerSlots,
+    // The SESSION's set, not a copy — see buildWatcherRuntime.
+    remotePlayerSlots: client.ctx.session.remotePlayerSlots,
     onlinePhaseTicks: buildWatcherPhaseTicks(),
     amHost: () => false,
     onlineDialogDrains: buildDialogDrains(client.ctx.session),
@@ -579,14 +613,15 @@ async function buildBidirectionalWatcher(
     // Production FULL_STATE apply — watcher/host peers must adopt a
     // migration broadcast exactly like a real client (timer + accum
     // resync included), so parity tests exercise the real path.
-    restoreFullState: (msg) => applyFullStateToRunningRuntime(headless.runtime, msg, client.ctx.session.remotePlayerSlots),
+    restoreFullState: (msg) =>
+      applyFullStateToRunningRuntime(headless.runtime, msg, client.ctx.session),
     showWaitingRoom: () => {},
     client,
   });
   headless.subscribeNetworkMessage(handler);
 
   const scenario = wrapHeadless(headless, sentMessages);
-  return { scenario, headless, sentMessages };
+  return { scenario, headless, sentMessages, client };
 }
 
 /** Watcher-side `OnlinePhaseTicks` — clone-everywhere model means no

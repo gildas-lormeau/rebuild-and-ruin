@@ -8,8 +8,10 @@
  */
 
 import { primeControllerForCannonPhase } from "../../game/index.ts";
+import { MESSAGE } from "../../protocol/protocol.ts";
 import type { GameRuntime } from "../../runtime/handle.ts";
 import { setMode } from "../../runtime/state.ts";
+import { DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS } from "../../shared/core/action-schedule.ts";
 import { Phase } from "../../shared/core/game-phase.ts";
 import { assertNever } from "../../shared/platform/utils.ts";
 import { Mode } from "../../shared/ui/ui-mode.ts";
@@ -18,6 +20,7 @@ import {
   reprimeAiControllersForPhase,
   syncAccumulatorsFromTimer,
 } from "../online-host-promotion.ts";
+import { scheduleSeatTakeover } from "../online-seat-takeover.ts";
 import { createFullStateMessage } from "../online-serialize.ts";
 import {
   type OnlineClient,
@@ -99,7 +102,45 @@ export function promoteToHost(): void {
     _runtime.runtimeState.controllers,
     _client.ctx.session.remotePlayerSlots,
   );
+  flushPendingSeatTakeovers();
   _client.devLog("Promotion complete, now running as host");
+}
+
+/** Re-issue lockstep seat takeovers the dead host never stamped. A
+ *  mid-game PLAYER_LEFT only parks the seat (online-server-lifecycle.ts);
+ *  the live host stamps + broadcasts the flip. When the host itself died
+ *  in that window — or WAS the leaver — every surviving peer holds an
+ *  unstamped (null) pending entry, uniformly, and the seat still counts
+ *  as remote through the adoption re-prime above. Stamp those now, AFTER
+ *  the FULL_STATE broadcast: the new stamp is past the snapshot tick, so
+ *  adopting watchers' `discardUpTo` leaves it queued and every peer fires
+ *  the flip + brain init at the same tick. Already-stamped entries are
+ *  left alone — the old host's broadcast reached every peer (uniform
+ *  relay order), so their queued flips fire on schedule, and entries the
+ *  snapshot already contains are healed by the adoption reconcile in
+ *  online-rehydrate.ts. */
+function flushPendingSeatTakeovers(): void {
+  const session = _client.ctx.session;
+  for (const [playerId, stamped] of session.pendingSeatTakeovers) {
+    if (stamped !== null) continue;
+    const applyAt =
+      _runtime.runtimeState.state.simTick +
+      DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS;
+    scheduleSeatTakeover(
+      {
+        session,
+        getLobbyJoined: () => _runtime.runtimeState.lobby.joined,
+        schedule: (action) =>
+          _runtime.runtimeState.actionSchedule.schedule(action),
+        getControllers: () => _runtime.runtimeState.controllers,
+        log: _client.devLog,
+      },
+      playerId,
+      applyAt,
+    );
+    _client.send({ type: MESSAGE.SEAT_TAKEOVER, playerId, applyAt });
+    _client.devLog(`re-issued seat takeover: P${playerId} applyAt=${applyAt}`);
+  }
 }
 
 /**

@@ -20,7 +20,7 @@ import { setMode } from "../runtime/state.ts";
 import type { BalloonFlight } from "../shared/core/battle-types.ts";
 import { filterAliveEnclosedTowers } from "../shared/core/board-occupancy.ts";
 import { Phase } from "../shared/core/game-phase.ts";
-import type { PlayerId, ValidPlayerId } from "../shared/core/player-slot.ts";
+import type { PlayerId } from "../shared/core/player-slot.ts";
 import { isPlayerAlive } from "../shared/core/player-types.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
 import {
@@ -29,6 +29,10 @@ import {
   reprimeAiControllersForPhase,
   syncAccumulatorsFromTimer,
 } from "./online-host-promotion.ts";
+import {
+  clearSeatSlots,
+  type SeatTakeoverSession,
+} from "./online-seat-takeover.ts";
 import { restoreFullStateSnapshot } from "./online-serialize.ts";
 
 interface MidGameApplyResult {
@@ -103,9 +107,10 @@ export async function applyMidGameCheckpoint(
  *  accum from the old one (e.g. last battle's elapsed → this battle ends
  *  instantly).
  *
- *  `remotePlayerSlots` must be the session's LIVE set (not a frame-start
- *  snapshot): the old host's PLAYER_LEFT always precedes this message,
- *  and its seat must re-prime here exactly like on the new host.
+ *  `session` must expose the LIVE slot sets (not a frame-start
+ *  snapshot): a departing-host seat parked in `pendingSeatTakeovers`
+ *  must reconcile here against the snapshot tick so the re-prime treats
+ *  it exactly like the new host did.
  *
  *  Production caller: `online/runtime/session.ts:restoreFullState`.
  *  The networked test harness wires this same function so watcher
@@ -113,7 +118,7 @@ export async function applyMidGameCheckpoint(
 export function applyFullStateToRunningRuntime(
   runtime: GameRuntime,
   msg: FullStateMessage,
-  remotePlayerSlots: ReadonlySet<ValidPlayerId>,
+  session: SeatTakeoverSession,
 ): void {
   const state = runtime.runtimeState.state;
   // Captured before the restore overwrites them — the self-human prime
@@ -131,6 +136,21 @@ export function applyFullStateToRunningRuntime(
   // captures (fixtures), where keep-local is the recorded behavior.
   syncAccumulatorsFromTimer(state, runtime.runtimeState.accum, msg.gruntAccum);
 
+  // Pending seat takeovers stamped at or before the snapshot tick: the
+  // promoting host's pre-serialize drain already fired its copy (slot
+  // flip + brain init baked into the snapshot's rng cursor), while OUR
+  // queued copy is dropped unapplied by the discardUpTo below — and the
+  // flip's session-side effect is not in the snapshot. Flip the slot
+  // sets now, BEFORE the re-prime, so this peer re-primes the seat
+  // exactly like the new host did post-serialize. Later/unstamped
+  // entries stay parked: they fire at their stamped tick on every peer,
+  // or get re-issued by the promotion flush (promote.ts).
+  for (const [playerId, stamped] of session.pendingSeatTakeovers) {
+    if (stamped === null || stamped > state.simTick) continue;
+    clearSeatSlots(session, runtime.runtimeState.lobby.joined, playerId);
+    session.pendingSeatTakeovers.delete(playerId);
+  }
+
   // Kept AI brains restart from the adopted snapshot — right after the
   // rng restore, before anything else can draw, mirroring the promoted
   // host's post-serialize calls so both replay identical draws. Bags
@@ -139,7 +159,7 @@ export function applyFullStateToRunningRuntime(
   reprimeAiControllersForPhase(
     state,
     runtime.runtimeState.controllers,
-    remotePlayerSlots,
+    session.remotePlayerSlots,
   );
 
   const flights = result.balloonFlights ?? [];

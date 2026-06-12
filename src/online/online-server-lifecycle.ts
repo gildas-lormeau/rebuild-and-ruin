@@ -37,7 +37,24 @@ export interface HandleServerLifecycleDeps {
     | "lobbyStartTime"
     | "occupiedSlots"
     | "remotePlayerSlots"
+    | "pendingSeatTakeovers"
   >;
+
+  /** Lockstep seat-takeover hooks (see online-seat-takeover.ts). Mid-game
+   *  PLAYER_LEFT must NOT flip the slot sets at wall-clock receipt — the
+   *  flip rides the action schedule so it lands at the same tick on every
+   *  peer. */
+  takeover: {
+    /** True while a live game session ticks (sim ticks + schedule
+     *  drains run). Outside one there is no lockstep clock to defer to —
+     *  PLAYER_LEFT clears the seat immediately, as it always did. */
+    isGameLive: () => boolean;
+    /** Host at PLAYER_LEFT receipt: stamp `simTick + SAFETY`, schedule
+     *  the flip locally, broadcast SEAT_TAKEOVER. */
+    beginAsHost: (playerId: ValidPlayerId) => void;
+    /** Watcher at SEAT_TAKEOVER receipt: schedule the host-stamped flip. */
+    schedule: (playerId: ValidPlayerId, applyAt: number) => void;
+  };
 
   lobby: {
     showWaitingRoom: (code: string, seed: number) => void;
@@ -145,9 +162,47 @@ export async function handleServerLifecycleMessage(
       const name =
         deps.migration.playerNames[msg.playerId] ??
         `Player ${msg.playerId + 1}`;
-      clearLobbySlot(msg.playerId);
+      if (
+        deps.takeover.isGameLive() &&
+        deps.session.remotePlayerSlots.has(msg.playerId)
+      ) {
+        // Mid-game: park the seat; the slot-set triple flips inside the
+        // lockstep seat-takeover apply, never at wall-clock receipt —
+        // see online-seat-takeover.ts. The has() guard keeps a late
+        // duplicate from clobbering an already-stamped tick. The
+        // departing HOST's seat parks here too: no live host will stamp
+        // it now, so the promoted host re-issues it right after its
+        // FULL_STATE broadcast (promote.ts) — until then the seat counts
+        // as remote on every peer alike.
+        if (!deps.session.pendingSeatTakeovers.has(msg.playerId)) {
+          deps.session.pendingSeatTakeovers.set(msg.playerId, null);
+        }
+        if (isHostInContext(deps.session)) {
+          deps.takeover.beginAsHost(msg.playerId);
+        }
+      } else {
+        // Lobby / post-game / duplicate — no lockstep clock to race.
+        clearLobbySlot(msg.playerId);
+        deps.session.pendingSeatTakeovers.delete(msg.playerId);
+      }
       deps.ui.setAnnouncement(`${name} disconnected`);
       deps.log(`player_left: ${name} (pid=${msg.playerId})`);
+      return true;
+    }
+
+    case MESSAGE.SEAT_TAKEOVER: {
+      // Host-originated; the relay never echoes to the sender, but the
+      // guard keeps a stray self-copy from double-stamping.
+      if (isHostInContext(deps.session)) return true;
+      if (!deps.takeover.isGameLive()) {
+        clearLobbySlot(msg.playerId);
+        deps.session.pendingSeatTakeovers.delete(msg.playerId);
+        return true;
+      }
+      deps.takeover.schedule(msg.playerId, msg.applyAt);
+      deps.log(
+        `seat_takeover scheduled: P${msg.playerId} applyAt=${msg.applyAt}`,
+      );
       return true;
     }
 
@@ -157,6 +212,15 @@ export async function handleServerLifecycleMessage(
       return true;
 
     case MESSAGE.INIT:
+      // Seats parked for a lockstep takeover that never fired (the match
+      // ended inside the SAFETY window, where peers' STOPPED instants
+      // differ) must not leak into this match's occupiedSlots —
+      // bootstrap identity draws are a cross-peer contract derived from
+      // it. Flush them as plain leaves before booting.
+      for (const playerId of deps.session.pendingSeatTakeovers.keys()) {
+        clearLobbySlot(playerId);
+      }
+      deps.session.pendingSeatTakeovers.clear();
       await deps.game.initFromServer(msg);
       return true;
 

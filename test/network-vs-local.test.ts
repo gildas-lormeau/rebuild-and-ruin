@@ -36,6 +36,7 @@ import {
   createBidirectionalNetworkedPair,
   createMigrationTrio,
   createNetworkedPair,
+  type MigrationTrio,
   type NetworkedPair,
   type PlayerParitySnapshot,
   runNetworkedToEnd,
@@ -1209,6 +1210,329 @@ Deno.test(
     );
   },
 );
+
+Deno.test(
+  "seat takeover: PLAYER_LEFT spread across a phase entry keeps peers in parity",
+  async () => {
+    const pair = await createBidirectionalNetworkedPair({
+      seed: 42,
+      mode: "classic",
+      rounds: 3,
+      assistedSlotsHost: [],
+      assistedSlotsWatcher: [],
+      extraRemoteSlots: [1 as ValidPlayerId],
+    });
+    const { host, watcher, pump } = pair;
+
+    // Lockstep into round 1's BATTLE with the timer nearly out (the
+    // phantom seat is guaranteed alive there; an AFK seat can be ground
+    // down to elimination within a round or two, and eliminated slots
+    // skip phase-init on every peer, hiding the race) — the
+    // next boundary (WALL_BUILD entry, controller init in its mutate) is
+    // ticks away. The phantom seat's round-1 selection confirm is
+    // delivered by the stepper, as its absent machine would have.
+    await runBidirPairUntil(
+      pair,
+      1 as ValidPlayerId,
+      () =>
+        watcher.state.round === 1 &&
+        watcher.state.phase === Phase.BATTLE &&
+        watcher.state.timer > 0 &&
+        watcher.state.timer < 0.5,
+    );
+
+    // The leave reaches the HOST before the build entry...
+    await host.deliverMessage({
+      type: MESSAGE.PLAYER_LEFT,
+      playerId: 1 as ValidPlayerId,
+    } as ServerMessage);
+
+    // ...and the WATCHER only well after it (exaggerated arrival spread).
+    let steps = 0;
+    while (watcher.state.phase !== Phase.WALL_BUILD) {
+      host.tick(1);
+      watcher.tick(1);
+      await pump();
+      if (++steps > 30_000) throw new Error("build entry never reached");
+    }
+    for (let i = 0; i < 30; i++) {
+      host.tick(1);
+      watcher.tick(1);
+      await pump();
+    }
+    await watcher.deliverMessage({
+      type: MESSAGE.PLAYER_LEFT,
+      playerId: 1 as ValidPlayerId,
+    } as ServerMessage);
+
+    await runBidirPairUntil(
+      pair,
+      1 as ValidPlayerId,
+      () => host.mode() === Mode.STOPPED && watcher.mode() === Mode.STOPPED,
+    );
+
+    // The takeover must actually have happened — a pair that never flips
+    // the seat anywhere also "converges".
+    assert(
+      !pair.hostSession.remotePlayerSlots.has(1 as ValidPlayerId) &&
+        !pair.watcherSession.remotePlayerSlots.has(1 as ValidPlayerId),
+      "both peers must have handed the departed seat to local AI",
+    );
+    assertStateConverges(
+      snapshotState(watcher),
+      snapshotState(host),
+      "watcher vs host after spread PLAYER_LEFT",
+    );
+  },
+);
+
+Deno.test(
+  "seat takeover: host dying before stamping the flip — promoted host re-issues it",
+  async () => {
+    const trio = await createMigrationTrio({
+      seed: 42,
+      mode: "classic",
+      rounds: 3,
+      extraRemoteSlots: [2 as ValidPlayerId],
+    });
+    const { promotable, observer, pumpPromoted } = trio;
+
+    await runTrioUntil(
+      trio,
+      2 as ValidPlayerId,
+      () =>
+        promotable.state.round === 1 &&
+        promotable.state.phase === Phase.WALL_BUILD &&
+        promotable.mode() === Mode.GAME,
+    );
+
+    // The leaver's PLAYER_LEFT reaches the promotable BEFORE the
+    // migration, the observer only AFTER it adopted the FULL_STATE — the
+    // exact spread that made the adoption re-prime asymmetric (3 brains
+    // on one survivor, 2 on the other) under the wall-clock flip.
+    await promotable.deliverMessage({
+      type: MESSAGE.PLAYER_LEFT,
+      playerId: 2 as ValidPlayerId,
+    } as ServerMessage);
+
+    trio.promotableSession.myPlayerId = 0 as ValidPlayerId;
+    const hostLeft = {
+      type: MESSAGE.HOST_LEFT,
+      newHostPlayerId: 0 as ValidPlayerId,
+      disconnectedPlayerId: null,
+    } as ServerMessage;
+    await promotable.deliverMessage(hostLeft);
+    await observer.deliverMessage(hostLeft);
+    await pumpPromoted();
+    await observer.deliverMessage({
+      type: MESSAGE.PLAYER_LEFT,
+      playerId: 2 as ValidPlayerId,
+    } as ServerMessage);
+
+    await runSurvivorsToEnd(trio, 2 as ValidPlayerId);
+
+    assert(
+      !trio.promotableSession.remotePlayerSlots.has(2 as ValidPlayerId) &&
+        !trio.observerSession.remotePlayerSlots.has(2 as ValidPlayerId),
+      "both survivors must have handed the departed seat to local AI",
+    );
+    assertStateConverges(
+      snapshotState(observer),
+      snapshotState(promotable),
+      "observer vs promoted host after re-issued takeover",
+    );
+  },
+);
+
+Deno.test(
+  "seat takeover: flip already inside the snapshot — adoption reconciles the lagging peer",
+  async () => {
+    const trio = await createMigrationTrio({
+      seed: 42,
+      mode: "classic",
+      rounds: 3,
+      extraRemoteSlots: [2 as ValidPlayerId],
+    });
+    const { host, promotable, observer, pumpHost, pumpPromoted } = trio;
+
+    await runTrioUntil(
+      trio,
+      2 as ValidPlayerId,
+      () =>
+        promotable.state.round === 1 &&
+        promotable.state.phase === Phase.WALL_BUILD &&
+        promotable.mode() === Mode.GAME,
+    );
+
+    // The live host stamped the flip (hand-delivered here — the trio's
+    // one-way host has no handler), every peer scheduled it...
+    const playerLeft = {
+      type: MESSAGE.PLAYER_LEFT,
+      playerId: 2 as ValidPlayerId,
+    } as ServerMessage;
+    await promotable.deliverMessage(playerLeft);
+    await observer.deliverMessage(playerLeft);
+    const takeover = {
+      type: MESSAGE.SEAT_TAKEOVER,
+      playerId: 2 as ValidPlayerId,
+      applyAt:
+        promotable.state.simTick + DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS,
+    } as ServerMessage;
+    await promotable.deliverMessage(takeover);
+    await observer.deliverMessage(takeover);
+
+    // ...but only the promotable's sim reaches the stamped tick before
+    // the migration — the observer lags behind it (wire-delay skew). Its
+    // queued flip is then discarded by the adoption (applyAt <= snapshot
+    // tick), so the apply's reconcile must flip the slot sets instead.
+    for (let i = 0; i < 12; i++) {
+      host.tick(1);
+      await pumpHost();
+      promotable.tick(1);
+    }
+    assert(
+      !trio.promotableSession.remotePlayerSlots.has(2 as ValidPlayerId),
+      "precondition: the promotable's flip must have fired before promotion",
+    );
+
+    trio.promotableSession.myPlayerId = 0 as ValidPlayerId;
+    const hostLeft = {
+      type: MESSAGE.HOST_LEFT,
+      newHostPlayerId: 0 as ValidPlayerId,
+      disconnectedPlayerId: null,
+    } as ServerMessage;
+    await promotable.deliverMessage(hostLeft);
+    await observer.deliverMessage(hostLeft);
+    await pumpPromoted();
+
+    assert(
+      !trio.observerSession.remotePlayerSlots.has(2 as ValidPlayerId),
+      "the adoption reconcile must flip the already-snapshotted takeover",
+    );
+
+    await runSurvivorsToEnd(trio, 2 as ValidPlayerId);
+    assertStateConverges(
+      snapshotState(observer),
+      snapshotState(promotable),
+      "lagging observer vs promoted host after reconciled takeover",
+    );
+  },
+);
+
+/** Lockstep the bidirectional pair until `predicate`, hand-confirming the
+ *  phantom seat's selection whenever a CASTLE_SELECT cycle starts. */
+async function runBidirPairUntil(
+  pair: Awaited<ReturnType<typeof createBidirectionalNetworkedPair>>,
+  seat: ValidPlayerId,
+  predicate: () => boolean,
+  maxSteps = 200_000,
+): Promise<void> {
+  let confirmed = false;
+  for (let step = 0; step < maxSteps; step++) {
+    if (predicate()) return;
+    const selecting =
+      pair.watcher.state.phase === Phase.CASTLE_SELECT &&
+      pair.watcher.mode() === Mode.SELECTION;
+    if (selecting && !confirmed) {
+      await confirmPhantomSeat([pair.host, pair.watcher], seat);
+    }
+    confirmed = selecting;
+    pair.host.tick(1);
+    pair.watcher.tick(1);
+    await pair.pump();
+  }
+  throw new Error("runPairUntil: predicate never satisfied");
+}
+
+/** Lockstep all three trio machines until `predicate`, hand-confirming
+ *  the phantom seat's selection on both watchers per CASTLE_SELECT cycle.
+ *  The one-way host plays the phantom seat as local AI (it has no
+ *  message handler — see buildHostRuntime) and is allowed to drift; the
+ *  window predicate must read the promotable's state. */
+async function runTrioUntil(
+  trio: MigrationTrio,
+  seat: ValidPlayerId,
+  predicate: () => boolean,
+  maxSteps = 200_000,
+): Promise<void> {
+  let confirmed = false;
+  for (let step = 0; step < maxSteps; step++) {
+    if (predicate()) return;
+    if (trio.promotable.mode() === Mode.STOPPED) {
+      throw new Error("game ended before the takeover window");
+    }
+    const selecting =
+      trio.promotable.state.phase === Phase.CASTLE_SELECT &&
+      trio.promotable.mode() === Mode.SELECTION;
+    if (selecting && !confirmed) {
+      await confirmPhantomSeat([trio.promotable, trio.observer], seat);
+    }
+    confirmed = selecting;
+    trio.host.tick(1);
+    await trio.pumpHost();
+    trio.promotable.tick(1);
+    trio.observer.tick(1);
+  }
+  throw new Error("runTrioUntil: predicate never satisfied");
+}
+
+/** Post-promotion run-out for the trio survivors: tick promotable +
+ *  observer to STOPPED with promoted broadcasts flowing, hand-confirming
+ *  the phantom seat only while its takeover is still pending (post-flip
+ *  it is local AI everywhere and drives its own reselects). */
+async function runSurvivorsToEnd(
+  trio: MigrationTrio,
+  seat: ValidPlayerId,
+  maxSteps = 200_000,
+): Promise<void> {
+  let confirmed = false;
+  for (let step = 0; step < maxSteps; step++) {
+    if (
+      trio.promotable.mode() === Mode.STOPPED &&
+      trio.observer.mode() === Mode.STOPPED
+    ) {
+      return;
+    }
+    const selecting =
+      trio.promotable.state.phase === Phase.CASTLE_SELECT &&
+      trio.promotable.mode() === Mode.SELECTION &&
+      trio.promotableSession.remotePlayerSlots.has(seat);
+    if (selecting && !confirmed) {
+      await confirmPhantomSeat([trio.promotable, trio.observer], seat);
+    }
+    confirmed = selecting;
+    trio.promotable.tick(1);
+    trio.observer.tick(1);
+    await trio.pumpPromoted();
+  }
+  throw new Error("runSurvivorsToEnd: survivors never reached STOPPED");
+}
+
+/** Deliver the selection confirm a phantom third-machine seat's absent
+ *  client would have broadcast. CASTLE_SELECT's expiry auto-confirm
+ *  deliberately skips remote humans (the owning peer re-broadcasts its
+ *  own), so a seat with no machine in the harness needs the wire
+ *  message hand-delivered — identically — to every receiving peer. */
+async function confirmPhantomSeat(
+  peers: readonly Scenario[],
+  seat: ValidPlayerId,
+): Promise<void> {
+  const lead = peers[0]!;
+  const zone = lead.state.playerZones[seat];
+  const towerIdx = lead.state.map.towers.findIndex(
+    (tower) => tower.zone === zone,
+  );
+  const msg = {
+    type: MESSAGE.OPPONENT_TOWER_SELECTED,
+    playerId: seat,
+    towerIdx,
+    confirmed: true,
+    applyAt: lead.state.simTick + DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS,
+  } as ServerMessage;
+  for (const peer of peers) {
+    await peer.deliverMessage(msg);
+  }
+}
 
 function snapshotState(sc: Scenario): StateSnapshot {
   return {

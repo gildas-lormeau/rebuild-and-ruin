@@ -103,28 +103,43 @@ export function reprimeAiControllersForPhase(
     if (remotePlayerSlots.has(ctrl.playerId)) continue;
     const player = state.players[ctrl.playerId];
     if (!player || isPlayerEliminated(player)) continue;
-    // Wipe transient decision memory BEFORE the phase init. Strategy
-    // transients (per-shot counts, battle target memory, the
-    // lastTargetTowerIndex pick short-circuit) are not in the snapshot,
-    // and each peer's copy ticked past the snapshot by its own local
-    // skew — a surviving difference feeds the very next pick
-    // (planEnclosureTarget reuses lastTargetTowerIndex verbatim) and
-    // re-diverges the adopted match. reset() draws nothing; the
-    // re-roll draws all live in the init calls below. Skipped
-    // mid-CASTLE_SELECT: reset would idle the selection brain the
-    // selection system armed at cycle entry, and none of the transient
-    // mutation sites (fires, build picks) run during that cycle.
-    if (state.phase !== Phase.CASTLE_SELECT) ctrl.reset();
-    if (state.phase === Phase.WALL_BUILD) {
-      ctrl.startBuildPhase(state);
-    } else if (state.phase === Phase.CANNON_PLACE) {
-      primeControllerForCannonPhase(ctrl, state);
-    } else if (state.phase === Phase.BATTLE) {
-      ctrl.initBattleState(state);
-    }
-    // CASTLE_SELECT (initial or reselect) — AI driven by the selection
-    // system; MODIFIER_REVEAL / UPGRADE_PICK — no brain phase to prime.
+    primeAiControllerForPhase(state, ctrl);
   }
+}
+
+/**
+ * Reset + phase-init one local AI brain from the current `state`. The
+ * per-controller body of `reprimeAiControllersForPhase` (adoption), also
+ * fired for a single seat by the lockstep seat-takeover apply
+ * (online-seat-takeover.ts) — a takeover mid-phase is exactly a one-seat
+ * adoption: the brain restarts from the live state at a tick every peer
+ * shares, drawing from the same `state.rng` cursor.
+ *
+ * Wipes transient decision memory BEFORE the phase init. Strategy
+ * transients (per-shot counts, battle target memory, the
+ * lastTargetTowerIndex pick short-circuit) are not in the snapshot, and
+ * each peer's copy ticked past the snapshot by its own local skew — a
+ * surviving difference feeds the very next pick (planEnclosureTarget
+ * reuses lastTargetTowerIndex verbatim) and re-diverges the adopted
+ * match. reset() draws nothing; the re-roll draws all live in the init
+ * calls below. Skipped mid-CASTLE_SELECT: reset would idle the selection
+ * brain the selection system armed at cycle entry, and none of the
+ * transient mutation sites (fires, build picks) run during that cycle.
+ */
+export function primeAiControllerForPhase(
+  state: GameState,
+  ctrl: PlayerController,
+): void {
+  if (state.phase !== Phase.CASTLE_SELECT) ctrl.reset();
+  if (state.phase === Phase.WALL_BUILD) {
+    ctrl.startBuildPhase(state);
+  } else if (state.phase === Phase.CANNON_PLACE) {
+    primeControllerForCannonPhase(ctrl, state);
+  } else if (state.phase === Phase.BATTLE) {
+    ctrl.initBattleState(state);
+  }
+  // CASTLE_SELECT (initial or reselect) — AI driven by the selection
+  // system; MODIFIER_REVEAL / UPGRADE_PICK — no brain phase to prime.
 }
 
 /**

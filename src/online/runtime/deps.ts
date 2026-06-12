@@ -12,13 +12,20 @@ import type {
   InitMessage,
   ServerMessage,
 } from "../../protocol/protocol.ts";
+import { MESSAGE } from "../../protocol/protocol.ts";
 import type { GameRuntime } from "../../runtime/handle.ts";
+import { isSessionLive } from "../../runtime/state.ts";
+import { DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS } from "../../shared/core/action-schedule.ts";
 import { MIGRATION_ANNOUNCEMENT_DURATION } from "../../shared/core/game-constants.ts";
 import type { ValidPlayerId } from "../../shared/core/player-slot.ts";
 import { PLAYER_NAMES } from "../../shared/ui/player-config.ts";
 import { Mode } from "../../shared/ui/ui-mode.ts";
 import { createError, joinError } from "../online-dom.ts";
 import { handleGameOverTransition } from "../online-phase-transitions.ts";
+import {
+  type SeatTakeoverDeps,
+  scheduleSeatTakeover,
+} from "../online-seat-takeover.ts";
 import {
   type HandleServerIncrementalDeps,
   handleServerIncrementalMessage,
@@ -91,6 +98,34 @@ function buildLifecycleDeps(
     game: buildGameDeps(init),
     transitions: buildTransitionDeps(init),
     migration: buildMigrationDeps(init),
+    takeover: buildTakeoverDeps(init, client),
+  };
+}
+
+/** Lockstep seat-takeover hooks for the lifecycle handler. The same
+ *  `SeatTakeoverDeps` shape is rebuilt by the promoted host's pending
+ *  flush in promote.ts — both must wire the LIVE session/lobby/schedule
+ *  so the flip lands on the structures the runtime reads per tick. */
+function buildTakeoverDeps(init: DepsInit, client: OnlineClient) {
+  const seatDeps: SeatTakeoverDeps = {
+    session: client.ctx.session,
+    getLobbyJoined: () => init.runtime.runtimeState.lobby.joined,
+    schedule: (action) =>
+      init.runtime.runtimeState.actionSchedule.schedule(action),
+    getControllers: () => init.runtime.runtimeState.controllers,
+    log: client.devLog,
+  };
+  return {
+    isGameLive: () => isSessionLive(init.runtime.runtimeState),
+    beginAsHost: (playerId: ValidPlayerId) => {
+      const applyAt =
+        init.runtime.runtimeState.state.simTick +
+        DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS;
+      scheduleSeatTakeover(seatDeps, playerId, applyAt);
+      client.send({ type: MESSAGE.SEAT_TAKEOVER, playerId, applyAt });
+    },
+    schedule: (playerId: ValidPlayerId, applyAt: number) =>
+      scheduleSeatTakeover(seatDeps, playerId, applyAt),
   };
 }
 

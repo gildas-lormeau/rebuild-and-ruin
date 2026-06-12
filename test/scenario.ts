@@ -150,6 +150,13 @@ export interface ScenarioOptions {
    *  on the assisted controller (no mid-game swap, no asymmetric RNG
    *  advance vs. a watcher peer). */
   assistedSlots?: readonly ValidPlayerId[];
+  /** Online factories only (pair / bidirectional pair / migration trio):
+   *  slots marked remote-human on EVERY built peer with no assisted
+   *  driver anywhere — models a human on a third machine outside the
+   *  harness that never acts. Seat-takeover tests deliver its
+   *  PLAYER_LEFT to the peers and assert the lockstep flip. Ignored by
+   *  plain local scenarios. */
+  extraRemoteSlots?: readonly ValidPlayerId[];
   /** When true, enables mobile auto-zoom on the camera so per-phase memory,
    *  edge-pan, follow-crosshair, and CAMERA_TARGET event emission all run.
    *  Camera-determinism tests opt in. Defaults to false (matches the

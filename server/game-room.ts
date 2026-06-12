@@ -102,6 +102,7 @@ const HOST_ONLY: ReadonlySet<string> = new Set([
   MESSAGE.BUILD_END,
   MESSAGE.GAME_OVER,
   MESSAGE.FULL_STATE,
+  MESSAGE.SEAT_TAKEOVER,
   MESSAGE.WALL_DESTROYED,
   MESSAGE.WALL_ABSORBED,
   MESSAGE.WALL_SHIELDED,
@@ -349,6 +350,10 @@ function validatePayload(msg: Record<string, unknown>): boolean {
       );
     case MESSAGE.LIFE_LOST_CHOICE:
       return hasValidPlayer(msg) && VALID_CHOICES.has(msg.choice as string);
+    case MESSAGE.SEAT_TAKEOVER:
+      return (
+        hasValidPlayer(msg) && isInt(msg.applyAt, 0, Number.MAX_SAFE_INTEGER)
+      );
     case MESSAGE.UPGRADE_PICK:
       return hasValidPlayer(msg) && typeof msg.choice === "string";
     case MESSAGE.AIM_UPDATE:
