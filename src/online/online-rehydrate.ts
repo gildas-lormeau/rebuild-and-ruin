@@ -127,6 +127,10 @@ export function applyFullStateToRunningRuntime(
   const preMode = runtime.runtimeState.mode;
   const result = restoreFullStateSnapshot(state, msg);
   if (!result) return;
+  // The adoption selection entry below re-primes state.timer to a fresh
+  // value (enterSelectionPhase owns entry-time timer); stash the
+  // restored mid-countdown value so it can be re-asserted afterward.
+  const snapshotTimer = state.timer;
 
   // The grunt step clock rides the message (third argument): it is the
   // one accumulator the resync cannot rebuild (cross-phase, not
@@ -253,14 +257,38 @@ export function applyFullStateToRunningRuntime(
               player.castleWallTiles.size === 0,
           )
           .map((player) => player.id),
+        // Live slot set: the entry loop's AI arming draws state.rng and
+        // pairs with the promoted host's post-serialize re-arm — both
+        // must gate on the same seated-human view, including a takeover
+        // flip reconciled earlier in THIS apply (frameMeta lags it).
+        session.remotePlayerSlots,
       );
+      // The entry re-primed state.timer/accums as a fresh cycle, but the
+      // adopted snapshot is the authority (the promoted host's cycle may
+      // be mid-countdown — it entered earlier on its own timeline).
+      // Re-assert the serialized timer and rebuild the accums from it;
+      // the CASTLE_SELECT branch of the sync also consumes the
+      // announcement window uniformly (the entry arms it 0 at round 1,
+      // which would gate this peer's selection ticks a full window
+      // behind every other survivor).
+      state.timer = snapshotTimer;
+      syncAccumulatorsFromTimer(state, runtime.runtimeState.accum);
     } else {
       // Mid-cycle peer (the size gate above keeps its local pick
       // progress): re-derive confirmed flags + in-flight guards from the
-      // adopted state, in case the discard above dropped a confirm the
-      // snapshot already contains — left stale, that slot blocks
-      // `allConfirmed` forever (see selection.reconcileAfterAdoption).
+      // adopted state — a confirm the discard above dropped but the
+      // snapshot contains would block `allConfirmed` forever, and a
+      // local confirm the adopted timeline hasn't reached would skip a
+      // seat every other peer replays (see
+      // selection.reconcileAfterAdoption). Then re-draw the unconfirmed
+      // seats' AI arming from the adopted rng cursor, pairing with the
+      // promoted host's post-serialize re-arm — kept brains sit at this
+      // peer's own browse progress and would confirm (and draw castle
+      // plans) at different ticks.
       runtime.selection.reconcileAfterAdoption();
+      runtime.selection.rearmCycleControllersAfterAdoption(
+        session.remotePlayerSlots,
+      );
     }
     // After the states are settled: re-derive in-flight castle-build
     // animations from the adopted state (the wipe above dropped the

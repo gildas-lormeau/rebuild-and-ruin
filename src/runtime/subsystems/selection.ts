@@ -48,8 +48,12 @@ export interface RuntimeSelection {
   getStates: () => Map<ValidPlayerId, SelectionState>;
   /** Enter CASTLE_SELECT. Omit `queue` for the initial cycle (bootstrap
    *  path: round 1 / watcher SELECT_START); pass an explicit queue for
-   *  the lifeLostRoute reselect cycle. */
-  enter: (queue?: readonly ValidPlayerId[]) => void;
+   *  the lifeLostRoute reselect cycle. `remoteSlotsOverride` is the
+   *  FULL_STATE adoption entry's live session slot set — see the impl. */
+  enter: (
+    queue?: readonly ValidPlayerId[],
+    remoteSlotsOverride?: ReadonlySet<ValidPlayerId>,
+  ) => void;
   syncOverlay: () => void;
   highlight: (idx: TowerIdx, zone: ZoneId, pid: ValidPlayerId) => void;
   confirmAndStartBuild: (
@@ -70,6 +74,13 @@ export interface RuntimeSelection {
    *  FULL_STATE snapshot landing mid-CASTLE_SELECT (host migration on a
    *  peer already inside the cycle). See the impl for the failure mode. */
   reconcileAfterAdoption: () => void;
+  /** Re-draw the cycle's AI selection arming from the current state.rng
+   *  cursor at a FULL_STATE boundary — promoted host post-serialize,
+   *  mid-cycle adopters post-apply. See the impl for the draw-pairing
+   *  contract. */
+  rearmCycleControllersAfterAdoption: (
+    remotePlayerSlots: ReadonlySet<ValidPlayerId>,
+  ) => void;
   /** Rebuild the castle-build animation queue from the current GameState
    *  after a FULL_STATE boundary (host migration / checkpoint apply).
    *  The queue is runtime-local and its only producer is the confirm
@@ -165,24 +176,57 @@ export function createSelectionSystem(
   function reconcileAfterAdoption(): void {
     const { state } = runtimeState;
     for (const [pid, selectionState] of runtimeState.selection.states) {
-      if (selectionState.confirmed) continue;
       const player = state.players[pid];
+      if (!player) continue;
       // "Already picked" = the castle-wall plan is committed. The plan
       // seeds `castleWallTiles` inside the confirm apply and the set is
       // cleared by the life-loss board reset, so non-empty ⟺ confirmed
       // THIS cycle — including a confirm whose ring is still animating,
-      // which the previous alive-enclosed-tower predicate missed (a
-      // mid-build ring encloses nothing yet; the unhealed flag let the
-      // adopter's AI brain re-confirm the seat and redraw the plan from
-      // state.rng on this peer only).
-      if (player && player.castleWallTiles.size > 0) {
-        selectionState.confirmed = true;
-      }
+      // which an alive-enclosed-tower predicate would miss (a mid-build
+      // ring encloses nothing yet). Synced BOTH ways: a peer that ran
+      // ahead of the snapshot may hold a local confirm the adopted
+      // timeline hasn't reached — kept, its brain skips the seat while
+      // every other peer re-confirms it (and draws the castle plan),
+      // a one-peer rng fork.
+      selectionState.confirmed = player.castleWallTiles.size > 0;
     }
     // Stale in-flight guards die with the discarded applies. A confirm
     // kept in the post-snapshot window still fires; its apply re-deletes
     // the (now absent) guard and confirms idempotently.
     inFlightConfirms.clear();
+    syncSelectionOverlay();
+  }
+
+  /** Re-arm the cycle's controller selection brains from the current
+   *  GameState at a FULL_STATE boundary — the CASTLE_SELECT face of the
+   *  serialize-first/draw-after contract (`reprimeAiControllersForPhase`
+   *  deliberately skips this phase; the selection system owns its brain
+   *  arming). AI arming draws from `strategy.rng` ≡ `state.rng`
+   *  (chooseBestTower + browse plan + delays), and each peer's brains sit
+   *  at their own local browse progress when the snapshot lands — kept,
+   *  their confirms (and the castle-plan draws those trigger) fire at
+   *  different ticks per peer. Every peer re-draws instead: the promoted
+   *  host right after serializing, mid-cycle adopters right after
+   *  applying — same cursor, same slots, same order. A peer entering the
+   *  cycle AT adoption (`enterTowerSelection` with the state-derived
+   *  queue) draws the identical stream inside its entry loop and must
+   *  NOT also call this. Slot set/order contract: unconfirmed cycle
+   *  slots not driven by a connected human, ascending pid — matching the
+   *  entry loop over the (ascending, unconfirmed-only) adoption queue. */
+  function rearmCycleControllersAfterAdoption(
+    remotePlayerSlots: ReadonlySet<ValidPlayerId>,
+  ): void {
+    const { state } = runtimeState;
+    const pids = [...runtimeState.selection.states.keys()].sort(
+      (a, b) => a - b,
+    );
+    for (const pid of pids) {
+      if (runtimeState.selection.states.get(pid)!.confirmed) continue;
+      if (isRemotePlayer(pid, remotePlayerSlots)) continue;
+      const zone = state.playerZones[pid];
+      if (zone === undefined) continue;
+      runtimeState.controllers[pid]!.selectTower(state, zone);
+    }
     syncSelectionOverlay();
   }
 
@@ -194,10 +238,23 @@ export function createSelectionSystem(
    *  reselect cycle (pass the list of players who lost a life). Initial
    *  cycle = bootstrap path: runs once at game start (round 1) and on
    *  watcher SELECT_START. Reselect cycle = mid-game; the queue is
-   *  precomputed by the life-lost dialog. */
-  function enterTowerSelection(cycleQueue?: readonly ValidPlayerId[]): void {
+   *  precomputed by the life-lost dialog.
+   *
+   *  `remoteSlotsOverride` is for the FULL_STATE adoption entry only: the
+   *  arming loop's rng draws must gate on the LIVE session slot set (a
+   *  seat-takeover flip reconciled inside the same apply isn't in
+   *  `frameMeta`'s frame-start snapshot yet), and the promoted host's
+   *  paired re-arm (`rearmCycleControllersAfterAdoption`) reads the same
+   *  live set. Lockstep entries omit it — every peer's frameMeta is
+   *  equally stale at a scheduled flip, so the frame-start view is
+   *  cross-peer symmetric there. */
+  function enterTowerSelection(
+    cycleQueue?: readonly ValidPlayerId[],
+    remoteSlotsOverride?: ReadonlySet<ValidPlayerId>,
+  ): void {
     const { state } = runtimeState;
-    const { remotePlayerSlots } = runtimeState.frameMeta;
+    const remotePlayerSlots =
+      remoteSlotsOverride ?? runtimeState.frameMeta.remotePlayerSlots;
 
     deps.log(
       `enterTowerSelection (phase=${Phase[state.phase]}, round=${state.round})`,
@@ -627,6 +684,7 @@ export function createSelectionSystem(
     finish: finishSelection,
     reset,
     reconcileAfterAdoption,
+    rearmCycleControllersAfterAdoption,
     requeueCastleBuildsFromState,
   };
 }

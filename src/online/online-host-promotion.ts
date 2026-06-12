@@ -16,6 +16,7 @@ import { deriveAiStrategySeed } from "../shared/core/ai-seed.ts";
 import {
   BATTLE_TIMER,
   MODIFIER_REVEAL_TIMER,
+  SELECT_ANNOUNCEMENT_DURATION,
   SELECT_TIMER,
 } from "../shared/core/game-constants.ts";
 import { Phase } from "../shared/core/game-phase.ts";
@@ -208,8 +209,8 @@ export async function rebuildControllersForPhase(
  * Total over every timed phase: a phase without a recompute branch
  * here silently restarts that phase's timer on the applying peer.
  *
- * Two accums are deliberately left untouched here — neither is
- * derivable from `state.timer`:
+ * Two accums get special handling — neither is derivable from
+ * `state.timer`:
  *  - `grunt`: cross-phase step-interval clock. Zeroing it on one peer
  *    restarts its grunt cadence while the others' grunts step on
  *    schedule — board divergence within the build phase. Correct only
@@ -218,9 +219,15 @@ export async function rebuildControllersForPhase(
  *    skew, so the migration apply overwrites it from
  *    `FullStateMessage.gruntAccum` right after this call.
  *  - `selectAnnouncement`: consumed-flag for the game-start BANNER_SELECT
- *    window, armed by cycle type in `enterTowerSelection`; zeroing it
- *    mid-cycle replays the announcement on one peer, gating its
- *    selection ticks a full window behind every other peer.
+ *    window, armed by cycle type in `enterTowerSelection`. Zeroing it
+ *    would replay the announcement on one peer only, gating its
+ *    selection (and AI) ticks a full window behind every other peer —
+ *    so outside CASTLE_SELECT it is preserved. INSIDE CASTLE_SELECT it
+ *    is force-CONSUMED instead: the host's own progress through the
+ *    window is not serialized (and timer 0 is ambiguous between stage A
+ *    and not-started), so the only pose every peer can adopt
+ *    identically is "announcement over, countdown running". Cosmetic
+ *    cost: a migration mid-announcement cuts the banner short.
  */
 export function syncAccumulatorsFromTimer(
   state: GameState,
@@ -252,10 +259,13 @@ export function syncAccumulatorsFromTimer(
     accum.battle = BATTLE_TIMER - state.timer;
   } else if (state.phase === Phase.MODIFIER_REVEAL) {
     accum.modifierReveal = MODIFIER_REVEAL_TIMER - state.timer;
-  } else if (state.phase === Phase.CASTLE_SELECT && state.timer > 0) {
-    // timer === 0 is the round-1 announcement window (stage A holds the
-    // timer at 0) or the countdown-expiry tick — in both, elapsed can't
-    // be derived; leave `select` at 0 (countdown from full).
-    accum.select = SELECT_TIMER - state.timer;
+  } else if (state.phase === Phase.CASTLE_SELECT) {
+    if (state.timer > 0) {
+      // timer === 0 is the round-1 announcement window (stage A holds
+      // the timer at 0) or the countdown-expiry tick — in both, elapsed
+      // can't be derived; leave `select` at 0 (countdown from full).
+      accum.select = SELECT_TIMER - state.timer;
+    }
+    accum.selectAnnouncement = SELECT_ANNOUNCEMENT_DURATION;
   }
 }

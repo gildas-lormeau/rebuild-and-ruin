@@ -17,6 +17,7 @@ import { Phase } from "../src/shared/core/game-phase.ts";
 import {
   type GameMode,
   MODIFIER_REVEAL_TIMER,
+  SELECT_ANNOUNCEMENT_DURATION,
   SELECT_TIMER,
 } from "../src/shared/core/game-constants.ts";
 import type { GameState } from "../src/shared/core/types.ts";
@@ -198,6 +199,22 @@ Deno.test("syncAccumulatorsFromTimer: CASTLE_SELECT recomputes the selection cou
     SELECT_TIMER - 10,
     1e-9,
     "mid-reselect restore must not restart the selection countdown from full",
+  );
+});
+
+Deno.test("syncAccumulatorsFromTimer: CASTLE_SELECT consumes the announcement window", () => {
+  const accum = garbageAccums();
+  const state = {
+    phase: Phase.CASTLE_SELECT,
+    timer: 10,
+  } as unknown as GameState;
+  syncAccumulatorsFromTimer(state, accum);
+  assertEquals(
+    accum.selectAnnouncement,
+    SELECT_ANNOUNCEMENT_DURATION,
+    "a FULL_STATE boundary inside CASTLE_SELECT must consume the " +
+      "announcement uniformly — the host's window progress is not " +
+      "serialized, so 'over' is the only pose every peer can share",
   );
 });
 

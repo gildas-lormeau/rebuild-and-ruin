@@ -102,14 +102,28 @@ export function promoteToHost(): void {
     _runtime.runtimeState.controllers,
     _client.ctx.session.remotePlayerSlots,
   );
-  // Mid-CASTLE_SELECT promotion: adopting watchers re-derive in-flight
-  // castle-build animations from the snapshot (their local queues are
-  // wiped on apply), restarting each ring's placement cadence at the
-  // snapshot tick. The promoted peer must replace its own live
-  // animations with the same derivation, or its walls keep landing on
-  // the old cadence — a few ticks ahead of every adopter — and the
-  // cycle's exit (castle-done) dispatches at different sim ticks.
+  // Mid-CASTLE_SELECT promotion (including the round-end fast-forward
+  // that just routed into a reselect cycle): the CASTLE_SELECT face of
+  // the serialize-first/draw-after contract, which the reprime above
+  // deliberately skips. Two paired repairs, mirrored by the adoption
+  // apply on every watcher (online-rehydrate.ts):
+  //  - Re-draw the unconfirmed seats' AI selection arming from the
+  //    just-serialized rng cursor. The fast-forward's own entry draws
+  //    ran BEFORE the serialize (they are baked into the snapshot's
+  //    cursor and superseded here); a mid-cycle promotion's kept brains
+  //    sit at this peer's local browse progress. Either way the only
+  //    pose every peer can share is a fresh arming drawn from the
+  //    snapshot cursor — adopters draw the identical stream right after
+  //    applying (entry loop or re-arm).
+  //  - Re-derive in-flight castle-build animations from state (the
+  //    adopters' local queues are wiped on apply), restarting each
+  //    ring's placement cadence at the snapshot tick. Kept, the
+  //    promoted peer's walls land a few ticks ahead of every adopter
+  //    and the cycle's exit dispatches at different sim ticks.
   if (_runtime.runtimeState.state.phase === Phase.CASTLE_SELECT) {
+    _runtime.selection.rearmCycleControllersAfterAdoption(
+      _client.ctx.session.remotePlayerSlots,
+    );
     _runtime.selection.requeueCastleBuildsFromState();
   }
   flushPendingSeatTakeovers();

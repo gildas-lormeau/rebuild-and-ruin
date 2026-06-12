@@ -1241,6 +1241,163 @@ Deno.test(
   },
 );
 
+// ── Promotion fast-forward into a reselect cycle ─────────────────────
+// A promotion landing in the round-end display chain fast-forwards it
+// (resolveRoundEndNow); when the routing enters a reselect cycle, the
+// AI selection arming draws state.rng (chooseBestTower + browse plan +
+// delays) BEFORE the FULL_STATE serialize — so the snapshot carries the
+// post-draw cursor. An adopter parked in its OWN round-end display
+// never entered the cycle locally; its adoption entry re-runs the same
+// arming AFTER applying, drawing again from the already-advanced
+// cursor: a one-sided rng fork in every reselect with an AI seat. The
+// serialize-first/draw-after contract requires every peer to draw the
+// arming from the snapshot cursor — the promoted host re-arms
+// post-serialize, adopters at the entry/re-arm — superseding any
+// pre-serialize draws.
+Deno.test(
+  "promotion fast-forwarded into a reselect keeps survivors in rng parity",
+  async () => {
+    // Seed 0 classic reaches a reselect cycle (see seed-fixtures.json
+    // "selection:reselect-cycle") — its round-end shows the life-lost
+    // dialog. If AI retuning drifts it, re-scan for LIFE_LOST_DIALOG_SHOW.
+    const trio = await createMigrationTrio({
+      seed: 0,
+      mode: "classic",
+      rounds: 12,
+    });
+    const { host, promotable, observer, pumpHost, pumpPromoted } = trio;
+
+    // Lockstep all three until the promotable is parked in the life-lost
+    // dialog (round-end display chain; reselect entries pending).
+    let steps = 0;
+    while (promotable.mode() !== Mode.LIFE_LOST) {
+      host.tick(1);
+      await pumpHost();
+      promotable.tick(1);
+      observer.tick(1);
+      if (host.mode() === Mode.STOPPED) {
+        throw new Error("game ended before a life-lost dialog window");
+      }
+      if (++steps > 200_000) {
+        throw new Error("life-lost dialog window never reached");
+      }
+    }
+
+    trio.promotableSession.myPlayerId = 0 as ValidPlayerId;
+    const hostLeft = {
+      type: MESSAGE.HOST_LEFT,
+      newHostPlayerId: 0 as ValidPlayerId,
+      disconnectedPlayerId: null,
+    } as ServerMessage;
+    await promotable.deliverMessage(hostLeft);
+    await observer.deliverMessage(hostLeft);
+    await pumpPromoted();
+
+    // Sanity: the fast-forward routed into the reselect cycle and the
+    // observer adopted it (it was parked in its own dialog — the
+    // never-entered-locally shape).
+    assertEquals(Phase[promotable.state.phase], Phase[Phase.CASTLE_SELECT]);
+    assertEquals(Phase[observer.state.phase], Phase[Phase.CASTLE_SELECT]);
+
+    // Run the survivors through the reselect and the following round —
+    // the double-drawn arming forks the shared cursor immediately, and
+    // the diverged castle plans/walls follow.
+    for (let i = 0; i < 3600; i++) {
+      promotable.tick(1);
+      await pumpPromoted();
+      observer.tick(1);
+      if (
+        promotable.mode() === Mode.STOPPED &&
+        observer.mode() === Mode.STOPPED
+      ) {
+        break;
+      }
+    }
+    assertStateConverges(
+      snapshotState(observer),
+      snapshotState(promotable),
+      "observer vs promoted host after reselect fast-forward",
+    );
+  },
+);
+
+// Skewed flavor of the same window: the observer's sim runs PAST the
+// snapshot — it resolves its own round-end dialog locally, enters the
+// reselect, and its AI brains browse (possibly confirm) before the
+// migration reaches it. The adoption rewinds GameState to the snapshot,
+// but kept brains sit at this peer's local browse progress and a local
+// confirm the adopted timeline hasn't reached would stay flagged — the
+// seat skips re-confirming here while every other peer replays it. The
+// apply must re-derive confirmed flags from adopted state (both ways)
+// and re-draw the unconfirmed seats' arming from the snapshot cursor.
+Deno.test(
+  "reselect adopted with sim-tick skew: survivors stay in rng parity",
+  async () => {
+    const trio = await createMigrationTrio({
+      seed: 0,
+      mode: "classic",
+      rounds: 12,
+    });
+    const { host, promotable, observer, pumpHost, pumpPromoted } = trio;
+
+    let steps = 0;
+    while (promotable.mode() !== Mode.LIFE_LOST) {
+      host.tick(1);
+      await pumpHost();
+      promotable.tick(1);
+      observer.tick(1);
+      if (host.mode() === Mode.STOPPED) {
+        throw new Error("game ended before a life-lost dialog window");
+      }
+      if (++steps > 200_000) {
+        throw new Error("life-lost dialog window never reached");
+      }
+    }
+
+    // Promote now; the FULL_STATE freezes this tick (mid-dialog →
+    // fast-forwarded into the reselect entry).
+    trio.promotableSession.myPlayerId = 0 as ValidPlayerId;
+    const hostLeft = {
+      type: MESSAGE.HOST_LEFT,
+      newHostPlayerId: 0 as ValidPlayerId,
+      disconnectedPlayerId: null,
+    } as ServerMessage;
+    await promotable.deliverMessage(hostLeft);
+
+    // Wire delay: the observer keeps simulating — it resolves its own
+    // dialog, enters the reselect locally, and browses ~1.5s past it —
+    // before the migration reaches it.
+    let obsTicks = 0;
+    while (observer.state.phase !== Phase.CASTLE_SELECT) {
+      observer.tick(1);
+      if (++obsTicks > 3000) {
+        throw new Error("observer never entered the reselect locally");
+      }
+    }
+    observer.tick(90);
+    await observer.deliverMessage(hostLeft);
+    await pumpPromoted();
+    assertEquals(Phase[observer.state.phase], Phase[Phase.CASTLE_SELECT]);
+
+    for (let i = 0; i < 3600; i++) {
+      promotable.tick(1);
+      await pumpPromoted();
+      observer.tick(1);
+      if (
+        promotable.mode() === Mode.STOPPED &&
+        observer.mode() === Mode.STOPPED
+      ) {
+        break;
+      }
+    }
+    assertStateConverges(
+      snapshotState(observer),
+      snapshotState(promotable),
+      "skewed observer vs promoted host after reselect adoption",
+    );
+  },
+);
+
 // ── Adoption mid castle-build animation ──────────────────────────────
 // The FULL_STATE apply wipes `selection.castleBuilds` (runtime-local
 // animation queue), and the only producer is the confirm apply — so an

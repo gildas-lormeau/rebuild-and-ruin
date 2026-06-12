@@ -28,7 +28,7 @@
     "test:music-assets": "timeout 30 deno test --no-check test/music-assets.test.ts",
     "test:audio-gates": "timeout 30 deno test --no-check test/audio-context-gates.test.ts",
     "test:network": "timeout 30 deno test --no-check test/network-observer.test.ts",
-    "test:network-vs-local": "timeout 120 deno test --no-check test/network-vs-local.test.ts",
+    "test:network-vs-local": "timeout 180 deno test --no-check test/network-vs-local.test.ts",
     "test:network-bidirectional": "timeout 120 deno test --no-check --allow-env=BIDIR_DUMP test/network-bidirectional.test.ts",
     "test:camera-zoom-parity": "timeout 120 deno test --no-check test/camera-zoom-parity.test.ts",
     "record-determinism": "deno run -A scripts/record-determinism.ts",
