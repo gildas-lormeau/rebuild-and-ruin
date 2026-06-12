@@ -954,6 +954,12 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       // the timer to fire behind the landing page (mode still STOPPED),
       // re-enter the lobby, and loop hidden demo games with audio.
       lifecycle.teardownSession();
+      // Mirror returnToLobby's input reset: without it the next lobby
+      // inherits a stale mouseJoinedSlot (every slot click becomes a
+      // "hurry up" skip, so the mouse can never join) and on touch the
+      // in-game controls stay visible over the lobby — Mode.LOBBY render
+      // never calls updateTouchControls, so nothing else dismisses them.
+      input.resetForLobby();
       audio.stopAll();
     },
 

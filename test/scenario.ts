@@ -287,6 +287,12 @@ export interface Scenario extends Disposable {
    *  land it inside an in-flight bootstrap's await windows (e.g. between
    *  `sc.rematch()` and its completion). */
   shutdown(): void;
+  /** Route-level re-entry — production-equivalent to navigating back to
+   *  /play after a `shutdown()` (main.ts enterLocalLobby →
+   *  `runtime.lobby.show()`). Resets joined slots/timer/map preview and
+   *  flips the runtime back to Mode.LOBBY. Pair with `shutdown()` for
+   *  route round-trip tests. */
+  showLobby(): void;
 }
 
 /** Synthetic input dispatcher backed by real `EventTarget`s. Each call
@@ -511,6 +517,9 @@ export function wrapHeadless(
     },
     shutdown: () => {
       headless.runtime.shutdown();
+    },
+    showLobby: () => {
+      headless.runtime.lobby.show();
     },
     [Symbol.dispose]: () => {
       // No cleanup is performed for the *observers* this Scenario installed:

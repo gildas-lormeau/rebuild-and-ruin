@@ -122,17 +122,6 @@ Deno.test(
   },
 );
 
-/** Center of slot N in canvas-space pixels — what the test dispatches as
- *  the `clientX/Y` of a `MouseEvent`. The hit-tester divides by SCALE to
- *  get back to tile-space. */
-function slotCenterCanvas(slotIndex: number): { x: number; y: number } {
-  const layout = computeLobbyLayout(MAP_PX_W, MAP_PX_H, MAX_PLAYERS);
-  const tileX = layout.gap + slotIndex * (layout.rectW + layout.gap) +
-    layout.rectW / 2;
-  const tileY = layout.rectY + layout.rectH / 2;
-  return { x: tileX * SCALE, y: tileY * SCALE };
-}
-
 Deno.test(
   "lobby input: pressing the confirm key joins a slot and starts the game before the 15s timeout",
   async () => {
@@ -186,6 +175,66 @@ Deno.test(
     );
   },
 );
+
+// ── route-level exit must reset mouse-join tracking ──────────────────
+// `runtime.shutdown` (GAME_EXIT_EVENT — back-button navigation away from
+// /play) used to skip the input reset that `returnToLobby` performs. The
+// stale `inputTracking.mouseJoinedSlot` made `lobbyClick` route EVERY
+// slot click in the next lobby through the "hurry up" skip branch — the
+// mouse could never join again, and the spam-skipped lobby drained into
+// an all-AI demo.
+Deno.test(
+  "lobby input: mouse can join again after a route-level shutdown",
+  async () => {
+    using sc = await createScenario({ seed: 42, autoStartGame: false });
+    const slot0 = slotCenterCanvas(0);
+
+    // First lobby: join slot 0 by mouse and start the game. This half
+    // proves the click coordinates land (slot 0 human) — without it the
+    // second half could pass vacuously if the lobby layout shifts.
+    sc.input.click(slot0.x, slot0.y);
+    for (let i = 0; i < LOBBY_TIMER; i++) {
+      await clickAndSettle(sc, slot0.x, slot0.y);
+    }
+    sc.runUntil(() => !sc.lobbyActive(), { timeoutMs: LOBBY_TIMER * 1000 });
+    await settleLobbyExit(sc);
+    assertEquals(
+      sc.aiArchetypes()[0],
+      undefined,
+      "precondition: the mouse click joined slot 0 (human slots carry no archetype)",
+    );
+
+    // Route-level exit + re-entry.
+    sc.shutdown();
+    assertEquals(sc.mode(), Mode.STOPPED, "shutdown parks the runtime");
+    sc.showLobby();
+    assert(sc.lobbyActive(), "re-entry shows a fresh lobby");
+
+    // Second lobby: the identical click sequence must join again.
+    sc.input.click(slot0.x, slot0.y);
+    for (let i = 0; i < LOBBY_TIMER; i++) {
+      await clickAndSettle(sc, slot0.x, slot0.y);
+    }
+    sc.runUntil(() => !sc.lobbyActive(), { timeoutMs: LOBBY_TIMER * 1000 });
+    await settleLobbyExit(sc);
+    assertEquals(
+      sc.aiArchetypes()[0],
+      undefined,
+      "slot 0 must be human-joined after a shutdown→re-entry round trip",
+    );
+  },
+);
+
+/** Center of slot N in canvas-space pixels — what the test dispatches as
+ *  the `clientX/Y` of a `MouseEvent`. The hit-tester divides by SCALE to
+ *  get back to tile-space. */
+function slotCenterCanvas(slotIndex: number): { x: number; y: number } {
+  const layout = computeLobbyLayout(MAP_PX_W, MAP_PX_H, MAX_PLAYERS);
+  const tileX = layout.gap + slotIndex * (layout.rectW + layout.gap) +
+    layout.rectW / 2;
+  const tileY = layout.rectY + layout.rectH / 2;
+  return { x: tileX * SCALE, y: tileY * SCALE };
+}
 
 // ── F1 options entry is gated while online ───────────────────────────
 // Mode.OPTIONS is not a ticking mode: opening mid-game options freezes
