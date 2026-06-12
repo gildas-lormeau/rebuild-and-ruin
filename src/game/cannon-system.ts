@@ -180,6 +180,14 @@ export function applyCannonAtDrain(
   col: number,
   mode: CannonMode,
 ): boolean {
+  // Phase gate: a placement scheduled in the final SAFETY window can
+  // drain after the timer expiry closed CANNON_PLACE (`tickCannonPhase`
+  // exits without waiting for queued applies, and the controllers were
+  // already finalized) — a cannon must not materialize during
+  // MODIFIER_REVEAL/BATTLE, or during WALL_BUILD on the ceasefire path.
+  // Phase flips are lockstep, so the skip is symmetric across peers.
+  // Mirrors the piece path's build-end bag gate (scheduled-actions.ts).
+  if (state.phase !== Phase.CANNON_PLACE) return false;
   const player = state.players[playerId];
   if (!player) return false;
   const maxCannons = state.cannonLimits[playerId] ?? 0;
@@ -188,6 +196,25 @@ export function applyCannonAtDrain(
   applyCannonPlacement(player, row, col, mode, state);
   onCannonPlaced(player);
   return true;
+}
+
+/** Drain-time `cannonPlaceDone` flip — the shared apply body for the
+ *  originator schedule (runtime/subsystems/phase-ticks.ts) and the wire
+ *  receiver schedule (online/online-server-events.ts). The pending
+ *  marker is released unconditionally; the done-flag write is gated on
+ *  the phase — a flag scheduled in the final SAFETY window can drain
+ *  after the timer expiry already closed CANNON_PLACE, and writing into
+ *  the next phase's state stayed harmless only because phase entry
+ *  wholesale-clears both sets on the NEXT cannon entry, a non-local
+ *  invariant this gate makes local. Lockstep phase flips keep the skip
+ *  symmetric across peers. */
+export function markCannonPlaceDoneAtDrain(
+  state: GameState,
+  playerId: ValidPlayerId,
+): void {
+  state.pendingCannonPlaceDone.delete(playerId);
+  if (state.phase !== Phase.CANNON_PLACE) return;
+  state.cannonPlaceDone.add(playerId);
 }
 
 /** True if the player can legally place a cannon of `mode` at `(row, col)`.

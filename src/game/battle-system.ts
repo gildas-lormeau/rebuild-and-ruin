@@ -475,11 +475,16 @@ export function applyCannonFiredOriginator(
   state: GameState,
   msg: CannonFiredMessage,
 ): void {
-  applyCannonFired(state, msg);
+  const applied = applyCannonFired(state, msg);
+  // Bookkeeping always releases, even when the phase gate swallowed the
+  // shot — a leaked pending-fire key would block the cannon next battle
+  // until the wholesale clear at battle init.
   state.pendingCannonFires.delete(
     packPendingCannonFireKey(msg.playerId, msg.cannonIdx),
   );
-  state.bus.emit(BATTLE_MESSAGE.CANNON_FIRED, msg);
+  // No bus emit for a swallowed shot: observers (SFX whistle, combo
+  // accrual, stats) must not see a ball that never spawned.
+  if (applied) state.bus.emit(BATTLE_MESSAGE.CANNON_FIRED, msg);
 }
 
 /**
@@ -524,6 +529,16 @@ export function nextReadyCannon(
 /** Network-replay primitive for `BATTLE_MESSAGE.CANNON_FIRED` events
  *  and the shared push used by `applyCannonFiredOriginator`.
  *
+ *  Returns false (no mutation) when the phase already left BATTLE: a
+ *  fire scheduled in the final SAFETY window can drain after battle-done
+ *  closed the phase (`tickBattlePhase`'s exit waits for in-flight balls,
+ *  not queued fires) — without the gate it pushes a ball into
+ *  post-battle state, bumps `shotsFired`, and consumes a supply
+ *  `mortar_shot` bonus for a shot that never happens. Phase flips are
+ *  lockstep, so the skip is symmetric; discarding at the horn matches
+ *  the cannon-place rule (unfinished work at timer expiry is dropped,
+ *  not honored late). Callers gate their bus emits on the return.
+ *
  *  Bumps `state.shotsFired` so shotsFired-gated logic (round-1
  *  `spawnIdleFirstBattleGrunts` trigger, `precomputedDustStormJitters`
  *  lookup) fires identically on host and watcher. Whistle variant is
@@ -533,7 +548,8 @@ export function nextReadyCannon(
 export function applyCannonFired(
   state: GameState,
   msg: CannonFiredMessage,
-): void {
+): boolean {
+  if (state.phase !== Phase.BATTLE) return false;
   state.shotsFired++;
   // Supply-ship `mortar_shot` bonus consumption — runs on every peer
   // (originator via applyCannonFiredOriginator, watchers from wire
@@ -575,6 +591,7 @@ export function applyCannonFired(
     mortar: msg.mortar,
     whistleVariant: selectWhistleVariant(msg.flightTime),
   });
+  return true;
 }
 
 function getAnnouncementStep(

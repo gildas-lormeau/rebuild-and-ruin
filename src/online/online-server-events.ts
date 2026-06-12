@@ -5,7 +5,11 @@
 import { applyCannonFired } from "../game/battle-system.ts";
 import { applyPiecePlacement } from "../game/build-system.ts";
 import { applyCannonAtDrain } from "../game/cannon-system.ts";
-import { canPlacePiece, highlightTowerSelection } from "../game/index.ts";
+import {
+  canPlacePiece,
+  highlightTowerSelection,
+  markCannonPlaceDoneAtDrain,
+} from "../game/index.ts";
 import { MESSAGE, type ServerMessage } from "../protocol/protocol.ts";
 import { applyLifeLostChoiceToDialog } from "../runtime/dialogs/life-lost-core.ts";
 import { applyUpgradePickChoiceToDialog } from "../runtime/dialogs/upgrade-pick-core.ts";
@@ -254,9 +258,7 @@ function handleCannonPhaseDone(
   deps.schedule({
     applyAt: msg.applyAt,
     playerId,
-    apply: (drainState) => {
-      drainState.cannonPlaceDone.add(playerId);
-    },
+    apply: (drainState) => markCannonPlaceDoneAtDrain(drainState, playerId),
   });
   return APPLIED;
 }
@@ -288,8 +290,7 @@ function handleCannonFired(
     deps.log(
       `cannon_fired: missing applyAt for P${msg.playerId} — falling back to immediate apply`,
     );
-    applyCannonFired(state, msg);
-    state.bus.emit(msg.type, msg);
+    if (applyCannonFired(state, msg)) state.bus.emit(msg.type, msg);
     return APPLIED;
   }
   const applyAt = msg.applyAt;
@@ -297,8 +298,9 @@ function handleCannonFired(
     applyAt,
     playerId: msg.playerId,
     apply: (drainState) => {
-      applyCannonFired(drainState, msg);
-      drainState.bus.emit(msg.type, msg);
+      // Emit only when the ball actually spawned — the phase gate in
+      // `applyCannonFired` swallows fires draining after battle-done.
+      if (applyCannonFired(drainState, msg)) drainState.bus.emit(msg.type, msg);
     },
   });
   return APPLIED;

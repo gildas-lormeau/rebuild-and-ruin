@@ -6,6 +6,7 @@ import {
   emitBattleCeaseIfTimerCrossed,
   tickBattlePhase as engineTickBattlePhase,
   enterBuildSkippingBattle,
+  markCannonPlaceDoneAtDrain,
   moveGrunts,
   nextReadyCannon,
   prepareControllerCannonPhase,
@@ -546,10 +547,8 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
           runtimeState.actionSchedule.schedule({
             applyAt,
             playerId,
-            apply: (drainState) => {
-              drainState.pendingCannonPlaceDone.delete(playerId);
-              drainState.cannonPlaceDone.add(playerId);
-            },
+            apply: (drainState) =>
+              markCannonPlaceDoneAtDrain(drainState, playerId),
           });
           deps.sendOpponentCannonPhaseDone(playerId, applyAt);
         } else {

@@ -29,6 +29,7 @@ export {
   effectivePlacementCost,
   isCannonEnclosed,
   isCannonPlacementComplete,
+  markCannonPlaceDoneAtDrain,
   prepareControllerCannonPhase,
   resetCannonFacings,
 } from "./cannon-system.ts";
