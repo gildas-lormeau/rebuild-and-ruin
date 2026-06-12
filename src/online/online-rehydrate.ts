@@ -121,10 +121,11 @@ export function applyFullStateToRunningRuntime(
   // A score overlay mid-display when the snapshot lands is superseded the
   // same way: promotion fast-forwards the round-end chain into the
   // snapshot (`forceResolveRoundEndPhase`), so the local overlay's armed
-  // `runDisplay` continuation must not survive the apply. Its tick is
-  // mode-independent — left armed, it fires against the adopted
-  // post-round-end state and dispatches the round-end routing from a
-  // phase the snapshot already advanced (source-phase guard throw).
+  // `runDisplay` continuation must not survive the apply. The overlay
+  // keeps ticking in the adopted gameplay mode — left armed, it fires
+  // against the adopted post-round-end state and dispatches the round-end
+  // routing from a phase the snapshot already advanced (source-phase
+  // guard throw).
   runtime.scoreDelta.reset();
   // Same teardown as the life-lost dialog: a pick dialog mid-flight when
   // the new host's snapshot lands is superseded — promotion force-resolves

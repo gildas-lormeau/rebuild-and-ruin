@@ -35,6 +35,7 @@ import {
 } from "../src/shared/ui/player-config.ts";
 import { DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS } from "../src/shared/core/action-schedule.ts";
 import { GAME_EVENT } from "../src/shared/core/game-event-bus.ts";
+import { Phase } from "../src/shared/core/game-phase.ts";
 import { Mode } from "../src/shared/ui/ui-mode.ts";
 import type { ValidPlayerId } from "../src/shared/core/player-slot.ts";
 import {
@@ -288,5 +289,54 @@ Deno.test(
     await pressKeyAndSettle(sc, bindings.confirm);
     sc.tick(DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS + 5);
     assertEquals(placed, 1, "confirm works once the announcement ends");
+  },
+);
+
+// ── the options freeze must halt the round-end score overlay ─────────
+// The score-overlay timer used to tick before the main loop's freeze
+// gates (pause check + non-ticking modes), so opening mid-game options
+// during the round-end overlay let it expire under the menu — its
+// continuation then advanced the round-end chain (life-lost dialog pop
+// or the full route into the next phase), yanking the mode out from
+// under the frozen OPTIONS screen. The overlay must freeze and resume
+// exactly like every other display-chain element.
+Deno.test(
+  "keyboard: F1 options freeze halts the round-end score overlay",
+  async () => {
+    using sc = await createScenario({ seed: 42, mode: "classic", rounds: 3 });
+    let overlayStarted = false;
+    let overlayEnded = false;
+    sc.bus.on(GAME_EVENT.SCORE_OVERLAY_START, () => {
+      overlayStarted = true;
+    });
+    sc.bus.on(GAME_EVENT.SCORE_OVERLAY_END, () => {
+      overlayEnded = true;
+    });
+
+    // Round 1's closing WALL_BUILD ends in round-end → score overlay.
+    sc.runUntil(() => overlayStarted, { timeoutMs: 240_000 });
+    await pressKeyAndSettle(sc, "F1");
+    assertEquals(sc.mode(), Mode.OPTIONS, "precondition: options opened");
+
+    // Sit in the menu far past SCORE_DELTA_DISPLAY_TIME (2s ≈ 120 frames).
+    sc.tick(360);
+    assertEquals(
+      sc.mode(),
+      Mode.OPTIONS,
+      "the round-end chain must not advance while the sim is frozen",
+    );
+    assertEquals(
+      overlayEnded,
+      false,
+      "the score overlay must freeze with the rest of the sim",
+    );
+    assertEquals(Phase[sc.state.phase], Phase[Phase.WALL_BUILD]);
+
+    // Close the menu: the overlay resumes and the chain routes onward.
+    await pressKeyAndSettle(sc, "F1");
+    sc.runUntil(() => overlayEnded, { timeoutMs: 30_000 });
+    sc.runUntil(() => sc.state.phase !== Phase.WALL_BUILD, {
+      timeoutMs: 60_000,
+    });
   },
 );

@@ -217,7 +217,20 @@ export function createRuntimeLoop(deps: RuntimeLoopDeps): {
     });
 
     deps.tickCamera();
-    deps.tickScoreDelta(dt);
+    // The overlay ticks outside `tickMode` because it spans non-GAME
+    // display modes (Mode.TRANSITION owns the round-end overlay), but it
+    // must observe the same freezes as the rest of the sim: the pause
+    // gate below and the non-ticking menu modes (mid-game OPTIONS /
+    // CONTROLS). Un-gated, the overlay expires under the menu and its
+    // continuation advances the round-end chain — popping the life-lost
+    // dialog or routing the next phase entry out from under the frozen
+    // screen.
+    if (
+      isGameplayMode(deps.runtimeState.mode) &&
+      !isPaused(deps.runtimeState)
+    ) {
+      deps.tickScoreDelta(dt);
+    }
 
     tickMainLoop({
       dt,

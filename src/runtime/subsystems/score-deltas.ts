@@ -1,8 +1,9 @@
 /**
  * Score delta display sub-system — animated score deltas after the
- * build phase. Tick scope is mode-independent — the timer counts down
- * unconditionally from the main loop, including during banner/castle-
- * build animations.
+ * build phase. Ticked from the main loop outside the mode dispatch (the
+ * round-end overlay runs in Mode.TRANSITION, which `tickMode` doesn't
+ * route here), but gated like the rest of the sim: frozen by pause and
+ * by the non-ticking menu modes (mid-game OPTIONS / CONTROLS).
  */
 
 import { computeScoreDeltas } from "../../game/index.ts";
@@ -17,9 +18,10 @@ interface ScoreDeltaDeps {
 }
 
 /** Public score-delta animation handle exposed on `GameRuntime`. Tick
- *  scope: mode-independent (the timer counts down regardless of mode,
- *  including during banner/castle-build animations). Driven by `tick(dt)`
- *  from the main loop; visibility is on the runtime's overlay state. */
+ *  scope: every gameplay mode while unpaused (the round-end overlay
+ *  spans Mode.TRANSITION, so the main loop ticks this outside the mode
+ *  dispatch); frozen with the rest of the sim by pause and the menu
+ *  modes. Visibility is on the runtime's overlay state. */
 export interface RuntimeScoreDelta {
   /** Set the round's pre-build scores. Sole producer: ROUND_END's mutate
    *  captures them right before `finalizeRound` mutates scores via the
@@ -104,7 +106,8 @@ export function createScoreDeltaSystem(
     }
   }
 
-  /** Tick the score delta display timer (mode-independent — counts during banner/castle-build).
+  /** Tick the score delta display timer (runs in every unpaused
+   *  gameplay mode, including the TRANSITION banner window).
    *  Lifecycle: show() sets deltas+timer+onDone → this ticks down →
    *  clears deltas and fires onDone exactly once when the timer expires.
    *  Re-entrancy: onDone must NOT call show() — each call would restart
