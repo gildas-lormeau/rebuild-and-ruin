@@ -30,7 +30,7 @@ export {
   isCannonEnclosed,
   isCannonPlacementComplete,
   markCannonPlaceDoneAtDrain,
-  prepareControllerCannonPhase,
+  primeControllerForCannonPhase,
   resetCannonFacings,
 } from "./cannon-system.ts";
 export {

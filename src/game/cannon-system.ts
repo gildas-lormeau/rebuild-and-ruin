@@ -45,7 +45,10 @@ import {
   towerCenter,
   unpackTile,
 } from "../shared/core/spatial.ts";
-import type { GameViewState } from "../shared/core/system-interfaces.ts";
+import type {
+  GameViewState,
+  PlayerController,
+} from "../shared/core/system-interfaces.ts";
 import { type GameState } from "../shared/core/types.ts";
 import { consumeSupplyBonuses } from "./modifiers/supply-ship.ts";
 import { cannonSlotsBonus, onCannonPlaced } from "./upgrade-system.ts";
@@ -292,6 +295,28 @@ export function resetCannonFacings(state: GameViewState): void {
       player.defaultFacing = 0;
     }
   }
+}
+
+/** Prime a controller for an in-progress CANNON_PLACE phase: reset the
+ *  per-phase placement state (cannon mode + plan) via `placeCannons`,
+ *  snap the cursor to the nearest valid placement around the home tower,
+ *  and seed the phantom via `startCannonPhase`. Returns false for
+ *  eliminated/missing players (nothing to prime). The shared body behind
+ *  every cannon-entry controller init: the banner postDisplay loop
+ *  (runtime/subsystems/phase-ticks.ts:initLocalCannonControllers), the
+ *  host-promotion rebuild (online/online-host-promotion.ts), and the
+ *  promoted peer's own-slot banner-window repair
+ *  (online/runtime/promote.ts). */
+export function primeControllerForCannonPhase(
+  ctrl: PlayerController,
+  state: GameState,
+): boolean {
+  const prep = prepareControllerCannonPhase(ctrl.playerId, state);
+  if (!prep) return false;
+  ctrl.placeCannons(state, prep.maxSlots);
+  ctrl.cannonCursor = prep.cursorPos;
+  ctrl.startCannonPhase(state);
+  return true;
 }
 
 /** Compute cannon-phase init data for a single player.

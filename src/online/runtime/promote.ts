@@ -7,6 +7,7 @@
  * called first.
  */
 
+import { primeControllerForCannonPhase } from "../../game/index.ts";
 import {
   createAiController,
   ensureAiModulesLoaded,
@@ -156,6 +157,30 @@ function skipPendingAnimations(): void {
     _runtime.camera.snapPitchSettled("tilted");
     _runtime.phaseTicks.skipBattleIntro();
     _client.devLog("Skipped battle intro → battle begun");
+  }
+  // Cannon-entry repair: promotion landing in the enter-cannon-place
+  // banner sweep — the teardown above just dropped the banner `onDone`
+  // whose postDisplay runs `initLocalCannonControllers`.
+  // `rebuildControllersForPhase` primed every slot it rebuilt for the
+  // phase, but it KEEPS the self slot, so the promoted player would
+  // start the round with last round's cannon mode + cursor and no
+  // phantom seed. Mirror `forceResolveRoundEndPhase` (phase-machine.ts),
+  // which re-runs the init when it skips this same banner — here only
+  // the kept slot still needs it. No accum work: enterCannonPhase primed
+  // `state.timer` in the mutate and `syncAccumulatorsFromTimer` above
+  // already rebuilt the accums from it.
+  if (
+    _runtime.runtimeState.state.phase === Phase.CANNON_PLACE &&
+    modeAtPromotion === Mode.TRANSITION
+  ) {
+    const selfCtrl =
+      _runtime.runtimeState.controllers[_client.ctx.session.myPlayerId];
+    // Undefined for a promoted spectator (no seat — the rebuild primed
+    // every slot); eliminated self handled inside (primes nothing).
+    if (selfCtrl) {
+      primeControllerForCannonPhase(selfCtrl, _runtime.runtimeState.state);
+      _client.devLog("Primed own cannon controller (banner window skip)");
+    }
   }
   // Phase repair, after the mode teardown: UPGRADE_PICK is the only phase
   // with no self-driving timer — its exit is dispatched by the pick

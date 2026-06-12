@@ -9,7 +9,7 @@ import {
   markCannonPlaceDoneAtDrain,
   moveGrunts,
   nextReadyCannon,
-  prepareControllerCannonPhase,
+  primeControllerForCannonPhase,
   resetCannonFacings,
   setBattleCountdown,
   shouldSkipBattle,
@@ -384,14 +384,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
         resetAccum(runtimeState.accum, ACCUM_CANNON);
         for (const ctrl of runtimeState.controllers) {
           if (isRemotePlayer(ctrl.playerId, remotePlayerSlots)) continue;
-          const prep = prepareControllerCannonPhase(
-            ctrl.playerId,
-            runtimeState.state,
-          );
-          if (!prep) continue;
-          ctrl.placeCannons(runtimeState.state, prep.maxSlots);
-          ctrl.cannonCursor = prep.cursorPos;
-          ctrl.startCannonPhase(runtimeState.state);
+          primeControllerForCannonPhase(ctrl, runtimeState.state);
         }
       },
       upgradePick: deps.upgradePick

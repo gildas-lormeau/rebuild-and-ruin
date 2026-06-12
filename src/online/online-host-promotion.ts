@@ -3,7 +3,10 @@
  * accumulator sync during host migration.
  */
 
-import { wallBuildTimerMax } from "../game/index.ts";
+import {
+  primeControllerForCannonPhase,
+  wallBuildTimerMax,
+} from "../game/index.ts";
 import type { MutableAccums } from "../runtime/timer-accums.ts";
 import type { AiPersonality } from "../shared/core/ai-personality.ts";
 import { deriveAiStrategySeed } from "../shared/core/ai-seed.ts";
@@ -74,15 +77,7 @@ export async function rebuildControllersForPhase(
       if (state.phase === Phase.WALL_BUILD) {
         ctrl.startBuildPhase(state);
       } else if (state.phase === Phase.CANNON_PLACE) {
-        const max = state.cannonLimits[i] ?? 0;
-        ctrl.placeCannons(state, max);
-        if (player.homeTower) {
-          ctrl.cannonCursor = {
-            row: player.homeTower.row,
-            col: player.homeTower.col,
-          };
-        }
-        ctrl.startCannonPhase(state);
+        primeControllerForCannonPhase(ctrl, state);
       } else if (state.phase === Phase.BATTLE) {
         ctrl.initBattleState(state);
       }
