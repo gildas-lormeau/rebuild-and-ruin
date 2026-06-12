@@ -361,11 +361,19 @@ export interface PhaseTransitionCtx {
 /** Default "no battle-entry data" result. Every transition whose mutate
  *  doesn't produce a modifier roll or balloon flights returns this (or
  *  spreads it). Keeps `TransitionResult.modifierDiff` / `flights` strictly
- *  required at the type level — consumers no longer defensively coalesce. */
-const EMPTY_TRANSITION_RESULT: TransitionResult = {
+ *  required at the type level — consumers no longer defensively coalesce.
+ *
+ *  Frozen (deeply): display steps write into their transition's result in
+ *  place (`runLifeLostDialogStep` stashes `result.continuing`). Today the
+ *  only transition with such a step (round-end) spreads a fresh object,
+ *  but a future transition that returns the bare constant AND gains a
+ *  dialog step would silently cross-contaminate every later consumer of
+ *  the shared object — the freeze turns that into a loud throw at the
+ *  write site. */
+const EMPTY_TRANSITION_RESULT: TransitionResult = Object.freeze({
   modifierDiff: null,
-  flights: [],
-};
+  flights: Object.freeze([]),
+});
 /** Discriminator values for `DisplayStep.kind`. */
 const STEP_BANNER = "banner" as const;
 const STEP_SCORE_OVERLAY = "score-overlay" as const;
