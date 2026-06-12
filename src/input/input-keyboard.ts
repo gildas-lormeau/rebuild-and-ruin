@@ -96,6 +96,16 @@ async function handleKeyF1(
   } else if (mode === Mode.CONTROLS) {
     deps.options.closeControls();
   } else if (isGameplayMode(mode)) {
+    // Mid-game options FREEZES the local sim (Mode.OPTIONS is not a
+    // ticking mode). Fine locally — but with remote humans connected the
+    // other peers keep ticking: their life-lost grace backstop
+    // force-ABANDONs this frozen player's pending dialog entry while the
+    // frozen peer later resolves CONTINUE, permanently forking the
+    // dialogs. Same rule as `togglePause` (subsystems/options.ts) —
+    // online has no freeze-recovery. Consume the key without action
+    // (the gate runs BEFORE setContext so no stale "gameplay" context
+    // leaks into a later lobby-mode show()).
+    if (deps.hasRemoteHumans()) return true;
     deps.options.setContext({ kind: "gameplay", returnMode: mode });
     await deps.options.show();
   } else {

@@ -841,7 +841,10 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       visibleOptionCount: () => visibleOptions(uiCtx).length,
     },
     isOnline,
-    network: { amHost: config.network.amHost },
+    network: {
+      amHost: config.network.amHost,
+      remotePlayerSlots: config.network.remotePlayerSlots,
+    },
     actions: inputActions,
     lobby,
     options,

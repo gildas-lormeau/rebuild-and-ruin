@@ -75,9 +75,10 @@ interface InputSystemDeps {
   /** Whether this runtime instance was constructed in online mode.
    *  Stable for the lifetime of the runtime — set at composition time. */
   readonly isOnline: boolean;
-  /** Network seam — the input system reads `amHost` from here, the
-   *  same NetworkApi the rest of the runtime uses. No duplication. */
-  readonly network: Pick<NetworkApi, "amHost">;
+  /** Network seam — the input system reads `amHost` +
+   *  `remotePlayerSlots` from here, the same NetworkApi the rest of the
+   *  runtime uses. No duplication. */
+  readonly network: Pick<NetworkApi, "amHost" | "remotePlayerSlots">;
 
   // Action surface — same shape online and offline. Online wrappers
   // broadcast inside each adapter (see online-send-actions.ts); local
@@ -301,6 +302,7 @@ function buildInputDeps(
       setMode(runtimeState, mode);
     },
     isOnline: deps.isOnline,
+    hasRemoteHumans: () => deps.network.remotePlayerSlots().size > 0,
     settings: runtimeState.settings,
     getControllers: () => runtimeState.controllers,
     isHuman,

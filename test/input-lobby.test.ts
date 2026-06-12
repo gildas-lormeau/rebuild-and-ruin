@@ -34,6 +34,7 @@ import {
   PLAYER_KEY_BINDINGS,
 } from "../src/shared/ui/player-config.ts";
 import { Mode } from "../src/shared/ui/ui-mode.ts";
+import type { ValidPlayerId } from "../src/shared/core/player-slot.ts";
 import {
   clickAndSettle,
   createScenario,
@@ -178,6 +179,60 @@ Deno.test(
     assert(
       sc.mode() !== Mode.LOBBY,
       `expected to leave LOBBY mode, still in ${Mode[sc.mode()]}`,
+    );
+  },
+);
+
+// ── F1 options entry is gated while remote humans are connected ──────
+// Mode.OPTIONS is not a ticking mode: opening mid-game options freezes
+// the local sim. Fine locally — but with remote humans connected the
+// other peers keep ticking, their life-lost grace backstop
+// force-ABANDONs the frozen player's pending dialog entry, and the
+// frozen peer later resolves CONTINUE: a permanent cross-peer dialog
+// fork. F1's gameplay branch now shares togglePause's rule
+// (subsystems/options.ts): no sim-freezing UI while remote humans are
+// connected.
+Deno.test(
+  "keyboard: F1 mid-game is consumed without opening options while remote humans are connected",
+  async () => {
+    // Watcher runtime with slot 1 driven by a remote human — the same
+    // remotePlayerSlots wiring production uses (network-setup.ts).
+    using sc = await createScenario({
+      seed: 42,
+      mode: "classic",
+      rounds: 3,
+      online: "watcher",
+      assistedSlots: [1 as ValidPlayerId],
+    });
+    assertEquals(
+      sc.mode(),
+      Mode.SELECTION,
+      "precondition: watcher booted into a gameplay mode",
+    );
+
+    sc.input.pressKey("F1");
+    sc.tick(2);
+    assertEquals(
+      sc.mode(),
+      Mode.SELECTION,
+      "F1 must not freeze the local sim while remote humans are connected " +
+        "(Mode.OPTIONS stops simTick; the peers keep ticking and fork the dialogs)",
+    );
+  },
+);
+
+Deno.test(
+  "keyboard: F1 mid-game still opens options without remote humans",
+  async () => {
+    using sc = await createScenario({ seed: 42, mode: "classic", rounds: 3 });
+    assertEquals(sc.mode(), Mode.SELECTION);
+
+    sc.input.pressKey("F1");
+    sc.tick(2);
+    assertEquals(
+      sc.mode(),
+      Mode.OPTIONS,
+      "local play keeps mid-game options on F1",
     );
   },
 );
