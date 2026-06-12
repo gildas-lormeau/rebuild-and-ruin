@@ -54,7 +54,6 @@ export interface GameSettings {
 const ROUNDS_DEFAULT_INDEX = 2;
 /** Index into CANNON_HP_OPTIONS (not the HP value itself — value is 3 hits). */
 const CANNON_HP_DEFAULT_INDEX = 0;
-const SETTINGS_KEY = "castles99_settings";
 // Player castle colors: wall (stone-tinted) and interior (checkerboard light/dark)
 const RED_WALL: RGB = [150, 110, 110];
 const RED_INTERIOR_LIGHT: RGB = [154, 0, 0];
@@ -75,6 +74,9 @@ const ACTION_LEFT = "left";
 const ACTION_RIGHT = "right";
 const ACTION_ROTATE = "rotate";
 const ACTION_CONFIRM = "confirm";
+/** localStorage key for the persisted settings blob. Exported for tests
+ *  that must isolate themselves from the machine's stored settings. */
+export const SETTINGS_KEY = "castles99_settings";
 export const PLAYER_NAMES = ["Red", "Blue", "Gold"] as const;
 export const PLAYER_COLORS: readonly PlayerColor[] = [
   {

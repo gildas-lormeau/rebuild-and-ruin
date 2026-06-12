@@ -68,6 +68,7 @@ import type { Phase } from "../src/shared/core/game-phase.ts";
 import type { GameMessage, ServerMessage } from "../src/protocol/protocol.ts";
 import type { ValidPlayerId } from "../src/shared/core/player-slot.ts";
 import type { GameState, TestHooks } from "../src/shared/core/types.ts";
+import type { GameSettings } from "../src/shared/ui/player-config.ts";
 import { Mode } from "../src/shared/ui/ui-mode.ts";
 import {
   createAsciiRenderer,
@@ -188,6 +189,12 @@ export interface Scenario extends Disposable {
    *  `runtimeState` rather than `state` because it gates which subsystems
    *  receive ticks. Tests use this to wait for lobby→game transitions. */
   readonly mode: () => Mode;
+  /** The runtime's persisted-settings object (what the options screen
+   *  edits and `saveSettings` writes to storage). Distinct from the
+   *  per-match `state.gameMode` etc. — tests use this to assert that
+   *  per-session overrides (URL ?mode=) don't leak into the stored
+   *  defaults. Read-only: never mutate. */
+  readonly settings: () => Readonly<GameSettings>;
   /** Whether the lobby UI is currently active. False after the game has
    *  started or after returning to the menu. Convenience over `mode` for
    *  the common "have we left the lobby?" check. */
@@ -465,6 +472,7 @@ export function wrapHeadless(
     sentMessages,
     deliverMessage: headless.deliverNetworkMessage,
     mode: () => headless.runtime.runtimeState.mode,
+    settings: () => headless.runtime.runtimeState.settings,
     lobbyActive: () => headless.runtime.runtimeState.lobby.active,
     banner: () => headless.runtime.runtimeState.banner,
     overlay: () => headless.runtime.runtimeState.overlay,

@@ -124,10 +124,14 @@ export async function bootstrapNewGameFromSettings(
     getUrlModeOverride?.() ?? "",
   );
 
-  // Apply side effects: clear one-shot seed, persist URL mode override
+  // Clear the one-shot seed. The URL mode override deliberately does NOT
+  // write into `settings.gameMode`: settings hold the player's persisted
+  // default (saveSettings strips the seed but keeps gameMode), so a
+  // shared ?mode= link must stay a per-session override — every boot
+  // re-resolves it from the URL — not silently flip the stored default
+  // the next time the options screen saves.
   runtimeState.settings.seed = "";
   runtimeState.settings.seedMode = SEED_RANDOM;
-  runtimeState.settings.gameMode = config.gameMode;
 
   const generation = runtimeState.bootGeneration;
   await bootstrapGame({

@@ -9,10 +9,17 @@ import {
   waitUntilRound,
 } from "./scenario.ts";
 import { GAME_EVENT } from "../src/shared/core/game-event-bus.ts";
-import { LOBBY_TIMER } from "../src/shared/core/game-constants.ts";
+import {
+  GAME_MODE_CLASSIC,
+  GAME_MODE_MODERN,
+  LOBBY_TIMER,
+} from "../src/shared/core/game-constants.ts";
 import { Phase } from "../src/shared/core/game-phase.ts";
 import { isPlayerAlive } from "../src/shared/core/player-types.ts";
-import { PLAYER_KEY_BINDINGS } from "../src/shared/ui/player-config.ts";
+import {
+  PLAYER_KEY_BINDINGS,
+  SETTINGS_KEY,
+} from "../src/shared/ui/player-config.ts";
 import { Mode } from "../src/shared/ui/ui-mode.ts";
 import { packTile, unpackTile } from "../src/shared/core/spatial.ts";
 import {
@@ -715,5 +722,45 @@ Deno.test(
       "the bootstrap tail must not un-stop a torn-down session " +
         "(state installed + selection entered behind the landing page)",
     );
+  },
+);
+
+// ── per-session mode override must not leak into stored settings ─────
+// The scenario harness drives `mode` through the same getUrlModeOverride
+// hook production main.ts resolves a ?mode= link with. The override is
+// per-session: the bootstrap used to write the resolved mode back into
+// `runtimeState.settings.gameMode`, and since saveSettings strips the
+// one-shot seed but persists gameMode, any later options-screen save
+// silently flipped the player's stored default to the link's mode.
+Deno.test(
+  "scenario: URL mode override boots that mode without flipping the stored default",
+  async () => {
+    // Deno's localStorage persists across runs — isolate from whatever
+    // settings earlier runs stored (pre-fix runs had actually leaked
+    // gameMode:"classic" into it, proving the bug end-to-end).
+    const storedBefore = localStorage.getItem(SETTINGS_KEY);
+    localStorage.removeItem(SETTINGS_KEY);
+    try {
+      using sc = await createScenario({
+        seed: 42,
+        mode: "classic",
+        rounds: 3,
+      });
+      assertEquals(
+        sc.state.gameMode,
+        GAME_MODE_CLASSIC,
+        "the override must drive the match's mode",
+      );
+      assertEquals(
+        sc.settings().gameMode,
+        GAME_MODE_MODERN,
+        "the stored-settings default must survive a ?mode= boot — " +
+          "saveSettings persists gameMode, so writing the override here " +
+          "rewrites the player's default behind their back",
+      );
+    } finally {
+      if (storedBefore === null) localStorage.removeItem(SETTINGS_KEY);
+      else localStorage.setItem(SETTINGS_KEY, storedBefore);
+    }
   },
 );

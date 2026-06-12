@@ -417,7 +417,10 @@ export async function createHeadlessRuntime(
   // when a real renderer is wired in via `opts.renderer`.
   runtime.runtimeState.settings.seed = String(seed);
   runtime.runtimeState.settings.seedMode = SEED_CUSTOM;
-  runtime.runtimeState.settings.gameMode = gameMode;
+  // `settings.gameMode` is deliberately NOT written: the scenario's mode
+  // rides the same `getUrlModeOverride` hook production uses, and the
+  // stored-settings default must stay untouched by it (the ?mode= leak
+  // test pins this).
   runtime.runtimeState.lobby.seed = seed;
   runtime.runtimeState.lobby.map = generateMap(new Rng(seed));
 
