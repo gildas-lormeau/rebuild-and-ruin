@@ -19,6 +19,7 @@ import {
 import { Phase } from "../../shared/core/game-phase.ts";
 import type { TowerIdx } from "../../shared/core/geometry-types.ts";
 import type { ValidPlayerId } from "../../shared/core/player-slot.ts";
+import { isPlayerAlive } from "../../shared/core/player-types.ts";
 import {
   type InputReceiver,
   type PlayerController,
@@ -69,6 +70,15 @@ export interface RuntimeSelection {
    *  FULL_STATE snapshot landing mid-CASTLE_SELECT (host migration on a
    *  peer already inside the cycle). See the impl for the failure mode. */
   reconcileAfterAdoption: () => void;
+  /** Rebuild the castle-build animation queue from the current GameState
+   *  after a FULL_STATE boundary (host migration / checkpoint apply).
+   *  The queue is runtime-local and its only producer is the confirm
+   *  apply, so an adoption landing mid-animation would otherwise orphan
+   *  every in-flight ring: walls stop placing, territory never forms,
+   *  and the cycle hangs. Runs on EVERY peer — the promoted host
+   *  included, replacing its live animations — so the restarted builds
+   *  place walls at the same sim ticks everywhere. */
+  requeueCastleBuildsFromState: () => void;
 }
 
 interface SelectionSystemDeps {
@@ -157,7 +167,15 @@ export function createSelectionSystem(
     for (const [pid, selectionState] of runtimeState.selection.states) {
       if (selectionState.confirmed) continue;
       const player = state.players[pid];
-      if (player && filterAliveEnclosedTowers(player, state).length > 0) {
+      // "Already picked" = the castle-wall plan is committed. The plan
+      // seeds `castleWallTiles` inside the confirm apply and the set is
+      // cleared by the life-loss board reset, so non-empty ⟺ confirmed
+      // THIS cycle — including a confirm whose ring is still animating,
+      // which the previous alive-enclosed-tower predicate missed (a
+      // mid-build ring encloses nothing yet; the unhealed flag let the
+      // adopter's AI brain re-confirm the seat and redraw the plan from
+      // state.rng on this peer only).
+      if (player && player.castleWallTiles.size > 0) {
         selectionState.confirmed = true;
       }
     }
@@ -559,6 +577,31 @@ export function createSelectionSystem(
     return anyPlaced;
   }
 
+  /** See `RuntimeSelection.requeueCastleBuildsFromState`. Derivation is
+   *  pure state (no rng): a player is mid-build when their committed plan
+   *  (`castleWallTiles`, insertion-ordered = animation order) has tiles
+   *  not yet in `player.walls`. The alive-enclosed-tower guard excludes
+   *  non-cycle players whose stale plan set merely lost walls to battle
+   *  damage — at CASTLE_SELECT every alive non-cycle player is enclosed
+   *  (losing all enclosure costs a life, which resets the plan set). */
+  function requeueCastleBuildsFromState(): void {
+    runtimeState.selection.castleBuilds = [];
+    const { state } = runtimeState;
+    if (state.phase !== Phase.CASTLE_SELECT) return;
+    for (const player of state.players) {
+      if (!isPlayerAlive(player)) continue;
+      if (player.castleWallTiles.size === 0) continue;
+      if (filterAliveEnclosedTowers(player, state).length > 0) continue;
+      const remaining = [...player.castleWallTiles].filter(
+        (tile) => !player.walls.has(tile),
+      );
+      if (remaining.length === 0) continue;
+      runtimeState.selection.castleBuilds.push(
+        createCastleBuildState([{ playerId: player.id, tiles: remaining }]),
+      );
+    }
+  }
+
   /** Full reset for game restart / rematch. Clears all selection and
    *  castle-build state. Distinct from resetSelectionState() which only
    *  clears per-round selection tracking for the next selection phase. */
@@ -584,5 +627,6 @@ export function createSelectionSystem(
     finish: finishSelection,
     reset,
     reconcileAfterAdoption,
+    requeueCastleBuildsFromState,
   };
 }

@@ -191,6 +191,9 @@ export function applyFullStateToRunningRuntime(
     runtime.runtimeState,
     resolveModeAfterFullState(state.phase, balloonAnimPending),
   );
+  // Wiped here, re-derived from adopted state below (CASTLE_SELECT only)
+  // — see selection.requeueCastleBuildsFromState. Outside CASTLE_SELECT
+  // no build animation can be live, so the wipe alone is correct.
   runtime.runtimeState.selection.castleBuilds = [];
   runtime.lifeLost.set(null);
   // A score overlay mid-display when the snapshot lands is superseded the
@@ -240,7 +243,14 @@ export function applyFullStateToRunningRuntime(
           .filter(
             (player) =>
               isPlayerAlive(player) &&
-              filterAliveEnclosedTowers(player, state).length === 0,
+              filterAliveEnclosedTowers(player, state).length === 0 &&
+              // A committed plan (castleWallTiles seeds at confirm, the
+              // life-loss reset clears it) = this seat already picked;
+              // its ring is mid-animation. Arming a selection state for
+              // it would let the AI brain re-confirm and redraw the plan
+              // from state.rng on this peer only — the requeued build +
+              // the territory completeness gate own its completion.
+              player.castleWallTiles.size === 0,
           )
           .map((player) => player.id),
       );
@@ -252,6 +262,12 @@ export function applyFullStateToRunningRuntime(
       // `allConfirmed` forever (see selection.reconcileAfterAdoption).
       runtime.selection.reconcileAfterAdoption();
     }
+    // After the states are settled: re-derive in-flight castle-build
+    // animations from the adopted state (the wipe above dropped the
+    // runtime-local queue; the sole producer is the confirm apply, so a
+    // ring mid-animation at the snapshot would otherwise never finish —
+    // no territory, no castle-done, a permanent CASTLE_SELECT hang).
+    runtime.selection.requeueCastleBuildsFromState();
   }
   snapPitchToPhase(runtime, state.phase);
 }

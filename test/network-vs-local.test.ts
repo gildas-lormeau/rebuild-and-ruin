@@ -1241,6 +1241,114 @@ Deno.test(
   },
 );
 
+// ── Adoption mid castle-build animation ──────────────────────────────
+// The FULL_STATE apply wipes `selection.castleBuilds` (runtime-local
+// animation queue), and the only producer is the confirm apply — so an
+// adoption landing while a confirmed player's ring is still animating
+// orphans that ring on the adopter: the walls stop placing, the player
+// never gains territory, and the adopter's selection brain re-confirms
+// the seat (its reconcile predicate missed mid-build confirms), redrawing
+// the castle plan from state.rng on one peer only. The apply must
+// re-derive the in-flight builds from adopted state (castleWallTiles
+// minus walls) on every peer — the promoted host included, so the
+// re-started animations place walls at the same sim ticks everywhere.
+Deno.test(
+  "host migration mid castle-build animation re-queues the ring on every survivor",
+  async () => {
+    const trio = await createMigrationTrio({
+      seed: 42,
+      mode: "classic",
+      rounds: 4,
+    });
+    const { host, promotable, observer, pumpHost, pumpPromoted } = trio;
+
+    // Lockstep all three until a player's ring is mid-animation on the
+    // promotable: plan committed (castleWallTiles seeded at confirm) but
+    // not yet fully placed.
+    const midBuild = () =>
+      promotable.state.players.some(
+        (player) =>
+          player.castleWallTiles.size > 0 &&
+          [...player.castleWallTiles].some((tile) => !player.walls.has(tile)),
+      );
+    let steps = 0;
+    while (
+      !(
+        promotable.state.phase === Phase.CASTLE_SELECT &&
+        promotable.mode() === Mode.SELECTION &&
+        midBuild()
+      )
+    ) {
+      host.tick(1);
+      await pumpHost();
+      promotable.tick(1);
+      observer.tick(1);
+      if (host.mode() === Mode.STOPPED) {
+        throw new Error("game ended before the castle-build window");
+      }
+      if (++steps > 200_000) {
+        throw new Error("castle-build window never reached");
+      }
+    }
+
+    // Capture each survivor's sim tick at the cannon-phase entry — the
+    // cycle exits only when every ring completes, so a dropped or
+    // restarted-on-one-peer ring shows up here.
+    let promotedCannonTick: number | null = null;
+    let observerCannonTick: number | null = null;
+    promotable.bus.on(GAME_EVENT.PHASE_START, (ev) => {
+      if (ev.phase === Phase.CANNON_PLACE && promotedCannonTick === null) {
+        promotedCannonTick = promotable.state.simTick;
+      }
+    });
+    observer.bus.on(GAME_EVENT.PHASE_START, (ev) => {
+      if (ev.phase === Phase.CANNON_PLACE && observerCannonTick === null) {
+        observerCannonTick = observer.state.simTick;
+      }
+    });
+
+    trio.promotableSession.myPlayerId = 0 as ValidPlayerId;
+    const hostLeft = {
+      type: MESSAGE.HOST_LEFT,
+      newHostPlayerId: 0 as ValidPlayerId,
+      disconnectedPlayerId: null,
+    } as ServerMessage;
+    await promotable.deliverMessage(hostLeft);
+    await observer.deliverMessage(hostLeft);
+    await pumpPromoted();
+
+    let ticks = 0;
+    while (promotedCannonTick === null || observerCannonTick === null) {
+      promotable.tick(1);
+      await pumpPromoted();
+      observer.tick(1);
+      if (++ticks > 30_000) {
+        throw new Error(
+          `cannon phase never reached after mid-build migration ` +
+            `(promoted=${Phase[promotable.state.phase]} ` +
+            `observer=${Phase[observer.state.phase]})`,
+        );
+      }
+    }
+    assertEquals(
+      observerCannonTick,
+      promotedCannonTick,
+      "both survivors must finish the adopted castle builds and enter " +
+        "CANNON_PLACE at the same sim tick",
+    );
+
+    // The orphaned-ring re-confirm also redrew the castle plan from
+    // state.rng on the adopter only — run the survivors out and assert
+    // full parity.
+    await runNetworkedToEnd(promotable, observer, pumpPromoted);
+    assertStateConverges(
+      snapshotState(observer),
+      snapshotState(promotable),
+      "observer vs promoted host after mid-castle-build migration",
+    );
+  },
+);
+
 // ── Adoption in the cannon-banner window: self-human prime ───────────
 // A FULL_STATE landing while the adopting peer is mid enter-cannon-place
 // banner sweep tears the banner down (hideBanner), dropping the armed

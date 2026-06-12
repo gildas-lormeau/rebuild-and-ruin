@@ -102,6 +102,16 @@ export function promoteToHost(): void {
     _runtime.runtimeState.controllers,
     _client.ctx.session.remotePlayerSlots,
   );
+  // Mid-CASTLE_SELECT promotion: adopting watchers re-derive in-flight
+  // castle-build animations from the snapshot (their local queues are
+  // wiped on apply), restarting each ring's placement cadence at the
+  // snapshot tick. The promoted peer must replace its own live
+  // animations with the same derivation, or its walls keep landing on
+  // the old cadence — a few ticks ahead of every adopter — and the
+  // cycle's exit (castle-done) dispatches at different sim ticks.
+  if (_runtime.runtimeState.state.phase === Phase.CASTLE_SELECT) {
+    _runtime.selection.requeueCastleBuildsFromState();
+  }
   flushPendingSeatTakeovers();
   _client.devLog("Promotion complete, now running as host");
 }

@@ -465,7 +465,11 @@ function validateFullState(
 
   if (msg.players.length !== playerCount)
     return `players length ${msg.players.length} != ${playerCount}`;
-  if (msg.cannonLimits.length !== playerCount)
+  // Length 0 is the faithful pre-first-cannon-phase value (game-init
+  // seeds `cannonLimits: []`; the cannon prep populates it per round) —
+  // a snapshot serialized during round 1's CASTLE_SELECT must not be
+  // rejected, or migration in that window silently never applies.
+  if (msg.cannonLimits.length !== playerCount && msg.cannonLimits.length !== 0)
     return `cannonLimits length ${msg.cannonLimits.length} != ${playerCount}`;
   if (msg.cannonPlaceDone.some((id) => id < 0 || id >= playerCount))
     return `cannonPlaceDone slot id out of bounds`;
