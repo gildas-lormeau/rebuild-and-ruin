@@ -259,6 +259,11 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   // Adding a new Mode is a compile error here (assertNever) AND at the
   // call site (TickableMode-typed parameter in tickMainLoop).
   function tickMode(mode: Exclude<Mode, Mode.STOPPED>, dt: number): void {
+    // Mode-independent: announcement banners are set by wire handlers at
+    // arbitrary moments (HOST_LEFT during SELECTION, PLAYER_LEFT
+    // mid-dialog) — decaying only inside tickGame froze them on screen
+    // until the next gameplay phase.
+    phaseTicks.tickOnlineAnnouncement(dt);
     switch (mode) {
       case Mode.LOBBY:
         lobby.tickLobby(dt);
@@ -388,7 +393,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     pickElevatedHit,
   });
 
-  const { tickCamera, updateViewport } = camera;
+  const { tickCamera } = camera;
 
   // -------------------------------------------------------------------------
   // Score delta sub-system (delegated to subsystems/score-deltas.ts)
@@ -499,7 +504,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     upgradePickInteractiveSlots: () => upgradePick.interactiveSlots(),
     syncCrosshairs: (expired, dt) => phaseTicks.syncCrosshairs(expired, dt),
     getLifeLostPanelPos: (pid) => lifeLost.panelPos(pid),
-    updateViewport,
+    getViewport: camera.getViewport,
     pointerPlayer,
     getTouch: () => touchHandles,
     worldToScreen: camera.worldToScreen,

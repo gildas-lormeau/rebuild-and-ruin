@@ -78,12 +78,11 @@ import {
 export interface RuntimeCamera {
   // Per-frame lifecycle
   tickCamera: () => void;
-  updateViewport: () => Viewport | undefined;
 
   // Coordinate conversion
-  /** Read the current viewport. Used by `dev/e2e-bridge.ts` to observe
-   *  zoom state from tests; not consumed in the runtime hot path
-   *  (which uses `updateViewport`'s return value directly). */
+  /** Read the displayed viewport (undefined at full map). Advanced once
+   *  per sim substep by `tickCamera`'s viewport lerp; the render path
+   *  and `dev/e2e-bridge.ts` are pure readers. */
   getViewport: () => Viewport | undefined;
   /** Current camera pitch in radians (animated on phase transitions). The
    *  tilt is always-on — the deterministic animation runs on every peer,
@@ -259,7 +258,8 @@ export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
   // these modes still update `target` silently — the queued zone / pinch
   // takes effect the moment the lock clears.
   //
-  // updateViewport() lerps currentVp toward the resolved target each tick.
+  // tickViewportLerp() lerps currentVp toward the resolved target each
+  // sim substep (from tickCamera).
 
   // Platform flag — true on touch devices (set by `enableMobileZoom`,
   // called from input setup). Gates every auto-zoom code path via
@@ -538,6 +538,7 @@ export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
     followCrosshairInBattle(state, frameCtx);
     edgePan(state, frameCtx);
     tickTapNudge();
+    tickViewportLerp();
     tickPitch();
   }
 
@@ -963,14 +964,20 @@ export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
     return fullMapVp;
   }
 
-  function updateViewport(): Viewport | undefined {
+  /** Advance the displayed viewport toward the resolved target. Runs in
+   *  `tickCamera` — once per fixed sim substep — so the lerp is paced by
+   *  sim time. (It used to advance inside the render path's viewport
+   *  read, which scaled the zoom speed with the display's render rate:
+   *  2× on a 120Hz screen, slower under dropped frames.) Cosmetic only:
+   *  the displayed viewport never feeds the sim.
+   *
+   *  Edge-pan (per-frame, in tickCamera) and tap-nudge (animation, in
+   *  tickTapNudge) mutate the pinch viewport directly, so this just
+   *  lerps currentVp toward the resolved target — no extra
+   *  focus-tracking pass. */
+  function tickViewportLerp(): void {
     const frameCtx = deps.getCtx();
     const resolved = resolveViewport(frameCtx.mode);
-
-    // Edge-pan (per-frame, in tickCamera) and tap-nudge (animation, in
-    // tickTapNudge) mutate the pinch viewport directly, so updateViewport
-    // just lerps currentVp toward the resolved target — no extra
-    // focus-tracking pass.
 
     const time = Math.min(1, ZOOM_LERP_SPEED * deps.getFrameDt());
     currentVp.x += (resolved.x - currentVp.x) * time;
@@ -1000,7 +1007,6 @@ export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
     } else {
       lastVp = currentVp;
     }
-    return lastVp;
   }
 
   function getViewport(): Viewport | undefined {
@@ -1270,13 +1276,14 @@ export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
     currentVp.h = fullMapVp.h;
     // `lastVp` aliases `currentVp` while zoomed; without this,
     // `getViewport()` reports a fullmap-equal viewport (instead of the
-    // "at full map" undefined) until the first updateViewport tick.
+    // "at full map" undefined) until the first tickViewportLerp.
     lastVp = undefined;
   }
 
   /** Request an immediate untilt. Idempotent. Standalone path for the
-   *  rare "flatten pitch but keep zoom" case; the transition path goes
-   *  through `unzoomForOverlays` (flattens pitch + clears viewport). */
+   *  rare "flatten pitch but keep zoom" case — battle-done's pre-dispatch
+   *  untilt gate (phase-ticks) is the sole flatten owner;
+   *  `unzoomForOverlays` clears the viewport but never touches pitch. */
   function beginUntilt(): void {
     setPitchAnimTarget(pitch, 0);
   }
@@ -1369,7 +1376,6 @@ export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
 
   return {
     tickCamera,
-    updateViewport,
     getViewport,
     getPitch: () => pitch.current,
     getPitchMax: () => TILT_BATTLE_PITCH,

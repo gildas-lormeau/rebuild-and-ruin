@@ -263,6 +263,11 @@ export interface PhaseTicksSystem {
   tickBattlePhase: (dt: number) => boolean;
   tickBuildPhase: (dt: number) => boolean;
   tickGame: (dt: number) => void;
+  /** Decay the migration/disconnect announcement banner. Mode-independent
+   *  — called from the composition root's `tickMode` for every tickable
+   *  mode, not just Mode.GAME (announcements are set by wire handlers in
+   *  any mode). */
+  tickOnlineAnnouncement: (dt: number) => void;
   syncCrosshairs: (weaponsActive: boolean, dt: number) => void;
 }
 
@@ -281,6 +286,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
 
     for (const ctrl of controllers) {
       if (isRemotePlayer(ctrl.playerId, remotePlayerSlots)) continue;
+      if (isPlayerEliminated(state.players[ctrl.playerId])) continue;
       const readyCannon = nextReadyCannon(state, ctrl.playerId);
       const anyReloading =
         !readyCannon &&
@@ -846,6 +852,14 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
         // are active. Explicit no-ops for exhaustiveness.
         break;
     }
+  }
+
+  /** Decay the migration/disconnect announcement banner. Called from the
+   *  composition root's `tickMode` for EVERY tickable mode — the wire
+   *  handlers set announcements at arbitrary moments (HOST_LEFT during
+   *  SELECTION, PLAYER_LEFT mid-dialog), and a Mode.GAME-only decay froze
+   *  the banner on screen until the next gameplay phase. */
+  function tickOnlineAnnouncement(dt: number): void {
     online?.tickMigrationAnnouncement?.(dt);
   }
 
@@ -867,6 +881,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     tickBattlePhase,
     tickBuildPhase,
     tickGame,
+    tickOnlineAnnouncement,
     syncCrosshairs,
   };
 }

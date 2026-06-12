@@ -52,14 +52,22 @@ const HEADING_CSS = "font-weight:bold;color:#8be9fd";
 /** Player label chars for plain-text mode (R=Red, B=Blue, G=Gold). */
 const PLAYER_LABEL: Record<number, string> = { 0: "R", 1: "B", 2: "G" };
 
-/** Attach `window.__dev` once (dev-only, guarded by IS_DEV at call site).
+/** RuntimeState the current `window.__dev` closes over. Re-binding is
+ *  keyed on identity: the caller invokes this per frame (onAfterFrame),
+ *  so the guard must be cheap, but a NEW runtime (rematch / fresh lobby
+ *  boot) must replace the console — first-owner-forever left `__dev`
+ *  reading the previous game's dead state. */
+let boundState: RuntimeState | undefined;
+
+/** Attach `window.__dev` (dev-only, guarded by IS_DEV at call site).
  *  The console object closes over runtimeState but reads it on-demand —
  *  no stale snapshots are retained between invocations. */
 export function exposeDevConsole(runtimeState: RuntimeState): void {
   if (typeof window === "undefined") return;
 
   const win = globalThis as unknown as Record<string, unknown>;
-  if (win.__dev) return;
+  if (boundState === runtimeState) return;
+  boundState = runtimeState;
 
   function requireState(): GameState | undefined {
     if (!isStateInstalled(runtimeState)) {

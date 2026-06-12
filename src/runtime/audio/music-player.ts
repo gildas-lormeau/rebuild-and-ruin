@@ -27,7 +27,6 @@ import {
   loadPcmCache,
   PRERENDER_BG_TRACKS,
   PRERENDER_FANFARE_SONGS,
-  type XmiFileKey,
 } from "./music-assets.ts";
 
 /** Narrow music handle exposed on `GameRuntime`. Subset of `MusicSubsystem`
@@ -81,7 +80,6 @@ type BgTrackId = "title" | "cannon" | "build" | "score" | "lifeLost" | "jaws";
 interface BgTrack {
   readonly id: string;
   readonly cacheId: string;
-  readonly file: XmiFileKey;
   readonly loop: boolean;
   readonly volume: number;
 }
@@ -104,21 +102,18 @@ const FANFARE_VOLUME = 1.25;
 const BG_TRACK_TITLE: BgTrack = {
   id: "RXMI_TITLE.xmi",
   cacheId: "RXMI_TITLE.xmi",
-  file: "RXMI_TITLE.xmi",
   loop: true,
   volume: TRACK_VOLUMES.title,
 };
 const BG_TRACK_CANNON: BgTrack = {
   id: "RXMI_CANNON.xmi",
   cacheId: "RXMI_CANNON.xmi",
-  file: "RXMI_CANNON.xmi",
   loop: true,
   volume: TRACK_VOLUMES.cannon,
 };
 const BG_TRACK_BUILD: BgTrack = {
   id: "RXMI_TETRIS.xmi",
   cacheId: "RXMI_TETRIS.xmi",
-  file: "RXMI_TETRIS.xmi",
   loop: true,
   volume: TRACK_VOLUMES.build,
 };
@@ -128,7 +123,6 @@ const BG_TRACK_BUILD: BgTrack = {
 const BG_TRACK_SCORE: BgTrack = {
   id: "RXMI_SCORE.xmi",
   cacheId: "RXMI_SCORE.xmi",
-  file: "RXMI_SCORE.xmi",
   loop: true,
   volume: TRACK_VOLUMES.score,
 };
@@ -140,7 +134,6 @@ const BG_TRACK_SCORE: BgTrack = {
 const BG_TRACK_LIFE_LOST: BgTrack = {
   id: "RXMI_TETRIS.xmi#life-lost",
   cacheId: "RXMI_TETRIS.xmi#life-lost",
-  file: "RXMI_TETRIS.xmi",
   loop: false,
   volume: TRACK_VOLUMES.lifeLost,
 };
@@ -153,7 +146,6 @@ const BG_TRACK_LIFE_LOST: BgTrack = {
 const BG_TRACK_JAWS: BgTrack = {
   id: "RXMI_BATTLE.xmi",
   cacheId: "RXMI_BATTLE.xmi",
-  file: "RXMI_BATTLE.xmi",
   loop: false,
   volume: TRACK_VOLUMES.jaws,
 };

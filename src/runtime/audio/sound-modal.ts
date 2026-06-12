@@ -100,7 +100,11 @@ export function createSoundModal(): SoundModal {
       pendingCloseReload = true;
       return;
     }
-    void loadStoredAssets().then((assets) => onClose(assets));
+    // A failed IDB read must still hand the close back (no assets) —
+    // unhandled, the rejection escapes the close gesture entirely.
+    void loadStoredAssets()
+      .then((assets) => onClose(assets))
+      .catch(() => onClose(undefined));
   }
 
   // Fire the close-reload owed from a close() that landed mid-upload, now
@@ -110,7 +114,9 @@ export function createSoundModal(): SoundModal {
     if (!pendingCloseReload) return;
     pendingCloseReload = false;
     if (!modal.hidden) return;
-    void loadStoredAssets().then((assets) => onClose(assets));
+    void loadStoredAssets()
+      .then((assets) => onClose(assets))
+      .catch(() => onClose(undefined));
   }
 
   async function refreshStatus(): Promise<void> {

@@ -102,7 +102,9 @@ interface RenderSystemDeps {
     px: number;
     py: number;
   };
-  readonly updateViewport: () => Viewport | undefined;
+  /** Pure read of the displayed viewport — the lerp advances in
+   *  `tickCamera` (per sim substep), never in the render path. */
+  readonly getViewport: () => Viewport | undefined;
   readonly pointerPlayer: () => (PlayerController & InputReceiver) | null;
   readonly getTouch: () => {
     dpad: Dpad | null;
@@ -295,7 +297,7 @@ export function createRenderSystem(deps: RenderSystemDeps): RenderSystem {
     deps.drawFrame(
       runtimeState.state.map,
       runtimeState.overlay,
-      deps.updateViewport(),
+      deps.getViewport(),
       deps.timing.now(),
       runtimeState.banner !== null,
     );
