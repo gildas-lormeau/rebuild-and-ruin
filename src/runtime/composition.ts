@@ -920,6 +920,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     phaseTicks: {
       dispatchAdvanceToCannon: phaseTicks.dispatchAdvanceToCannon,
       resolveUpgradePickNow: phaseTicks.resolveUpgradePickNow,
+      skipBattleIntro: phaseTicks.skipBattleIntro,
     },
     music: {
       activate: audio.music.activate,

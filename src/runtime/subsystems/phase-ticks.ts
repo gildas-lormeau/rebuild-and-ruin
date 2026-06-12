@@ -51,6 +51,7 @@ import type { UpgradePickDialogState } from "../../shared/ui/interaction-types.t
 import { Mode } from "../../shared/ui/ui-mode.ts";
 import type { BannerShow } from "../banner-state.ts";
 import {
+  clearBalloonFlights,
   recordBattleVisualEvents,
   tickBalloonFlights,
 } from "../battle-anim.ts";
@@ -217,6 +218,14 @@ export interface RuntimePhaseTicks {
    *  applied, `enter-wall-build` dispatched). Host-promotion repair —
    *  see `forceResolveUpgradePickPhase` in phase-machine.ts. */
   resolveUpgradePickNow: () => void;
+  /** Skip the battle intro (balloon flyover) and run `beginBattle`.
+   *  Host-promotion repair — promotion landing in the battle-entry
+   *  display windows (banner sweep, post-banner tilt wait, balloon
+   *  flyover) tears down the step that owned the intro, so controller
+   *  battle-state init, the ready countdown, the battle accum reset,
+   *  and the Mode.GAME flip never run. See promote.ts
+   *  `skipPendingAnimations`. */
+  skipBattleIntro: () => void;
 }
 
 export interface PhaseTicksSystem {
@@ -226,6 +235,8 @@ export interface PhaseTicksSystem {
   dispatchAdvanceToCannon: () => void;
   /** Host-promotion repair — see `RuntimePhaseTicks.resolveUpgradePickNow`. */
   resolveUpgradePickNow: () => void;
+  /** Host-promotion repair — see `RuntimePhaseTicks.skipBattleIntro`. */
+  skipBattleIntro: () => void;
   /** Dispatch the `castle-done` prep transition. Used by both the round-1
    *  initial-selection path and the reselect cycle. The mutate runs
    *  `finalizeRoundCleanup` (gated on `round > 1` because round 1 has no
@@ -841,6 +852,10 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
   return {
     dispatchAdvanceToCannon,
     resolveUpgradePickNow: () => forceResolveUpgradePickPhase(buildPhaseCtx()),
+    skipBattleIntro: () => {
+      clearBalloonFlights(runtimeState.battleAnim);
+      beginBattle();
+    },
     dispatchCastleDone,
     dispatchGameOver,
     startBattle,

@@ -39,6 +39,7 @@ import {
   runNetworkedToEnd,
 } from "./network-setup.ts";
 import { DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS } from "../src/shared/core/action-schedule.ts";
+import { BATTLE_COUNTDOWN } from "../src/shared/core/game-constants.ts";
 import { GAME_EVENT } from "../src/shared/core/game-event-bus.ts";
 import { Mode } from "../src/shared/ui/ui-mode.ts";
 import { Phase } from "../src/shared/core/game-phase.ts";
@@ -976,6 +977,99 @@ Deno.test(
       "flat",
       "adopting a mid-build snapshot must snap pitch flat — a tilted peer " +
         "spends untilt ease ticks at the next gate that no other peer spends",
+    );
+  },
+);
+
+// ── Host promotion during the battle intro must begin the battle ─────
+// The battle-entry display chain owns the intro: the enter-battle
+// banner's sweep-end runs proceedToBattleFromCtx (tilt + balloon flip),
+// and the tilt/balloon steps end in beginBattle (controller
+// battle-state init, ready countdown + battleReady cue, battle accum
+// reset, Mode.GAME). Promotion landing in any of those windows tears
+// the owning step down (hideBanner / forced mode), so without the
+// repair the promoted peer runs the battle with no ready countdown, a
+// flat camera, and lingering balloon flights — and broadcasts that
+// half-begun state to every watcher.
+
+async function promoteWatcherDuringBattleIntro(
+  windowReached: (watcher: Scenario) => boolean,
+  label: string,
+  seed: number,
+): Promise<void> {
+  const pair = await createNetworkedPair({
+    seed,
+    mode: "classic",
+    rounds: 6,
+  });
+  const { watcher } = pair;
+  await runPairUntil(pair, () => windowReached(watcher), label);
+  const promoteRound = watcher.state.round;
+
+  pair.watcherSession.myPlayerId = 0 as ValidPlayerId;
+  await watcher.deliverMessage({
+    type: MESSAGE.HOST_LEFT,
+    newHostPlayerId: 0 as ValidPlayerId,
+    disconnectedPlayerId: null,
+  } as ServerMessage);
+
+  assertEquals(
+    watcher.mode(),
+    Mode.GAME,
+    `${label}: promotion must land in Mode.GAME`,
+  );
+  assertEquals(
+    watcher.state.battleCountdown,
+    BATTLE_COUNTDOWN,
+    `${label}: the repair must run beginBattle — without it the battle ` +
+      "starts with no ready countdown (and no battleReady cue)",
+  );
+  assertEquals(
+    watcher.camera.getPitchState(),
+    "tilted",
+    `${label}: the battle must run at the battle pose on the promoted peer`,
+  );
+
+  // The promoted peer runs the match alone — the battle must conclude
+  // and the round close (round-end increments state.round).
+  let ticks = 0;
+  while (
+    watcher.state.round === promoteRound &&
+    watcher.mode() !== Mode.STOPPED
+  ) {
+    watcher.tick(1);
+    if (++ticks > 60_000) {
+      throw new Error(
+        `${label}: stalled after promotion ` +
+          `(phase=${Phase[watcher.state.phase]} mode=${watcher.mode()})`,
+      );
+    }
+  }
+}
+
+Deno.test(
+  "watcher promoted during the battle banner/tilt window begins the battle",
+  async () => {
+    await promoteWatcherDuringBattleIntro(
+      (watcher) =>
+        watcher.state.phase === Phase.BATTLE &&
+        watcher.mode() === Mode.TRANSITION,
+      "banner/tilt window",
+      42,
+    );
+  },
+);
+
+Deno.test(
+  "watcher promoted during the balloon flyover begins the battle",
+  async () => {
+    // Seed 104: a propaganda-balloon capture (the only producer of
+    // balloon flights) resolves at round 3's battle entry. If AI
+    // retuning drifts it, re-scan seeds for `mode() === BALLOON_ANIM`.
+    await promoteWatcherDuringBattleIntro(
+      (watcher) => watcher.mode() === Mode.BALLOON_ANIM,
+      "balloon window",
+      104,
     );
   },
 );

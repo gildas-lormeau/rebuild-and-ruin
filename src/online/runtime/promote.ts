@@ -84,10 +84,36 @@ export async function promoteToHost(): Promise<void> {
  * Delegates mode-specific cleanup to clearAnimationState, then sets Mode.GAME.
  */
 function skipPendingAnimations(): void {
-  const description = clearAnimationState(_runtime.runtimeState.mode);
+  // Captured before the teardown: the phase repairs below run only for
+  // windows where the teardown just dropped the step that owned the
+  // phase's progress.
+  const modeAtPromotion = _runtime.runtimeState.mode;
+  const description = clearAnimationState(modeAtPromotion);
   if (description) {
     setMode(_runtime.runtimeState, Mode.GAME);
     _client.devLog(description);
+  }
+  // Battle-intro repair: promotion landing in the battle-entry display
+  // windows — the enter-battle banner sweep (its sweep-end callback was
+  // just dropped by hideBanner), the post-banner tilt wait (the parked
+  // `awaitPitchSettled` continuation is superseded), or the balloon
+  // flyover (its mode was just forced off) — tears down the step that
+  // owned `proceedToBattleFromCtx` / `beginBattle`. Without the repair
+  // the battle runs with no ready countdown, no controller battle-state
+  // init for the kept slot, a flat camera, and lingering balloon
+  // flights. Runs BEFORE the FULL_STATE broadcast so watchers adopt the
+  // begun battle (full countdown, no flights → Mode.GAME on apply).
+  if (
+    _runtime.runtimeState.state.phase === Phase.BATTLE &&
+    (modeAtPromotion === Mode.TRANSITION ||
+      modeAtPromotion === Mode.BALLOON_ANIM)
+  ) {
+    // Pitch first: snaps to the battle pose AND drops the parked
+    // `awaitPitchSettled` continuation — left armed, its settle edge
+    // would re-run the intro a few ticks after this repair already did.
+    _runtime.camera.snapPitchSettled("tilted");
+    _runtime.phaseTicks.skipBattleIntro();
+    _client.devLog("Skipped battle intro → battle begun");
   }
   // Phase repair, after the mode teardown: UPGRADE_PICK is the only phase
   // with no self-driving timer — its exit is dispatched by the pick
