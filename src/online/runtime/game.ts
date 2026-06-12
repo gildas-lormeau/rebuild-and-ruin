@@ -3,12 +3,17 @@ import {
   MESSAGE,
   type ServerMessage,
 } from "../../protocol/protocol.ts";
+import { createVisibilityListener } from "../../runtime/browser/dom.ts";
 import {
   createBrowserRuntimeBindings,
   createGameRuntime,
 } from "../../runtime/composition.ts";
 import type { GameRuntime } from "../../runtime/handle.ts";
-import { lockstepDebtTicks, setMode } from "../../runtime/state.ts";
+import {
+  isSessionLive,
+  lockstepDebtTicks,
+  setMode,
+} from "../../runtime/state.ts";
 import {
   isHostInContext,
   tickPersistentAnnouncement,
@@ -24,9 +29,13 @@ import {
   DIFFICULTY_PARAMS,
   SELECT_TIMER,
 } from "../../shared/core/game-constants.ts";
-import type { ValidPlayerId } from "../../shared/core/player-slot.ts";
+import {
+  isActivePlayer,
+  type ValidPlayerId,
+} from "../../shared/core/player-slot.ts";
 import type { UpgradeId } from "../../shared/core/upgrade-defs.ts";
 import { MAX_PLAYERS, PLAYER_NAMES } from "../../shared/ui/player-config.ts";
+import { createAwayWatchdog } from "../online-away-watchdog.ts";
 import { canvas, worldCanvas } from "../online-dom.ts";
 import {
   broadcastLocalCrosshair as broadcastLocalCrosshairImpl,
@@ -39,7 +48,7 @@ import { defaultClient, RESET_SCOPE_NEW_GAME } from "../online-stores.ts";
 import { handleServerMessage, initDeps } from "./deps.ts";
 import { initPromote } from "./promote.ts";
 import { createOnlineRuntimeSessionHelpers } from "./session.ts";
-import { initWs } from "./ws.ts";
+import { disconnectAway, initWs } from "./ws.ts";
 
 // ── Client shorthand ───────────────────────────────────────────────
 // Destructured from defaultClient singleton for brevity. All five names
@@ -300,6 +309,24 @@ export function initOnlineRuntime(): void {
     runtime.shutdown();
     defaultClient.destroy();
     runtime.runtimeState.lobby.roomSeedDisplay = null;
+  });
+
+  // Step 5: away watchdog — a seated peer hidden past AWAY_DISCONNECT_MS
+  // abandons its seat cleanly (socket close → server PLAYER_LEFT →
+  // lockstep AI takeover for the room) instead of holding every opponent
+  // hostage on its idle castle and per-seat phase gates. Short hides are
+  // already safe via the lockstep-debt replay (runtime/main-loop.ts);
+  // watchers are exempt (nobody waits on them, and their replay is
+  // bounded by match length).
+  const awayWatchdog = createAwayWatchdog({
+    timing,
+    isSeatedLiveMatch: () =>
+      isSessionLive(runtime.runtimeState) &&
+      isActivePlayer(ctx.session.myPlayerId),
+    leave: disconnectAway,
+  });
+  createVisibilityListener({
+    onChange: (hidden) => awayWatchdog.onVisibilityChange(hidden),
   });
 }
 

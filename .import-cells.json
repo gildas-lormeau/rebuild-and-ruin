@@ -133,6 +133,7 @@
     "domain": "online",
     "role": "online wiring config",
     "files": [
+      "src/online/online-away-watchdog.ts",
       "src/online/online-config.ts",
       "src/online/online-router.ts"
     ]

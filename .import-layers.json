@@ -50,6 +50,7 @@
     "files": [
       "src/ai/ai-personality-roll.ts",
       "src/ai/ai-utils.ts",
+      "src/online/online-away-watchdog.ts",
       "src/online/online-config.ts",
       "src/online/online-router.ts",
       "src/render/3d/effects/terrain-pattern-textures.ts",

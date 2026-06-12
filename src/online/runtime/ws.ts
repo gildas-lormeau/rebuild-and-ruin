@@ -31,6 +31,7 @@ interface WsRuntimeDeps {
 const ANNOUNCEMENT_RECONNECTING = "Reconnecting\u2026";
 // \u2026 = ellipsis (…)
 const ANNOUNCEMENT_DISCONNECTED = "Disconnected from server";
+const ANNOUNCEMENT_AWAY = "Disconnected — away too long";
 
 // ── Late-bound state ───────────────────────────────────────────────
 let _rt: WsRuntimeDeps;
@@ -41,6 +42,21 @@ let _client: OnlineClient;
 export function initWs(deps: WsRuntimeDeps, client: OnlineClient): void {
   _rt = deps;
   _client = client;
+}
+
+/** Deliberate self-disconnect for a seated peer hidden past the away
+ *  threshold (see `online-away-watchdog.ts`). Mode flips to STOPPED
+ *  BEFORE the socket closes so the `onClose` handler below sees a
+ *  terminal mode and never starts the reconnect loop. The server reacts
+ *  to the close with its normal PLAYER_LEFT / HOST_LEFT flow — opponents
+ *  get the lockstep AI seat takeover (or host migration) they already
+ *  have for real leavers. */
+export function disconnectAway(): void {
+  _client.clearReconnect();
+  _rt.setAnnouncement(ANNOUNCEMENT_AWAY);
+  _rt.render();
+  _rt.setMode(Mode.STOPPED);
+  _client.ctx.session.socket?.close();
 }
 
 /** Open the WebSocket connection. Resolves on socket `open`, rejects on

@@ -10,6 +10,10 @@
 import { assert, assertAlmostEquals, assertEquals } from "@std/assert";
 import { MESSAGE, type FullStateMessage, type ServerMessage } from "../src/protocol/protocol.ts";
 import { createDedupChannel } from "../src/shared/core/phantom-types.ts";
+import {
+  AWAY_DISCONNECT_MS,
+  createAwayWatchdog,
+} from "../src/online/online-away-watchdog.ts";
 import { handleServerLifecycleMessage } from "../src/online/online-server-lifecycle.ts";
 import { syncAccumulatorsFromTimer } from "../src/online/online-host-promotion.ts";
 import type { MutableAccums } from "../src/runtime/timer-accums.ts";
@@ -251,5 +255,122 @@ function garbageAccums(): MutableAccums {
     build: 9,
     grunt: 0.4,
     modifierReveal: 1.5,
+  };
+}
+
+Deno.test("away watchdog: seated peer hidden past the threshold leaves once", () => {
+  const clock = mockWatchdogTiming();
+  let leaves = 0;
+  const watchdog = createAwayWatchdog({
+    timing: clock.timing,
+    isSeatedLiveMatch: () => leaves === 0,
+    leave: () => leaves++,
+  });
+  watchdog.onVisibilityChange(true);
+  clock.advance(AWAY_DISCONNECT_MS - 1);
+  assertEquals(leaves, 0, "must not leave before the threshold");
+  clock.advance(1);
+  assertEquals(leaves, 1, "must leave at the threshold while still hidden");
+  watchdog.onVisibilityChange(false);
+  assertEquals(leaves, 1, "unhide after the leave must not double-fire");
+});
+
+Deno.test("away watchdog: returning before the threshold cancels the leave", () => {
+  const clock = mockWatchdogTiming();
+  let leaves = 0;
+  const watchdog = createAwayWatchdog({
+    timing: clock.timing,
+    isSeatedLiveMatch: () => true,
+    leave: () => leaves++,
+  });
+  watchdog.onVisibilityChange(true);
+  clock.advance(AWAY_DISCONNECT_MS / 2);
+  watchdog.onVisibilityChange(false);
+  clock.advance(AWAY_DISCONNECT_MS * 2);
+  assertEquals(leaves, 0, "a cancelled away timer must never fire");
+});
+
+Deno.test("away watchdog: suspended timer is backstopped at unhide", () => {
+  const clock = mockWatchdogTiming();
+  let leaves = 0;
+  const watchdog = createAwayWatchdog({
+    timing: clock.timing,
+    isSeatedLiveMatch: () => true,
+    leave: () => leaves++,
+  });
+  watchdog.onVisibilityChange(true);
+  // JS suspended for the whole hide — the armed timeout never ran.
+  clock.advanceSuspended(AWAY_DISCONNECT_MS + 1_000);
+  assertEquals(leaves, 0, "nothing fires while suspended");
+  watchdog.onVisibilityChange(false);
+  assertEquals(leaves, 1, "unhide must backstop the suspended timer");
+});
+
+Deno.test("away watchdog: watchers are exempt", () => {
+  const clock = mockWatchdogTiming();
+  let leaves = 0;
+  const watchdog = createAwayWatchdog({
+    timing: clock.timing,
+    isSeatedLiveMatch: () => false,
+    leave: () => leaves++,
+  });
+  watchdog.onVisibilityChange(true);
+  clock.advance(AWAY_DISCONNECT_MS * 2);
+  watchdog.onVisibilityChange(false);
+  assertEquals(leaves, 0, "a watcher never abandons anything");
+});
+
+Deno.test("away watchdog: match starting while hidden is still covered", () => {
+  const clock = mockWatchdogTiming();
+  let leaves = 0;
+  let seated = false;
+  const watchdog = createAwayWatchdog({
+    timing: clock.timing,
+    isSeatedLiveMatch: () => seated,
+    leave: () => leaves++,
+  });
+  // Hidden in the waiting room; the host starts the match over the socket.
+  watchdog.onVisibilityChange(true);
+  clock.advance(1_000);
+  seated = true;
+  clock.advance(AWAY_DISCONNECT_MS);
+  assertEquals(
+    leaves,
+    1,
+    "seatedness is decided at fire time, not capture-at-hide",
+  );
+});
+
+/** Manual clock + timeout registry. `advance` models a hidden tab whose
+ *  timers still run (throttled but delivered); `advanceSuspended` models
+ *  suspended JS (mobile background) where nothing fires until return. */
+function mockWatchdogTiming() {
+  let now = 0;
+  let nextHandle = 1;
+  const timeouts = new Map<number, { fn: () => void; at: number }>();
+  return {
+    timing: {
+      now: () => now,
+      setTimeout: (fn: () => void, ms: number): number => {
+        const handle = nextHandle++;
+        timeouts.set(handle, { fn, at: now + ms });
+        return handle;
+      },
+      clearTimeout: (handle: number): void => {
+        timeouts.delete(handle);
+      },
+    },
+    advance(ms: number): void {
+      now += ms;
+      for (const [handle, entry] of [...timeouts]) {
+        if (entry.at <= now) {
+          timeouts.delete(handle);
+          entry.fn();
+        }
+      }
+    },
+    advanceSuspended(ms: number): void {
+      now += ms;
+    },
   };
 }
