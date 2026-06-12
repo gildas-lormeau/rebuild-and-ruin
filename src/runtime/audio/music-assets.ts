@@ -172,6 +172,14 @@ export async function storePcmCache(
       transaction.oncomplete = () => resolve();
       transaction.onerror = () =>
         reject(transaction.error ?? new Error("PCM cache transaction failed"));
+      // Aborts fire "abort", NOT "error": a commit-time failure
+      // (QuotaExceededError — realistic for multi-MB PCM blobs) reaches
+      // only this handler. Without it the promise never settles and the
+      // awaiting upload skips its `finally`, wedging sound-modal's
+      // `uploadInFlight` for the session. Same wiring on every write
+      // transaction in this file.
+      transaction.onabort = () =>
+        reject(transaction.error ?? new Error("PCM cache write aborted"));
     });
   } finally {
     database.close();
@@ -362,6 +370,10 @@ async function clearPcmCache(): Promise<void> {
       request.onerror = () =>
         reject(request.error ?? new Error("PCM cache clear failed"));
       transaction.oncomplete = () => resolve();
+      transaction.onerror = () =>
+        reject(transaction.error ?? new Error("PCM cache clear failed"));
+      transaction.onabort = () =>
+        reject(transaction.error ?? new Error("PCM cache clear aborted"));
     });
   } finally {
     database.close();
@@ -449,5 +461,7 @@ function runTransaction(
     transaction.oncomplete = () => resolve();
     transaction.onerror = () =>
       reject(transaction.error ?? new Error("IndexedDB transaction failed"));
+    transaction.onabort = () =>
+      reject(transaction.error ?? new Error("IndexedDB transaction aborted"));
   });
 }
