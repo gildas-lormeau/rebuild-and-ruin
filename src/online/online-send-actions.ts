@@ -4,7 +4,7 @@ import {
   schedulePiecePlacement,
 } from "../game/index.ts";
 import { type GameMessage, MESSAGE } from "../protocol/protocol.ts";
-import type { ScheduledAction } from "../shared/core/action-schedule.ts";
+import type { LockstepOriginatorDeps } from "../shared/core/action-schedule.ts";
 import {
   type BattleController,
   type BattleViewState,
@@ -17,23 +17,18 @@ import {
 } from "../shared/core/system-interfaces.ts";
 import type { GameState } from "../shared/core/types.ts";
 
-interface OnlineSendActionsDeps {
+interface OnlineSendActionsDeps extends LockstepOriginatorDeps<GameState> {
   /** Network send — closes over the runtime's NetworkApi.send. */
   send: (msg: GameMessage) => void;
   /** Late-bound state getter — runtime state is sentinel until startGame(). */
   getState: () => GameState;
-  /** Lockstep queue. The originator enqueues with the same applyAt it
-   *  broadcasts, so it applies in lockstep with receivers. */
-  schedule: (action: ScheduledAction<GameState>) => void;
-  /** Buffer depth in sim ticks. `applyAt = state.simTick + safetyTicks`. */
-  safetyTicks: number;
 }
 
 /** Factory for the three send-on-success action wrappers. Binds `send` and
  *  `getState` once at construction so call sites don't have to plumb them
  *  through every invocation. */
 export function createOnlineSendActions(deps: OnlineSendActionsDeps) {
-  const { send, getState, schedule, safetyTicks } = deps;
+  const { send, getState, schedule, safetyTicks, isQuarantined } = deps;
 
   /** Lockstep piece-place: validate now, broadcast with `applyAt`, schedule
    *  the apply on this peer with the same `applyAt`. Receivers do the same
@@ -44,6 +39,7 @@ export function createOnlineSendActions(deps: OnlineSendActionsDeps) {
     ctrl: ControllerIdentity & BuildController & InputReceiver,
     gameState: BuildViewState,
   ): boolean {
+    if (isQuarantined()) return false;
     const intent = ctrl.tryPlacePiece(gameState);
     if (!intent) return false;
     const stamped = schedulePiecePlacement({
@@ -67,6 +63,7 @@ export function createOnlineSendActions(deps: OnlineSendActionsDeps) {
     gameState: CannonViewState,
     max: number,
   ): boolean {
+    if (isQuarantined()) return false;
     const intent = ctrl.tryPlaceCannon(gameState);
     if (!intent) return false;
     const stamped = scheduleCannonPlacement({
@@ -86,6 +83,7 @@ export function createOnlineSendActions(deps: OnlineSendActionsDeps) {
    *  Receivers do the same on wire receipt, so the ball-push, scoring, and
    *  bus-driven side effects fire at the same logical tick on every peer. */
   function fire(ctrl: BattleController, gameState: BattleViewState): void {
+    if (isQuarantined()) return;
     const intent = ctrl.fire(gameState);
     if (!intent) return;
     const fired = scheduleCannonFire({

@@ -45,6 +45,8 @@
 import { createScenario, type Scenario } from "./scenario.ts";
 import { assert, assertEquals } from "@std/assert";
 import { Mode } from "../src/shared/ui/ui-mode.ts";
+import { Phase } from "../src/shared/core/game-phase.ts";
+import { SIM_TICK_DT } from "../src/shared/core/game-constants.ts";
 import type { ValidPlayerId } from "../src/shared/core/player-slot.ts";
 import {
   createBidirectionalNetworkedPair,
@@ -91,6 +93,15 @@ const SWEEP: {
 // assignment shouldn't matter for the bug class. If a test only fails
 // under one specific split, that's a separate signal worth chasing.
 const ALL_HUMAN_DELAYS: readonly number[] = [0, WIRE_DELAY_FRAMES];
+/** ~2s hidden — well past the 8-tick safety window, so a dropped gap
+ *  forks unconditionally. */
+const FREEZE_FRAMES = 120;
+/** Wall-clock ms the harness advances per `tick(1)` cadence frame (its
+ *  inner frames are 1 sim tick each — see `tickFrames`). The freeze gap
+ *  is denominated in these so the frozen peer misses exactly the wall
+ *  time the running peer's clock advanced. */
+const HARNESS_FRAME_MS = Math.round(SIM_TICK_DT * 1000);
+const FREEZE_TRIAL = { seed: 42, mode: "classic" } as const;
 
 // Touch the value import so module elision can't drop scenario.ts.
 void createScenario;
@@ -303,6 +314,124 @@ function snapshotState(sc: Scenario): string {
   ).join(" ");
   const rng = (s.rng.getState() >>> 0).toString(16).padStart(8, "0");
   return `${s.phase} m${sc.mode()} r${s.round} st=${s.simTick} rng=${rng} g=${s.grunts.length} b=${s.cannonballs.length} pits=${s.burningPits.length} ${players}`;
+}
+
+Deno.test(
+  "hidden-tab freeze (watcher): gap is banked and replayed back into lockstep",
+  () => runFreezeTrial({ freezeHost: false }),
+);
+
+Deno.test(
+  "hidden-tab freeze (host): same recovery — the host has no special sim role",
+  () => runFreezeTrial({ freezeHost: true }),
+);
+
+async function runFreezeTrial(opts: { freezeHost: boolean }): Promise<void> {
+  // The receive-path tripwire (deps.ts:warnIfStaleWireStamp) console.errors
+  // on any wire stamp at or before the receiver's simTick. Zero hits is
+  // part of this trial's contract: it pins the quarantine + debt-corrected
+  // stamps (a board action committed mid-replay without them reaches the
+  // other peer in its past — a fork even when the parity fields happen to
+  // survive).
+  const staleStamps: string[] = [];
+  const originalConsoleError = console.error;
+  console.error = (...args: unknown[]) => {
+    const line = args.map(String).join(" ");
+    if (line.includes("[lockstep] STALE")) staleStamps.push(line);
+    else originalConsoleError(...args);
+  };
+  try {
+    await runFreezeTrialInner(opts, staleStamps);
+  } finally {
+    console.error = originalConsoleError;
+  }
+}
+
+async function runFreezeTrialInner(
+  opts: { freezeHost: boolean },
+  staleStamps: readonly string[],
+): Promise<void> {
+  const pair = await createBidirectionalNetworkedPair({
+    seed: FREEZE_TRIAL.seed,
+    mode: FREEZE_TRIAL.mode,
+    rounds: 3,
+    assistedSlotsHost: [0 as ValidPlayerId],
+    assistedSlotsWatcher: [1 as ValidPlayerId],
+    wireDelayFrames: WIRE_DELAY_FRAMES,
+  });
+  const { host, watcher, pump } = pair;
+  const frozen = opts.freezeHost ? host : watcher;
+  const running = opts.freezeHost ? watcher : host;
+
+  // Reach the first BATTLE on both peers, then settle a few frames in —
+  // in-flight cannonballs and live fire windows make this the spiciest
+  // moment for a freeze to corrupt.
+  let guard = 0;
+  while (
+    host.state.phase !== Phase.BATTLE ||
+    watcher.state.phase !== Phase.BATTLE
+  ) {
+    host.tick(1);
+    watcher.tick(1);
+    await pump();
+    if (++guard > 30_000) {
+      throw new Error("freeze trial never reached BATTLE on both peers");
+    }
+  }
+  for (let i = 0; i < 30; i++) {
+    host.tick(1);
+    watcher.tick(1);
+    await pump();
+  }
+
+  // Freeze one peer. The other keeps playing, and the wire keeps
+  // delivering into the frozen peer's queue — hidden tabs still receive
+  // WebSocket messages; only rAF stops.
+  for (let i = 0; i < FREEZE_FRAMES; i++) {
+    running.tick(1);
+    await pump();
+  }
+
+  // Tab returns: one frame whose dt is the whole gap (exactly what the
+  // first post-show rAF measures in a browser). The gap equals the wall
+  // time the running peer's clock advanced during the freeze, so the two
+  // peers' injected sim time stays µs-conserving. `tick()` cannot model
+  // this — see `Scenario.stall`.
+  frozen.stall(FREEZE_FRAMES * HARNESS_FRAME_MS);
+  await pump();
+
+  // The frozen peer must fast-forward back to tick parity within the
+  // catch-up window (~gap/32 frames; 30 is generous). ±1 tick tolerance:
+  // the debt bank floors to whole ticks, so a sub-tick residue parks
+  // there permanently — inside the 8-tick lockstep jitter budget.
+  for (let i = 0; i < 30; i++) {
+    host.tick(1);
+    watcher.tick(1);
+    await pump();
+  }
+  const tickGap = Math.abs(host.state.simTick - watcher.state.simTick);
+  assert(
+    tickGap <= 1,
+    `frozen ${opts.freezeHost ? "host" : "watcher"} still ${tickGap} sim ` +
+      `ticks behind after the catch-up window — gap was dropped, not banked`,
+  );
+
+  // Play out the rest of the match: the recovered peer's later actions
+  // (and the other peer's) must keep both boards converged.
+  await runBidirectionalToEnd(host, watcher, pump);
+  assertWireFiredFor(host, [0], "host", FREEZE_TRIAL);
+  assertWireFiredFor(watcher, [1], "watcher", FREEZE_TRIAL);
+  assertPlayersConverge(
+    snapshotPlayers(watcher),
+    snapshotPlayers(host),
+    opts.freezeHost ? "host-freeze" : "watcher-freeze",
+  );
+  assertEquals(
+    staleStamps,
+    [],
+    "a wire stamp landed in a peer's past — quarantine / debt-corrected " +
+      "stamps failed during the catch-up replay",
+  );
 }
 
 /** Verify a peer's local assisted slots actually fired during the run.

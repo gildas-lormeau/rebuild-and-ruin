@@ -89,10 +89,15 @@ export function networkedCommitPort(opts: {
   schedule: (action: ScheduledAction<GameState>) => void;
   senders: CommitSenders;
   safetyTicks: number;
+  /** Mirrors `createOnlineSendActions.isQuarantined`: board commits are
+   *  dropped while the peer is fast-forward replaying banked lockstep
+   *  debt — the assisted AI re-decides on a later tick once level. */
+  isQuarantined: () => boolean;
 }): AiCommitPort {
-  const { schedule, senders, safetyTicks } = opts;
+  const { schedule, senders, safetyTicks, isQuarantined } = opts;
   return {
     placePiece(state, intent, ctrl) {
+      if (isQuarantined()) return false;
       const stamped = schedulePiecePlacement({
         schedule,
         state,
@@ -105,6 +110,7 @@ export function networkedCommitPort(opts: {
       return true;
     },
     placeCannon(state, intent, maxSlots) {
+      if (isQuarantined()) return false;
       const stamped = scheduleCannonPlacement({
         schedule,
         state: state as GameState,
@@ -117,6 +123,7 @@ export function networkedCommitPort(opts: {
       return true;
     },
     fire(state, intent, ctrl) {
+      if (isQuarantined()) return null;
       const fired = scheduleCannonFire({
         schedule,
         state: state as GameState,

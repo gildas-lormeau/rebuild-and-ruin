@@ -8,13 +8,16 @@ import {
   createGameRuntime,
 } from "../../runtime/composition.ts";
 import type { GameRuntime } from "../../runtime/handle.ts";
-import { setMode } from "../../runtime/state.ts";
+import { lockstepDebtTicks, setMode } from "../../runtime/state.ts";
 import {
   isHostInContext,
   tickPersistentAnnouncement,
 } from "../../runtime/tick-context.ts";
 import type { NetworkApi } from "../../runtime/types.ts";
-import { DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS } from "../../shared/core/action-schedule.ts";
+import {
+  DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS,
+  LOCKSTEP_QUARANTINE_DEBT_TICKS,
+} from "../../shared/core/action-schedule.ts";
 import { isHuman } from "../../shared/core/controller-guards.ts";
 import {
   DIFFICULTY_NORMAL,
@@ -93,6 +96,8 @@ const sendActions = createOnlineSendActions({
   getState: () => runtime.runtimeState.state,
   schedule: (action) => runtime.runtimeState.actionSchedule.schedule(action),
   safetyTicks: DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS,
+  isQuarantined: () =>
+    lockstepDebtTicks(runtime.runtimeState) >= LOCKSTEP_QUARANTINE_DEBT_TICKS,
 });
 // ── Runtime creation ────────────────────────────────────────────────
 const runtime: GameRuntime = createGameRuntime({

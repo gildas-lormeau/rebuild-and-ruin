@@ -228,9 +228,21 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   // keeps looping on Web Audio — not acceptable for a single ~30s title track
   // playing for hours on a stale tab. Visibility-pause (`pausedBy` invariant)
   // and audio mute are independent reactions to the same input.
+  //
+  // Live online sessions skip the pause: a lockstep peer must never freeze
+  // its sim clock unilaterally — paused sub-steps drop accumulator time and
+  // leave the peer permanently behind the room (its applyAt stamps land in
+  // other peers' past → fork). The hidden-tab gap is instead banked as
+  // lockstep debt at the frame clamp and replayed on return (main-loop.ts).
+  // Audio mute still applies in both cases.
+  // The unhide branch is never gated: a visibility pause taken in the
+  // online lobby must still clear when the tab returns mid-session
+  // (the match can start over the socket while hidden).
   createVisibilityListener({
     onChange: (hidden) => {
-      setVisibilityHidden(runtimeState, hidden);
+      if (!hidden || !(isOnline && isSessionLive(runtimeState))) {
+        setVisibilityHidden(runtimeState, hidden);
+      }
       audio.applyMute();
     },
   });
@@ -299,6 +311,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   }
   const { clearFrameData, mainLoop } = createRuntimeLoop({
     runtimeState,
+    isLockstepSession: () => isOnline && isSessionLive(runtimeState),
     timing,
     myPlayerId: config.network.myPlayerId,
     amHost: config.network.amHost,
@@ -552,6 +565,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
           config.getUrlRoundsOverride,
           {
             clearFrameData,
+            now: timing.now,
             resetUIState: () => lifecycle.resetUIState(),
             enterSelection: selection.enter,
             onStateReady: bindStateObservers,

@@ -130,11 +130,6 @@ function buildTakeoverDeps(init: DepsInit, client: OnlineClient) {
   };
 }
 
-/** Deps for incremental in-game messages (placement, cannon, aim, life-lost).
- *  Incremental deps use flat structure (not nested) because each handler accesses
- *  a different subset — nesting would force handlers to destructure multiple levels.
- *  Contrast with buildLifecycleDeps() which uses nested sub-objects because its
- *  consumers (lifecycle handler) always access one sub-group at a time. */
 function buildIncrementalDeps(
   init: DepsInit,
   client: OnlineClient,
@@ -144,8 +139,15 @@ function buildIncrementalDeps(
     session: client.ctx.session,
     presence: client.ctx.presence,
     getState: () => init.runtime.runtimeState.state,
-    schedule: (action) =>
-      init.runtime.runtimeState.actionSchedule.schedule(action),
+    schedule: (action) => {
+      warnIfStaleWireStamp(
+        init,
+        client.devLog,
+        action.applyAt,
+        action.playerId,
+      );
+      init.runtime.runtimeState.actionSchedule.schedule(action);
+    },
     getControllers: () => init.runtime.runtimeState.controllers,
     selectionStates: init.runtime.selection.getStates(),
     syncSelectionOverlay: () => init.runtime.selection.syncOverlay(),
@@ -155,6 +157,11 @@ function buildIncrementalDeps(
       applyAt?: number,
       towerIdx?: TowerIdx,
     ) => {
+      // Tower confirms reach the schedule through the selection subsystem
+      // rather than `schedule` above — same tripwire, same rationale.
+      if (applyAt !== undefined) {
+        warnIfStaleWireStamp(init, client.devLog, applyAt, playerId);
+      }
       init.runtime.selection.confirmAndStartBuild(
         playerId,
         source,
@@ -174,6 +181,35 @@ function buildIncrementalDeps(
         ? init.runtime.runtimeState.dialogs.upgradePick
         : null,
   };
+}
+
+/** Deps for incremental in-game messages (placement, cannon, aim, life-lost).
+ *  Incremental deps use flat structure (not nested) because each handler accesses
+ *  a different subset — nesting would force handlers to destructure multiple levels.
+ *  Contrast with buildLifecycleDeps() which uses nested sub-objects because its
+ *  consumers (lifecycle handler) always access one sub-group at a time. */
+/** Loud tripwire for the lockstep invariant. A wire stamp at or before
+ *  this peer's current simTick drains immediately — the originator applied
+ *  the action at `applyAt` but this peer applies it later, so the match is
+ *  forking. With debt banking + stamp correction + quarantine in place
+ *  (main-loop.ts / state.ts), this should never fire; if it does, a freeze
+ *  cause slipped past the recovery machinery and we want the evidence, not
+ *  silence. Detection only — the action is still scheduled (dropping it
+ *  forks differently, since the originator already queued its own apply). */
+function warnIfStaleWireStamp(
+  init: DepsInit,
+  log: (msg: string) => void,
+  applyAt: number,
+  playerId: number,
+): void {
+  const { state } = init.runtime.runtimeState;
+  if (applyAt > state.simTick) return;
+  const msg =
+    `[lockstep] STALE wire stamp from P${playerId}: applyAt=${applyAt} <= ` +
+    `simTick=${state.simTick} — peers are applying this action at ` +
+    `different ticks (cross-peer fork)`;
+  console.error(msg);
+  log(msg);
 }
 
 function buildLobbyDeps(init: DepsInit) {

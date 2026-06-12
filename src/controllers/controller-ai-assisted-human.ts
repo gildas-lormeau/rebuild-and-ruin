@@ -9,7 +9,10 @@
 
 import type { AiBrain } from "../ai/ai-brain-types.ts";
 import type { AiStrategy } from "../ai/ai-strategy-types.ts";
-import type { ScheduledAction } from "../shared/core/action-schedule.ts";
+import type {
+  LockstepOriginatorDeps,
+  ScheduledAction,
+} from "../shared/core/action-schedule.ts";
 import { CannonMode } from "../shared/core/battle-types.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import type {
@@ -40,17 +43,16 @@ interface AssistedSenders extends CommitSenders {
   sendLifeLostChoice: (choice: ResolvedChoice, applyAt: number) => void;
 }
 
-interface AssistedControllerOptions {
+interface AssistedControllerOptions extends LockstepOriginatorDeps<GameState> {
   strategy: AiStrategy;
   brain: AiBrain;
   senders: AssistedSenders;
-  /** Lockstep apply queue. Piece placements (state-mutating, RNG-consuming
-   *  via recheckTerritory) are scheduled with `applyAt = state.simTick +
-   *  safetyTicks` so receivers' wire-receipt enqueue lands at the same
-   *  logical tick on every peer. */
-  schedule: (action: ScheduledAction<GameState>) => void;
-  /** Buffer depth in sim ticks. See `shared/core/action-schedule.ts`. */
-  safetyTicks: number;
+  /** Outstanding lockstep debt in ticks (`lockstepDebtTicks`) — added to
+   *  dialog-commit stamps so a choice committed mid-replay still lands in
+   *  every other peer's future. Dialog commits are owner-funnel
+   *  obligations the room waits on, so unlike board commits they ride
+   *  out during replay, stamp-corrected. 0 in healthy play. */
+  stampDelayTicks: () => number;
 }
 
 export class AiAssistedHumanController
@@ -60,6 +62,7 @@ export class AiAssistedHumanController
   override readonly kind = "human" as const;
   private readonly senders: AssistedSenders;
   private readonly safetyTicks: number;
+  private readonly stampDelayTicks: () => number;
   private readonly scheduleAction: (action: ScheduledAction<GameState>) => void;
   /** True while a dialog commit awaits its lockstep `applyAt` tick (the
    *  entry still reads as pending, so the dialog tick keeps calling us —
@@ -83,10 +86,12 @@ export class AiAssistedHumanController
         schedule: opts.schedule,
         senders: opts.senders,
         safetyTicks: opts.safetyTicks,
+        isQuarantined: opts.isQuarantined,
       }),
     );
     this.senders = opts.senders;
     this.safetyTicks = opts.safetyTicks;
+    this.stampDelayTicks = opts.stampDelayTicks;
     this.scheduleAction = opts.schedule;
   }
 
@@ -121,7 +126,9 @@ export class AiAssistedHumanController
     const choice = entry.choice;
     entry.choice = null;
     entry.pickedAtTimer = null;
-    const applyAt = state.simTick + this.safetyTicks;
+    // + debt: see `stampDelayTicks` — keeps the stamp in every peer's
+    // future while this peer is replaying a hidden-tab gap.
+    const applyAt = state.simTick + this.safetyTicks + this.stampDelayTicks();
     this.pendingUpgradePick = true;
     this.senders.sendUpgradePick(choice, applyAt);
     this.scheduleAction({
@@ -146,7 +153,10 @@ export class AiAssistedHumanController
     state: UpgradePickViewState,
   ): UpgradeId {
     const choice = super.forceUpgradePick(entry, state);
-    this.senders.sendUpgradePick(choice, state.simTick + this.safetyTicks);
+    this.senders.sendUpgradePick(
+      choice,
+      state.simTick + this.safetyTicks + this.stampDelayTicks(),
+    );
     return choice;
   }
 
@@ -165,7 +175,8 @@ export class AiAssistedHumanController
     if (!wasPending || entry.choice === LifeLostChoice.PENDING) return;
     const choice = entry.choice;
     entry.choice = LifeLostChoice.PENDING;
-    const applyAt = state.simTick + this.safetyTicks;
+    // + debt: see `stampDelayTicks` — same correction as tickUpgradePick.
+    const applyAt = state.simTick + this.safetyTicks + this.stampDelayTicks();
     this.pendingLifeLost = true;
     this.senders.sendLifeLostChoice(choice, applyAt);
     this.scheduleAction({

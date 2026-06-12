@@ -188,7 +188,7 @@ export const MAX_FRAME_DT = 0.1;
  *  is frame-rate independent. 1/60 ≈ 16.67ms — matches 60 fps. */
 export const SIM_TICK_DT = 1 / 60;
 /** Microseconds per simulation tick (integer math avoids FP drift). */
-const SIM_TICK_US = Math.round(SIM_TICK_DT * 1_000_000);
+export const SIM_TICK_US = Math.round(SIM_TICK_DT * 1_000_000);
 /** Duration to display score-delta popups (seconds). */
 export const SCORE_DELTA_DISPLAY_TIME = 2;
 /** Duration of host-migration announcement overlay (seconds). */

@@ -58,9 +58,10 @@ import {
 } from "../src/runtime/composition.ts";
 import {
   DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS,
+  LOCKSTEP_QUARANTINE_DEBT_TICKS,
   type ScheduledAction,
 } from "../src/shared/core/action-schedule.ts";
-import { setMode } from "../src/runtime/state.ts";
+import { lockstepDebtTicks, setMode } from "../src/runtime/state.ts";
 import { createStubElement } from "./stub-dom.ts";
 import type { GameRuntime } from "../src/runtime/handle.ts";
 import type {
@@ -199,6 +200,15 @@ export interface HeadlessRuntime {
    *  `runUntil` / `runGame` are the budget-denominated counterparts.
    *  `Scenario.tick()` is a thin wrapper over this. */
   tick(frames?: number, dtMs?: number): void;
+  /** Simulate a frozen tab: advance the mock clock by `gapMs` with NO
+   *  frames in between, then run the single catch-up frame the browser
+   *  fires on tab return — ONE mainLoop whose measured dt is the whole
+   *  gap. `tick()` can't model this: it quantizes any dtMs into
+   *  1-sim-tick frames, so the frame clamp (`clampedFrameDt`) never sees
+   *  a large delta. Online runtimes bank the gap as lockstep debt and
+   *  replay it over the following `tick()`s; offline runtimes drop it
+   *  (MAX_FRAME_DT clamp) and resume where they left off. */
+  stall(gapMs: number): void;
   /** Drive the simulation until `mode === STOPPED` (game over).
    *  Throws `ScenarioTimeoutError` on timeout. */
   runGame(opts?: RunOpts): void;
@@ -288,6 +298,7 @@ export async function createHeadlessRuntime(
         runtimeHolder.current!.runtimeState.actionSchedule.schedule(action),
       DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS,
       () => runtimeHolder.current!.runtimeState.state.round,
+      () => lockstepDebtTicks(runtimeHolder.current!.runtimeState),
     )
     : undefined;
 
@@ -552,6 +563,8 @@ export async function createHeadlessRuntime(
     now: () => clock,
     runUntil,
     tick: tickFrames,
+    // The inner `tick` IS the catch-up frame: one clock jump, one mainLoop.
+    stall: (gapMs) => tick(gapMs),
     runGame,
     keyboardEventSource: keyboardEventSource as unknown as EventTarget,
     pointerEventTarget: renderer.eventTarget as unknown as EventTarget,
@@ -591,6 +604,7 @@ export async function reinstallAssistedControllers(
             schedule,
             DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS,
             () => runtime.runtimeState.state.round,
+            () => lockstepDebtTicks(runtime.runtimeState),
           )
           : createAiController(pid, strategyRng, personality),
     },
@@ -609,6 +623,7 @@ function buildAssistedControllerFactory(
   getSchedule: () => (action: ScheduledAction<GameState>) => void,
   safetyTicks: number,
   getRound: () => number,
+  getDebtTicks: () => number,
 ): ControllerFactory {
   const assistedSet = new Set<ValidPlayerId>(assistedSlots);
   return async (
@@ -654,6 +669,7 @@ function buildAssistedControllerFactory(
       (action) => getSchedule()(action),
       safetyTicks,
       getRound,
+      getDebtTicks,
     );
   };
 }
@@ -668,6 +684,7 @@ async function constructAssistedController(
   schedule: (action: ScheduledAction<GameState>) => void,
   safetyTicks: number,
   getRound: () => number,
+  getDebtTicks: () => number,
 ): Promise<PlayerController> {
   const { AiAssistedHumanController } = await import(
     "../src/controllers/controller-ai-assisted-human.ts"
@@ -702,6 +719,11 @@ async function constructAssistedController(
     },
     schedule,
     safetyTicks,
+    // Mirrors the production wiring in src/online/runtime/game.ts: board
+    // commits are quarantined while the peer replays banked lockstep debt;
+    // dialog commits ride out with a debt-corrected stamp.
+    isQuarantined: () => getDebtTicks() >= LOCKSTEP_QUARANTINE_DEBT_TICKS,
+    stampDelayTicks: getDebtTicks,
   });
 }
 

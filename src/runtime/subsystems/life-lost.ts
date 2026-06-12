@@ -27,7 +27,7 @@ import {
   tickLifeLostDialog,
   toggleLifeLostFocus,
 } from "../dialogs/life-lost-core.ts";
-import { type RuntimeState, setMode } from "../state.ts";
+import { lockstepDebtTicks, type RuntimeState, setMode } from "../state.ts";
 
 /** Public life-lost dialog handle exposed on `GameRuntime`. Tick scope:
  *  gated on `Mode.LIFE_LOST` (the runtime ticks this when the popup is
@@ -318,6 +318,7 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
       playerId,
       inFlight: inFlightChoices,
       simTick: runtimeState.state.simTick,
+      extraDelayTicks: lockstepDebtTicks(runtimeState),
       schedule: (action) => runtimeState.actionSchedule.schedule(action),
       applyLocal: () =>
         withPendingEntry(playerId, (entry) =>

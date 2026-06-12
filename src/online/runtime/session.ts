@@ -116,7 +116,7 @@ export function createOnlineRuntimeSessionHelpers(
       log: deps.log,
       clearFrameData: () => runtime.clearFrameData(),
       setState: (state) => {
-        setRuntimeGameState(runtime.runtimeState, state);
+        setRuntimeGameState(runtime.runtimeState, state, deps.timing.now());
       },
       setControllers: (controllers) => {
         runtime.runtimeState.controllers = [...controllers];

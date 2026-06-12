@@ -232,6 +232,10 @@ export interface Scenario extends Disposable {
    *  any predicate. Use this instead of `runUntil(() => false, N)` —
    *  frame-precision tool, unaffected by the `runUntil` budget shape. */
   tick(frames?: number, dtMs?: number): void;
+  /** Simulate a frozen tab (hidden `gapMs` with no frames, then the single
+   *  big-dt catch-up frame the browser fires on return). See
+   *  `HeadlessRuntime.stall` for why `tick()` cannot model this. */
+  stall(gapMs: number): void;
   /** Drive the game until it ends (mode reaches STOPPED). Throws
    *  `ScenarioTimeoutError` on timeout. Default budget is 120_000ms. */
   runGame(opts?: RunOpts): void;
@@ -492,6 +496,7 @@ export function wrapHeadless(
     now: headless.now,
     runUntil: headless.runUntil,
     tick: headless.tick,
+    stall: headless.stall,
     runGame: headless.runGame,
     input,
     tileAt: (row, col) =>

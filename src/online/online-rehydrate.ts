@@ -191,6 +191,13 @@ export function applyFullStateToRunningRuntime(
   // than the double-apply class this discard removes.
   runtime.runtimeState.actionSchedule.discardUpTo(state.simTick);
 
+  // The snapshot re-bases this peer at the host's serialize tick — any
+  // owed catch-up from a pre-adoption freeze is now meaningless, and
+  // replaying it on top of the adopted tick would overshoot (this peer
+  // would run AHEAD of the room, the mirror image of the hidden-tab
+  // fork the debt exists to prevent).
+  runtime.runtimeState.lockstepDebtUs = 0;
+
   setMode(
     runtime.runtimeState,
     resolveModeAfterFullState(state.phase, balloonAnimPending),

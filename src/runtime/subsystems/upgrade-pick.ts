@@ -33,7 +33,12 @@ import {
   resolveUpgradePickEntry,
   tickUpgradePickDialog,
 } from "../dialogs/upgrade-pick-core.ts";
-import { assertStateInstalled, type RuntimeState, setMode } from "../state.ts";
+import {
+  assertStateInstalled,
+  lockstepDebtTicks,
+  type RuntimeState,
+  setMode,
+} from "../state.ts";
 
 /** Public upgrade-pick dialog handle exposed on `GameRuntime`. Tick scope:
  *  gated on `Mode.UPGRADE_PICK`. Sibling dialog handle is `RuntimeLifeLost`. */
@@ -337,6 +342,7 @@ export function createUpgradePickSystem(
       playerId,
       inFlight: inFlightPicks,
       simTick: runtimeState.state.simTick,
+      extraDelayTicks: lockstepDebtTicks(runtimeState),
       schedule: (action) => runtimeState.actionSchedule.schedule(action),
       applyLocal: () => resolveUpgradePickEntry(entry, cardIdx, dialog.timer),
       send: (applyAt) => {

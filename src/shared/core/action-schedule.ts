@@ -41,11 +41,43 @@ export interface ActionSchedule<S> {
   reset: () => void;
 }
 
+/** Originator-side lockstep wiring shared by every wrapper that stamps and
+ *  broadcasts board actions (the online send-actions bag, the assisted-human
+ *  commit port). */
+export interface LockstepOriginatorDeps<S> {
+  /** Lockstep queue. The originator enqueues with the same applyAt it
+   *  broadcasts, so it applies in lockstep with receivers. */
+  schedule: (action: ScheduledAction<S>) => void;
+  /** Buffer depth in sim ticks. `applyAt = simTick + safetyTicks`. */
+  safetyTicks: number;
+  /** True while this peer is fast-forward replaying banked lockstep debt
+   *  beyond LOCKSTEP_QUARANTINE_DEBT_TICKS (returning from a hidden tab).
+   *  Board actions are dropped during the replay: a fresh fire pins its
+   *  trajectory and pending-fire keys into the replayed timeline — state
+   *  no other peer has — and any stamp this far behind would land in the
+   *  other peers' past. The input is treated as if the player were still
+   *  away; the quarantine lifts within a few catch-up frames. */
+  isQuarantined: () => boolean;
+}
+
 /** Lockstep buffer depth in sim ticks. Must exceed the worst-case
  *  cross-peer wire latency. At 60Hz sim this absorbs ~133ms of jitter,
  *  comfortably above typical LAN/WAN WebSocket round-trips. Hardcoded —
  *  every originator stamps with this same constant. */
 export const DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS = 8;
+/** Lockstep debt (owed catch-up ticks) above which a peer must stop
+ *  originating board actions (piece / cannon / fire). Half the safety
+ *  window: below this, an un-corrected stamp still lands in every other
+ *  peer's future; at or above it, the peer is fast-forward replaying a
+ *  timeline the room already played, and a fresh fire would mutate
+ *  schedule-time state (trajectory pin, pending-fire keys) that no other
+ *  peer has — the input is dropped instead, exactly as if the player had
+ *  stayed hidden those extra milliseconds. Dialog and selection commits
+ *  are NOT quarantined: other peers' phase flow waits on them, so they
+ *  ride out with a debt-corrected stamp instead (see the
+ *  `lockstepDebtTicks` additions at the three stamp sites). */
+export const LOCKSTEP_QUARANTINE_DEBT_TICKS =
+  DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS / 2;
 
 export function createActionSchedule<S>(): ActionSchedule<S> {
   const queue: ScheduledAction<S>[] = [];

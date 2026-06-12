@@ -43,6 +43,10 @@ export {
 
 interface BootstrapFromSettingsDeps {
   readonly clearFrameData: () => void;
+  /** Frame-clock source (`timing.now`) — rebases `runtimeState.lastTime`
+   *  at state install so the first post-install frame never measures a
+   *  pre-session gap (see `setRuntimeGameState`). */
+  readonly now: () => number;
   readonly resetUIState: () => void;
   /** Called after state + controllers are ready. Enters tower selection. */
   readonly enterSelection: () => void;
@@ -74,7 +78,12 @@ interface ResolvedGameConfig {
   gameMode: GameMode;
 }
 
-interface InitGameDeps extends BootstrapFromSettingsDeps, ResolvedGameConfig {
+/** `now` is excluded: it exists to build the `setState` closure, and both
+ *  `bootstrapGame` callers (settings wrapper below, online initFromServer)
+ *  close over their own clock when building `setState`. */
+interface InitGameDeps
+  extends Omit<BootstrapFromSettingsDeps, "now">,
+    ResolvedGameConfig {
   seed: number;
   maxPlayers: number;
   /** Which seats have a human — ANY peer's human, not just this peer's
@@ -147,7 +156,7 @@ export async function bootstrapNewGameFromSettings(
     log,
     clearFrameData: deps.clearFrameData,
     setState: (state) => {
-      setRuntimeGameState(runtimeState, state);
+      setRuntimeGameState(runtimeState, state, deps.now());
     },
     setControllers: (controllers) => {
       runtimeState.controllers = [...controllers];

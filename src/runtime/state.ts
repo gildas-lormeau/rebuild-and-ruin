@@ -6,6 +6,7 @@ import {
   type BattleAnimState,
   createBattleAnimState,
 } from "../shared/core/battle-types.ts";
+import { SIM_TICK_US } from "../shared/core/game-constants.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import { type PlayerController } from "../shared/core/system-interfaces.ts";
 import {
@@ -129,6 +130,19 @@ export interface RuntimeState {
   lastTime: number;
   frameDt: number;
 
+  /** Sim time (integer µs) this peer owes the lockstep timeline. Online,
+   *  frame gaps beyond MAX_FRAME_DT (tab hidden — rAF stops; long GC or
+   *  breakpoint stalls) are BANKED here instead of dropped, and repaid as
+   *  bounded extra sub-steps per frame (`consumeLockstepDebtTicks` in
+   *  `mainLoop`) — a deterministic fast-forward replay against the
+   *  already-received action queue. Dropping the time instead leaves the
+   *  peer permanently behind: its `applyAt` stamps land in other peers'
+   *  past and the match forks. Always 0 offline (banking is gated on
+   *  `isLockstepSession`) and 0 in healthy online play. Reset on session
+   *  install and rebased to 0 by a FULL_STATE adoption (the snapshot's
+   *  simTick re-levels the peer). */
+  lockstepDebtUs: number;
+
   /** Set by tick handlers via `requestRender`; drained once per browser
    *  frame at the end of `mainLoop`. Coalescing N substep renders into 1
    *  prevents the spiral-of-death where heavy frames render multiple times
@@ -225,10 +239,41 @@ export function isPaused(runtimeState: RuntimeState): boolean {
   return runtimeState.pausedBy !== "none";
 }
 
+/** Bank wall-clock seconds the frame loop had to discard (gap beyond
+ *  MAX_FRAME_DT) as owed lockstep sim time. Integer-µs accumulation —
+ *  same idiom as SimTickAccumulator — so repeated banks never drift. */
+export function bankLockstepDebt(
+  runtimeState: RuntimeState,
+  seconds: number,
+): void {
+  runtimeState.lockstepDebtUs += Math.round(seconds * 1_000_000);
+}
+
+/** Repay up to `maxTicks` of owed sim time; returns the number of extra
+ *  sub-steps the caller must run this frame. */
+export function consumeLockstepDebtTicks(
+  runtimeState: RuntimeState,
+  maxTicks: number,
+): number {
+  const ticks = Math.min(lockstepDebtTicks(runtimeState), maxTicks);
+  runtimeState.lockstepDebtUs -= ticks * SIM_TICK_US;
+  return ticks;
+}
+
+/** Whole sim ticks currently owed (floor — the sub-tick residue stays
+ *  banked and merges with the next gap instead of being discarded). */
+export function lockstepDebtTicks(runtimeState: RuntimeState): number {
+  return Math.floor(runtimeState.lockstepDebtUs / SIM_TICK_US);
+}
+
 /** React to a tab-visibility change. Sets `pausedBy = "visibility"` when the
  *  tab hides AND nothing else holds the pause; clears it on return only if
  *  the current reason is still `"visibility"` (never overrides a user pause).
- *  Audio mute is a separate concern — the caller re-applies it after this. */
+ *  Audio mute is a separate concern — the caller re-applies it after this.
+ *  NOT wired for live online sessions (see the composition root's
+ *  visibility listener): a lockstep peer must never pause — paused
+ *  sub-steps consume accumulator time without advancing simTick, which is
+ *  exactly the silent time-drop that forks the match. */
 export function setVisibilityHidden(
   runtimeState: RuntimeState,
   hidden: boolean,
@@ -246,6 +291,7 @@ export function setVisibilityHidden(
 export function resetTransientState(runtimeState: RuntimeState): void {
   runtimeState.battleAnim = createBattleAnimState();
   runtimeState.accum = createTimerAccums();
+  runtimeState.lockstepDebtUs = 0;
   runtimeState.pausedBy = "none";
   runtimeState.speedMultiplier = 1;
   runtimeState.quit = { pending: false };
@@ -277,6 +323,7 @@ export function createRuntimeState(): RuntimeState {
     accum: createTimerAccums(),
     lastTime: 0,
     frameDt: DEFAULT_FRAME_DT,
+    lockstepDebtUs: 0,
     renderDirty: false,
 
     battleAnim: createBattleAnimState(),
@@ -364,11 +411,20 @@ export function isSessionLive(runtimeState: RuntimeState): boolean {
 
 /** Install the live GameState on the runtime. Single mutation point for the
  *  `state` field — keeps the install flag in sync. Call from `startGame`
- *  (local bootstrap) and the online InitMessage handler. */
+ *  (local bootstrap) and the online InitMessage handler.
+ *
+ *  `nowMs` (same clock as the rAF timestamps — `timing.now`) rebases the
+ *  frame clock at session start: a peer hidden while the host starts the
+ *  match would otherwise measure its first visible frame against a
+ *  pre-session `lastTime` and bank lobby-era time as lockstep debt,
+ *  overshooting the catch-up and forking the match the other way. */
 export function setRuntimeGameState(
   runtimeState: RuntimeState,
   state: GameState,
+  nowMs: number,
 ): void {
   runtimeState.state = state;
   runtimeState.stateInstalled = true;
+  runtimeState.lastTime = nowMs;
+  runtimeState.lockstepDebtUs = 0;
 }
