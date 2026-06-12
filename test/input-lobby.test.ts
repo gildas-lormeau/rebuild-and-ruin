@@ -33,6 +33,8 @@ import {
   MAX_PLAYERS,
   PLAYER_KEY_BINDINGS,
 } from "../src/shared/ui/player-config.ts";
+import { DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS } from "../src/shared/core/action-schedule.ts";
+import { GAME_EVENT } from "../src/shared/core/game-event-bus.ts";
 import { Mode } from "../src/shared/ui/ui-mode.ts";
 import type { ValidPlayerId } from "../src/shared/core/player-slot.ts";
 import {
@@ -234,5 +236,57 @@ Deno.test(
       Mode.OPTIONS,
       "local play keeps mid-game options on F1",
     );
+  },
+);
+
+// ── selection input is gated until the announcement window ends ──────
+// Round 1 enters CASTLE_SELECT behind a 1s announcement
+// (SELECT_ANNOUNCEMENT_DURATION) during which syncSelectionOverlay hides
+// every human highlight. The input adapters share the same `isReady`
+// gate: without it, arrow keys retarget and the confirm key lands on a
+// highlight the player cannot see — a blind confirm of whichever tower
+// the cursor happened to start on. (AI selection and the remote-peer
+// wire path bypass the adapters, so determinism is untouched.)
+Deno.test(
+  "keyboard: selection input during the announcement window is ignored",
+  async () => {
+    using sc = await createScenario({ seed: 42, autoStartGame: false });
+    const bindings = PLAYER_KEY_BINDINGS[0]!;
+    for (let i = 0; i <= LOBBY_TIMER; i++) {
+      await pressKeyAndSettle(sc, bindings.confirm);
+    }
+    sc.runUntil(() => !sc.lobbyActive(), { timeoutMs: LOBBY_TIMER * 1000 });
+    await settleLobbyExit(sc);
+    assertEquals(
+      sc.mode(),
+      Mode.SELECTION,
+      "precondition: round 1 starts in selection",
+    );
+
+    let placed = 0;
+    sc.bus.on(GAME_EVENT.CASTLE_PLACED, (ev) => {
+      if (ev.playerId === 0) placed += 1;
+    });
+
+    // Inside the announcement window — the accumulator armed at 0 on
+    // selection entry; the window is 1s (60 ticks) of sim time. Human
+    // confirms are lockstep-SCHEDULED (applyAt = simTick + safety), so
+    // drain past the safety window before asserting — the ungated bug's
+    // CASTLE_PLACED fires ticks after the press, not on it.
+    await pressKeyAndSettle(sc, bindings.up);
+    await pressKeyAndSettle(sc, bindings.confirm);
+    sc.tick(DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS + 5);
+    assertEquals(
+      placed,
+      0,
+      "confirm while every highlight is hidden must be ignored",
+    );
+
+    // Past the window: the same keys highlight + confirm normally.
+    sc.tick(90);
+    await pressKeyAndSettle(sc, bindings.up);
+    await pressKeyAndSettle(sc, bindings.confirm);
+    sc.tick(DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS + 5);
+    assertEquals(placed, 1, "confirm works once the announcement ends");
   },
 );

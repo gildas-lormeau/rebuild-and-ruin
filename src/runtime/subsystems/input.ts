@@ -500,8 +500,24 @@ function buildGameActionDeps(
 ) {
   return {
     getSelectionStates: () => runtimeState.selection.states,
-    highlightTowerForPlayer: selection.highlight,
-    confirmSelectionAndStartBuild: selection.confirmAndStartBuild,
+    // Selection input opens when the round-1 announcement window ends —
+    // the same `isReady` gate that keeps every highlight hidden during
+    // the window (`syncSelectionOverlay` in subsystems/selection.ts).
+    // Ungated, the player can cycle and confirm a tower they cannot see
+    // highlighted. Human-input-only by construction: AI selection and
+    // the remote-peer wire path call the selection subsystem directly
+    // (the remote human's gate ran on the peer that owns the slot), so
+    // determinism and parity are untouched.
+    highlightTowerForPlayer: (
+      idx: TowerIdx,
+      zone: ZoneId,
+      pid: ValidPlayerId,
+    ) => {
+      if (!selection.isReady()) return;
+      selection.highlight(idx, zone, pid);
+    },
+    confirmSelectionAndStartBuild: (pid: ValidPlayerId) =>
+      selection.isReady() && selection.confirmAndStartBuild(pid),
     tryPlaceCannon: placeCannon,
     tryPlacePiece: placePiece,
     fire,
