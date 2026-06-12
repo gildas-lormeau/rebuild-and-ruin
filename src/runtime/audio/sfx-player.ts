@@ -622,6 +622,11 @@ export function createSfxSubsystem(deps: SfxSubsystemDeps): SfxSubsystem {
     if (!sample) return;
     const context = ensureContext();
     if (!context) return;
+    // iOS interruption: drop — the crescendo is anchored to the live
+    // countdown window (same rule as playSample above). Started while
+    // interrupted, the source would burst out only when iOS releases
+    // the context, racing the falling edge's stopSnareLoop.
+    if (isAudioContextInterrupted(context)) return;
     const buffer = decodeSample(sample, context);
     const source = context.createBufferSource();
     source.buffer = buffer;

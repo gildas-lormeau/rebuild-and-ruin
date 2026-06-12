@@ -19,6 +19,7 @@ import type { GameState } from "../../shared/core/types.ts";
 import {
   audioContextCanSuspend,
   audioContextNeedsResume,
+  isAudioContextInterrupted,
 } from "../../shared/platform/platform.ts";
 import {
   type CachedPcm,
@@ -294,24 +295,41 @@ export function createMusicSubsystem(): MusicSubsystem {
 
   function activateOnce(): Promise<void> {
     if (activatingPromise) return activatingPromise;
-    activatingPromise = (async () => {
+    const promise = (async () => {
       const ctx = ensureAudioContext();
       if (!ctx) return;
       // Resume now (we're inside the home-page click). Safe to call repeatedly.
       if (audioContextNeedsResume(ctx)) {
         await ctx.resume().catch(() => {});
       }
-      await hydrateBgTracks(ctx);
-      await hydrateFanfares(ctx);
+      try {
+        await hydrateBgTracks(ctx);
+        await hydrateFanfares(ctx);
+      } catch (error) {
+        // A corrupt cached PCM entry (pcmToAudioBuffer throws on
+        // zero-frame / out-of-range rates, outside the per-read catch)
+        // must not reject every awaiting cue: a rejection escaping here
+        // used to orphan the `setPaused` chain — every later
+        // `.then(applyPauseState)` on the rejected promise skipped, so
+        // suspend/resume stayed dead for the rest of the session. The
+        // bad entry's hydration is abandoned; the next `refreshBuffers`
+        // (sound-modal upload) clears the caches and re-probes.
+        console.error("[music] hydration failed:", error);
+      }
     })();
-    // Clear the in-flight handle once the load resolves, so a later
+    activatingPromise = promise;
+    // Clear the in-flight handle once the load settles, so a later
     // call (e.g. after the settings modal closes with new PCM in IDB)
     // re-runs the cache load instead of returning the cached resolved
-    // promise.
-    void activatingPromise.finally(() => {
-      activatingPromise = undefined;
-    });
-    return activatingPromise;
+    // promise. Identity-guarded: `refreshBuffers` may have already
+    // dropped this handle and a newer hydration may own it by the time
+    // this one settles — clearing unconditionally would orphan that
+    // newer in-flight handle.
+    const clear = () => {
+      if (activatingPromise === promise) activatingPromise = undefined;
+    };
+    void promise.then(clear, clear);
+    return promise;
   }
 
   /** Hydrate bg tracks from the upload-time PCM cache. Skips tracks already
@@ -404,6 +422,14 @@ export function createMusicSubsystem(): MusicSubsystem {
     const buffer = bgAudioBuffers.get(track.cacheId);
     const pcm = bgBuffers.get(track.cacheId);
     if (!ctx || !buffer || !pcm) return;
+    // iOS interruption (phone call, Siri): DROP one-shots (lifeLost,
+    // jaws) — they're moment-anchored, and every source started while
+    // interrupted bursts out together when iOS releases the context
+    // (same rule as sfx-player's playSample). Loops keep starting:
+    // they're continuous beds, and nothing re-triggers them when the
+    // interruption ends (interruptions fire no event), so dropping a
+    // loop would leave the rest of the phase silent.
+    if (!track.loop && isAudioContextInterrupted(ctx)) return;
     try {
       stopActiveSource();
       const source = ctx.createBufferSource();
@@ -493,6 +519,10 @@ export function createMusicSubsystem(): MusicSubsystem {
     if (paused || epoch !== playEpoch) return;
     const ctx = audioContext;
     if (!ctx) return;
+    // Fanfares are one-shots: drop while interrupted (see playBg) —
+    // enclosure fanfares scheduled during a phone call would otherwise
+    // pile up in `activeFanfareSources` and burst out together.
+    if (isAudioContextInterrupted(ctx)) return;
     const buffer = fanfareBuffers.get(playerId) ?? fanfareBuffers.get(0);
     if (!buffer) return;
     try {
@@ -654,6 +684,13 @@ export function createMusicSubsystem(): MusicSubsystem {
     // would re-poison `missingBgIds` / cache superseded PCM (see
     // `hydrationEpoch`).
     hydrationEpoch++;
+    // Drop the in-flight HANDLE too. The epoch bump makes the old
+    // hydration record nothing, so an activate awaiting it (the
+    // sound-modal close sequence: refreshBuffers → startTitle) would
+    // settle against the just-cleared caches and silently play nothing —
+    // the lobby title stayed mute until the next unrelated activate. The
+    // next activateOnce must start a fresh post-upload hydration.
+    activatingPromise = undefined;
     // Drop the hydrated PCM + AudioBuffer caches; activateOnce() re-reads
     // from IDB on next play. The currently-playing source keeps its own
     // buffer reference, so playback isn't cut — the next phase's playBg
@@ -673,7 +710,12 @@ export function createMusicSubsystem(): MusicSubsystem {
     // resume() issued while the suspend() is still in flight reads
     // `ctx.state` as "running" and no-ops, stranding the context suspended
     // with `paused = false`. Each chained step applies the LATEST intent.
-    pauseTransition = pauseTransition.then(applyPauseState);
+    // The rejected branch applies it too: a single rejection must not
+    // orphan the chain — every later `.then(onFulfilled)` on a rejected
+    // promise skips, which left suspend-on-hide and resume-on-show dead
+    // for the rest of the session (plus an unhandled rejection per call,
+    // since `applyMute` voids the returned promise).
+    pauseTransition = pauseTransition.then(applyPauseState, applyPauseState);
     return pauseTransition;
   }
 
