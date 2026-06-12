@@ -1126,6 +1126,14 @@ function finishUpgradePick(
     applyUpgradePicks(ctx.state, resolved);
     recheckTerritory(ctx.state);
   }
+  // Consume the offers: this is the single exit funnel for UPGRADE_PICK
+  // (the picker modal's resolution AND the promotion force-resolve), so
+  // the clear is lockstep on every peer. Left in place, last round's
+  // offers ride every later BUILD_START checkpoint / FULL_STATE snapshot
+  // and would re-arm the pick dialog from stale data if anything
+  // re-entered the phase (createUpgradePickDialog keys on this field
+  // being non-null).
+  if (ctx.state.modern) ctx.state.modern.pendingUpgradeOffers = null;
   emitGameEvent(ctx.state.bus, GAME_EVENT.UPGRADE_PICK_END, {
     round: ctx.state.round,
   });
