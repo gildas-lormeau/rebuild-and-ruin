@@ -68,13 +68,6 @@ Deno.test("lifecycle drops stale full_state after host migration", () => {
       joined: [] as boolean[],
     },
     ui: {
-      getLifeLostDialog: () => null,
-      clearLifeLostDialog: () => {},
-      isLifeLostMode: () => false,
-      getUpgradePickDialog: () => null,
-      clearUpgradePickDialog: () => {},
-      isUpgradePickMode: () => false,
-      setModeToGame: () => {},
       setAnnouncement: () => {},
       createErrorEl: { textContent: "" } as HTMLElement,
       joinErrorEl: { textContent: "" } as HTMLElement,

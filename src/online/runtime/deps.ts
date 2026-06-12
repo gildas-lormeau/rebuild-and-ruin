@@ -13,7 +13,6 @@ import type {
   ServerMessage,
 } from "../../protocol/protocol.ts";
 import type { GameRuntime } from "../../runtime/handle.ts";
-import { setMode } from "../../runtime/state.ts";
 import { MIGRATION_ANNOUNCEMENT_DURATION } from "../../shared/core/game-constants.ts";
 import type { ValidPlayerId } from "../../shared/core/player-slot.ts";
 import { PLAYER_NAMES } from "../../shared/ui/player-config.ts";
@@ -88,7 +87,7 @@ function buildLifecycleDeps(
     log: client.devLog,
     session: client.ctx.session,
     lobby: buildLobbyDeps(init),
-    ui: buildUiDeps(init, client),
+    ui: buildUiDeps(client),
     game: buildGameDeps(init),
     transitions: buildTransitionDeps(init),
     migration: buildMigrationDeps(init),
@@ -144,26 +143,8 @@ function buildLobbyDeps(init: DepsInit) {
   };
 }
 
-function buildUiDeps(init: DepsInit, client: OnlineClient) {
+function buildUiDeps(client: OnlineClient) {
   return {
-    getLifeLostDialog: () => init.runtime.lifeLost.get(),
-    clearLifeLostDialog: () => {
-      init.runtime.lifeLost.set(null);
-    },
-    isLifeLostMode: () => init.runtime.runtimeState.mode === Mode.LIFE_LOST,
-    getUpgradePickDialog: () => init.runtime.upgradePick.get(),
-    clearUpgradePickDialog: () => {
-      // Route through the subsystem boundary, matching the phase-transition
-      // path (host: `composition.ts:clearUpgradePickDialog`,
-      // watcher: `online-phase-transitions.ts:clearUpgradePickDialog`)
-      // and the host-promotion path (`online/runtime/promote.ts`).
-      init.runtime.upgradePick.set(null);
-    },
-    isUpgradePickMode: () =>
-      init.runtime.runtimeState.mode === Mode.UPGRADE_PICK,
-    setModeToGame: () => {
-      setMode(init.runtime.runtimeState, Mode.GAME);
-    },
     setAnnouncement: (text: string) => {
       client.ctx.presence.migrationBanner.text = text;
       client.ctx.presence.migrationBanner.timer =

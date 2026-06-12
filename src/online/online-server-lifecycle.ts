@@ -45,13 +45,6 @@ export interface HandleServerLifecycleDeps {
   };
 
   ui: {
-    getLifeLostDialog: () => unknown;
-    clearLifeLostDialog: () => void;
-    isLifeLostMode: () => boolean;
-    getUpgradePickDialog: () => unknown;
-    clearUpgradePickDialog: () => void;
-    isUpgradePickMode: () => boolean;
-    setModeToGame: () => void;
     setAnnouncement: (msg: string) => void;
     createErrorEl: HTMLElement;
     joinErrorEl: HTMLElement;
@@ -104,26 +97,6 @@ export async function handleServerLifecycleMessage(
       deps.session.remotePlayerSlots.delete(playerId);
     }
   };
-
-  // Dismiss stale dialogs when a phase transition arrives from host.
-  const isPhaseTransition =
-    !isHostInContext(deps.session) &&
-    (msg.type === MESSAGE.CANNON_START ||
-      msg.type === MESSAGE.BATTLE_START ||
-      msg.type === MESSAGE.BUILD_START ||
-      msg.type === MESSAGE.SELECT_START);
-  if (isPhaseTransition && deps.ui.getLifeLostDialog()) {
-    deps.log("dismissing stale life-lost dialog (phase transition received)");
-    deps.ui.clearLifeLostDialog();
-    if (deps.ui.isLifeLostMode()) deps.ui.setModeToGame();
-  }
-  if (isPhaseTransition && deps.ui.getUpgradePickDialog()) {
-    deps.log(
-      "dismissing stale upgrade pick dialog (phase transition received)",
-    );
-    deps.ui.clearUpgradePickDialog();
-    if (deps.ui.isUpgradePickMode()) deps.ui.setModeToGame();
-  }
 
   switch (msg.type) {
     case MESSAGE.ROOM_CREATED:
@@ -197,6 +170,19 @@ export async function handleServerLifecycleMessage(
       // dispatches the matching transition locally from its own tick.
       // Acknowledge receipt (`return true`) so the wire stays free of
       // unhandled-message warnings.
+      //
+      // Deliberately NO dialog cleanup here. A marker landing while this
+      // peer's life-lost / upgrade-pick dialog is open just means our sim
+      // lags the host's — the dialog is a live lockstep construct, not a
+      // stale one, and our own ticks resolve it through the same path the
+      // host took (scheduled lockstep choice, or the owner-routed
+      // max-timer force with the DIALOG_FORCE_GRACE non-owner backstop —
+      // see dialogs/dialog-tick.ts). Clearing it from the wire instead
+      // drops the armed resolution callback: round-end's only exit
+      // dispatcher (double-mutate over the closed WALL_BUILD) and
+      // UPGRADE_PICK's only exit (permanent hang — the phase has no
+      // self-driving timer; see promote.ts:forceResolveRoundEndPhase
+      // rationale).
       return true;
 
     case MESSAGE.GAME_OVER:
