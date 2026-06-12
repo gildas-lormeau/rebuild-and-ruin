@@ -315,6 +315,14 @@ export interface ModernState {
    *  boundaries (not cleared in the modifier's `clear`) so a sink
    *  late in a battle still benefits the closing/next phase. */
   pendingSupplyBonuses: Map<ValidPlayerId, SupplyBonusId[]> | null;
+  /** Seconds added to the CURRENT round's WALL_BUILD timer from consumed
+   *  supply-ship `extra_build_time` bonuses. Written once per build entry
+   *  by `enterWallBuildPhase`'s drain (0 when nothing was queued), then
+   *  read by every recomputation of the build timer's max
+   *  (`wallBuildTimerMax`: per-tick `advancePhaseTimer` and the
+   *  FULL_STATE accumulator resync). The drain can't be re-run per tick —
+   *  it consumes the queue — so the result must persist in game state. */
+  extraBuildTimeSeconds: number;
 }
 
 /** Player selection lobby state. */
@@ -629,5 +637,6 @@ function createModernState(): ModernState {
     rubbleClearingHeld: null,
     supplyShips: null,
     pendingSupplyBonuses: null,
+    extraBuildTimeSeconds: 0,
   };
 }

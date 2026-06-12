@@ -2,7 +2,6 @@ import type { GameOverOutcome } from "../../game/index.ts";
 import {
   advanceBattleCountdown,
   allCannonPlaceDone,
-  buildTimerBonus,
   canPlayerBuild,
   emitBattleCeaseIfTimerCrossed,
   tickBattlePhase as engineTickBattlePhase,
@@ -14,6 +13,7 @@ import {
   setBattleCountdown,
   shouldSkipBattle,
   tickBuildUpgrades,
+  wallBuildTimerMax,
 } from "../../game/index.ts";
 import { DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS } from "../../shared/core/action-schedule.ts";
 import {
@@ -732,10 +732,10 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     const { state, accum } = runtimeState;
     const local = localControllers(runtimeState.controllers, remotePlayerSlots);
 
-    // --- Engine tick (advance upgrade-effect timers; timerMax includes any active upgrade bonus) ---
+    // --- Engine tick (advance upgrade-effect timers; timerMax = base +
+    // upgrade bonus + drained supply-ship seconds — see wallBuildTimerMax) ---
     tickBuildUpgrades(state, dt);
-    const timerMax = state.buildTimer + buildTimerBonus(state);
-    advancePhaseTimer(accum, "build", state, dt, timerMax);
+    advancePhaseTimer(accum, "build", state, dt, wallBuildTimerMax(state));
 
     // --- PASS 1: Tick local controllers, broadcast own-human's piece phantom ---
     // AI piece placements are deterministic from strategy.rng + state — every

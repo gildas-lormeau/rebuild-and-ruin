@@ -172,6 +172,7 @@ export function restoreFullStateSnapshot(
           ]),
         )
       : null;
+    state.modern!.extraBuildTimeSeconds = msg.extraBuildTimeSeconds ?? 0;
   }
   applyCheckpointModifierTiles(state, msg);
   if (hasFeature(state, FID.UPGRADES)) {
@@ -415,6 +416,7 @@ function serializeModernFields(state: GameState) {
     pendingSupplyBonuses: state.modern?.pendingSupplyBonuses
       ? [...state.modern.pendingSupplyBonuses.entries()]
       : null,
+    extraBuildTimeSeconds: state.modern?.extraBuildTimeSeconds ?? 0,
     comboTracker: state.modern?.comboTracker
       ? state.modern.comboTracker.players.map((player) => ({
           lastWallHitTime: player.lastWallHitTime,

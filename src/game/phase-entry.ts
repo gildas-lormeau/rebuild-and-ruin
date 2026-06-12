@@ -106,10 +106,30 @@ export function enterUpgradePickPhase(state: GameState): void {
 export function enterWallBuildPhase(state: GameState): void {
   setPhase(state, Phase.WALL_BUILD);
   onBuildPhaseStart(state);
-  state.timer =
+  // Drain the supply-ship `extra_build_time` queue ONCE per build entry
+  // and persist the seconds — `wallBuildTimerMax` is recomputed every
+  // tick (`advancePhaseTimer` overwrites `state.timer` from it), and a
+  // consuming drain can't be part of a per-tick recomputation. Writing
+  // 0 when nothing was queued stops a previous round's value leaking.
+  if (state.modern) {
+    state.modern.extraBuildTimeSeconds = supplyShipBuildTimerBonus(state);
+  }
+  state.timer = wallBuildTimerMax(state);
+}
+
+/** Max value of the WALL_BUILD phase timer for the CURRENT round: config
+ *  base + upgrade bonus + this round's drained supply-ship
+ *  `extra_build_time` seconds. Single source of truth for the entry
+ *  prime above, the per-tick `advancePhaseTimer` max in `tickBuildPhase`,
+ *  and the FULL_STATE accumulator resync (`syncAccumulatorsFromTimer`) —
+ *  the bug this replaces was a two-term copy of this sum in the tick
+ *  path silently clobbering the entry prime's third term. */
+export function wallBuildTimerMax(state: GameState): number {
+  return (
     state.buildTimer +
     buildTimerBonus(state) +
-    supplyShipBuildTimerBonus(state);
+    (state.modern?.extraBuildTimeSeconds ?? 0)
+  );
 }
 
 /** Enter the cannon placement phase. Sets the phase flag, computes cannon

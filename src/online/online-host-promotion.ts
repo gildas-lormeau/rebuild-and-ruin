@@ -4,9 +4,9 @@
  */
 
 import {
-  buildTimerBonus,
   enterCannonPhase,
   finalizeCastleConstruction,
+  wallBuildTimerMax,
 } from "../game/index.ts";
 import type { MutableAccums } from "../runtime/timer-accums.ts";
 import type { AiPersonality } from "../shared/core/ai-personality.ts";
@@ -147,7 +147,10 @@ export function syncAccumulatorsFromTimer(
   accum.modifierReveal = 0;
 
   if (state.phase === Phase.WALL_BUILD) {
-    accum.build = state.buildTimer + buildTimerBonus(state) - state.timer;
+    // Three-term max (base + upgrade bonus + drained supply-ship seconds):
+    // a snapshot captured mid-bonus-build must not read as further
+    // elapsed than it is. `extraBuildTimeSeconds` rides in FULL_STATE.
+    accum.build = wallBuildTimerMax(state) - state.timer;
   } else if (state.phase === Phase.CANNON_PLACE) {
     accum.cannon = state.cannonPlaceTimer - state.timer;
   } else if (state.phase === Phase.BATTLE) {
