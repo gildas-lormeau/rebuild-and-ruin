@@ -19,7 +19,6 @@ import { assertNever } from "../../shared/platform/utils.ts";
 import { Mode } from "../../shared/ui/ui-mode.ts";
 import {
   rebuildControllersForPhase,
-  skipCastleBuildAnimation,
   syncAccumulatorsFromTimer,
 } from "../online-host-promotion.ts";
 import { createFullStateMessage } from "../online-serialize.ts";
@@ -140,11 +139,6 @@ function skipPendingAnimations(): void {
  *  Exhaustive switch ensures adding a new Mode is a compile error until handled. */
 function clearAnimationState(mode: Mode): string | null {
   switch (mode) {
-    case Mode.CASTLE_BUILD:
-      _runtime.runtimeState.selection.castleBuilds = [];
-      skipCastleBuildAnimation(_runtime.runtimeState.state);
-      _runtime.phaseTicks.dispatchAdvanceToCannon();
-      return "Skipped castle build animation → cannon phase";
     case Mode.LIFE_LOST:
       _runtime.lifeLost.set(null);
       return "Cleared life-lost dialog → game mode";

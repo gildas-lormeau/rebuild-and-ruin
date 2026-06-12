@@ -250,7 +250,7 @@ export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
   //                                       pan, river-crosshair pan)
   //
   // A separate `castleFrameVp` is an engine-driven OVERRIDE that wins over
-  // the user target while the UI is in `Mode.SELECTION` or `Mode.CASTLE_BUILD`
+  // the user target while the UI is in `Mode.SELECTION`
   // — it locks the camera onto the home tower during tower selection. It's
   // set when `handleSelectionZoom` consumes the parked `setSelectionViewport`
   // target and cleared by `unzoomForOverlays` (the human-confirm /
@@ -291,7 +291,7 @@ export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
   // phase entry (`handlePhaseChangeZoom`) and `clearAllZoomState`.
   let overlayParked: { target: UserTarget; phase: Phase } | undefined;
 
-  // Engine-driven override — only honoured while in SELECTION / CASTLE_BUILD.
+  // Engine-driven override — only honoured while in SELECTION.
   let castleFrameVp: Viewport | undefined;
   let lastAutoZoomPhase: Phase | undefined;
 
@@ -946,18 +946,15 @@ export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
 
   // --- Viewport lerp ---
 
-  /** Resolve the active viewport: castle-frame override (during SELECTION /
-   *  CASTLE_BUILD) wins, otherwise the user `target` union resolves to a
+  /** Resolve the active viewport: castle-frame override (during SELECTION)
+   *  wins, otherwise the user `target` union resolves to a
    *  viewport (fullMap / zone / pinch). Auto-zoom is gated on
    *  `mobileAutoZoomActive()` — all-AI / spectator / lobby-demo sessions
    *  stay at fullMapVp regardless of latched state, since the touch input
    *  writers intentionally mutate state without checking the predicate. */
   function resolveViewport(mode: Mode): Viewport {
     if (!mobileAutoZoomActive()) return fullMapVp;
-    if (
-      castleFrameVp &&
-      (mode === Mode.CASTLE_BUILD || mode === Mode.SELECTION)
-    ) {
+    if (castleFrameVp && mode === Mode.SELECTION) {
       return castleFrameVp;
     }
     if (target.kind === "pinch") return target.viewport;
@@ -1310,7 +1307,7 @@ export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
    *  attribute the source on the emitted CAMERA_TARGET event. The public
    *  `setCameraZone` is reserved for the zone-cycle button path.
    *
-   *  Does NOT clear `castleFrameVp` — during SELECTION / CASTLE_BUILD the
+   *  Does NOT clear `castleFrameVp` — during SELECTION the
    *  engine override stays in charge of the visible viewport, while the
    *  zone target sits queued for when the lock clears. (Pressing the
    *  zone-cycle button during castle selection thus updates the button

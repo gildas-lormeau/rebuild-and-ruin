@@ -78,15 +78,6 @@ const TOUCH_BUTTON_STATES: Record<Mode, TouchButtonState> = {
     zoom: INTERACTIVE,
     quit: true,
   },
-  [Mode.CASTLE_BUILD]: {
-    dpad: false,
-    confirm: false,
-    rotate: false,
-    placementValidity: false,
-    // Castle-frame lock owns the viewport during the auto-build animation.
-    zoom: false,
-    quit: true,
-  },
   [Mode.LIFE_LOST]: {
     dpad: INTERACTIVE,
     confirm: INTERACTIVE,

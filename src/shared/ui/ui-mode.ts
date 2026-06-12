@@ -1,5 +1,5 @@
 /** Top-level UI mode — which screen/phase the main loop renders.
- *  Gameplay (ticks): SELECTION, TRANSITION, BALLOON_ANIM, CASTLE_BUILD,
+ *  Gameplay (ticks): SELECTION, TRANSITION, BALLOON_ANIM,
  *  LIFE_LOST, UPGRADE_PICK, GAME. Interactive: SELECTION, GAME only.
  *  TRANSITION = "a phase transition is in flight" (held from pre-banner
  *  unzoom through postDisplay). Banner visibility is tracked separately
@@ -13,7 +13,6 @@ export enum Mode {
   SELECTION,
   TRANSITION,
   BALLOON_ANIM,
-  CASTLE_BUILD,
   LIFE_LOST,
   UPGRADE_PICK,
   GAME,
@@ -46,7 +45,6 @@ export function isTransitionMode(mode: Mode): boolean {
   return (
     mode === Mode.TRANSITION ||
     mode === Mode.BALLOON_ANIM ||
-    mode === Mode.CASTLE_BUILD ||
     mode === Mode.UPGRADE_PICK
   );
 }

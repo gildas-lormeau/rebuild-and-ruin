@@ -81,7 +81,7 @@ and `input/`.
 - **`ui-mode.ts`** — `Mode` enum + predicates (`isInteractiveMode`,
   `isGameplayMode`). The orthogonal "what UI state am I in" axis
   (LOBBY / GAME / OPTIONS / BANNER / LIFE_LOST / UPGRADE_PICK /
-  CASTLE_BUILD / BALLOON_ANIM / SELECTION / STOPPED).
+  BALLOON_ANIM / SELECTION / STOPPED).
 - **`input-action.ts`** — `Action` enum (abstracted input actions
   decoupled from raw keycodes).
 - **`interaction-types.ts`** — `LifeLostDialogState`,

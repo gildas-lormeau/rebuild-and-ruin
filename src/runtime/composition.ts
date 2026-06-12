@@ -279,9 +279,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       case Mode.BALLOON_ANIM:
         phaseTicks.tickBalloonAnim(dt);
         return;
-      case Mode.CASTLE_BUILD:
-        selection.tickCastleBuild(dt);
-        return;
       case Mode.LIFE_LOST:
         lifeLost.tick(dt);
         return;
@@ -459,7 +456,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       render();
     },
     pointerPlayer,
-    dispatchAdvanceToCannon: () => phaseTicks.dispatchAdvanceToCannon(),
     dispatchCastleDone: () => phaseTicks.dispatchCastleDone(),
   });
 
@@ -687,7 +683,10 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     lifeLostRoute: {
       onGameOver: (outcome) => phaseTicks.dispatchGameOver(outcome),
       onReselect: (continuing) => selection.enter(continuing),
-      onAdvance: selection.advanceToCannonPhase,
+      // enterCannonPhase (inside the dispatched advance-to-cannon
+      // transition) handles the phase flip + banner + setMode(GAME) via
+      // the transition's postDisplay.
+      onAdvance: () => phaseTicks.dispatchAdvanceToCannon(),
     },
     scoreDelta,
     saveBattleCrosshair: IS_TOUCH_DEVICE
@@ -918,7 +917,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       finalizeGameOver: lifecycle.finalizeGameOver,
     },
     phaseTicks: {
-      dispatchAdvanceToCannon: phaseTicks.dispatchAdvanceToCannon,
       resolveUpgradePickNow: phaseTicks.resolveUpgradePickNow,
       skipBattleIntro: phaseTicks.skipBattleIntro,
     },

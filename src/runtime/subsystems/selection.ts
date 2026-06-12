@@ -59,8 +59,6 @@ export interface RuntimeSelection {
   isReady: () => boolean;
   tick: (dt: number) => void;
   finish: () => void;
-  advanceToCannonPhase: () => void;
-  tickCastleBuild: (dt: number) => void;
   /** Full reset for game restart / rematch. */
   reset: () => void;
 }
@@ -100,9 +98,6 @@ interface SelectionSystemDeps {
    *  scene onto the visible canvas, defeating the offscreen-B model. */
   flushPendingRender: () => void;
   pointerPlayer: () => (PlayerController & InputReceiver) | null;
-  /** Dispatch the `advance-to-cannon` transition (post-life-lost continue
-   *  path). */
-  dispatchAdvanceToCannon: () => void;
   /** Dispatch the `castle-done` transition. Called from both the round-1
    *  initial-selection path and the reselect-cycle finish path. */
   dispatchCastleDone: () => void;
@@ -500,11 +495,6 @@ export function createSelectionSystem(
     return anyPlaced;
   }
 
-  function tickCastleBuild(dt: number): void {
-    if (tickAllCastleBuilds(dt)) recheckTerritory(runtimeState.state);
-    deps.requestRender();
-  }
-
   /** Full reset for game restart / rematch. Clears all selection and
    *  castle-build state. Distinct from resetSelectionState() which only
    *  clears per-round selection tracking for the next selection phase. */
@@ -528,13 +518,6 @@ export function createSelectionSystem(
     isReady,
     tick: tickSelection,
     finish: finishSelection,
-    advanceToCannonPhase: () => {
-      // enterCannonPhase (inside dispatchAdvanceToCannon → runTransition)
-      // handles the phase flip + banner + setMode(GAME) via the
-      // transition's postDisplay.
-      deps.dispatchAdvanceToCannon();
-    },
-    tickCastleBuild,
     reset,
   };
 }

@@ -213,7 +213,6 @@ interface PhaseTicksDeps extends Pick<RuntimeConfig, "log"> {
  *  most callers go through the orchestrator, not the handle. Sole
  *  consumer: host promotion (`promote.ts`). */
 export interface RuntimePhaseTicks {
-  dispatchAdvanceToCannon: () => void;
   /** Force the UPGRADE_PICK phase to its conclusion (state-derived picks
    *  applied, `enter-wall-build` dispatched). Host-promotion repair —
    *  see `forceResolveUpgradePickPhase` in phase-machine.ts. */
@@ -841,7 +840,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       case Phase.UPGRADE_PICK:
       case Phase.CASTLE_SELECT:
         // UPGRADE_PICK runs in Mode.UPGRADE_PICK (not Mode.GAME);
-        // castle-select runs in Mode.SELECTION / CASTLE_BUILD.
+        // castle-select runs in Mode.SELECTION.
         // tickGame never reaches these branches while those phases
         // are active. Explicit no-ops for exhaustiveness.
         break;
