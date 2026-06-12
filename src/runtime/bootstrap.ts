@@ -85,6 +85,12 @@ interface InitGameDeps extends BootstrapFromSettingsDeps, ResolvedGameConfig {
   log: (msg: string) => void;
   setState: (nextState: GameState) => void;
   setControllers: (nextControllers: readonly PlayerController[]) => void;
+  /** Liveness probe for the awaits in `bootstrapGame`: returns true once
+   *  the session this bootstrap belongs to has been torn down
+   *  (`bootGeneration` moved — see its doc in state.ts). Checked after
+   *  every await; the tail must not install state or enter selection for
+   *  a session the user already exited. */
+  isCancelled: () => boolean;
 }
 
 /** Create an AI-only controller (no key bindings). Used during host promotion
@@ -123,7 +129,9 @@ export async function bootstrapNewGameFromSettings(
   runtimeState.settings.seedMode = SEED_RANDOM;
   runtimeState.settings.gameMode = config.gameMode;
 
+  const generation = runtimeState.bootGeneration;
   await bootstrapGame({
+    isCancelled: () => runtimeState.bootGeneration !== generation,
     seed,
     maxPlayers: Math.min(MAX_PLAYERS, PLAYER_KEY_BINDINGS.length),
     ...config,
@@ -170,6 +178,10 @@ export async function bootstrapGame(deps: InitGameDeps): Promise<void> {
     (joined, idx) => idx < playerCount && !joined,
   );
   if (hasAi) await ensureAiModulesLoaded();
+  if (deps.isCancelled()) {
+    deps.log("initGame: cancelled during AI module load — session torn down");
+    return;
+  }
 
   // AI strategy seeding contract (initial host path):
   //   Every peer rolls one personality + one private seed per AI slot in
@@ -216,6 +228,13 @@ export async function bootstrapGame(deps: InitGameDeps): Promise<void> {
       );
     }),
   );
+
+  if (deps.isCancelled()) {
+    deps.log(
+      "initGame: cancelled during controller construction — session torn down",
+    );
+    return;
+  }
 
   deps.setState(state);
   deps.onStateReady();

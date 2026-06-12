@@ -267,6 +267,12 @@ export interface Scenario extends Disposable {
    *  to the new bus). Use for multi-game tests. Calling this throws away
    *  `sc.state` identity — re-read `sc.state` after `await sc.rematch()`. */
   rematch(): Promise<void>;
+  /** Route-level exit — production-equivalent to navigating away from
+   *  /play (GAME_EXIT_EVENT → `runtime.shutdown`). Tears the session down
+   *  and parks the runtime in Mode.STOPPED. Synchronous, so tests can
+   *  land it inside an in-flight bootstrap's await windows (e.g. between
+   *  `sc.rematch()` and its completion). */
+  shutdown(): void;
 }
 
 /** Synthetic input dispatcher backed by real `EventTarget`s. Each call
@@ -487,6 +493,9 @@ export function wrapHeadless(
       }),
     rematch: async () => {
       await headless.runtime.lifecycle.rematch();
+    },
+    shutdown: () => {
+      headless.runtime.shutdown();
     },
     [Symbol.dispose]: () => {
       // No cleanup is performed for the *observers* this Scenario installed:

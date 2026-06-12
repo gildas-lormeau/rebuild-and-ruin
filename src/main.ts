@@ -20,10 +20,8 @@ import {
   createLocalNetworkApi,
   noopNetworkSend,
 } from "./runtime/composition.ts";
-import { setMode } from "./runtime/state.ts";
 import { LOBBY_TIMER } from "./shared/core/game-constants.ts";
 import { IS_DEV } from "./shared/platform/platform.ts";
-import { Mode } from "./shared/ui/ui-mode.ts";
 
 const canvas = document.getElementById("canvas") as HTMLCanvasElement;
 const worldCanvas = document.getElementById(
@@ -79,10 +77,11 @@ const runtime = createGameRuntime({
   onCloseOptions: () => {
     runtime.runtimeState.lobby.timerAccum = 0; // reset countdown after settings
   },
-  onTickLobbyExpired: async () => {
-    await runtime.lifecycle.startGame();
-    setMode(runtime.runtimeState, Mode.SELECTION);
-  },
+  // Mode flip is owned by the bootstrap tail (`enterSelection` →
+  // `enterTowerSelection` sets Mode.SELECTION) — no post-await re-force
+  // here: it would un-stop a session `shutdown()` tore down while the
+  // bootstrap was parked on its awaits.
+  onTickLobbyExpired: () => runtime.lifecycle.startGame(),
 });
 
 export function enterLocalLobby(): void {

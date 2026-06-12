@@ -188,6 +188,16 @@ export interface RuntimeState {
   // Lifecycle
   /** setTimeout handle for demo auto-return to lobby. undefined = not pending. */
   demoReturnTimer: number | undefined;
+  /** Monotonic counter bumped by every session teardown (quit-to-menu,
+   *  route-level shutdown, game over). An in-flight `bootstrapGame`
+   *  captures the value at entry and bails after each await once it no
+   *  longer matches — without the check, a bootstrap parked on its AI
+   *  module / controller-factory awaits when the user exits would resume
+   *  and boot a full game (state + Mode.SELECTION + music) behind
+   *  whatever UI replaced it. Never reset (not even in
+   *  `resetTransientState`) — captured generations must stay comparable
+   *  for the whole page session. */
+  bootGeneration: number;
 
   // Dev tools
   /** Game speed multiplier (dev-only). 1 = normal, 2 = double, 0.5 = half. */
@@ -304,6 +314,7 @@ export function createRuntimeState(): RuntimeState {
     inputTracking: { mouseJoinedSlot: null },
 
     demoReturnTimer: undefined,
+    bootGeneration: 0,
     speedMultiplier: 1,
     fixedStepMs: undefined,
   };

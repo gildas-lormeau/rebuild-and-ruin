@@ -83,7 +83,13 @@ export function createOnlineRuntimeSessionHelpers(
     const keyBindings = Array.from({ length: playerCount }, (_, index) =>
       index === deps.session.myPlayerId ? settings.keyBindings[0] : undefined,
     );
+    // Captured before the awaits inside bootstrapGame: an online leave /
+    // route-level shutdown mid-init tears the session down (bumping
+    // bootGeneration via teardownSession), and the bootstrap tail must
+    // not boot a game behind whatever UI replaced it.
+    const generation = runtime.runtimeState.bootGeneration;
     await bootstrapGame({
+      isCancelled: () => runtime.runtimeState.bootGeneration !== generation,
       seed: msg.seed,
       maxPlayers: playerCount,
       maxRounds: msg.settings.maxRounds,

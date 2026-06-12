@@ -686,3 +686,34 @@ Deno.test("scenario: select announcement plays at game start and is skipped on r
     "reselect skips the announcement; the selection countdown starts immediately",
   );
 });
+
+// ── shutdown during an in-flight bootstrap must stick ────────────────
+// `bootstrapGame` awaits the AI module load and the controller factories.
+// A route-level exit landing in that window (`shutdown` → Mode.STOPPED +
+// teardownSession) used to be undone by the bootstrap tail, which
+// unconditionally installed the new state and entered selection — a full
+// game (with music) booting behind whatever UI replaced the play route.
+// The tail now bails when the session's bootGeneration moved.
+Deno.test(
+  "scenario: shutdown during an in-flight bootstrap keeps the runtime stopped",
+  async () => {
+    const sc = await createScenario({ seed: 42, mode: "classic", rounds: 1 });
+    sc.runGame();
+    assertEquals(sc.mode(), Mode.STOPPED, "precondition: game over reached");
+
+    // Rematch kicks a fresh bootstrap. Its synchronous prefix (map gen,
+    // config) runs here; control returns at the first await (AI module
+    // load), leaving the bootstrap parked mid-flight.
+    const rematchDone = sc.rematch();
+    // Route-level exit while the bootstrap is in flight.
+    sc.shutdown();
+    await rematchDone;
+
+    assertEquals(
+      sc.mode(),
+      Mode.STOPPED,
+      "the bootstrap tail must not un-stop a torn-down session " +
+        "(state installed + selection entered behind the landing page)",
+    );
+  },
+);

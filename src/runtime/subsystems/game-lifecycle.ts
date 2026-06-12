@@ -39,6 +39,10 @@ interface GameLifecycleDeps {
   // Atomic state transitions
   readonly setModeStopped: () => void;
   readonly clearGameOver: () => void;
+  /** Bump `bootGeneration` so any in-flight `bootstrapGame` bails at its
+   *  next await (see the field's doc in state.ts). Part of the teardown
+   *  matrix so every quit path cancels a parked bootstrap. */
+  readonly invalidateInFlightBootstrap: () => void;
 
   // Subsystem resets
   readonly resetAll: () => void;
@@ -153,6 +157,7 @@ export function createGameLifecycle(
   }
 
   function teardownSession(): void {
+    deps.invalidateInFlightBootstrap();
     deps.clearDemoTimer();
     deps.resetScoreDeltas();
     deps.clearAllZoomState();
@@ -294,6 +299,9 @@ export function buildLifecycleDeps(
     },
     clearGameOver: () => {
       runtimeState.frame.gameOver = undefined;
+    },
+    invalidateInFlightBootstrap: () => {
+      runtimeState.bootGeneration++;
     },
 
     resetAll: () => {
