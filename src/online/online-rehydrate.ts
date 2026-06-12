@@ -110,6 +110,21 @@ export function applyFullStateToRunningRuntime(
 
   syncAccumulatorsFromTimer(state, runtime.runtimeState.accum);
 
+  // Discard scheduled actions the snapshot already contains. Entries
+  // stamped at or before the snapshot's tick were drained into the
+  // promoting host's state right before it serialized (promote.ts), and
+  // the relay broadcasts in uniform order — anything queued HERE at
+  // applyAt <= snapshot.simTick had reached the host too. Re-firing them
+  // against the adopted state double-applies (a queued cannon fire spawns
+  // a second ball; a queued selection confirm re-runs castle prep,
+  // consuming adopted RNG on this peer only). Later-stamped entries stay:
+  // every peer, the new host included, drains them at the same adopted
+  // tick. Known residual: this peer's OWN action sent during the
+  // migration window from a clock >SAFETY_TICKS behind the host's can be
+  // discarded here yet reach the host after its snapshot — far narrower
+  // than the double-apply class this discard removes.
+  runtime.runtimeState.actionSchedule.discardUpTo(state.simTick);
+
   const flights = result.balloonFlights ?? [];
   const inBattle = state.phase === Phase.BATTLE;
   setMode(
@@ -135,6 +150,16 @@ export function applyFullStateToRunningRuntime(
   // NEXT round's `prepare()` (ensureDialog short-circuits on non-null) and
   // apply last round's picks there.
   runtime.upgradePick.set(null);
+  // The banner is the third armed display continuation (with the score
+  // overlay and the dialogs above). It renders unconditionally while
+  // non-null but ticks only in Mode.TRANSITION, so a sweep in progress
+  // when the snapshot lands would freeze fullscreen over the adopted
+  // game for the rest of the phase — and its armed `onDone` would
+  // survive until the next local transition window (round-end's
+  // score-overlay step never hides a stale banner) and fire the
+  // torn-down chain's continuation over post-round-end state. Same
+  // teardown the promoted host runs in promote.ts `clearAnimationState`.
+  runtime.hideBanner();
   runtime.runtimeState.frame.announcement = undefined;
   if (inBattle) runtime.runtimeState.battleAnim.flights = flights;
   else clearBalloonFlights(runtime.runtimeState.battleAnim);
@@ -148,19 +173,25 @@ export function applyFullStateToRunningRuntime(
   // was reset; they have not rebuilt). The size gate keeps a peer that
   // entered the cycle locally (lockstep, the normal case) on its own
   // mid-cycle progress.
-  if (
-    state.phase === Phase.CASTLE_SELECT &&
-    runtime.selection.getStates().size === 0
-  ) {
-    runtime.selection.enter(
-      state.players
-        .filter(
-          (player) =>
-            isPlayerAlive(player) &&
-            filterAliveEnclosedTowers(player, state).length === 0,
-        )
-        .map((player) => player.id),
-    );
+  if (state.phase === Phase.CASTLE_SELECT) {
+    if (runtime.selection.getStates().size === 0) {
+      runtime.selection.enter(
+        state.players
+          .filter(
+            (player) =>
+              isPlayerAlive(player) &&
+              filterAliveEnclosedTowers(player, state).length === 0,
+          )
+          .map((player) => player.id),
+      );
+    } else {
+      // Mid-cycle peer (the size gate above keeps its local pick
+      // progress): re-derive confirmed flags + in-flight guards from the
+      // adopted state, in case the discard above dropped a confirm the
+      // snapshot already contains — left stale, that slot blocks
+      // `allConfirmed` forever (see selection.reconcileAfterAdoption).
+      runtime.selection.reconcileAfterAdoption();
+    }
   }
   snapPitchToPhase(runtime, state.phase);
 }

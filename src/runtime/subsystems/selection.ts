@@ -9,6 +9,7 @@ import {
   recheckTerritory,
 } from "../../game/index.ts";
 import { DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS } from "../../shared/core/action-schedule.ts";
+import { filterAliveEnclosedTowers } from "../../shared/core/board-occupancy.ts";
 import { isHuman } from "../../shared/core/controller-guards.ts";
 import {
   SELECT_ANNOUNCEMENT_DURATION,
@@ -61,6 +62,10 @@ export interface RuntimeSelection {
   finish: () => void;
   /** Full reset for game restart / rematch. */
   reset: () => void;
+  /** Reconcile this subsystem's runtime-local bookkeeping with an adopted
+   *  FULL_STATE snapshot landing mid-CASTLE_SELECT (host migration on a
+   *  peer already inside the cycle). See the impl for the failure mode. */
+  reconcileAfterAdoption: () => void;
 }
 
 interface SelectionSystemDeps {
@@ -129,6 +134,35 @@ export function createSelectionSystem(
     runtimeState.selection.states.clear();
     inFlightConfirms.clear();
     resetOverlaySelection();
+  }
+
+  /** Reconcile selection bookkeeping with an adopted FULL_STATE snapshot.
+   *  The snapshot carries the authoritative GameState but NOT this
+   *  subsystem's map: a confirm whose scheduled apply the adoption
+   *  discarded (already baked into the snapshot on the serializing host)
+   *  would otherwise leave its entry unconfirmed and its slot parked in
+   *  `inFlightConfirms` forever — the re-send guard blocks every later
+   *  confirm AND `allConfirmed` never flips, a permanent CASTLE_SELECT
+   *  hang. Derive "already picked" from the adopted state with the same
+   *  predicate the rehydrate arming path uses: the player has an alive
+   *  enclosed tower (their auto-castle is in the snapshot). Only the
+   *  runtime-local flag flips here — the engine-side confirm effects
+   *  (walls, inGracePeriod) arrived with the snapshot, so routing through
+   *  `confirmTowerSelection` would double-mutate adopted state. */
+  function reconcileAfterAdoption(): void {
+    const { state } = runtimeState;
+    for (const [pid, selectionState] of runtimeState.selection.states) {
+      if (selectionState.confirmed) continue;
+      const player = state.players[pid];
+      if (player && filterAliveEnclosedTowers(player, state).length > 0) {
+        selectionState.confirmed = true;
+      }
+    }
+    // Stale in-flight guards die with the discarded applies. A confirm
+    // kept in the post-snapshot window still fires; its apply re-deletes
+    // the (now absent) guard and confirms idempotently.
+    inFlightConfirms.clear();
+    syncSelectionOverlay();
   }
 
   // -------------------------------------------------------------------------
@@ -520,5 +554,6 @@ export function createSelectionSystem(
     tick: tickSelection,
     finish: finishSelection,
     reset,
+    reconcileAfterAdoption,
   };
 }

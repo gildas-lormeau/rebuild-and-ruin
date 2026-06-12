@@ -78,6 +78,17 @@ export async function promoteToHost(): Promise<void> {
     return;
   }
 
+  // Drain (not discard) anything still queued at or before the current
+  // tick so the snapshot includes its effects. Adopting watchers drop
+  // every entry stamped <= snapshot.simTick on apply
+  // (applyFullStateToRunningRuntime) on the premise that the snapshot
+  // already contains it — an entry that arrived during the async rebuild
+  // above and is still queued here would otherwise fire on the new host
+  // only, after the broadcast.
+  _runtime.runtimeState.actionSchedule.drainUpTo(
+    _runtime.runtimeState.state.simTick,
+    _runtime.runtimeState.state,
+  );
   _client.send(
     createFullStateMessage(
       _runtime.runtimeState.state,

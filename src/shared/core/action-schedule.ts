@@ -27,6 +27,14 @@ export interface ActionSchedule<S> {
   /** Apply every queued action whose `applyAt <= simTick`, in
    *  `(applyAt, playerId)` order. */
   drainUpTo: (simTick: number, state: S) => void;
+  /** Drop queued actions with `applyAt <= simTick` WITHOUT applying them.
+   *  Host-migration adoption: entries at or before the adopted snapshot's
+   *  tick are already baked into the snapshot (the promoting host drains
+   *  its queue right before serializing), so re-applying them would
+   *  double-fire; entries after it are still-valid lockstep actions every
+   *  peer — the new host included — drains at the same adopted tick, so a
+   *  blanket `reset` would drop them on adopters only. */
+  discardUpTo: (simTick: number) => void;
   /** Pending count. Test-only; production code should not branch on this. */
   size: () => number;
   /** Drop all queued actions (e.g. on rematch / returnToLobby). */
@@ -59,6 +67,11 @@ export function createActionSchedule<S>(): ActionSchedule<S> {
         drained++;
       }
       if (drained > 0) queue.splice(0, drained);
+    },
+    discardUpTo(simTick) {
+      for (let idx = queue.length - 1; idx >= 0; idx--) {
+        if (queue[idx]!.applyAt <= simTick) queue.splice(idx, 1);
+      }
     },
     size() {
       return queue.length;

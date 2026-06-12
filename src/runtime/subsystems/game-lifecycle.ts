@@ -167,14 +167,13 @@ export function createGameLifecycle(
     // gating — deliberate, for banner-preview windows), so a watcher frozen
     // mid-UPGRADE_PICK or mid-sweep when MESSAGE.GAME_OVER arrives would
     // otherwise paint a stale modal / half-swept banner on the game-over
-    // screen. The dialog clears mirror `resetLifeLostDialog` for symmetry —
-    // both dialogs are also dismissed on the watcher by the phase-transition
-    // handler (online-server-lifecycle.ts), so these are defense-in-depth.
-    // The banner has no such dismissal: clearing it here is the actual fix
-    // (see network-vs-local.test.ts "frozen watcher clears the stale
-    // banner"). On the host path all three are no-ops: game-over only fires
-    // from the life-lost route, where the dialogs are closed and runDisplay
-    // already hid the banner.
+    // screen. These clears are the only dismissal on that path — wire
+    // phase markers deliberately never touch dialogs (live lockstep
+    // constructs; see the marker cases in online-server-lifecycle.ts) —
+    // see network-vs-local.test.ts "frozen watcher clears the stale
+    // banner". On the host path all three are no-ops: game-over only
+    // fires from the life-lost route, where the dialogs are closed and
+    // runDisplay already hid the banner.
     deps.resetUpgradePickDialog();
     deps.resetBanner();
   }
