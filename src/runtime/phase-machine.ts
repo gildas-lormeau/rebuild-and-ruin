@@ -285,6 +285,11 @@ export interface PhaseTransitionCtx {
     readonly tryShow: (
       onResolved: (resolved: UpgradePickDialogState) => void,
     ) => boolean;
+    /** Host-promotion repair: resolve every pending entry with the
+     *  state-derived backstop pick, tear down dialog state, and return
+     *  the finalized snapshot without invoking the armed callback. See
+     *  `UpgradePickSystem.forceResolveAll`. */
+    readonly forceResolveAll: () => UpgradePickDialogState | null;
   };
 
   readonly battle: BattleLifecycle;
@@ -851,6 +856,20 @@ export function runTransition(id: TransitionId, ctx: PhaseTransitionCtx): void {
   executeTransition(transition, ctx);
 }
 
+/** Host-promotion repair (promote.ts `skipPendingAnimations`): force the
+ *  UPGRADE_PICK phase to its conclusion right now. UPGRADE_PICK is the
+ *  only phase without a self-driving timer — its exit rides on the pick
+ *  dialog's resolution callback (modal window) or on the entry banner's
+ *  postDisplay arming that dialog (banner window), and the promotion
+ *  teardown drops both. Resolves every pending entry with the same
+ *  state-derived pick the max-timer backstop would write, applies the
+ *  picks, and dispatches `enter-wall-build`. Must run BEFORE the
+ *  promotion FULL_STATE broadcast so watchers receive a snapshot in a
+ *  phase that ticks forward on its own. */
+export function forceResolveUpgradePickPhase(ctx: PhaseTransitionCtx): void {
+  finishUpgradePick(ctx, ctx.upgradePick?.forceResolveAll() ?? null);
+}
+
 /** Post-cannon-place prep route: dispatch to `enter-modifier-reveal`
  *  when a modifier was rolled (modern mode), otherwise straight to
  *  `enter-battle`. Shared between host and watcher — the host reads
@@ -1024,16 +1043,8 @@ function proceedToBattleFromCtx(ctx: PhaseTransitionCtx): void {
  *  resolutions, the phase machine applies them. */
 function runPickerModalThenDispatch(ctx: PhaseTransitionCtx): void {
   const picker = ctx.upgradePick;
-  const finish = (resolved: UpgradePickDialogState | null): void => {
-    if (resolved) {
-      applyUpgradePicks(ctx.state, resolved);
-      recheckTerritory(ctx.state);
-    }
-    emitGameEvent(ctx.state.bus, GAME_EVENT.UPGRADE_PICK_END, {
-      round: ctx.state.round,
-    });
-    runTransitionInline("enter-wall-build", ctx);
-  };
+  const finish = (resolved: UpgradePickDialogState | null): void =>
+    finishUpgradePick(ctx, resolved);
   if (!picker || !picker.prepare()) {
     // No picker wired (shouldn't happen since this transition is only
     // dispatched when offers exist), or prepare failed — fall through
@@ -1045,6 +1056,24 @@ function runPickerModalThenDispatch(ctx: PhaseTransitionCtx): void {
     round: ctx.state.round,
   });
   if (!picker.tryShow(finish)) finish(null);
+}
+
+/** Shared tail of the UPGRADE_PICK phase: apply the resolved picks (if
+ *  any), emit UPGRADE_PICK_END, and dispatch `enter-wall-build`. Called
+ *  by the picker modal's resolution callback and by the host-promotion
+ *  force-resolve (`forceResolveUpgradePickPhase`). */
+function finishUpgradePick(
+  ctx: PhaseTransitionCtx,
+  resolved: UpgradePickDialogState | null,
+): void {
+  if (resolved) {
+    applyUpgradePicks(ctx.state, resolved);
+    recheckTerritory(ctx.state);
+  }
+  emitGameEvent(ctx.state.bus, GAME_EVENT.UPGRADE_PICK_END, {
+    round: ctx.state.round,
+  });
+  runTransitionInline("enter-wall-build", ctx);
 }
 
 /** Run a transition without re-priming the banner prev-scene or

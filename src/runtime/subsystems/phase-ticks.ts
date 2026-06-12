@@ -54,7 +54,11 @@ import {
   recordBattleVisualEvents,
   tickBalloonFlights,
 } from "../battle-anim.ts";
-import { type PhaseTransitionCtx, runTransition } from "../phase-machine.ts";
+import {
+  forceResolveUpgradePickPhase,
+  type PhaseTransitionCtx,
+  runTransition,
+} from "../phase-machine.ts";
 import { assertStateInstalled, type RuntimeState, setMode } from "../state.ts";
 import {
   advancePhaseTimer,
@@ -159,6 +163,8 @@ interface PhaseTicksDeps extends Pick<RuntimeConfig, "log"> {
     tryShow: (
       onResolved: (resolved: UpgradePickDialogState) => void,
     ) => boolean;
+    /** Host-promotion repair — see `UpgradePickSystem.forceResolveAll`. */
+    forceResolveAll: () => UpgradePickDialogState | null;
   };
   /** End-game side effects (set game-over frame, stop sound, switch to
    *  Mode.STOPPED, arm demo timer). Wired to `lifecycle.endGame` from
@@ -204,9 +210,13 @@ interface PhaseTicksDeps extends Pick<RuntimeConfig, "log"> {
 
 /** Public phase-ticks handle exposed on `GameRuntime`. Narrow surface —
  *  most callers go through the orchestrator, not the handle. Sole
- *  consumer: host promotion's castle-build skip (`promote.ts`). */
+ *  consumer: host promotion (`promote.ts`). */
 export interface RuntimePhaseTicks {
   dispatchAdvanceToCannon: () => void;
+  /** Force the UPGRADE_PICK phase to its conclusion (state-derived picks
+   *  applied, `enter-wall-build` dispatched). Host-promotion repair —
+   *  see `forceResolveUpgradePickPhase` in phase-machine.ts. */
+  resolveUpgradePickNow: () => void;
 }
 
 export interface PhaseTicksSystem {
@@ -214,6 +224,8 @@ export interface PhaseTicksSystem {
    *  continue path). The mutate runs `finalizeRoundCleanup` only — the
    *  phase entry is owned by the routed `enter-cannon-place`. */
   dispatchAdvanceToCannon: () => void;
+  /** Host-promotion repair — see `RuntimePhaseTicks.resolveUpgradePickNow`. */
+  resolveUpgradePickNow: () => void;
   /** Dispatch the `castle-done` prep transition. Used by both the round-1
    *  initial-selection path and the reselect cycle. The mutate runs
    *  `finalizeRoundCleanup` (gated on `round > 1` because round 1 has no
@@ -367,6 +379,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
         ? {
             prepare: deps.upgradePick.prepare,
             tryShow: deps.upgradePick.tryShow,
+            forceResolveAll: deps.upgradePick.forceResolveAll,
           }
         : undefined,
       ceasefireSkipBattle: () => enterBuildSkippingBattle(runtimeState.state),
@@ -827,6 +840,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
 
   return {
     dispatchAdvanceToCannon,
+    resolveUpgradePickNow: () => forceResolveUpgradePickPhase(buildPhaseCtx()),
     dispatchCastleDone,
     dispatchGameOver,
     startBattle,

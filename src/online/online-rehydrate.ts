@@ -115,6 +115,14 @@ export function applyFullStateToRunningRuntime(
   );
   runtime.runtimeState.selection.castleBuilds = [];
   runtime.lifeLost.set(null);
+  // Same teardown as the life-lost dialog: a pick dialog mid-flight when
+  // the new host's snapshot lands is superseded — promotion force-resolves
+  // the picks into the snapshot before broadcasting (promote.ts), so the
+  // local dialog and its armed resolution callback must not survive the
+  // apply. Leaving it would hand a stale, already-resolved dialog to the
+  // NEXT round's `prepare()` (ensureDialog short-circuits on non-null) and
+  // apply last round's picks there.
+  runtime.upgradePick.set(null);
   runtime.runtimeState.frame.announcement = undefined;
   if (inBattle) runtime.runtimeState.battleAnim.flights = flights;
   else clearBalloonFlights(runtime.runtimeState.battleAnim);

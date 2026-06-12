@@ -106,6 +106,15 @@ export type UpgradePickSystem = RuntimeUpgradePick & {
   /** Slots whose entries accept input from this machine (one slot online,
    *  every local human in shared-screen mode). Empty if none. */
   interactiveSlots: () => ReadonlySet<ValidPlayerId>;
+  /** Resolve the whole dialog NOW — host-promotion repair. Every pending
+   *  entry gets the same state-derived pick the max-timer backstop would
+   *  write (`forceUpgradePick`); already-picked entries keep their choice.
+   *  Tears down dialog state and returns the finalized snapshot WITHOUT
+   *  invoking the armed `onResolved` callback — the phase machine applies
+   *  the picks and dispatches `enter-wall-build` itself
+   *  (`forceResolveUpgradePickPhase`), which also covers the banner-window
+   *  case where no callback was armed yet. Null when no dialog exists. */
+  forceResolveAll: () => UpgradePickDialogState | null;
 };
 
 const EMPTY_SLOT_SET: ReadonlySet<ValidPlayerId> = new Set();
@@ -241,12 +250,20 @@ export function createUpgradePickSystem(
     // frame, so the visual cross-fade to the build scene doesn't depend
     // on dialog state. Mode stays on UPGRADE_PICK; the chain's
     // postDisplay flips to the terminal mode.
+    const callback = onResolvedCb;
+    teardownDialog();
+    callback?.(dialog);
+  }
+
+  /** Drop the dialog plus everything armed around it (resolution
+   *  callback, in-flight pick guards, pulse anchor). Shared by the
+   *  tick-resolution handoff, `set(null)` force-clears, and
+   *  `forceResolveAll`. */
+  function teardownDialog(): void {
     runtimeState.dialogs.upgradePick = null;
+    onResolvedCb = undefined;
     inFlightPicks.clear();
     resolvedAtSimTick = undefined;
-    const callback = onResolvedCb;
-    onResolvedCb = undefined;
-    callback?.(dialog);
   }
 
   /** Max-timer force-resolve, ownership-routed. The entry's OWNING peer
@@ -278,6 +295,27 @@ export function createUpgradePickSystem(
         dialog.timer,
       );
     }
+  }
+
+  /** See `UpgradePickSystem.forceResolveAll`. The teardown mirrors the
+   *  resolution path in `tick()` minus the callback invocation. */
+  function forceResolveAll(): UpgradePickDialogState | null {
+    const dialog = runtimeState.dialogs.upgradePick;
+    if (!dialog) return null;
+    for (const entry of dialog.entries) {
+      if (entry.choice !== null) continue;
+      const forced = runtimeState.controllers[entry.playerId]!.forceUpgradePick(
+        entry,
+        runtimeState.state,
+      );
+      resolveUpgradePickEntry(
+        entry,
+        entry.offers.indexOf(forced),
+        dialog.timer,
+      );
+    }
+    teardownDialog();
+    return dialog;
   }
 
   function moveFocus(playerId: ValidPlayerId, dir: number): void {
@@ -368,12 +406,11 @@ export function createUpgradePickSystem(
   return {
     get: () => runtimeState.dialogs.upgradePick,
     set: (dialog) => {
-      runtimeState.dialogs.upgradePick = dialog;
       if (dialog === null) {
-        onResolvedCb = undefined;
-        inFlightPicks.clear();
-        resolvedAtSimTick = undefined;
+        teardownDialog();
+        return;
       }
+      runtimeState.dialogs.upgradePick = dialog;
     },
     tryShow,
     tick,
@@ -382,5 +419,6 @@ export function createUpgradePickSystem(
     confirmChoice,
     pickDirect,
     interactiveSlots,
+    forceResolveAll,
   };
 }

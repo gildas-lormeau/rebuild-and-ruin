@@ -702,6 +702,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     upgradePick: {
       tryShow: upgradePick.tryShow,
       prepare: upgradePick.prepare,
+      forceResolveAll: upgradePick.forceResolveAll,
     },
     endGame: lifecycle.endGame,
     beginUntilt: camera.beginUntilt,
@@ -915,6 +916,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     },
     phaseTicks: {
       dispatchAdvanceToCannon: phaseTicks.dispatchAdvanceToCannon,
+      resolveUpgradePickNow: phaseTicks.resolveUpgradePickNow,
     },
     music: {
       activate: audio.music.activate,

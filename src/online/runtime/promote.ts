@@ -14,6 +14,7 @@ import {
 } from "../../runtime/bootstrap.ts";
 import type { GameRuntime } from "../../runtime/handle.ts";
 import { setMode } from "../../runtime/state.ts";
+import { Phase } from "../../shared/core/game-phase.ts";
 import { assertNever } from "../../shared/platform/utils.ts";
 import { Mode } from "../../shared/ui/ui-mode.ts";
 import {
@@ -88,6 +89,24 @@ function skipPendingAnimations(): void {
     setMode(_runtime.runtimeState, Mode.GAME);
     _client.devLog(description);
   }
+  // Phase repair, after the mode teardown: UPGRADE_PICK is the only phase
+  // with no self-driving timer — its exit is dispatched by the pick
+  // dialog's resolution callback (modal window) or by the entry banner's
+  // postDisplay arming that dialog (banner window), and the teardown above
+  // just dropped whichever was pending. Left as-is, Mode.GAME's tickGame
+  // no-ops the phase and every peer hangs forever. Force-resolve the picks
+  // (same state-derived choice the max-timer backstop writes) and advance
+  // to WALL_BUILD now, BEFORE the FULL_STATE broadcast — watchers must
+  // receive a snapshot that ticks forward on its own.
+  if (_runtime.runtimeState.state.phase === Phase.UPGRADE_PICK) {
+    _runtime.phaseTicks.resolveUpgradePickNow();
+    // The enter-wall-build dispatch armed its build banner and set
+    // Mode.TRANSITION; the promoted peer skips transition cosmetics like
+    // every teardown branch above.
+    _runtime.hideBanner();
+    setMode(_runtime.runtimeState, Mode.GAME);
+    _client.devLog("Force-resolved upgrade picks → wall build");
+  }
 }
 
 /** Clear mode-specific animation/dialog state left over from the old host.
@@ -118,11 +137,13 @@ function clearAnimationState(mode: Mode): string | null {
       _runtime.scoreDelta.reset();
       return "Skipped phase transition/animation → game mode";
     case Mode.UPGRADE_PICK:
-      // Match the phase-transition + lifecycle paths — go through the
-      // upgrade-pick subsystem boundary instead of mutating dialog state
-      // directly. Same effect, single audited mutation site.
-      _runtime.upgradePick.set(null);
-      return "Cleared upgrade pick dialog → game mode";
+      // No teardown here: an open pick modal means state.phase is
+      // UPGRADE_PICK, and the phase repair in skipPendingAnimations
+      // consumes the dialog (force-resolve → enter-wall-build) and lands
+      // the mode on GAME itself. Clearing the dialog here would discard
+      // the picks made so far AND drop the armed resolution callback —
+      // the only dispatcher of this phase's exit.
+      return null;
     case Mode.GAME:
     case Mode.LOBBY:
     case Mode.OPTIONS:

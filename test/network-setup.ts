@@ -36,6 +36,7 @@ import {
   handleServerMessage,
   initDeps,
 } from "../src/online/runtime/deps.ts";
+import { initPromote } from "../src/online/runtime/promote.ts";
 import {
   createDedupMaps,
   createSession,
@@ -52,6 +53,7 @@ import {
 } from "../src/online/online-presence-state.ts";
 import type { ValidPlayerId } from "../src/shared/core/player-slot.ts";
 import type { UpgradeId } from "../src/shared/core/upgrade-defs.ts";
+import type { UpgradePickDialogState } from "../src/shared/ui/interaction-types.ts";
 import type {
   OnlinePhaseTicks,
   RuntimeConfig,
@@ -76,12 +78,26 @@ export interface NetworkedPair {
   /** Forward every pending host message to the watcher's dispatcher.
    *  Call between ticks to keep the pair in lockstep. */
   readonly pump: () => Promise<void>;
+  /** The watcher's online session. Host-migration tests seat the watcher
+   *  (set `myPlayerId`) here before delivering a HOST_LEFT message — the
+   *  lifecycle handler promotes only when `newHostPlayerId` matches.
+   *  The watcher is pre-wired for promotion (`initPromote`); its
+   *  promotion FULL_STATE broadcast lands in `watcher.sentMessages`. */
+  readonly watcherSession: OnlineSession;
+  /** Read-only view of the watcher's upgrade-pick dialog. Migration tests
+   *  assert the FULL_STATE apply tears a mid-flight dialog down — left in
+   *  place, the dead modal would paint over the adopted phase (callback
+   *  armed but untickable) until the next checkpoint's stale-dialog
+   *  dismissal in online-server-lifecycle.ts. */
+  readonly watcherUpgradePickDialog: () => UpgradePickDialogState | null;
 }
 
 interface RuntimeBuild {
   readonly scenario: Scenario;
   readonly headless: HeadlessRuntime;
   readonly sentMessages: GameMessage[];
+  /** Watcher builds only — the peer's OnlineClient (session + stubs). */
+  readonly client?: OnlineClient;
 }
 
 /** Two-peer pair where BOTH peers drive a local assisted-human slot and
@@ -184,6 +200,9 @@ export async function createNetworkedPair(
     host: hostBuild.scenario,
     watcher: watcherBuild.scenario,
     pump,
+    watcherSession: watcherBuild.client!.ctx.session,
+    watcherUpgradePickDialog: () =>
+      watcherBuild.headless.runtime.upgradePick.get(),
   };
 }
 
@@ -333,7 +352,11 @@ async function buildWatcherRuntime(
   // every slot ticks locally as deterministic AI.
   const remoteHumans = new Set<ValidPlayerId>(opts.assistedSlots ?? []);
 
-  const client = buildWatcherClient(remoteHumans);
+  // Promotion FULL_STATE broadcasts go through `client.send` (not the
+  // runtime's network observer) — capture them in the same sink.
+  const client = buildWatcherClient(remoteHumans, (msg) =>
+    sentMessages.push(msg),
+  );
   const headless = await createHeadlessRuntime({
     ...base,
     hostMode: false,
@@ -366,18 +389,27 @@ async function buildWatcherRuntime(
   });
   headless.subscribeNetworkMessage(handleServerMessage);
 
+  // Wire the real promotion path: a delivered HOST_LEFT message whose
+  // `newHostPlayerId` matches this session's seat runs production
+  // `promoteToHost` against this runtime. `initPromote` binds module-level
+  // singletons — the most recently built watcher owns them, matching the
+  // one-pair-per-test usage of this harness.
+  initPromote(headless.runtime, client);
+
   const scenario = wrapHeadless(headless, sentMessages);
-  return { scenario, headless, sentMessages };
+  return { scenario, headless, sentMessages, client };
 }
 
 /** Minimal `OnlineClient` for a watcher. The dispatcher reads
  *  `ctx.session`, `ctx.dedup`, `ctx.presence`, and `devLog`; everything
- *  else is a no-op stub. `session.isHost` stays `false` — this is a
- *  pure watcher, never promoted. */
+ *  else is a no-op stub. `session.isHost` starts `false`; host-migration
+ *  tests flip it by delivering a HOST_LEFT message through the real
+ *  promotion path (`initPromote` is wired in `buildWatcherRuntime`). */
 function buildWatcherClient(
   remotePlayerSlots: ReadonlySet<ValidPlayerId>,
+  send: (msg: GameMessage) => void,
 ): OnlineClient {
-  return buildPeerClient(remotePlayerSlots, false);
+  return buildPeerClient(remotePlayerSlots, false, send);
 }
 
 async function buildBidirectionalHost(
@@ -519,6 +551,7 @@ function buildDialogDrains(
 function buildPeerClient(
   remotePlayerSlots: ReadonlySet<ValidPlayerId>,
   isHost: boolean,
+  send: (msg: GameMessage) => void = () => {},
 ): OnlineClient {
   const session: OnlineSession = createSession();
   if (isHost) {
@@ -532,7 +565,7 @@ function buildPeerClient(
   const presence: OnlinePresenceState = createOnlinePresenceState();
   return {
     ctx: { session, dedup, presence, reconnect: { count: 0, timer: null } },
-    send: () => {},
+    send,
     maybeSendAimUpdate: () => {},
     resetNetworking: () => {},
     clearReconnect: () => {},
