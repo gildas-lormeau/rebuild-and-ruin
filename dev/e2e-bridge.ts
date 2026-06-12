@@ -268,6 +268,19 @@ const captureFilters: CaptureFilter[] = [];
  *  Holds only shallow snapshots (rebuilt each frame) and coordinate-conversion
  *  closures. No direct GameState references are retained between frames. */
 let bridge: E2EBridge | undefined;
+/** The runtime currently driving the bridge. A dev page can host two
+ *  compositions in one session (local `main.ts` + `online-client.ts`),
+ *  each calling `exposeE2EBridge` every frame from its own loop. The
+ *  bridge follows ONE owner: its closures (`gameState`, `asciiSnapshot`,
+ *  `worldToClient`, …) bind the owner's deps at build time, so letting
+ *  the other runtime's per-frame calls through would interleave
+ *  alternating snapshots over first-runtime closures AND flip
+ *  `subscribedBus` every frame — one duplicate `onAny` handler per flip,
+ *  busLog entries multiplying ~60/s. A non-owner takes ownership (bridge
+ *  rebuilt over its deps, busLog/pause flags carried) only while it is
+ *  active and the owner is STOPPED — the local→online hand-off. While
+ *  both are active, the first owner keeps the bridge. */
+let bridgeOwner: RuntimeState | undefined;
 /** The bus instance we're currently forwarding into `bridge.busLog`.
  *  Deferred until state is ready. When the game restarts (new bus
  *  instance after a checkpoint hand-off or `page.reload()` scenario),
@@ -287,74 +300,30 @@ export function exposeE2EBridge(deps: E2EBridgeDeps): void {
 
   const win = globalThis as unknown as Record<string, unknown>;
 
-  if (bridge === undefined) {
-    const worldToClient = makeWorldToClient(deps);
-    bridge = {
-      mode: "",
-      phase: "",
-      lobbyActive: false,
-      round: 0,
-      timer: 0,
-      overlay: {
-        hasBannerPrevScene: false,
-        hasBannerNewScene: false,
-        banner: null,
-        battle: null,
-        ui: {
-          statusBar: null,
-          gameOver: null,
-          lifeLostDialog: null,
-          upgradePick: null,
-        },
-      },
-      controller: null,
-      worldToClient,
-      tileToClient: makeTileToClient(worldToClient),
-      gameState: () =>
-        isStateInstalled(deps.runtimeState)
-          ? serializeGameState(deps.runtimeState.state)
-          : null,
-      asciiSnapshot: (opts) =>
-        isStateInstalled(deps.runtimeState)
-          ? renderAscii(deps.runtimeState.state, opts)
-          : null,
-      tileAt: (row, col) =>
-        isStateInstalled(deps.runtimeState)
-          ? inspectTile(deps.runtimeState.state, row, col)
-          : null,
-      targeting: { enemyCannons: [], enemyTargets: [] },
-      paused: false,
-      step: false,
-      camera: {
-        cameraZone: undefined,
-        pitch: 0,
-        pitchState: "flat",
-        hasViewport: false,
-        autoZoomOn: false,
-      },
-      enableMobileZoom: () => deps.camera.enableMobileZoom(),
-      busLog: [],
-      captureOn: (type, predicateSrc) => {
-        let predicate: (ev: unknown) => boolean = () => true;
-        if (predicateSrc) {
-          try {
-            predicate = new Function("ev", `return (${predicateSrc})(ev);`) as (
-              ev: unknown,
-            ) => boolean;
-          } catch (err) {
-            console.warn(
-              `[e2e-bridge] captureOn(${JSON.stringify(type)}): failed to compile predicate, falling back to match-all. Source: ${predicateSrc}`,
-              err,
-            );
-          }
-        }
-        captureFilters.push({ type, predicate });
-      },
-    };
+  if (bridge !== undefined && bridgeOwner !== deps.runtimeState) {
+    // Another composition owns the bridge. Steal it only for the
+    // stopped-owner hand-off; otherwise ignore this runtime's frame
+    // entirely (see `bridgeOwner`).
+    const callerActive = deps.runtimeState.mode !== Mode.STOPPED;
+    const ownerStopped = bridgeOwner?.mode === Mode.STOPPED;
+    if (!callerActive || !ownerStopped) return;
+    bridge = buildBridge(deps, bridge);
+    bridgeOwner = deps.runtimeState;
+    // Force a fresh busLog subscription against the new owner's bus.
+    // The old subscription dangles on the previous runtime's bus —
+    // harmless: a stopped runtime's bus no longer emits, and a rematch
+    // over there creates a new bus (and steals ownership back through
+    // this same path).
+    subscribedBus = undefined;
     win.__e2e = bridge;
   }
-  // After init guard, bridge is guaranteed non-null
-  const ref = bridge!;
+
+  if (bridge === undefined) {
+    bridge = buildBridge(deps, undefined);
+    bridgeOwner = deps.runtimeState;
+    win.__e2e = bridge;
+  }
+  const ref = bridge;
 
   // --- Pause support ---
   if (ref.paused) {
@@ -368,6 +337,78 @@ export function exposeE2EBridge(deps: E2EBridgeDeps): void {
 
   subscribeBus(ref, deps);
   updateBridgeSnapshots(ref, deps);
+}
+
+/** Build the bridge object over `deps`. `carryFrom` preserves the
+ *  cross-ownership state on a hand-off: busLog (its `_seq` cursor
+ *  contract is monotonic across games) and the test-driven pause flags. */
+function buildBridge(
+  deps: E2EBridgeDeps,
+  carryFrom: E2EBridge | undefined,
+): E2EBridge {
+  const worldToClient = makeWorldToClient(deps);
+  return {
+    mode: "",
+    phase: "",
+    lobbyActive: false,
+    round: 0,
+    timer: 0,
+    overlay: {
+      hasBannerPrevScene: false,
+      hasBannerNewScene: false,
+      banner: null,
+      battle: null,
+      ui: {
+        statusBar: null,
+        gameOver: null,
+        lifeLostDialog: null,
+        upgradePick: null,
+      },
+    },
+    controller: null,
+    worldToClient,
+    tileToClient: makeTileToClient(worldToClient),
+    gameState: () =>
+      isStateInstalled(deps.runtimeState)
+        ? serializeGameState(deps.runtimeState.state)
+        : null,
+    asciiSnapshot: (opts) =>
+      isStateInstalled(deps.runtimeState)
+        ? renderAscii(deps.runtimeState.state, opts)
+        : null,
+    tileAt: (row, col) =>
+      isStateInstalled(deps.runtimeState)
+        ? inspectTile(deps.runtimeState.state, row, col)
+        : null,
+    targeting: { enemyCannons: [], enemyTargets: [] },
+    paused: carryFrom?.paused ?? false,
+    step: carryFrom?.step ?? false,
+    camera: {
+      cameraZone: undefined,
+      pitch: 0,
+      pitchState: "flat",
+      hasViewport: false,
+      autoZoomOn: false,
+    },
+    enableMobileZoom: () => deps.camera.enableMobileZoom(),
+    busLog: carryFrom?.busLog ?? [],
+    captureOn: (type, predicateSrc) => {
+      let predicate: (ev: unknown) => boolean = () => true;
+      if (predicateSrc) {
+        try {
+          predicate = new Function("ev", `return (${predicateSrc})(ev);`) as (
+            ev: unknown,
+          ) => boolean;
+        } catch (err) {
+          console.warn(
+            `[e2e-bridge] captureOn(${JSON.stringify(type)}): failed to compile predicate, falling back to match-all. Source: ${predicateSrc}`,
+            err,
+          );
+        }
+      }
+      captureFilters.push({ type, predicate });
+    },
+  };
 }
 
 function subscribeBus(ref: E2EBridge, deps: E2EBridgeDeps): void {
