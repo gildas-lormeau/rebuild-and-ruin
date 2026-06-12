@@ -52,8 +52,9 @@ export async function createController(
   // _privateSeed is unused by the default factory; pure-AI strategies use
   // sharedRng for runtime decision draws. The AssistedHuman factory in
   // test/runtime-headless.ts uses _privateSeed to construct a per-slot
-  // private Rng. The bootstrap pulls one int per AI slot regardless so
-  // host/watcher remain symmetric.
+  // private Rng. The bootstrap draws it only for pure-AI slots (one int
+  // per slot, in slot order); `humanSlots` is peer-identical, so the
+  // draw sequence is too.
   _privateSeed?: number,
   personality?: AiPersonality,
   // Camera-backed aim resolver, threaded from the composition root (where the

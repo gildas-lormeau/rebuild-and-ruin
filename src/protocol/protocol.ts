@@ -88,6 +88,11 @@ export interface InitMessage {
     cannonPlaceTimer: number;
     firstRoundCannons: number;
     gameMode: string;
+    /** Host's AI difficulty. Bootstrap personality rolls draw from the
+     *  shared `state.rng` with a difficulty-dependent draw COUNT, so every
+     *  peer must roll with the host's value — a peer using its own local
+     *  setting skews the shared-stream cursor and desyncs the mirror sim. */
+    difficulty: number;
   };
 }
 

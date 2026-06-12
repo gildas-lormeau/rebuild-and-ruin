@@ -141,6 +141,7 @@ const runtime: GameRuntime = createGameRuntime({
         cannonPlaceTimer: diffParams.cannonPlaceTimer,
         firstRoundCannons: diffParams.firstRoundCannons,
         gameMode: ctx.session.roomGameMode,
+        difficulty: runtime.runtimeState.settings.difficulty,
       },
     };
     send(initMsg);

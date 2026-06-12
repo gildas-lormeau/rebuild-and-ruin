@@ -5,6 +5,7 @@ import {
 } from "../controllers/controller-factory.ts";
 import { applyGameConfig, createGameFromSeed } from "../game/index.ts";
 import type { AiPersonality } from "../shared/core/ai-personality.ts";
+import { deriveAiStrategySeed } from "../shared/core/ai-seed.ts";
 import {
   DIFFICULTY_PARAMS,
   GAME_MODE_CLASSIC,
@@ -18,7 +19,7 @@ import type {
   PlayerController,
 } from "../shared/core/system-interfaces.ts";
 import type { GameState } from "../shared/core/types.ts";
-import { MAX_UINT32, type Rng } from "../shared/platform/rng.ts";
+import { MAX_UINT32, Rng } from "../shared/platform/rng.ts";
 import {
   type GameSettings,
   type KeyBindings,
@@ -76,9 +77,13 @@ interface ResolvedGameConfig {
 interface InitGameDeps extends BootstrapFromSettingsDeps, ResolvedGameConfig {
   seed: number;
   maxPlayers: number;
-  /** Which slots are human (true = human, false/missing = AI). */
+  /** Which seats have a human — ANY peer's human, not just this peer's
+   *  (true = human seated, false/missing = pure AI). Cross-peer RNG
+   *  contract: must be identical on every peer of the same match (see the
+   *  seeding-contract comment in `bootstrapGame`). */
   humanSlots: readonly boolean[];
-  /** Per-slot key bindings (only used for human slots). */
+  /** Per-slot key bindings — present only for human seats THIS peer
+   *  drives. A human seat without bindings is a remote player's seat. */
   keyBindings: readonly (KeyBindings | undefined)[];
   /** AI difficulty level (0=Easy, 1=Normal, 2=Hard, 3=Very Hard). */
   difficulty: number;
@@ -178,56 +183,101 @@ export async function bootstrapGame(deps: InitGameDeps): Promise<void> {
     `initGame: ${playerCount} players, seed=${deps.seed}, maxRounds=${state.maxRounds}`,
   );
 
-  const hasAi = deps.humanSlots.some(
-    (joined, idx) => idx < playerCount && !joined,
-  );
+  // AI modules are needed for pure-AI slots AND for remote-human seats —
+  // their disconnect-takeover AI controller is built now, at bootstrap.
+  const hasAi = Array.from(
+    { length: playerCount },
+    (_, idx) => !deps.humanSlots[idx] || !deps.keyBindings[idx],
+  ).includes(true);
   if (hasAi) await ensureAiModulesLoaded();
   if (deps.isCancelled()) {
     deps.log("initGame: cancelled during AI module load — session torn down");
     return;
   }
 
-  // AI strategy seeding contract (initial host path):
-  //   Every peer rolls one personality + one private seed per AI slot in
-  //   player order, drawing from `state.rng` symmetrically. Personality is
-  //   pre-rolled here (rather than inside `DefaultStrategy`'s constructor)
-  //   so the factory can hand it to the strategy without any further RNG
-  //   draws — that keeps the construction phase free of strategy-side
-  //   state.rng consumption, which would otherwise differ between host and
-  //   watcher when one peer installs an AssistedHuman variant for a slot
-  //   the other treats as plain pure-AI.
+  // AI identity seeding contract (initial bootstrap path):
+  //   `deps.humanSlots` is the SEATED-HUMAN set and must be identical on
+  //   every peer (local: lobby.joined; online: lobby seating every client
+  //   derived from the same ordered server stream — see initFromServer).
+  //   It must never mean "slots this peer drives": the shared-stream draws
+  //   below are keyed off it, so a per-peer view skews both the draw count
+  //   and the slot→identity mapping across peers.
   //
-  //   Pure-AI factories use `state.rng` for runtime decision draws (every
-  //   peer ticks pure-AI in lockstep). AssistedHuman factories use the
-  //   per-slot privateSeed to construct a private `new Rng(seed)` because
-  //   their animation runs only on the slot-owning peer.
+  //   Pure-AI slots draw one privateSeed + one personality each from
+  //   `state.rng`, in slot order — symmetric on every peer, and the
+  //   sequence the local determinism fixtures are recorded against. Their
+  //   controllers tick on every peer in lockstep, drawing decisions from
+  //   `state.rng` (= strategy.rng). AssistedHuman factories (tests) use
+  //   the per-slot privateSeed to construct a private `new Rng(seed)`
+  //   because their animation runs only on the slot-owning peer.
   //
-  //   The host-promotion path in online-host-promotion.ts uses a private
-  //   `new Rng(deriveAiStrategySeed(...))` instead, because a promoted host
-  //   constructs AI controllers asymmetrically (only on the new host). Post-
-  //   promotion AI identity is NOT preserved from the pre-promotion host.
-  //   If you ever need identity preservation across promotion, checkpoint
-  //   the strategy seeds into SerializedPlayer and restore them on rebuild.
+  //   Human seats draw NOTHING from the shared stream. The controller
+  //   depends on who is bootstrapping:
+  //     - keyBindings[i] present → this peer drives the seat: human.
+  //     - keyBindings[i] absent → a remote human's seat: build its
+  //       disconnect-takeover AI. If that player leaves mid-game the slot
+  //       drops out of remotePlayerSlots and every surviving peer starts
+  //       ticking this controller in lockstep — so its identity must agree
+  //       across peers without touching the shared stream: personality
+  //       rolls from a private Rng over deriveAiStrategySeed(seed ^ 1,
+  //       round, slot) (the same salt the promotion rebuild uses), and
+  //       decisions draw from `state.rng` like any lockstep pure-AI slot.
+  //
+  //   Personality is pre-rolled here (rather than inside
+  //   `DefaultStrategy`'s constructor) so the factory can hand it to the
+  //   strategy without any further RNG draws — construction stays free of
+  //   strategy-side state.rng consumption.
+  //
+  //   The host-promotion path in online-host-promotion.ts derives BOTH
+  //   rngs privately, because a promoted host constructs AI controllers
+  //   asymmetrically (only on the new host). Post-promotion AI identity
+  //   is NOT preserved from the pre-promotion host. If you ever need
+  //   identity preservation across promotion, checkpoint the strategy
+  //   seeds into SerializedPlayer and restore them on rebuild.
   const factory = deps.controllerFactory ?? createController;
   const nextControllers = await Promise.all(
     Array.from({ length: playerCount }, (_, i) => {
-      const isAi = !deps.humanSlots[i];
-      // Object-literal evaluation order matters: privateSeed must draw before
-      // personality so the determinism fixtures stay byte-stable.
-      const aiFields = isAi
-        ? {
-            privateSeed: state.rng.int(0, MAX_UINT32),
-            personality: rollAiPersonality(state.rng, deps.difficulty),
-            rng: state.rng,
-          }
-        : { privateSeed: undefined, personality: undefined, rng: undefined };
+      const pid = i as ValidPlayerId;
+      const keys = deps.keyBindings[i];
+      if (!deps.humanSlots[i]) {
+        // Draw order matters: privateSeed before personality, slots in
+        // order, so the determinism fixtures stay byte-stable.
+        const privateSeed = state.rng.int(0, MAX_UINT32);
+        const personality = rollAiPersonality(state.rng, deps.difficulty);
+        return factory(
+          pid,
+          true,
+          keys,
+          state.rng,
+          privateSeed,
+          personality,
+          deps.humanAimResolver,
+        );
+      }
+      if (keys) {
+        return factory(
+          pid,
+          false,
+          keys,
+          undefined,
+          undefined,
+          undefined,
+          deps.humanAimResolver,
+        );
+      }
+      // Remote human's seat: disconnect-takeover AI, identity derived
+      // off-stream (see contract above).
+      const personality = rollAiPersonality(
+        new Rng(deriveAiStrategySeed(state.rng.seed ^ 1, state.round, pid)),
+        deps.difficulty,
+      );
       return factory(
-        i as ValidPlayerId,
-        isAi,
-        deps.keyBindings[i],
-        aiFields.rng,
-        aiFields.privateSeed,
-        aiFields.personality,
+        pid,
+        true,
+        undefined,
+        state.rng,
+        undefined,
+        personality,
         deps.humanAimResolver,
       );
     }),

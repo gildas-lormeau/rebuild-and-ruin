@@ -14,6 +14,7 @@ import type { GameRuntime } from "../../runtime/handle.ts";
 import { setMode, setRuntimeGameState } from "../../runtime/state.ts";
 import type { TimingApi } from "../../runtime/timing-api.ts";
 import type { GameMode } from "../../shared/core/game-constants.ts";
+import type { ValidPlayerId } from "../../shared/core/player-slot.ts";
 import { Rng } from "../../shared/platform/rng.ts";
 import { MAX_PLAYERS } from "../../shared/ui/player-config.ts";
 import { Mode } from "../../shared/ui/ui-mode.ts";
@@ -76,9 +77,17 @@ export function createOnlineRuntimeSessionHelpers(
     runtime.runtimeState.lobby.active = false;
     const settings = runtime.runtimeState.settings;
     const playerCount = Math.min(Math.max(1, msg.playerCount), MAX_PLAYERS);
-    const humanSlots = Array.from(
-      { length: playerCount },
-      (_, index) => index === deps.session.myPlayerId,
+    // Seated-human set — IDENTICAL on every peer, spectators included:
+    // every client derived `occupiedSlots` from the same ordered lobby
+    // stream (ROOM_JOINED snapshot + JOINED/PLAYER_LEFT broadcasts).
+    // bootstrapGame draws AI identity from the shared `state.rng` once
+    // per non-human slot in slot order, so this array is a cross-peer
+    // RNG contract. It must NOT be "slots this peer drives" — that made
+    // each peer skip a different slot's draws, desyncing straddle
+    // seatings (humans at 0+2), 3-human takeover identities, and every
+    // spectator's mirror sim from tick 0.
+    const humanSlots = Array.from({ length: playerCount }, (_, index) =>
+      deps.session.occupiedSlots.has(index as ValidPlayerId),
     );
     const keyBindings = Array.from({ length: playerCount }, (_, index) =>
       index === deps.session.myPlayerId ? settings.keyBindings[0] : undefined,
@@ -100,7 +109,10 @@ export function createOnlineRuntimeSessionHelpers(
       gameMode: msg.settings.gameMode as GameMode,
       humanSlots,
       keyBindings,
-      difficulty: settings.difficulty,
+      // The HOST's difficulty, not this peer's local setting — personality
+      // rolls consume a difficulty-dependent number of shared-stream draws
+      // (see InitMessage.settings.difficulty).
+      difficulty: msg.settings.difficulty,
       log: deps.log,
       clearFrameData: () => runtime.clearFrameData(),
       setState: (state) => {
