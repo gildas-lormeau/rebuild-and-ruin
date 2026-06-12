@@ -172,10 +172,12 @@ export interface PhaseTransitionCtx {
 
   readonly showBanner: BannerShow;
   /** Hide whatever banner is currently on screen. The display runner
-   *  calls this between non-banner steps (so a held `swept` banner
-   *  doesn't sit over a dialog) and at the end of the display sequence
-   *  (so postDisplay hooks run against a clean screen). Banner steps
-   *  never need this — `showBanner` overwrites cleanly. */
+   *  calls this once at the END of every display sequence — empty ones
+   *  included — so postDisplay hooks run against a clean screen (a
+   *  `swept` banner sits on screen until explicitly hidden). The
+   *  host-promotion repairs also use it to skip a routed entry's banner
+   *  cosmetics (`forceResolveRoundEndPhase`). Banner steps never need
+   *  this — `showBanner` overwrites cleanly. */
   readonly hideBanner: () => void;
   /** Render the current (pre-mutation) state offscreen at fullMapVp and
    *  hand it to the banner system as the next banner's prev-scene.
@@ -255,13 +257,18 @@ export interface PhaseTransitionCtx {
    *  direction). `proceedToBattleFromCtx` uses it to hold balloon-anim start
    *  until the build→battle tilt completes. Fires synchronously when
    *  pitch is already settled, so callers don't need a separate gate. See
-   *  `RuntimeCamera.awaitPitchSettled`. Optional so headless contexts
-   *  that don't own a camera can skip wiring it. */
+   *  `RuntimeCamera.awaitPitchSettled`. Wired UNCONDITIONALLY by the
+   *  composition root — headless and 2D included: the pitch state machine
+   *  is renderer-independent, deterministic (SIM_TICK_DT), and GATES
+   *  battle-done dispatch, so a peer that skipped it would dispatch at
+   *  different sim ticks than the rest (camera-zoom-parity pins this).
+   *  The `?` is type-level slack only. */
   readonly awaitPitchSettled?: (callback: () => void) => void;
   /** Start the build→battle tilt at battle-banner end. Called inside
-   *  `proceedToBattleFromCtx`. Optional so headless / watcher-without-camera
-   *  contexts can skip it (2D wiring also skips — the renderer has no
-   *  tilt axis). */
+   *  `proceedToBattleFromCtx`. Same wiring contract as
+   *  `awaitPitchSettled` above: always provided, renderer-independent —
+   *  a 2D renderer simply doesn't DISPLAY the pitch, but the deterministic
+   *  pitch sim must still run on every peer. */
   readonly beginTilt?: () => void;
   /** Per-peer setup when WALL_BUILD begins: score-delta reset,
    *  per-LOCAL-controller startBuildPhase, clear impacts, accumulator

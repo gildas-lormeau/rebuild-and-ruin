@@ -133,8 +133,9 @@ export interface RuntimeState {
    *  frame at the end of `mainLoop`. Coalescing N substep renders into 1
    *  prevents the spiral-of-death where heavy frames render multiple times
    *  but only the last image is ever painted. The few sites that need a
-   *  synchronous render (game-over terminal frame, in-STOPPED-mode focus
-   *  toggles) bypass this flag via `forceRender`. */
+   *  synchronous render (e.g. `finalizeGameOver`'s terminal frame,
+   *  `finishSelection`'s pre-mutate flush) bypass this flag and call
+   *  `render()` directly. */
   renderDirty: boolean;
 
   // Grouped sub-state
@@ -151,8 +152,10 @@ export interface RuntimeState {
    *  persisted across rounds so the next battle restores aim onto the same
    *  enemy (see `battle-aim.ts`). Written by the composition root's
    *  battle-aim seeding (battle-entry apply + round-end save); read by the
-   *  camera's battle-entry zone anchor; cleared by session teardown /
-   *  `resetTransientState`. Pov-local presentational state — never synced. */
+   *  camera's battle-entry zone anchor; cleared by `resetTransientState`
+   *  (restart / rematch — `teardownSession` doesn't clear it; the next
+   *  game's reset covers it). Pov-local presentational state — never
+   *  synced. */
   lastBattleCrosshair: { x: number; y: number } | undefined;
   /** Per-frame context (dt, mode, etc.). Populated by `computeFrameContext`
    *  on every mainLoop tick. Holds a placeholder until the first tick — same

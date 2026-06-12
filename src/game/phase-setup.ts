@@ -274,11 +274,12 @@ export function prepareNextRound(state: GameState): void {
 }
 
 /** Emit `ROUND_START` for the round the engine just rolled into.
- *  `state.round` must already reflect the new round value — the increment
- *  happens earlier in `resolveAfterLifeLost`, before the game-over /
- *  continue branch is decided, so the round-limit check sees the same
- *  counter the player will play next. Only fired on the continue /
- *  reselect branches; the game-over branch suppresses it. */
+ *  `state.round` must already reflect the new round value — round-end's
+ *  mutate increments it immediately before this call, and only on the
+ *  continue/reselect path: the game-over peek returns early with the
+ *  counter still at the closing round and this emit suppressed. (That
+ *  ordering is why `routeLifeLostResolution` re-checks only the
+ *  alive-count condition afterwards, never the round limit.) */
 export function emitRoundStart(state: GameState): void {
   emitGameEvent(state.bus, GAME_EVENT.ROUND_START, { round: state.round });
 }
@@ -386,8 +387,9 @@ export function prepareCastleWallsForPlayer(
  *    - life penalties (`applyLifePenalties`)
  *
  *  Emits `ROUND_END` after the score is computed — the round is officially
- *  closed at this point. The counter advances later, in `resolveAfterLifeLost`,
- *  after the life-lost dialog resolves and before the game-over check.
+ *  closed at this point. The caller (round-end's mutate) advances the
+ *  counter immediately after this returns, unless its game-over peek ends
+ *  the match — the counter then stays at the closing round.
  *
  *  Wall + grunt cleanup (isolated-wall removal, grunts in eliminated zones,
  *  recompute targetedWall) is deferred to `finalizeRoundCleanup` so the

@@ -88,11 +88,12 @@ export interface RuntimeLifecycle {
   rematch: () => void | Promise<void>;
   resetUIState: () => void;
   /** Shared game-over terminal sequence: caller-supplied frame paint →
-   *  teardown → render → Mode.STOPPED. Used by the host's `endGame`, the
-   *  watcher's MESSAGE.GAME_OVER handler (paints from authoritative
-   *  scores), and the watcher's local last-player-standing detection
-   *  (paints nothing — the message will overwrite when it arrives).
-   *  Idempotent. */
+   *  teardown → render → Mode.STOPPED. Two callers: `endGame` (the
+   *  game-over transition dispatches locally on EVERY peer —
+   *  last-player-standing included, via the life-lost route) and the
+   *  watcher's MESSAGE.GAME_OVER handler (re-paints from the host's
+   *  authoritative scores). Idempotent — safe when the local dispatch
+   *  fires before the message arrives. */
   finalizeGameOver: (setFrame: () => void) => void;
 }
 
@@ -179,11 +180,11 @@ export function createGameLifecycle(
   }
 
   /** Shared terminal sequence for game-over: snapshot the game-over frame
-   *  (host builds from live state, watcher copies authoritative scores from
-   *  MESSAGE.GAME_OVER, watcher's local detection passes a no-op and waits
-   *  for the message), then clean up display caches, then render + stop the
-   *  loop. Idempotent — safe to call twice if the watcher's local path
-   *  fires before MESSAGE.GAME_OVER arrives. */
+   *  (every peer's `endGame` builds it from its own live state; the
+   *  watcher's MESSAGE.GAME_OVER handler re-paints from the host's
+   *  authoritative scores), then clean up display caches, then render +
+   *  stop the loop. Idempotent — safe to call twice when the local
+   *  dispatch fires before MESSAGE.GAME_OVER arrives. */
   function finalizeGameOver(setFrame: () => void): void {
     setFrame();
     teardownSession();

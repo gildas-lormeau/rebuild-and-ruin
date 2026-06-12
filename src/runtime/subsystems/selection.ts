@@ -449,9 +449,10 @@ export function createSelectionSystem(
     // canvas first; the banner's offscreen-B model is preserved because
     // the mutate hasn't run yet.
     deps.flushPendingRender();
-    // castle-done's mutate handles finalizeRoundCleanup (round > 1) +
-    // finalizeFreshCastles + finalizeCastleConstruction +
-    // enterCannonPhase + cannon-start broadcast.
+    // castle-done's mutate runs finalizeRoundCleanup (round > 1) +
+    // finalizeFreshCastles + finalizeCastleConstruction + the cannon-start
+    // broadcast; its postDisplay routes inline to enter-cannon-place,
+    // which owns enterCannonPhase + the banner.
     deps.dispatchCastleDone();
   }
 
