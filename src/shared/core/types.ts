@@ -364,15 +364,11 @@ export interface FrameContext {
 
   // Mode / Phase
   readonly mode: Mode;
-  readonly phase: Phase;
 
   /** True when the current game phase is BATTLE. */
   readonly inBattle: boolean;
 
   // Overlay flags
-  readonly paused: boolean;
-  readonly quitPending: boolean;
-  readonly hasLifeLostDialog: boolean;
   readonly isSelectionReady: boolean;
 
   // Player presence
@@ -381,11 +377,9 @@ export interface FrameContext {
   readonly hasPointerPlayer: boolean;
 
   // Composite guards
-  /** UI overlay suppresses gameplay (pause, quit dialog, life-lost). */
-  readonly uiBlocking: boolean;
-  /** Phase timer about to expire (< PHASE_ENDING_THRESHOLD) on non-touch. */
-  readonly phaseEnding: boolean;
-  /** Camera should unzoom (uiBlocking OR phaseEnding). */
+  /** Camera should unzoom (an overlay blocks gameplay — pause / quit
+   *  dialog / life-lost — or the phase timer is about to expire, or a
+   *  transition is running). */
   readonly shouldUnzoom: boolean;
   /** Life-lost dialog is open AND the local pov player has an unresolved
    *  entry. While true, the camera holds the local player's home zone

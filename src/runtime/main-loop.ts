@@ -334,7 +334,6 @@ function computeFrameContext(inputs: FrameContextInputs): FrameContext {
     humanCastleConfirmed,
   } = inputs;
 
-  const uiBlocking = paused || quitPending || hasLifeLostDialog;
   // The local player has an unresolved life-lost entry: the camera should
   // hold their home zone instead of unzooming. Gated on mobileAutoZoom — on
   // desktop the popup sits over a fullMap view as before.
@@ -362,15 +361,9 @@ function computeFrameContext(inputs: FrameContextInputs): FrameContext {
     hostAtFrameStart,
     remotePlayerSlots,
     mode,
-    phase,
     inBattle,
-    paused,
-    quitPending,
-    hasLifeLostDialog,
     isSelectionReady,
     hasPointerPlayer,
-    uiBlocking,
-    phaseEnding,
     shouldUnzoom,
     lifeLostKeepZoom,
     isTransition,
