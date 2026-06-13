@@ -524,11 +524,13 @@ export function createMusicSubsystem(): MusicSubsystem {
       gain.gain.value = FANFARE_VOLUME;
       source.connect(gain);
       gain.connect(ctx.destination);
-      activeFanfareSources.add(source);
       source.addEventListener("ended", () => {
         activeFanfareSources.delete(source);
       });
+      // Track only after a successful start: a throwing start() would
+      // otherwise leave a never-firing source in the set until stopAll.
       source.start(0);
+      activeFanfareSources.add(source);
     } catch (error) {
       console.error(
         `[music] fanfare playback failed for slot ${playerId}:`,
