@@ -23,10 +23,17 @@ import { PLAYER_NAMES } from "../../shared/ui/player-config.ts";
 import { Mode } from "../../shared/ui/ui-mode.ts";
 import { createError, joinError } from "../online-dom.ts";
 import { handleGameOverTransition } from "../online-phase-transitions.ts";
+import { applyMidGameCheckpoint } from "../online-rehydrate.ts";
+import { isSeatReclaimable } from "../online-rejoin.ts";
+import {
+  type SeatReclaimDeps,
+  scheduleSeatReclaim,
+} from "../online-seat-reclaim.ts";
 import {
   type SeatTakeoverDeps,
   scheduleSeatTakeover,
 } from "../online-seat-takeover.ts";
+import { createFullStateMessage } from "../online-serialize.ts";
 import {
   type HandleServerIncrementalDeps,
   handleServerIncrementalMessage,
@@ -100,6 +107,8 @@ function buildLifecycleDeps(
     transitions: buildTransitionDeps(init),
     migration: buildMigrationDeps(init),
     takeover: buildTakeoverDeps(init, client),
+    reclaim: buildReclaimDeps(init, client),
+    rejoin: buildRejoinDeps(init, client),
   };
 }
 
@@ -127,6 +136,93 @@ function buildTakeoverDeps(init: DepsInit, client: OnlineClient) {
     },
     schedule: (playerId: ValidPlayerId, applyAt: number) =>
       scheduleSeatTakeover(seatDeps, playerId, applyAt),
+  };
+}
+
+/** Lockstep seat-RECLAIM hooks — the give-back inverse of the takeover
+ *  deps above (see online-seat-reclaim.ts + online-rejoin.ts). DORMANT in
+ *  production until step 3c-2 wires the tab-return REJOIN_ROOM trigger: no
+ *  peer sends REQUEST_SEAT_RECLAIM before then, so `onReclaimRequest` never
+ *  fires and no SEAT_RECLAIM is stamped. Exercised only by unit tests until
+ *  then. */
+function buildReclaimDeps(init: DepsInit, client: OnlineClient) {
+  const session = client.ctx.session;
+  const reclaimDeps: SeatReclaimDeps = {
+    session,
+    getLobbyJoined: () => init.runtime.runtimeState.lobby.joined,
+    schedule: (action) =>
+      init.runtime.runtimeState.actionSchedule.schedule(action),
+    installOwnerController: (playerId, state) => {
+      // STUB (3c-1): the dormant give-back wiring lands first. Step 3c-2
+      // replaces this with the real AI→human controller swap + input rewire
+      // via a composition-root `reclaimLocalSeat(playerId)` handle. Until the
+      // tab-return REJOIN_ROOM trigger exists (also 3c-2) no production path
+      // reaches a SEAT_RECLAIM apply, so this never runs outside tests.
+      client.devLog(
+        `reclaim: installOwnerController STUB for P${playerId} @${state.simTick} (3c-2 wires the real swap)`,
+      );
+    },
+    log: client.devLog,
+  };
+  return {
+    schedule: (playerId: ValidPlayerId, applyAt: number) =>
+      scheduleSeatReclaim(reclaimDeps, playerId, applyAt),
+    onReclaimRequest: (playerId: ValidPlayerId) => {
+      const state = init.runtime.runtimeState.state;
+      if (!isSeatReclaimable(state, session.occupiedSlots, playerId)) {
+        client.devLog(
+          `reclaim denied for P${playerId}: seat not AI-held or owner eliminated`,
+        );
+        return;
+      }
+      const applyAt = state.simTick + DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS;
+      scheduleSeatReclaim(reclaimDeps, playerId, applyAt);
+      client.send({ type: MESSAGE.SEAT_RECLAIM, playerId, applyAt });
+    },
+    onResyncRequest: (forPlayerId: ValidPlayerId) => {
+      // TODO (3c-2, fork-sensitive): this serializes at the CURRENT tick.
+      // The targeted resync must instead be DEFERRED to `requestTick +
+      // SAFETY` so every human action in flight before the rejoiner joined
+      // `connectedSockets` is drained into the snapshot — an action stamped
+      // applyAt > snapshotTick that the rejoiner missed would fork. Plus a
+      // retry if a host migration happens inside the defer window. Both get
+      // the bidirectional parity test in 3c-2; synchronous is safe here only
+      // because the path is dormant (no 3c-2 trigger yet).
+      const runtimeState = init.runtime.runtimeState;
+      const full = createFullStateMessage(
+        runtimeState.state,
+        session.hostMigrationSeq,
+        runtimeState.battleAnim.flights,
+        runtimeState.accum.grunt,
+      );
+      client.send({ ...full, forPlayerId });
+    },
+  };
+}
+
+/** Rejoiner-side adoption of the first targeted resync. DORMANT until 3c-2
+ *  sets `awaitingRejoinResync` (the tab-return trigger). */
+function buildRejoinDeps(init: DepsInit, client: OnlineClient) {
+  const session = client.ctx.session;
+  return {
+    isAwaitingResync: () => session.awaitingRejoinResync,
+    adoptResync: async (msg: FullStateMessage): Promise<void> => {
+      // Fresh mid-game adoption: applyMidGameCheckpoint rebuilds ALL
+      // controllers (incl. the rejoiner's own seat) as AI, so it mirror-sims
+      // its seat exactly like the peers that took it over. The seat returns
+      // to a human controller only at the SEAT_RECLAIM apply.
+      await applyMidGameCheckpoint(init.runtime, msg);
+      session.awaitingRejoinResync = false;
+      // Adopt the host's migration cursor so a later real migration dedups.
+      session.hostMigrationSeq = msg.migrationSeq ?? session.hostMigrationSeq;
+      // Now in lockstep — ask the host for the give-back.
+      if (session.myPlayerId >= 0) {
+        client.send({
+          type: MESSAGE.REQUEST_SEAT_RECLAIM,
+          playerId: session.myPlayerId as ValidPlayerId,
+        });
+      }
+    },
   };
 }
 

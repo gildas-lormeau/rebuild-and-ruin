@@ -440,6 +440,7 @@
     "files": [
       "src/online/online-host-promotion.ts",
       "src/online/online-lobby-ui.ts",
+      "src/online/online-rejoin.ts",
       "src/online/online-send-actions.ts",
       "src/online/online-session.ts"
     ]

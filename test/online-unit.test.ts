@@ -15,6 +15,7 @@ import {
   AWAY_DISCONNECT_MS,
   createAwayWatchdog,
 } from "../src/online/online-away-watchdog.ts";
+import { isSeatReclaimable } from "../src/online/online-rejoin.ts";
 import {
   type SeatReclaimDeps,
   scheduleSeatReclaim,
@@ -87,11 +88,22 @@ Deno.test("lifecycle drops stale full_state after host migration", () => {
       occupiedSlots: new Set<ValidPlayerId>(),
       remotePlayerSlots: new Set<ValidPlayerId>(),
       pendingSeatTakeovers: new Map<ValidPlayerId, number | null>(),
+      myRejoinToken: null as string | null,
     },
     takeover: {
       isGameLive: () => false,
       beginAsHost: () => {},
       schedule: () => {},
+    },
+    reclaim: {
+      schedule: () => {},
+      onReclaimRequest: () => {},
+      onResyncRequest: () => {},
+    },
+    rejoin: {
+      // false → FULL_STATE exercises the migration dedup path below.
+      isAwaitingResync: () => false,
+      adoptResync: async () => {},
     },
     lobby: {
       showWaitingRoom: () => {},
@@ -395,6 +407,32 @@ Deno.test("seat reclaim: preserves remotePlayerSlots ⊆ occupiedSlots", () => {
       `invariant violated: ${pid} in remotePlayerSlots but not occupiedSlots`,
     );
   }
+});
+
+/** Host-side reclaim eligibility gate (online-rejoin.ts). The seat at index
+ *  1 is AI-held (absent from occupiedSlots); index 0 is still human-held. */
+Deno.test("isSeatReclaimable: AI-held seat with a live owner is reclaimable", () => {
+  const state = {
+    players: [{ eliminated: false }, { eliminated: false }],
+  } as unknown as GameState;
+  const occupied = new Set<ValidPlayerId>([0 as ValidPlayerId]); // seat 1 was taken over
+  assertEquals(isSeatReclaimable(state, occupied, 1 as ValidPlayerId), true);
+});
+
+Deno.test("isSeatReclaimable: a still-occupied (human-held) seat is not reclaimable", () => {
+  const state = {
+    players: [{ eliminated: false }, { eliminated: false }],
+  } as unknown as GameState;
+  const occupied = new Set<ValidPlayerId>([0 as ValidPlayerId, 1 as ValidPlayerId]);
+  assertEquals(isSeatReclaimable(state, occupied, 1 as ValidPlayerId), false);
+});
+
+Deno.test("isSeatReclaimable: an eliminated owner stays a watcher (not reclaimable)", () => {
+  const state = {
+    players: [{ eliminated: false }, { eliminated: true }],
+  } as unknown as GameState;
+  const occupied = new Set<ValidPlayerId>([0 as ValidPlayerId]);
+  assertEquals(isSeatReclaimable(state, occupied, 1 as ValidPlayerId), false);
 });
 
 /** Build a reclaim deps over a real action schedule. `myPlayerId` decides

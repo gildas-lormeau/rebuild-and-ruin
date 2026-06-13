@@ -189,6 +189,7 @@
       "src/game/upgrades/territorial-ambition.ts",
       "src/online/online-host-promotion.ts",
       "src/online/online-lobby-ui.ts",
+      "src/online/online-rejoin.ts",
       "src/online/online-send-actions.ts",
       "src/online/online-session.ts",
       "src/render/3d/elevation.ts",

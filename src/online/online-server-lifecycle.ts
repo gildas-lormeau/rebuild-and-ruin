@@ -38,6 +38,7 @@ export interface HandleServerLifecycleDeps {
     | "occupiedSlots"
     | "remotePlayerSlots"
     | "pendingSeatTakeovers"
+    | "myRejoinToken"
   >;
 
   /** Lockstep seat-takeover hooks (see online-seat-takeover.ts). Mid-game
@@ -54,6 +55,32 @@ export interface HandleServerLifecycleDeps {
     beginAsHost: (playerId: ValidPlayerId) => void;
     /** Watcher at SEAT_TAKEOVER receipt: schedule the host-stamped flip. */
     schedule: (playerId: ValidPlayerId, applyAt: number) => void;
+  };
+
+  /** Lockstep seat-RECLAIM hooks — the give-back inverse of `takeover`
+   *  (see online-seat-reclaim.ts + online-rejoin.ts). All three are dormant
+   *  in production until step 3c-2 wires the tab-return REJOIN_ROOM trigger;
+   *  no peer sends REQUEST_SEAT_RECLAIM before then, so the host never
+   *  stamps a SEAT_RECLAIM. */
+  reclaim: {
+    /** Watcher + the returning owner at SEAT_RECLAIM receipt: schedule the
+     *  host-stamped flip (the owner additionally swaps AI→human on apply). */
+    schedule: (playerId: ValidPlayerId, applyAt: number) => void;
+    /** Host at a forwarded REQUEST_SEAT_RECLAIM: validate the seat is
+     *  AI-held + owner alive, stamp `simTick + SAFETY`, schedule locally,
+     *  broadcast SEAT_RECLAIM. No-op when ineligible. */
+    onReclaimRequest: (playerId: ValidPlayerId) => void;
+    /** Host at REQUEST_RESYNC: send a FULL_STATE addressed to the rejoiner. */
+    onResyncRequest: (forPlayerId: ValidPlayerId) => void;
+  };
+
+  /** Rejoiner adoption of the first targeted resync. Distinct from the
+   *  migration `restoreFullState` path: it rebuilds the rejoiner's own seat
+   *  as AI (applyMidGameCheckpoint) so it mirror-sims like the peers that
+   *  took the seat over, then requests the give-back. */
+  rejoin: {
+    isAwaitingResync: () => boolean;
+    adoptResync: (msg: FullStateMessage) => Promise<void>;
   };
 
   lobby: {
@@ -145,6 +172,12 @@ export async function handleServerLifecycleMessage(
         }
       }
       deps.session.myPlayerId = msg.playerId;
+      // Persist this seat's rejoin token (survives a tab-hide) for a later
+      // away-disconnect → rejoinRoom. Absent on older servers → keep any
+      // prior token rather than nulling it.
+      if (msg.rejoinToken !== undefined) {
+        deps.session.myRejoinToken = msg.rejoinToken;
+      }
       occupyLobbySlot(msg.playerId);
       return true;
 
@@ -205,6 +238,35 @@ export async function handleServerLifecycleMessage(
       );
       return true;
     }
+
+    case MESSAGE.SEAT_RECLAIM: {
+      // Host-originated broadcast; the relay never echoes to the sender, but
+      // the guard keeps a stray self-copy from double-scheduling on the host.
+      if (isHostInContext(deps.session)) return true;
+      if (!deps.takeover.isGameLive()) return true;
+      deps.reclaim.schedule(msg.playerId, msg.applyAt);
+      deps.log(
+        `seat_reclaim scheduled: P${msg.playerId} applyAt=${msg.applyAt}`,
+      );
+      return true;
+    }
+
+    case MESSAGE.REQUEST_SEAT_RECLAIM:
+      // Server→host only: a rejoined peer asks for its seat back. The host is
+      // the sole decider (validates seat AI-held + owner alive, then stamps +
+      // broadcasts SEAT_RECLAIM). Non-host receipt is a no-op.
+      if (isHostInContext(deps.session)) {
+        deps.reclaim.onReclaimRequest(msg.playerId);
+      }
+      return true;
+
+    case MESSAGE.REQUEST_RESYNC:
+      // Server→host only: a freshly-rejoined peer needs the current state,
+      // addressed to it. The host answers with a targeted FULL_STATE.
+      if (isHostInContext(deps.session)) {
+        deps.reclaim.onResyncRequest(msg.forPlayerId);
+      }
+      return true;
 
     case MESSAGE.ROOM_ERROR:
       deps.ui.createErrorEl.textContent = msg.message;
@@ -274,6 +336,14 @@ export async function handleServerLifecycleMessage(
     }
 
     case MESSAGE.FULL_STATE:
+      if (deps.rejoin.isAwaitingResync()) {
+        // First targeted resync after a rejoin: adopt it as a fresh mid-game
+        // watcher (own seat rebuilt as AI, matching the peers that took it
+        // over) and request the give-back. Bypasses the migration dedup gate
+        // below — the server addressed this snapshot to us specifically.
+        await deps.rejoin.adoptResync(msg);
+        return true;
+      }
       if (!isHostInContext(deps.session) && deps.game.getState()) {
         const incomingSeq = msg.migrationSeq ?? 0;
         if (incomingSeq < deps.session.hostMigrationSeq) {

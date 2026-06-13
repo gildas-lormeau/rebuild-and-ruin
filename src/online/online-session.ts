@@ -85,6 +85,18 @@ export interface OnlineSession {
    *  apply, the adoption reconcile (online-rehydrate.ts), or the
    *  next-game INIT flush (online-server-lifecycle.ts). */
   pendingSeatTakeovers: Map<ValidPlayerId, number | null>;
+  /** This seat's rejoin token, captured from the JOINED message. Persists
+   *  across a tab-hide (JS memory survives) so the away-disconnect path can
+   *  present it in `rejoinRoom` to re-enter a started room. Null until a slot
+   *  is selected; cleared on a full session reset. */
+  myRejoinToken: string | null;
+  /** True between sending `rejoinRoom` and adopting the first resync
+   *  FULL_STATE: it routes that snapshot through `applyMidGameCheckpoint`
+   *  (rebuilds the rejoiner's own seat as AI, matching the peers that took it
+   *  over) rather than the running-runtime migration path (which would keep
+   *  the bootstrap's human controller on the own seat → divergence). Cleared
+   *  on adoption. */
+  awaitingRejoinResync: boolean;
 }
 
 /** Network deduplication maps — tracks the last-sent value per player for each
@@ -125,6 +137,8 @@ export function createSession(): OnlineSession {
     earlyLifeLostChoices: new Map(),
     earlyUpgradePickChoices: new Map(),
     pendingSeatTakeovers: new Map(),
+    myRejoinToken: null,
+    awaitingRejoinResync: false,
   };
 }
 
@@ -153,6 +167,8 @@ export function resetSessionState(session: OnlineSession): void {
   session.earlyLifeLostChoices.clear();
   session.earlyUpgradePickChoices.clear();
   session.pendingSeatTakeovers.clear();
+  session.myRejoinToken = null;
+  session.awaitingRejoinResync = false;
 }
 
 export function sendAimUpdate(
