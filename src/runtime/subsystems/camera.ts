@@ -53,7 +53,11 @@ import {
 import type { FrameContext, GameState } from "../../shared/core/types.ts";
 import type { ZoneId } from "../../shared/core/zone-id.ts";
 import type { RenderOverlay } from "../../shared/ui/overlay-types.ts";
-import { isInteractiveMode, Mode } from "../../shared/ui/ui-mode.ts";
+import {
+  isGameplayMode,
+  isInteractiveMode,
+  Mode,
+} from "../../shared/ui/ui-mode.ts";
 import { battleTargetPosition } from "../battle-aim.ts";
 import {
   createPitchAnim,
@@ -539,7 +543,7 @@ export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
     edgePan(state, frameCtx);
     tickTapNudge();
     tickViewportLerp();
-    tickPitch();
+    tickPitch(frameCtx);
   }
 
   /** Snap to the local pov player's home zone while they have an unresolved
@@ -802,7 +806,16 @@ export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
     }
   }
 
-  function tickPitch(): void {
+  function tickPitch(frameCtx: FrameContext): void {
+    // Freeze the tilt (and its parked settle continuation) while a menu
+    // overlay is open. A mid-tilt F1 opens Mode.OPTIONS over the battle
+    // tilt-in (TRANSITION); ungated, the next pitch-settle edge fires
+    // `proceedToBattleFromCtx`'s `proceed` and flips the game mode out from
+    // under the menu. Same freeze the overlay tick observes (main-loop.ts).
+    // Edge-preserved: the advance resumes — and settles — once the menu
+    // closes back into the gameplay mode. No-op in LOBBY/STOPPED (pitch is
+    // already snapped flat; the all-AI demo runs in gameplay modes).
+    if (!isGameplayMode(frameCtx.mode)) return;
     if (tickPitchAnim(pitch, deps.getFrameDt())) {
       const callback = pendingPitchSettled;
       pendingPitchSettled = undefined;
