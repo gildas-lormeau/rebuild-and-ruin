@@ -104,6 +104,7 @@ Deno.test("lifecycle drops stale full_state after host migration", () => {
       // false → FULL_STATE exercises the migration dedup path below.
       isAwaitingResync: () => false,
       adoptResync: async () => {},
+      abort: () => {},
     },
     lobby: {
       showWaitingRoom: () => {},

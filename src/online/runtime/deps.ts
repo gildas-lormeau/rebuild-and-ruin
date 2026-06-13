@@ -44,6 +44,7 @@ import {
   type HandleServerLifecycleDeps,
   handleServerLifecycleMessage,
 } from "../online-server-lifecycle.ts";
+import { rollbackRejoinSession } from "../online-session.ts";
 import type { OnlineClient } from "../online-stores.ts";
 import { promoteToHost } from "./promote.ts";
 
@@ -228,6 +229,12 @@ function buildRejoinDeps(init: DepsInit, client: OnlineClient) {
         });
       }
       return Promise.resolve();
+    },
+    // Server rejected the rejoin (ROOM_ERROR): roll back on THIS instance's
+    // session — not ws.ts's production singleton — so the per-instance test
+    // harness rolls back its own session too.
+    abort: () => {
+      rollbackRejoinSession(session);
     },
   };
 }

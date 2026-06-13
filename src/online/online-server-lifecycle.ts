@@ -82,6 +82,11 @@ export interface HandleServerLifecycleDeps {
   rejoin: {
     isAwaitingResync: () => boolean;
     adoptResync: (msg: FullStateMessage) => Promise<void>;
+    /** Roll back an in-flight rejoin the server rejected via ROOM_ERROR
+     *  (expired token / room ended / seat still live-held): restore the
+     *  stashed seat identity + disarm the resync-adopt routing. No-op
+     *  (guarded) when not mid-rejoin. */
+    abort: () => void;
   };
 
   lobby: {
@@ -262,8 +267,9 @@ export async function handleServerLifecycleMessage(
       return true;
 
     case MESSAGE.REQUEST_RESYNC:
-      // Server→host only: a freshly-rejoined peer needs the current state,
-      // addressed to it. The host answers with a targeted FULL_STATE.
+      // Server→host only: a freshly-rejoined peer needs the current state. The
+      // host answers with a deferred ROOM-WIDE rebroadcast (a no-op
+      // self-migration; see online-resync-defer.ts), not a targeted snapshot.
       if (isHostInContext(deps.session)) {
         deps.reclaim.onResyncRequest(msg.forPlayerId);
       }
@@ -272,6 +278,11 @@ export async function handleServerLifecycleMessage(
     case MESSAGE.ROOM_ERROR:
       deps.ui.createErrorEl.textContent = msg.message;
       deps.ui.joinErrorEl.textContent = msg.message;
+      // A ROOM_ERROR mid-rejoin means the server rejected the rejoin (expired
+      // token / room ended / seat still live-held): roll it back so the seat
+      // identity is restored and a later FULL_STATE isn't misrouted through
+      // the resync-adopt path. Guarded no-op for a plain lobby join error.
+      deps.rejoin.abort();
       return true;
 
     case MESSAGE.INIT:

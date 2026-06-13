@@ -9,7 +9,7 @@ import { isHostInContext } from "../../runtime/tick-context.ts";
 import { SPECTATOR_SLOT } from "../../shared/core/player-slot.ts";
 import { Mode } from "../../shared/ui/ui-mode.ts";
 import { computeWsUrl } from "../online-config.ts";
-import { connectWebSocket } from "../online-session.ts";
+import { connectWebSocket, rollbackRejoinSession } from "../online-session.ts";
 import {
   MAX_RECONNECT_ATTEMPTS,
   type OnlineClient,
@@ -89,15 +89,8 @@ export function rejoinAfterAway(): void {
   session.awaitingRejoinResync = true;
   void connect()
     .then(() => _client.send({ type: MESSAGE.REJOIN_ROOM, code, token }))
-    .catch(() => {
-      // Reconnect failed: restore our identity + drop the resync routing so a
-      // later FULL_STATE isn't misrouted through the rejoin path.
-      session.myPlayerId = session.awaitingRejoinSeat;
-      session.awaitingRejoinSeat = SPECTATOR_SLOT;
-      session.awaitingRejoinResync = false;
-      _rt.setAnnouncement(ANNOUNCEMENT_DISCONNECTED);
-      _rt.render();
-    });
+    // Connect rejected (socket onerror) — the REJOIN_ROOM never went out.
+    .catch(abortRejoin);
 }
 
 /** Open the WebSocket connection. Resolves on socket `open`, rejects on
@@ -163,4 +156,17 @@ export function connect(): Promise<void> {
     }
     socket.addEventListener("open", () => resolve(), { once: true });
   });
+}
+
+/** Roll back an in-flight rejoin that failed before its resync was adopted:
+ *  the connect rejected (here), or the server rejected the rejoin with a
+ *  ROOM_ERROR — expired token / room ended / seat still live-held (called from
+ *  the ROOM_ERROR handler via `deps.rejoin.abort`). Restores the stashed seat
+ *  identity, disarms the resync-adopt routing (so a later unrelated FULL_STATE
+ *  isn't misrouted through `adoptResync`), and surfaces the disconnect.
+ *  Idempotent — a no-op once the rejoin is no longer pending. */
+function abortRejoin(): void {
+  if (!rollbackRejoinSession(_client.ctx.session)) return;
+  _rt.setAnnouncement(ANNOUNCEMENT_DISCONNECTED);
+  _rt.render();
 }

@@ -193,6 +193,20 @@ export function resetSessionState(session: OnlineSession): void {
   session.pendingResyncRequests.clear();
 }
 
+/** Roll back an in-flight rejoin (online-away-watchdog.ts `rejoin`) that did
+ *  not complete its resync adoption: restore the stashed seat identity and
+ *  disarm the resync-adopt routing so a later unrelated FULL_STATE isn't
+ *  misrouted through `adoptResync`. Returns true when it actually rolled a
+ *  pending rejoin back, false (a no-op) when none was in flight — so callers
+ *  can skip their disconnect UI for a plain, non-rejoin error. */
+export function rollbackRejoinSession(session: OnlineSession): boolean {
+  if (!session.awaitingRejoinResync) return false;
+  session.myPlayerId = session.awaitingRejoinSeat;
+  session.awaitingRejoinSeat = SPECTATOR_SLOT;
+  session.awaitingRejoinResync = false;
+  return true;
+}
+
 export function sendAimUpdate(
   session: OnlineSession,
   dedup: DedupMaps,
