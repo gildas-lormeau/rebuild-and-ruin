@@ -237,7 +237,7 @@ function optionValue(frameCtx: UIContext, idx: number): string {
     return opt.label;
   }
   if (idx === OPT_CANNON_HP) return CANNON_HP_OPTIONS[settings.cannonHp]!.label;
-  if (idx === OPT_HAPTICS) return HAPTICS_LABELS[settings.haptics] ?? "All";
+  if (idx === OPT_HAPTICS) return HAPTICS_LABELS[settings.haptics] ?? "Off";
   if (idx === OPT_SEED) {
     if (frameCtx.isOnline) {
       const display = frameCtx.lobby.roomSeedDisplay;

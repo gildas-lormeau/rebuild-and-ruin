@@ -360,7 +360,6 @@ export interface RegisterOnlineInputDeps {
     cursorAt: (x: number, y: number) => string;
     controlsCursorAt: (x: number, y: number) => string;
     close: () => void;
-    showControls: () => void;
     closeControls: () => void;
     getCursor: () => number;
     setCursor: (cursor: number) => void;

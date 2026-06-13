@@ -157,7 +157,12 @@ export function createRuntimeLoop(deps: RuntimeLoopDeps): {
   /** Maximum simulation ticks per real frame. Prevents runaway catch-up
    *  when a long pause is followed by a resume (e.g. tab hidden).
    *  At 16× speed with ~16ms frames, expect ~16 ticks; with 100ms E2E
-   *  frames expect ~96. Cap generously above both. */
+   *  frames expect ~96. Cap generously above both — unreachable in normal
+   *  play. Online over-budget gaps are handled earlier by the lockstep-debt
+   *  bank (clampedFrameDt), so the only way to hit this cap is a dev-console
+   *  pause feeding one giant offline frame; the excess `simAccum.drain`
+   *  already consumed is then dropped (offline = resume-where-you-left-off,
+   *  so the drop is harmless). */
   const MAX_TICKS_PER_FRAME = 128;
 
   /** Lockstep debt repayment rate — extra sub-steps per frame while owed

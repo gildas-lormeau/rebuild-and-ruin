@@ -69,6 +69,21 @@ export async function applyMidGameCheckpoint(
   const result = restoreFullStateSnapshot(state, msg);
   if (!result) return null;
 
+  // UPGRADE_PICK has no self-driving exit — its dialog/banner is the only
+  // thing that advances the phase, and a snapshot carries neither. In
+  // production a host never serializes here (promotion force-resolves the
+  // picks to WALL_BUILD first — see promote.ts), so a checkpoint can only
+  // land on UPGRADE_PICK via a hand-authored phase-test fixture. The mode
+  // resolves to Mode.GAME, whose tickGame no-ops the phase, hanging the
+  // runtime forever — fail loudly instead of silently.
+  if (state.phase === Phase.UPGRADE_PICK) {
+    throw new Error(
+      "applyMidGameCheckpoint: UPGRADE_PICK fixtures are unsupported (the " +
+        "dialog has no self-driving exit; the runtime would hang). Author " +
+        "the fixture at BATTLE or WALL_BUILD instead.",
+    );
+  }
+
   runtime.runtimeState.controllers = await rebuildControllersForPhase(
     state,
     runtime.runtimeState.controllers,

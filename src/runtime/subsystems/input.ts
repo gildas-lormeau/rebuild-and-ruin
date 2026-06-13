@@ -355,7 +355,6 @@ function buildOptionsDeps(
     cursorAt: options.cursorAt,
     controlsCursorAt: options.controlsCursorAt,
     close: options.closeOptions,
-    showControls: options.showControls,
     closeControls: options.closeControls,
     getCursor: () => runtimeState.optionsUI.cursor,
     setCursor: (cursor: number) => {
