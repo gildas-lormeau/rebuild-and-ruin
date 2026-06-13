@@ -88,6 +88,7 @@ Deno.test("lifecycle drops stale full_state after host migration", () => {
       occupiedSlots: new Set<ValidPlayerId>(),
       remotePlayerSlots: new Set<ValidPlayerId>(),
       pendingSeatTakeovers: new Map<ValidPlayerId, number | null>(),
+      pendingResyncRequests: new Map<ValidPlayerId, number>(),
       myRejoinToken: null as string | null,
     },
     takeover: {

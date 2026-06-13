@@ -310,7 +310,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       });
       // Per-controller fan-out — the hook self-gates by ownership (only
       // emits for the local human, not for AIs which every peer recomputes).
-      online?.broadcastLocalCrosshair?.(ctrl, ch, !!readyCannon);
+      online?.broadcastLocalCrosshair?.(ctrl, ch);
     }
 
     runtimeState.frame.crosshairs = crosshairs;

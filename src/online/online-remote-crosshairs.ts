@@ -42,7 +42,8 @@ interface ExtendDeps {
 const REMOTE_CROSSHAIR_MULTIPLIER = 2;
 const REMOTE_CROSSHAIR_SPEED = CROSSHAIR_SPEED * REMOTE_CROSSHAIR_MULTIPLIER;
 
-/** Send aim_update for a local controller's crosshair (host only, deduped). */
+/** Send aim_update for the local human's crosshair — on any peer (host or
+ *  watcher alike; the caller gates by ownership), deduped. */
 export function broadcastLocalCrosshair(
   ctrl: ControllerIdentity,
   ch: { x: number; y: number },

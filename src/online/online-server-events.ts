@@ -297,11 +297,11 @@ function handleCannonFired(
     return DROPPED;
   }
   if (msg.applyAt === undefined) {
-    deps.log(
-      `cannon_fired: missing applyAt for P${msg.playerId} — falling back to immediate apply`,
-    );
-    if (applyCannonFired(state, msg)) state.bus.emit(msg.type, msg);
-    return APPLIED;
+    // Unreachable today (scheduleCannonFire always stamps applyAt); kept as a
+    // tripwire. DROP, never apply-on-receipt — an immediate apply here would
+    // land at a different tick than the originator's scheduled apply → fork.
+    deps.log(`cannon_fired: missing applyAt for P${msg.playerId} — dropped`);
+    return DROPPED;
   }
   const applyAt = msg.applyAt;
   deps.schedule({

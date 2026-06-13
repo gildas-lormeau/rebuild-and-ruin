@@ -38,6 +38,7 @@ export interface HandleServerLifecycleDeps {
     | "occupiedSlots"
     | "remotePlayerSlots"
     | "pendingSeatTakeovers"
+    | "pendingResyncRequests"
     | "myRejoinToken"
   >;
 
@@ -201,6 +202,10 @@ export async function handleServerLifecycleMessage(
       const name =
         deps.migration.playerNames[msg.playerId] ??
         `Player ${msg.playerId + 1}`;
+      // Drop any host-side resync parked for this slot: a rejoiner that left
+      // again must not trigger a needless room-wide rebroadcast. No-op on
+      // non-host peers (their map is empty).
+      deps.session.pendingResyncRequests.delete(msg.playerId);
       if (
         deps.takeover.isGameLive() &&
         deps.session.remotePlayerSlots.has(msg.playerId)

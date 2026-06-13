@@ -143,12 +143,14 @@ export function restoreFullStateSnapshot(
       new Set(tiles as TileKey[]),
     ]),
   );
-  state.cannonLimits = msg.cannonLimits;
+  state.cannonLimits = [...msg.cannonLimits];
   state.cannonPlaceDone = new Set(msg.cannonPlaceDone as ValidPlayerId[]);
-  state.salvageSlots = msg.salvageSlots ?? state.players.map(() => 0);
-  state.playerZones = msg.playerZones as ZoneId[];
+  state.salvageSlots = msg.salvageSlots
+    ? [...msg.salvageSlots]
+    : state.players.map(() => 0);
+  state.playerZones = [...msg.playerZones] as ZoneId[];
   state.towerPendingRevive = new Set(msg.towerPendingRevive as TowerIdx[]);
-  state.towerAlive = msg.towerAlive;
+  state.towerAlive = [...msg.towerAlive];
   setGameMode(
     state,
     msg.gameMode === GAME_MODE_MODERN ? GAME_MODE_MODERN : GAME_MODE_CLASSIC,

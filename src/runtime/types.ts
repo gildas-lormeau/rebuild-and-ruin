@@ -66,7 +66,6 @@ export interface OnlinePhaseTicks {
   broadcastLocalCrosshair?: (
     ctrl: ControllerIdentity,
     crosshair: { x: number; y: number },
-    cannonReady: boolean,
   ) => void;
 
   // ── Per-frame phantom dedup ────────────────────────────────────────────
