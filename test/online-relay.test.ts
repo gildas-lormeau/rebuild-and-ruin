@@ -101,7 +101,7 @@ Deno.test("relay matches current lobby, checkpoint, and migration protocol", asy
   }
 });
 
-Deno.test("rejoin replays INIT, targets the resync, and relays seat reclaim", async () => {
+Deno.test("rejoin replays INIT, broadcasts the resync, and relays seat reclaim", async () => {
   const host = await connectClient("HOST");
   let player = await connectClient("PLAYER");
   const watcher = await connectClient("WATCHER");
@@ -151,21 +151,16 @@ Deno.test("rejoin replays INIT, targets the resync, and relays seat reclaim", as
     // The buffered INIT is replayed to the rejoiner (clean re-bootstrap)...
     const replayedInit = await player.waitFor(MESSAGE.INIT);
     assertEquals(replayedInit.seed, 777);
-    // ...and the host is asked for a resync addressed to just this seat.
+    // ...and the host is told which seat is rejoining so it can defer.
     const resyncReq = await host.waitFor(MESSAGE.REQUEST_RESYNC);
     assertEquals(resyncReq.forPlayerId, 1);
 
-    // ── Host answers with a targeted FULL_STATE: only the rejoiner gets it ──
-    send(host.ws, { type: MESSAGE.FULL_STATE, forPlayerId: 1, round: 2, phase: "wallBuild" });
+    // ── Host answers by re-broadcasting the resync to the WHOLE room (a no-op
+    // migration): every peer — the rejoiner AND existing watchers — adopts it
+    // and re-primes its AI in lockstep (a targeted resync forks the AI). ──
+    send(host.ws, { type: MESSAGE.FULL_STATE, round: 2, phase: "wallBuild" });
     await player.waitFor(MESSAGE.FULL_STATE);
-    // A broadcast marker sent right after: by FIFO, once the watcher sees it,
-    // any (wrongly) broadcast FULL_STATE would already be in its log.
-    send(host.ws, { type: MESSAGE.CANNON_START });
-    await watcher.waitFor(MESSAGE.CANNON_START);
-    assertEquals(
-      watcher.messages.some((msg) => msg.type === MESSAGE.FULL_STATE),
-      false,
-    );
+    await watcher.waitFor(MESSAGE.FULL_STATE);
 
     // ── Rejoiner asks for its seat back → forwarded to the host ──
     send(player.ws, { type: MESSAGE.REQUEST_SEAT_RECLAIM, playerId: 1 });

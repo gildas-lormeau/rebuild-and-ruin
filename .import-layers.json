@@ -397,6 +397,7 @@
       "src/ai/ai-defaults.ts",
       "src/main.ts",
       "src/online/online-rehydrate.ts",
+      "src/online/online-resync-defer.ts",
       "src/online/runtime/promote.ts"
     ]
   },

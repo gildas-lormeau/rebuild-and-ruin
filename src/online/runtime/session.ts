@@ -56,6 +56,9 @@ export function createOnlineRuntimeSessionHelpers(
     const runtime = deps.getRuntime();
     const lobby = runtime.runtimeState.lobby;
     deps.session.roomSeed = seed;
+    // Retained for the away-disconnect → tab-return rejoin handshake
+    // (rejoinRoom needs the CODE; survives a tab-hide in JS memory).
+    deps.session.roomCode = code;
     lobby.roomSeedDisplay = seed;
     const joinUrl = `${location.origin}${location.pathname}?server=${location.host}&join=${code}`;
     buildRoomCodeOverlay(code, joinUrl);

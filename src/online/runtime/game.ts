@@ -41,6 +41,7 @@ import {
   broadcastLocalCrosshair as broadcastLocalCrosshairImpl,
   extendWithRemoteCrosshairs,
 } from "../online-remote-crosshairs.ts";
+import { pollDeferredResyncs } from "../online-resync-defer.ts";
 import { GAME_EXIT_EVENT } from "../online-router.ts";
 import { createOnlineSendActions } from "../online-send-actions.ts";
 import { createGameOverPayload } from "../online-serialize.ts";
@@ -48,7 +49,7 @@ import { defaultClient, RESET_SCOPE_NEW_GAME } from "../online-stores.ts";
 import { handleServerMessage, initDeps } from "./deps.ts";
 import { initPromote } from "./promote.ts";
 import { createOnlineRuntimeSessionHelpers } from "./session.ts";
-import { disconnectAway, initWs } from "./ws.ts";
+import { disconnectAway, initWs, rejoinAfterAway } from "./ws.ts";
 
 // ── Client shorthand ───────────────────────────────────────────────
 // Destructured from defaultClient singleton for brevity. All five names
@@ -247,6 +248,10 @@ const runtime: GameRuntime = createGameRuntime({
     );
     if (isHostInContext(ctx.session)) send(payloads.serverPayload);
   },
+  // Host-only per-frame poll: fire any deferred targeted resync whose fire
+  // tick (requestTick + SAFETY) has arrived (online-resync-defer.ts).
+  onlineHostAfterFrame: () =>
+    pollDeferredResyncs({ runtime, session: ctx.session, send }),
 });
 
 /** Pre-warm both audio sub-systems (music WASM + SFX AudioContext) inside a
@@ -324,6 +329,7 @@ export function initOnlineRuntime(): void {
       isSessionLive(runtime.runtimeState) &&
       isActivePlayer(ctx.session.myPlayerId),
     leave: disconnectAway,
+    rejoin: rejoinAfterAway,
   });
   createVisibilityListener({
     onChange: (hidden) => awayWatchdog.onVisibilityChange(hidden),

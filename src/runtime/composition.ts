@@ -9,6 +9,7 @@
 
 import { exposeDevConsole } from "../../dev/dev-console.ts";
 import { exposeE2EBridge } from "../../dev/e2e-bridge.ts";
+import { primeControllerForCannonPhase } from "../game/index.ts";
 import { dispatchPointerMove } from "../input/input-dispatch.ts";
 import { registerKeyboardHandlers } from "../input/input-keyboard.ts";
 import { registerMouseHandlers } from "../input/input-mouse.ts";
@@ -60,7 +61,10 @@ import { MAX_SEED_LENGTH, SEED_CUSTOM } from "../shared/ui/player-config.ts";
 import { cycleOption } from "../shared/ui/settings-ui.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
 import { battleTargetPosition } from "./battle-aim.ts";
-import { bootstrapNewGameFromSettings } from "./bootstrap.ts";
+import {
+  bootstrapNewGameFromSettings,
+  createHumanController,
+} from "./bootstrap.ts";
 import {
   createCachedContainerHeight,
   createVisibilityListener,
@@ -350,6 +354,12 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
         // start/stop/ramp cues.
         audio.sfx.tickPresentation(runtimeState.state);
         audio.music.tickPresentation(runtimeState.state);
+        // Host-only online housekeeping AFTER the frame's drains (the
+        // deferred resync must serialize a fully-drained snapshot). No-op for
+        // local + watcher peers.
+        if (isOnline && config.network.amHost()) {
+          config.onlineHostAfterFrame?.();
+        }
       }
       if (IS_DEV) {
         exposeE2EBridge({
@@ -979,6 +989,43 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
 
     upgradePick,
     bindStateObservers,
+
+    // Build a fresh LOCAL human controller for `playerId` and drop it into
+    // the controllers array, primed for the live phase. The seat-reclaim
+    // owner swap (online/online-seat-reclaim.ts): a rejoiner whose seat an
+    // AI took over adopts a resync that rebuilds EVERY seat (incl. its own)
+    // as AI, then hands its own seat back to a human controller here.
+    //
+    // SYNCHRONOUS by contract: the swap rides the lockstep SEAT_RECLAIM apply
+    // (a multi-substep frame would otherwise tick the owner's seat as
+    // un-broadcast local AI between the slot-set flip and an async install →
+    // cross-peer fork). `new HumanController` needs no async load (static
+    // import), so this commits in the same tick as the flip. rng-NEUTRAL —
+    // human controllers draw zero `state.rng`. Input needs no rewiring:
+    // dispatch resolves the human controller from `controllers` live every
+    // event (pointer-player.ts / input-dispatch.ts).
+    installLocalHumanController: (playerId: ValidPlayerId): void => {
+      // keyBindings[0] is the local seat's bindings (settings always seat
+      // them at index 0; bootstrap reads the same slot for the human).
+      const ctrl = createHumanController(
+        playerId,
+        runtimeState.settings.keyBindings[0]!,
+        (_state, screenX, screenY) => camera.pickHitWorld(screenX, screenY),
+      );
+      runtimeState.controllers[playerId] = ctrl;
+      // Prime for the live phase exactly as a mid-game adoption does for a
+      // kept human controller (primeSelfHumanControllersAfterAdoption) — all
+      // controller-local, rng-neutral. A fresh controller always "missed"
+      // the phase entry, so prime unconditionally for the active phase.
+      const state = runtimeState.state;
+      if (state.phase === Phase.CANNON_PLACE) {
+        primeControllerForCannonPhase(ctrl, state);
+      } else if (state.phase === Phase.BATTLE) {
+        ctrl.initBattleState(state);
+      } else if (state.phase === Phase.WALL_BUILD) {
+        ctrl.startBuildPhase(state);
+      }
+    },
 
     // Cross-cutting orchestration
     mainLoop,

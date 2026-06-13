@@ -315,21 +315,11 @@ export class GameRoom {
     }
 
     // ── Stage 6: Relay to room ──
-    // Targeted resync: a FULL_STATE answering a REQUEST_RESYNC carries
-    // `forPlayerId` and goes ONLY to the rejoining socket holding that seat.
-    // Broadcasting it would make every already-synced peer re-adopt and
-    // re-prime its AI brains, drawing `state.rng` while the non-adopting host
-    // does not — forking the match (see FullStateMessage.forPlayerId). The
-    // rejoining socket is in `players` because RoomManager.rejoinRoom
-    // restores its slot assignment on admission.
-    if (type === MESSAGE.FULL_STATE && typeof msg.forPlayerId === "number") {
-      for (const [socket, pid] of this.players) {
-        if (pid === msg.forPlayerId && socket !== senderSocket) {
-          safeSendRaw(socket, rawJson);
-        }
-      }
-      return;
-    }
+    // A rejoin's resync FULL_STATE is a normal room-wide broadcast (a no-op
+    // migration): every peer re-adopts + re-primes its AI in lockstep with the
+    // host's reprime, so the AI stays paired — see online-resync-defer.ts. (The
+    // earlier targeted relay forked: a single-peer re-prime drew state.rng the
+    // non-adopting host didn't.)
     for (const socket of this.broadcastRecipients) {
       if (socket === senderSocket) continue;
       safeSendRaw(socket, rawJson);

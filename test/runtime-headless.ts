@@ -152,6 +152,10 @@ interface HeadlessRuntimeOptions {
    *  emit the production GAME_OVER payload into the wire sink, mirroring
    *  the `onEndGame` wiring in `src/online/runtime/game.ts`. */
   onEndGame?: RuntimeConfig["onEndGame"];
+  /** Forwarded to `RuntimeConfig.onlineHostAfterFrame` — host per-frame
+   *  poll. The bidirectional reclaim parity test wires it to
+   *  `pollDeferredResyncs` so the deferred targeted resync fires. */
+  onlineHostAfterFrame?: RuntimeConfig["onlineHostAfterFrame"];
   /** When true, the headless runtime calls `enableMobileZoom()` on the
    *  camera so per-phase memory, edge-pan, follow-crosshair, and the
    *  CAMERA_TARGET event emitter all run during tests. Defaults to false
@@ -402,6 +406,7 @@ export async function createHeadlessRuntime(
         : undefined),
     onlineDialogDrains,
     onEndGame: opts.onEndGame,
+    onlineHostAfterFrame: opts.onlineHostAfterFrame,
     observers: hapticsObserver ? { haptics: hapticsObserver } : undefined,
     // IS_DEV is false under Deno, so headless must opt in explicitly to keep
     // the per-frame TICK event flowing to test subscribers (reveal/fade tests).

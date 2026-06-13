@@ -249,6 +249,12 @@ export interface RuntimeConfig {
   /** Online-only game-over broadcast hook. Fires once when the game ends,
    *  before the frame's gameOver payload is set. */
   onEndGame?: (winner: { id: ValidPlayerId }, state: GameState) => void;
+  /** Online-only host per-frame hook, called from `onAfterFrame` (after
+   *  every sub-step's schedule drain) when this peer is the host of a live
+   *  session. Drives the deferred targeted resync (`pollDeferredResyncs`):
+   *  a parked rejoiner snapshot serialized only once the host's sim clock
+   *  reaches `requestTick + SAFETY`. Undefined in local play. */
+  onlineHostAfterFrame?: () => void;
 
   /** Test-only sub-system observers. Threaded from the test scenario
    *  through `createHeadlessRuntime` so tests can capture intents

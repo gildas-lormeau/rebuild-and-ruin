@@ -229,16 +229,10 @@ interface HostLeftMessage {
 /** Full game state snapshot sent by new host after promotion for watcher reconciliation. */
 export interface FullStateMessage extends SerializedModifierTiles {
   type: "fullState";
-  /** Monotonic host-migration sequence used to reject stale snapshots. */
+  /** Monotonic host-migration sequence used to reject stale snapshots. Also
+   *  bumped for a rejoin's room-wide resync, so every peer adopts it as a
+   *  (no-op) migration — re-priming its AI in lockstep with the host. */
   migrationSeq?: number;
-  /** Targeted-resync addressee. When set, the server relays this snapshot
-   *  ONLY to the rejoining socket assigned this slot — never a broadcast. A
-   *  broadcast resync would make every already-synced peer re-adopt and
-   *  re-prime its AI brains, drawing `state.rng` while the non-adopting host
-   *  does not — forking the match (the migrationSeq dedup can't separate the
-   *  rejoiner from existing peers). The host sets it only when answering a
-   *  RequestResyncMessage; absent for the broadcast migration snapshot. */
-  forPlayerId?: ValidPlayerId;
   phase: string;
   round: number;
   timer: number;
@@ -513,12 +507,14 @@ interface SeatReclaimMessage {
 }
 
 /** Server→host: a rejoining peer (`forPlayerId`) has been admitted and needs
- *  the current state. The server emits this on REJOIN_ROOM; the host answers
- *  with a FULL_STATE carrying the same `forPlayerId`, which the server relays
- *  ONLY to that socket (see FullStateMessage.forPlayerId). Server-originated —
- *  never sent by a client, so it has no entry in the client→relay validation
- *  tables. The host serializes at its CURRENT tick, leaving the rejoiner only
- *  ~wireDelay behind on adoption — the same steady state every peer is in. */
+ *  the current state. The server emits this on REJOIN_ROOM; the host answers by
+ *  re-broadcasting a fresh snapshot to the WHOLE room as a no-op migration
+ *  (bumped migrationSeq → every peer adopts + re-primes its AI in lockstep — a
+ *  targeted resync can't keep the AI re-prime paired; see online-resync-defer.ts).
+ *  `forPlayerId` only tells the host which seat is rejoining (it defers the
+ *  rebroadcast to drain that peer's missed in-flight actions in first).
+ *  Server-originated — never sent by a client, so it has no entry in the
+ *  client→relay validation tables. */
 interface RequestResyncMessage {
   type: "requestResync";
   forPlayerId: ValidPlayerId;

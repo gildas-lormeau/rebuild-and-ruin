@@ -24,6 +24,12 @@ interface AwayWatchdogDeps {
    *  After it runs, `isSeatedLiveMatch` returns false, which is what
    *  re-arms the watchdog for the next match. */
   leave: () => void;
+  /** Auto-rejoin on tab-return after an away-disconnect: reconnect +
+   *  `rejoinRoom` (the seat the AI took over is handed back via the resync
+   *  → SEAT_RECLAIM flow). Called once per away→return cycle, only when
+   *  THIS watchdog drove the `leave()`. No-op-safe if rejoin is impossible
+   *  (no retained token/code). */
+  rejoin: () => void;
 }
 
 /** Hidden time after which a seated peer abandons its seat. Aligned with
@@ -42,6 +48,10 @@ export function createAwayWatchdog(deps: AwayWatchdogDeps): {
 } {
   let hiddenAtMs: number | undefined;
   let timer: number | undefined;
+  /** Set when THIS watchdog abandoned the seat (timer fire or unhide
+   *  backstop). Cleared when the matching tab-return fires the rejoin —
+   *  so a return after an away-disconnect re-enters exactly once. */
+  let leftWhileAway = false;
 
   function clearTimer(): void {
     if (timer === undefined) return;
@@ -49,10 +59,15 @@ export function createAwayWatchdog(deps: AwayWatchdogDeps): {
     timer = undefined;
   }
 
+  function leaveAway(): void {
+    leftWhileAway = true;
+    deps.leave();
+  }
+
   function fireWhileHidden(): void {
     timer = undefined;
     if (!deps.isSeatedLiveMatch()) return;
-    deps.leave();
+    leaveAway();
   }
 
   return {
@@ -69,7 +84,13 @@ export function createAwayWatchdog(deps: AwayWatchdogDeps): {
       clearTimer();
       // Suspended-JS backstop — the hidden-side timer never got to run.
       if (hiddenForMs >= AWAY_DISCONNECT_MS && deps.isSeatedLiveMatch()) {
-        deps.leave();
+        leaveAway();
+      }
+      // Auto-rejoin (user-locked decision): a return after we abandoned the
+      // seat re-enters the started room rather than sitting disconnected.
+      if (leftWhileAway) {
+        leftWhileAway = false;
+        deps.rejoin();
       }
     },
   };

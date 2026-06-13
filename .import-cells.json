@@ -1027,6 +1027,7 @@
     "role": "online rehydrate & host promotion",
     "files": [
       "src/online/online-rehydrate.ts",
+      "src/online/online-resync-defer.ts",
       "src/online/runtime/promote.ts"
     ]
   },

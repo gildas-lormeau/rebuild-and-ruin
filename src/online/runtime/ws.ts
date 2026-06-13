@@ -4,8 +4,9 @@
  * `initPromote` and `initDeps`); `connect()` throws if called first.
  */
 
-import type { ServerMessage } from "../../protocol/protocol.ts";
+import { MESSAGE, type ServerMessage } from "../../protocol/protocol.ts";
 import { isHostInContext } from "../../runtime/tick-context.ts";
+import { SPECTATOR_SLOT } from "../../shared/core/player-slot.ts";
 import { Mode } from "../../shared/ui/ui-mode.ts";
 import { computeWsUrl } from "../online-config.ts";
 import { connectWebSocket } from "../online-session.ts";
@@ -57,6 +58,44 @@ export function disconnectAway(): void {
   _rt.render();
   _rt.setMode(Mode.STOPPED);
   _client.ctx.session.socket?.close();
+}
+
+/** Auto-rejoin on tab-return after an away-disconnect (online-away-watchdog.ts
+ *  `rejoin`). Opens a fresh socket and presents the retained room code + rejoin
+ *  token so the server re-admits this peer into the STARTED room — it replays
+ *  INIT, then asks the host for a targeted resync. `awaitingRejoinResync` is
+ *  set BEFORE the send so the first FULL_STATE routes through
+ *  `applyMidGameCheckpoint` (own seat rebuilt as AI, matching the peers that
+ *  took it over); the rejoiner then requests its seat back (SEAT_RECLAIM).
+ *  No-op when no token/code is retained (never seated, or already reset). */
+export function rejoinAfterAway(): void {
+  const session = _client.ctx.session;
+  const token = session.myRejoinToken;
+  const code = session.roomCode;
+  if (!token || !code || session.myPlayerId < 0) {
+    _client.devLog(
+      "rejoinAfterAway: no retained token/code/seat — cannot rejoin",
+    );
+    return;
+  }
+  // Boot as a SPECTATOR: stash the seat to reclaim and drop our identity so the
+  // replayed-INIT bootstrap builds our seat as the same AI mirror the room
+  // already holds (the AI took it over). We adopt the host's room-wide resync
+  // broadcast via the normal migration path, then claim the seat back.
+  session.awaitingRejoinSeat = session.myPlayerId;
+  session.myPlayerId = SPECTATOR_SLOT;
+  session.awaitingRejoinResync = true;
+  void connect()
+    .then(() => _client.send({ type: MESSAGE.REJOIN_ROOM, code, token }))
+    .catch(() => {
+      // Reconnect failed: restore our identity + drop the resync routing so a
+      // later FULL_STATE isn't misrouted through the rejoin path.
+      session.myPlayerId = session.awaitingRejoinSeat;
+      session.awaitingRejoinSeat = SPECTATOR_SLOT;
+      session.awaitingRejoinResync = false;
+      _rt.setAnnouncement(ANNOUNCEMENT_DISCONNECTED);
+      _rt.render();
+    });
 }
 
 /** Open the WebSocket connection. Resolves on socket `open`, rejects on

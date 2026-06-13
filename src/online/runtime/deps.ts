@@ -18,22 +18,24 @@ import { isSessionLive } from "../../runtime/state.ts";
 import { DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS } from "../../shared/core/action-schedule.ts";
 import { MIGRATION_ANNOUNCEMENT_DURATION } from "../../shared/core/game-constants.ts";
 import type { TowerIdx } from "../../shared/core/geometry-types.ts";
-import type { ValidPlayerId } from "../../shared/core/player-slot.ts";
+import {
+  SPECTATOR_SLOT,
+  type ValidPlayerId,
+} from "../../shared/core/player-slot.ts";
 import { PLAYER_NAMES } from "../../shared/ui/player-config.ts";
 import { Mode } from "../../shared/ui/ui-mode.ts";
 import { createError, joinError } from "../online-dom.ts";
 import { handleGameOverTransition } from "../online-phase-transitions.ts";
-import { applyMidGameCheckpoint } from "../online-rehydrate.ts";
 import { isSeatReclaimable } from "../online-rejoin.ts";
 import {
   type SeatReclaimDeps,
   scheduleSeatReclaim,
 } from "../online-seat-reclaim.ts";
 import {
+  clearSeatSlots,
   type SeatTakeoverDeps,
   scheduleSeatTakeover,
 } from "../online-seat-takeover.ts";
-import { createFullStateMessage } from "../online-serialize.ts";
 import {
   type HandleServerIncrementalDeps,
   handleServerIncrementalMessage,
@@ -152,16 +154,11 @@ function buildReclaimDeps(init: DepsInit, client: OnlineClient) {
     getLobbyJoined: () => init.runtime.runtimeState.lobby.joined,
     schedule: (action) =>
       init.runtime.runtimeState.actionSchedule.schedule(action),
-    installOwnerController: (playerId, state) => {
-      // STUB (3c-1): the dormant give-back wiring lands first. Step 3c-2
-      // replaces this with the real AI→human controller swap + input rewire
-      // via a composition-root `reclaimLocalSeat(playerId)` handle. Until the
-      // tab-return REJOIN_ROOM trigger exists (also 3c-2) no production path
-      // reaches a SEAT_RECLAIM apply, so this never runs outside tests.
-      client.devLog(
-        `reclaim: installOwnerController STUB for P${playerId} @${state.simTick} (3c-2 wires the real swap)`,
-      );
-    },
+    // Owner-only AI→human swap at the SEAT_RECLAIM apply: the runtime's
+    // synchronous `installLocalHumanController` (a real HumanController, idle
+    // until its local input drives it).
+    installOwnerController: (playerId) =>
+      init.runtime.installLocalHumanController(playerId),
     log: client.devLog,
   };
   return {
@@ -180,22 +177,16 @@ function buildReclaimDeps(init: DepsInit, client: OnlineClient) {
       client.send({ type: MESSAGE.SEAT_RECLAIM, playerId, applyAt });
     },
     onResyncRequest: (forPlayerId: ValidPlayerId) => {
-      // TODO (3c-2, fork-sensitive): this serializes at the CURRENT tick.
-      // The targeted resync must instead be DEFERRED to `requestTick +
-      // SAFETY` so every human action in flight before the rejoiner joined
-      // `connectedSockets` is drained into the snapshot — an action stamped
-      // applyAt > snapshotTick that the rejoiner missed would fork. Plus a
-      // retry if a host migration happens inside the defer window. Both get
-      // the bidirectional parity test in 3c-2; synchronous is safe here only
-      // because the path is dormant (no 3c-2 trigger yet).
-      const runtimeState = init.runtime.runtimeState;
-      const full = createFullStateMessage(
-        runtimeState.state,
-        session.hostMigrationSeq,
-        runtimeState.battleAnim.flights,
-        runtimeState.accum.grunt,
-      );
-      client.send({ ...full, forPlayerId });
+      // DEFER, do NOT serialize now (online-resync-defer.ts): park the
+      // targeted resync at `requestTick + SAFETY`. By that tick every human
+      // action stamped applyAt <= snapshotTick that was in flight before the
+      // rejoiner joined is drained into the snapshot — serialized now, those
+      // (broadcast pre-connect, applied post-snapshot) would be missed →
+      // fork. The per-frame host poll fires it once simTick reaches the tick.
+      const fireAtTick =
+        init.runtime.runtimeState.state.simTick +
+        DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS;
+      session.pendingResyncRequests.set(forPlayerId, fireAtTick);
     },
   };
 }
@@ -206,22 +197,37 @@ function buildRejoinDeps(init: DepsInit, client: OnlineClient) {
   const session = client.ctx.session;
   return {
     isAwaitingResync: () => session.awaitingRejoinResync,
-    adoptResync: async (msg: FullStateMessage): Promise<void> => {
-      // Fresh mid-game adoption: applyMidGameCheckpoint rebuilds ALL
-      // controllers (incl. the rejoiner's own seat) as AI, so it mirror-sims
-      // its seat exactly like the peers that took it over. The seat returns
-      // to a human controller only at the SEAT_RECLAIM apply.
-      await applyMidGameCheckpoint(init.runtime, msg);
-      session.awaitingRejoinResync = false;
-      // Adopt the host's migration cursor so a later real migration dedups.
+    adoptResync: (msg: FullStateMessage): Promise<void> => {
+      // Adopt the host's ROOM-WIDE resync broadcast through the SAME path
+      // every other peer uses for a migration (`applyFullStateToRunningRuntime`
+      // via init.restoreFullState): keep the spectator-boot mirror/AI
+      // controllers (same seed → same personalities as the host) and reprime
+      // them, replaying the host's post-serialize draws → identical state.rng
+      // cursor on every peer. (applyMidGameCheckpoint would rebuild the AI on a
+      // PRIVATE rng stream, diverging from the host's live shared-stream AI.)
+      init.restoreFullState(msg);
       session.hostMigrationSeq = msg.migrationSeq ?? session.hostMigrationSeq;
-      // Now in lockstep — ask the host for the give-back.
-      if (session.myPlayerId >= 0) {
+      session.awaitingRejoinResync = false;
+      // Claim the seat back. It is AI-held (taken over while away); our stale
+      // `occupiedSlots` still lists it — the spectator-boot kept it there for
+      // the bootstrap identity draws, but left there `applySeatReclaim`'s
+      // idempotency guard (`occupiedSlots.has`) would no-op the owner swap.
+      // Clear it, adopt the seat identity, then request the give-back.
+      const seat = session.awaitingRejoinSeat;
+      if (seat >= 0) {
+        clearSeatSlots(
+          session,
+          init.runtime.runtimeState.lobby.joined,
+          seat as ValidPlayerId,
+        );
+        session.myPlayerId = seat;
+        session.awaitingRejoinSeat = SPECTATOR_SLOT;
         client.send({
           type: MESSAGE.REQUEST_SEAT_RECLAIM,
-          playerId: session.myPlayerId as ValidPlayerId,
+          playerId: seat as ValidPlayerId,
         });
       }
+      return Promise.resolve();
     },
   };
 }

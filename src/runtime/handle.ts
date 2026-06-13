@@ -7,6 +7,7 @@
  */
 
 import type { GameMap } from "../shared/core/geometry-types.ts";
+import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import type { RuntimeMusic } from "./audio/music-player.ts";
 import type { RuntimeSfx } from "./audio/sfx-player.ts";
 import type { RuntimeState } from "./state.ts";
@@ -61,4 +62,11 @@ export interface GameRuntime {
   hideBanner: () => void;
   /** Pre-warm the terrain render cache for a map (avoids first-frame stall). */
   warmMapCache: (map: GameMap) => void;
+  /** Install a fresh LOCAL human controller for `playerId`, primed for the
+   *  live phase. The online seat-reclaim owner swap: when a rejoiner's seat
+   *  is handed back from the AI that took it over (online/online-seat-reclaim.ts),
+   *  this replaces the dormant AI controller with the returning human's.
+   *  SYNCHRONOUS + rng-neutral so it can ride the lockstep SEAT_RECLAIM apply
+   *  in the same tick as the slot-set flip (see the impl note in composition.ts). */
+  installLocalHumanController: (playerId: ValidPlayerId) => void;
 }

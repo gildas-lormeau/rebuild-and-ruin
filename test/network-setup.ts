@@ -44,6 +44,7 @@ import {
   type OnlineSession,
 } from "../src/online/online-session.ts";
 import { applyFullStateToRunningRuntime } from "../src/online/online-rehydrate.ts";
+import { pollDeferredResyncs } from "../src/online/online-resync-defer.ts";
 import { createGameOverPayload } from "../src/online/online-serialize.ts";
 import { PLAYER_NAMES } from "../src/shared/ui/player-config.ts";
 import type { OnlineClient } from "../src/online/online-stores.ts";
@@ -238,6 +239,30 @@ export async function createNetworkedPair(
     watcherSession: watcherBuild.client!.ctx.session,
     watcherUpgradePickDialog: () =>
       watcherBuild.headless.runtime.upgradePick.get(),
+  };
+}
+
+/** Build a fresh SPECTATOR peer (myPlayerId = -1, no assisted slots) for the
+ *  seat give-back parity test. Models a rejoiner that re-booted clean: every
+ *  seat is a mirror/pure-AI controller built off the same seed as the host
+ *  (so personalities + the shared state.rng strategy match), and it adopts the
+ *  host's room-wide resync broadcast through the normal migration path. Its
+ *  `createMessageHandler` carries the production rejoin routing (the lifecycle
+ *  FULL_STATE → adoptResync gate). `remotePlayerSlots` = seats driven by other
+ *  peers (wire-driven here). */
+export async function createSpectatorRejoiner(
+  opts: ScenarioOptions,
+  remotePlayerSlots: ReadonlySet<ValidPlayerId>,
+): Promise<{
+  scenario: Scenario;
+  session: OnlineSession;
+  sentMessages: GameMessage[];
+}> {
+  const build = await buildBidirectionalWatcher(opts, [], remotePlayerSlots);
+  return {
+    scenario: build.scenario,
+    session: build.client!.ctx.session,
+    sentMessages: build.sentMessages,
   };
 }
 
@@ -532,6 +557,10 @@ async function buildBidirectionalHost(
   const client = buildPeerClient(remotePlayerSlots, true, (msg) =>
     sentMessages.push(msg),
   );
+  // Late-bound runtime ref for the host per-frame poll (the runtime doesn't
+  // exist until createHeadlessRuntime returns; the poll only fires during
+  // ticks, after it's set). Inert unless a rejoiner parked a resync.
+  const runtimeRef: { current?: HeadlessRuntime } = {};
   const headless = await createHeadlessRuntime({
     ...base,
     hostMode: true,
@@ -539,7 +568,19 @@ async function buildBidirectionalHost(
     remotePlayerSlots: client.ctx.session.remotePlayerSlots,
     onlinePhaseTicks: buildHostPhaseTicks((msg) => sentMessages.push(msg)),
     onlineDialogDrains: buildDialogDrains(client.ctx.session),
+    // Host deferred-resync poll (HIGH-2 3c-2): fire any parked targeted
+    // resync once the host's sim clock reaches its fire tick.
+    onlineHostAfterFrame: () => {
+      const runtime = runtimeRef.current?.runtime;
+      if (!runtime) return;
+      pollDeferredResyncs({
+        runtime,
+        session: client.ctx.session,
+        send: (msg) => sentMessages.push(msg),
+      });
+    },
   });
+  runtimeRef.current = headless;
   headless.runtime.runtimeState.state.debugTag = "HOST";
   if (opts.testHooks) {
     headless.runtime.runtimeState.state.testHooks = opts.testHooks;

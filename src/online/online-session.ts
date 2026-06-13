@@ -91,12 +91,28 @@ export interface OnlineSession {
    *  is selected; cleared on a full session reset. */
   myRejoinToken: string | null;
   /** True between sending `rejoinRoom` and adopting the first resync
-   *  FULL_STATE: it routes that snapshot through `applyMidGameCheckpoint`
-   *  (rebuilds the rejoiner's own seat as AI, matching the peers that took it
-   *  over) rather than the running-runtime migration path (which would keep
-   *  the bootstrap's human controller on the own seat → divergence). Cleared
-   *  on adoption. */
+   *  FULL_STATE. The rejoiner boots as a SPECTATOR (`myPlayerId` = -1) so the
+   *  replayed-INIT bootstrap builds its seat as the same AI mirror every other
+   *  peer holds (the AI took it over). It then adopts the host's ROOM-WIDE
+   *  resync broadcast through the normal migration path (kept controllers +
+   *  paired re-prime) and claims its seat back. Cleared on adoption. */
   awaitingRejoinResync: boolean;
+  /** The seat this rejoiner will reclaim once it has adopted the resync.
+   *  Stashed before the spectator-boot clears `myPlayerId`; SPECTATOR_SLOT
+   *  (-1) when not mid-rejoin. */
+  awaitingRejoinSeat: PlayerId;
+  /** The room code this peer is in, captured at `showWaitingRoom`. Survives a
+   *  tab-hide (JS memory) so the away-disconnect → tab-return path can present
+   *  it in `rejoinRoom` (the session has `roomSeed` but the rejoin handshake
+   *  needs the CODE). Empty until a room is entered; cleared on a full reset. */
+  roomCode: string;
+  /** Host-only: rejoiner seats whose targeted resync is DEFERRED to a future
+   *  sim tick. Key = the rejoiner's slot; value = the `applyAt`-style fire
+   *  tick (`requestTick + SAFETY`). The host serializes + sends only once its
+   *  `simTick` reaches the fire tick — by then every human action in flight
+   *  before the rejoiner joined is drained into the snapshot, so the rejoiner
+   *  can't miss one and fork. Polled per-frame by `pollDeferredResyncs`. */
+  pendingResyncRequests: Map<ValidPlayerId, number>;
 }
 
 /** Network deduplication maps — tracks the last-sent value per player for each
@@ -139,6 +155,9 @@ export function createSession(): OnlineSession {
     pendingSeatTakeovers: new Map(),
     myRejoinToken: null,
     awaitingRejoinResync: false,
+    awaitingRejoinSeat: SPECTATOR_SLOT,
+    roomCode: "",
+    pendingResyncRequests: new Map(),
   };
 }
 
@@ -169,6 +188,9 @@ export function resetSessionState(session: OnlineSession): void {
   session.pendingSeatTakeovers.clear();
   session.myRejoinToken = null;
   session.awaitingRejoinResync = false;
+  session.awaitingRejoinSeat = SPECTATOR_SLOT;
+  session.roomCode = "";
+  session.pendingResyncRequests.clear();
 }
 
 export function sendAimUpdate(

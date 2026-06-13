@@ -3,6 +3,7 @@ import {
   ensureAiModulesLoaded,
   rollAiPersonality,
 } from "../controllers/controller-factory.ts";
+import { HumanController } from "../controllers/controller-human.ts";
 import { applyGameConfig, createGameFromSeed } from "../game/index.ts";
 import type { AiPersonality } from "../shared/core/ai-personality.ts";
 import { deriveAiStrategySeed } from "../shared/core/ai-seed.ts";
@@ -118,6 +119,19 @@ export function createAiController(
   personality: AiPersonality,
 ): Promise<PlayerController> {
   return createController(id, true, undefined, rng, undefined, personality);
+}
+
+/** Build a LOCAL human controller SYNCHRONOUSLY (no AI-module load). The
+ *  online seat-reclaim owner swap (composition `installLocalHumanController`)
+ *  needs a synchronous build so it can ride the lockstep SEAT_RECLAIM apply in
+ *  the same tick as the slot-set flip. Lives here because bootstrap.ts is the
+ *  one composition-root file allowed to import `src/controllers/` directly. */
+export function createHumanController(
+  id: ValidPlayerId,
+  keys: KeyBindings,
+  aimResolver: AimResolver,
+): PlayerController {
+  return new HumanController(id, keys, aimResolver);
 }
 
 /** High-level bootstrap: resolves settings → params, then calls bootstrapGame.

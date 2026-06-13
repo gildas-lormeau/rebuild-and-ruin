@@ -296,6 +296,7 @@ Deno.test("away watchdog: seated peer hidden past the threshold leaves once", ()
     timing: clock.timing,
     isSeatedLiveMatch: () => leaves === 0,
     leave: () => leaves++,
+    rejoin: () => {},
   });
   watchdog.onVisibilityChange(true);
   clock.advance(AWAY_DISCONNECT_MS - 1);
@@ -313,6 +314,7 @@ Deno.test("away watchdog: returning before the threshold cancels the leave", () 
     timing: clock.timing,
     isSeatedLiveMatch: () => true,
     leave: () => leaves++,
+    rejoin: () => {},
   });
   watchdog.onVisibilityChange(true);
   clock.advance(AWAY_DISCONNECT_MS / 2);
@@ -328,6 +330,7 @@ Deno.test("away watchdog: suspended timer is backstopped at unhide", () => {
     timing: clock.timing,
     isSeatedLiveMatch: () => true,
     leave: () => leaves++,
+    rejoin: () => {},
   });
   watchdog.onVisibilityChange(true);
   // JS suspended for the whole hide — the armed timeout never ran.
@@ -344,6 +347,7 @@ Deno.test("away watchdog: watchers are exempt", () => {
     timing: clock.timing,
     isSeatedLiveMatch: () => false,
     leave: () => leaves++,
+    rejoin: () => {},
   });
   watchdog.onVisibilityChange(true);
   clock.advance(AWAY_DISCONNECT_MS * 2);
@@ -475,6 +479,7 @@ Deno.test("away watchdog: match starting while hidden is still covered", () => {
     timing: clock.timing,
     isSeatedLiveMatch: () => seated,
     leave: () => leaves++,
+    rejoin: () => {},
   });
   // Hidden in the waiting room; the host starts the match over the socket.
   watchdog.onVisibilityChange(true);
@@ -486,6 +491,36 @@ Deno.test("away watchdog: match starting while hidden is still covered", () => {
     1,
     "seatedness is decided at fire time, not capture-at-hide",
   );
+});
+
+Deno.test("away watchdog: tab-return after an away-leave auto-rejoins once", () => {
+  const clock = mockWatchdogTiming();
+  let leaves = 0;
+  let rejoins = 0;
+  let seated = true;
+  const watchdog = createAwayWatchdog({
+    timing: clock.timing,
+    // disconnectAway flips Mode.STOPPED → no longer seated-live, which is
+    // what stops a double-leave and re-arms for the next match.
+    isSeatedLiveMatch: () => seated && leaves === 0,
+    leave: () => {
+      leaves++;
+      seated = false;
+    },
+    rejoin: () => rejoins++,
+  });
+  watchdog.onVisibilityChange(true);
+  clock.advance(AWAY_DISCONNECT_MS); // timer fires → abandon the seat
+  assertEquals(leaves, 1, "abandons the seat at the threshold");
+  assertEquals(rejoins, 0, "no rejoin while still hidden");
+  watchdog.onVisibilityChange(false);
+  assertEquals(rejoins, 1, "return after an away-leave rejoins exactly once");
+
+  // A second hide+return with no intervening leave must NOT rejoin again.
+  watchdog.onVisibilityChange(true);
+  clock.advance(AWAY_DISCONNECT_MS / 2);
+  watchdog.onVisibilityChange(false);
+  assertEquals(rejoins, 1, "a clean return never rejoins");
 });
 
 /** Manual clock + timeout registry. `advance` models a hidden tab whose
