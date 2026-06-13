@@ -248,7 +248,7 @@ const runtime: GameRuntime = createGameRuntime({
     );
     if (isHostInContext(ctx.session)) send(payloads.serverPayload);
   },
-  // Host-only per-frame poll: fire any deferred targeted resync whose fire
+  // Host-only per-frame poll: fire any deferred room-wide resync whose fire
   // tick (requestTick + SAFETY) has arrived (online-resync-defer.ts).
   onlineHostAfterFrame: () =>
     pollDeferredResyncs({ runtime, session: ctx.session, send }),

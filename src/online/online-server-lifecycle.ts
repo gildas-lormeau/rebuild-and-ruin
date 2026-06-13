@@ -58,10 +58,9 @@ export interface HandleServerLifecycleDeps {
   };
 
   /** Lockstep seat-RECLAIM hooks — the give-back inverse of `takeover`
-   *  (see online-seat-reclaim.ts + online-rejoin.ts). All three are dormant
-   *  in production until step 3c-2 wires the tab-return REJOIN_ROOM trigger;
-   *  no peer sends REQUEST_SEAT_RECLAIM before then, so the host never
-   *  stamps a SEAT_RECLAIM. */
+   *  (see online-seat-reclaim.ts + online-rejoin.ts). Wired into production by
+   *  step 3c-2: a tab-return REJOIN_ROOM leads the rejoiner to send
+   *  REQUEST_SEAT_RECLAIM, and the host stamps a SEAT_RECLAIM in response. */
   reclaim: {
     /** Watcher + the returning owner at SEAT_RECLAIM receipt: schedule the
      *  host-stamped flip (the owner additionally swaps AI→human on apply). */
@@ -70,14 +69,16 @@ export interface HandleServerLifecycleDeps {
      *  AI-held + owner alive, stamp `simTick + SAFETY`, schedule locally,
      *  broadcast SEAT_RECLAIM. No-op when ineligible. */
     onReclaimRequest: (playerId: ValidPlayerId) => void;
-    /** Host at REQUEST_RESYNC: send a FULL_STATE addressed to the rejoiner. */
+    /** Host at REQUEST_RESYNC: park a deferred ROOM-WIDE resync (a no-op
+     *  self-migration) at `requestTick + SAFETY`; see online-resync-defer.ts. */
     onResyncRequest: (forPlayerId: ValidPlayerId) => void;
   };
 
-  /** Rejoiner adoption of the first targeted resync. Distinct from the
-   *  migration `restoreFullState` path: it rebuilds the rejoiner's own seat
-   *  as AI (applyMidGameCheckpoint) so it mirror-sims like the peers that
-   *  took the seat over, then requests the give-back. */
+  /** Rejoiner adoption of the host's first ROOM-WIDE resync broadcast (a no-op
+   *  self-migration). Uses the SAME migration `restoreFullState` path
+   *  (`applyFullStateToRunningRuntime`) as every other peer — the rejoiner's
+   *  seat was already rebuilt as AI by the spectator-boot INIT replay — then
+   *  requests the seat give-back. */
   rejoin: {
     isAwaitingResync: () => boolean;
     adoptResync: (msg: FullStateMessage) => Promise<void>;
@@ -337,10 +338,12 @@ export async function handleServerLifecycleMessage(
 
     case MESSAGE.FULL_STATE:
       if (deps.rejoin.isAwaitingResync()) {
-        // First targeted resync after a rejoin: adopt it as a fresh mid-game
-        // watcher (own seat rebuilt as AI, matching the peers that took it
-        // over) and request the give-back. Bypasses the migration dedup gate
-        // below — the server addressed this snapshot to us specifically.
+        // First resync after a rejoin: this is the host's ROOM-WIDE rebroadcast
+        // (a no-op self-migration). Adopt it through the migration path, keeping
+        // the spectator-boot AI controllers, and request the give-back. Taken
+        // here — consuming `awaitingRejoinResync` — so the rejoiner's first
+        // resync isn't filtered by the migration-seq dedup gate below while its
+        // own seq bookkeeping is still catching up.
         await deps.rejoin.adoptResync(msg);
         return true;
       }

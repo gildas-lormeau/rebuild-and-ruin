@@ -106,12 +106,12 @@ export interface OnlineSession {
    *  it in `rejoinRoom` (the session has `roomSeed` but the rejoin handshake
    *  needs the CODE). Empty until a room is entered; cleared on a full reset. */
   roomCode: string;
-  /** Host-only: rejoiner seats whose targeted resync is DEFERRED to a future
-   *  sim tick. Key = the rejoiner's slot; value = the `applyAt`-style fire
-   *  tick (`requestTick + SAFETY`). The host serializes + sends only once its
-   *  `simTick` reaches the fire tick — by then every human action in flight
-   *  before the rejoiner joined is drained into the snapshot, so the rejoiner
-   *  can't miss one and fork. Polled per-frame by `pollDeferredResyncs`. */
+  /** Host-only: rejoiner seats whose resync is DEFERRED to a future sim tick.
+   *  Key = the rejoiner's slot; value = the `applyAt`-style fire tick
+   *  (`requestTick + SAFETY`). The host serializes + re-broadcasts room-wide
+   *  only once its `simTick` reaches the fire tick — by then every human action
+   *  in flight before the rejoiner joined is drained into the snapshot, so the
+   *  rejoiner can't miss one and fork. Polled per-frame by `pollDeferredResyncs`. */
   pendingResyncRequests: Map<ValidPlayerId, number>;
 }
 

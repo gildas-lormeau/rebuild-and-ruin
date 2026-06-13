@@ -142,11 +142,10 @@ function buildTakeoverDeps(init: DepsInit, client: OnlineClient) {
 }
 
 /** Lockstep seat-RECLAIM hooks — the give-back inverse of the takeover
- *  deps above (see online-seat-reclaim.ts + online-rejoin.ts). DORMANT in
- *  production until step 3c-2 wires the tab-return REJOIN_ROOM trigger: no
- *  peer sends REQUEST_SEAT_RECLAIM before then, so `onReclaimRequest` never
- *  fires and no SEAT_RECLAIM is stamped. Exercised only by unit tests until
- *  then. */
+ *  deps above (see online-seat-reclaim.ts + online-rejoin.ts). Wired into
+ *  production by step 3c-2: a tab-return REJOIN_ROOM (online-away-watchdog.ts
+ *  `rejoin`) leads the rejoiner to send REQUEST_SEAT_RECLAIM, the host stamps a
+ *  SEAT_RECLAIM via `onReclaimRequest`, and every peer schedules the flip. */
 function buildReclaimDeps(init: DepsInit, client: OnlineClient) {
   const session = client.ctx.session;
   const reclaimDeps: SeatReclaimDeps = {
@@ -178,9 +177,9 @@ function buildReclaimDeps(init: DepsInit, client: OnlineClient) {
     },
     onResyncRequest: (forPlayerId: ValidPlayerId) => {
       // DEFER, do NOT serialize now (online-resync-defer.ts): park the
-      // targeted resync at `requestTick + SAFETY`. By that tick every human
-      // action stamped applyAt <= snapshotTick that was in flight before the
-      // rejoiner joined is drained into the snapshot — serialized now, those
+      // deferred room-wide resync at `requestTick + SAFETY`. By that tick every
+      // human action stamped applyAt <= snapshotTick that was in flight before
+      // the rejoiner joined is drained into the snapshot — serialized now, those
       // (broadcast pre-connect, applied post-snapshot) would be missed →
       // fork. The per-frame host poll fires it once simTick reaches the tick.
       const fireAtTick =
@@ -191,8 +190,9 @@ function buildReclaimDeps(init: DepsInit, client: OnlineClient) {
   };
 }
 
-/** Rejoiner-side adoption of the first targeted resync. DORMANT until 3c-2
- *  sets `awaitingRejoinResync` (the tab-return trigger). */
+/** Rejoiner-side adoption of the host's first ROOM-WIDE resync broadcast.
+ *  Active in production via step 3c-2: the tab-return path sets
+ *  `awaitingRejoinResync`, so the first FULL_STATE is adopted here. */
 function buildRejoinDeps(init: DepsInit, client: OnlineClient) {
   const session = client.ctx.session;
   return {

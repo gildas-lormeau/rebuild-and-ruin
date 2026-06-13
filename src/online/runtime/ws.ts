@@ -63,10 +63,12 @@ export function disconnectAway(): void {
 /** Auto-rejoin on tab-return after an away-disconnect (online-away-watchdog.ts
  *  `rejoin`). Opens a fresh socket and presents the retained room code + rejoin
  *  token so the server re-admits this peer into the STARTED room — it replays
- *  INIT, then asks the host for a targeted resync. `awaitingRejoinResync` is
- *  set BEFORE the send so the first FULL_STATE routes through
- *  `applyMidGameCheckpoint` (own seat rebuilt as AI, matching the peers that
- *  took it over); the rejoiner then requests its seat back (SEAT_RECLAIM).
+ *  INIT, which boots us as a SPECTATOR whose away seat is rebuilt as the same AI
+ *  mirror the room already runs, and asks the host for a resync.
+ *  `awaitingRejoinResync` is set BEFORE the send so the host's ROOM-WIDE resync
+ *  broadcast (a no-op self-migration) is adopted through the normal migration
+ *  path (`applyFullStateToRunningRuntime`, keeping those AI controllers); the
+ *  rejoiner then claims its seat back (SEAT_RECLAIM).
  *  No-op when no token/code is retained (never seated, or already reset). */
 export function rejoinAfterAway(): void {
   const session = _client.ctx.session;

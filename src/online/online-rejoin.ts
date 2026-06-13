@@ -1,10 +1,10 @@
 /**
  * Rejoin / seat give-back host-side gate (HIGH-2 step 3c).
  *
- * A re-admitted peer (server `rejoinRoom`) adopts a targeted resync, then
- * asks the host to hand its seat back from the AI that took it over. The
- * host alone decides; this is the game-state half of that decision (the
- * requester's seat ownership is already proven server-side by the token).
+ * A re-admitted peer (server `rejoinRoom`) adopts the host's room-wide resync
+ * broadcast, then asks the host to hand its seat back from the AI that took it
+ * over. The host alone decides; this is the game-state half of that decision
+ * (the requester's seat ownership is already proven server-side by the token).
  */
 
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
