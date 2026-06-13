@@ -33,6 +33,10 @@ export interface SeatTakeoverDeps {
   getLobbyJoined: () => boolean[];
   schedule: ActionSchedule<GameState>["schedule"];
   getControllers: () => readonly PlayerController[];
+  /** Adopt the seat's open life-lost / upgrade-pick entry to the
+   *  just-installed takeover AI (`GameRuntime.adoptDialogSeat`). Without
+   *  it a mid-dialog takeover stalls the entry to the max-timer ABANDON. */
+  adoptDialogSeat: (playerId: ValidPlayerId) => void;
   log: (msg: string) => void;
 }
 
@@ -61,9 +65,10 @@ export function scheduleSeatTakeover(
  *  `state.rng` cursor on every peer. During CASTLE_SELECT the brain init
  *  is skipped (`primeAiControllerForPhase`): the seat's frozen-remote
  *  selection entry resolves via the cycle's timer backstop, uniformly.
- *  Active dialog entries are likewise left frozen — their
- *  `autoResolve` was captured at creation on every peer alike, and the
- *  DIALOG_FORCE_GRACE backstop resolves them deterministically. */
+ *  An open life-lost / upgrade-pick entry is adopted to the takeover AI
+ *  (`adoptDialogSeat`): its `autoResolve` was frozen to the departed
+ *  human, so left alone it would stall to the max-timer ABANDON instead
+ *  of the AI playing the seat. The flip is shared-RNG-neutral. */
 function applySeatTakeover(
   state: GameState,
   playerId: ValidPlayerId,
@@ -79,6 +84,10 @@ function applySeatTakeover(
     return;
   }
   primeAiControllerForPhase(state, ctrl);
+  // Hand any open life-lost / upgrade-pick entry for this seat to the AI
+  // we just primed, so it plays the dialog instead of the entry stalling
+  // to the max-timer ABANDON. Runs at the shared drain tick on every peer.
+  deps.adoptDialogSeat(playerId);
 }
 
 /** Flip the slot-set triple in one place — the lifecycle handler's

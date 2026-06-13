@@ -1027,6 +1027,12 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
         ctrl.startBuildPhase(state);
       }
     },
+    adoptDialogSeat: (playerId: ValidPlayerId): void => {
+      // Whichever dialog (if any) is open hands the seat to the AI; the
+      // other is a no-op (no pending entry for the seat).
+      lifeLost.adoptSeat(playerId);
+      upgradePick.adoptSeat(playerId);
+    },
 
     // Cross-cutting orchestration
     mainLoop,

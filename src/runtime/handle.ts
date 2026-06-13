@@ -69,4 +69,11 @@ export interface GameRuntime {
    *  SYNCHRONOUS + rng-neutral so it can ride the lockstep SEAT_RECLAIM apply
    *  in the same tick as the slot-set flip (see the impl note in composition.ts). */
   installLocalHumanController: (playerId: ValidPlayerId) => void;
+  /** Convert any open life-lost / upgrade-pick entry for `playerId` to
+   *  AI-resolved. The seat-takeover companion to the reclaim swap above:
+   *  an AI taking a seat over mid-dialog inherits an entry whose
+   *  `autoResolve` is still frozen to the departed human, so it would
+   *  stall to the max-timer ABANDON instead of the AI playing it.
+   *  Shared-RNG-neutral; runs at the lockstep takeover apply on every peer. */
+  adoptDialogSeat: (playerId: ValidPlayerId) => void;
 }

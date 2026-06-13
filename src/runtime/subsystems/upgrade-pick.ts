@@ -22,6 +22,7 @@ import type {
 } from "../../shared/ui/interaction-types.ts";
 import { Mode } from "../../shared/ui/ui-mode.ts";
 import {
+  adoptDialogEntryToAi,
   findPendingDialogEntry,
   isLocallyDrivenEntry,
   scheduleOrApplyDialogChoice,
@@ -120,6 +121,9 @@ export type UpgradePickSystem = RuntimeUpgradePick & {
    *  (`forceResolveUpgradePickPhase`), which also covers the banner-window
    *  case where no callback was armed yet. Null when no dialog exists. */
   forceResolveAll: () => UpgradePickDialogState | null;
+  /** Adopt this seat's open entry to AI-resolved at a seat takeover —
+   *  see `adoptDialogEntryToAi`. */
+  adoptSeat: (playerId: ValidPlayerId) => void;
 };
 
 const EMPTY_SLOT_SET: ReadonlySet<ValidPlayerId> = new Set();
@@ -374,6 +378,15 @@ export function createUpgradePickSystem(
     });
   }
 
+  /** Hand a taken-over seat's still-pending entry to the local AI. */
+  function adoptSeat(playerId: ValidPlayerId): void {
+    adoptDialogEntryToAi(
+      runtimeState.dialogs.upgradePick?.entries,
+      playerId,
+      (entry) => entry.choice === null,
+    );
+  }
+
   function findPendingEntry(
     playerId: ValidPlayerId,
   ): UpgradePickEntry | undefined {
@@ -426,5 +439,6 @@ export function createUpgradePickSystem(
     pickDirect,
     interactiveSlots,
     forceResolveAll,
+    adoptSeat,
   };
 }

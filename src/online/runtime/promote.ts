@@ -157,6 +157,7 @@ function flushPendingSeatTakeovers(): void {
         schedule: (action) =>
           _runtime.runtimeState.actionSchedule.schedule(action),
         getControllers: () => _runtime.runtimeState.controllers,
+        adoptDialogSeat: (pid) => _runtime.adoptDialogSeat(pid),
         log: _client.devLog,
       },
       playerId,

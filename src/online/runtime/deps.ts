@@ -126,6 +126,7 @@ function buildTakeoverDeps(init: DepsInit, client: OnlineClient) {
     schedule: (action) =>
       init.runtime.runtimeState.actionSchedule.schedule(action),
     getControllers: () => init.runtime.runtimeState.controllers,
+    adoptDialogSeat: (playerId) => init.runtime.adoptDialogSeat(playerId),
     log: client.devLog,
   };
   return {

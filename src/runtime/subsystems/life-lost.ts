@@ -12,6 +12,7 @@ import {
 } from "../../shared/ui/interaction-types.ts";
 import { Mode } from "../../shared/ui/ui-mode.ts";
 import {
+  adoptDialogEntryToAi,
   findPendingDialogEntry,
   isLocallyDrivenEntry,
   scheduleOrApplyDialogChoice,
@@ -131,6 +132,9 @@ export type LifeLostSystem = RuntimeLifeLost & {
   confirmChoice: (playerId: ValidPlayerId) => void;
   /** Apply a direct choice (e.g. from spatial click on a specific button). */
   applyChoice: (playerId: ValidPlayerId, choice: ResolvedChoice) => void;
+  /** Adopt this seat's open entry to AI-resolved at a seat takeover —
+   *  see `adoptDialogEntryToAi`. */
+  adoptSeat: (playerId: ValidPlayerId) => void;
 };
 
 export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
@@ -334,6 +338,15 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
     });
   }
 
+  /** Hand a taken-over seat's still-pending entry to the local AI. */
+  function adoptSeat(playerId: ValidPlayerId): void {
+    adoptDialogEntryToAi(
+      runtimeState.dialogs.lifeLost?.entries,
+      playerId,
+      (entry) => entry.choice === LifeLostChoice.PENDING,
+    );
+  }
+
   function findPendingEntry(
     playerId: ValidPlayerId,
   ): LifeLostEntry | undefined {
@@ -375,5 +388,6 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
     toggleFocus,
     confirmChoice,
     applyChoice,
+    adoptSeat,
   };
 }

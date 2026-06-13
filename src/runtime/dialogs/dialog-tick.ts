@@ -110,6 +110,32 @@ export function isLocallyDrivenEntry(
   return !entry.autoResolve && !remotePlayerSlots.has(entry.playerId);
 }
 
+/** Adopt a seat's open dialog entry to AI-resolved at a seat takeover.
+ *  The entry's `autoResolve` was frozen `false` when the now-departed
+ *  human held the seat, so it never auto-resolves and would stall to the
+ *  max-timer ABANDON. Flipping it true (with a fresh `autoTimer`) hands
+ *  the entry to the just-installed takeover AI, which resolves it the same
+ *  way a native AI seat would. No-op when the seat has no pending entry.
+ *  The caller runs this at the shared takeover drain tick on every peer;
+ *  both AI resolvers (`aiChooseLifeLost`, `aiPickUpgrade`) are
+ *  shared-RNG-neutral, so the flip cannot fork the lockstep cursor. */
+export function adoptDialogEntryToAi<
+  TEntry extends {
+    readonly playerId: ValidPlayerId;
+    autoResolve: boolean;
+    autoTimer: number;
+  },
+>(
+  entries: readonly TEntry[] | undefined,
+  playerId: ValidPlayerId,
+  isPending: (entry: TEntry) => boolean,
+): void {
+  const entry = findPendingDialogEntry(entries, playerId, isPending);
+  if (!entry) return;
+  entry.autoResolve = true;
+  entry.autoTimer = 0;
+}
+
 /** Find `playerId`'s still-pending entry, or undefined when the dialog
  *  is closed or the entry already resolved. */
 export function findPendingDialogEntry<

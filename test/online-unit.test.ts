@@ -20,6 +20,14 @@ import {
   type SeatReclaimDeps,
   scheduleSeatReclaim,
 } from "../src/online/online-seat-reclaim.ts";
+import {
+  type SeatTakeoverDeps,
+  scheduleSeatTakeover,
+} from "../src/online/online-seat-takeover.ts";
+import { adoptDialogEntryToAi } from "../src/runtime/dialogs/dialog-tick.ts";
+import { createLifeLostDialogState } from "../src/runtime/dialogs/life-lost-core.ts";
+import type { PlayerController } from "../src/shared/core/system-interfaces.ts";
+import { LifeLostChoice } from "../src/shared/ui/interaction-types.ts";
 import { handleServerLifecycleMessage } from "../src/online/online-server-lifecycle.ts";
 import { syncAccumulatorsFromTimer } from "../src/online/online-host-promotion.ts";
 import type { MutableAccums } from "../src/runtime/timer-accums.ts";
@@ -46,6 +54,7 @@ interface ReclaimHarness {
 }
 
 const RECLAIM_TICK = 10;
+const TAKEOVER_TICK = 12;
 
 Deno.test("DedupChannel.shouldSend returns false on duplicate", () => {
   const ch = createDedupChannel();
@@ -472,6 +481,72 @@ function makeReclaimHarness(myPlayerId: number): ReclaimHarness {
     },
   };
 }
+
+// A seat taken over WHILE a life-lost / upgrade-pick dialog is open used to
+// stall to the max-timer ABANDON: the entry's `autoResolve` was frozen to
+// the departed human, so the takeover AI never resolved it and the seat was
+// eliminated instead of played. The fix flips the entry to AI-resolved at
+// the takeover tick (`adoptDialogSeat`).
+Deno.test("adoptDialogEntryToAi: flips a frozen-human entry so the takeover AI plays it", () => {
+  const seat = 1 as ValidPlayerId;
+  const dialog = createLifeLostDialogState({
+    needsReselect: [seat],
+    eliminated: [],
+    state: {
+      players: [{ lives: 3 }, { lives: 2 }, { lives: 1 }],
+    } as unknown as GameState,
+    // Frozen as a remote human: shouldAutoResolve = !needsLocalInput && !remote.
+    remotePlayerSlots: new Set<ValidPlayerId>([seat]),
+    needsLocalInput: () => false,
+  });
+  const entry = dialog.entries[0]!;
+  assertEquals(entry.autoResolve, false, "precondition: frozen as a remote-human entry");
+
+  adoptDialogEntryToAi(
+    dialog.entries,
+    seat,
+    (candidate) => candidate.choice === LifeLostChoice.PENDING,
+  );
+  assertEquals(entry.autoResolve, true, "adopted: the entry now AI auto-resolves");
+  assertEquals(entry.autoTimer, 0, "auto-timer reset so the AI waits its full delay");
+});
+
+Deno.test("seat takeover: an open dialog seat is adopted to AI at the stamped tick", () => {
+  const seat = 1 as ValidPlayerId;
+  const schedule = createActionSchedule<GameState>();
+  const session = {
+    remotePlayerSlots: new Set<ValidPlayerId>([seat]),
+    occupiedSlots: new Set<ValidPlayerId>([seat]),
+    pendingSeatTakeovers: new Map<ValidPlayerId, number | null>(),
+  };
+  const lobbyJoined = [false, true, false];
+  const adopted: ValidPlayerId[] = [];
+  const aiCtrl = { kind: "ai", reset: () => {} } as unknown as PlayerController;
+  const state = {
+    simTick: 0,
+    // A dialog-adjacent phase so `primeAiControllerForPhase` only calls reset().
+    phase: Phase.MODIFIER_REVEAL,
+    players: [{ eliminated: false }, { eliminated: false }, { eliminated: false }],
+  } as unknown as GameState;
+  const deps: SeatTakeoverDeps = {
+    session,
+    getLobbyJoined: () => lobbyJoined,
+    schedule: schedule.schedule,
+    getControllers: () => [aiCtrl, aiCtrl, aiCtrl],
+    adoptDialogSeat: (pid) => adopted.push(pid),
+    log: () => {},
+  };
+
+  scheduleSeatTakeover(deps, seat, TAKEOVER_TICK);
+
+  state.simTick = TAKEOVER_TICK - 1;
+  schedule.drainUpTo(TAKEOVER_TICK - 1, state);
+  assertEquals(adopted, [], "must not adopt before the stamped tick");
+
+  state.simTick = TAKEOVER_TICK;
+  schedule.drainUpTo(TAKEOVER_TICK, state);
+  assertEquals(adopted, [seat], "the taken-over seat's open dialog is adopted at the stamp");
+});
 
 Deno.test("away watchdog: match starting while hidden is still covered", () => {
   const clock = mockWatchdogTiming();
