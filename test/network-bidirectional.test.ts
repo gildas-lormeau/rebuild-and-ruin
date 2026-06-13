@@ -102,6 +102,36 @@ const FREEZE_FRAMES = 120;
  *  time the running peer's clock advanced. */
 const HARNESS_FRAME_MS = Math.round(SIM_TICK_DT * 1000);
 const FREEZE_TRIAL = { seed: 42, mode: "classic" } as const;
+// ── Uneven-cadence (frame-rate jitter) sub-step pattern ───────────────
+// `simTick` is locked to wall-clock time, not frame rate: the per-frame
+// SimTickAccumulator drains accumulated wall-time into fixed 1/60s ticks,
+// so two machines at 30fps and 144fps advance the SAME number of sim
+// ticks per wall-second — they only differ in how many ticks each render
+// frame batches. The standard cadence (`tick(1)` per peer per pump) never
+// exercises that batching variance: every frame drains exactly one tick.
+//
+// These patterns feed each peer an uneven, wall-time-CONSERVING cadence —
+// 4 ticks over each 4-pump period (average exactly 1 tick/pump, so neither
+// peer drifts from the shared pump-frame clock that gates wire delivery),
+// but distributed as a 2-tick burst, a 0-tick stall, then two singles. The
+// bursts are staggered (host on pump%4==0, watcher on pump%4==2) so the
+// peers are never more than one tick apart and neither ever trails the
+// pump frame.
+//
+// Safety: a fire stamps `applyAt = senderSimTick + SAFETY` (=8). Worst
+// case the receiver is `maxRecvLead(2) - minSendLead(1) + wireDelay(5) = 6`
+// ticks past the sender's fire tick when it arrives — 2 ticks inside the
+// 8-tick window, so the skew never pushes a stamp into the receiver's
+// past. Raising the burst (e.g. [3,0,…]) breaches that margin and would
+// fork by construction, not by bug — keep bursts at 2.
+const JITTER_HOST_STEPS = [2, 0, 1, 1] as const;
+const JITTER_WATCHER_STEPS = [1, 1, 2, 0] as const;
+const JITTER_SWEEP: typeof SWEEP = [
+  { seed: 1, mode: "classic", rounds: 3 },
+  { seed: 42, mode: "classic", rounds: 3 },
+  { seed: 99, mode: "classic", rounds: 3 },
+  { seed: 7, mode: "modern", rounds: 5 },
+];
 
 // Touch the value import so module elision can't drop scenario.ts.
 void createScenario;
@@ -326,6 +356,19 @@ Deno.test(
   () => runFreezeTrial({ freezeHost: true }),
 );
 
+// Both peers play the whole match on an uneven, wall-time-conserving
+// cadence (see JITTER_*_STEPS). The convergence assertion is the contract:
+// applyAt scheduling must land every wire action on the same sim tick on
+// both peers regardless of how each peer batched its local ticks — and the
+// stale-stamp tripwire must stay silent, proving the bounded skew never
+// pushes a stamp outside the lockstep SAFETY window.
+for (const trial of JITTER_SWEEP) {
+  Deno.test(
+    `bidirectional 2H+1AI uneven cadence (seed=${trial.seed} ${trial.mode} r${trial.rounds})`,
+    () => runJitterTrial(trial),
+  );
+}
+
 async function runFreezeTrial(opts: { freezeHost: boolean }): Promise<void> {
   // The receive-path tripwire (deps.ts:warnIfStaleWireStamp) console.errors
   // on any wire stamp at or before the receiver's simTick. Zero hits is
@@ -333,6 +376,28 @@ async function runFreezeTrial(opts: { freezeHost: boolean }): Promise<void> {
   // stamps (a board action committed mid-replay without them reaches the
   // other peer in its past — a fork even when the parity fields happen to
   // survive).
+  await withStaleStampCapture((staleStamps) =>
+    runFreezeTrialInner(opts, staleStamps)
+  );
+}
+
+async function runJitterTrial(
+  trial: { seed: number; mode: "classic" | "modern"; rounds: number },
+): Promise<void> {
+  await withStaleStampCapture((staleStamps) =>
+    runJitterTrialInner(trial, staleStamps)
+  );
+}
+
+/** Run `body` with `console.error` intercepted, collecting any
+ *  `[lockstep] STALE` tripwire lines (the receive-path
+ *  `warnIfStaleWireStamp`). A non-empty array means a wire stamp landed at
+ *  or before the receiver's simTick — a fork even when the parity snapshot
+ *  happens to survive. `body` gets the live array so it can assert on it
+ *  before the restore; `console.error` is always restored on the way out. */
+async function withStaleStampCapture(
+  body: (staleStamps: string[]) => Promise<void>,
+): Promise<void> {
   const staleStamps: string[] = [];
   const originalConsoleError = console.error;
   console.error = (...args: unknown[]) => {
@@ -341,10 +406,51 @@ async function runFreezeTrial(opts: { freezeHost: boolean }): Promise<void> {
     else originalConsoleError(...args);
   };
   try {
-    await runFreezeTrialInner(opts, staleStamps);
+    await body(staleStamps);
   } finally {
     console.error = originalConsoleError;
   }
+}
+
+async function runJitterTrialInner(
+  trial: { seed: number; mode: "classic" | "modern"; rounds: number },
+  staleStamps: readonly string[],
+): Promise<void> {
+  const pair = await createBidirectionalNetworkedPair({
+    seed: trial.seed,
+    mode: trial.mode,
+    rounds: trial.rounds,
+    assistedSlotsHost: [0 as ValidPlayerId],
+    assistedSlotsWatcher: [1 as ValidPlayerId],
+    wireDelayFrames: WIRE_DELAY_FRAMES,
+  });
+  await runBidirectionalToEnd(
+    pair.host,
+    pair.watcher,
+    pair.pump,
+    60_000,
+    jitterCadence,
+  );
+  assertWireFiredFor(pair.host, [0], "host", trial);
+  assertWireFiredFor(pair.watcher, [1], "watcher", trial);
+  assertPlayersConverge(
+    snapshotPlayers(pair.watcher),
+    snapshotPlayers(pair.host),
+    `jitter seed=${trial.seed} ${trial.mode}`,
+  );
+  assertEquals(
+    staleStamps,
+    [],
+    "a wire stamp landed in a peer's past — uneven cadence pushed a stamp " +
+      "outside the lockstep SAFETY window",
+  );
+}
+
+/** Uneven per-pump cadence for `runBidirectionalToEnd` — see the
+ *  JITTER_*_STEPS note for the wall-time-conservation + safety argument. */
+function jitterCadence(step: number): readonly [number, number] {
+  const phase = step % JITTER_HOST_STEPS.length;
+  return [JITTER_HOST_STEPS[phase]!, JITTER_WATCHER_STEPS[phase]!];
 }
 
 async function runFreezeTrialInner(
@@ -456,19 +562,26 @@ function assertWireFiredFor(
   }
 }
 
-/** Drive both peers in lockstep until both reach STOPPED. The
- *  tick→pump→tick cadence interleaves message delivery with simulation
- *  steps so wire-arrival is frame-aligned (and `wireDelayFrames` is
- *  measured in those simulation frames). */
+/** Drive both peers in lockstep until both reach STOPPED. Both peers tick,
+ *  then the pump delivers — so wire-arrival is frame-aligned (and
+ *  `wireDelayFrames` is measured in those simulation frames).
+ *
+ *  `cadence` returns the [hostSteps, watcherSteps] sub-step counts for a
+ *  given pump index. The default `[1, 1]` is the even 60Hz cadence every
+ *  caller but the jitter trial wants; `jitterCadence` feeds an uneven,
+ *  wall-time-conserving pattern to model two machines at different frame
+ *  rates. */
 async function runBidirectionalToEnd(
   host: Scenario,
   watcher: Scenario,
   pump: () => Promise<void>,
   maxSteps = 60_000,
+  cadence: (step: number) => readonly [number, number] = () => [1, 1],
 ): Promise<void> {
   for (let step = 0; step < maxSteps; step++) {
-    host.tick(1);
-    watcher.tick(1);
+    const [hostSteps, watcherSteps] = cadence(step);
+    host.tick(hostSteps);
+    watcher.tick(watcherSteps);
     await pump();
     if (host.mode() === Mode.STOPPED && watcher.mode() === Mode.STOPPED) {
       return;
