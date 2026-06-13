@@ -155,10 +155,18 @@ export function createUpgradePickSystem(
    *  lockstep-shared sim ticks, but AI entries resolve off the per-peer
    *  dialog timer, so the observed tick (and the following
    *  `enter-wall-build` dispatch) can skew across peers when an AI
-   *  resolves last. That's safe — game ticks are suspended in the dialog
-   *  modes, so no shared-RNG consumer runs in the window, and phase-entry
-   *  tick skew is tolerated architecture-wide (camera-gated transitions).
-   *  Cleared on dialog teardown. */
+   *  resolves last. That skew is safe because no shared-`state.rng`
+   *  consumer runs in the window — verified, not assumed (see
+   *  test/dialog-rng-window.test.ts). Three legs: the phase sim (where the
+   *  rng consumers live) is suspended in dialog modes; the dialog tick is
+   *  rng-neutral (constant CONTINUE for life-lost, a PRIVATE derived Rng
+   *  for the upgrade pick); and the one thing the action-schedule drain
+   *  CAN still carry here — a mid-dialog seat-takeover — primes via
+   *  rng-free resets/build-init in the dialog phases (UPGRADE_PICK ->
+   *  reset() only; WALL_BUILD -> reset() + initBuild; see
+   *  `primeAiControllerForPhase`). Phase-entry tick skew is tolerated
+   *  architecture-wide (camera-gated transitions). Cleared on dialog
+   *  teardown. */
   let resolvedAtSimTick: number | undefined;
 
   /** Ensure the dialog exists on runtimeState, creating it if needed. */

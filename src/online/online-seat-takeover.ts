@@ -61,9 +61,15 @@ export function scheduleSeatTakeover(
 
 /** The lockstep flip: runs inside the drain at the stamped tick on every
  *  peer. A takeover mid-phase is a one-seat adoption — the brain restarts
- *  from the live state at a shared tick, drawing from the same
- *  `state.rng` cursor on every peer. During CASTLE_SELECT the brain init
- *  is skipped (`primeAiControllerForPhase`): the seat's frozen-remote
+ *  from the live state at a shared tick. Whether that re-arm draws
+ *  `state.rng` is PHASE-DEPENDENT (`primeAiControllerForPhase`): BATTLE
+ *  re-rolls the orbit and CANNON_PLACE re-primes (both consume the shared
+ *  cursor, so the stamped tick must match on every peer); the dialog
+ *  phases do NOT — WALL_BUILD (life-lost window) and UPGRADE_PICK run only
+ *  rng-free resets/build-init, which is exactly why a mid-dialog takeover
+ *  can't fork the per-peer-skewed dialog resolution (see the rng-window
+ *  argument in subsystems/upgrade-pick.ts + test/dialog-rng-window.test.ts).
+ *  During CASTLE_SELECT the brain init is skipped: the seat's frozen-remote
  *  selection entry resolves via the cycle's timer backstop, uniformly.
  *  An open life-lost / upgrade-pick entry is adopted to the takeover AI
  *  (`adoptDialogSeat`): its `autoResolve` was frozen to the departed
