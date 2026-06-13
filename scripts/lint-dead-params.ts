@@ -50,6 +50,7 @@ import {
   Node,
   type ParameterDeclaration,
   Project,
+  type SourceFile,
   SyntaxKind,
   type Node as TsNode,
 } from "ts-morph";
@@ -95,6 +96,15 @@ function main(): void {
           DEFAULT_MIN_CALLERS,
       )
     : DEFAULT_MIN_CALLERS;
+  // `--changed-files=p1,p2,...` (typically passed by the pre-commit hook with
+  // the staged file list) skips any source file whose dependency closure
+  // contains no changed file: a function's dead-param verdict can only change
+  // if its own file or one of its (transitive) callers' files changed, and
+  // callers live in the referencing closure. New-finding detection stays exact
+  // under this skip (see `affectedFiles`); the stale-baseline pass needs a full
+  // scan, so it is suppressed when this flag is present and only runs on full
+  // runs (lint:all / manual / CI).
+  const changedSet = parseChangedSet(args);
 
   const project = new Project({
     tsConfigFilePath: "tsconfig.json",
@@ -117,59 +127,15 @@ function main(): void {
       (includeTest && relPath.startsWith("test/"));
     if (!inReportScope) continue;
 
-    for (const fn of sourceFile.getFunctions()) {
-      const name = fn.getName();
-      if (!name) continue;
-      const nameNode = fn.getNameNode();
-      if (!nameNode) continue;
-      analyze(
-        fn,
-        nameNode,
-        name,
-        fn.getStartLineNumber(),
-        relPath,
-        minCallers,
-        findings,
-      );
+    // Incremental skip: no changed file in this file's dependency closure
+    // (itself + transitive consumers) → no function here can have a changed
+    // verdict. See the `--changed-files` note in the arg-parsing block.
+    if (changedSet !== null) {
+      const affected = affectedFiles(sourceFile);
+      if (!affected.some((p) => changedSet.has(p))) continue;
     }
 
-    for (const varDecl of sourceFile.getVariableDeclarations()) {
-      const init = varDecl.getInitializerIfKind(SyntaxKind.ArrowFunction);
-      if (!init) continue;
-      const nameNode = varDecl.getNameNode();
-      if (!Node.isIdentifier(nameNode)) continue;
-      analyze(
-        init,
-        nameNode,
-        varDecl.getName(),
-        varDecl.getStartLineNumber(),
-        relPath,
-        minCallers,
-        findings,
-      );
-    }
-
-    for (const cls of sourceFile.getClasses()) {
-      // Conservative: any subclass / interface implementor is skipped wholesale
-      // — methods may be parent-contract overrides whose signature we can't change.
-      if (cls.getExtends() || cls.getImplements().length > 0) continue;
-
-      for (const method of cls.getMethods()) {
-        if (method.hasOverrideKeyword()) continue;
-        if (method.isAbstract()) continue;
-        const nameNode = method.getNameNode();
-        if (!Node.isIdentifier(nameNode)) continue;
-        analyze(
-          method,
-          nameNode,
-          method.getName(),
-          method.getStartLineNumber(),
-          relPath,
-          minCallers,
-          findings,
-        );
-      }
-    }
+    collectFromFile(sourceFile, relPath, minCallers, findings);
   }
 
   // ── Baseline update mode ───────────────────────────────────────
@@ -183,8 +149,13 @@ function main(): void {
   // ── Filter by baseline ─────────────────────────────────────────
   const baseline = loadBaseline();
   const newFindings = findings.filter((f) => !baseline.has(paramKey(f)));
+  // Stale-baseline detection needs a full scan; under `--changed-files` we
+  // only visited the affected subset, so suppress it (full runs still catch it).
   const currentKeys = new Set(findings.map(paramKey));
-  const staleEntries = [...baseline].filter((key) => !currentKeys.has(key));
+  const staleEntries =
+    changedSet === null
+      ? [...baseline].filter((key) => !currentKeys.has(key))
+      : [];
 
   if (asJson) {
     console.log(
@@ -204,6 +175,105 @@ function main(): void {
     staleEntries,
   );
   if (newFindings.length > 0 || staleEntries.length > 0) process.exit(1);
+}
+
+/** Walk a source file's top-level functions, arrow-assigned consts, and
+ *  non-inherited class methods, analyzing each for dead parameters. */
+function collectFromFile(
+  sourceFile: SourceFile,
+  relPath: string,
+  minCallers: number,
+  findings: DeadParam[],
+): void {
+  for (const fn of sourceFile.getFunctions()) {
+    const name = fn.getName();
+    if (!name) continue;
+    const nameNode = fn.getNameNode();
+    if (!nameNode) continue;
+    analyze(
+      fn,
+      nameNode,
+      name,
+      fn.getStartLineNumber(),
+      relPath,
+      minCallers,
+      findings,
+    );
+  }
+
+  for (const varDecl of sourceFile.getVariableDeclarations()) {
+    const init = varDecl.getInitializerIfKind(SyntaxKind.ArrowFunction);
+    if (!init) continue;
+    const nameNode = varDecl.getNameNode();
+    if (!Node.isIdentifier(nameNode)) continue;
+    analyze(
+      init,
+      nameNode,
+      varDecl.getName(),
+      varDecl.getStartLineNumber(),
+      relPath,
+      minCallers,
+      findings,
+    );
+  }
+
+  for (const cls of sourceFile.getClasses()) {
+    // Conservative: any subclass / interface implementor is skipped wholesale
+    // — methods may be parent-contract overrides whose signature we can't change.
+    if (cls.getExtends() || cls.getImplements().length > 0) continue;
+
+    for (const method of cls.getMethods()) {
+      if (method.hasOverrideKeyword()) continue;
+      if (method.isAbstract()) continue;
+      const nameNode = method.getNameNode();
+      if (!Node.isIdentifier(nameNode)) continue;
+      analyze(
+        method,
+        nameNode,
+        method.getName(),
+        method.getStartLineNumber(),
+        relPath,
+        minCallers,
+        findings,
+      );
+    }
+  }
+}
+
+/** Parse the optional `--changed-files=p1,p2,...` flag into an absolute-path
+ *  set, or null when absent. */
+function parseChangedSet(args: readonly string[]): Set<string> | null {
+  const changedArg = args.find((a) => a.startsWith("--changed-files="));
+  if (!changedArg) return null;
+  return new Set(
+    changedArg
+      .split("=")[1]!
+      .split(",")
+      .filter((p) => p.length > 0)
+      .map((p) => `${process.cwd()}/${p}`),
+  );
+}
+
+/** Closure of files whose change could affect dead-param verdicts for
+ *  functions declared in `root`: `root` itself plus its transitive consumers
+ *  (`getReferencingSourceFiles`). A param's verdict depends only on its own
+ *  declaration and its call sites, and every call site lives in a file that
+ *  imports the declaration directly or transitively — so a verdict can only
+ *  change when a file in this set changes. */
+function affectedFiles(root: SourceFile): readonly string[] {
+  const seen = new Set<string>([root.getFilePath()]);
+  const queue: SourceFile[] = [root];
+  while (queue.length > 0) {
+    const cur = queue.pop()!;
+    for (const ref of cur.getReferencingSourceFiles()) {
+      const path = ref.getFilePath();
+      if (!seen.has(path)) {
+        seen.add(path);
+        queue.push(ref);
+      }
+    }
+  }
+  return [...seen];
 }
 
 function analyze(
