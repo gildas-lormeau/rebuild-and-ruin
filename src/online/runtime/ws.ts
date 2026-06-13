@@ -33,6 +33,7 @@ const ANNOUNCEMENT_RECONNECTING = "Reconnecting\u2026";
 // \u2026 = ellipsis (…)
 const ANNOUNCEMENT_DISCONNECTED = "Disconnected from server";
 const ANNOUNCEMENT_AWAY = "Disconnected — away too long";
+const ANNOUNCEMENT_LAG = "Disconnected — connection too unstable";
 
 // ── Late-bound state ───────────────────────────────────────────────
 let _rt: WsRuntimeDeps;
@@ -53,11 +54,20 @@ export function initWs(deps: WsRuntimeDeps, client: OnlineClient): void {
  *  get the lockstep AI seat takeover (or host migration) they already
  *  have for real leavers. */
 export function disconnectAway(): void {
-  _client.clearReconnect();
-  _rt.setAnnouncement(ANNOUNCEMENT_AWAY);
-  _rt.render();
-  _rt.setMode(Mode.STOPPED);
-  _client.ctx.session.socket?.close();
+  deliberateLeave(ANNOUNCEMENT_AWAY);
+}
+
+/** Deliberate self-disconnect for a peer whose link has fallen too far past
+ *  the lockstep SAFETY window to stay in sync — a sustained burst of stale
+ *  wire stamps (see `online-lag-detector.ts`, wired through `warnIfStaleWireStamp`
+ *  in `deps.ts`). Tells the player plainly instead of letting them play a
+ *  silently-forked board. Unlike `disconnectAway` there is NO auto-rejoin: the
+ *  link is actively too laggy, so an immediate rejoin would just fork again —
+ *  the player re-enters once their connection recovers. The socket close drives
+ *  the server's PLAYER_LEFT / HOST_LEFT flow, so opponents get the lockstep AI
+ *  takeover / host migration that heals the room. */
+export function disconnectTooMuchLag(): void {
+  deliberateLeave(ANNOUNCEMENT_LAG);
 }
 
 /** Auto-rejoin on tab-return after an away-disconnect (online-away-watchdog.ts
@@ -156,6 +166,17 @@ export function connect(): Promise<void> {
     }
     socket.addEventListener("open", () => resolve(), { once: true });
   });
+}
+
+/** Shared deliberate-leave body. Mode flips to STOPPED BEFORE the socket
+ *  closes so `onClose` sees a terminal mode and never starts the reconnect
+ *  loop; the announcement is rendered first so it survives the frozen frame. */
+function deliberateLeave(announcement: string): void {
+  _client.clearReconnect();
+  _rt.setAnnouncement(announcement);
+  _rt.render();
+  _rt.setMode(Mode.STOPPED);
+  _client.ctx.session.socket?.close();
 }
 
 /** Roll back an in-flight rejoin that failed before its resync was adopted:

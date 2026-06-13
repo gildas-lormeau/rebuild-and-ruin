@@ -37,6 +37,7 @@ import type { UpgradeId } from "../../shared/core/upgrade-defs.ts";
 import { MAX_PLAYERS, PLAYER_NAMES } from "../../shared/ui/player-config.ts";
 import { createAwayWatchdog } from "../online-away-watchdog.ts";
 import { canvas, worldCanvas } from "../online-dom.ts";
+import { createLagDetector } from "../online-lag-detector.ts";
 import {
   broadcastLocalCrosshair as broadcastLocalCrosshairImpl,
   extendWithRemoteCrosshairs,
@@ -49,7 +50,12 @@ import { defaultClient, RESET_SCOPE_NEW_GAME } from "../online-stores.ts";
 import { handleServerMessage, initDeps } from "./deps.ts";
 import { initPromote } from "./promote.ts";
 import { createOnlineRuntimeSessionHelpers } from "./session.ts";
-import { disconnectAway, initWs, rejoinAfterAway } from "./ws.ts";
+import {
+  disconnectAway,
+  disconnectTooMuchLag,
+  initWs,
+  rejoinAfterAway,
+} from "./ws.ts";
 
 // ── Client shorthand ───────────────────────────────────────────────
 // Destructured from defaultClient singleton for brevity. All five names
@@ -295,13 +301,20 @@ export function initOnlineRuntime(): void {
   // Step 2: Host promotion
   initPromote(runtime, defaultClient);
 
-  // Step 3: Server message dispatch
+  // Step 3: Server message dispatch. The lag detector counts stale wire
+  // stamps (the cross-peer fork condition surfaced by warnIfStaleWireStamp);
+  // a sustained burst means this peer's link is past the lockstep SAFETY
+  // window and the board is forking, so it self-disconnects with a clear
+  // message instead of playing on a silently-forked board. Wall-clock-driven
+  // and outside the sim — like the away watchdog below.
+  const lagDetector = createLagDetector({ onTooMuchLag: disconnectTooMuchLag });
   initDeps({
     runtime,
     initFromServer: sessionHelpers.initFromServer,
     restoreFullState: sessionHelpers.restoreFullState,
     showWaitingRoom: sessionHelpers.showWaitingRoom,
     client: defaultClient,
+    onStaleStamp: () => lagDetector.recordStaleStamp(timing.now()),
   });
 
   // Step 4: Subscribe the dispatcher to NetworkApi.onMessage. The WS layer

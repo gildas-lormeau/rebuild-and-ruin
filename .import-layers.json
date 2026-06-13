@@ -9,6 +9,7 @@
       "src/input/input-recorder.ts",
       "src/input/input.ts",
       "src/online/online-dom.ts",
+      "src/online/online-lag-detector.ts",
       "src/protocol/routes.ts",
       "src/render/3d/effects/helpers.ts",
       "src/render/3d/effects/reconciler.ts",

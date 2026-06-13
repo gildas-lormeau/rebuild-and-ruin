@@ -30,7 +30,8 @@
     "domain": "online",
     "role": "DOM lookup helpers",
     "files": [
-      "src/online/online-dom.ts"
+      "src/online/online-dom.ts",
+      "src/online/online-lag-detector.ts"
     ]
   },
   {

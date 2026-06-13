@@ -55,6 +55,12 @@ interface DepsInit {
   readonly restoreFullState: (msg: FullStateMessage) => void;
   readonly showWaitingRoom: (code: string, seed: number) => void;
   readonly client: OnlineClient;
+  /** Notified once per stale wire stamp (the cross-peer fork condition — see
+   *  `warnIfStaleWireStamp`). Production wires this to the lag detector
+   *  (`online-lag-detector.ts`) so a sustained burst disconnects the peer
+   *  instead of letting it play a forked board. Optional: omitted by the
+   *  bidirectional test harness, where the tripwire stays log-only. */
+  readonly onStaleStamp?: () => void;
 }
 
 // ── Late-bound state (production singleton) ───────────────────────
@@ -320,6 +326,7 @@ function warnIfStaleWireStamp(
     `different ticks (cross-peer fork)`;
   console.error(msg);
   log(msg);
+  init.onStaleStamp?.();
 }
 
 function buildLobbyDeps(init: DepsInit) {
