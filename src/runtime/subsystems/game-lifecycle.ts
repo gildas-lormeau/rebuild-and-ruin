@@ -35,6 +35,8 @@ interface GameLifecycleDeps {
   readonly onEndGame?: (winner: { id: ValidPlayerId }) => void;
   readonly isAllAi: () => boolean;
   readonly isModeStopped: () => boolean;
+  /** True for the online runtime. Gates the local-only demo auto-return. */
+  readonly isOnline: boolean;
 
   // Atomic state transitions
   readonly setModeStopped: () => void;
@@ -115,6 +117,8 @@ interface LifecycleWiringDeps {
   readonly timing: TimingApi;
   readonly render: () => void;
   readonly bootstrapNewGame: () => void | Promise<void>;
+  /** True for the online runtime — gates the local-only demo auto-return. */
+  readonly isOnline: boolean;
 
   // Subsystems needed for reset/cleanup
   readonly selection: Pick<RuntimeSelection, "reset">;
@@ -195,7 +199,11 @@ export function createGameLifecycle(
     finalizeGameOver(() => deps.setGameOverFrame(winner));
     deps.onEndGame?.(winner);
 
-    if (deps.isAllAi()) {
+    // Demo auto-return is a local single-player affordance. Online sessions
+    // end on the game-over screen (server-driven navigation); if the seated
+    // humans all left and AI takeover finished the match, `isAllAi()` would
+    // be true on every peer and would force-disconnect remaining watchers.
+    if (deps.isAllAi() && !deps.isOnline) {
       deps.setDemoTimer(() => {
         if (deps.isModeStopped()) returnToLobby();
       }, DEMO_RETURN_DELAY_MS);
@@ -293,6 +301,7 @@ export function buildLifecycleDeps(
       : undefined,
     isAllAi: () => runtimeState.lobby.joined.every((joined) => !joined),
     isModeStopped: () => runtimeState.mode === Mode.STOPPED,
+    isOnline: wiringDeps.isOnline,
 
     setModeStopped: () => {
       setMode(runtimeState, Mode.STOPPED);

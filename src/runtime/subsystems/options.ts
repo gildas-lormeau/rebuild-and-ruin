@@ -167,7 +167,10 @@ export function createOptionsSystem(deps: OptionsSystemDeps): OptionsSystem {
       uiCtx.setOptionsContext({ kind: "lobby" });
     } else {
       uiCtx.setMode(Mode.LOBBY);
-      deps.refreshLobbySeed(); // regenerate map preview with (possibly changed) seed
+      // Local lobby only: the online waiting-room preview is the room's
+      // shared seed (set in showWaitingRoom). Regenerating here would
+      // clobber it with a local seed and warm the wrong map cache.
+      if (!deps.isOnline) deps.refreshLobbySeed();
       deps.updateDpad(false); // back to lobby — disable d-pad
     }
     deps.onCloseOptions?.();

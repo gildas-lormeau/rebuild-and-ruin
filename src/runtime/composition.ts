@@ -568,6 +568,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       config,
       timing,
       render,
+      isOnline,
       bootstrapNewGame: () =>
         bootstrapNewGameFromSettings(
           runtimeState,
