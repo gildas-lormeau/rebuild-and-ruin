@@ -89,7 +89,7 @@ All four phase-marker checkpoints (`cannonStart`, `battleStart`, `buildStart`, `
 | Message | When | Payload | Watcher action |
 |---------|------|---------|----------------|
 | `init` | Game start | `seed`, `playerCount`, `settings` (`maxRounds`, `cannonMaxHp`, `buildTimer`, `cannonPlaceTimer`, `firstRoundCannons`, `gameMode`) | Bootstrap from seed |
-| `selectStart` | Tower selection begins (initial + reselect) | `timer` | `enterSelectionPhase` (cycle type derived from `state.round` + `freshCastlePlayers`) |
+| `selectStart` | Tower selection begins (initial + reselect) | `timer` | `enterSelectionPhase` (cycle type derived from `state.round` + the `pids` queue: omitted = initial cycle, life-losers' ids = reselect) |
 | `cannonStart` | CASTLE_SELECT / WALL_BUILD → CANNON_PLACE | _none_ | Source-phase prefix (`finalizeRoundCleanup` for `round > 1` / `finalizeFreshCastles` / `finalizeCastleConstruction`) + `enterCannonPhase` |
 | `battleStart` | CANNON_PLACE → BATTLE | _none_ | `prepareBattle` (modifier roll, balloon resolution, grunt wall-attack flags, combo tracker) — RNG already synced from prior wire history |
 | `buildStart` | BATTLE → WALL_BUILD | _none_ | `finalizeBattle` + `prepareNextRound` (combo bonuses, battle cleanup, grunt spawn, upgrade offers, modifier rotation, round increment, piece bag init) |
@@ -166,7 +166,7 @@ Round N≥2:                  CANNON_PLACE ──> BATTLE ──> WALL_BUILD ─
                             CASTLE_SELECT (reselect, life lost) ─────┘
 ```
 
-Round 1 is special: CASTLE_SELECT auto-builds the initial castle walls inline, then flows into CANNON_PLACE (no opening WALL_BUILD). Round N≥2 normally loops CANNON_PLACE → BATTLE → WALL_BUILD; when a player loses lives at end-of-WALL_BUILD, the next round re-enters CASTLE_SELECT (reselect cycle, same phase tag) for the eliminated towers. Cycle type is derived from `state.round` (1 vs >1) and `state.freshCastlePlayers`, not a separate phase value. Castle wall construction is animated inline during `CASTLE_SELECT` — every peer derives wall plans locally via `prepareCastleWallsForPlayer` (consumes `state.rng` for clumsy builders + ring ordering) on each tower confirmation. No separate `CASTLE_BUILD` phase, no `castleWalls` wire message.
+Round 1 is special: CASTLE_SELECT auto-builds the initial castle walls inline, then flows into CANNON_PLACE (no opening WALL_BUILD). Round N≥2 normally loops CANNON_PLACE → BATTLE → WALL_BUILD; when a player loses lives at end-of-WALL_BUILD, the next round re-enters CASTLE_SELECT (reselect cycle, same phase tag) for the eliminated towers. Cycle type is derived from `state.round` (1 vs >1) and the `pids` queue passed to `enterSelectionPhase` (omitted = initial cycle for every slot; the life-losers' ids = reselect cycle), not a separate phase value. Per-player castle grace is tracked via `player.inGracePeriod`. Castle wall construction is animated inline during `CASTLE_SELECT` — every peer derives wall plans locally via `prepareCastleWallsForPlayer` (consumes `state.rng` for clumsy builders + ring ordering) on each tower confirmation. No separate `CASTLE_BUILD` phase, no `castleWalls` wire message.
 
 **Modern mode** adds two conditional phases (both gated by `hasFeature`):
 - **MODIFIER_REVEAL** between CANNON_PLACE and BATTLE — entered only when a modifier rolled during `prepareBattleState`. 2s banner + dwell, then BATTLE.

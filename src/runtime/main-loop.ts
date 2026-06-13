@@ -128,8 +128,10 @@ export function createRuntimeLoop(deps: RuntimeLoopDeps): {
   }
 
   /** Returns real elapsed dt, capped at MAX_FRAME_DT — tab-hide / long
-   *  pauses produce huge deltas and would let entities skip collision
-   *  boundaries in a single tick. Speed-up happens via sub-stepping in
+   *  pauses produce huge deltas that would otherwise drain into a runaway
+   *  burst of catch-up sub-steps in a single frame. Each tick always
+   *  advances by the fixed SIM_TICK_DT, so capping bounds the substep
+   *  count, never the per-tick step. Speed-up happens via sub-stepping in
    *  `mainLoop`, never by inflating dt.
    *
    *  Offline, the excess beyond the cap is discarded (resume where you

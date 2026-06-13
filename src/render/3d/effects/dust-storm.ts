@@ -1,10 +1,10 @@
 /**
  * Dust-storm overlay — full-map shader plane (sand haze + 3 oscillating
  * streaks) that telegraphs the ±15° launch jitter as L/R wind sway.
- * Gates on `overlay.battle.dustStorm`. During reveal, phase + amplitude
- * come from deriver scalars (synchronized via `revealTimeMs`) and
- * settle to 0 at the banner snapshot; battle lerps amp to 1.0 and
- * advances phase locally for full-swing oscillation.
+ * Gates on `overlay.battle.dustStorm`. Reveal previews the battle motion:
+ * deriver scalars (synced via `revealTimeMs`) ramp amplitude from a breeze
+ * floor to the reveal peak (~0.5); battle then eases peak→1.0 and advances
+ * phase locally (battle speed throughout) for a continuous full-swing handoff.
  */
 
 import * as THREE from "three";
@@ -48,8 +48,8 @@ const DUST_STORM_SWAY_PERIOD_SEC = 3.2;
 const DUST_SWAY_AMPLITUDE_PX = 60;
 /** Y-band wander amplitude at full sway (sway = 1), in pixels. Bands
  *  drift up/down by this much; scaled by `currentSwayAmp` so wander
- *  also fades to 0 at reveal end (clean horizontal stripes at the
- *  battle-banner snapshot moment). */
+ *  rises with the reveal ramp and tracks the gust through battle (no
+ *  zero-out — reveal ends at the peak amplitude, not flat). */
 const DUST_BAND_WANDER_PX = 28;
 /** Per-second exponential lerp rate when easing `currentSwayAmp`
  *  toward its target. Smooths the reveal→battle transition where the
@@ -67,8 +67,8 @@ void main() {
  *  X coordinate so the streak peaks slide in unison with the gust. The
  *  Y-band wander multiplier (`bandWanderPx`) is also scaled by sway
  *  amplitude — at sway=0 the bands sit at fixed centres and the streak
- *  peaks at fixed positions, giving a static "settled" look at the
- *  reveal-end snapshot. */
+ *  peaks at fixed positions (the dead-still look only the OFF state
+ *  shows; the reveal opens at a breeze floor and climbs from there). */
 const FRAGMENT_SHADER = /* glsl */ `
 precision mediump float;
 
@@ -164,9 +164,9 @@ export function createDustStormManager(scene: THREE.Scene): EffectManager {
   root.add(mesh);
 
   // Phase advances at a constant battle rate; sway amplitude is what
-  // varies (held near 0 across the BATTLE-banner snapshot, ramped to 1
-  // once battle is live). Both are manager-owned so the streaks
-  // animate continuously without depending on wall-clock time.
+  // varies (climbs from a breeze floor to the reveal peak during reveal,
+  // then eases to 1 once battle is live). Both are manager-owned so the
+  // streaks animate continuously without depending on wall-clock time.
   const swayAngularSpeed = (2 * Math.PI) / DUST_STORM_SWAY_PERIOD_SEC;
 
   let swayPhaseRad = 0;

@@ -699,11 +699,11 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     // flash animations finish before capturing the "old scene" snapshot
     // for the Build banner. Without this, mid-animation explosion/thaw/
     // burn/flash visuals bake into the prev-scene image. For
-    // destroyedWalls we gate only on the fire-burst window
-    // (`age < WALL_DESTROY_ANIM_DURATION + WALL_BURN_DURATION`); the
-    // sink + dust + tail-fade beyond that point is continuous visual state
-    // — fine to capture mid-anim — and the entry itself lives the full
-    // `IMPACT_ENTRY_LIFETIME`. shieldFlashes (Reinforced-Walls hit flash,
+    // destroyedWalls the gate bound
+    // (`age < WALL_DESTROY_ANIM_DURATION + WALL_BURN_DURATION`) equals
+    // `IMPACT_ENTRY_LIFETIME` — the entry's full lifetime — so the gate
+    // holds for as long as the entry exists (no early release); ageImpacts
+    // purges the entry at exactly that bound. shieldFlashes (Reinforced-Walls hit flash,
     // 0.5s) matters on wirings where pitch is already flat at battle end
     // (2D renderer) — on the 3D path the 0.6s untilt below would absorb
     // it, but the gate keeps the snapshot clean on every wiring.

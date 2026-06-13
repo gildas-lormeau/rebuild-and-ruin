@@ -38,7 +38,7 @@ export interface GameSettings {
   rounds: number;
   /** Index into CANNON_HP_OPTIONS — not the HP value itself. */
   cannonHp: number;
-  haptics: number; // 0=off, 1=phase changes only, 2=all
+  haptics: number; // 0=off, 1=on (binary; see HAPTICS_LABELS)
   seed: string;
   seedMode: SeedMode;
   keyBindings: KeyBindings[];

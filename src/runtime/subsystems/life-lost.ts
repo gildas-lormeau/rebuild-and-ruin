@@ -34,7 +34,8 @@ import { lockstepDebtTicks, type RuntimeState, setMode } from "../state.ts";
  *  gated on `Mode.LIFE_LOST` (the runtime ticks this when the popup is
  *  active). Sibling dialog handle in `RuntimeUpgradePick`. */
 export interface RuntimeLifeLost {
-  /** Read current dialog state. Used by watcher-mode to sync overlay display. */
+  /** Read current dialog state. Used by input-gate and remote-choice
+   *  handlers to check whether a dialog is active. */
   get: () => LifeLostDialogState | null;
   /** Replace dialog state. Only ever called with `null` in production
    *  (session reset / host promote / teardown) — dialogs are always built

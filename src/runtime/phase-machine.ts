@@ -241,12 +241,13 @@ export interface PhaseTransitionCtx {
   /** Notify a local controller that its player lost a life. Called per
    *  affected player after the score overlay, before the dialog shows. */
   readonly notifyLifeLost?: (pid: ValidPlayerId) => void;
-  /** Finalize local controllers' build-phase bag state. Used by
-   *  `round-end` host mutate (remote humans are skipped — their
-   *  controllers re-init via startBuildPhase at next round). */
+  /** Finalize local controllers' build-phase bag state. Called from
+   *  `round-end`'s mutate on every peer, over the controllers this peer
+   *  drives (remote humans are skipped — their controllers re-init via
+   *  startBuildPhase at next round). */
   readonly finalizeLocalControllersBuildPhase?: () => void;
   /** End-of-battle loop: per local controller, clear fire targets and reset
-   *  battle state. Used by `battle-done` host mutate. */
+   *  battle state. Called from `battle-done`'s mutate on every peer. */
   readonly endBattleLocalControllers?: () => void;
   /** Save the human player's crosshair position so it can be restored at
    *  the start of the next battle (touch UX). Wired on every peer;
@@ -276,11 +277,13 @@ export interface PhaseTransitionCtx {
    *  B-snapshot — see that transition's doc) on every peer; "local" means
    *  the controllers this peer drives (AI + own human), not host role. */
   readonly startBuildPhaseLocal?: () => void;
-  /** Run `enterBuildSkippingBattle(state)` — the engine-level phase flip
-   *  that the ceasefire path uses when no one can fight. Separate from
-   *  `battle-done`'s `finalizeBattle` + `prepareNextRound` because it also decays burning
-   *  pits, sweeps walls, rechecks territory, and clears active modifiers
-   *  (things the real battle-end flow already handled). */
+  /** Run `enterBuildSkippingBattle(state)` — the engine post-battle work
+   *  the ceasefire path runs when no one can fight (no phase flip happens
+   *  here; the following `enter-wall-build` / `enter-upgrade-pick` entry
+   *  transition owns that). Separate from `battle-done`'s `finalizeBattle`
+   *  + `prepareNextRound` because it also decays burning pits, sweeps
+   *  walls, rechecks territory, and clears active modifiers (things the
+   *  real battle-end flow already handled). */
   readonly ceasefireSkipBattle?: () => void;
   /** Upgrade-pick dialog hooks. Only required for transitions whose
    *  display chain runs the picker modal (`enter-upgrade-pick`).
@@ -390,7 +393,8 @@ const STEP_LIFE_LOST_DIALOG = "life-lost-dialog" as const;
  *  Mutate (every peer): finalizes local controllers' bag state, then runs
  *  the engine's `finalizeRound` (wall sweep + territory finalize + life
  *  penalties + grunt sweep). The host additionally broadcasts the BUILD_END
- *  checkpoint so non-host peers can use it as a sync marker.
+ *  phase marker, which non-host peers ignore on the wire — they ran
+ *  `finalizeRound` from their own `round-end` tick.
  *
  *  Display: score-overlay animation → life-lost-dialog step. The dialog
  *  step writes `result.continuing` once resolved (or immediately, for
@@ -470,8 +474,9 @@ const ROUND_END: Transition = {
  *  `enter-upgrade-pick` (when offers were generated) or `enter-wall-build`,
  *  each of which delegates the phase entry to game/ + shows its own banner.
  *
- *  Both sides run `finalizeBattle` + `prepareNextRound` locally — the wire signal is just
- *  a marker telling the watcher when to dispatch this transition.
+ *  Both sides run `finalizeBattle` + `prepareNextRound` locally — the
+ *  BUILD_START wire signal is a payload-less marker the watcher ignores
+ *  (it dispatches this transition from its own local tick).
  *  RNG was synced at the previous `BATTLE_START` and has tracked
  *  identically through impact resolution, so post-battle RNG draws
  *  (interbattle grunt spawn, upgrade offers, bonus square shuffle,
@@ -932,9 +937,9 @@ export function forceResolveRoundEndPhase(ctx: PhaseTransitionCtx): void {
  *  `result.modifierDiff` from its own mutate; the watcher reads from
  *  the incoming BATTLE_START message (also threaded via result).
  *
- *  Uses `runTransitionInline`: the outer prep transition already
- *  awaited camera convergence; the inner entry transition doesn't need
- *  to wait another frame for the camera to settle.
+ *  Uses `runTransitionInline`: the outer `runTransition` already primed
+ *  the banner prev-scene and snapped the camera, so the inner entry
+ *  transition reuses that prime instead of redoing it.
  */
 function routeCannonPlaceDone(
   ctx: PhaseTransitionCtx,

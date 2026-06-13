@@ -244,7 +244,8 @@ export interface FullStateMessage extends SerializedModifierTiles {
    *  joining mid-game or a post-migration host picks up the
    *  authoritative tick count for the lockstep action-queue. */
   simTick: number;
-  /** The promoting host's cross-phase grunt step clock (accum.grunt) at
+  /** The promoting host's grunt-movement step clock (accum.grunt, per
+   *  WALL_BUILD) at
    *  serialize time. Not derivable from GameState: an adopting peer's
    *  local clock ticked past the snapshot by its own wire-delay skew,
    *  and a skewed clock steps grunts at different sim ticks than the

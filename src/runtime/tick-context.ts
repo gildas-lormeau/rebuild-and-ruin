@@ -78,7 +78,9 @@ export function advancePhaseTimer<K extends string>(
 }
 
 /** Advance grunt accumulator and step grunts when the interval elapses.
- *  Shared between host (tickHostBuildPhase) and watcher to prevent interval drift.
+ *  Used by the build-phase tick (which runs identically on every peer
+ *  under clone-everywhere); the accumulator carries the sub-interval
+ *  remainder to prevent interval drift.
  *
  *  lint:allow-callback-inversion -- scheduler: moveGrunts is invoked on
  *  interval; receiver doesn't read return value to drive its logic. */

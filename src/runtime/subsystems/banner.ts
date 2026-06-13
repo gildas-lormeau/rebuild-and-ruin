@@ -23,8 +23,8 @@ interface BannerSystemDeps {
   readonly requestRender: () => void;
   /** Fallback A-snapshot: current display pixels copied into a
    *  banner-owned bridge canvas. Used when no primed prev-scene exists
-   *  (non-first banners of a chain, watcher checkpoint replays).
-   *  `undefined` in headless / pre-first-frame. */
+   *  (non-first banners of a chain). `undefined` in headless /
+   *  pre-first-frame. */
   readonly rendererCaptureScene: () => HTMLCanvasElement | undefined;
   /** Full pipeline rendered to offscreen-only targets at fullMapVp (FBO
    *  readback 3D / hidden sibling canvas 2D) so the visible canvas never
@@ -47,8 +47,8 @@ interface BannerSystem {
    *  a zoomed viewport on a touch peer. Consumed by the first showBanner
    *  of the transition chain; overwritten by the next prime; cleared on
    *  reset. A stale prime left by a bannerless chain is consumed by the
-   *  next out-of-chain banner (watcher checkpoint replays) — cosmetic
-   *  worst case: one sweep starts from a slightly older scene. */
+   *  next out-of-chain banner — cosmetic worst case: one sweep starts
+   *  from a slightly older scene. */
   primePrevScene: () => void;
   /** Silent reset for teardown paths (rematch, quit-to-lobby). Does not
    *  emit BANNER_HIDDEN — teardown isn't a narrative banner-end beat. */
@@ -90,9 +90,9 @@ export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
     const newCanvas = captureSceneOffscreen();
     const newScene = newCanvas ? { canvas: newCanvas } : undefined;
 
-    // Watchers legitimately replay banners from checkpoint messages
-    // mid-sweep (retransmits, host-migration recovery). Log + emit
-    // BANNER_REPLACED so consumers can trace the transition.
+    // A new transition's banner can replace a previous one still on
+    // screen when display chains run back-to-back on this peer. Log +
+    // emit BANNER_REPLACED so consumers can trace the transition.
     const prev = runtimeState.banner;
     if (prev !== null) {
       log(

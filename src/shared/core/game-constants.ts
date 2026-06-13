@@ -209,9 +209,8 @@ export const ZONE_AUTO_ZOOM_RATIO = 0.5;
  *  edges during BUILD / CANNON_PLACE auto-pan. */
 export const PHANTOM_TRACK_PAD_TILES = 1;
 /** Tile padding kept between the battle crosshair and the camera viewport
- *  edges during BATTLE auto-pan. Smaller than PHANTOM_TRACK_PAD_TILES so
- *  aiming feels less twitchy — the crosshair barely needs any margin to
- *  remain visible. */
+ *  edges during BATTLE auto-pan. Currently equal to PHANTOM_TRACK_PAD_TILES
+ *  — the crosshair barely needs any margin to remain visible. */
 export const CROSSHAIR_TRACK_PAD_TILES = 1;
 /** Tile padding around tower during selection zoom. */
 export const ZONE_PAD_SELECTION = 7;

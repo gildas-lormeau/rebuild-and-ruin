@@ -3,7 +3,7 @@
 
 /** Naming convention:
  *    - One key per distinct timer: accum.cannon, accum.battle, accum.build, accum.select
- *    - Separate concerns get their own key: accum.grunt (cross-phase spawning interval),
+ *    - Separate concerns get their own key: accum.grunt (grunt-movement interval, WALL_BUILD only),
  *      accum.selectAnnouncement (UI countdown separate from selection timer)
  *    - All keys are reset to 0 via createTimerAccums() at game start / rematch. */
 
