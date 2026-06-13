@@ -441,11 +441,17 @@ export function createMusicSubsystem(): MusicSubsystem {
       source.connect(gain);
       gain.connect(ctx.destination);
       // Self-clear when the source ends naturally (one-shots only — looped
-      // sources keep the references alive until explicit stopBg).
+      // sources keep the references alive until explicit stopBg). A completed
+      // one-shot IS a stop, so clear the track intent too (mirrors stopBg):
+      // otherwise bgPlaying / wantsBg keep pointing at a track that's no
+      // longer sounding. The `activeSource === source` guard means a
+      // superseding playBg has already reassigned them — leave those alone.
       source.addEventListener("ended", () => {
         if (activeSource === source) {
           activeSource = undefined;
           activeGain = undefined;
+          bgPlaying = undefined;
+          wantsBg = undefined;
         }
       });
       source.start(0);
