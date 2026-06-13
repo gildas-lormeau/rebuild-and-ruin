@@ -10,10 +10,15 @@
 import { assert, assertAlmostEquals, assertEquals } from "@std/assert";
 import { MESSAGE, type FullStateMessage, type ServerMessage } from "../src/protocol/protocol.ts";
 import { createDedupChannel } from "../src/shared/core/phantom-types.ts";
+import { createActionSchedule } from "../src/shared/core/action-schedule.ts";
 import {
   AWAY_DISCONNECT_MS,
   createAwayWatchdog,
 } from "../src/online/online-away-watchdog.ts";
+import {
+  type SeatReclaimDeps,
+  scheduleSeatReclaim,
+} from "../src/online/online-seat-reclaim.ts";
 import { handleServerLifecycleMessage } from "../src/online/online-server-lifecycle.ts";
 import { syncAccumulatorsFromTimer } from "../src/online/online-host-promotion.ts";
 import type { MutableAccums } from "../src/runtime/timer-accums.ts";
@@ -26,6 +31,20 @@ import {
 } from "../src/shared/core/game-constants.ts";
 import type { GameState } from "../src/shared/core/types.ts";
 import type { PlayerId, ValidPlayerId } from "../src/shared/core/player-slot.ts";
+
+interface ReclaimHarness {
+  deps: SeatReclaimDeps;
+  session: {
+    occupiedSlots: Set<ValidPlayerId>;
+    remotePlayerSlots: Set<ValidPlayerId>;
+    myPlayerId: PlayerId;
+  };
+  lobbyJoined: boolean[];
+  ownerInstalls: ValidPlayerId[];
+  drain: (toTick: number) => void;
+}
+
+const RECLAIM_TICK = 10;
 
 Deno.test("DedupChannel.shouldSend returns false on duplicate", () => {
   const ch = createDedupChannel();
@@ -319,6 +338,96 @@ Deno.test("away watchdog: watchers are exempt", () => {
   watchdog.onVisibilityChange(false);
   assertEquals(leaves, 0, "a watcher never abandons anything");
 });
+
+Deno.test("seat reclaim: non-owner seat re-enters remotePlayerSlots at the stamped tick", () => {
+  const seat = 1 as ValidPlayerId;
+  const h = makeReclaimHarness(0); // this peer owns slot 0, not the reclaimed seat
+  scheduleSeatReclaim(h.deps, seat, RECLAIM_TICK);
+
+  h.drain(RECLAIM_TICK - 1);
+  assert(!h.session.occupiedSlots.has(seat), "must not flip before the stamp");
+
+  h.drain(RECLAIM_TICK);
+  assert(h.session.occupiedSlots.has(seat), "seat re-occupied at the stamp");
+  assert(
+    h.session.remotePlayerSlots.has(seat),
+    "non-owner seat must become wire-driven (remotePlayerSlots)",
+  );
+  assertEquals(h.lobbyJoined[seat], true, "lobby.joined re-set");
+  assertEquals(h.ownerInstalls, [], "non-owner must not install a controller");
+});
+
+Deno.test("seat reclaim: owner seat stays local and installs the human controller", () => {
+  const seat = 2 as ValidPlayerId;
+  const h = makeReclaimHarness(seat); // this peer IS the returning owner
+  scheduleSeatReclaim(h.deps, seat, RECLAIM_TICK);
+  h.drain(RECLAIM_TICK);
+
+  assert(h.session.occupiedSlots.has(seat), "owner seat re-occupied");
+  assert(
+    !h.session.remotePlayerSlots.has(seat),
+    "owner seat must stay local (out of remotePlayerSlots) so the tick loop drives it",
+  );
+  assertEquals(h.ownerInstalls, [seat], "owner installs its human controller once");
+});
+
+Deno.test("seat reclaim: re-applying on an already-seated slot is a no-op", () => {
+  const seat = 2 as ValidPlayerId;
+  const h = makeReclaimHarness(seat);
+  scheduleSeatReclaim(h.deps, seat, RECLAIM_TICK);
+  scheduleSeatReclaim(h.deps, seat, RECLAIM_TICK); // duplicate stamp (e.g. re-issued on migration)
+  h.drain(RECLAIM_TICK);
+  assertEquals(
+    h.ownerInstalls,
+    [seat],
+    "idempotent: the controller installs exactly once across duplicate stamps",
+  );
+});
+
+Deno.test("seat reclaim: preserves remotePlayerSlots ⊆ occupiedSlots", () => {
+  const seat = 1 as ValidPlayerId;
+  const h = makeReclaimHarness(0);
+  scheduleSeatReclaim(h.deps, seat, RECLAIM_TICK);
+  h.drain(RECLAIM_TICK);
+  for (const pid of h.session.remotePlayerSlots) {
+    assert(
+      h.session.occupiedSlots.has(pid),
+      `invariant violated: ${pid} in remotePlayerSlots but not occupiedSlots`,
+    );
+  }
+});
+
+/** Build a reclaim deps over a real action schedule. `myPlayerId` decides
+ *  whether the seat reclaim treats this peer as the owner. The seat starts
+ *  AI-held: absent from both slot sets (takeover cleared it). */
+function makeReclaimHarness(myPlayerId: number): ReclaimHarness {
+  const schedule = createActionSchedule<GameState>();
+  const session = {
+    occupiedSlots: new Set<ValidPlayerId>(),
+    remotePlayerSlots: new Set<ValidPlayerId>(),
+    myPlayerId: myPlayerId as PlayerId,
+  };
+  const lobbyJoined = [false, false, false];
+  const ownerInstalls: ValidPlayerId[] = [];
+  const deps: SeatReclaimDeps = {
+    session,
+    getLobbyJoined: () => lobbyJoined,
+    schedule: schedule.schedule,
+    installOwnerController: (pid) => ownerInstalls.push(pid),
+    log: () => {},
+  };
+  const state = { simTick: 0 } as unknown as GameState;
+  return {
+    deps,
+    session,
+    lobbyJoined,
+    ownerInstalls,
+    drain: (toTick) => {
+      state.simTick = toTick;
+      schedule.drainUpTo(toTick, state);
+    },
+  };
+}
 
 Deno.test("away watchdog: match starting while hidden is still covered", () => {
   const clock = mockWatchdogTiming();

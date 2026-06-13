@@ -151,12 +151,6 @@
       "pair": "ArmParams@src/render/3d/sprites/grunt-scene.ts ↔ BarrelParams@src/render/3d/sprites/cannon-scene.ts"
     },
     {
-      "pair": "AutoResolveDeps@src/shared/ui/interaction-types.ts ↔ FrameContext@src/shared/core/types.ts"
-    },
-    {
-      "pair": "AutoResolveDeps@src/shared/ui/interaction-types.ts ↔ FrameContextInputs@src/runtime/main-loop.ts"
-    },
-    {
       "pair": "BallisticTrajectory@src/shared/core/battle-events.ts ↔ OverlayCannonball@src/shared/ui/overlay-types.ts"
     },
     {
@@ -377,9 +371,6 @@
     },
     {
       "pair": "CannonOverride@test/phase-tests/types.ts ↔ SerializedCannon@src/protocol/checkpoint-data.ts"
-    },
-    {
-      "pair": "CannonOverride@test/phase-tests/types.ts ↔ SerializedGrunt@src/protocol/checkpoint-data.ts"
     },
     {
       "pair": "CannonPlacement@src/ai/ai-strategy-types.ts ↔ CannonShapePayload@src/shared/core/phantom-types.ts"
@@ -694,12 +685,6 @@
       "pair": "PhaseTicksDeps@src/runtime/subsystems/phase-ticks.ts ↔ RuntimeCamera@src/runtime/subsystems/camera.ts"
     },
     {
-      "pair": "PhaseTicksDeps@src/runtime/subsystems/phase-ticks.ts ↔ RuntimeLoopDeps@src/runtime/main-loop.ts"
-    },
-    {
-      "pair": "PhaseTransitionCtx@src/runtime/phase-machine.ts ↔ RuntimeCamera@src/runtime/subsystems/camera.ts"
-    },
-    {
       "pair": "PieceDims@src/render/3d/sprites/debris-scene.ts ↔ PolePlatformParams@src/render/3d/sprites/tower-scene.ts"
     },
     {
@@ -773,9 +758,6 @@
     },
     {
       "pair": "PlacePieceIntent@src/shared/core/system-interfaces.ts ↔ WallShieldedMessage@src/shared/core/battle-events.ts"
-    },
-    {
-      "pair": "PlayerSnapshot@test/network-bidirectional.test.ts ↔ PlayerSnapshot@test/network-vs-local.test.ts"
     },
     {
       "pair": "PoleParams@src/render/3d/sprites/tower-scene.ts ↔ StakesParams@src/render/3d/sprites/balloon-scene.ts"
@@ -854,6 +836,9 @@
     },
     {
       "pair": "ScheduledPiecePlacement@src/game/scheduled-actions.ts ↔ WallShieldedMessage@src/shared/core/battle-events.ts"
+    },
+    {
+      "pair": "SeatReclaimDeps@src/online/online-seat-reclaim.ts ↔ SeatTakeoverDeps@src/online/online-seat-takeover.ts"
     },
     {
       "pair": "SelectionSystemDeps@src/runtime/subsystems/selection.ts ↔ UpgradePickSystemDeps@src/runtime/subsystems/upgrade-pick.ts"

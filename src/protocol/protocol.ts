@@ -74,6 +74,10 @@ export type ClientMessage =
       applyAt: number;
       round: number;
     }
+  // A rejoined peer asks the host to hand its seat back from the AI that
+  // took it over (see SeatReclaimMessage). Relayed to the host, which
+  // validates ownership + liveness and broadcasts the lockstep flip.
+  | { type: "requestSeatReclaim"; playerId: ValidPlayerId }
   | { type: "ping" };
 
 /** Sent once when a client connects. All clients derive map/houses/zones from the seed. */
@@ -466,6 +470,26 @@ interface SeatTakeoverMessage {
   applyAt: number;
 }
 
+/** Host-only: hand a seat BACK from the AI that took it over to a
+ *  rejoined human, at a lockstep tick. The exact inverse of
+ *  SeatTakeoverMessage — every peer flips the seat sets at `applyAt`,
+ *  stopping its mirror-simulated AI for that slot; the OWNER (the
+ *  rejoiner, `playerId === myPlayerId`) additionally swaps the dormant AI
+ *  controller for its human controller. The stamp is what keeps the
+ *  state.rng draw counts equal: the AI being reclaimed draws from the
+ *  shared stream every decision on every peer, so all peers must stop
+ *  simulating it on the same tick. Host issues this only after the
+ *  rejoiner has bootstrapped from the replayed INIT and adopted the
+ *  room-wide resync FULL_STATE (so it is already in lockstep, mirror-
+ *  simulating its own seat as AI like everyone else). */
+interface SeatReclaimMessage {
+  type: "seatReclaim";
+  /** The seat being handed back to its returning human owner. */
+  playerId: ValidPlayerId;
+  /** Lockstep apply tick: host `simTick + SAFETY`. */
+  applyAt: number;
+}
+
 export type ServerMessage =
   // Connection
   | InitMessage
@@ -509,6 +533,7 @@ export type ServerMessage =
   | UpgradePickForwardedMessage
   // Host migration / membership
   | SeatTakeoverMessage
+  | SeatReclaimMessage
   | HostLeftMessage
   | FullStateMessage;
 
@@ -533,6 +558,7 @@ export const MESSAGE = {
   SELECT_SLOT: "selectSlot",
   LIFE_LOST_CHOICE: "lifeLostChoice",
   UPGRADE_PICK: "upgradePick",
+  REQUEST_SEAT_RECLAIM: "requestSeatReclaim",
   PING: "ping",
   // Lobby
   ROOM_CREATED: "roomCreated",
@@ -560,6 +586,7 @@ export const MESSAGE = {
   AIM_UPDATE: "aimUpdate",
   // Host migration / membership
   SEAT_TAKEOVER: "seatTakeover",
+  SEAT_RECLAIM: "seatReclaim",
   HOST_LEFT: "hostLeft",
 } as const;
 export const DEFAULT_CANNON_HP = 3;
