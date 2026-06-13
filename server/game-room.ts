@@ -103,6 +103,7 @@ const HOST_ONLY: ReadonlySet<string> = new Set([
   MESSAGE.GAME_OVER,
   MESSAGE.FULL_STATE,
   MESSAGE.SEAT_TAKEOVER,
+  MESSAGE.SEAT_RECLAIM,
   MESSAGE.WALL_DESTROYED,
   MESSAGE.WALL_ABSORBED,
   MESSAGE.WALL_SHIELDED,
@@ -174,7 +175,7 @@ export class GameRoom {
   constructor(
     players: ReadonlyMap<WebSocket, number>,
     broadcastRecipients: ReadonlySet<WebSocket>,
-    onGameStart: () => void,
+    onGameStart: (initRaw: string) => void,
     settings?: Partial<RoomSettings>,
     seed?: number,
   ) {
@@ -185,7 +186,7 @@ export class GameRoom {
     this.settings = sanitizeRoomSettings(settings ?? {});
   }
 
-  private readonly onGameStart: () => void;
+  private readonly onGameStart: (initRaw: string) => void;
 
   // ---------------------------------------------------------------------------
   // Player management
@@ -268,9 +269,11 @@ export class GameRoom {
       if (senderSocket !== this.hostSocket) return;
       this.updatePhaseFromMessage(type);
       // INIT is the host's "game is starting" signal — flip the room to
-      // started so late joins are rejected and a host disconnect takes
-      // the migration path instead of teardown.
-      if (type === MESSAGE.INIT) this.onGameStart();
+      // started so late joins are rejected and a host disconnect takes the
+      // migration path instead of teardown. The raw payload is buffered by
+      // RoomManager so a later rejoin can replay it verbatim (every peer must
+      // bootstrap from the identical INIT — same seed/settings/difficulty).
+      if (type === MESSAGE.INIT) this.onGameStart(rawJson);
     }
 
     // ── Stage 2: Identity validation ──
@@ -312,6 +315,21 @@ export class GameRoom {
     }
 
     // ── Stage 6: Relay to room ──
+    // Targeted resync: a FULL_STATE answering a REQUEST_RESYNC carries
+    // `forPlayerId` and goes ONLY to the rejoining socket holding that seat.
+    // Broadcasting it would make every already-synced peer re-adopt and
+    // re-prime its AI brains, drawing `state.rng` while the non-adopting host
+    // does not — forking the match (see FullStateMessage.forPlayerId). The
+    // rejoining socket is in `players` because RoomManager.rejoinRoom
+    // restores its slot assignment on admission.
+    if (type === MESSAGE.FULL_STATE && typeof msg.forPlayerId === "number") {
+      for (const [socket, pid] of this.players) {
+        if (pid === msg.forPlayerId && socket !== senderSocket) {
+          safeSendRaw(socket, rawJson);
+        }
+      }
+      return;
+    }
     for (const socket of this.broadcastRecipients) {
       if (socket === senderSocket) continue;
       safeSendRaw(socket, rawJson);
@@ -351,6 +369,7 @@ function validatePayload(msg: Record<string, unknown>): boolean {
     case MESSAGE.LIFE_LOST_CHOICE:
       return hasValidPlayer(msg) && VALID_CHOICES.has(msg.choice as string);
     case MESSAGE.SEAT_TAKEOVER:
+    case MESSAGE.SEAT_RECLAIM:
       return (
         hasValidPlayer(msg) && isInt(msg.applyAt, 0, Number.MAX_SAFE_INTEGER)
       );

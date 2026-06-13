@@ -78,6 +78,14 @@ export type ClientMessage =
   // took it over (see SeatReclaimMessage). Relayed to the host, which
   // validates ownership + liveness and broadcasts the lockstep flip.
   | { type: "requestSeatReclaim"; playerId: ValidPlayerId }
+  // A previously-seated socket whose tab was hidden past the away-disconnect
+  // window (see online-away-watchdog) reconnects into its already-STARTED
+  // room. The `token` (issued at slot selection — see JoinedMessage.
+  // rejoinToken) proves prior ownership of a seat, so the server admits only
+  // sockets that were already in this room — it never opens a general
+  // mid-game spectator path (a non-target). On success the server replays the
+  // stored INIT and triggers a targeted resync (see RequestResyncMessage).
+  | { type: "rejoinRoom"; code: string; token: string }
   | { type: "ping" };
 
 /** Sent once when a client connects. All clients derive map/houses/zones from the seed. */
@@ -108,6 +116,12 @@ interface JoinedMessage {
    *  their first slot pick. Set to undefined in broadcasts when the player
    *  reselected the same slot (avoids UI thrashing on no-op reselections). */
   previousPlayerId?: ValidPlayerId;
+  /** Opaque per-seat token issued on slot selection. The client persists it
+   *  (it survives a tab-hide, which keeps JS memory) and presents it in
+   *  `rejoinRoom` to re-enter a started room and reclaim this seat. Only the
+   *  selecting socket receives its own token — absent in PLAYER_JOINED
+   *  broadcasts. */
+  rejoinToken?: string;
 }
 
 interface RoomCreatedMessage {
@@ -217,6 +231,14 @@ export interface FullStateMessage extends SerializedModifierTiles {
   type: "fullState";
   /** Monotonic host-migration sequence used to reject stale snapshots. */
   migrationSeq?: number;
+  /** Targeted-resync addressee. When set, the server relays this snapshot
+   *  ONLY to the rejoining socket assigned this slot — never a broadcast. A
+   *  broadcast resync would make every already-synced peer re-adopt and
+   *  re-prime its AI brains, drawing `state.rng` while the non-adopting host
+   *  does not — forking the match (the migrationSeq dedup can't separate the
+   *  rejoiner from existing peers). The host sets it only when answering a
+   *  RequestResyncMessage; absent for the broadcast migration snapshot. */
+  forPlayerId?: ValidPlayerId;
   phase: string;
   round: number;
   timer: number;
@@ -490,6 +512,28 @@ interface SeatReclaimMessage {
   applyAt: number;
 }
 
+/** Server→host: a rejoining peer (`forPlayerId`) has been admitted and needs
+ *  the current state. The server emits this on REJOIN_ROOM; the host answers
+ *  with a FULL_STATE carrying the same `forPlayerId`, which the server relays
+ *  ONLY to that socket (see FullStateMessage.forPlayerId). Server-originated —
+ *  never sent by a client, so it has no entry in the client→relay validation
+ *  tables. The host serializes at its CURRENT tick, leaving the rejoiner only
+ *  ~wireDelay behind on adoption — the same steady state every peer is in. */
+interface RequestResyncMessage {
+  type: "requestResync";
+  forPlayerId: ValidPlayerId;
+}
+
+/** Server→host: a rejoined peer's REQUEST_SEAT_RECLAIM, forwarded to the host
+ *  (the only peer that decides the reclaim — it validates the seat is AI-held
+ *  and the owner alive, then stamps + broadcasts SEAT_RECLAIM). Same shape as
+ *  the client message; declared here in ServerMessage so the host's dispatcher
+ *  matches the relayed type when it arrives as a server message. */
+interface RequestSeatReclaimForwardedMessage {
+  type: "requestSeatReclaim";
+  playerId: ValidPlayerId;
+}
+
 export type ServerMessage =
   // Connection
   | InitMessage
@@ -534,6 +578,8 @@ export type ServerMessage =
   // Host migration / membership
   | SeatTakeoverMessage
   | SeatReclaimMessage
+  | RequestResyncMessage
+  | RequestSeatReclaimForwardedMessage
   | HostLeftMessage
   | FullStateMessage;
 
@@ -559,6 +605,7 @@ export const MESSAGE = {
   LIFE_LOST_CHOICE: "lifeLostChoice",
   UPGRADE_PICK: "upgradePick",
   REQUEST_SEAT_RECLAIM: "requestSeatReclaim",
+  REJOIN_ROOM: "rejoinRoom",
   PING: "ping",
   // Lobby
   ROOM_CREATED: "roomCreated",
@@ -587,6 +634,7 @@ export const MESSAGE = {
   // Host migration / membership
   SEAT_TAKEOVER: "seatTakeover",
   SEAT_RECLAIM: "seatReclaim",
+  REQUEST_RESYNC: "requestResync",
   HOST_LEFT: "hostLeft",
 } as const;
 export const DEFAULT_CANNON_HP = 3;

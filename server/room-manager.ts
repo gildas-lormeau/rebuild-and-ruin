@@ -20,6 +20,21 @@ interface RoomEntry {
   /** True once the game has started (host sent INIT or wait timer fired).
    *  No new players can join after this point. */
   started: boolean;
+  /** Per-seat rejoin token (playerId → token), issued at slot selection and
+   *  retained across a disconnect so a returning socket can prove prior
+   *  ownership of its seat via `rejoinRoom`. */
+  rejoinTokens: Map<ValidPlayerId, string>;
+  /** Sockets admitted via `rejoinRoom` that have NOT yet requested their seat
+   *  back. They are in `slotAssignments` (for identity + targeted resync
+   *  routing) but are still bootstrapping/adopting the resync, so they must
+   *  not be picked as a migration host until they ask to reclaim (which only
+   *  happens after they have adopted the snapshot). Cleared on reclaim-request
+   *  or disconnect. */
+  pendingReclaim: Set<WebSocket>;
+  /** The host's INIT payload, buffered verbatim so `rejoinRoom` can replay it
+   *  to a returning socket (every peer must bootstrap from the identical
+   *  INIT). Null until the host sends INIT. */
+  storedInitJson: string | null;
   cleanupTimer: ReturnType<typeof setTimeout> | null;
   autoStartTimer: ReturnType<typeof setTimeout> | null;
   createdAt: number;
@@ -31,6 +46,9 @@ interface SlotSelectionResult {
    *  slot selection (new player joining). Used by the caller to broadcast
    *  a previousPlayerId so clients can clean up the vacated slot's UI. */
   previousPlayerId: ValidPlayerId | null;
+  /** This seat's rejoin token — sent to the selecting socket only (it persists
+   *  it for a later `rejoinRoom`). Stable across reselection of the same slot. */
+  rejoinToken: string;
 }
 
 const MAX_ROOMS = 50;
@@ -71,8 +89,11 @@ export class RoomManager {
     const room = new GameRoom(
       slotAssignments,
       connectedSockets,
-      () => {
-        if (entryRef.current) this.doStartGame(entryRef.current);
+      (initRaw) => {
+        if (!entryRef.current) return;
+        // Buffer the INIT verbatim for later rejoin replay, then flip started.
+        entryRef.current.storedInitJson = initRaw;
+        this.doStartGame(entryRef.current);
       },
       settings,
       settings.seed,
@@ -84,6 +105,9 @@ export class RoomManager {
       connectedSockets,
       slotAssignments,
       started: false,
+      rejoinTokens: new Map(),
+      pendingReclaim: new Set(),
+      storedInitJson: null,
       cleanupTimer: null,
       autoStartTimer: null,
       createdAt: Date.now(),
@@ -114,6 +138,87 @@ export class RoomManager {
     return entry;
   }
 
+  /** Re-admit a previously-seated socket into a STARTED room. The token
+   *  (issued at slot selection, retained across the disconnect) proves prior
+   *  ownership of a seat — this is the ONLY path into a started room, and only
+   *  for a seat whose owner has left (it never steals a live seat). It does
+   *  not open a general spectator path (a non-target): no token, no entry.
+   *
+   *  On success the socket is admitted as a watcher with its slot identity
+   *  restored (so its later REQUEST_SEAT_RECLAIM passes the identity check and
+   *  the targeted resync can be routed to it), the buffered INIT is replayed
+   *  so it boots a clean runtime, and the host is asked for a resync addressed
+   *  to only this socket. Returns false (→ caller sends ROOM_ERROR) when the
+   *  room / token / seat is not eligible. */
+  rejoinRoom(code: string, token: string, socket: WebSocket): boolean {
+    this.disconnectSocketFromRoom(socket);
+    const entry = this.rooms.get(code.toUpperCase());
+    // Need a started room with a buffered INIT and a live host: only a live
+    // host can serialize the resync snapshot, so a dead room can't be rejoined.
+    if (!entry || !entry.started || !entry.storedInitJson) return false;
+    if (entry.hostSocket.readyState !== WebSocket.OPEN) return false;
+
+    // Resolve the seat this token owns.
+    let playerId: ValidPlayerId | undefined;
+    for (const [pid, issued] of entry.rejoinTokens) {
+      if (issued === token) {
+        playerId = pid;
+        break;
+      }
+    }
+    if (playerId === undefined) return false;
+
+    // Never steal a seat still held by a live socket.
+    for (const [otherSocket, pid] of entry.slotAssignments) {
+      if (pid === playerId && otherSocket.readyState === WebSocket.OPEN) {
+        return false;
+      }
+    }
+
+    // A rejoin into a room that was emptying cancels its scheduled teardown.
+    if (entry.cleanupTimer) {
+      clearTimeout(entry.cleanupTimer);
+      entry.cleanupTimer = null;
+    }
+
+    // Admit as a watcher + restore slot identity. pendingReclaim keeps it off
+    // the migration-host shortlist until it has adopted the resync and asks to
+    // reclaim (migrateHost skips pendingReclaim sockets).
+    entry.connectedSockets.add(socket);
+    this.socketToRoom.set(socket, entry);
+    entry.slotAssignments.set(socket, playerId);
+    entry.pendingReclaim.add(socket);
+
+    // Replay the buffered INIT (clean bootstrap), then ask the host for a
+    // resync addressed to only this socket.
+    safeSendRaw(socket, entry.storedInitJson);
+    safeSendRaw(
+      entry.hostSocket,
+      JSON.stringify({ type: MESSAGE.REQUEST_RESYNC, forPlayerId: playerId }),
+    );
+    console.log(`[rooms] Player rejoined room ${entry.code} as P${playerId}`);
+    return true;
+  }
+
+  /** Forward a rejoined peer's REQUEST_SEAT_RECLAIM to the host (the only peer
+   *  that decides the reclaim — it validates the seat is AI-held and the owner
+   *  alive, then stamps + broadcasts SEAT_RECLAIM). Validates the sender owns
+   *  the seat (its slot identity was restored on rejoin) and clears it from
+   *  pendingReclaim: by asking to reclaim, it has adopted the resync and is a
+   *  full lockstep peer, now eligible to host. Returns false when ineligible. */
+  forwardSeatReclaim(socket: WebSocket, playerId: ValidPlayerId): boolean {
+    const entry = this.socketToRoom.get(socket);
+    if (!entry || !entry.started) return false;
+    if (entry.slotAssignments.get(socket) !== playerId) return false;
+    if (entry.hostSocket.readyState !== WebSocket.OPEN) return false;
+    entry.pendingReclaim.delete(socket);
+    safeSendRaw(
+      entry.hostSocket,
+      JSON.stringify({ type: MESSAGE.REQUEST_SEAT_RECLAIM, playerId }),
+    );
+    return true;
+  }
+
   /** Player selects a color/position slot, which becomes their playerId.
    *  playerId = 0-indexed player position used as the player's identity
    *  for the entire session across all game messages.
@@ -138,7 +243,21 @@ export class RoomManager {
     // Assign new slot (shared map — GameRoom sees this immediately)
     entry.slotAssignments.set(socket, playerId);
 
-    return { playerId, previousPlayerId };
+    // Drop the vacated seat's token (a real slot change, not a same-slot
+    // no-op) so it can't be used to rejoin a seat this socket no longer owns.
+    if (previousPlayerId !== null && previousPlayerId !== playerId) {
+      entry.rejoinTokens.delete(previousPlayerId);
+    }
+    // One stable token per seat — reused if this socket reselects the same
+    // slot so a token already handed out (and persisted client-side) stays
+    // valid.
+    let rejoinToken = entry.rejoinTokens.get(playerId);
+    if (!rejoinToken) {
+      rejoinToken = crypto.randomUUID();
+      entry.rejoinTokens.set(playerId, rejoinToken);
+    }
+
+    return { playerId, previousPlayerId, rejoinToken };
   }
 
   /** Mark room as started: stop wait timer, add spectators. Game init is driven by host client. */
@@ -191,9 +310,11 @@ export class RoomManager {
     const playerId = entry.slotAssignments.get(socket);
     const wasHost = socket === entry.hostSocket;
 
-    // RoomManager-level cleanup (always)
+    // RoomManager-level cleanup (always). rejoinTokens is deliberately kept —
+    // a socket that drops again must still be able to rejoin its seat.
     entry.connectedSockets.delete(socket);
     entry.slotAssignments.delete(socket);
+    entry.pendingReclaim.delete(socket);
     this.socketToRoom.delete(socket);
 
     // Path 1: Host left before game start — tear down immediately
@@ -253,8 +374,11 @@ export class RoomManager {
     let newHostSocket: WebSocket | undefined;
     let newHostPlayerId: ValidPlayerId | undefined;
 
-    // Prefer lowest-playerId player
+    // Prefer lowest-playerId player. A pendingReclaim socket (rejoined but
+    // still bootstrapping/adopting its resync) is skipped — it can't yet
+    // serialize an authoritative snapshot.
     for (const [sock, sid] of entry.slotAssignments) {
+      if (entry.pendingReclaim.has(sock)) continue;
       if (
         sock.readyState === WebSocket.OPEN &&
         (newHostPlayerId === undefined || sid < newHostPlayerId)
@@ -263,9 +387,11 @@ export class RoomManager {
         newHostPlayerId = sid;
       }
     }
-    // Fallback: any connected socket (watcher becomes relay host, all players AI)
+    // Fallback: any connected socket (watcher becomes relay host, all players
+    // AI) — likewise skip a still-bootstrapping rejoiner.
     if (!newHostSocket) {
       for (const sock of entry.connectedSockets) {
+        if (entry.pendingReclaim.has(sock)) continue;
         if (sock.readyState === WebSocket.OPEN) {
           newHostSocket = sock;
           break;

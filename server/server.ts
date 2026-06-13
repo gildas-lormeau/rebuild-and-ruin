@@ -153,6 +153,7 @@ function handleMessage(
         type: MESSAGE.JOINED,
         playerId: selection.playerId,
         previousPlayerId,
+        rejoinToken: selection.rejoinToken,
       });
       // Notify all in room about the updated slot assignments
       rooms.broadcastToRoom(entry, {
@@ -161,6 +162,27 @@ function handleMessage(
         name: PLAYER_NAMES[selection.playerId] ?? `P${selection.playerId + 1}`,
         previousPlayerId,
       });
+      break;
+    }
+
+    case MESSAGE.REJOIN_ROOM: {
+      if (typeof msg.code !== "string" || typeof msg.token !== "string") break;
+      const ok = rooms.rejoinRoom(msg.code, msg.token, socket);
+      if (!ok) {
+        send(socket, {
+          type: MESSAGE.ROOM_ERROR,
+          message: "Unable to rejoin (room ended or seat unavailable)",
+        });
+      }
+      break;
+    }
+
+    case MESSAGE.REQUEST_SEAT_RECLAIM: {
+      // Routed here (not the GameRoom relay) so RoomManager can validate seat
+      // ownership and clear pendingReclaim before forwarding to the host.
+      // Best-effort: the host re-validates (seat AI-held + owner alive) before
+      // it stamps SEAT_RECLAIM, so a denied request just produces no reply.
+      rooms.forwardSeatReclaim(socket, msg.playerId as ValidPlayerId);
       break;
     }
 

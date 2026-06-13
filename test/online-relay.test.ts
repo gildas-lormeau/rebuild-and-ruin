@@ -101,6 +101,100 @@ Deno.test("relay matches current lobby, checkpoint, and migration protocol", asy
   }
 });
 
+Deno.test("rejoin replays INIT, targets the resync, and relays seat reclaim", async () => {
+  const host = await connectClient("HOST");
+  let player = await connectClient("PLAYER");
+  const watcher = await connectClient("WATCHER");
+
+  try {
+    send(host.ws, {
+      type: MESSAGE.CREATE_ROOM,
+      settings: { maxRounds: 3, cannonMaxHp: 3, waitTimerSec: 30 },
+    });
+    const code = (await host.waitFor(MESSAGE.ROOM_CREATED)).code as string;
+
+    send(host.ws, { type: MESSAGE.SELECT_SLOT, playerId: 0 });
+    await host.waitFor(MESSAGE.JOINED);
+
+    send(player.ws, { type: MESSAGE.JOIN_ROOM, code });
+    await player.waitFor(MESSAGE.ROOM_JOINED);
+    send(player.ws, { type: MESSAGE.SELECT_SLOT, playerId: 1 });
+    const playerJoined = await player.waitFor(MESSAGE.JOINED);
+    const rejoinToken = playerJoined.rejoinToken as string;
+    // The selecting socket gets an opaque seat token; it's the rejoin proof.
+    assertEquals(typeof rejoinToken, "string");
+
+    send(watcher.ws, { type: MESSAGE.JOIN_ROOM, code });
+    await watcher.waitFor(MESSAGE.ROOM_JOINED);
+    // A watcher (no slot) is not handed a token in its own JOIN flow.
+
+    send(host.ws, {
+      type: MESSAGE.INIT,
+      seed: 777,
+      playerCount: 3,
+      settings: { maxRounds: 3, cannonMaxHp: 3, buildTimer: 25, cannonPlaceTimer: 15 },
+    });
+    await player.waitFor(MESSAGE.INIT);
+    await watcher.waitFor(MESSAGE.INIT);
+
+    // ── Player's tab is hidden past the away window → socket drops ──
+    player.ws.close();
+    const hostSawLeft = await host.waitFor(
+      (msg) => msg.type === MESSAGE.PLAYER_LEFT && msg.playerId === 1,
+    );
+    assertEquals(hostSawLeft.playerId, 1);
+
+    // ── Player returns: reconnect + rejoin with its retained token ──
+    player = await connectClient("PLAYER-REJOIN");
+    send(player.ws, { type: MESSAGE.REJOIN_ROOM, code, token: rejoinToken });
+
+    // The buffered INIT is replayed to the rejoiner (clean re-bootstrap)...
+    const replayedInit = await player.waitFor(MESSAGE.INIT);
+    assertEquals(replayedInit.seed, 777);
+    // ...and the host is asked for a resync addressed to just this seat.
+    const resyncReq = await host.waitFor(MESSAGE.REQUEST_RESYNC);
+    assertEquals(resyncReq.forPlayerId, 1);
+
+    // ── Host answers with a targeted FULL_STATE: only the rejoiner gets it ──
+    send(host.ws, { type: MESSAGE.FULL_STATE, forPlayerId: 1, round: 2, phase: "wallBuild" });
+    await player.waitFor(MESSAGE.FULL_STATE);
+    // A broadcast marker sent right after: by FIFO, once the watcher sees it,
+    // any (wrongly) broadcast FULL_STATE would already be in its log.
+    send(host.ws, { type: MESSAGE.CANNON_START });
+    await watcher.waitFor(MESSAGE.CANNON_START);
+    assertEquals(
+      watcher.messages.some((msg) => msg.type === MESSAGE.FULL_STATE),
+      false,
+    );
+
+    // ── Rejoiner asks for its seat back → forwarded to the host ──
+    send(player.ws, { type: MESSAGE.REQUEST_SEAT_RECLAIM, playerId: 1 });
+    const reclaimReq = await host.waitFor(MESSAGE.REQUEST_SEAT_RECLAIM);
+    assertEquals(reclaimReq.playerId, 1);
+
+    // ── Host stamps + broadcasts the lockstep flip → all peers get it ──
+    send(host.ws, { type: MESSAGE.SEAT_RECLAIM, playerId: 1, applyAt: 4242 });
+    const watcherReclaim = await watcher.waitFor(MESSAGE.SEAT_RECLAIM);
+    const playerReclaim = await player.waitFor(MESSAGE.SEAT_RECLAIM);
+    assertEquals(watcherReclaim.applyAt, 4242);
+    assertEquals(playerReclaim.playerId, 1);
+
+    // ── A garbage token cannot rejoin (no general spectator path) ──
+    const intruder = await connectClient("INTRUDER");
+    try {
+      send(intruder.ws, { type: MESSAGE.REJOIN_ROOM, code, token: "not-a-real-token" });
+      const err = await intruder.waitFor(MESSAGE.ROOM_ERROR);
+      assertEquals(typeof err.message, "string");
+    } finally {
+      intruder.ws.close();
+    }
+  } finally {
+    for (const handle of [host, player, watcher]) {
+      if (handle.ws.readyState === WebSocket.OPEN) handle.ws.close();
+    }
+  }
+});
+
 function connectClient(name: string): Promise<ClientHandle> {
   return new Promise((resolve, reject) => {
     const ws = new WebSocket(SERVER_URL);
