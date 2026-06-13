@@ -300,7 +300,11 @@ export function createRuntimeLoop(deps: RuntimeLoopDeps): {
     // substep and only the mode tick (`syncCrosshairs`) repopulates. Ticking
     // it before the mode tick made the animator read an empty crosshair list
     // every frame, so cannons never tracked the crosshair during battle.
-    deps.tickCannonAnimator(dt);
+    // Frozen under pause for the same reason `tickScoreDelta` is: the paused
+    // mode tick skips `syncCrosshairs`, so the list is empty here and the
+    // animator would ease every cannon to its rest facing while the render
+    // (which repopulates crosshairs for the paused frame) still draws them.
+    if (!isPaused(deps.runtimeState)) deps.tickCannonAnimator(dt);
   }
 
   function mainLoop(now: number): void {

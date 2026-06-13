@@ -52,6 +52,11 @@ interface GameLifecycleDeps {
   readonly resetLifeLostDialog: () => void;
   readonly resetUpgradePickDialog: () => void;
   readonly resetBanner: () => void;
+  /** Drop the live per-frame announcement (ESC-quit countdown text, a
+   *  decaying migration notice, …). STOPPED never runs `clearFrameData`,
+   *  so without this the last announcement is republished onto the
+   *  game-over screen. Sibling of `online-rehydrate`'s adoption clear. */
+  readonly clearAnnouncement: () => void;
   readonly clearAllZoomState: () => void;
   readonly clearLobbyMap: () => void;
   readonly resetInputForLobby: () => void;
@@ -180,6 +185,7 @@ export function createGameLifecycle(
     // runDisplay already hid the banner.
     deps.resetUpgradePickDialog();
     deps.resetBanner();
+    deps.clearAnnouncement();
   }
 
   /** Shared terminal sequence for game-over: snapshot the game-over frame
@@ -327,6 +333,9 @@ export function buildLifecycleDeps(
     resetLifeLostDialog: () => wiringDeps.getLifeLost().set(null),
     resetUpgradePickDialog: () => wiringDeps.getUpgradePick().set(null),
     resetBanner: wiringDeps.banner.reset,
+    clearAnnouncement: () => {
+      runtimeState.frame.announcement = undefined;
+    },
     clearAllZoomState: wiringDeps.camera.clearAllZoomState,
     clearLobbyMap: () => {
       runtimeState.lobby.map = null;
