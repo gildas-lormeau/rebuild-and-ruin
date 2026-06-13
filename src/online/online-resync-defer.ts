@@ -29,11 +29,11 @@ export interface DeferredResyncDeps {
 }
 
 /** Per-frame host poll (composition `onAfterFrame`, online + host only).
- *  Fires ONE room-wide rebroadcast once the earliest parked request's fire
- *  tick has arrived AND the host sits in a phase whose snapshot the migration
- *  adoption path can apply cleanly (Mode.GAME / Mode.SELECTION) — a snapshot
- *  taken mid-banner/dialog would carry an animation/callback the adopters
- *  can't reconstruct. One broadcast serves every pending rejoiner. */
+ *  Fires ONE room-wide rebroadcast once EVERY parked request's fire tick has
+ *  arrived AND the host sits in a phase whose snapshot the migration adoption
+ *  path can apply cleanly (Mode.GAME / Mode.SELECTION) — a snapshot taken
+ *  mid-banner/dialog would carry an animation/callback the adopters can't
+ *  reconstruct. One broadcast serves every pending rejoiner, each in-window. */
 export function pollDeferredResyncs(deps: DeferredResyncDeps): void {
   const { pendingResyncRequests } = deps.session;
   if (pendingResyncRequests.size === 0) return;
@@ -45,14 +45,17 @@ export function pollDeferredResyncs(deps: DeferredResyncDeps): void {
     return;
   }
   const simTick = runtimeState.state.simTick;
-  let due = false;
+  // Wait until EVERY parked request's window has closed (simTick >= the LATEST
+  // fireAtTick), not just the earliest. The single broadcast is drained only to
+  // `simTick`, and a rejoiner adopts ANY FULL_STATE while awaitingRejoinResync
+  // (online-server-lifecycle.ts) regardless of this host-side map — so firing
+  // at the FIRST due request would hand a later, still-in-window rejoiner an
+  // under-drained snapshot (missing its pre-connect in-flight actions) → fork.
+  // Bounded: <=2 parked (3 players - host), so the extra wait is <=SAFETY ticks
+  // and two concurrent rejoiners share one self-migration instead of two.
   for (const fireAtTick of pendingResyncRequests.values()) {
-    if (simTick >= fireAtTick) {
-      due = true;
-      break;
-    }
+    if (simTick < fireAtTick) return;
   }
-  if (!due) return;
   pendingResyncRequests.clear();
   rebroadcastFullStateForResync(deps);
 }
