@@ -136,6 +136,22 @@ export interface PlayerBattleMetrics {
    *  exact-tile non-refills: a player who re-encloses via a different wall
    *  route still shows the original holes here. */
   unrepairedGaps: number;
+  // --- attack effectiveness: were the unrepaired gaps NEEDED walls? ---
+  /** Of `unrepairedGaps`, the tiles still LOAD-BEARING for an enclosure against
+   *  the FINAL build board (classifyHit breaching/progress) — re-placing one
+   *  would help re-seal a leaking ring. These are walls the victim NEEDED but
+   *  couldn't/didn't rebuild: the real "effective attack" signal. Survivors
+   *  only (a life-loser's zone is reset before this is measured). */
+  unrepairedLoadBearing: number;
+  /** Of `unrepairedGaps`, the tiles NOT needed for any enclosure at end-of-build
+   *  (classifyHit useless) — future-interior / redundant walls the victim
+   *  CORRECTLY left unbuilt. NOT an effective attack, even though "unrepaired". */
+  unrepairedInner: number;
+  /** 1 if this player lost a life closing this round (no enclosed alive tower →
+   *  zone reset) — the maximal "couldn't hold the enclosure" outcome. Its zone
+   *  is reset before the gap split runs, so its gaps aren't classified; this
+   *  flag carries the effectiveness signal instead. */
+  lifeLostThisRound: number;
   // --- battle decisiveness (victim-side: breach severity suffered) ---
   /** Enclosed-interior tile count at BATTLE start vs at battle end (first
    *  non-BATTLE phase, pre-repair). start − end = interior lost to breaches
@@ -387,12 +403,42 @@ export function createBattleMetricsObserver(): BattleMetricsObserver {
         }
       });
 
+      on(sc, GAME_EVENT.LIFE_LOST, (ev) => {
+        // Fires inside finalizeRound (BEFORE ROUND_END) when a player ends the
+        // closing build with no enclosed alive tower → zone reset. The maximal
+        // "couldn't rebuild the enclosure" outcome. Mark the row so ROUND_END
+        // skips the gap split (its walls are no longer the final build board).
+        const row = current.get(ev.playerId);
+        if (row) row.lifeLostThisRound = 1;
+      });
+
       on(sc, GAME_EVENT.ROUND_END, () => {
         // Closing WALL_BUILD is done; whatever destroyed tiles remain unrepaired
         // are this round's gaps. `current` still holds this round's rows (the
         // next BATTLE clears it), so attribute before that reset.
         for (const [pid, row] of current) {
-          row.unrepairedGaps = destroyedThisRound.get(pid)?.size ?? 0;
+          const leftover = destroyedThisRound.get(pid);
+          row.unrepairedGaps = leftover?.size ?? 0;
+          if (!leftover || leftover.size === 0) continue;
+          // Split the unrepaired gaps by whether each tile is STILL needed for
+          // an enclosure against the FINAL build board: classifyHit useless =
+          // future-interior / redundant wall the victim correctly skipped (not
+          // an effective attack); breaching/progress = a wall they NEEDED but
+          // left unbuilt (the effective-attack signal). A life-loser's zone is
+          // already reset here (resetZoneState in applyLifePenalties, before
+          // ROUND_END) so its walls aren't the final board — skip its split; the
+          // life-loss itself is the effectiveness signal.
+          if (row.lifeLostThisRound > 0) continue;
+          const victim = sc.state.players[pid];
+          if (!victim) continue;
+          for (const tile of leftover) {
+            const { row: tr, col: tc } = unpackTile(tile);
+            if (classifyHit(victim.walls, tr, tc) === "useless") {
+              row.unrepairedInner++;
+            } else {
+              row.unrepairedLoadBearing++;
+            }
+          }
         }
       });
 
@@ -508,6 +554,9 @@ function emptyRow(round: number, playerId: number): PlayerBattleMetrics {
     repairTilesPlaced: 0,
     expansionTilesPlaced: 0,
     unrepairedGaps: 0,
+    unrepairedLoadBearing: 0,
+    unrepairedInner: 0,
+    lifeLostThisRound: 0,
     interiorAtStart: 0,
     interiorAtEnd: 0,
     enclosedTowersAtStart: 0,

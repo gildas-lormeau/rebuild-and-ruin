@@ -10,6 +10,9 @@ export interface WorkerRequest {
   seed: number;
   rounds: number;
   mode: "classic" | "modern";
+  /** Play to last-player-standing (high safety cap) instead of capping at
+   *  `rounds` — the "full game" mode for last-N-rounds analysis. */
+  runToEnd?: boolean;
 }
 
 export type WorkerResponse =
@@ -17,9 +20,9 @@ export type WorkerResponse =
   | { ok: false; seed: number; error: string };
 
 self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
-  const { seed, rounds, mode } = event.data;
+  const { seed, rounds, mode, runToEnd } = event.data;
   try {
-    const result = await runSeed(seed, rounds, mode);
+    const result = await runSeed(seed, rounds, mode, runToEnd);
     const response: WorkerResponse = { ok: true, result };
     self.postMessage(response);
   } catch (e) {

@@ -48,13 +48,23 @@ async function main(): Promise<void> {
   const args = parseSeedPoolArgs(
     "Battle metrics — tracks AI battle-phase firing metrics (no scoring).\n" +
       "  deno run -A scripts/battle-metrics.ts [flags]   (or: npm run battle-metrics -- [flags])\n" +
-      "  extra flag: --by-archetype  segment the report by AI personality archetype",
+      "  extra flags:\n" +
+      "    --by-archetype  segment the report by AI personality archetype\n" +
+      "    --until-end     play each game to last-player-standing (ignores --rounds)\n" +
+      "    --last N        analyze only the last N rounds of full games (implies --until-end)",
   );
-  // battle-metrics-local boolean flag; the shared parser ignores unknown args.
+  // battle-metrics-local flags; the shared parser ignores unknown args.
   const byArchetype = Deno.args.includes("--by-archetype");
+  const lastN = parseLastFlag(Deno.args);
+  const untilEnd = Deno.args.includes("--until-end") || lastN !== null;
   if (!args.json) {
+    const horizon = untilEnd
+      ? lastN !== null
+        ? `to last-player-standing, last ${lastN} rounds`
+        : "to last-player-standing"
+      : `${args.rounds} rounds`;
     console.log(
-      `Battle metrics — ${args.seeds.length} seeds × ${args.rounds} rounds × 3 players, mode=${args.mode}`,
+      `Battle metrics — ${args.seeds.length} seeds × ${horizon} × 3 players, mode=${args.mode}`,
     );
     console.log(`seeds: ${args.seeds.join(", ")}`);
   }
@@ -67,6 +77,7 @@ async function main(): Promise<void> {
     seed,
     rounds: args.rounds,
     mode: args.mode,
+    runToEnd: untilEnd,
   }));
   const { results, errors } = await runWorkerPool<WorkerRequest, SeedMetrics>(
     import.meta.resolve("./battle-metrics-worker.ts"),
@@ -91,9 +102,53 @@ async function main(): Promise<void> {
     );
     return;
   }
-  printReport(results);
-  if (byArchetype) printByArchetype(results);
+  const analyzed = untilEnd ? selectFullGames(results, lastN) : results;
+  if (untilEnd) {
+    const full = results.filter((r) => r.endedNaturally).length;
+    const ends = results.filter((r) => r.endedNaturally).map((r) => r.endRound);
+    const lenNote =
+      ends.length > 0
+        ? `, game length ${Math.min(...ends)}–${Math.max(...ends)} rounds (mean ${mean(ends).toFixed(0)})`
+        : "";
+    console.log(
+      `\nFull games (last-player-standing): ${full}/${results.length}${lenNote}` +
+        (lastN !== null ? `  ·  analyzing last ${lastN} rounds of each` : ""),
+    );
+  }
+  printReport(analyzed);
+  if (byArchetype) printByArchetype(analyzed);
   console.log(`\nElapsed: ${elapsedSec.toFixed(1)}s`);
+}
+
+/** Parse `--last N` from argv (the steady-state horizon). Returns null if
+ *  absent; throws on a non-positive / malformed value. */
+function parseLastFlag(argv: readonly string[]): number | null {
+  const idx = argv.indexOf("--last");
+  if (idx === -1) return null;
+  const value = Number.parseInt(argv[idx + 1] ?? "", 10);
+  if (!Number.isInteger(value) || value <= 0) {
+    throw new Error(`--last needs a positive integer, got "${argv[idx + 1]}"`);
+  }
+  return value;
+}
+
+/** Keep only games that ended last-player-standing ("full games"); when `lastN`
+ *  is set, trim each kept game's rows to its final N rounds (round >
+ *  endRound − N) — the mature endgame, undiluted by warmup. */
+function selectFullGames(
+  results: readonly SeedMetrics[],
+  lastN: number | null,
+): SeedMetrics[] {
+  return results
+    .filter((r) => r.endedNaturally)
+    .map((r) =>
+      lastN === null
+        ? r
+        : {
+            ...r,
+            battles: r.battles.filter((b) => b.round > r.endRound - lastN),
+          },
+    );
 }
 
 function printReport(results: readonly SeedMetrics[]): void {
@@ -294,6 +349,29 @@ function printReport(results: readonly SeedMetrics[]): void {
   );
   console.log(
     `  unrepaired / destroyed= ${pct(gaps, gaps + repair)}  (higher = damage they couldn't fix)`,
+  );
+
+  console.log(
+    "\nAttack effectiveness — were the unrepaired walls NEEDED for the enclosure?",
+  );
+  const loadBearing = sum(rows.map((r) => r.unrepairedLoadBearing));
+  const inner = sum(rows.map((r) => r.unrepairedInner));
+  meanLine(
+    "  unrepaired load-bearing",
+    rows.map((r) => r.unrepairedLoadBearing),
+  );
+  meanLine(
+    "  unrepaired inner       ",
+    rows.map((r) => r.unrepairedInner),
+  );
+  console.log(
+    `  inner share of gaps   = ${pct(inner, loadBearing + inner)}  (gaps the victim CORRECTLY skipped — future-interior walls, NOT effective attacks)`,
+  );
+  console.log(
+    `  effective-attack rate = ${pct(rows.filter((r) => r.unrepairedLoadBearing > 0).length, rows.length)}  (share of player-battles left with >=1 unrebuilt NEEDED wall)`,
+  );
+  console.log(
+    `  life lost this round  = ${pct(rows.filter((r) => r.lifeLostThisRound > 0).length, rows.length)}  (maximal: enclosure lost entirely, zone reset)`,
   );
 
   console.log("\nOther burdens / battle (measure-only)");
