@@ -1,13 +1,3 @@
-/**
- * Wires event handlers to the static touch controls in index.html.
- * Layout is pure CSS (landscape panels / portrait bars); this module only
- * queries existing DOM elements and attaches behavior.
- *
- * - Left panel: loupe + d-pad
- * - Right panel: quit + zoom + rotate + confirm
- */
-
-import type { FloatingActionsHandle } from "../runtime/ui-contracts.ts";
 import {
   isPlacementPhase,
   isSelectionPhase,
@@ -19,6 +9,7 @@ import { Action } from "../shared/ui/input-action.ts";
 import type {
   DpadDeps,
   FloatingActionsDeps,
+  FloatingActionsHandle,
   QuitButtonDeps,
   ZoomButtonDeps,
 } from "../shared/ui/input-deps.ts";

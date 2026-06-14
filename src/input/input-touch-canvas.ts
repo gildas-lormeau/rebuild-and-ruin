@@ -1,12 +1,3 @@
-/**
- * Mobile touch handler. Maps touch events to the same deps callbacks as
- * mouse/keyboard. Single-touch only; gesture discrimination is tap vs drag.
- * After a 2+ finger pinch, single-touch events are suppressed until all
- * fingers lift (`suppressSingleTouch` stays on while `pinchActive` clears),
- * preventing ghost taps on release.
- */
-
-import type { RegisterOnlineInputDeps } from "../runtime/ui-contracts.ts";
 import {
   isPlacementPhase,
   isSelectionPhase,
@@ -19,6 +10,7 @@ import type {
 } from "../shared/core/system-interfaces.ts";
 import type { GameState } from "../shared/core/types.ts";
 import { Action } from "../shared/ui/input-action.ts";
+import type { RegisterOnlineInputDeps } from "../shared/ui/input-deps.ts";
 import { TAP_MAX_DIST, TAP_MAX_TIME } from "./input.ts";
 import {
   dispatchBattleFire,

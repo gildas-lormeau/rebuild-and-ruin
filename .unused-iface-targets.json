@@ -4,166 +4,436 @@
     {
       "label": "Top-level facade returned by createGameRuntime",
       "targets": [
-        { "file": "src/runtime/handle.ts", "interface": "GameRuntime" }
+        {
+          "file": "src/runtime/handle.ts",
+          "interface": "GameRuntime"
+        }
       ]
     },
     {
       "label": "Sub-system handles surfaced on GameRuntime",
       "targets": [
-        { "file": "src/runtime/subsystems/selection.ts", "interface": "RuntimeSelection" },
-        { "file": "src/runtime/subsystems/life-lost.ts", "interface": "RuntimeLifeLost" },
-        { "file": "src/runtime/subsystems/upgrade-pick.ts", "interface": "RuntimeUpgradePick" },
-        { "file": "src/runtime/subsystems/score-deltas.ts", "interface": "RuntimeScoreDelta" },
-        { "file": "src/runtime/subsystems/lobby.ts", "interface": "RuntimeLobby" },
-        { "file": "src/runtime/subsystems/game-lifecycle.ts", "interface": "RuntimeLifecycle" },
-        { "file": "src/runtime/subsystems/phase-ticks.ts", "interface": "RuntimePhaseTicks" },
-        { "file": "src/runtime/audio/music-player.ts", "interface": "RuntimeMusic" },
-        { "file": "src/runtime/audio/sfx-player.ts", "interface": "RuntimeSfx" },
-        { "file": "src/runtime/subsystems/camera.ts", "interface": "RuntimeCamera" }
+        {
+          "file": "src/runtime/subsystems/selection.ts",
+          "interface": "RuntimeSelection"
+        },
+        {
+          "file": "src/runtime/subsystems/life-lost.ts",
+          "interface": "RuntimeLifeLost"
+        },
+        {
+          "file": "src/runtime/subsystems/upgrade-pick.ts",
+          "interface": "RuntimeUpgradePick"
+        },
+        {
+          "file": "src/runtime/subsystems/score-deltas.ts",
+          "interface": "RuntimeScoreDelta"
+        },
+        {
+          "file": "src/runtime/subsystems/lobby.ts",
+          "interface": "RuntimeLobby"
+        },
+        {
+          "file": "src/runtime/subsystems/game-lifecycle.ts",
+          "interface": "RuntimeLifecycle"
+        },
+        {
+          "file": "src/runtime/subsystems/phase-ticks.ts",
+          "interface": "RuntimePhaseTicks"
+        },
+        {
+          "file": "src/runtime/audio/music-player.ts",
+          "interface": "RuntimeMusic"
+        },
+        {
+          "file": "src/runtime/audio/sfx-player.ts",
+          "interface": "RuntimeSfx"
+        },
+        {
+          "file": "src/runtime/subsystems/camera.ts",
+          "interface": "RuntimeCamera"
+        }
       ]
     },
     {
       "label": "Online-only contracts wired from outside the runtime package",
       "targets": [
-        { "file": "src/runtime/types.ts", "interface": "OnlinePhaseTicks" },
-        { "file": "src/runtime/types.ts", "interface": "OnlineActions" },
-        { "file": "src/runtime/types.ts", "interface": "OnlineDialogDrains" },
-        { "file": "src/runtime/types.ts", "interface": "NetworkApi" }
+        {
+          "file": "src/runtime/types.ts",
+          "interface": "OnlinePhaseTicks"
+        },
+        {
+          "file": "src/runtime/types.ts",
+          "interface": "OnlineActions"
+        },
+        {
+          "file": "src/runtime/types.ts",
+          "interface": "OnlineDialogDrains"
+        },
+        {
+          "file": "src/runtime/types.ts",
+          "interface": "NetworkApi"
+        }
       ]
     },
     {
       "label": "Per-subsystem dep-injection contracts (XxxDeps) and system handles",
       "targets": [
-        { "file": "src/runtime/subsystems/phase-ticks.ts", "interface": "PhaseTicksSystem" },
-        { "file": "src/shared/ui/input-deps.ts", "interface": "OverlayActionDeps" },
-        { "file": "src/shared/ui/input-deps.ts", "interface": "DpadDeps" },
-        { "file": "src/shared/ui/input-deps.ts", "interface": "QuitButtonDeps" },
-        { "file": "src/shared/ui/input-deps.ts", "interface": "ZoomButtonDeps" },
-        { "file": "src/shared/ui/input-deps.ts", "interface": "FloatingActionsDeps" },
-        { "file": "src/runtime/ui-contracts.ts", "interface": "FloatingActionsHandle" },
-        { "file": "src/runtime/ui-contracts.ts", "interface": "RegisterOnlineInputDeps" },
-        { "file": "src/shared/ui/input-deps.ts", "interface": "GameActionDeps" },
-        { "file": "src/shared/ui/input-deps.ts", "interface": "PointerMoveDeps" },
-        { "file": "src/runtime/ui-contracts.ts", "interface": "TouchControlsDeps" },
-        { "file": "src/runtime/timing-api.ts", "interface": "TimingApi" },
-        { "file": "src/runtime/ui-contracts.ts", "interface": "SeedField" },
-        { "file": "src/render/render-map.ts", "interface": "RenderMapDeps" },
-        { "file": "src/runtime/phase-machine.ts", "interface": "PhaseTransitionCtx" },
-        { "file": "src/online/online-server-lifecycle.ts", "interface": "HandleServerLifecycleDeps" },
-        { "file": "src/online/online-server-events.ts", "interface": "HandleServerIncrementalDeps" }
+        {
+          "file": "src/runtime/subsystems/phase-ticks.ts",
+          "interface": "PhaseTicksSystem"
+        },
+        {
+          "file": "src/shared/ui/input-deps.ts",
+          "interface": "OverlayActionDeps"
+        },
+        {
+          "file": "src/shared/ui/input-deps.ts",
+          "interface": "DpadDeps"
+        },
+        {
+          "file": "src/shared/ui/input-deps.ts",
+          "interface": "QuitButtonDeps"
+        },
+        {
+          "file": "src/shared/ui/input-deps.ts",
+          "interface": "ZoomButtonDeps"
+        },
+        {
+          "file": "src/shared/ui/input-deps.ts",
+          "interface": "FloatingActionsDeps"
+        },
+        {
+          "file": "src/shared/ui/input-deps.ts",
+          "interface": "FloatingActionsHandle"
+        },
+        {
+          "file": "src/shared/ui/input-deps.ts",
+          "interface": "RegisterOnlineInputDeps"
+        },
+        {
+          "file": "src/shared/ui/input-deps.ts",
+          "interface": "GameActionDeps"
+        },
+        {
+          "file": "src/shared/ui/input-deps.ts",
+          "interface": "PointerMoveDeps"
+        },
+        {
+          "file": "src/shared/ui/input-deps.ts",
+          "interface": "TouchControlsDeps"
+        },
+        {
+          "file": "src/runtime/timing-api.ts",
+          "interface": "TimingApi"
+        },
+        {
+          "file": "src/shared/ui/input-deps.ts",
+          "interface": "SeedField"
+        },
+        {
+          "file": "src/render/render-map.ts",
+          "interface": "RenderMapDeps"
+        },
+        {
+          "file": "src/runtime/phase-machine.ts",
+          "interface": "PhaseTransitionCtx"
+        },
+        {
+          "file": "src/online/online-server-lifecycle.ts",
+          "interface": "HandleServerLifecycleDeps"
+        },
+        {
+          "file": "src/online/online-server-events.ts",
+          "interface": "HandleServerIncrementalDeps"
+        }
       ]
     },
     {
       "label": "Game-domain extension contracts (impl provides hooks, runtime dispatches)",
       "targets": [
-        { "file": "src/shared/core/types.ts", "interface": "UpgradeImpl" },
-        { "file": "src/shared/core/types.ts", "interface": "BattleStartCannonDeps" },
-        { "file": "src/shared/core/types.ts", "interface": "InstantModifier" },
-        { "file": "src/shared/core/types.ts", "interface": "PermanentModifier" },
-        { "file": "src/shared/core/types.ts", "interface": "RoundScopedModifier" }
+        {
+          "file": "src/shared/core/types.ts",
+          "interface": "UpgradeImpl"
+        },
+        {
+          "file": "src/shared/core/types.ts",
+          "interface": "BattleStartCannonDeps"
+        },
+        {
+          "file": "src/shared/core/types.ts",
+          "interface": "InstantModifier"
+        },
+        {
+          "file": "src/shared/core/types.ts",
+          "interface": "PermanentModifier"
+        },
+        {
+          "file": "src/shared/core/types.ts",
+          "interface": "RoundScopedModifier"
+        }
       ]
     },
     {
       "label": "Bus / scheduling primitives shared across runtime + game",
       "targets": [
-        { "file": "src/shared/core/game-event-bus.ts", "interface": "GameEventBus" },
-        { "file": "src/shared/core/action-schedule.ts", "interface": "ActionSchedule" }
+        {
+          "file": "src/shared/core/game-event-bus.ts",
+          "interface": "GameEventBus"
+        },
+        {
+          "file": "src/shared/core/action-schedule.ts",
+          "interface": "ActionSchedule"
+        }
       ]
     },
     {
       "label": "Audio sub-systems",
       "targets": [
-        { "file": "src/runtime/audio/music-player.ts", "interface": "MusicSubsystem" },
-        { "file": "src/runtime/audio/sfx-player.ts", "interface": "SfxSubsystem" }
+        {
+          "file": "src/runtime/audio/music-player.ts",
+          "interface": "MusicSubsystem"
+        },
+        {
+          "file": "src/runtime/audio/sfx-player.ts",
+          "interface": "SfxSubsystem"
+        }
       ]
     },
     {
       "label": "Online composition root + battle-phase lifecycle facade",
       "targets": [
-        { "file": "src/online/online-stores.ts", "interface": "OnlineClient" },
-        { "file": "src/runtime/phase-machine.ts", "interface": "BattleLifecycle" }
+        {
+          "file": "src/online/online-stores.ts",
+          "interface": "OnlineClient"
+        },
+        {
+          "file": "src/runtime/phase-machine.ts",
+          "interface": "BattleLifecycle"
+        }
       ]
     },
     {
       "label": "AI strategy — extension contract, multiple implementations",
       "targets": [
-        { "file": "src/ai/ai-strategy-types.ts", "interface": "AiStrategy" },
-        { "file": "src/ai/ai-defaults.ts", "interface": "AiDeps" }
+        {
+          "file": "src/ai/ai-strategy-types.ts",
+          "interface": "AiStrategy"
+        },
+        {
+          "file": "src/ai/ai-defaults.ts",
+          "interface": "AiDeps"
+        }
       ]
     },
     {
       "label": "Runtime composition config — extension-hook shape",
       "targets": [
-        { "file": "src/runtime/types.ts", "interface": "RuntimeConfig" }
+        {
+          "file": "src/runtime/types.ts",
+          "interface": "RuntimeConfig"
+        }
       ]
     },
     {
       "label": "Render overlay output shapes — probe-verified",
       "targets": [
-        { "file": "src/shared/ui/overlay-types.ts", "interface": "UpgradePickCard" },
-        { "file": "src/shared/ui/overlay-types.ts", "interface": "UpgradePickPlayerEntry" },
-        { "file": "src/shared/ui/overlay-types.ts", "interface": "UpgradePickOverlay" },
-        { "file": "src/shared/ui/overlay-types.ts", "interface": "LifeLostDialogOverlay" },
-        { "file": "src/shared/ui/overlay-types.ts", "interface": "GameOverOverlay" },
-        { "file": "src/shared/ui/overlay-types.ts", "interface": "ControlsPlayer" },
-        { "file": "src/shared/ui/overlay-types.ts", "interface": "OptionEntry" },
-        { "file": "src/shared/ui/overlay-types.ts", "interface": "SelectionOverlay" },
-        { "file": "src/shared/ui/overlay-types.ts", "interface": "EntityOverlay" },
-        { "file": "src/shared/ui/overlay-types.ts", "interface": "PhantomOverlay" },
-        { "file": "src/shared/ui/overlay-types.ts", "interface": "OverlayCannonball" },
-        { "file": "src/shared/ui/overlay-types.ts", "interface": "OverlayBalloon" },
-        { "file": "src/shared/ui/overlay-types.ts", "interface": "OverlaySupplyShip" },
-        { "file": "src/shared/ui/overlay-types.ts", "interface": "BattleOverlay" },
-        { "file": "src/shared/ui/overlay-types.ts", "interface": "BannerUi" },
-        { "file": "src/shared/ui/overlay-types.ts", "interface": "UIOverlay" }
+        {
+          "file": "src/shared/ui/overlay-types.ts",
+          "interface": "UpgradePickCard"
+        },
+        {
+          "file": "src/shared/ui/overlay-types.ts",
+          "interface": "UpgradePickPlayerEntry"
+        },
+        {
+          "file": "src/shared/ui/overlay-types.ts",
+          "interface": "UpgradePickOverlay"
+        },
+        {
+          "file": "src/shared/ui/overlay-types.ts",
+          "interface": "LifeLostDialogOverlay"
+        },
+        {
+          "file": "src/shared/ui/overlay-types.ts",
+          "interface": "GameOverOverlay"
+        },
+        {
+          "file": "src/shared/ui/overlay-types.ts",
+          "interface": "ControlsPlayer"
+        },
+        {
+          "file": "src/shared/ui/overlay-types.ts",
+          "interface": "OptionEntry"
+        },
+        {
+          "file": "src/shared/ui/overlay-types.ts",
+          "interface": "SelectionOverlay"
+        },
+        {
+          "file": "src/shared/ui/overlay-types.ts",
+          "interface": "EntityOverlay"
+        },
+        {
+          "file": "src/shared/ui/overlay-types.ts",
+          "interface": "PhantomOverlay"
+        },
+        {
+          "file": "src/shared/ui/overlay-types.ts",
+          "interface": "OverlayCannonball"
+        },
+        {
+          "file": "src/shared/ui/overlay-types.ts",
+          "interface": "OverlayBalloon"
+        },
+        {
+          "file": "src/shared/ui/overlay-types.ts",
+          "interface": "OverlaySupplyShip"
+        },
+        {
+          "file": "src/shared/ui/overlay-types.ts",
+          "interface": "BattleOverlay"
+        },
+        {
+          "file": "src/shared/ui/overlay-types.ts",
+          "interface": "BannerUi"
+        },
+        {
+          "file": "src/shared/ui/overlay-types.ts",
+          "interface": "UIOverlay"
+        }
       ]
     },
     {
       "label": "Phase-scoped render-view projections — probe-verified",
       "targets": [
-        { "file": "src/shared/core/render-view.ts", "interface": "SelectionRenderView" },
-        { "file": "src/shared/core/render-view.ts", "interface": "BuildRenderView" },
-        { "file": "src/shared/core/render-view.ts", "interface": "CannonRenderView" },
-        { "file": "src/shared/core/render-view.ts", "interface": "BattleRenderView" },
-        { "file": "src/shared/core/render-view.ts", "interface": "ModifierRevealRenderView" },
-        { "file": "src/shared/core/render-view.ts", "interface": "UpgradePickRenderView" }
+        {
+          "file": "src/shared/core/render-view.ts",
+          "interface": "SelectionRenderView"
+        },
+        {
+          "file": "src/shared/core/render-view.ts",
+          "interface": "BuildRenderView"
+        },
+        {
+          "file": "src/shared/core/render-view.ts",
+          "interface": "CannonRenderView"
+        },
+        {
+          "file": "src/shared/core/render-view.ts",
+          "interface": "BattleRenderView"
+        },
+        {
+          "file": "src/shared/core/render-view.ts",
+          "interface": "ModifierRevealRenderView"
+        },
+        {
+          "file": "src/shared/core/render-view.ts",
+          "interface": "UpgradePickRenderView"
+        }
       ]
     },
     {
       "label": "Dialog / castle interaction state — probe-verified",
       "targets": [
-        { "file": "src/shared/ui/interaction-types.ts", "interface": "LifeLostEntry" },
-        { "file": "src/shared/ui/interaction-types.ts", "interface": "LifeLostDialogState" },
-        { "file": "src/shared/ui/interaction-types.ts", "interface": "UpgradePickEntry" },
-        { "file": "src/shared/ui/interaction-types.ts", "interface": "UpgradePickDialogState" },
-        { "file": "src/shared/ui/interaction-types.ts", "interface": "ControlsState" },
-        { "file": "src/shared/ui/interaction-types.ts", "interface": "AutoResolveDeps" },
-        { "file": "src/shared/ui/interaction-types.ts", "interface": "CastleBuildState" },
-        { "file": "src/shared/ui/interaction-types.ts", "interface": "CastleWallPlan" }
+        {
+          "file": "src/shared/ui/interaction-types.ts",
+          "interface": "LifeLostEntry"
+        },
+        {
+          "file": "src/shared/ui/interaction-types.ts",
+          "interface": "LifeLostDialogState"
+        },
+        {
+          "file": "src/shared/ui/interaction-types.ts",
+          "interface": "UpgradePickEntry"
+        },
+        {
+          "file": "src/shared/ui/interaction-types.ts",
+          "interface": "UpgradePickDialogState"
+        },
+        {
+          "file": "src/shared/ui/interaction-types.ts",
+          "interface": "ControlsState"
+        },
+        {
+          "file": "src/shared/ui/interaction-types.ts",
+          "interface": "AutoResolveDeps"
+        },
+        {
+          "file": "src/shared/ui/interaction-types.ts",
+          "interface": "CastleBuildState"
+        },
+        {
+          "file": "src/shared/ui/interaction-types.ts",
+          "interface": "CastleWallPlan"
+        }
       ]
     },
     {
       "label": "Wire payload shapes — probe-verified; review findings before removing (forward-compat concerns)",
       "targets": [
-        { "file": "src/protocol/checkpoint-data.ts", "interface": "SerializedCannon" },
-        { "file": "src/protocol/checkpoint-data.ts", "interface": "SerializedHouse" },
-        { "file": "src/protocol/checkpoint-data.ts", "interface": "SerializedGrunt" },
-        { "file": "src/protocol/checkpoint-data.ts", "interface": "SerializedPlayer" },
-        { "file": "src/protocol/checkpoint-data.ts", "interface": "SerializedBurningPit" },
-        { "file": "src/protocol/checkpoint-data.ts", "interface": "SerializedBonusSquare" }
+        {
+          "file": "src/protocol/checkpoint-data.ts",
+          "interface": "SerializedCannon"
+        },
+        {
+          "file": "src/protocol/checkpoint-data.ts",
+          "interface": "SerializedHouse"
+        },
+        {
+          "file": "src/protocol/checkpoint-data.ts",
+          "interface": "SerializedGrunt"
+        },
+        {
+          "file": "src/protocol/checkpoint-data.ts",
+          "interface": "SerializedPlayer"
+        },
+        {
+          "file": "src/protocol/checkpoint-data.ts",
+          "interface": "SerializedBurningPit"
+        },
+        {
+          "file": "src/protocol/checkpoint-data.ts",
+          "interface": "SerializedBonusSquare"
+        }
       ]
     },
     {
       "label": "Controller / observer contracts: impls subscribe to a subset of hooks; runtime dispatches",
       "targets": [
-        { "file": "src/shared/core/system-interfaces.ts", "interface": "SelectionController" },
-        { "file": "src/shared/core/system-interfaces.ts", "interface": "BuildController" },
-        { "file": "src/shared/core/system-interfaces.ts", "interface": "CannonController" },
-        { "file": "src/shared/core/system-interfaces.ts", "interface": "BattleController" },
-        { "file": "src/shared/core/system-interfaces.ts", "interface": "UpgradePickController" },
-        { "file": "src/shared/core/system-interfaces.ts", "interface": "LifeLostController" },
-        { "file": "src/shared/core/system-interfaces.ts", "interface": "InputReceiver" },
-        { "file": "src/shared/core/system-interfaces.ts", "interface": "HapticsObserver" }
+        {
+          "file": "src/shared/core/system-interfaces.ts",
+          "interface": "SelectionController"
+        },
+        {
+          "file": "src/shared/core/system-interfaces.ts",
+          "interface": "BuildController"
+        },
+        {
+          "file": "src/shared/core/system-interfaces.ts",
+          "interface": "CannonController"
+        },
+        {
+          "file": "src/shared/core/system-interfaces.ts",
+          "interface": "BattleController"
+        },
+        {
+          "file": "src/shared/core/system-interfaces.ts",
+          "interface": "UpgradePickController"
+        },
+        {
+          "file": "src/shared/core/system-interfaces.ts",
+          "interface": "LifeLostController"
+        },
+        {
+          "file": "src/shared/core/system-interfaces.ts",
+          "interface": "InputReceiver"
+        },
+        {
+          "file": "src/shared/core/system-interfaces.ts",
+          "interface": "HapticsObserver"
+        }
       ]
     }
   ]

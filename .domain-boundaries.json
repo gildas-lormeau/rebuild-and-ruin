@@ -18,8 +18,7 @@
     ],
     "input": [
       "shared",
-      "game",
-      "runtime"
+      "game"
     ],
     "render": [
       "shared",
@@ -53,9 +52,6 @@
     ]
   },
   "typeOnlyFrom": {
-    "input": [
-      "runtime"
-    ],
     "render": [
       "runtime"
     ],

@@ -6,6 +6,7 @@ import {
   CURSOR_POINTER,
   IS_TOUCH_DEVICE,
 } from "../../shared/platform/platform.ts";
+import type { SeedField } from "../../shared/ui/input-deps.ts";
 import type { RenderOverlay } from "../../shared/ui/overlay-types.ts";
 import {
   ACTION_KEYS,
@@ -28,7 +29,6 @@ import type {
   CreateControlsOverlayFn,
   CreateOptionsOverlayFn,
   OptionsScreenHitTestFn,
-  SeedField,
   UIContext,
   VisibleOptionsFn,
 } from "../ui-contracts.ts";

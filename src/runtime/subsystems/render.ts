@@ -22,6 +22,13 @@ import type {
   PlayerController,
 } from "../../shared/core/system-interfaces.ts";
 import type {
+  Dpad,
+  FloatingActionsHandle,
+  QuitButton,
+  TouchControlsDeps,
+  ZoomButton,
+} from "../../shared/ui/input-deps.ts";
+import type {
   LoupeHandle,
   RenderOverlay,
 } from "../../shared/ui/overlay-types.ts";
@@ -37,11 +44,6 @@ import type { TimingApi } from "../timing-api.ts";
 import type {
   CreateBannerUiFn,
   CreateOnlineOverlayFn,
-  Dpad,
-  FloatingActionsHandle,
-  QuitButton,
-  TouchControlsDeps,
-  ZoomButton,
 } from "../ui-contracts.ts";
 
 interface RenderSystemDeps {

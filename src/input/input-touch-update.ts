@@ -1,10 +1,3 @@
-/**
- * Touch UI update logic — loupe, d-pad, zoom/quit buttons, floating actions.
- *
- * Extracted from runtime/composition.ts render() to keep it high-level.
- */
-
-import type { TouchControlsDeps } from "../runtime/ui-contracts.ts";
 import {
   isPlacementPhase,
   isTimedPhase,
@@ -12,6 +5,7 @@ import {
 } from "../shared/core/game-phase.ts";
 import { TILE_SIZE } from "../shared/core/grid.ts";
 import type { PlayerController } from "../shared/core/system-interfaces.ts";
+import type { TouchControlsDeps } from "../shared/ui/input-deps.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
 
 type TouchBtnRule = boolean | "interactive";

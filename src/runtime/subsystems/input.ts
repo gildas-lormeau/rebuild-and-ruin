@@ -13,7 +13,11 @@ import {
 import type { ZoneId } from "../../shared/core/zone-id.ts";
 import { IS_TOUCH_DEVICE } from "../../shared/platform/platform.ts";
 import { Action } from "../../shared/ui/input-action.ts";
-import type { WithPointerPlayer } from "../../shared/ui/input-deps.ts";
+import type {
+  FloatingActionsHandle,
+  RegisterOnlineInputDeps,
+  WithPointerPlayer,
+} from "../../shared/ui/input-deps.ts";
 import {
   FOCUS_MENU,
   FOCUS_REMATCH,
@@ -34,10 +38,8 @@ import type {
   CreateQuitButtonFn,
   CreateZoneCycleButtonFn,
   DispatchPointerMoveFn,
-  FloatingActionsHandle,
   RegisterKeyboardHandlersFn,
   RegisterMouseHandlersFn,
-  RegisterOnlineInputDeps,
   RegisterTouchHandlersFn,
 } from "../ui-contracts.ts";
 import type { RuntimeCamera } from "./camera.ts";

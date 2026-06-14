@@ -553,7 +553,9 @@
     "domain": "input",
     "role": "pointer-event dispatch",
     "files": [
-      "src/input/input-dispatch.ts"
+      "src/input/input-dispatch.ts",
+      "src/input/input-seed-field.ts",
+      "src/input/input-touch-update.ts"
     ]
   },
   {
@@ -701,10 +703,8 @@
     "files": [
       "src/input/input-keyboard.ts",
       "src/input/input-mouse.ts",
-      "src/input/input-seed-field.ts",
       "src/input/input-touch-canvas.ts",
-      "src/input/input-touch-ui.ts",
-      "src/input/input-touch-update.ts"
+      "src/input/input-touch-ui.ts"
     ]
   },
   {

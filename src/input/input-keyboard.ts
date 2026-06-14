@@ -1,4 +1,3 @@
-import type { RegisterOnlineInputDeps } from "../runtime/ui-contracts.ts";
 import { wrapIndex } from "../shared/core/cyclic.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import { type GameState } from "../shared/core/types.ts";
@@ -10,6 +9,7 @@ import {
   KEY_RIGHT,
   KEY_UP,
 } from "../shared/platform/platform.ts";
+import type { RegisterOnlineInputDeps } from "../shared/ui/input-deps.ts";
 import { FOCUS_MENU, FOCUS_REMATCH } from "../shared/ui/interaction-types.ts";
 import {
   ACTION_KEYS,
