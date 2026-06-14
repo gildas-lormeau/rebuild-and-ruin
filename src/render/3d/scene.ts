@@ -319,15 +319,19 @@ export function createRender3dScene(
   });
   renderer.setClearColor(0x000000, 0);
   renderer.autoClear = false;
-  // Enable shadow casting from the directional sun. PCFSoftShadowMap
-  // gives a small percentage-closer filter pass for soft edges — the
-  // alternative `BasicShadowMap` produces very stair-stepped shadow
-  // boundaries that fight the pixel-art tile grid even harder than the
-  // softened version. Cost on the integrated GPUs the game targets is
-  // dominated by the shadow-map render pass itself, not the filter
-  // kernel.
+  // Enable shadow casting from the directional sun. PCFShadowMap samples
+  // the comparison depth texture with LINEAR filtering, so the GPU does a
+  // hardware 2×2 percentage-closer pass for slightly soft edges — the
+  // alternative `BasicShadowMap` uses NEAREST and produces very
+  // stair-stepped boundaries that fight the pixel-art tile grid even harder.
+  // Cost on the integrated GPUs the game targets is dominated by the
+  // shadow-map render pass itself, not the filter kernel.
+  // (`PCFSoftShadowMap` was deprecated in three r184 — it now just warns and
+  // force-downgrades to `PCFShadowMap`, so we ask for it directly. Firefox
+  // logs a benign "depth texture comparison requests LINEAR filtering"
+  // warning for the hardware-PCF path; that's expected, not a bug.)
   renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.shadowMap.type = THREE.PCFShadowMap;
 
   // FBO that mirrors the on-screen render each frame. Capture reads
   // back from here via `renderer.readRenderTargetPixels` — works

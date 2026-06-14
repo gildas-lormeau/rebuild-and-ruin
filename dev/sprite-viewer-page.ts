@@ -101,7 +101,9 @@ async function main(): Promise<void> {
   });
   renderer.setClearColor(0x202428, 1);
   renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  // PCFSoftShadowMap was deprecated in three r184 (it now warns + downgrades
+  // to PCFShadowMap); ask for PCFShadowMap directly.
+  renderer.shadowMap.type = THREE.PCFShadowMap;
 
   const scene = new THREE.Scene();
   const lights = createWorldLights();
