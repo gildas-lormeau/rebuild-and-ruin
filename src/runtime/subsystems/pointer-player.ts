@@ -19,6 +19,9 @@ import { isSessionLive, type RuntimeState } from "../state.ts";
 interface PointerPlayerLookup {
   /** Return the human controller that owns mouse/touch input, or null in demo mode. */
   pointerPlayer: () => (PlayerController & InputReceiver) | null;
+  /** Plain `{x, y}` crosshair of the pointer player, or null if none.
+   *  The single read of `getCrosshair()` → bare-coords shape. */
+  pointerCrosshair: () => { x: number; y: number } | null;
   /** Cache-independent boolean: true iff at least one alive human controller
    *  exists right now. The cheaper shape for per-tick gates (camera
    *  auto-zoom) that only need existence, not the resolved controller. */
@@ -69,6 +72,13 @@ export function createPointerPlayerLookup(
     return (cached = null);
   }
 
+  function pointerCrosshair(): { x: number; y: number } | null {
+    const active = pointerPlayer();
+    if (!active) return null;
+    const ch = active.getCrosshair();
+    return { x: ch.x, y: ch.y };
+  }
+
   function hasPointerPlayer(): boolean {
     if (!isSessionLive(runtimeState)) return false;
     return runtimeState.controllers.some(isEligibleHuman);
@@ -87,5 +97,11 @@ export function createPointerPlayerLookup(
     cached = undefined;
   }
 
-  return { pointerPlayer, hasPointerPlayer, withPointerPlayer, clearCache };
+  return {
+    pointerPlayer,
+    pointerCrosshair,
+    hasPointerPlayer,
+    withPointerPlayer,
+    clearCache,
+  };
 }

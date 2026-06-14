@@ -31,6 +31,7 @@ import {
   type PlaceCannonIntent,
   type PlacePieceIntent,
 } from "../shared/core/system-interfaces.ts";
+import { cannonSlotsFor } from "../shared/core/types.ts";
 import { Action } from "../shared/ui/input-action.ts";
 import type { KeyBindings } from "../shared/ui/player-config.ts";
 import { BaseController } from "./controller-base.ts";
@@ -91,7 +92,7 @@ export class HumanController extends BaseController implements InputReceiver {
     _dt: number,
   ): CannonPlacementPreview | undefined {
     const player = state.players[this.playerId]!;
-    const maxSlots = state.cannonLimits[this.playerId] ?? 0;
+    const maxSlots = cannonSlotsFor(state, this.playerId);
     // Once the player has no cannon left to place (all slots used OR no legal
     // tile remains), show no phantom — the phase is just waiting on the other
     // players to finish. Mirrors the AI's `tickCannon` returning a null

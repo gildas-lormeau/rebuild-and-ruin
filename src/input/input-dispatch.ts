@@ -21,7 +21,7 @@ import {
   type InputReceiver,
   type PlayerController,
 } from "../shared/core/system-interfaces.ts";
-import type { GameState } from "../shared/core/types.ts";
+import { cannonSlotsFor, type GameState } from "../shared/core/types.ts";
 import type { ZoneId } from "../shared/core/zone-id.ts";
 import { Action, isMovementAction } from "../shared/ui/input-action.ts";
 import type {
@@ -532,14 +532,14 @@ export function dispatchPlacementConfirm(
     const placed = deps.tryPlacePiece(ctrl, state);
     if (placed) deps.onPiecePlaced?.();
   } else if (state.phase === Phase.CANNON_PLACE) {
-    const max = state.cannonLimits[ctrl.playerId] ?? 0;
+    const max = cannonSlotsFor(state, ctrl.playerId);
     const placed = deps.tryPlaceCannon(ctrl, state, max);
     if (placed) deps.onCannonPlaced?.();
   }
 }
 
 /** Rotate piece or cycle cannon mode for a single controller. */
-function rotatePlacement(
+export function rotatePlacement(
   ctrl: PlayerController & InputReceiver,
   state: GameState,
   onPieceRotated?: () => void,
@@ -548,7 +548,7 @@ function rotatePlacement(
     ctrl.rotatePiece(state);
     onPieceRotated?.();
   } else if (state.phase === Phase.CANNON_PLACE) {
-    const max = state.cannonLimits[ctrl.playerId] ?? 0;
+    const max = cannonSlotsFor(state, ctrl.playerId);
     ctrl.cycleCannonMode(state, max);
   }
 }

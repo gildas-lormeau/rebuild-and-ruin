@@ -46,7 +46,7 @@ import {
   type CannonController,
   type PlayerController,
 } from "../../shared/core/system-interfaces.ts";
-import type { GameState } from "../../shared/core/types.ts";
+import { cannonSlotsFor, type GameState } from "../../shared/core/types.ts";
 import { WALL_DESTROY_ANIM_DURATION } from "../../shared/core/wall-destroy-anim.ts";
 import type { UpgradePickDialogState } from "../../shared/ui/interaction-types.ts";
 import { Mode } from "../../shared/ui/ui-mode.ts";
@@ -530,7 +530,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       // the done flag and exit the phase in lockstep. AI controllers are
       // deterministic across peers; their done-ness is already mirrored
       // implicitly so no broadcast needed.
-      const max = state.cannonLimits[ctrl.playerId] ?? 0;
+      const max = cannonSlotsFor(state, ctrl.playerId);
       if (
         !state.cannonPlaceDone.has(ctrl.playerId) &&
         !state.pendingCannonPlaceDone.has(ctrl.playerId) &&
@@ -764,7 +764,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     // --- Engine tick (advance upgrade-effect timers; timerMax = base +
     // upgrade bonus + drained supply-ship seconds — see wallBuildTimerMax) ---
     tickBuildUpgrades(state, dt);
-    advancePhaseTimer(accum, "build", state, dt, wallBuildTimerMax(state));
+    advancePhaseTimer(accum, ACCUM_BUILD, state, dt, wallBuildTimerMax(state));
 
     // --- PASS 1: Tick local controllers, broadcast own-human's piece phantom ---
     // AI piece placements are deterministic from strategy.rng + state — every
@@ -908,7 +908,7 @@ function finalizeLocalCannonController(
   ctrl: CannonController & { readonly playerId: ValidPlayerId },
   state: GameState,
 ): void {
-  const maxSlots = state.cannonLimits[ctrl.playerId] ?? 0;
+  const maxSlots = cannonSlotsFor(state, ctrl.playerId);
   ctrl.finalizeCannonPhase(state, maxSlots);
 }
 
@@ -922,7 +922,7 @@ function finalizeRemoteCannonController(
   ctrl: CannonController & { readonly playerId: ValidPlayerId },
   state: GameState,
 ): void {
-  const maxSlots = state.cannonLimits[ctrl.playerId] ?? 0;
+  const maxSlots = cannonSlotsFor(state, ctrl.playerId);
   ctrl.initCannons(state, maxSlots);
 }
 

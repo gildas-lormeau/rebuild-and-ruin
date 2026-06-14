@@ -49,7 +49,7 @@ import type {
   GameViewState,
   PlayerController,
 } from "../shared/core/system-interfaces.ts";
-import { type GameState } from "../shared/core/types.ts";
+import { cannonSlotsFor, type GameState } from "../shared/core/types.ts";
 import { consumeSupplyBonuses } from "./modifiers/supply-ship.ts";
 import { cannonSlotsBonus, onCannonPlaced } from "./upgrade-system.ts";
 import { rapidEmplacementDiscount } from "./upgrades/rapid-emplacement.ts";
@@ -193,7 +193,7 @@ export function applyCannonAtDrain(
   if (state.phase !== Phase.CANNON_PLACE) return false;
   const player = state.players[playerId];
   if (!player) return false;
-  const maxCannons = state.cannonLimits[playerId] ?? 0;
+  const maxCannons = cannonSlotsFor(state, playerId);
   if (!isCannonPlacementLegal(player, row, col, mode, maxCannons, state))
     return false;
   applyCannonPlacement(player, row, col, mode, state);
@@ -335,7 +335,7 @@ export function prepareControllerCannonPhase(
   }
   const player = state.players[playerId];
   if (!player || isPlayerEliminated(player)) return null;
-  const maxSlots = state.cannonLimits[player.id] ?? 0;
+  const maxSlots = cannonSlotsFor(state, player.id);
   let cursorPos = {
     row: player.homeTower?.row ?? 0,
     col: player.homeTower?.col ?? 0,

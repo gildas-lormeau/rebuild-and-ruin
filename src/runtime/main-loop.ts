@@ -11,7 +11,7 @@ import {
   type PlayerId,
   type ValidPlayerId,
 } from "../shared/core/player-slot.ts";
-import type { FrameContext } from "../shared/core/types.ts";
+import { cannonSlotsFor, type FrameContext } from "../shared/core/types.ts";
 import {
   LifeLostChoice,
   type QuitState,
@@ -24,6 +24,7 @@ import {
 import {
   bankLockstepDebt,
   consumeLockstepDebtTicks,
+  freshFrame,
   isPaused,
   isSessionLive,
   lockstepDebtTicks,
@@ -117,13 +118,8 @@ export function createRuntimeLoop(deps: RuntimeLoopDeps): {
   mainLoop: (now: number) => void;
 } {
   function clearFrameData(): void {
-    // Preserve sticky fields (gameOver) that outlive a single tick.
-    // If you add a sticky field to FrameData, preserve it here.
-    const prev = deps.runtimeState.frame;
-    deps.runtimeState.frame = {
-      crosshairs: [],
-      ...(prev?.gameOver !== undefined ? { gameOver: prev.gameOver } : {}),
-    };
+    // freshFrame preserves sticky fields (gameOver) that outlive a tick.
+    deps.runtimeState.frame = freshFrame(deps.runtimeState.frame);
     deps.clearHumanCache();
   }
 
@@ -492,7 +488,7 @@ function computeHumanCannonsComplete(
   const state = runtimeState.state;
   if (state.phase !== Phase.CANNON_PLACE) return false;
   const player = state.players[humanId];
-  const maxSlots = state.cannonLimits[humanId] ?? 0;
+  const maxSlots = cannonSlotsFor(state, humanId);
   if (!player || maxSlots <= 0) return false;
   return isCannonPlacementComplete(player, maxSlots, state);
 }

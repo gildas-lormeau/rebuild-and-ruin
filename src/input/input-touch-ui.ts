@@ -31,6 +31,7 @@ import {
   dispatchOverlayAction,
   dispatchPlacementConfirm,
   dispatchQuit,
+  rotatePlacement,
 } from "./input-dispatch.ts";
 
 const CLS_DISABLED = "disabled";
@@ -252,15 +253,9 @@ export function createFloatingActions(
     deps.emitUiTap?.();
     const state = deps.getState();
     if (!state || !isInteractiveMode(deps.getMode())) return;
-    deps.withPointerPlayer((human) => {
-      if (state.phase === Phase.WALL_BUILD) {
-        human.rotatePiece(state);
-        deps.onPieceRotated?.();
-      } else if (state.phase === Phase.CANNON_PLACE) {
-        const max = state.cannonLimits[human.playerId] ?? 0;
-        human.cycleCannonMode(state, max);
-      }
-    });
+    deps.withPointerPlayer((human) =>
+      rotatePlacement(human, state, deps.onPieceRotated),
+    );
   }
 
   function handleConfirm() {

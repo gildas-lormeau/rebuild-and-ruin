@@ -155,9 +155,8 @@ export function createLobbySystem(deps: LobbySystemDeps): LobbySystem {
   // Coordinate space: canvasX/canvasY are CSS pixels passed directly to lobbyClickHitTest.
   // Lobby hit-tests handle TILE_SIZE scaling internally — do NOT divide by SCALE here.
 
-  function lobbyClick(canvasX: number, canvasY: number): boolean {
-    if (!runtimeState.lobby.active) return false;
-    const hit: LobbyHit | null = deps.lobbyClickHitTest({
+  function lobbyHitAt(canvasX: number, canvasY: number): LobbyHit | null {
+    return deps.lobbyClickHitTest({
       canvasX,
       canvasY,
       canvasW: CANVAS_W,
@@ -166,6 +165,11 @@ export function createLobbySystem(deps: LobbySystemDeps): LobbySystem {
       slotCount: MAX_PLAYERS,
       computeLayout: deps.computeLobbyLayout,
     });
+  }
+
+  function lobbyClick(canvasX: number, canvasY: number): boolean {
+    if (!runtimeState.lobby.active) return false;
+    const hit = lobbyHitAt(canvasX, canvasY);
     if (!hit) return false;
     if (hit.type === "gear") {
       void deps.showOptions();
@@ -187,15 +191,7 @@ export function createLobbySystem(deps: LobbySystemDeps): LobbySystem {
 
   function cursorAt(canvasX: number, canvasY: number): string {
     if (!runtimeState.lobby.active) return CURSOR_DEFAULT;
-    const hit = deps.lobbyClickHitTest({
-      canvasX,
-      canvasY,
-      canvasW: CANVAS_W,
-      canvasH: CANVAS_H,
-      tileSize: TILE_SIZE,
-      slotCount: MAX_PLAYERS,
-      computeLayout: deps.computeLobbyLayout,
-    });
+    const hit = lobbyHitAt(canvasX, canvasY);
     return hit ? CURSOR_POINTER : CURSOR_DEFAULT;
   }
 

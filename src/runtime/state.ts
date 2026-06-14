@@ -333,7 +333,7 @@ export function createRuntimeState(): RuntimeState {
     // Placeholder until the first mainLoop tick populates frame context.
     // Guarded by `stateInstalled` (same lifecycle as `state`).
     frameMeta: null as unknown as FrameContext,
-    frame: { crosshairs: [] },
+    frame: freshFrame(),
     lobby: {
       joined: new Array(MAX_PLAYERS).fill(false),
       active: false,
@@ -367,6 +367,17 @@ export function createRuntimeState(): RuntimeState {
     bootGeneration: 0,
     speedMultiplier: 1,
     fixedStepMs: undefined,
+  };
+}
+
+/** A fresh per-frame `FrameData`. Single source of truth for "an empty
+ *  frame": preserves sticky fields (`gameOver`) that outlive a single
+ *  tick when `prev` is supplied. Add new sticky fields here, not at the
+ *  call sites (`createRuntimeState`, the loop's `clearFrameData`). */
+export function freshFrame(prev?: FrameData): FrameData {
+  return {
+    crosshairs: [],
+    ...(prev?.gameOver !== undefined ? { gameOver: prev.gameOver } : {}),
   };
 }
 

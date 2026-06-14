@@ -78,7 +78,7 @@ export function tickPitchAnim(anim: PitchAnim, dt: number): boolean {
   anim.animElapsed = Math.min(PITCH_DURATION, anim.animElapsed + dt);
   const t = anim.animElapsed / PITCH_DURATION;
   const eased = easeOutCubic(t);
-  anim.current = anim.animFrom + (anim.target - anim.animFrom) * eased;
+  anim.current = lerp(anim.animFrom, anim.target, eased);
   if (anim.animElapsed >= PITCH_DURATION) {
     anim.current = anim.target;
     anim.state = anim.target > 0 ? "tilted" : "flat";
@@ -120,4 +120,12 @@ export function snapPitchAnim(anim: PitchAnim, target: number): void {
  *  Also consumed by the camera's tap-nudge tween. */
 export function easeOutCubic(t: number): number {
   return 1 - (1 - t) * (1 - t) * (1 - t);
+}
+
+/** Linear interpolation. Evaluated as `start + (end - start) * t` (NOT the
+ *  `start*(1-t) + end*t` form) to stay bit-identical with the historical
+ *  inline tweens — the pitch ease that consumes it feeds the same
+ *  battle-done dispatch gate as `easeOutCubic`. */
+export function lerp(start: number, end: number, t: number): number {
+  return start + (end - start) * t;
 }

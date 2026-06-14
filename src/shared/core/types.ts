@@ -614,6 +614,19 @@ export function hasFeature(state: GameState, feature: FeatureId): boolean {
   return state.activeFeatures.has(feature);
 }
 
+/** Max cannon slots a player may place this CANNON_PLACE phase, defaulting
+ *  to 0 for an absent/sparse slot. The single source of truth for the
+ *  empty-slot semantics — only meaningful while
+ *  `state.phase === Phase.CANNON_PLACE` (see the `cannonLimits` field).
+ *  Takes the structural slice so both `GameState` and the decoupled
+ *  `CannonViewState` controllers can call it. */
+export function cannonSlotsFor(
+  state: { readonly cannonLimits: readonly number[] },
+  playerId: number,
+): number {
+  return state.cannonLimits[playerId] ?? 0;
+}
+
 /** Create a fresh ModernState with all fields at their initial null values. */
 function createModernState(): ModernState {
   return {

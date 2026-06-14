@@ -383,6 +383,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
 
   const {
     pointerPlayer,
+    pointerCrosshair,
     hasPointerPlayer,
     withPointerPlayer,
     clearCache: clearHumanCache,
@@ -398,12 +399,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     hasPointerPlayer,
     getFrameDt: () => runtimeState.frameDt,
     getLastBattleCrosshair: () => runtimeState.lastBattleCrosshair,
-    getPointerPlayerCrosshair: () => {
-      const h = pointerPlayer();
-      if (!h) return null;
-      const ch = h.getCrosshair();
-      return { x: ch.x, y: ch.y };
-    },
+    getPointerPlayerCrosshair: () => pointerCrosshair(),
     getPointerPlayerPhantoms: () => {
       const ctrl = pointerPlayer();
       if (!ctrl) return null;
@@ -677,8 +673,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     );
     if (!target) return;
     runtimeState.lastBattleCrosshair = { x: target.x, y: target.y };
-    const h = pointerPlayer();
-    if (h) h.setCrosshair(target.x, target.y);
+    withPointerPlayer((h) => h.setCrosshair(target.x, target.y));
   }
 
   // -------------------------------------------------------------------------
@@ -721,10 +716,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     scoreDelta,
     saveBattleCrosshair: IS_TOUCH_DEVICE
       ? () => {
-          const h = pointerPlayer();
-          if (!h) return;
-          const ch = h.getCrosshair();
-          runtimeState.lastBattleCrosshair = { x: ch.x, y: ch.y };
+          const ch = pointerCrosshair();
+          if (ch) runtimeState.lastBattleCrosshair = ch;
         }
       : undefined,
     onBeginBattle: IS_TOUCH_DEVICE ? applyBattleTarget : undefined,

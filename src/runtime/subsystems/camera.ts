@@ -63,6 +63,7 @@ import {
   createPitchAnim,
   easeOutCubic,
   isPitchSettled,
+  lerp,
   type PitchState,
   resetPitchAnim,
   setPitchTarget as setPitchAnimTarget,
@@ -795,8 +796,8 @@ export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
     );
     const t = tapNudge.elapsed / TAP_NUDGE_DURATION;
     const eased = easeOutCubic(t);
-    const nx = tapNudge.fromX + (tapNudge.toX - tapNudge.fromX) * eased;
-    const ny = tapNudge.fromY + (tapNudge.toY - tapNudge.fromY) * eased;
+    const nx = lerp(tapNudge.fromX, tapNudge.toX, eased);
+    const ny = lerp(tapNudge.fromY, tapNudge.toY, eased);
     pinch.x = nx;
     pinch.y = ny;
     if (tapNudge.elapsed >= TAP_NUDGE_DURATION) {
@@ -993,10 +994,10 @@ export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
     const resolved = resolveViewport(frameCtx.mode);
 
     const time = Math.min(1, ZOOM_LERP_SPEED * deps.getFrameDt());
-    currentVp.x += (resolved.x - currentVp.x) * time;
-    currentVp.y += (resolved.y - currentVp.y) * time;
-    currentVp.w += (resolved.w - currentVp.w) * time;
-    currentVp.h += (resolved.h - currentVp.h) * time;
+    currentVp.x = lerp(currentVp.x, resolved.x, time);
+    currentVp.y = lerp(currentVp.y, resolved.y, time);
+    currentVp.w = lerp(currentVp.w, resolved.w, time);
+    currentVp.h = lerp(currentVp.h, resolved.h, time);
 
     const dx =
       Math.abs(currentVp.x - resolved.x) +
