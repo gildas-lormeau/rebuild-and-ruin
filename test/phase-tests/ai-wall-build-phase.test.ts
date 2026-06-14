@@ -229,6 +229,20 @@ Deno.test(
     // share a real wall instead of producing parallel walls. This requires
     // peer-aware rect-side shifting, not full merging — and the change must
     // gate on wall-budget feasibility so we don't regress survival.
+    //
+    // STALE ASSERTIONS (re-investigated 2026-06-14, current min-cut planner):
+    // the stranded divider still appears — walls at (22,20),(25,20),(26,20) —
+    // but a divider fix ALONE can no longer green this test. GOLD encloses all
+    // three towers and then keeps building (T9 ring + idle-window expansion),
+    // so the round-end snapshot has wallsBefore=24, wallsAfter=84 → wallsPlaced
+    // = 60, far past the `<= 18` cap below. That cap (and the pre-fix "21
+    // placements" baseline) encode the OLD heuristic AI that stopped after the
+    // cluster; they don't model the current planner. Left as documented KNOWN
+    // FAILING by choice: GOLD enclosed all 3 and won the round, so this is wall
+    // inefficiency, not a survival bug, and this class of geometry change
+    // regressed survival twice before. Any real attempt must FIRST rewrite the
+    // assertions (measure stranded interior walls properly; drop the 18-wall
+    // cap) so the test fails on the divider itself, not on stale budget math.
     const sc = await createPhaseScenario(
       roundOneGoldCluster574812 as unknown as FixtureFile,
     );
