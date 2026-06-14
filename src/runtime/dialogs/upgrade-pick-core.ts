@@ -7,6 +7,7 @@
  * choices. Consumed by subsystems/upgrade-pick.ts.
  */
 
+import { wrapIndex } from "../../shared/core/cyclic.ts";
 import type { ValidPlayerId } from "../../shared/core/player-slot.ts";
 import type { GameState } from "../../shared/core/types.ts";
 import type { UpgradeId } from "../../shared/core/upgrade-defs.ts";
@@ -100,8 +101,7 @@ export function moveUpgradePickFocus(
   entry: UpgradePickEntry,
   dir: number,
 ): void {
-  entry.focusedCard =
-    (entry.focusedCard + dir + entry.offers.length) % entry.offers.length;
+  entry.focusedCard = wrapIndex(entry.focusedCard, dir, entry.offers.length);
 }
 
 /** Apply a lockstep-scheduled upgrade pick to whichever peer's dialog

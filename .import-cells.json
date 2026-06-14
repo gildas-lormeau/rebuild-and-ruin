@@ -102,6 +102,7 @@
     "role": "shared constants, RNG & platform leaves",
     "files": [
       "src/shared/core/ai-personality.ts",
+      "src/shared/core/cyclic.ts",
       "src/shared/core/game-constants.ts",
       "src/shared/core/game-phase.ts",
       "src/shared/core/grid.ts",

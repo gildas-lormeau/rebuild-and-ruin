@@ -3,6 +3,7 @@
  * Settings persistence (load/save) lives in player-config.ts alongside GameSettings.
  */
 
+import { wrapIndex } from "../core/cyclic.ts";
 import { GAME_MODE_CLASSIC, GAME_MODE_MODERN } from "../core/game-constants.ts";
 import { KEY_DOWN, KEY_LEFT, KEY_RIGHT, KEY_UP } from "../platform/platform.ts";
 import type { OptionsContext } from "./interaction-types.ts";
@@ -52,13 +53,14 @@ export function cycleOption(
   const inGame = optionsContext.kind === "gameplay";
   if (optionsCursor === OPT_DIFFICULTY) {
     if (inGame) return; // locked in-game
-    settings.difficulty =
-      (settings.difficulty + dir + DIFFICULTY_LABELS.length) %
-      DIFFICULTY_LABELS.length;
+    settings.difficulty = wrapIndex(
+      settings.difficulty,
+      dir,
+      DIFFICULTY_LABELS.length,
+    );
   } else if (optionsCursor === OPT_ROUNDS) {
     if (isOnline) return; // set by room host
-    let next =
-      (settings.rounds + dir + ROUNDS_OPTIONS.length) % ROUNDS_OPTIONS.length;
+    let next = wrapIndex(settings.rounds, dir, ROUNDS_OPTIONS.length);
     // In-game: only allow values >= current round (so players can shorten, not extend past current)
     if (inGame && state) {
       const minRound = state.round;
@@ -66,7 +68,7 @@ export function cycleOption(
       for (let attempts = 0; attempts < ROUNDS_OPTIONS.length; attempts++) {
         const val = ROUNDS_OPTIONS[next]!.value;
         if (val === 0 || val >= minRound) break; // 0 = "To The Death" is always valid
-        next = (next + dir + ROUNDS_OPTIONS.length) % ROUNDS_OPTIONS.length;
+        next = wrapIndex(next, dir, ROUNDS_OPTIONS.length);
       }
     }
     settings.rounds = next;
@@ -77,12 +79,13 @@ export function cycleOption(
     }
   } else if (optionsCursor === OPT_CANNON_HP) {
     if (inGame || isOnline) return; // locked in-game and online
-    settings.cannonHp =
-      (settings.cannonHp + dir + CANNON_HP_OPTIONS.length) %
-      CANNON_HP_OPTIONS.length;
+    settings.cannonHp = wrapIndex(
+      settings.cannonHp,
+      dir,
+      CANNON_HP_OPTIONS.length,
+    );
   } else if (optionsCursor === OPT_HAPTICS) {
-    settings.haptics =
-      (settings.haptics + dir + HAPTICS_LABELS.length) % HAPTICS_LABELS.length;
+    settings.haptics = wrapIndex(settings.haptics, dir, HAPTICS_LABELS.length);
   } else if (optionsCursor === OPT_DPAD) {
     settings.leftHanded = !settings.leftHanded;
   } else if (optionsCursor === OPT_GAME_MODE) {

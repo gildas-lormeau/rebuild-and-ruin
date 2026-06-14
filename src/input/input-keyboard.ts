@@ -1,4 +1,5 @@
 import type { RegisterOnlineInputDeps } from "../runtime/ui-contracts.ts";
+import { wrapIndex } from "../shared/core/cyclic.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import { type GameState } from "../shared/core/types.ts";
 import {
@@ -193,22 +194,32 @@ function handleKeyControls(
     }
   } else {
     if (e.key === KEY_UP) {
-      controlsState.actionIdx =
-        (controlsState.actionIdx - 1 + ACTION_KEYS.length) % ACTION_KEYS.length;
+      controlsState.actionIdx = wrapIndex(
+        controlsState.actionIdx,
+        -1,
+        ACTION_KEYS.length,
+      );
       e.preventDefault();
     } else if (e.key === KEY_DOWN) {
-      controlsState.actionIdx =
-        (controlsState.actionIdx + 1) % ACTION_KEYS.length;
+      controlsState.actionIdx = wrapIndex(
+        controlsState.actionIdx,
+        1,
+        ACTION_KEYS.length,
+      );
       e.preventDefault();
     } else if (e.key === KEY_LEFT) {
-      controlsState.playerIdx = ((controlsState.playerIdx -
-        1 +
-        CONTROLS_COLUMN_COUNT) %
-        CONTROLS_COLUMN_COUNT) as ValidPlayerId;
+      controlsState.playerIdx = wrapIndex(
+        controlsState.playerIdx,
+        -1,
+        CONTROLS_COLUMN_COUNT,
+      ) as ValidPlayerId;
       e.preventDefault();
     } else if (e.key === KEY_RIGHT) {
-      controlsState.playerIdx = ((controlsState.playerIdx + 1) %
-        CONTROLS_COLUMN_COUNT) as ValidPlayerId;
+      controlsState.playerIdx = wrapIndex(
+        controlsState.playerIdx,
+        1,
+        CONTROLS_COLUMN_COUNT,
+      ) as ValidPlayerId;
       e.preventDefault();
     } else if (e.key === KEY_ENTER || e.key === " ") {
       controlsState.rebinding = true;

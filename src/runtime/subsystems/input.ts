@@ -1,4 +1,5 @@
 import { isHuman } from "../../shared/core/controller-guards.ts";
+import { wrapIndex } from "../../shared/core/cyclic.ts";
 import type { TowerIdx } from "../../shared/core/geometry-types.ts";
 import { GRID_PORTRAIT_LAUNCHED } from "../../shared/core/grid.ts";
 import type { ValidPlayerId } from "../../shared/core/player-slot.ts";
@@ -357,9 +358,11 @@ function buildOptionsDeps(
     close: options.closeOptions,
     closeControls: options.closeControls,
     moveCursor: (dir: -1 | 1) => {
-      const count = visibleOptionCount();
-      runtimeState.optionsUI.cursor =
-        (runtimeState.optionsUI.cursor + dir + count) % count;
+      runtimeState.optionsUI.cursor = wrapIndex(
+        runtimeState.optionsUI.cursor,
+        dir,
+        visibleOptionCount(),
+      );
     },
     getRealIdx: options.visibleToActualOptionIdx,
     confirmOption: () => confirmCurrentOption(options),
