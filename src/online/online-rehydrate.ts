@@ -220,7 +220,7 @@ export function applyFullStateToRunningRuntime(
   // Wiped here, re-derived from adopted state below (CASTLE_SELECT only)
   // — see selection.requeueCastleBuildsFromState. Outside CASTLE_SELECT
   // no build animation can be live, so the wipe alone is correct.
-  runtime.runtimeState.selection.castleBuilds = [];
+  runtime.selection.clearCastleBuilds();
   runtime.lifeLost.set(null);
   // A score overlay mid-display when the snapshot lands is superseded the
   // same way: promotion fast-forwards the round-end chain into the

@@ -90,6 +90,12 @@ export interface RuntimeSelection {
    *  included, replacing its live animations — so the restarted builds
    *  place walls at the same sim ticks everywhere. */
   requeueCastleBuildsFromState: () => void;
+  /** Wipe the castle-build animation queue without rebuilding. The
+   *  FULL_STATE adoption path calls this before re-deriving the queue
+   *  (CASTLE_SELECT) or to leave it empty (every other phase, where no
+   *  build animation can be live) — keeping the queue's only writer inside
+   *  this subsystem. */
+  clearCastleBuilds: () => void;
 }
 
 interface SelectionSystemDeps {
@@ -643,6 +649,11 @@ export function createSelectionSystem(
     return anyPlaced;
   }
 
+  /** See `RuntimeSelection.clearCastleBuilds`. Sole writer of the queue. */
+  function clearCastleBuilds(): void {
+    runtimeState.selection.castleBuilds = [];
+  }
+
   /** See `RuntimeSelection.requeueCastleBuildsFromState`. Derivation is
    *  pure state (no rng): a player is mid-build when their committed plan
    *  (`castleWallTiles`, insertion-ordered = animation order) has tiles
@@ -651,7 +662,7 @@ export function createSelectionSystem(
    *  damage — at CASTLE_SELECT every alive non-cycle player is enclosed
    *  (losing all enclosure costs a life, which resets the plan set). */
   function requeueCastleBuildsFromState(): void {
-    runtimeState.selection.castleBuilds = [];
+    clearCastleBuilds();
     const { state } = runtimeState;
     if (state.phase !== Phase.CASTLE_SELECT) return;
     for (const player of state.players) {
@@ -672,7 +683,7 @@ export function createSelectionSystem(
    *  castle-build state. Distinct from resetSelectionState() which only
    *  clears per-round selection tracking for the next selection phase. */
   function reset(): void {
-    runtimeState.selection.castleBuilds = [];
+    clearCastleBuilds();
     runtimeState.selection.states.clear();
     inFlightConfirms.clear();
   }
@@ -695,5 +706,6 @@ export function createSelectionSystem(
     reconcileAfterAdoption,
     rearmCycleControllersAfterAdoption,
     requeueCastleBuildsFromState,
+    clearCastleBuilds,
   };
 }
