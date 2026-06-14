@@ -140,9 +140,6 @@ const GAME_DEEP_IMPORT_ALLOWLIST: Record<
     "../game/build-system.ts": new Set(["applyPiecePlacement"]),
     "../game/cannon-system.ts": new Set(["applyCannonAtDrain"]),
   },
-  "src/online/online-phase-transitions.ts": {
-    "../game/phase-setup.ts": new Set(["setPhase"]),
-  },
   "src/online/online-serialize.ts": {
     "../game/phase-setup.ts": new Set(["setPhase"]),
   },

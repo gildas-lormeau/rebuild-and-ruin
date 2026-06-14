@@ -10,7 +10,7 @@ from `shared/` and `game/`. A few files reach further, each for a
 narrow, documented reason:
 
 - [composition.ts](./composition.ts) — the composition root — crosses
-  into `input/`, `render/`, `ai/`, and `protocol/` to wire everything
+  into `input/`, `render/`, and `protocol/` to wire everything
   together. Exempt from purity via the roots-tier classification in
   `.import-layers.json`.
 - [bootstrap.ts](./bootstrap.ts) — imports
@@ -174,7 +174,7 @@ factories so the helpers can be tested in isolation. Consumed by
 |---|---|
 | `dialogs/life-lost-core.ts` | life-lost dialog state helpers |
 | `dialogs/upgrade-pick-core.ts` | upgrade-pick dialog state helpers |
-| `dialogs/dialog-tick.ts` | shared auto-resolve + force-resolve loop, plus the lockstep helpers both dialog subsystems delegate to (`scheduleOrApplyDialogChoice`, `isLocallyDrivenEntry`, `findPendingDialogEntry`) |
+| `dialogs/dialog-tick.ts` | shared auto-resolve + force-resolve loop, plus the lockstep helpers both dialog subsystems delegate to (`scheduleOrApplyDialogChoice`, `isLocallyDrivenEntry`, `findPendingDialogEntry`, `adoptDialogEntryToAi`) |
 
 ### Browser bindings (`browser/`)
 Browser-API wrappers used only by entry points (`src/main.ts`,
