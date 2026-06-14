@@ -82,15 +82,16 @@ Modern mode adds two conditional phases: **MODIFIER_REVEAL** between CANNON_PLAC
 
 ### Game modes and feature capabilities
 - Classic: original Rampart rules, empty feature set
-- Modern: all three feature capabilities active (modifiers + upgrades + combos)
+- Modern: all four feature capabilities active (modifiers + upgrades + combos + catapults)
 - `gameMode` setting flows through GameSettings → InitMessage → GameState (immutable per match)
 - `setGameMode()` atomically sets `gameMode`, `activeFeatures`, and `modern` — always use it, never assign fields directly
 - Feature gates use `hasFeature(state, "featureId")` instead of `state.modern !== null`
 - `activeFeatures: ReadonlySet<FeatureId>` on GameState determines which subsystems are active
-- Three feature capabilities (`FeatureId` in `feature-defs.ts`):
+- Four feature capabilities (`FeatureId` in `feature-defs.ts`):
   - **modifiers** — environmental effects (wildfire, grunt surge, frozen river). Roll + apply in phase-setup.ts. State: activeModifier, lastModifierId, frozenTiles.
   - **upgrades** — draft/pick system. Offer generation in prepareNextRound, pick UI in upgrade-pick.ts. State: pendingUpgradeOffers, masterBuilderLockout, masterBuilderOwners.
   - **combos** — scoring streaks during battle. Init/clear in phase-setup.ts, tracker logic in combos.ts (scored from battle-system.ts impact handlers). State: comboTracker.
+  - **catapults** — modern grunt variant (~25% of spawns): slower movement, range-3 tower attack, deterministic wall siege. Gated by `hasFeature(state, "catapults")`.
 - Upgrade offer generation happens in `prepareNextRound()` (battle-done) using synced RNG before the BUILD_START checkpoint; modifier roll happens in `prepareBattleState()` (cannon-place-done) before BATTLE_START.
 - Upgrade effects (all reset in `prepareNextRound` at the next battle-done — i.e. active through one closing WALL_BUILD plus one CANNON_PLACE + BATTLE): Master Builder (+5s exclusive build time — non-owners locked out for 5s; multiple owners race each other), Rapid Fire (2x ball speed), Reinforced Walls (2-hit walls via damagedWalls set)
 - Future features (tech tree, commanders) add new FeatureId values without forking existing if chains

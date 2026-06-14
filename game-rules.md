@@ -63,6 +63,7 @@ Players place cannons inside their enclosed territory (interior tiles only).
 | Normal cannon | 2×2 | 1 | Configurable (default 3) | Standard cannonball |
 | Super gun | 3×3 | 4 | Configurable (default 3) | Fires incendiary cannonballs |
 | Propaganda balloon | 2×2 | 3 | Immune (removed after battle) | Captures enemy cannon |
+| Rampart (modern only) | 2×2 | 3 | Configurable (default 3) | Defensive structure — absorbs cannonball hits on nearby walls |
 
 ### Cannon Slot Allowance
 
@@ -272,7 +273,7 @@ Dead towers can be revived by enclosing them, but it takes **two consecutive bui
     - All walls, interior, cannons, and owned towers are cleared.
     - The player enters **Castle Reselection**: they pick a new home tower and walls are rebuilt with the construction animation.
     - Their zone is reset: grunts, houses, and burning pits are cleared; all towers in the zone are restored to full HP.
-    - Cannon allowance after reselection: `min(3 + livesLost, 8)`.
+    - Cannon allowance after reselection: `firstRoundCannons + livesLost` (difficulty-scaled `firstRoundCannons`, same formula as the Cannon Slot Allowance section above; naturally bounded — `livesLost` ≤ 2, so no fixed cap is applied).
   - If the player abandons: they are immediately eliminated.
 - When lives reach 0: the player is **eliminated**.
 - **Game ends** in either of two cases:
@@ -390,6 +391,8 @@ One modifier may roll each round from round 3 onward (65% chance, no consecutive
 | Fog of War | Rare | Thick fog covers every merged castle during battle — aim from memory |
 | Frostbite | Rare | Grunts spawn as ice cubes — fully immobile and require two hits to break |
 | Sapper | Rare | Grunts attack any adjacent wall on sight — no blocked-rounds requirement |
+
+**Supply Ships** (the Supply Ship modifier): 3 neutral cargo ships (2 HP each) sail the river arms toward the junction during battle. Sink one with cannonballs to claim its **hidden one-round bonus**, rolled at spawn from four types: **extra cannon slot**, **+5s build time** (same as Master Builder), a **mortar shot**, or a **small-pieces bag bias**. The bonus goes to the player who lands the killing hit and is consumed the following round; any ship still afloat auto-sinks as the battle ends.
 
 ### Upgrades
 

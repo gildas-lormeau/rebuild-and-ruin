@@ -25,8 +25,8 @@ Reverse-engineered from the implementation. Describes *what* the system does, no
 
 | Term | Definition |
 |------|-----------|
-| **Player** | A participant in the match, identified by a slot (1-4). Has a home tower, castle, owned towers, walls, interior territory, cannons, lives, score, and (in modern mode) upgrades. |
-| **Player Slot** | A numbered seat (1-4) that a player occupies. Determines zone assignment and turn order. |
+| **Player** | A participant in the match, identified by a slot (1-3). Has a home tower, castle, owned towers, walls, interior territory, cannons, lives, score, and (in modern mode) upgrades. |
+| **Player Slot** | A numbered seat (1-3) that a player occupies. Determines zone assignment and turn order. |
 | **Home Tower** | The tower a player selected as their base. Determines castle location and default cannon facing. |
 | **Owned Towers** | All towers currently enclosed by a player's walls. More towers = more cannon slots. |
 | **Lives** | A player starts with 3 lives. Loses 1 when failing to enclose any tower at the end of a build phase. At 0 lives, the player must choose to continue or forfeit. |
@@ -49,10 +49,11 @@ Reverse-engineered from the implementation. Describes *what* the system does, no
 
 | Term | Definition |
 |------|-----------|
-| **Cannon** | A player-placed weapon (2x2 normal, 3x3 super, 2x2 balloon). Has HP (default 3, configurable). Placed during cannon phase on owned territory. Dead cannons persist as debris. |
+| **Cannon** | A player-placed weapon (2x2 normal, 3x3 super, 2x2 balloon, 2x2 rampart — rampart is modern-only). Has HP (default 3, configurable). Placed during cannon phase on owned territory. Dead cannons persist as debris. |
 | **Normal Cannon** | Standard 2x2 cannon. Fires regular cannonballs. Costs 1 cannon slot. |
 | **Super Cannon** | A 3x3 cannon that fires incendiary cannonballs (creates burning pits on impact). Costs 4 cannon slots. |
 | **Balloon (Propaganda)** | A 2x2 cannon that fires propaganda balloons to capture enemy cannons. Costs 3 cannon slots. 1 hit captures a normal cannon; 2 hits capture a super cannon. |
+| **Rampart** | A 2x2 defensive cannon (modern mode only) that absorbs cannonball hits on nearby walls. Costs 3 cannon slots. |
 | **Cannonball** | A projectile in flight, traveling from a cannon to a target at a fixed speed (150 px/s, or 2x with Rapid Fire). Has a firing player and optionally a different scoring player (when cannon was captured). |
 | **Captured Cannon** | An enemy cannon taken over by propaganda balloon hits. The capturer receives scoring credit for its shots. Capture lasts one battle round. Balloon hit counts accumulate across battles. |
 | **Cannon Slot** | The budget for placing cannons. Determined by number of owned towers. Special cannons cost multiple slots. |
@@ -64,6 +65,7 @@ Reverse-engineered from the implementation. Describes *what* the system does, no
 | Term | Definition |
 |------|-----------|
 | **Grunt** | A ground enemy unit that targets a specific player's towers. Spawned from destroyed houses (50% chance), between battles, or by grunt surge modifier. |
+| **Catapult** | A modern-mode grunt variant (~25% of spawns). Moves at half speed but attacks towers from up to 3 tiles away (vs adjacency for a regular grunt) and deterministically sieges any wall in its line of fire. |
 | **Grunt Target** | A grunt locks onto a tower and moves toward it. No retargeting after the target tower is killed — the grunt stays put. |
 | **Grunt Attack** | When adjacent to a target tower (or wall, if blocked long enough), a grunt starts a 3-second attack countdown. |
 | **Blocked Grunt** | A grunt that can't reach its target (walls in the way). After 2+ consecutive blocked rounds, has 25% chance per battle to attack a wall tile instead. |
@@ -81,7 +83,7 @@ Reverse-engineered from the implementation. Describes *what* the system does, no
 | Term | Definition |
 |------|-----------|
 | **Match** | A complete game from lobby to game-over. Settings (rounds, difficulty, mode) are immutable. |
-| **Round** | One cycle through build → cannon → battle. The game lasts 3/5/8/12 rounds or "to the death." |
+| **Round** | One cycle through cannon → battle → build (build is the round's closing phase). The game lasts 3/5/8/12 rounds or "to the death." |
 | **Phase** | A discrete game state: CASTLE_SELECT, WALL_BUILD, CANNON_PLACE, or BATTLE. CASTLE_SELECT is re-entered between rounds when a player loses lives (reselect cycle); the cycle type is derived from `state.round` (1 vs >1), not a separate phase tag. |
 | **Phase Timer** | A countdown timer governing phase duration (e.g., 25s build, 15s cannon, 10s battle). Difficulty-scaled. |
 | **Battle Countdown** | A 6-second pre-battle sequence (Ready 3s + Aim 2s + Fire! 1s) before combat begins. |
@@ -92,11 +94,12 @@ Reverse-engineered from the implementation. Describes *what* the system does, no
 
 | Term | Definition |
 |------|-----------|
-| **Game Mode** | Classic (original Rampart rules) or Modern (environmental modifiers + upgrades). Set at match start, immutable. |
+| **Game Mode** | Classic (original Rampart rules) or Modern (all four feature capabilities: modifiers, upgrades, combos, catapults). Set at match start, immutable. |
 | **Modifier** | An environmental event that alters the battlefield between rounds (from round 3, 65% chance). No repeat of last round's modifier. |
 | **Wildfire** | Modifier: burns grass tiles, blocking placement. |
 | **Grunt Surge** | Modifier: spawns extra grunts on the map. |
 | **Frozen River** | Modifier: water tiles become traversable by grunts. Thawed by cannonball impact. |
+| **Supply Ship** | Modifier: 3 neutral cargo ships (2 HP) sail the river during battle. Sink one with cannonballs to grant the shooter a hidden one-round bonus — extra cannon, +5s build, mortar shot, or small-pieces bias. |
 | **Upgrade** | A per-player power-up drafted between rounds (from round 3, modern mode only). 3 offered, 1 picked. Weighted rarity (common/uncommon/rare). Some persist, some are one-use. |
 | **Master Builder** | Upgrade: +5s exclusive build time. When exactly one player owns it, opponents are locked out for 5s. When 2+ own it, no lockout. |
 | **Rapid Fire** | Upgrade: cannonballs travel at 2x speed. |
@@ -155,26 +158,9 @@ CASTLE_SELECT
   Each player → Confirms tower selection
   System → Builds castle walls around each selected tower (animated)
   System → Computes initial territory
-  → WALL_BUILD (round 1)
+  → CANNON_PLACE (round 1)
 
 [Round loop begins]
-
-WALL_BUILD
-  [Modern: If upgrade round → UPGRADE_PICK first]
-  System → Generates piece bag for current round
-  Each player → Places tetromino wall pieces before timer expires
-  [Modern: Master Builder → opponents locked out for first 5s if single owner]
-  Grunts → move toward target towers (1 tile/sec; pace back-and-forth if blocked)
-  System → Sweeps isolated walls (batch collect-then-delete, one layer per player)
-  System → Recomputes territory (flood-fill)
-  System → Scores territory (tiered points + castle bonus)
-  System → Checks tower enclosure:
-    - Enclosed dead towers → marked "pending revive"
-    - Previously pending towers still enclosed → revived
-  System → Checks if each player encloses at least one tower
-    - No tower enclosed → player loses a life
-    - 0 lives → LIFE_LOST_DIALOG
-  → CANNON_PLACE (or CASTLE_SELECT for a reselect cycle if any player needs reselection)
 
 CANNON_PLACE
   System → Computes cannon slot limits (based on owned towers)
@@ -182,7 +168,7 @@ CANNON_PLACE
   [Round 1: auto-place if player placed none]
   System → Flushes remaining auto-placements
   System → Initializes cannons for battle
-  → BATTLE
+  → BATTLE  (modern: → MODIFIER_REVEAL first if a modifier rolled)
 
 BATTLE
   [Pre-battle setup (cannon → battle transition)]:
@@ -212,10 +198,26 @@ BATTLE
     System → Resolves balloon captures, clears captured cannons
     System → Removes balloon launchers from cannon lists
     [Round 1: spawns punishment grunts if no shots were fired]
-    System → Increments round counter
     [Modern: System → Generates upgrade offers (round 3+)]
     System → Resets one-round upgrades (reinforced walls, damaged walls)
-  → WALL_BUILD (next round) or GAME_OVER (if max rounds reached)
+  → [Modern: UPGRADE_PICK if offers generated] → WALL_BUILD
+
+WALL_BUILD  (closing phase of every round — scoring, tower revival, and life checks finalized here)
+  System → Generates piece bag for current round
+  Each player → Places tetromino wall pieces before timer expires
+  [Modern: Master Builder → opponents locked out for first 5s if single owner]
+  Grunts → move toward target towers (1 tile/sec; pace back-and-forth if blocked)
+  System → Sweeps isolated walls (batch collect-then-delete, one layer per player)
+  System → Recomputes territory (flood-fill)
+  System → Scores territory (tiered points + castle bonus)
+  System → Checks tower enclosure:
+    - Enclosed dead towers → marked "pending revive"
+    - Previously pending towers still enclosed → revived
+  System → Checks if each player encloses at least one tower
+    - No tower enclosed → player loses a life
+    - 0 lives → LIFE_LOST_DIALOG
+  System → Increments round counter
+  → CANNON_PLACE (next round) or CASTLE_SELECT (reselect cycle) or GAME_OVER (round limit reached)
 
 CASTLE_SELECT (reselect cycle, after life loss; round > 1)
   Player who lost life → Selects a new tower
@@ -272,5 +274,5 @@ Round N+1 build end:
 8. **Delayed tower revival**: Requires enclosure for two consecutive build phases.
 9. **No grunt retargeting**: Once a grunt's target tower is killed, it stays put.
 10. **Modern mode atomicity**: gameMode and modernState are always set together.
-11. **Pool pattern exhaustiveness**: Extension point registries (upgrades, cannon modes, modifiers) enforce compile-time exhaustiveness — every ID in the type union must have a pool entry.
+11. **Pool pattern exhaustiveness**: Extension point registries (features, upgrades, cannon modes, modifiers, battle events) enforce compile-time exhaustiveness — every ID in the type union must have a pool entry.
 12. **Balloon hit accumulation**: Balloon hit counts persist across battles (cumulative toward capture threshold). Captured cannons and capturerIds are cleared each battle.
