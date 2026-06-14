@@ -1,8 +1,10 @@
 /**
  * Supply Ship modifier — 3 neutral cargo ships sail the Y-river during
  * battle. Spawn at battle start (one per `map.exits`), tick toward
- * `map.junction`, auto-sink on arrival. Cleared at battle end. Hit
- * detection + bonus award land in a follow-up commit.
+ * `map.junction` along the river Bezier. Each ship has 2 HP: a cannonball
+ * hit within `HIT_RADIUS` damages it, and sinking it (2 hits) awards the
+ * shooter a hidden one-round bonus. Ships still afloat auto-sink once the
+ * battle timer drops below `AUTO_SINK_AT_TIMER`. Cleared at battle end.
  */
 
 import { BATTLE_MESSAGE } from "../../shared/core/battle-events.ts";
@@ -81,7 +83,9 @@ const SHIP_ENGAGED_RADIUS = 4.0;
  *  the player intuition of "+5s build" is consistent across sources. */
 const EXTRA_BUILD_TIME_SECONDS = 5;
 /** One-round bonus pool. Each ship rolls one at spawn (hidden until
- *  sunk). Bonus application lands in the follow-up collision commit. */
+ *  sunk). On sink the bonus is queued via `queueSupplyBonus` and consumed
+ *  the following round by the relevant phase hook (see `consumeSupplyBonuses`
+ *  / `consumeOneSupplyBonus`). */
 const BONUS_POOL: readonly SupplyBonusId[] = [
   "extra_cannon",
   "extra_build_time",
