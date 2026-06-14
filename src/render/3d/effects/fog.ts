@@ -315,6 +315,11 @@ export function createFogManager(scene: THREE.Scene): FogManager {
     if (filletMesh) {
       root.remove(filletMesh);
       filletMesh.dispose();
+      // Free the old filletDir / tileOrigin GL buffers before setAttribute
+      // replaces them — see the note in disposeMeshes. (When the base mesh
+      // grows, disposeMeshes already handled this; this covers a fillet-only
+      // grow where ensureCapacity short-circuited.)
+      filletGeometry.dispose();
       filletMesh = undefined;
     }
     filletCapacity = Math.max(INITIAL_CAPACITY, nextPowerOfTwo(required));
@@ -358,6 +363,16 @@ export function createFogManager(scene: THREE.Scene): FogManager {
       filletMesh.dispose();
       filletMesh = undefined;
     }
+    // Free the GPU buffers behind the per-instance attributes we're about to
+    // replace on grow. InstancedMesh.dispose() only frees instanceMatrix /
+    // instanceColor; the custom cornerMask / tileOrigin / filletDir
+    // attributes live on these shared geometries, so swapping them via
+    // setAttribute would otherwise orphan the old GL buffers. geometry
+    // .dispose() frees every current attribute buffer and the geometry stays
+    // reusable — three re-uploads from the JS arrays on the next render.
+    tileGeometry.dispose();
+    bandGeometry.dispose();
+    filletGeometry.dispose();
     baseCornerMask = undefined;
     baseTileOrigin = undefined;
     bandCornerMask = undefined;

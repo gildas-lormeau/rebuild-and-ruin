@@ -1,10 +1,10 @@
 /**
- * Synthetic "one of every entity" overlay builder for shader pre-warming
- * (`renderer.warmEntityShaders`). Positions are arbitrary — only the SET
- * of distinct meshes/variants matters, so we cluster everything into a
- * small tile block and cover every variant that picks a different
- * geometry/material (cannon modes/tiers, cannonball iron/fire/mortar, aged
- * burst effects, a dead cannon linking the shared rubble program).
+ * Synthetic "one of every entity" overlay for shader pre-warming
+ * (`renderer.warmEntityShaders`). Positions are arbitrary — only the set of
+ * distinct shader PROGRAMS matters (program = defines + customProgramCacheKey,
+ * not color/geometry/texture). Cannon tiers and rampart shield tiers reuse a
+ * sibling's program, so we warm one entity per distinct program — not every
+ * named variant (tier_1 + super_gun + one rampart cover all cannon programs).
  */
 
 import {

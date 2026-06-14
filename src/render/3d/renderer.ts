@@ -328,27 +328,35 @@ export function createRender3d(
   // first `warmMapCache`.
   let entityShadersWarmed = false;
 
-  /** Clone every entity mesh currently in the scene into the keepalive
-   *  group, giving each clone an INDEPENDENT material (so the source
-   *  manager disposing its own material doesn't take ours with it).
+  /** Clone every entity mesh AND sprite currently in the scene into the
+   *  keepalive group, giving each clone an INDEPENDENT material (so the
+   *  source manager disposing its own material doesn't take ours with it).
    *  Clones must be visible when `compileAsync` runs so their materials
    *  acquire the program (three's `compile` walks `traverseVisible`);
    *  the caller flips the group invisible afterwards. Terrain + the
    *  ground-shadow overlay are excluded — they live in the scene for the
    *  whole session and never lose their program. */
   function buildShaderKeepalive(): void {
-    const sources: THREE.Mesh[] = [];
+    const sources: (THREE.Mesh | THREE.Sprite)[] = [];
     ctx.scene.traverse((obj) => {
-      const mesh = obj as THREE.Mesh;
-      if (!mesh.isMesh) return;
-      if (mesh === ctx.terrain.mesh || mesh === ctx.groundShadowOverlay) return;
-      sources.push(mesh);
+      const renderable = obj as THREE.Mesh & THREE.Sprite;
+      // Meshes AND sprites. Sprite-based effects (fire-burst smoke/sparks,
+      // wall-dust) own per-host SpriteMaterials their managers dispose when
+      // the entity set empties — the same dispose-on-empty churn the mesh
+      // keepalive guards against — so their programs need retaining too.
+      // three's `compile` walks sprites (`object.isSprite`), so the clones
+      // link in the same pass.
+      if (!renderable.isMesh && !renderable.isSprite) return;
+      if (obj === ctx.terrain.mesh || obj === ctx.groundShadowOverlay) return;
+      sources.push(obj as THREE.Mesh | THREE.Sprite);
     });
-    for (const mesh of sources) {
-      const clone = mesh.clone();
-      clone.material = Array.isArray(mesh.material)
-        ? mesh.material.map((mat) => cloneKeepingShaderPatch(mat))
-        : cloneKeepingShaderPatch(mesh.material);
+    for (const source of sources) {
+      const clone = source.clone();
+      // Mesh.material is Material | Material[]; Sprite.material is a single
+      // SpriteMaterial — both satisfy a write through the Mesh view.
+      (clone as THREE.Mesh).material = Array.isArray(source.material)
+        ? source.material.map((mat) => cloneKeepingShaderPatch(mat))
+        : cloneKeepingShaderPatch(source.material);
       clone.visible = true;
       clone.frustumCulled = false;
       shaderKeepalive.add(clone);
