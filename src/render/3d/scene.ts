@@ -312,7 +312,10 @@ export function createRender3dScene(
   const renderer = new THREE.WebGLRenderer({
     canvas,
     alpha: true,
-    antialias: true,
+    // No `antialias` here: the scene renders into `captureTarget` (the FBO
+    // below), not the default framebuffer this flag governs, so it only ever
+    // AA'd the edge-aligned fullscreen blit quad — i.e. nothing. To actually
+    // antialias the 3D edges, set `samples` on `captureTarget` instead.
   });
   renderer.setClearColor(0x000000, 0);
   renderer.autoClear = false;
