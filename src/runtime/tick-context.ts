@@ -9,6 +9,10 @@
 
 import { GRUNT_TICK_INTERVAL } from "../shared/core/game-constants.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
+import {
+  isPlayerEliminated,
+  type Player,
+} from "../shared/core/player-types.ts";
 import type { ControllerIdentity } from "../shared/core/system-interfaces.ts";
 import type { GameState } from "../shared/core/types.ts";
 
@@ -108,6 +112,26 @@ export function localControllers<
 ): T[] {
   return controllers.filter(
     (ctrl) => !isRemotePlayer(ctrl.playerId, remotePlayerSlots),
+  );
+}
+
+/** Filter controllers to local (non-remote) players that are NOT
+ *  eliminated — the upfront-skip variant of `localControllers` for the
+ *  phase ticks that must never drive a dead slot's controller. Unlike
+ *  `localControllers` (which deliberately keeps eliminated slots so game
+ *  systems self-guard at the mutation boundary), callers of this helper
+ *  want both predicates rolled into one place. */
+export function localActiveControllers<
+  T extends ControllerIdentity = ControllerIdentity,
+>(
+  controllers: readonly T[],
+  remotePlayerSlots: ReadonlySet<ValidPlayerId>,
+  players: readonly Player[],
+): T[] {
+  return controllers.filter(
+    (ctrl) =>
+      !isRemotePlayer(ctrl.playerId, remotePlayerSlots) &&
+      !isPlayerEliminated(players[ctrl.playerId]),
   );
 }
 

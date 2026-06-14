@@ -2,7 +2,6 @@ import type { RegisterOnlineInputDeps } from "../runtime/ui-contracts.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import { type GameState } from "../shared/core/types.ts";
 import {
-  IS_TOUCH_DEVICE,
   KEY_DOWN,
   KEY_ENTER,
   KEY_ESCAPE,
@@ -13,8 +12,8 @@ import {
 import { FOCUS_MENU, FOCUS_REMATCH } from "../shared/ui/interaction-types.ts";
 import {
   ACTION_KEYS,
+  CONTROLS_COLUMN_COUNT,
   type KeyBindings,
-  MAX_PLAYERS,
   MAX_SEED_LENGTH,
   SEED_CUSTOM,
   SEED_RANDOM,
@@ -202,14 +201,14 @@ function handleKeyControls(
         (controlsState.actionIdx + 1) % ACTION_KEYS.length;
       e.preventDefault();
     } else if (e.key === KEY_LEFT) {
-      const colCount = IS_TOUCH_DEVICE ? 1 : MAX_PLAYERS;
-      controlsState.playerIdx = ((controlsState.playerIdx - 1 + colCount) %
-        colCount) as ValidPlayerId;
+      controlsState.playerIdx = ((controlsState.playerIdx -
+        1 +
+        CONTROLS_COLUMN_COUNT) %
+        CONTROLS_COLUMN_COUNT) as ValidPlayerId;
       e.preventDefault();
     } else if (e.key === KEY_RIGHT) {
-      const colCount = IS_TOUCH_DEVICE ? 1 : MAX_PLAYERS;
       controlsState.playerIdx = ((controlsState.playerIdx + 1) %
-        colCount) as ValidPlayerId;
+        CONTROLS_COLUMN_COUNT) as ValidPlayerId;
       e.preventDefault();
     } else if (e.key === KEY_ENTER || e.key === " ") {
       controlsState.rebinding = true;
@@ -275,12 +274,10 @@ function handleKeyOptionsNavigation(
   options: RegisterOnlineInputDeps["options"],
 ): void {
   if (e.key === KEY_UP || e.key === "w" || e.key === "i") {
-    options.setCursor(
-      (options.getCursor() - 1 + options.getCount()) % options.getCount(),
-    );
+    options.moveCursor(-1);
     e.preventDefault();
   } else if (e.key === KEY_DOWN || e.key === "s" || e.key === "k") {
-    options.setCursor((options.getCursor() + 1) % options.getCount());
+    options.moveCursor(1);
     e.preventDefault();
   } else if (e.key === KEY_LEFT || e.key === "a" || e.key === "j") {
     options.changeValue(-1);

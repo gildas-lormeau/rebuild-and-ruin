@@ -218,6 +218,15 @@ export function snapAngle(angle: number, step: number): number {
   return Math.round(angle / step) * step;
 }
 
+/** Game-space heading (radians, 0 = north) from a direction vector. Uses
+ *  the swapped-arg, negated-Y convention `atan2(dx, -dy)` so +dx (east)
+ *  and -dy (north) map onto the screen-down tile grid — distinct from a
+ *  textbook `atan2(y, x)`. Shared by cannon default-facing, grunt
+ *  movement, and the cannon-aim animator. */
+export function facingFromVector(dx: number, dy: number): number {
+  return Math.atan2(dx, -dy);
+}
+
 /** Find tower nearest to a world coordinate (tile-pixel space). */
 export function towerAtPixel(
   towers: readonly TilePos[],

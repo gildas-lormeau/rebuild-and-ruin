@@ -35,6 +35,7 @@ import {
   cannonSize,
   DIRS_4,
   FACING_90_STEP,
+  facingFromVector,
   hasPitAt,
   inBounds,
   isCannonTile,
@@ -290,10 +291,34 @@ export function resetCannonFacings(state: GameViewState): void {
       const avgEy = ey / count;
       const dx = avgEx - playerCenter.col;
       const dy = avgEy - playerCenter.row;
-      player.defaultFacing = snapAngle(Math.atan2(dx, -dy), FACING_90_STEP);
+      player.defaultFacing = snapAngle(
+        facingFromVector(dx, dy),
+        FACING_90_STEP,
+      );
     } else {
       player.defaultFacing = 0;
     }
+  }
+}
+
+/** Prime a controller for the live phase by dispatching to the matching
+ *  per-phase init. The bare branch chain shared by the AI host-promotion
+ *  rebuild + re-prime (`primeAiControllerForPhase`,
+ *  `rebuildControllersForPhase`) and the runtime's fresh-human adoption
+ *  (`installLocalHumanController`). Does NOT reset the controller —
+ *  callers re-priming a surviving AI call `ctrl.reset()` first; fresh
+ *  controllers never need one. CASTLE_SELECT (AI driven by the selection
+ *  system) / MODIFIER_REVEAL / UPGRADE_PICK have no brain phase: no-op. */
+export function primeControllerForPhase(
+  state: GameState,
+  ctrl: PlayerController,
+): void {
+  if (state.phase === Phase.WALL_BUILD) {
+    ctrl.startBuildPhase(state);
+  } else if (state.phase === Phase.CANNON_PLACE) {
+    primeControllerForCannonPhase(ctrl, state);
+  } else if (state.phase === Phase.BATTLE) {
+    ctrl.initBattleState(state);
   }
 }
 

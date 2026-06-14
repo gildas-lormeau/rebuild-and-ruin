@@ -71,6 +71,7 @@ import {
 import {
   advancePhaseTimer,
   isRemotePlayer,
+  localActiveControllers,
   localControllers,
   tickGruntsIfDue,
 } from "../tick-context.ts";
@@ -289,9 +290,11 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     const { state, controllers } = runtimeState;
     const crosshairs: Crosshair[] = [];
 
-    for (const ctrl of controllers) {
-      if (isRemotePlayer(ctrl.playerId, remotePlayerSlots)) continue;
-      if (isPlayerEliminated(state.players[ctrl.playerId])) continue;
+    for (const ctrl of localActiveControllers(
+      controllers,
+      remotePlayerSlots,
+      state.players,
+    )) {
       const readyCannon = nextReadyCannon(state, ctrl.playerId);
       const anyReloading =
         !readyCannon &&
@@ -458,12 +461,11 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
 
   function beginBattle() {
     const remotePlayerSlots = runtimeState.frameMeta.remotePlayerSlots;
-    for (const ctrl of localControllers(
+    for (const ctrl of localActiveControllers(
       runtimeState.controllers,
       remotePlayerSlots,
+      runtimeState.state.players,
     )) {
-      if (isPlayerEliminated(runtimeState.state.players[ctrl.playerId]))
-        continue;
       ctrl.initBattleState(runtimeState.state);
     }
     // Go through setBattleCountdown so the jump from 0 → BATTLE_COUNTDOWN
@@ -487,10 +489,11 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     if (runtimeState.state.phase !== Phase.WALL_BUILD) {
       throw new Error("startBuildPhase called outside WALL_BUILD");
     }
-    for (const ctrl of runtimeState.controllers) {
-      if (isRemotePlayer(ctrl.playerId, remotePlayerSlots)) continue;
-      if (isPlayerEliminated(runtimeState.state.players[ctrl.playerId]))
-        continue;
+    for (const ctrl of localActiveControllers(
+      runtimeState.controllers,
+      remotePlayerSlots,
+      runtimeState.state.players,
+    )) {
       ctrl.startBuildPhase(runtimeState.state);
     }
     clearImpacts(runtimeState.battleAnim);
@@ -643,12 +646,11 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       runtimeState.state,
       dt,
     );
-    for (const ctrl of localControllers(
+    for (const ctrl of localActiveControllers(
       runtimeState.controllers,
       remotePlayerSlots,
+      runtimeState.state.players,
     )) {
-      if (isPlayerEliminated(runtimeState.state.players[ctrl.playerId]))
-        continue;
       ctrl.battleTick(runtimeState.state, dt);
     }
     syncCrosshairs(/* weaponsActive */ false, dt);
@@ -759,7 +761,6 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
   function tickBuildPhase(dt: number): boolean {
     const remotePlayerSlots = runtimeState.frameMeta.remotePlayerSlots;
     const { state, accum } = runtimeState;
-    const local = localControllers(runtimeState.controllers, remotePlayerSlots);
 
     // --- Engine tick (advance upgrade-effect timers; timerMax = base +
     // upgrade bonus + drained supply-ship seconds — see wallBuildTimerMax) ---
@@ -772,8 +773,11 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     // "wire = uncomputable inputs only"). Human placements broadcast from
     // inside the placement callback. Only the own-human's *phantom* (cursor
     // preview) is sent — the phantom hook self-gates by ownership.
-    for (const ctrl of local) {
-      if (isPlayerEliminated(state.players[ctrl.playerId])) continue;
+    for (const ctrl of localActiveControllers(
+      runtimeState.controllers,
+      remotePlayerSlots,
+      state.players,
+    )) {
       if (!canPlayerBuild(state, ctrl.playerId)) continue;
       const phantoms = ctrl.buildTick(state, dt);
 

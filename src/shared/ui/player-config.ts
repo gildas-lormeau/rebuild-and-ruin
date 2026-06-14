@@ -12,7 +12,13 @@ import {
   HAPTICS_ON,
 } from "../core/game-constants.ts";
 import type { ValidPlayerId } from "../core/player-slot.ts";
-import { KEY_DOWN, KEY_LEFT, KEY_RIGHT, KEY_UP } from "../platform/platform.ts";
+import {
+  IS_TOUCH_DEVICE,
+  KEY_DOWN,
+  KEY_LEFT,
+  KEY_RIGHT,
+  KEY_UP,
+} from "../platform/platform.ts";
 import type { RGB } from "./theme.ts";
 
 export interface KeyBindings {
@@ -122,6 +128,11 @@ export const PLAYER_KEY_BINDINGS: readonly KeyBindings[] = [
   },
 ];
 export const MAX_PLAYERS = PLAYER_NAMES.length;
+/** Player columns in the controls-rebind grid: one on touch (single local
+ *  player), `MAX_PLAYERS` on desktop. Single source for the controls
+ *  hit-test (`controlsScreenHitTest` colCount) and the keyboard left/right
+ *  column wrap. */
+export const CONTROLS_COLUMN_COUNT = IS_TOUCH_DEVICE ? 1 : MAX_PLAYERS;
 export const ACTION_KEYS: readonly (keyof KeyBindings)[] = [
   ACTION_UP,
   ACTION_DOWN,

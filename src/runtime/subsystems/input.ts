@@ -356,11 +356,11 @@ function buildOptionsDeps(
     controlsCursorAt: options.controlsCursorAt,
     close: options.closeOptions,
     closeControls: options.closeControls,
-    getCursor: () => runtimeState.optionsUI.cursor,
-    setCursor: (cursor: number) => {
-      runtimeState.optionsUI.cursor = cursor;
+    moveCursor: (dir: -1 | 1) => {
+      const count = visibleOptionCount();
+      runtimeState.optionsUI.cursor =
+        (runtimeState.optionsUI.cursor + dir + count) % count;
     },
-    getCount: visibleOptionCount,
     getRealIdx: options.visibleToActualOptionIdx,
     confirmOption: () => confirmCurrentOption(options),
     getContext: () => runtimeState.optionsUI.context,
@@ -562,11 +562,7 @@ function buildOverlayActionDeps(
   return {
     options: {
       isActive: () => runtimeState.mode === Mode.OPTIONS,
-      moveCursor: (dir: -1 | 1) => {
-        const count = deps.hitTests.visibleOptionCount();
-        runtimeState.optionsUI.cursor =
-          (runtimeState.optionsUI.cursor + dir + count) % count;
-      },
+      moveCursor: (dir: -1 | 1) => inputDeps.options.moveCursor(dir),
       changeValue: (dir: -1 | 1) => options.changeOption(dir),
       confirm: () => confirmCurrentOption(options),
     },

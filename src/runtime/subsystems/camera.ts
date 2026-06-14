@@ -72,6 +72,7 @@ import {
 } from "../camera-pitch.ts";
 import {
   cameraStateFromViewport,
+  clampViewportOrigin,
   fitTileBoundsToViewport,
   screenToWorld as projectScreenToWorld,
   worldToScreen as projectWorldToScreen,
@@ -438,8 +439,12 @@ export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
     );
     const w = MAP_PX_W * ratio;
     const h = MAP_PX_H * ratio;
-    const x = Math.max(0, Math.min(MAP_PX_W - w, center.x - w / 2));
-    const y = Math.max(0, Math.min(MAP_PX_H - h, center.y - h / 2));
+    const { x, y } = clampViewportOrigin(
+      center.x - w / 2,
+      center.y - h / 2,
+      w,
+      h,
+    );
     return { x, y, w, h };
   }
 
@@ -616,12 +621,7 @@ export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
     if (x === currentVp.x && y === currentVp.y) return;
     setTargetSilent({
       kind: "pinch",
-      viewport: {
-        x: Math.max(0, Math.min(MAP_PX_W - w, x)),
-        y: Math.max(0, Math.min(MAP_PX_H - h, y)),
-        w,
-        h,
-      },
+      viewport: { ...clampViewportOrigin(x, y, w, h), w, h },
     });
   }
 
@@ -762,8 +762,14 @@ export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
     if (dx === 0 && dy === 0) return;
 
     const pinch = ensurePinchTarget(viewport);
-    pinch.x = Math.max(0, Math.min(MAP_PX_W - pinch.w, pinch.x + dx));
-    pinch.y = Math.max(0, Math.min(MAP_PX_H - pinch.h, pinch.y + dy));
+    const clamped = clampViewportOrigin(
+      pinch.x + dx,
+      pinch.y + dy,
+      pinch.w,
+      pinch.h,
+    );
+    pinch.x = clamped.x;
+    pinch.y = clamped.y;
   }
 
   // --- Tap-nudge ---
@@ -1188,8 +1194,7 @@ export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
     else return;
     const { x: curX, y: curY, w, h } = seed;
     const pulled = pullPointIntoInset(seed, wx, wy, w * 0.125, h * 0.125);
-    const toX = Math.max(0, Math.min(MAP_PX_W - w, pulled.x));
-    const toY = Math.max(0, Math.min(MAP_PX_H - h, pulled.y));
+    const { x: toX, y: toY } = clampViewportOrigin(pulled.x, pulled.y, w, h);
     if (toX === curX && toY === curY) return;
 
     const pinch = ensurePinchTarget(seed);

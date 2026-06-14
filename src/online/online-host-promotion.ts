@@ -6,7 +6,7 @@
  */
 
 import {
-  primeControllerForCannonPhase,
+  primeControllerForPhase,
   useSmallPieces,
   wallBuildTimerMax,
 } from "../game/index.ts";
@@ -132,15 +132,7 @@ export function primeAiControllerForPhase(
   ctrl: PlayerController,
 ): void {
   if (state.phase !== Phase.CASTLE_SELECT) ctrl.reset();
-  if (state.phase === Phase.WALL_BUILD) {
-    ctrl.startBuildPhase(state);
-  } else if (state.phase === Phase.CANNON_PLACE) {
-    primeControllerForCannonPhase(ctrl, state);
-  } else if (state.phase === Phase.BATTLE) {
-    ctrl.initBattleState(state);
-  }
-  // CASTLE_SELECT (initial or reselect) — AI driven by the selection
-  // system; MODIFIER_REVEAL / UPGRADE_PICK — no brain phase to prime.
+  primeControllerForPhase(state, ctrl);
 }
 
 /**
@@ -181,15 +173,9 @@ export async function rebuildControllersForPhase(
       const personality = aiDeps.rollPersonality(personalityRng);
       const ctrl = await aiDeps.create(pid, strategyRng, personality);
 
-      // Initialize AI for the current phase
-      if (state.phase === Phase.WALL_BUILD) {
-        ctrl.startBuildPhase(state);
-      } else if (state.phase === Phase.CANNON_PLACE) {
-        primeControllerForCannonPhase(ctrl, state);
-      } else if (state.phase === Phase.BATTLE) {
-        ctrl.initBattleState(state);
-      }
-      // CASTLE_SELECT (initial or reselect cycle) — AI driven by selection system
+      // Initialize the fresh AI for the current phase (no reset needed —
+      // it was just constructed). CASTLE_SELECT cycle: driven by selection.
+      primeControllerForPhase(state, ctrl);
       return ctrl;
     }),
   );

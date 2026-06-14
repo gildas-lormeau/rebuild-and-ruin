@@ -28,6 +28,7 @@ import { isPlayerEliminated } from "../shared/core/player-types.ts";
 import {
   DIRS_4,
   distanceToTower,
+  facingFromVector,
   hasPitAt,
   inBounds,
   isFloodedTile,
@@ -368,7 +369,7 @@ function canGruntMoveToCandidate(
 function applyGruntMove(grunt: Grunt, row: number, col: number): void {
   const dr = row - grunt.row;
   const dc = col - grunt.col;
-  grunt.facing = Math.atan2(dc, -dr);
+  grunt.facing = facingFromVector(dc, dr);
   grunt.row = row;
   grunt.col = col;
 }

@@ -135,9 +135,29 @@ export function fitTileBoundsToViewport(
   const newH = newW / targetAspect;
   const cx = ((minC + maxC + 1) * TILE_SIZE) / 2;
   const cy = ((minR + maxR + 1) * TILE_SIZE) / 2;
-  const x = Math.max(0, Math.min(fullW - newW, cx - newW / 2));
-  const y = Math.max(0, Math.min(fullH - newH, cy - newH / 2));
+  const { x, y } = clampViewportOrigin(
+    cx - newW / 2,
+    cy - newH / 2,
+    newW,
+    newH,
+  );
   return { x, y, w: newW, h: newH };
+}
+
+/** Clamp a viewport origin (top-left, pixels) so a w×h viewport stays
+ *  within the [0, MAP_PX_W] × [0, MAP_PX_H] map — the shared letterbox
+ *  clamp behind every camera pan / zoom / center. Pass `center - dim/2`
+ *  as the origin to center a viewport on a point. */
+export function clampViewportOrigin(
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+): { x: number; y: number } {
+  return {
+    x: Math.max(0, Math.min(MAP_PX_W - w, x)),
+    y: Math.max(0, Math.min(MAP_PX_H - h, y)),
+  };
 }
 
 function assertPitchInRange(pitch: number): void {

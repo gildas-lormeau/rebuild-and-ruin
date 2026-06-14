@@ -9,7 +9,7 @@
 
 import { exposeDevConsole } from "../../dev/dev-console.ts";
 import { exposeE2EBridge } from "../../dev/e2e-bridge.ts";
-import { primeControllerForCannonPhase } from "../game/index.ts";
+import { primeControllerForPhase } from "../game/index.ts";
 import { dispatchPointerMove } from "../input/input-dispatch.ts";
 import { registerKeyboardHandlers } from "../input/input-keyboard.ts";
 import { registerMouseHandlers } from "../input/input-mouse.ts";
@@ -1011,14 +1011,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       // kept human controller (primeSelfHumanControllersAfterAdoption) — all
       // controller-local, rng-neutral. A fresh controller always "missed"
       // the phase entry, so prime unconditionally for the active phase.
-      const state = runtimeState.state;
-      if (state.phase === Phase.CANNON_PLACE) {
-        primeControllerForCannonPhase(ctrl, state);
-      } else if (state.phase === Phase.BATTLE) {
-        ctrl.initBattleState(state);
-      } else if (state.phase === Phase.WALL_BUILD) {
-        ctrl.startBuildPhase(state);
-      }
+      primeControllerForPhase(runtimeState.state, ctrl);
     },
     adoptDialogSeat: (playerId: ValidPlayerId): void => {
       // Whichever dialog (if any) is open hands the seat to the AI; the

@@ -4,7 +4,7 @@ import {
 } from "../../shared/core/battle-types.ts";
 import { isCannonEnclosed } from "../../shared/core/board-occupancy.ts";
 import { Phase } from "../../shared/core/game-phase.ts";
-import { cannonCenter } from "../../shared/core/spatial.ts";
+import { cannonCenter, facingFromVector } from "../../shared/core/spatial.ts";
 import { isSessionLive, type RuntimeState } from "../state.ts";
 
 interface FacingState {
@@ -96,7 +96,7 @@ export function createCannonAnimator(deps: CannonAnimatorDeps): CannonAnimator {
             );
             if (crosshair) {
               const { x, y } = cannonCenter(cannon);
-              target = Math.atan2(crosshair.x - x, -(crosshair.y - y));
+              target = facingFromVector(crosshair.x - x, crosshair.y - y);
             }
           }
         }

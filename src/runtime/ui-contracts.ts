@@ -361,9 +361,9 @@ export interface RegisterOnlineInputDeps {
     controlsCursorAt: (x: number, y: number) => string;
     close: () => void;
     closeControls: () => void;
-    getCursor: () => number;
-    setCursor: (cursor: number) => void;
-    getCount: () => number;
+    /** Move the options cursor by ±1 with wraparound — the single source
+     *  of the cursor-wrap, shared by keyboard nav and the touch d-pad. */
+    moveCursor: (dir: -1 | 1) => void;
     getRealIdx: () => number;
     /** Confirm the current option: shows controls if on that row, else closes. */
     confirmOption: () => void;

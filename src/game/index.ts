@@ -31,6 +31,7 @@ export {
   isCannonPlacementComplete,
   markCannonPlaceDoneAtDrain,
   primeControllerForCannonPhase,
+  primeControllerForPhase,
   resetCannonFacings,
 } from "./cannon-system.ts";
 export {

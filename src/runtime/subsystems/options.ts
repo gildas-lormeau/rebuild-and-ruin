@@ -9,7 +9,7 @@ import {
 import type { RenderOverlay } from "../../shared/ui/overlay-types.ts";
 import {
   ACTION_KEYS,
-  MAX_PLAYERS,
+  CONTROLS_COLUMN_COUNT,
   SEED_CUSTOM,
   saveSettings,
 } from "../../shared/ui/player-config.ts";
@@ -228,7 +228,7 @@ export function createOptionsSystem(deps: OptionsSystemDeps): OptionsSystem {
       canvasY / SCALE,
       MAP_PX_W,
       MAP_PX_H,
-      IS_TOUCH_DEVICE ? 1 : MAX_PLAYERS,
+      CONTROLS_COLUMN_COUNT,
       ACTION_KEYS.length,
     );
   }
