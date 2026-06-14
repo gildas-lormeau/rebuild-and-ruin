@@ -62,18 +62,24 @@ export interface CannonFiredMessage extends BallisticTrajectory {
   applyAt?: number;
 }
 
-/** A wall tile was destroyed by impact. */
-export interface WallDestroyedMessage {
-  type: "wallDestroyed";
+/** Shared shape for impact events located at a tile and attributed to a
+ *  shooter (wall/house destruction, grunt kill). The `type` discriminant and
+ *  any extra payload live on the concrete message. */
+interface ImpactAtTile {
   row: number;
   col: number;
-  playerId: ValidPlayerId;
   shooterId?: ValidPlayerId;
   /** Cannon that fired the destroying ball. Undefined for grunt melee
    *  attacks (grunts have no cannons) — readers should treat absence as
    *  "non-cannon source". `shooterCannonIdx` (the firing cannon) across all
    *  impact events; `cannonIdx` is reserved for the affected/victim cannon. */
   shooterCannonIdx?: CannonIdx;
+}
+
+/** A wall tile was destroyed by impact. */
+export interface WallDestroyedMessage extends ImpactAtTile {
+  type: "wallDestroyed";
+  playerId: ValidPlayerId;
 }
 
 /** A cannon took damage (destroyed when newHp <= 0). */
@@ -88,12 +94,8 @@ export interface CannonDamagedMessage {
   shooterCannonIdx?: CannonIdx;
 }
 
-export interface GruntKilledMessage {
+export interface GruntKilledMessage extends ImpactAtTile {
   type: "gruntKilled";
-  row: number;
-  col: number;
-  shooterId?: ValidPlayerId;
-  shooterCannonIdx?: CannonIdx;
 }
 
 /** A frosted grunt absorbed its first hit (ice chip — grunt survives with
@@ -105,12 +107,8 @@ export interface GruntChippedMessage {
   shooterId?: ValidPlayerId;
 }
 
-export interface HouseDestroyedMessage {
+export interface HouseDestroyedMessage extends ImpactAtTile {
   type: "houseDestroyed";
-  row: number;
-  col: number;
-  shooterId?: ValidPlayerId;
-  shooterCannonIdx?: CannonIdx;
 }
 
 /** A grunt was spawned (from house destruction or inter-battle).
