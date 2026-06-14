@@ -196,4 +196,7 @@ makes each seam reviewable alone:
 
 See `src/runtime/README.md` for orientation (read `types.ts` → `state.ts` →
 `composition.ts` first) and `reference_runtime_migration_invariants` (memory)
-for the full migration-seam residue.
+for the full migration-seam residue. For the phase flow specifically,
+[runtime-phase-graph.md](runtime-phase-graph.md) is a generated map of every
+transition (guard / enters-phase / engine ops / broadcasts / routing) — the
+artifact to check R1 and R3 against.
