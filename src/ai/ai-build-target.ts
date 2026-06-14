@@ -145,6 +145,22 @@ const MERGE_MAX_GAPS = 22;
  *  merge cap. Unlike `homeWasBroken` (previous-round state), this is the
  *  CURRENT cut, so it also catches a home that breaks mid-build. */
 const SOLO_MAX_GAPS = 30;
+/** Estimated wall-clock seconds the AI spends per piece placement during
+ *  WALL_BUILD: ~0.5s post-place think + ~0.35s pre-place dwell + ~0.5s cursor
+ *  travel (the POST/PRE_PLACE_DELAY + spread averages in ai-constants.ts plus a
+ *  few tiles of movement at BUILD_CURSOR_SPEEDS). A single documented estimate,
+ *  not a live computation — cursor-travel distance is the dominant unknown, so
+ *  per-term precision would be false. Converts the remaining build time into a
+ *  gap-closing budget for the deadline cap (`deadlineGapBudget`). */
+const EST_SECONDS_PER_PLACEMENT = 1.35;
+/** Net ring-gap tiles a single placement closes, held conservatively below the
+ *  4-tile piece size: only ~1-2 cells of a piece land on the min-cut ring (the
+ *  rest extend into interior), and blocked retries / non-fitting bag pieces
+ *  waste whole placements. Higher → the deadline cap trusts the AI to close
+ *  more per second and shrinks the target later (less protective); lower →
+ *  shrinks earlier (banks a guaranteed smaller ring sooner). The ai-compare /
+ *  survival tuning knob for the deadline-aware fallback. */
+const GAPS_PER_PLACEMENT = 1.8;
 /** Max gap tiles the AI considers evaluable in a single build turn. Beyond this, the target is skipped. */
 export const MANAGEABLE_GAP_LIMIT = 8;
 
@@ -294,18 +310,31 @@ function planEnclosureTarget(ctx: TargetContext): TargetResult {
   );
 
   // Closeability cap: when a closeable ALIVE ring exists this phase, don't let
-  // the wide-gap bypass commit the build to an unclosable-wide ring (cut >
-  // SOLO_MAX_GAPS). Diverts to the manageable alternative so the build banks a
-  // real enclosure rather than thrashing on a ring it can't finish. The
-  // alternative must be alive (priority ≥ 2) — abandoning a wide home for a
-  // dead-tower revival ring trades live territory for nothing.
+  // the wide-gap bypass commit the build to a ring it can't finish in time.
+  // Diverts to the manageable alternative so the build banks a real enclosure
+  // rather than thrashing on a ring it can't close. The alternative must be
+  // alive (priority ≥ 2) — abandoning a wide home for a dead-tower revival ring
+  // trades live territory for nothing.
+  //
+  // The cap is DEADLINE-AWARE: it starts at SOLO_MAX_GAPS (a ring needing more
+  // than a whole build phase of new walls is hopeless from the outset) and
+  // ratchets down toward MANAGEABLE_GAP_LIMIT as `state.timer` runs out, so a
+  // MEDIUM ring (8–30 gaps) that can't close in the seconds left is diverted
+  // too — the human "I can't finish the big ring, lock in a tower I CAN close
+  // before time expires" reflex. The budget is monotone in the timer (only
+  // shrinks), so the chosen target can only narrow across ticks, never re-widen
+  // (the property that keeps this late-phase shrink from thrashing targets).
+  const deadlineMaxGaps = Math.max(
+    MANAGEABLE_GAP_LIMIT,
+    Math.min(SOLO_MAX_GAPS, deadlineGapBudget(state.timer)),
+  );
   const hasManageableAlt = candidates.some(
     (cand) => cand.gaps.size <= MANAGEABLE_GAP_LIMIT && cand.priority >= 2,
   );
 
   for (const cand of candidates) {
     const manageable = cand.gaps.size <= MANAGEABLE_GAP_LIMIT;
-    if (!manageable && cand.gaps.size > SOLO_MAX_GAPS && hasManageableAlt) {
+    if (!manageable && cand.gaps.size > deadlineMaxGaps && hasManageableAlt) {
       continue;
     }
     // Wide-gap bypass: while home isn't enclosed, hold a many-gap ring as the
@@ -329,6 +358,19 @@ function planEnclosureTarget(ctx: TargetContext): TargetResult {
     };
   }
   return NO_TARGET;
+}
+
+/** Ring-gap tiles the AI can realistically still place before the WALL_BUILD
+ *  timer expires: remaining seconds ÷ per-placement time × gaps closed per
+ *  placement. Drives the deadline-aware closeability cap in
+ *  `planEnclosureTarget`. Strictly decreasing in `timerSeconds` as the clock
+ *  ticks down, so the cap it feeds only narrows the target and never re-opens a
+ *  wider one — the property that keeps the late-phase shrink from thrashing
+ *  between targets. Clamping to the [MANAGEABLE_GAP_LIMIT, SOLO_MAX_GAPS] band
+ *  is the caller's job. */
+function deadlineGapBudget(timerSeconds: number): number {
+  const placementsLeft = timerSeconds / EST_SECONDS_PER_PLACEMENT;
+  return Math.floor(placementsLeft * GAPS_PER_PLACEMENT);
 }
 
 /** Merge candidates: every close alive non-home pair whose shared ring saves
