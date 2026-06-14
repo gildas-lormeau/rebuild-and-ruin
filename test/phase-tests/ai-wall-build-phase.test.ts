@@ -304,7 +304,7 @@ Deno.test(
 );
 
 Deno.test(
-  "phase-test: AI doesn't build doubled walls when a secondary castle touches an already-enclosed castle (seed 40 RED r1) — KNOWN FAILING",
+  "phase-test: AI doesn't build doubled walls when a secondary castle touches an already-enclosed castle (seed 40 RED r1)",
   async () => {
     // Seed 40, modern, round 1. RED's home is T0 @ (11,36); T3 @ (5,39) is
     // an alive secondary in the same zone, three tiles north of T0's natural
@@ -315,16 +315,16 @@ Deno.test(
     // horizontal walls 1 tile apart, 4 tiles long) — the "fat wall" the
     // user reported.
     //
-    // KNOWN FAILING (partial fix landed 2026-05-27): `tileCompletesFatRun`
-    // in ai-build-score.ts + `FAT_WALL_RUN_PENALTY = 10_000` in
+    // PASSES since the 2026-05-27 fix: `tileCompletesFatRun` in
+    // ai-build-score.ts + `FAT_WALL_RUN_PENALTY = 10_000` in
     // ai-strategy-build.ts hard-reject fat-run placements that don't close
-    // gaps, and heavily penalize gap-closing ones. On this seed: 3 fat-wall
-    // runs → 2 remaining, both gap-closing necessities the AI can't avoid
-    // given the chosen rect geometry. Interior is preserved (still 58) and
-    // the survival suite improved (0/6 → 3/6 passing on the sample). Full
-    // fix needs peer-aware rect placement so T3's natural rect doesn't
-    // force gap closures into T0's wall row in the first place (same
-    // direction sketched in the 574812 KNOWN FAILING test above).
+    // gaps and heavily penalize gap-closing ones — enough to drive the
+    // doubled-wall runs on this seed below the length-3 threshold the
+    // assertion forbids, while preserving the interior (still ≥ 58). The
+    // fuller fix is still peer-aware rect placement so T3's natural rect
+    // doesn't force gap closures into T0's wall row at all (same direction
+    // as the 574812 KNOWN FAILING test above), but it isn't needed for
+    // these assertions to pass.
     const sc = await createPhaseScenario(
       roundOneRedFatWall40 as unknown as FixtureFile,
     );
