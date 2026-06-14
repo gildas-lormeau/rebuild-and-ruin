@@ -31,11 +31,18 @@ export type CycleOptionFn = (
 ) => void;
 
 export function formatKeyName(key: string): string {
-  if (key === KEY_UP) return "\u2191";
-  if (key === KEY_DOWN) return "\u2193";
-  if (key === KEY_LEFT) return "\u2190";
-  if (key === KEY_RIGHT) return "\u2192";
-  if (key === " ") return "Space";
+  switch (key) {
+    case KEY_UP:
+      return "\u2191";
+    case KEY_DOWN:
+      return "\u2193";
+    case KEY_LEFT:
+      return "\u2190";
+    case KEY_RIGHT:
+      return "\u2192";
+    case " ":
+      return "Space";
+  }
   if (key.length === 1) return key.toUpperCase();
   return key;
 }

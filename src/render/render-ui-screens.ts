@@ -228,34 +228,42 @@ export function visibleOptions(frameCtx: UIContext): number[] {
 function optionValue(frameCtx: UIContext, idx: number): string {
   const settings = frameCtx.settings;
   const state = frameCtx.getState();
-  if (idx === OPT_DIFFICULTY) return DIFFICULTY_LABELS[settings.difficulty]!;
-  if (idx === OPT_ROUNDS) {
-    const opt = ROUNDS_OPTIONS[settings.rounds]!;
-    if (frameCtx.getOptionsContext().kind === "gameplay" && state) {
-      return `${opt.label} (round ${state.round})`;
+  switch (idx) {
+    case OPT_DIFFICULTY:
+      return DIFFICULTY_LABELS[settings.difficulty]!;
+    case OPT_ROUNDS: {
+      const opt = ROUNDS_OPTIONS[settings.rounds]!;
+      if (frameCtx.getOptionsContext().kind === "gameplay" && state) {
+        return `${opt.label} (round ${state.round})`;
+      }
+      return opt.label;
     }
-    return opt.label;
-  }
-  if (idx === OPT_CANNON_HP) return CANNON_HP_OPTIONS[settings.cannonHp]!.label;
-  if (idx === OPT_HAPTICS) return HAPTICS_LABELS[settings.haptics] ?? "Off";
-  if (idx === OPT_SEED) {
-    if (frameCtx.isOnline) {
-      const display = frameCtx.lobby.roomSeedDisplay;
-      return display === null ? "—" : String(display);
+    case OPT_CANNON_HP:
+      return CANNON_HP_OPTIONS[settings.cannonHp]!.label;
+    case OPT_HAPTICS:
+      return HAPTICS_LABELS[settings.haptics] ?? "Off";
+    case OPT_SEED: {
+      if (frameCtx.isOnline) {
+        const display = frameCtx.lobby.roomSeedDisplay;
+        return display === null ? "—" : String(display);
+      }
+      if (frameCtx.getOptionsContext().kind === "gameplay" && state) {
+        return String(state.rng.seed);
+      }
+      return settings.seedMode === SEED_CUSTOM
+        ? settings.seed || "_"
+        : "Random";
     }
-    if (frameCtx.getOptionsContext().kind === "gameplay" && state) {
-      return String(state.rng.seed);
-    }
-    return settings.seedMode === SEED_CUSTOM ? settings.seed || "_" : "Random";
+    case OPT_DPAD:
+      return DPAD_LABELS[settings.leftHanded ? 1 : 0]!;
+    case OPT_GAME_MODE:
+      return GAME_MODE_LABELS[settings.gameMode === GAME_MODE_MODERN ? 1 : 0]!;
+    case OPT_SOUND:
+      if (!frameCtx.getSoundReady()) return "Off";
+      return settings.soundEnabled ? "On" : "Off";
+    default:
+      return "";
   }
-  if (idx === OPT_DPAD) return DPAD_LABELS[settings.leftHanded ? 1 : 0]!;
-  if (idx === OPT_GAME_MODE)
-    return GAME_MODE_LABELS[settings.gameMode === GAME_MODE_MODERN ? 1 : 0]!;
-  if (idx === OPT_SOUND) {
-    if (!frameCtx.getSoundReady()) return "Off";
-    return settings.soundEnabled ? "On" : "Off";
-  }
-  return "";
 }
 
 /** Format a key binding as a short hint string (e.g. "Arrows + N (B rotate)"). */
