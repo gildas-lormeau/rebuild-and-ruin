@@ -25,8 +25,8 @@ Reverse-engineered from the implementation. Describes *what* the system does, no
 
 | Term | Definition |
 |------|-----------|
-| **Player** | A participant in the match, identified by a slot (1-3). Has a home tower, castle, owned towers, walls, interior territory, cannons, lives, score, and (in modern mode) upgrades. |
-| **Player Slot** | A numbered seat (1-3) that a player occupies. Determines zone assignment and turn order. |
+| **Player** | A participant in the match, identified by a 0-indexed slot id (0-2; spectators are -1). Has a home tower, castle, owned towers, walls, interior territory, cannons, lives, score, and (in modern mode) upgrades. |
+| **Player Slot** | A numbered seat (0-2, 0-indexed; the id doubles as the index into `state.players`) that a player occupies. Determines zone assignment and turn order. |
 | **Home Tower** | The tower a player selected as their base. Determines castle location and default cannon facing. |
 | **Owned Towers** | All towers currently enclosed by a player's walls. More towers = more cannon slots. |
 | **Lives** | A player starts with 3 lives. Loses 1 when failing to enclose any tower at the end of a build phase. At 0 lives, the player must choose to continue or forfeit. |
