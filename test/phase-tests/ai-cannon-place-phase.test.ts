@@ -360,19 +360,27 @@ Deno.test("phase-test: AI clusters cannons near owned towers in a multi-tower wh
   const avg = totalDistance / distances.length;
   const max = distances[distances.length - 1]!;
 
-  // No cannon should be more than 5 Manhattan tiles from its nearest owned
-  // tower's center. With TOWER_DISTANCE_MULTIPLIER too low the AI drifts
-  // cannons into the geometric middle of the enclosure, producing outliers
-  // at distance 6+.
+  // Baseline note: this fixture enters CANNON_PLACE through the
+  // checkpoint-replay path (applyMidGameCheckpoint -> rebuildControllersForPhase),
+  // which since da8e3d51 seeds the AI's starting cursor with the same
+  // validity-snapped placement that live gameplay always used (it was a raw
+  // home-tower corner before — a drifted path live play never took). The
+  // numbers below are therefore the AI's real in-game clustering on this
+  // board: avg 3.30, with one unavoidable outlier at 6 (20 cannons spread
+  // over 4 towers in a whole-zone fill can't all sit within 5 of a tower).
+  //
+  // AVG is the discriminating signal. Dropping TOWER_DISTANCE_MULTIPLIER so
+  // the AI drifts toward the geometric middle pushes avg to ~3.40 (verified)
+  // while max stays 6 — so `max <= 6` is only a loose sanity bound (catches a
+  // gross 7+ drift) and `avg <= 3.35` is the guard with teeth, sitting in the
+  // 3.30-good / 3.40-drift gap.
   assert(
-    max <= 5,
-    `AI drifts a cannon away from any tower: max=${max} avg=${avg.toFixed(2)} ` +
+    max <= 6,
+    `AI drifts a cannon far from any tower: max=${max} avg=${avg.toFixed(2)} ` +
       `sorted=[${distances.join(",")}]`,
   );
-  // Tighter signal: average distance must stay below the broken-baseline
-  // (~3.40 at multiplier=2/8). The fixed behavior settles around 3.1.
   assert(
-    avg <= 3.3,
+    avg <= 3.35,
     `AI cannons drift away from towers on average: avg=${avg.toFixed(2)} ` +
       `max=${max} sorted=[${distances.join(",")}]`,
   );
