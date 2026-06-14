@@ -346,6 +346,11 @@ and call it from `subsystems/phase-ticks.ts`.
 
 ## Related reading
 
+- **[docs/runtime-invariants.md](../../docs/runtime-invariants.md)** — The
+  runtime invariants manifest: every load-bearing invariant tagged
+  lint-guarded / test-guarded / review-only. **Read this before a global
+  runtime review** — it's the finite worklist (review the review-only set,
+  skip what the lints already guarantee).
 - **`scripts/lint-architecture.ts`** — Enforces the sub-system factory
   shape (one factory per file, single deps parameter, no cross-imports).
 - **`scripts/lint-domain-boundaries.ts`** — Enforces the `runtime →
