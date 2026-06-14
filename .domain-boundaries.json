@@ -46,11 +46,7 @@
     "entry": [
       "shared",
       "protocol",
-      "game",
-      "ai",
-      "controllers",
       "input",
-      "render",
       "online",
       "server",
       "runtime"
