@@ -83,7 +83,14 @@ invariant holds in the abstract.
 
 No automation guards these. Review every one against the code, and where noted,
 against a behaviour trace (a headless per-tick state+event dump). Each entry
-says **how to check it**.
+gives **how to check it**, the **current enforcing fact** (what satisfies the
+invariant today), and an **Anchor** to where that fact lives.
+
+> **Anchors are `file › symbol`, not `file:line`** — symbol anchors survive
+> line shifts, are greppable, and are verifiable by `comment-refs --symbols`.
+> All anchors below were verified present on 2026-06-14 (dogfood review). If a
+> symbol moves or is renamed, update the anchor; if the fact it pins changes,
+> the invariant changed — re-review, don't just re-anchor.
 
 ### Phase machine & transitions
 
@@ -94,6 +101,10 @@ says **how to check it**.
   `enterSelectionPhase`) — never `setPhase` or `state.phase =` /
   `state.timer =` inline. (E6 only restricts the *import* of `setPhase`; the
   discipline of using the helper is unguarded.)
+  *Fact:* every `enter*Phase` is the sole `setPhase` caller for its phase and
+  primes that phase's entry timer; prep transitions flip nothing (they route).
+  *Anchor:* `game/phase-entry.ts › enter*Phase`;
+  [runtime-phase-graph.md](runtime-phase-graph.md) "enters phase" column.
   *Check:* grep transition `mutate` bodies for `state.phase`/`state.timer`
   assignments; every one should be inside an `enter*Phase` call.
 
@@ -101,6 +112,12 @@ says **how to check it**.
   (`FireIntent`, `PlacePieceIntent`) *before* the orchestrator mutates; no
   read of mutable `GameState` *after* a mutation within the same transition
   step (read-after-mutate is a parity hazard).
+  *Fact:* controllers never mutate `ctx.state` inside the machine — the
+  orchestrator applies all mutations via engine calls; dialog subsystems
+  *produce* resolutions, the machine *applies* them (`applyUpgradePicks`,
+  `eliminatePlayers`). `ROUND_END` reads `peekGameOverOutcome` *before*
+  `state.round++` (load-bearing — peek must see the closing round).
+  *Anchor:* `runtime/phase-machine.ts › ROUND_END`, `› finishUpgradePick`.
   *Check:* trace each transition's `mutate`; confirm reads precede writes and
   no controller method mutates state directly.
 
@@ -109,12 +126,25 @@ says **how to check it**.
   *which* case — true elimination vs. life-loss reset (towers **revive** on
   life-loss, are cleared on elimination). Round-1 takeover-race windows are
   where this bites.
+  *Fact:* `applyLifePenalties` splits on `lives <= 0` *after* the decrement
+  (death → `eliminatePlayer`; life-loss → `needsReselect`), skipping
+  already-dead slots. `resetZoneState` sets `towerAlive[i] = true` for **both**
+  cases — the only behavioural difference is the `ownerEliminated` arg gating
+  cross-zone grunt eviction. Win-eligibility filters via `isPlayerAlive`.
+  RNG-consuming new-round seeding skips unseated slots (`prepareNextRound`).
+  *Anchor:* `game/phase-setup.ts › applyLifePenalties`, `› resetZoneState`;
+  `game/game-over.ts › peekGameOverOutcome`. **(R3's substance lives in the
+  engine, not the machine — the graph's "engine ops" list is the index, these
+  anchors are the destinations.)**
   *Check:* for each destructive clause, ask "does this run for a life-losing
   player who will reselect?" Verify against the death-vs-life-loss distinction.
 
 - **R4 — `score-deltas {0,0} homeTower fallback is reachable — do not delete.**
   A reselect-queued player with a positive delta hits it (seed 0 classic, first
-  reselect). A past review wrongly called it dead and removing it threw.
+  reselect): the life penalty nulls `homeTower` while territory scoring already
+  produced a positive delta. A past review wrongly called it dead and removing
+  it threw.
+  *Anchor:* `runtime/subsystems/score-deltas.ts` (`homeTower ? … : { x: 0, y: 0 }`).
   *Check:* if a review flags this as unreachable, it is wrong; leave it.
 
 ### Migration / parity seams (highest-risk, mostly invisible to 🟡 tests)
@@ -125,59 +155,124 @@ says **how to check it**.
   A **targeted** resync (snapshot to one peer) forks — it re-primes on that
   peer alone and advances its rng past the others. Rejoin must reuse the
   **broadcast** path (`rebroadcastFullStateForResync`), never a targeted send.
+  *Fact:* the only two `createFullStateMessage` send-sites are both broadcast;
+  `forPlayerId` carries only the *request*, which parks a room-wide deferred
+  resync fired to everyone. Adopters restore `state.rng` in place, then replay
+  the identical draws (redeal bags → reprime AI) in controller-array order.
+  *Anchor:* `online/runtime/promote.ts` + `online/online-resync-defer.ts ›
+  rebroadcastFullStateForResync` (producers); `online/online-host-promotion.ts ›
+  reprimeAiControllersForPhase` (draw-symmetry contract). **(`promote.ts` lives
+  under `online/runtime/`, not `online/`.)**
   *Check:* any new resync/re-prime path — confirm it is broadcast and that
-  post-serialize rng draws are identical on all peers. `promote.ts` is canonical.
+  post-serialize rng draws are identical on all peers.
 
 - **R6 — `runtimeState` writes are owned; reads are free.** Each
-  `runtimeState.*` field is *written* by exactly one sub-system (identifiable
-  by name); any sub-system may read. A second writer is the bug.
-  *Check:* for a touched field, grep all assignment sites; they must all live
-  in one sub-system. (Reads are unrestricted — don't flag those.)
+  *persistent* `runtimeState.*` field is *written* by exactly one sub-system
+  (identifiable by name); any sub-system may read. A second writer is the bug.
+  *Carve-out:* `runtimeState.frame.*` is a **per-substep scratchpad**, rebuilt
+  wholesale every substep by `freshFrame`/`clearFrameData` — it is
+  *recomputed*, not *owned*, so its many writers (e.g. `frame.announcement`)
+  are expected and **not** an R6 violation. The one-writer rule applies to
+  persistent bag fields, not `frame.*`.
+  *Anchor:* `runtime/state.ts › setMode` (model owned-write example);
+  `runtime/main-loop.ts › clearFrameData` (the `frame.*` scratchpad rebuild).
+  *Check:* for a touched **persistent** field, grep all assignment sites; they
+  must all live in one sub-system. (Reads unrestricted; `frame.*` exempt.)
 
 - **R7 — Unserialized-by-design state is re-derived on adopt, not serialized.**
   Controller cursor + `lastTargetTowerIndex` (`ctrl.reset()`), piece bags
   (`redealPlayerBagsForAdoption`), `accum.grunt` (rides
   `FullStateMessage.gruntAccum`). Adding new per-peer-only state means adding
   its re-derivation to the adopt path.
-  *Check:* new ephemeral controller/animation state — is it re-derived on
-  migration adopt? If not, it forks silently (🟡 tests won't see it — R-tier).
+  *Fact:* sim-gating ephemeral state is re-derived in the apply path
+  (controller reset, bag redeal, accum sync, `castleBuilds` requeue,
+  `battleAnim.flights` overwrite); render-only effect lists self-purge by age
+  and are deliberately *not* re-derived (at most a 1-frame stale visual).
+  *Anchor:* `online/online-host-promotion.ts › redealPlayerBagsForAdoption`,
+  `› primeAiControllerForPhase`.
+  *Check:* new ephemeral controller/animation state — does it **gate dispatch**?
+  If yes it must be re-derived on adopt (🟡 tests won't see it — R-tier); if
+  it's purely presentational, leaving it stale ~1 frame is fine.
 
 ### Observer & lifecycle discipline
 
 - **R8 — The bus is observers-only.** Sound, haptics, and other observers react
   to bus events; runtime control flow must remain correct with the bus removed.
   No control-flow decision may depend on a bus emission.
-  *Check:* new `bus.emit`/`bus.on` — is the emitter's correctness independent
-  of whether anyone listens? Observers must not feed back into the sim.
+  *Fact:* the **only** three bus consumers (`.on/bind(GAME_EVENT…)`) in all of
+  `src/` are `audio/music-player.ts`, `audio/sfx-player.ts`, and
+  `subsystems/haptics.ts` — all observers. A consumer anywhere else is the bug.
+  *Anchor:* `runtime/audio/music-player.ts`, `runtime/audio/sfx-player.ts`,
+  `runtime/subsystems/haptics.ts` (the complete consumer set).
+  *Check:* `grep -rl '\.on(GAME_EVENT\|bind(GAME_EVENT' src/` should return
+  exactly those three files; a new emitter's correctness must not depend on a
+  listener.
 
 - **R9 — Correct lifecycle guard.** Per-tick presentational signals, animators,
   and state-derived computations use `isSessionLive(runtimeState)` (stops at
   `returnToLobby`). `isStateInstalled` / `safeState` is only for paths that
-  legitimately read frozen state outside a session (game-over render, dev
-  console, E2E bridge).
-  *Check:* a new per-tick read guarded by `isStateInstalled` is likely wrong —
-  it should be `isSessionLive`.
+  legitimately read frozen state outside a session.
+  *Fact:* the **sole** sanctioned per-tick `isStateInstalled` read is
+  `render.ts` painting the **`Mode.STOPPED`** board — the game-over screen
+  (there is **no `Mode.GAME_OVER`**; `endGame` calls `setMode(Mode.STOPPED)`,
+  where state lingers installed but `isSessionLive` is false). Everything else
+  per-tick (animators in `cannon-animator.ts`, `pointer-player.ts`, the main
+  loop) uses `isSessionLive`. Other `isStateInstalled` uses: dev console,
+  E2E bridge, banner-snapshot capture.
+  *Anchor:* `runtime/subsystems/render.ts` (the `isStateInstalled` early-return);
+  `runtime/subsystems/game-lifecycle.ts › endGame` (`setMode(Mode.STOPPED)`);
+  `shared/ui/ui-mode.ts › Mode`.
+  *Check:* a new per-tick read guarded by `isStateInstalled` is likely wrong
+  unless it specifically must paint the `STOPPED` frozen board — else
+  `isSessionLive`.
 
 - **R10 — Animation state is owned by the runtime; the renderer only paints.**
   No gameplay/animation state originates in `render/`; the renderer reads
-  runtime-owned state and draws. Serialize-first/draw-after: serialize the
-  snapshot before any draw on a migration frame.
+  runtime-owned state via an injected provider and draws. Serialize-first/
+  draw-after: serialize the snapshot before any draw on a migration frame.
+  *Fact:* the one genuinely gameplay-derived animation (cannon facing) is
+  runtime-owned in `cannonAnimator` and reaches the renderer as a *provider
+  callback*, never as held state — the canonical "runtime owns, renderer gets
+  a provider" wire. `render/` module-level `let`s are GPU resources, draw
+  counters, dirty-check memo, and cosmetic wobble only.
+  *Anchor:* `runtime/subsystems/cannon-animator.ts › facings` (owner) →
+  `runtime/composition.ts › setCannonFacingProvider` (the wire).
   *Check:* new mutable state in a render path — should it live in `runtimeState`
-  and be passed down instead?
+  and be passed down (provider/value) instead?
 
-### Wiring conventions (cheap to check, easy to drift)
+### Wiring conventions (cheap to *drift*, NOT cheap to *check*)
+
+> R11/R12's check is "reconstruct the composition order and diff every
+> forward-reference against it" — O(subsystems × refs). A plain-value dep is
+> only a bug if it resolves a *later*-created subsystem; a plain value for an
+> *earlier* one is correct. So you cannot flag on "value vs getter" alone — you
+> must know the order. This is the cluster most wanting a generated artifact
+> (a composition-order table, the way the phase-graph serves R1/R3).
 
 - **R11 — DI pattern matches context.** Subsystem → deps object; online message
   handler → closure/late-binding getter; global online state → module singleton
   (never for game state); controller mutation → intent + execute callback.
-  *Check:* new wiring — does it match the pattern of its neighbours? (See
-  `docs`/the DI conventions; runtime `README.md` §"deps convention".)
+  *Fact:* the only module-level online singleton is `_handler` (the message-
+  handler closure, **not** game state); every runtime read in the online deps
+  builders is a getter (`getState: () => …`, `get joined()`), correct because
+  `runtimeState` is volatile across migration.
+  *Anchor:* `online/runtime/deps.ts › createMessageHandler` (`_handler`
+  singleton + getter reads); runtime `README.md` §"deps convention".
+  *Check:* new wiring — does it match the pattern of its neighbours?
 
-- **R12 — Late-binding deps are getters, not values.** A dep read *after* the
-  consuming sub-system is constructed (because the producer is created later)
-  must be a getter (`getState: () => …`), not a captured value.
-  *Check:* a plain-value dep that resolves a later-created sub-system is a
-  construction-order bug waiting to happen.
+- **R12 — Late-binding deps are getters, not values.** A dep that resolves a
+  sub-system created *later* in composition order must be a getter
+  (`getState: () => …`), not a captured value. A plain value for an *earlier*
+  sub-system is fine — order is the discriminator, not the syntax.
+  *Fact (today):* every forward-reference is thunked — e.g. `lifecycle`
+  (created before `lifeLost`/`upgradePick`) reaches them via
+  `getLifeLost: () => lifeLost`; `render` reaches later lobby/options/dialogs
+  via thunks, while its plain-value deps (`pointerPlayer`, `camera`) are all
+  created earlier. No `↑later`-as-value dep found.
+  *Anchor:* `runtime/composition.ts` (the construction order IS the contract —
+  read it top-to-bottom).
+  *Check:* for a plain-value dep, confirm its producer appears *above* the
+  consumer in `composition.ts`; a `↑later`-as-value is the bug.
 
 ---
 
@@ -198,5 +293,7 @@ See `src/runtime/README.md` for orientation (read `types.ts` → `state.ts` →
 `composition.ts` first) and `reference_runtime_migration_invariants` (memory)
 for the full migration-seam residue. For the phase flow specifically,
 [runtime-phase-graph.md](runtime-phase-graph.md) is a generated map of every
-transition (guard / enters-phase / engine ops / broadcasts / routing) — the
-artifact to check R1 and R3 against.
+transition (guard / enters-phase / engine ops / broadcasts / routing). It is
+**complete for R1** (the routing IS the data it generates) but only an **index
+for R3** — R3's substance is in the engine ops the graph names but doesn't
+reach; follow them to the R3 anchors above (`applyLifePenalties` et al.).
