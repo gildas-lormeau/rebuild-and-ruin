@@ -44,11 +44,14 @@ interface TransitionRecord {
 
 const MACHINE_FILE = "src/runtime/phase-machine.ts";
 const TICKS_FILE = "src/runtime/subsystems/phase-ticks.ts";
+const ENTRY_FILE = "src/game/phase-entry.ts";
 const OUT_FILE = "docs/runtime-phase-graph.md";
 /** `enter*Phase` helper → the phase it enters. The machine never imports the
- *  Phase values these map to as data, so the mapping is declared here; an
- *  `enter*Phase` call not in this map is surfaced verbatim (so a new phase
- *  helper shows up as an unmapped target rather than being silently dropped). */
+ *  Phase values these map to as data, so the mapping is declared here — but
+ *  it is NOT trusted: `verifyEnterPhaseMap` derives the same mapping from the
+ *  `setPhase(state, Phase.X)` calls in `game/phase-entry.ts` and fails the run
+ *  on any mismatch, a new unmapped helper, or a stale entry. So a phase rename
+ *  breaks the build instead of silently mislabeling the graph. */
 const ENTER_PHASE: Record<string, string> = {
   enterCannonPhase: "CANNON_PLACE",
   enterModifierRevealPhase: "MODIFIER_REVEAL",
@@ -82,6 +85,11 @@ async function main(): Promise<void> {
     compilerOptions: { allowJs: false },
   });
   const machine = project.addSourceFileAtPath(MACHINE_FILE);
+
+  // Verify the declared ENTER_PHASE map against ground truth BEFORE rendering —
+  // a wrong-but-consistent map would otherwise produce a deterministic (and
+  // silently mislabeled) graph that --check happily accepts.
+  verifyEnterPhaseMap(project.addSourceFileAtPath(ENTRY_FILE));
 
   const gameOps = collectGameOps(machine);
   const stringConsts = collectStringConsts(machine);
@@ -134,6 +142,83 @@ function collectStringConsts(
     if (match) out.set(decl.getName(), match[1]);
   }
   return out;
+}
+
+/** Derive `enter*Phase → phase` from `game/phase-entry.ts` and assert it
+ *  matches the declared ENTER_PHASE map. Fails the run (exit 1) on a
+ *  mismatch, a new exported `enter*Phase` helper missing from the map, or a
+ *  declared entry with no matching helper. This is what turns ENTER_PHASE from
+ *  a trusted constant into a checked one — without it, `--check` only guards
+ *  output drift, not a wrong-but-consistent declaration. */
+function verifyEnterPhaseMap(entry: import("ts-morph").SourceFile): void {
+  const fns = entry.getFunctions();
+  const names = new Set(fns.map((fn) => fn.getName()).filter(Boolean));
+  // Only EXPORTED enter*Phase helpers are public entry points the machine
+  // calls; private helpers (e.g. enterCannonPlacePhase) are resolution hops,
+  // not map entries.
+  const exported = new Set(
+    fns.filter((fn) => fn.isExported()).map((fn) => fn.getName()),
+  );
+
+  // Each function's own first `setPhase(state, Phase.X)` target, if any.
+  const directTarget = new Map<string, string | null>();
+  const calleesOf = new Map<string, string[]>();
+  for (const fn of fns) {
+    const name = fn.getName();
+    if (!name) continue;
+    const body = fn.getBodyText() ?? "";
+    const direct = /setPhase\(\s*state\s*,\s*Phase\.(\w+)\s*\)/.exec(body);
+    directTarget.set(name, direct ? direct[1] : null);
+    const callees = [...body.matchAll(/\b(\w+)\s*\(/g)]
+      .map((match) => match[1])
+      .filter((callee) => callee !== name && names.has(callee));
+    calleesOf.set(name, callees);
+  }
+
+  // Effective target: own setPhase, else the first local helper it calls that
+  // resolves to one (covers enterCannonPhase → enterCannonPlacePhase).
+  const resolve = (name: string, seen: Set<string>): string | null => {
+    if (seen.has(name)) return null;
+    seen.add(name);
+    const own = directTarget.get(name);
+    if (own) return own;
+    for (const callee of calleesOf.get(name) ?? []) {
+      const viaCallee = resolve(callee, seen);
+      if (viaCallee) return viaCallee;
+    }
+    return null;
+  };
+
+  const errors: string[] = [];
+  const derived = new Map<string, string>();
+  for (const name of names) {
+    if (!exported.has(name) || !/^enter\w+Phase$/.test(name ?? "")) continue;
+    const target = resolve(name!, new Set());
+    if (!target) continue; // not a phase-entering helper
+    derived.set(name!, target);
+    const declared = ENTER_PHASE[name!];
+    if (!declared) {
+      errors.push(`  ${name} enters ${target} but is MISSING from ENTER_PHASE`);
+    } else if (declared !== target) {
+      errors.push(
+        `  ${name}: declared ${declared}, but actually sets Phase.${target}`,
+      );
+    }
+  }
+  for (const name of Object.keys(ENTER_PHASE)) {
+    if (!derived.has(name)) {
+      errors.push(
+        `  ${name} is in ENTER_PHASE but no such helper sets a phase`,
+      );
+    }
+  }
+
+  if (errors.length) {
+    console.error(
+      `✗ ENTER_PHASE map is out of sync with ${ENTRY_FILE}:\n${errors.join("\n")}`,
+    );
+    Deno.exit(1);
+  }
 }
 
 function collectTransitions(
