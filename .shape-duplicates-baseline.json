@@ -526,9 +526,6 @@
       "pair": "DoorPlacement@src/render/3d/sprites/house-scene.ts ↔ WindowPlacement@src/render/3d/sprites/tower-scene.ts"
     },
     {
-      "pair": "DpadDeps@src/shared/ui/input-deps.ts ↔ RegisterOnlineInputDeps@src/shared/ui/input-deps.ts"
-    },
-    {
       "pair": "DustHost@src/render/3d/effects/wall-dust.ts ↔ SmokePuff@src/render/3d/effects/fire-burst.ts"
     },
     {
@@ -569,9 +566,6 @@
     },
     {
       "pair": "FlameSpec@src/render/3d/sprites/pit-scene.ts ↔ TurretParams@src/render/3d/sprites/grunt-scene.ts"
-    },
-    {
-      "pair": "FloatingActionsDeps@src/shared/ui/input-deps.ts ↔ RegisterOnlineInputDeps@src/shared/ui/input-deps.ts"
     },
     {
       "pair": "FrameContext@src/shared/core/types.ts ↔ FrameContextInputs@src/runtime/main-loop.ts"
