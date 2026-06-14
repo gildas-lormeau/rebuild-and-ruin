@@ -209,6 +209,12 @@ export function createLobbySystem(deps: LobbySystemDeps): LobbySystem {
     runtimeState.lobby.map = null; // force fresh seed + map preview
     runtimeState.quit = { pending: false };
     runtimeState.optionsUI.context = { kind: "lobby" };
+    // Quitting to the lobby while paused (P-key, or the ESC countdown started
+    // mid-pause) would otherwise leave `pausedBy` set until the next
+    // `startGame` → `resetTransientState`. LOBBY is not a gameplay mode so the
+    // demo loop never freezes today, but the residue is a trap for any future
+    // lobby-side `isPaused` read — normalize it alongside the other flags.
+    runtimeState.pausedBy = "none";
     deps.requestRender();
     setMode(runtimeState, Mode.LOBBY);
   }

@@ -635,6 +635,14 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     );
     deps.requestRender();
     if (runtimeState.state.timer > 0) return false;
+    // Reset is exit-side here, unlike the entry-side resets in
+    // `initLocalCannonControllers` / `beginBattle` / `startBuildPhase`. This
+    // phase has no controller-priming entry hook to hang it on (its only
+    // entry work is `enterModifierRevealPhase` in the `game/` layer, which
+    // can't touch the runtime-owned `accum`), so the reset lives next to the
+    // single tick that uses ACCUM_MODIFIER_REVEAL. Functionally identical —
+    // the accum is 0 outside the phase either way and is never read across
+    // the boundary. Don't add an entry-side reset on top of this one.
     resetAccum(runtimeState.accum, ACCUM_MODIFIER_REVEAL);
     runTransition("enter-battle", buildPhaseCtx());
     return true;

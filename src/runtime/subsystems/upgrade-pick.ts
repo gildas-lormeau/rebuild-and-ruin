@@ -186,11 +186,19 @@ export function createUpgradePickSystem(
 
   function prepare(): boolean {
     assertStateInstalled(runtimeState);
+    // `prepare()` is called twice by design — the `enter-upgrade-pick` mutate
+    // pre-creates the dialog for progressive reveal during the banner sweep,
+    // then `runPickerModalThenDispatch` re-calls it (idempotently) in
+    // postDisplay. Log only on the first call (actual creation) so the
+    // "prepared" line isn't duplicated every modern round.
+    const alreadyCreated = Boolean(runtimeState.dialogs.upgradePick);
     const dialog = ensureDialog();
     if (!dialog) return false;
-    deps.log(
-      `upgrade pick prepared: ${dialog.entries.length} players, round=${runtimeState.state.round}`,
-    );
+    if (!alreadyCreated) {
+      deps.log(
+        `upgrade pick prepared: ${dialog.entries.length} players, round=${runtimeState.state.round}`,
+      );
+    }
     return true;
   }
 

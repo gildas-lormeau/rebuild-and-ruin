@@ -25,8 +25,6 @@ import type { RuntimeSelection } from "./selection.ts";
 import type { RuntimeUpgradePick } from "./upgrade-pick.ts";
 
 interface GameLifecycleDeps {
-  readonly log: (msg: string) => void;
-
   // Game start — composition root resolves settings and calls bootstrapGame
   readonly bootstrapNewGame: () => void | Promise<void>;
 
@@ -116,7 +114,7 @@ interface GameLifecycleSystem extends RuntimeLifecycle {
 
 interface LifecycleWiringDeps {
   readonly runtimeState: RuntimeState;
-  readonly config: Pick<RuntimeConfig, "log" | "showLobby" | "onEndGame">;
+  readonly config: Pick<RuntimeConfig, "showLobby" | "onEndGame">;
   /** Injected timing primitives — replaces bare `globalThis.setTimeout` /
    *  `globalThis.clearTimeout` access in the demo-return timer. */
   readonly timing: TimingApi;
@@ -217,6 +215,14 @@ export function createGameLifecycle(
   }
 
   async function rematch(): Promise<void> {
+    // Bump the in-flight-bootstrap cancel token, as `teardownSession` does on
+    // every other restart path. Two overlapping `rematch()` calls otherwise
+    // capture the same `bootGeneration`, so neither bootstrap's `isCancelled`
+    // trips and both can run to `setState`. The window is closed today
+    // (synchronous `clearGameOver` no-ops the second game-over input before
+    // the first `await`), so this keeps the cancel-token contract uniform
+    // rather than fixing a live bug.
+    deps.invalidateInFlightBootstrap();
     deps.clearDemoTimer();
     deps.clearGameOver();
     // Cut the game-over audio (welldone + winner stinger, any score-screen
@@ -293,7 +299,6 @@ export function buildLifecycleDeps(
 ): GameLifecycleDeps {
   const { runtimeState, config } = wiringDeps;
   return {
-    log: config.log,
     bootstrapNewGame: wiringDeps.bootstrapNewGame,
 
     setGameOverFrame: (winner) => {
