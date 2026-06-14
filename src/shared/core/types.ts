@@ -622,7 +622,7 @@ export function hasFeature(state: GameState, feature: FeatureId): boolean {
  *  `CannonViewState` controllers can call it. */
 export function cannonSlotsFor(
   state: { readonly cannonLimits: readonly number[] },
-  playerId: number,
+  playerId: ValidPlayerId,
 ): number {
   return state.cannonLimits[playerId] ?? 0;
 }
