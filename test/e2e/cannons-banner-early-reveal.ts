@@ -1,23 +1,28 @@
 /**
- * E2E REGRESSION GUARD — banner next-scene must not reveal early.
+ * E2E regression guard for the cannons-banner scene reveal.
  *
- * Guards against the bug where the banner's "next" scene snapshot leaks in
- * before the sweep reaches it: while the "Place Cannons" banner is still
- * sweeping, the post-banner scene shows in regions the sweep hasn't covered.
- * Root cause (regressed in b8aad5b0, fixed by returning a fresh offscreen
- * snapshot per capture): the prev-scene and new-scene captures aliased one
- * reused buffer, so the new scene overwrote the prev scene and painted the
- * whole board.
+ * The two probe tiles are derived from the map, not hardcoded: the
+ * bottom-most house (the sweep reaches it last) and the top-most house.
+ * Two halves of the same animation, both probed with `sc.tileImage`:
  *
- * Probe: the tile at (23,3) holds a house. Captured early in the "Place
- * Cannons" banner sweep (seed 355529, modern, round 1), the house must NOT
- * be visible yet — until the sweep reaches that tile it shows the previous
- * scene (grass). With the bug present the next scene leaks through and the
- * tile reads as the brown house; with the fix it stays grass.
+ *  1. NO EARLY REVEAL (the regression). The instant the "Place Cannons"
+ *     banner is displayed, the sweep has not yet reached the BOTTOM-most
+ *     house, so that tile must still show the PREVIOUS scene — not the brown
+ *     house. The regression painted the next snapshot too early, so the tile
+ *     read as the house before the sweep got there.
  *
- * This uses the `sc.tileImage` API as a pixel-precise probe. The PNG is
- * decoded in-browser (Image → 2D canvas → getImageData) because the rendered
- * scene lives on the WebGL canvas, so only a real screenshot sees it.
+ *  2. FULL REVEAL AT SWEEP END. When the banner sweep animation completes
+ *     (`bannerSweepEnd`, progress=1), the next scene is fully shown, so the
+ *     TOP-most house MUST be visible (brown). Guards against an
+ *     over-correction that never reveals the scene.
+ *
+ * Pixel check: the captured PNG is decoded in-browser (Image → 2D canvas →
+ * getImageData) — the rendered scene lives on the WebGL canvas, so only a
+ * real screenshot sees it. Grass is green-dominant (red < green); the house
+ * roof/walls are brown (red ≥ green), so the two separate cleanly.
+ *
+ * Runs with fast mode OFF: at 100x the sweep advances unpredictably between
+ * the banner event and the screenshot, making both captures flaky.
  *
  * Run: npm run dev  (in another shell)
  *      deno run -A test/e2e/cannons-banner-early-reveal.ts [--visible]
@@ -25,13 +30,23 @@
 
 import { mkdirSync } from "node:fs";
 import { BANNER_PLACE_CANNONS } from "../../src/runtime/banner-messages.ts";
-import { createE2EScenario, E2ETest, waitForBanner } from "./scenario.ts";
+import {
+  createE2EScenario,
+  E2ETest,
+  GAME_EVENT,
+  waitForBanner,
+  waitForEvent,
+} from "./scenario.ts";
+
+interface HousePos {
+  row: number;
+  col: number;
+  alive: boolean;
+}
 
 const SEED = 355529;
-const HOUSE_ROW = 23;
-const HOUSE_COL = 3;
-/** Above this fraction of red≥green pixels the tile is showing the brown
- *  house; grass is green-dominant and sits near zero. */
+/** Above this fraction of red≥green pixels the tile shows the brown house;
+ *  grass is green-dominant and sits near zero. */
 const HOUSE_BROWN_THRESHOLD = 0.25;
 const OUT = "tmp/screenshots/cannons-banner-early-reveal";
 
@@ -41,9 +56,7 @@ main().catch((err) => {
 });
 
 async function main(): Promise<void> {
-  const test = new E2ETest(
-    "cannons-banner early next-scene reveal (regression repro)",
-  );
+  const test = new E2ETest("cannons-banner scene reveal (no early reveal + full reveal at sweep end)");
   mkdirSync(OUT, { recursive: true });
 
   const sc = await createE2EScenario({
@@ -52,44 +65,81 @@ async function main(): Promise<void> {
     rounds: 3,
     mode: "modern",
     headless: !Deno.args.includes("--visible"),
-    // Real-time clock: at 100× the banner sweep advances unpredictably
-    // between `waitForBanner` and the screenshot, so the captured sweep
-    // progress (and thus the result) is flaky. Real time keeps the capture
-    // reliably early in the sweep, when (23,3) has not yet been reached.
+    // Real-time clock: at 100x the banner sweep advances unpredictably
+    // between the banner event and the screenshot, so the captured sweep
+    // progress (and thus the result) is flaky.
     fastMode: false,
   });
 
   try {
-    // Trigger at the exact moment the cannons banner is displayed.
+    // --- Banner displayed → sweep begins. ---
     await waitForBanner(sc, (ev) => ev.text === BANNER_PLACE_CANNONS, {
       timeoutMs: 60_000,
     });
 
-    // Ground truth: (23,3) is a house — so the "next" scene there is brown.
+    // Derive the probe tiles from the map: the bottom-most house (the sweep
+    // reaches it last → must still be the prev scene at banner start) and the
+    // top-most house (fully revealed by sweep end). Tie-break by column so the
+    // pick is deterministic.
     const game = await sc.gameState();
-    const houses = (game?.map?.houses ?? []) as { row: number; col: number }[];
-    const isHouse = houses.some(
-      (h) => h.row === HOUSE_ROW && h.col === HOUSE_COL,
+    const houses = ((game?.map?.houses ?? []) as HousePos[]).filter(
+      (h) => h.alive,
     );
-    test.check(`map has a house at (${HOUSE_ROW},${HOUSE_COL})`, isHouse);
-
-    // Debug artifacts (gitignored) so a failing run is inspectable.
-    await sc.page.screenshot({ path: `${OUT}/fullscreen.png` });
-    await sc.tileImage(HOUSE_ROW, HOUSE_COL, { path: `${OUT}/tile-23-3.png` });
-
-    const brownFrac = await houseColourFraction(sc, HOUSE_ROW, HOUSE_COL);
+    test.check("map has houses", houses.length > 0, `${houses.length} alive`);
+    if (houses.length === 0) return;
+    const bottomHouse = [...houses].sort(
+      (a, b) => b.row - a.row || a.col - b.col,
+    )[0];
+    const topHouse = [...houses].sort(
+      (a, b) => a.row - b.row || a.col - b.col,
+    )[0];
     console.log(
-      `  (${HOUSE_ROW},${HOUSE_COL}) brownFrac=${brownFrac.toFixed(3)} ` +
-        `(threshold ${HOUSE_BROWN_THRESHOLD})`,
+      `  bottom house (early probe) = (${bottomHouse.row},${bottomHouse.col}), ` +
+        `top house (end probe) = (${topHouse.row},${topHouse.col})`,
     );
 
-    // The spec: until the banner sweep reaches this tile, the next scene
-    // (the house) must NOT be painted — the tile shows the prev scene
-    // (grass). Regresses to brown if the prev/new snapshots alias one buffer.
+    // The bottom house must NOT yet be the brown house — the next scene must
+    // not be painted before the sweep reaches it.
+    const earlyFrac = await houseColourFraction(
+      sc,
+      bottomHouse.row,
+      bottomHouse.col,
+    );
+    await sc.page.screenshot({ path: `${OUT}/at-banner-start.png` });
+    await sc.tileImage(bottomHouse.row, bottomHouse.col, {
+      path: `${OUT}/early-tile.png`,
+    });
+    console.log(
+      `  early (${bottomHouse.row},${bottomHouse.col}) brownFrac=${earlyFrac.toFixed(3)} ` +
+        `(want < ${HOUSE_BROWN_THRESHOLD})`,
+    );
     test.check(
-      `next scene not revealed early: (${HOUSE_ROW},${HOUSE_COL}) is NOT the brown house yet`,
-      brownFrac < HOUSE_BROWN_THRESHOLD,
-      `brownFrac=${brownFrac.toFixed(3)} — house revealed before the banner sweep`,
+      `next scene not revealed early: bottom house (${bottomHouse.row},${bottomHouse.col}) is NOT brown yet`,
+      earlyFrac < HOUSE_BROWN_THRESHOLD,
+      `brownFrac=${earlyFrac.toFixed(3)} — house revealed before the banner sweep`,
+    );
+
+    // --- Sweep animation completes → the full next scene is on screen. The
+    //     top house must now be visible. ---
+    await waitForEvent(
+      sc,
+      GAME_EVENT.BANNER_SWEEP_END,
+      (ev) => ev.text === BANNER_PLACE_CANNONS,
+      { timeoutMs: 30_000 },
+    );
+    const endFrac = await houseColourFraction(sc, topHouse.row, topHouse.col);
+    await sc.page.screenshot({ path: `${OUT}/at-sweep-end.png` });
+    await sc.tileImage(topHouse.row, topHouse.col, {
+      path: `${OUT}/end-tile.png`,
+    });
+    console.log(
+      `  end   (${topHouse.row},${topHouse.col}) brownFrac=${endFrac.toFixed(3)} ` +
+        `(want > ${HOUSE_BROWN_THRESHOLD})`,
+    );
+    test.check(
+      `full reveal at sweep end: top house (${topHouse.row},${topHouse.col}) is visible`,
+      endFrac > HOUSE_BROWN_THRESHOLD,
+      `brownFrac=${endFrac.toFixed(3)} — house not visible after the sweep completed`,
     );
   } finally {
     await sc.close();
