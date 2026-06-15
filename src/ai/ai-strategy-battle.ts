@@ -16,6 +16,7 @@ import {
   type Cannonball,
   isBalloonCannon,
   isCannonAlive,
+  isSuperCannon,
 } from "../shared/core/battle-types.ts";
 import {
   computeCardinalObstacleMask,
@@ -87,6 +88,15 @@ const BATTLE_SECOND_HALF_TIMER = 5;
 const TARGET_SWITCH_PROBABILITY = 0.25;
 /** Chance to target a strategic wall tile (flanked by 2+ obstacles). */
 const STRATEGIC_TARGET_PROBABILITY = 1 / 4;
+/** Chance to aim fire at a strategic (load-bearing) wall while the player has a
+ *  fire-capable SUPER gun. A 3×3 super gun's incendiary splash + burning pit
+ *  breach such walls far better than a normal ball, so it's worth leaning on
+ *  them while one is up. Opportunistic — the runtime round-robins which cannon
+ *  fires; this biases targeting (`hasReadySuperGun`) rather than forcing a
+ *  specific cannon, so the super gun's shots land on load-bearing walls in turn.
+ *  Personality-gated like the regular strategic pick (tier-1 never); tier-2 base
+ *  is 30%, doubling at the aggressive tier (mirrors the supply-ship ladder). */
+const SUPER_GUN_STRATEGIC_PROBABILITY = 3 / 10;
 /** Chance to target a supply ship sailing the river. Aiming uses lead
  *  prediction via `pickSupplyShipTarget`, but the chosen probability
  *  keeps ships from dominating AI shot selection. Raised from 1/8 to 3/16:
@@ -260,6 +270,45 @@ export function pickTarget(
       );
       if (shipTarget) {
         return { x: shipTarget.x, y: shipTarget.y, pickPath: "supply_ship" };
+      }
+    }
+  }
+
+  // Super-gun opportunism: while the player has a fire-capable 3×3 super gun,
+  // bias toward a strategic (load-bearing) wall — its incendiary splash +
+  // burning pit make those breaches count. Same targets as the regular strategic
+  // gate; runs first so a ready super gun gets an extra, higher roll. The runtime
+  // round-robins which cannon fires, so this just concentrates fire on
+  // load-bearing walls while a super gun is up; the super gun's own shots land
+  // there in turn. Gated on `hasReadySuperGun` — a pure function of synced state,
+  // so the rand() draw is identical on every peer. (A `nextReadyCannon` peek
+  // would read the controller-local rotation index, which diverges after host
+  // migration / reselect and would break rng parity.)
+  if (hasReadySuperGun(state, playerId)) {
+    const superStrategicProb = traitLookup(battleTactics, [
+      0,
+      SUPER_GUN_STRATEGIC_PROBABILITY,
+      2 * SUPER_GUN_STRATEGIC_PROBABILITY,
+    ] as const);
+    if (rand() < superStrategicProb) {
+      const strategic = collectStrategicWallTargets(
+        state,
+        playerId,
+        focusFirePlayerId,
+      );
+      if (strategic.length > 0) {
+        const jitter = pickJitteredNearestTarget(
+          strategic,
+          currentRow,
+          currentCol,
+          rand,
+        );
+        return {
+          x: jitter.x,
+          y: jitter.y,
+          strategic: true,
+          pickPath: "super_strategic",
+        };
       }
     }
   }
@@ -453,6 +502,27 @@ export function isEnclosureBroken(
  *  is interior), but reads the CURRENT walls so breaches are reflected live. */
 export function computeLiveInterior(walls: ReadonlySet<TileKey>): Set<TileKey> {
   return interiorFromOutside(walls, computeOutside(walls));
+}
+
+/** True when the player owns a fire-capable super gun (alive, enclosed, no ball
+ *  in flight). Pure function of synced GameState — no controller-local rotation
+ *  index — so every peer computes the same value at the same sim-tick, keeping
+ *  the super-gun targeting gate's rng draw in lockstep across host migration /
+ *  reselect. */
+function hasReadySuperGun(
+  state: BattleViewState,
+  playerId: ValidPlayerId,
+): boolean {
+  const player = state.players[playerId];
+  if (!player) return false;
+  for (let idx = 0; idx < player.cannons.length; idx++) {
+    if (
+      isSuperCannon(player.cannons[idx]!) &&
+      canFireOwnCannon(state, playerId, idx as CannonIdx)
+    )
+      return true;
+  }
+  return false;
 }
 
 function collectStrategicWallTargets(

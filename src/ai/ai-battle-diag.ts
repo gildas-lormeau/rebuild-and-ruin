@@ -49,6 +49,10 @@ export type FireOrigin =
 export type PickPath =
   | "supply_ship"
   | "strategic"
+  // strategic pick taken because the player has a fire-capable super gun — fire
+  // is concentrated on load-bearing walls so its 3×3 incendiary splash lands
+  // there. (See `hasReadySuperGun` / `SUPER_GUN_STRATEGIC_PROBABILITY`.)
+  | "super_strategic"
   | "grunt_wall"
   | "priority_cannon"
   | "fresh_cannon"
