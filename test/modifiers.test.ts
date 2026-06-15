@@ -258,6 +258,23 @@ const EFFECT_PROBES: Partial<Record<ModifierId, EffectProbe>> = {
   // dead-cannon debris or burning pits to clear; whether that's true
   // in round 3 depends on the seed, so a probe would be flaky.
 };
+// ── supply_ship: extra_build_time extends the WALL_BUILD timer ────────
+// Regression for the silent clobber: `enterWallBuildPhase` primed
+// `state.timer` with the drained supply-ship seconds, but the per-tick
+// `advancePhaseTimer` recomputed its max WITHOUT that term and overwrote
+// the prime on the first Mode.GAME tick — the bonus was consumed yet
+// never delivered, from the day the feature shipped. The max is now
+// `wallBuildTimerMax` (single source of truth), fed by the drained
+// seconds persisted on `state.modern.extraBuildTimeSeconds`.
+//
+// SEED is collision-dependent (like PER_MODIFIER_SEED.frostbite): it
+// needs an AI hit-sink (two ship-shots stacked on one hull — archetype-
+// gated at 0/3/6-in-16 per shot decision) on a ship that rolled
+// `extra_build_time` (1 in 4 at spawn). ~1 in 15 seeds qualifies. If AI
+// retuning drifts it, re-scan: boot this exact scenario over seed = 0..N
+// and keep the first whose `state.modern.pendingSupplyBonuses` gains an
+// "extra_build_time" entry during a BATTLE phase.
+const EXTRA_BUILD_TIME_SEED = 8;
 
 for (const modifierId of MODIFIER_IDS) {
   Deno.test(`modifiers: ${modifierId} fires + effect observed`, async () => {
@@ -331,23 +348,6 @@ Deno.test("regression: no grunt is stranded on impassable water", async () => {
   );
 });
 
-// ── supply_ship: extra_build_time extends the WALL_BUILD timer ────────
-// Regression for the silent clobber: `enterWallBuildPhase` primed
-// `state.timer` with the drained supply-ship seconds, but the per-tick
-// `advancePhaseTimer` recomputed its max WITHOUT that term and overwrote
-// the prime on the first Mode.GAME tick — the bonus was consumed yet
-// never delivered, from the day the feature shipped. The max is now
-// `wallBuildTimerMax` (single source of truth), fed by the drained
-// seconds persisted on `state.modern.extraBuildTimeSeconds`.
-//
-// SEED is collision-dependent (like PER_MODIFIER_SEED.frostbite): it
-// needs an AI hit-sink (two ship-shots stacked on one hull — archetype-
-// gated at 0/3/6-in-16 per shot decision) on a ship that rolled
-// `extra_build_time` (1 in 4 at spawn). ~1 in 15 seeds qualifies. If AI
-// retuning drifts it, re-scan: boot this exact scenario over seed = 0..N
-// and keep the first whose `state.modern.pendingSupplyBonuses` gains an
-// "extra_build_time" entry during a BATTLE phase.
-const EXTRA_BUILD_TIME_SEED = 147;
 Deno.test("modifiers: supply_ship extra_build_time extends the build timer", async () => {
   using sc = await createScenario({
     seed: EXTRA_BUILD_TIME_SEED,

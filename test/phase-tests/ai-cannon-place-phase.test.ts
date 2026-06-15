@@ -186,7 +186,9 @@ Deno.test("phase-test: applyBonusSquareOverrides rejects duplicate of an existin
 });
 
 Deno.test("phase-test: fixture with wall overrides appends them to the owner's player.walls", async () => {
-  const sc = await createPhaseScenario(roundOneWithWalls as FixtureFile);
+  const sc = await createPhaseScenario(
+    roundOneWithWalls as unknown as FixtureFile,
+  );
 
   for (const override of roundOneWithWalls.walls) {
     const player = sc.state.players[override.ownerId]!;
@@ -233,7 +235,9 @@ Deno.test("phase-test: applyWallOverrides rejects duplicate against any player's
 });
 
 Deno.test("phase-test: recomputeFixtureDerivedState lets the runtime tick after wall additions", async () => {
-  const sc = await createPhaseScenario(roundOneWithWalls as FixtureFile);
+  const sc = await createPhaseScenario(
+    roundOneWithWalls as unknown as FixtureFile,
+  );
   recomputeFixtureDerivedState(sc.state);
 
   // Advance into BATTLE — without recompute, assertInteriorFresh would fire

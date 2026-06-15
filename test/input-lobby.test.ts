@@ -420,7 +420,10 @@ Deno.test(
 Deno.test(
   "selection: a hover inside the confirm's lockstep window must not flip the committed tower",
   async () => {
-    using sc = await createScenario({ seed: 42, autoStartGame: false });
+    // Seed 2: slot 0's zone is arranged so the post-confirm `up` browse lands
+    // on a different tower (the precondition below). If map-gen drifts it,
+    // re-scan seeds for "post-confirm hover moves the highlight".
+    using sc = await createScenario({ seed: 2, autoStartGame: false });
     const bindings = PLAYER_KEY_BINDINGS[0]!;
     for (let i = 0; i <= LOBBY_TIMER; i++) {
       await pressKeyAndSettle(sc, bindings.confirm);

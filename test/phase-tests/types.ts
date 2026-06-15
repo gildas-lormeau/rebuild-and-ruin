@@ -15,6 +15,7 @@
  */
 
 import type { FullStateMessage } from "../../src/protocol/protocol.ts";
+import type { GameMap } from "../../src/shared/core/geometry-types.ts";
 import type { Phase } from "../../src/shared/core/game-phase.ts";
 import type { TestHooks } from "../../src/shared/core/types.ts";
 
@@ -43,6 +44,19 @@ export interface FixtureFile {
    *  for `round > 1`. The checkpoint's `round` / `phase` must match the
    *  fixture's `round` / `entryPhase`. */
   checkpoint?: FullStateMessage;
+  /** Pinned terrain (a `generateMap` snapshot from the sampler the fixture
+   *  was authored against). When present the loader installs it instead of
+   *  the seed-generated map, so a future map-sampler change can't silently
+   *  pair fresh terrain with this fixture's hand-authored walls/zones/grunts.
+   *
+   *  Checkpoint fixtures are fully pinned: the map is installed before
+   *  `applyMidGameCheckpoint`, which restores all dynamic state (walls,
+   *  zones, towerAlive) against it. Fresh fixtures are only TERRAIN-pinned —
+   *  the round-1 AI castle drive still runs off the live seed's RNG stream,
+   *  which a sampler change shifts. A contrived fresh fixture whose overrides
+   *  must avoid the auto-built castle should therefore be authored as a
+   *  checkpoint (capture round-1 CANNON_PLACE) rather than relying on this. */
+  map?: GameMap;
   /** House additions applied on top of the seed-generated map, after the
    *  runtime has played through to `entryPhase`. Each entry is validated
    *  for in-bounds row/col, grass tile, no tower overlap, and no duplicate

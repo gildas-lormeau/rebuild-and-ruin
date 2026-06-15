@@ -916,13 +916,13 @@ Deno.test(
 Deno.test(
   "watcher promoted during the balloon flyover begins the battle",
   async () => {
-    // Seed 104: a propaganda-balloon capture (the only producer of
-    // balloon flights) resolves at round 3's battle entry. If AI
+    // Seed 1: a propaganda-balloon capture (the only producer of
+    // balloon flights) resolves at round 4's battle entry. If AI
     // retuning drifts it, re-scan seeds for `mode() === BALLOON_ANIM`.
     await promoteWatcherDuringBattleIntro(
       (watcher) => watcher.mode() === Mode.BALLOON_ANIM,
       "balloon window",
-      104,
+      1,
     );
   },
 );
@@ -1388,6 +1388,31 @@ Deno.test(
         observer.mode() === Mode.STOPPED
       ) {
         break;
+      }
+    }
+
+    // Align sim-ticks before snapshotting. Cross-peer parity is defined at
+    // sim-tick granularity, not wall-frame granularity: the main loop
+    // converts each wall-frame into fixed sim-steps via a time accumulator
+    // whose fractional residue is peer-local (frame-rate independence). The
+    // observer's wire-delay skew (`observer.tick(90)`) gave it a different
+    // residue than the promoted host, so their catch-up sim-steps land on
+    // different wall-frames — a same-wall-frame snapshot can sample the two
+    // peers up to one sim-tick apart (here the observer trails by one). That
+    // is benign in production (each sim tick is identical regardless of which
+    // RAF frame runs it; two browsers always carry independent residues), but
+    // it breaks a byte-exact same-frame compare. Run the trailing peer the
+    // extra tick(s) so both stand on the same simTick, then assert.
+    let alignGuard = 0;
+    while (
+      promotable.state.simTick !== observer.state.simTick &&
+      alignGuard++ < 600
+    ) {
+      if (promotable.state.simTick < observer.state.simTick) {
+        promotable.tick(1);
+        await pumpPromoted();
+      } else {
+        observer.tick(1);
       }
     }
     assertStateConverges(

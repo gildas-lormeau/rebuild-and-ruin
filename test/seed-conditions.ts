@@ -123,6 +123,16 @@ export const SEED_CONDITIONS: Readonly<Record<string, SeedCondition>> = {
     rounds: DEFAULT_ROUNDS,
     match: (sc) => latchShieldBatteryEffective(sc),
   },
+  // The generic `modifier:sapper` condition latches on the first sapper roll,
+  // which can land on a round where no grunt is targeting a wall — leaving the
+  // reveal test with 0 targeted walls to render. This variant requires at least
+  // one grunt with a `targetedWall` at apply time, mirroring that test's guard.
+  // Overrides the auto-generated entry above.
+  "modifier:sapper": {
+    mode: "modern",
+    rounds: DEFAULT_ROUNDS,
+    match: (sc) => latchSapperTargetsWalls(sc),
+  },
 };
 
 /** Latch a bus event fire behind a closure flag. Returns the poller. */
@@ -189,6 +199,20 @@ function latchRubbleClearingWithEntities(sc: Scenario): () => boolean {
     if (ev.modifierId !== "rubble_clearing") return;
     const held = sc.state.modern?.rubbleClearingHeld;
     if (held && held.pits.length + held.deadCannons.length > 0) seen = true;
+  });
+  return () => seen;
+}
+
+/** Latch the first `sapper` apply where at least one grunt is targeting a
+ *  wall (`targetedWall` set) — otherwise the reveal has no walls to pulse.
+ *  Mirrors `sapperImpl.apply`, which marks exactly those grunts' walls. */
+function latchSapperTargetsWalls(sc: Scenario): () => boolean {
+  let seen = false;
+  sc.bus.on(GAME_EVENT.MODIFIER_APPLIED, (ev) => {
+    if (ev.modifierId !== "sapper") return;
+    if (sc.state.grunts.some((grunt) => grunt.targetedWall !== undefined)) {
+      seen = true;
+    }
   });
   return () => seen;
 }

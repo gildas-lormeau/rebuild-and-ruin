@@ -23,6 +23,7 @@ import {
   CANNON_MAX_HP,
   TOWER_SIZE,
 } from "../../src/shared/core/game-constants.ts";
+import type { GameMap } from "../../src/shared/core/geometry-types.ts";
 import { Phase } from "../../src/shared/core/game-phase.ts";
 import { GRID_COLS, GRID_ROWS, Tile } from "../../src/shared/core/grid.ts";
 import {
@@ -34,6 +35,7 @@ import { packTile } from "../../src/shared/core/spatial.ts";
 import type { GameState } from "../../src/shared/core/types.ts";
 import type { ZoneId } from "../../src/shared/core/zone-id.ts";
 import { recheckTerritory } from "../../src/game/build-system.ts";
+import { topZonesBySize } from "../../src/game/map-generation.ts";
 import { useSmallPieces } from "../../src/game/upgrade-system.ts";
 import { applyMidGameCheckpoint } from "../../src/online/online-rehydrate.ts";
 import { type AsciiRenderer, createAsciiRenderer } from "../ascii-renderer.ts";
@@ -487,6 +489,11 @@ async function createFreshScenario(
     renderer,
     assistedSlots,
   });
+  // Before the AI drive: createScenario stops at the round-1 CASTLE_SELECT
+  // entry with no game ticks run yet (no castle built, no home tower picked),
+  // so swapping terrain here is clean — the drive then auto-builds on the
+  // pinned map.
+  if (fixture.map) installPinnedMap(sc.state, fixture.map);
   if (fixture.entryPhase !== Phase.CASTLE_SELECT) {
     waitForPhase(sc, fixture.entryPhase);
   }
@@ -516,6 +523,13 @@ async function createCheckpointScenario(
       ascii,
     ),
   );
+  // Pin terrain before the restore: the round-1 seed-generated map is about
+  // to be superseded by the checkpoint's dynamic state, which indexes
+  // `map.towers` (homeTower) and validates `towerAlive` length against it —
+  // so the snapshot must land on the same map it was authored against.
+  if (fixture.map) {
+    installPinnedMap(headless.runtime.runtimeState.state, fixture.map);
+  }
   const result = await applyMidGameCheckpoint(
     headless.runtime,
     fixture.checkpoint,
@@ -538,6 +552,22 @@ async function createCheckpointScenario(
   const sc = wrapHeadless(headless, sentMessages);
   if (ascii) (sc as { renderer: AsciiRenderer }).renderer = ascii;
   return sc;
+}
+
+/** Install a pinned `fixture.map` over the seed-generated terrain and
+ *  re-derive zone assignments from it. Makes a fixture sampler-independent
+ *  (see `FixtureFile.map`). `structuredClone` keeps the imported JSON object
+ *  — shared across every `createPhaseScenario` call for that fixture — out of
+ *  the live mutable state. On the checkpoint path the subsequent
+ *  `applyMidGameCheckpoint` re-asserts `playerZones` from the snapshot (and
+ *  validates `towerAlive` against this map's tower count); on the fresh path
+ *  the recomputed zones drive the round-1 AI castle selection and override
+ *  validation. */
+function installPinnedMap(state: GameState, map: GameMap): void {
+  state.map = structuredClone(map);
+  state.playerZones = topZonesBySize(state.map, state.players.length).map(
+    ({ zone }) => zone,
+  );
 }
 
 /** Piece bags are *not* serialized in checkpoints — they're regenerated on

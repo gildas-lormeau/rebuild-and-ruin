@@ -29,13 +29,6 @@ import {
 import type { ZoneCell, ZoneId } from "../shared/core/zone-id.ts";
 import type { Rng } from "../shared/platform/rng.ts";
 
-interface ZoneStats {
-  minRow: number;
-  maxRow: number;
-  height: number;
-  centroidRow: number;
-}
-
 interface FloodFillCtx {
   readonly tiles: readonly Tile[][];
   readonly extraFillable: ReadonlySet<TileKey> | undefined;
@@ -65,22 +58,31 @@ const GENERATION_MAX_ATTEMPTS = 5000;
 const GENERATION_FALLBACK_ATTEMPTS = 2000;
 /** Zone balance: largest/smallest must be within this ratio (strict pass). */
 const ZONE_BALANCE_RATIO = 1.15;
-/** Zone balance: relaxed ratio for fallback generation. */
-const ZONE_BALANCE_RATIO_FALLBACK = 1.35;
+/** Zone balance: relaxed ratio for the fallback pass. With the constructive
+ *  sampler the strict pass succeeds ~100% of the time (fallback is a safety
+ *  net that effectively never runs), so this stays close to the strict ratio
+ *  — a fallback map shouldn't be much more lopsided than a normal one. */
+const ZONE_BALANCE_RATIO_FALLBACK = 1.2;
 /** Minimum grass rows per zone to avoid too-thin zones. */
 const MIN_ZONE_HEIGHT = 12;
 /** Horizontal margin for river exit placement (keeps exits away from map edges). */
 const RIVER_EXIT_MARGIN_H = 10;
 /** Vertical margin for river exit placement. */
 const RIVER_EXIT_MARGIN_V = 6;
-/** Horizontal margin for river junction placement. */
-const JUNCTION_MARGIN_X = 16;
-/** Vertical margin for river junction placement. */
-const JUNCTION_MARGIN_Y = 11;
-const EDGE_TOP = 0;
-const EDGE_RIGHT = 1;
-const EDGE_BOTTOM = 2;
-const EDGE_LEFT = 3;
+/** Board perimeter in tiles — river exits trisect it so the three zones start
+ *  out near-equal in boundary length (and, with the junction search, area). */
+const BOARD_PERIMETER = 2 * (GRID_COLS + GRID_ROWS);
+/** Half-extents of the junction search grid (tile offsets from board center). */
+const JUNCTION_SEARCH_DX = 5;
+const JUNCTION_SEARCH_DY = 3;
+/** Board corners (clockwise from top-left), used as polygon vertices when
+ *  estimating zone areas during the junction search. */
+const BOARD_CORNERS: readonly TileGridPos[] = [
+  { x: 0, y: 0 },
+  { x: GRID_COLS - 1, y: 0 },
+  { x: GRID_COLS - 1, y: GRID_ROWS - 1 },
+  { x: 0, y: GRID_ROWS - 1 },
+];
 
 /** Monotonic version stamp handed out on every `generateMap` call.
  *  Renderer caches (terrain mesh, terrain bitmap, sinkhole overlay,
@@ -106,8 +108,7 @@ export function generateMap(rng: Rng): GameMap {
   // Retry until we get 3 large zones (min 80 tiles each)
   let attempts = 0;
   do {
-    junction = pickJunction(rng);
-    exits = pickExits(rng);
+    ({ junction, exits } = proposeRiverGeometry(rng));
     ({ zones, regionSizes, riverMidpoints } = generateRiverAndZones(
       tiles,
       junction,
@@ -121,44 +122,11 @@ export function generateMap(rng: Rng): GameMap {
     // Check we have exactly 3 large zones of roughly equal size
     if (!hasThreeBalancedZones(regionSizes, ZONE_BALANCE_RATIO)) continue;
 
-    // Collect per-zone row bounds + centroid in a single grid scan
+    // Reject if any zone is too thin vertically (avoids sliver zones)
     const top3 = topZoneIds(regionSizes);
-    const zoneStats = collectZoneStats(zones, top3);
-
-    // Reject if any zone has insufficient vertical height
-    if (top3.some((zid) => (zoneStats.get(zid)?.height ?? 0) < MIN_ZONE_HEIGHT))
+    const zoneHeights = collectZoneHeights(zones, top3);
+    if (top3.some((zid) => (zoneHeights.get(zid) ?? 0) < MIN_ZONE_HEIGHT))
       continue;
-
-    // Nudge junction 1 tile toward the largest zone to balance height.
-    // Find the largest zone's centroid row; if it's above/below junction,
-    // shift junction 1 tile in that direction and repaint.
-    const largestZoneId = top3[0];
-    const largestStats =
-      largestZoneId !== undefined ? zoneStats.get(largestZoneId) : undefined;
-    if (largestStats !== undefined) {
-      const centroidR = largestStats.centroidRow;
-      const nudge = centroidR < junction.y ? -1 : 1;
-      const newY = junction.y + nudge;
-      if (newY >= 8 && newY <= GRID_ROWS - 9) {
-        const prevY = junction.y;
-        const prev = { zones, regionSizes, riverMidpoints };
-        junction.y = newY;
-        ({ zones, regionSizes, riverMidpoints } = generateRiverAndZones(
-          tiles,
-          junction,
-          exits,
-          rng,
-        ));
-        // The nudge improves height balance but repaints the zones, which
-        // can push area balance back past the strict ratio. The pre-nudge
-        // layout already cleared both gates, so revert to it rather than
-        // shipping an out-of-balance map.
-        if (!hasThreeBalancedZones(regionSizes, ZONE_BALANCE_RATIO)) {
-          junction.y = prevY;
-          ({ zones, regionSizes, riverMidpoints } = prev);
-        }
-      }
-    }
 
     // Check tower placement is possible — require exactly 12 towers (4 per zone)
     const built = tryPlaceTowersAndBuild(
@@ -172,10 +140,9 @@ export function generateMap(rng: Rng): GameMap {
     if (built !== null) return built;
   } while (true);
 
-  // Fallback: retry with relaxed ratio (1.35) but still require 12 towers
+  // Fallback: retry with the relaxed ratio but still require 12 towers
   for (let fallback = 0; fallback < GENERATION_FALLBACK_ATTEMPTS; fallback++) {
-    junction = pickJunction(rng);
-    exits = pickExits(rng);
+    ({ junction, exits } = proposeRiverGeometry(rng));
     ({ zones, regionSizes, riverMidpoints } = generateRiverAndZones(
       tiles,
       junction,
@@ -225,6 +192,82 @@ export function topZonesBySize(
     .sort((a, b) => b[1] - a[1])
     .slice(0, count)
     .map(([zone, count]) => ({ zone, count }));
+}
+
+/**
+ * Reset tiles to grass, paint the river, smooth it, remove isolated water,
+ * and flood-fill zones. Used during map generation to (re-)generate the
+ * river layout from a junction and exits.
+ */
+function generateRiverAndZones(
+  tiles: readonly Tile[][],
+  junction: TileGridPos,
+  exits: readonly TileGridPos[],
+  rng: Rng,
+): {
+  zones: ZoneCell[][];
+  regionSizes: Map<ZoneId, number>;
+  riverMidpoints: TileGridPos[];
+} {
+  resetTilesToGrass(tiles);
+  const riverMidpoints = paintRiver(tiles, junction, exits, rng);
+  smoothRiver(tiles);
+  removeIsolatedWater(tiles);
+  return { ...floodFillZones(tiles), riverMidpoints };
+}
+
+/** Flood-fill grass tiles into connected-region IDs starting at 1 (water
+ *  stays at 0). Exported so post-modifier code can recompute zones after
+ *  tile mutations — see `recomputeMapZones` in `zone-recompute.ts`.
+ *
+ *  `extraFillable`: tiles that count as grass-like for the flood (used by
+ *  low_water to extend a zone onto the temporarily-exposed riverbed). Floods
+ *  start from real grass only; extra tiles can be reached but never seed a
+ *  new region, so they always inherit the zone of their grass-side. */
+export function floodFillZones(
+  tiles: readonly Tile[][],
+  extraFillable?: ReadonlySet<TileKey>,
+): {
+  zones: ZoneCell[][];
+  regionSizes: Map<ZoneId, number>;
+} {
+  const zones: ZoneCell[][] = Array.from({ length: GRID_ROWS }, () =>
+    new Array<ZoneCell>(GRID_COLS).fill(0),
+  );
+  let regionId = 0 as ZoneId;
+  const regionSizes = new Map<ZoneId, number>();
+  // Reusable flat-index queue across all fills (cleared per region)
+  const queue: TileKey[] = [];
+  const ctx: FloodFillCtx = { tiles, extraFillable, zones, queue };
+
+  for (let r = 0; r < GRID_ROWS; r++) {
+    for (let c = 0; c < GRID_COLS; c++) {
+      // Only real grass seeds new regions — extraFillable tiles join an
+      // adjacent region but never start one of their own.
+      if (zones[r]![c] !== 0 || !isGrass(tiles, r, c)) continue;
+
+      regionId = (regionId + 1) as ZoneId;
+      queue.length = 0;
+      zones[r]![c] = regionId;
+      queue.push(packTile(r, c));
+      let size = 0;
+      let head = 0;
+
+      while (head < queue.length) {
+        const idx = queue[head++]!;
+        const { row: cr, col: cc } = unpackTile(idx);
+        size++;
+        tryEnqueueFlood(ctx, cr - 1, cc, regionId);
+        tryEnqueueFlood(ctx, cr + 1, cc, regionId);
+        tryEnqueueFlood(ctx, cr, cc - 1, regionId);
+        tryEnqueueFlood(ctx, cr, cc + 1, regionId);
+      }
+
+      regionSizes.set(regionId, size);
+    }
+  }
+
+  return { zones, regionSizes };
 }
 
 /** Try to place towers in the freshly generated zone layout and pack
@@ -285,17 +328,14 @@ function hasThreeBalancedZones(
   return bigZones[0]! / bigZones[2]! <= maxRatio;
 }
 
-/** Single-pass: collect row bounds + centroid for the given zone IDs. */
-function collectZoneStats(
+/** Single-pass: vertical span (row count) of each given zone ID. */
+function collectZoneHeights(
   zones: readonly ZoneCell[][],
   zoneIds: readonly ZoneId[],
-): Map<ZoneId, ZoneStats> {
-  const acc = new Map<
-    ZoneId,
-    { minR: number; maxR: number; sumR: number; count: number }
-  >();
+): Map<ZoneId, number> {
+  const bounds = new Map<ZoneId, { minR: number; maxR: number }>();
   for (const zid of zoneIds) {
-    acc.set(zid, { minR: GRID_ROWS, maxR: 0, sumR: 0, count: 0 });
+    bounds.set(zid, { minR: GRID_ROWS, maxR: -1 });
   }
 
   for (let r = 0; r < GRID_ROWS; r++) {
@@ -303,68 +343,159 @@ function collectZoneStats(
     for (let c = 0; c < GRID_COLS; c++) {
       const cell = row[c]!;
       if (cell === 0) continue;
-      const a = acc.get(cell);
-      if (a === undefined) continue;
-      if (r < a.minR) a.minR = r;
-      if (r > a.maxR) a.maxR = r;
-      a.sumR += r;
-      a.count++;
+      const b = bounds.get(cell);
+      if (b === undefined) continue;
+      if (r < b.minR) b.minR = r;
+      if (r > b.maxR) b.maxR = r;
     }
   }
 
-  const result = new Map<ZoneId, ZoneStats>();
-  for (const [zid, a] of acc) {
-    if (a.count === 0) continue;
-    result.set(zid, {
-      minRow: a.minR,
-      maxRow: a.maxR,
-      height: a.maxR - a.minR + 1,
-      centroidRow: a.sumR / a.count,
-    });
+  const heights = new Map<ZoneId, number>();
+  for (const [zid, b] of bounds) {
+    if (b.maxR >= 0) heights.set(zid, b.maxR - b.minR + 1);
   }
-  return result;
+  return heights;
 }
 
-function pickExits(rng: Rng): TileGridPos[] {
-  const edges = [EDGE_TOP, EDGE_RIGHT, EDGE_BOTTOM, EDGE_LEFT];
-  rng.shuffle(edges);
-  const chosen = edges.slice(0, 3);
+/** Propose a Y-river geometry that starts out near-balanced by construction.
+ *  Exits trisect the board perimeter (so the three zones get roughly equal
+ *  boundary), and the junction is the grid point that best equalizes the
+ *  resulting zone areas under a cheap polygon estimate. The old sampler drew
+ *  junction + exits uniformly at random and let the retry loop reject ~99.8%
+ *  of attempts on the balance gate (~1370 rerolls/map); this lands inside the
+ *  strict ratio ~47% of the time on the first try. */
+function proposeRiverGeometry(rng: Rng): {
+  junction: TileGridPos;
+  exits: TileGridPos[];
+} {
+  const start = rng.next() * BOARD_PERIMETER;
+  const exits = [0, 1, 2].map((arm) =>
+    perimeterExit(start + (arm * BOARD_PERIMETER) / 3),
+  );
+  return { junction: chooseBalancedJunction(exits), exits };
+}
 
-  return chosen.map((edge) => {
-    switch (edge) {
-      case EDGE_TOP:
-        return {
-          x: rng.int(RIVER_EXIT_MARGIN_H, GRID_COLS - RIVER_EXIT_MARGIN_H - 1),
-          y: -1,
-        };
-      case EDGE_RIGHT:
-        return {
-          x: GRID_COLS,
-          y: rng.int(RIVER_EXIT_MARGIN_V, GRID_ROWS - RIVER_EXIT_MARGIN_V - 1),
-        };
-      case EDGE_BOTTOM:
-        return {
-          x: rng.int(RIVER_EXIT_MARGIN_H, GRID_COLS - RIVER_EXIT_MARGIN_H - 1),
-          y: GRID_ROWS,
-        };
-      case EDGE_LEFT:
-        return {
-          x: -1,
-          y: rng.int(RIVER_EXIT_MARGIN_V, GRID_ROWS - RIVER_EXIT_MARGIN_V - 1),
-        };
-      default:
-        return { x: 0, y: 0 };
+/** Off-board exit sentinel at perimeter distance `dist` (wrapping), with the
+ *  on-edge coordinate clamped to the river-exit margins. */
+function perimeterExit(dist: number): TileGridPos {
+  let offset = ((dist % BOARD_PERIMETER) + BOARD_PERIMETER) % BOARD_PERIMETER;
+  if (offset < GRID_COLS) return { x: clampExitH(offset), y: -1 };
+  offset -= GRID_COLS;
+  if (offset < GRID_ROWS) return { x: GRID_COLS, y: clampExitV(offset) };
+  offset -= GRID_ROWS;
+  if (offset < GRID_COLS) {
+    return { x: clampExitH(GRID_COLS - 1 - offset), y: GRID_ROWS };
+  }
+  offset -= GRID_COLS;
+  return { x: -1, y: clampExitV(GRID_ROWS - 1 - offset) };
+}
+
+function clampExitH(x: number): number {
+  return clampInt(x, RIVER_EXIT_MARGIN_H, GRID_COLS - RIVER_EXIT_MARGIN_H - 1);
+}
+
+function clampExitV(y: number): number {
+  return clampInt(y, RIVER_EXIT_MARGIN_V, GRID_ROWS - RIVER_EXIT_MARGIN_V - 1);
+}
+
+function clampInt(value: number, low: number, high: number): number {
+  const rounded = Math.round(value);
+  return rounded < low ? low : rounded > high ? high : rounded;
+}
+
+/** Search a small grid of junctions around board center and return the one
+ *  whose estimated zone areas are most balanced for these exits. Pure
+ *  geometry — no river paint, no RNG — so it costs ~77 polygon evaluations,
+ *  not 77 flood fills. */
+function chooseBalancedJunction(exits: readonly TileGridPos[]): TileGridPos {
+  const cx = Math.round((GRID_COLS - 1) / 2);
+  const cy = Math.round((GRID_ROWS - 1) / 2);
+  let best: TileGridPos = { x: cx, y: cy };
+  let bestRatio = Number.POSITIVE_INFINITY;
+  for (let dx = -JUNCTION_SEARCH_DX; dx <= JUNCTION_SEARCH_DX; dx++) {
+    for (let dy = -JUNCTION_SEARCH_DY; dy <= JUNCTION_SEARCH_DY; dy++) {
+      const junction = { x: cx + dx, y: cy + dy };
+      const ratio = estimateZoneBalance(junction, exits);
+      if (ratio < bestRatio) {
+        bestRatio = ratio;
+        best = junction;
+      }
     }
-  });
+  }
+  return best;
 }
 
-function pickJunction(rng: Rng): TileGridPos {
-  // Keep junction roughly central so all 3 zones have enough room for towers.
-  // Each zone needs at least ~10 tiles of width for 4 towers with SAFE_ZONE_PAD=3.
-  return {
-    x: rng.int(JUNCTION_MARGIN_X, GRID_COLS - JUNCTION_MARGIN_X - 1),
-    y: rng.int(JUNCTION_MARGIN_Y, GRID_ROWS - JUNCTION_MARGIN_Y - 1),
-  };
+/** Largest/smallest of the three zone areas estimated as polygons fanned from
+ *  the junction to each perimeter arc between consecutive exits. Approximates
+ *  the flood-fill split closely enough to rank candidate junctions. */
+function estimateZoneBalance(
+  junction: TileGridPos,
+  exits: readonly TileGridPos[],
+): number {
+  const onEdge = exits
+    .map((exit) => exitOnBoard(exit))
+    .map((point) => ({ point, dist: perimeterDistance(point) }))
+    .sort((a, b) => a.dist - b.dist);
+
+  const areas: number[] = [];
+  for (let i = 0; i < 3; i++) {
+    const fromEdge = onEdge[i]!;
+    const toEdge = onEdge[(i + 1) % 3]!;
+    const within = (dist: number) =>
+      fromEdge.dist <= toEdge.dist
+        ? dist > fromEdge.dist && dist < toEdge.dist
+        : dist > fromEdge.dist || dist < toEdge.dist;
+    const corners = BOARD_CORNERS.filter((corner) =>
+      within(perimeterDistance(corner)),
+    ).sort(
+      (a, b) =>
+        arcKey(perimeterDistance(a), fromEdge.dist) -
+        arcKey(perimeterDistance(b), fromEdge.dist),
+    );
+    areas.push(
+      polygonArea([junction, fromEdge.point, ...corners, toEdge.point]),
+    );
+  }
+  areas.sort((a, b) => b - a);
+  return areas[2]! === 0 ? Number.POSITIVE_INFINITY : areas[0]! / areas[2]!;
+}
+
+/** Perimeter distance shifted so the arc starting at `origin` is monotonic. */
+function arcKey(dist: number, origin: number): number {
+  return dist < origin ? dist + BOARD_PERIMETER : dist;
+}
+
+/** Clamp an off-board exit sentinel onto its board-edge coordinate. */
+function exitOnBoard(exit: TileGridPos): TileGridPos {
+  if (exit.y === -1) return { x: exit.x, y: 0 };
+  if (exit.x === GRID_COLS) return { x: GRID_COLS - 1, y: exit.y };
+  if (exit.y === GRID_ROWS) return { x: exit.x, y: GRID_ROWS - 1 };
+  return { x: 0, y: exit.y };
+}
+
+/** Clockwise distance of an on-board edge point from the top-left corner. */
+function perimeterDistance(point: TileGridPos): number {
+  if (point.y === 0) return point.x;
+  if (point.x === GRID_COLS - 1) return GRID_COLS - 1 + point.y;
+  if (point.y === GRID_ROWS - 1)
+    return GRID_COLS - 1 + (GRID_ROWS - 1) + (GRID_COLS - 1 - point.x);
+  return (
+    GRID_COLS -
+    1 +
+    (GRID_ROWS - 1) +
+    (GRID_COLS - 1) +
+    (GRID_ROWS - 1 - point.y)
+  );
+}
+
+function polygonArea(polygon: readonly TileGridPos[]): number {
+  let area = 0;
+  for (let i = 0; i < polygon.length; i++) {
+    const curr = polygon[i]!;
+    const next = polygon[(i + 1) % polygon.length]!;
+    area += curr.x * next.y - next.x * curr.y;
+  }
+  return Math.abs(area) / 2;
 }
 
 function buildRiverDistanceGrid(tiles: readonly Tile[][]): number[][] {
@@ -570,82 +701,6 @@ function towerRectDistance(
   const dx = Math.max(0, Math.max(colA, colB) - Math.min(colA + 1, colB + 1));
   const dy = Math.max(0, Math.max(rowA, rowB) - Math.min(rowA + 1, rowB + 1));
   return dx + dy;
-}
-
-/**
- * Reset tiles to grass, paint the river, smooth it, remove isolated water,
- * and flood-fill zones. Used during map generation to (re-)generate the
- * river layout from a junction and exits.
- */
-function generateRiverAndZones(
-  tiles: readonly Tile[][],
-  junction: TileGridPos,
-  exits: readonly TileGridPos[],
-  rng: Rng,
-): {
-  zones: ZoneCell[][];
-  regionSizes: Map<ZoneId, number>;
-  riverMidpoints: TileGridPos[];
-} {
-  resetTilesToGrass(tiles);
-  const riverMidpoints = paintRiver(tiles, junction, exits, rng);
-  smoothRiver(tiles);
-  removeIsolatedWater(tiles);
-  return { ...floodFillZones(tiles), riverMidpoints };
-}
-
-/** Flood-fill grass tiles into connected-region IDs starting at 1 (water
- *  stays at 0). Exported so post-modifier code can recompute zones after
- *  tile mutations — see `recomputeMapZones` in `zone-recompute.ts`.
- *
- *  `extraFillable`: tiles that count as grass-like for the flood (used by
- *  low_water to extend a zone onto the temporarily-exposed riverbed). Floods
- *  start from real grass only; extra tiles can be reached but never seed a
- *  new region, so they always inherit the zone of their grass-side. */
-export function floodFillZones(
-  tiles: readonly Tile[][],
-  extraFillable?: ReadonlySet<TileKey>,
-): {
-  zones: ZoneCell[][];
-  regionSizes: Map<ZoneId, number>;
-} {
-  const zones: ZoneCell[][] = Array.from({ length: GRID_ROWS }, () =>
-    new Array<ZoneCell>(GRID_COLS).fill(0),
-  );
-  let regionId = 0 as ZoneId;
-  const regionSizes = new Map<ZoneId, number>();
-  // Reusable flat-index queue across all fills (cleared per region)
-  const queue: TileKey[] = [];
-  const ctx: FloodFillCtx = { tiles, extraFillable, zones, queue };
-
-  for (let r = 0; r < GRID_ROWS; r++) {
-    for (let c = 0; c < GRID_COLS; c++) {
-      // Only real grass seeds new regions — extraFillable tiles join an
-      // adjacent region but never start one of their own.
-      if (zones[r]![c] !== 0 || !isGrass(tiles, r, c)) continue;
-
-      regionId = (regionId + 1) as ZoneId;
-      queue.length = 0;
-      zones[r]![c] = regionId;
-      queue.push(packTile(r, c));
-      let size = 0;
-      let head = 0;
-
-      while (head < queue.length) {
-        const idx = queue[head++]!;
-        const { row: cr, col: cc } = unpackTile(idx);
-        size++;
-        tryEnqueueFlood(ctx, cr - 1, cc, regionId);
-        tryEnqueueFlood(ctx, cr + 1, cc, regionId);
-        tryEnqueueFlood(ctx, cr, cc - 1, regionId);
-        tryEnqueueFlood(ctx, cr, cc + 1, regionId);
-      }
-
-      regionSizes.set(regionId, size);
-    }
-  }
-
-  return { zones, regionSizes };
 }
 
 /** BFS step: claim (r, c) for `rid` and push it onto the queue iff it's
