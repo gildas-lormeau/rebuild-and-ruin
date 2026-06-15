@@ -100,3 +100,4 @@ export {
   tickBuildUpgrades,
   useSmallPieces,
 } from "./upgrade-system.ts";
+export { findShieldingRampart } from "./wall-impact.ts";

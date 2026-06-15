@@ -37,6 +37,9 @@
       "pair": "BattleHost@src/ai/ai-strategy-types.ts ↔ SelectionHost@src/ai/ai-strategy-types.ts"
     },
     {
+      "pair": "BidirectionalNetworkedPair@test/network-setup.ts ↔ NetworkedPair@test/network-setup.ts"
+    },
+    {
       "pair": "BoltParams@src/render/3d/sprites/balloon-scene.ts ↔ CargoCrateParams@src/render/3d/sprites/supply-ship-scene.ts"
     },
     {
@@ -103,6 +106,12 @@
       "pair": "GruntOverride@test/phase-tests/types.ts ↔ SerializedGrunt@src/protocol/checkpoint-data.ts"
     },
     {
+      "pair": "HousePos@test/e2e/cannons-banner-early-reveal.ts ↔ SerializedHouse@src/protocol/checkpoint-data.ts"
+    },
+    {
+      "pair": "MaskBucket@src/render/3d/entities/walls.ts ↔ VariantBucket@src/render/3d/entities/debris.ts"
+    },
+    {
       "pair": "MastParams@src/render/3d/sprites/supply-ship-scene.ts ↔ PoleParams@src/render/3d/sprites/tower-scene.ts"
     },
     {
@@ -115,13 +124,13 @@
       "pair": "OverlaySupplyShip@src/shared/ui/overlay-types.ts ↔ TouchPoint@src/input/input-recorder.ts"
     },
     {
+      "pair": "PhaseTicksSystem@src/runtime/subsystems/phase-ticks.ts ↔ RuntimePhaseTicks@src/runtime/subsystems/phase-ticks.ts"
+    },
+    {
       "pair": "PieceShapePayload@src/shared/core/phantom-types.ts ↔ ScheduledPiecePlacement@src/game/scheduled-actions.ts"
     },
     {
       "pair": "PitCreatedMessage@src/shared/core/battle-events.ts ↔ SerializedBurningPit@src/protocol/checkpoint-data.ts"
-    },
-    {
-      "pair": "PlayerSnapshot@test/network-bidirectional.test.ts ↔ PlayerSnapshot@test/network-vs-local.test.ts"
     },
     {
       "pair": "PolePlatformParams@src/render/3d/sprites/tower-scene.ts ↔ TopParams@src/render/3d/sprites/rampart-scene.ts"
@@ -268,6 +277,9 @@
       "pair": "BattleAnimState@src/shared/core/battle-types.ts ↔ BattleOverlay@src/shared/ui/overlay-types.ts"
     },
     {
+      "pair": "BattleController@src/shared/core/system-interfaces.ts ↔ BattleHost@src/ai/ai-strategy-types.ts"
+    },
+    {
       "pair": "BattleViewState@src/shared/core/system-interfaces.ts ↔ GameState@src/shared/core/types.ts"
     },
     {
@@ -386,9 +398,6 @@
     },
     {
       "pair": "CannonShapePayload@src/shared/core/phantom-types.ts ↔ ScheduledPiecePlacement@src/game/scheduled-actions.ts"
-    },
-    {
-      "pair": "CannonShapePayload@src/shared/core/phantom-types.ts ↔ WallDestroyedMessage@src/shared/core/battle-events.ts"
     },
     {
       "pair": "CannonShapePayload@src/shared/core/phantom-types.ts ↔ WallShieldedMessage@src/shared/core/battle-events.ts"
@@ -619,6 +628,9 @@
       "pair": "HeadlessRuntimeOptions@test/runtime-headless.ts ↔ ScenarioOptions@test/scenario.ts"
     },
     {
+      "pair": "HousePos@test/e2e/cannons-banner-early-reveal.ts ↔ SerializedHouse@src/protocol/checkpoint-data.ts"
+    },
+    {
       "pair": "HullParams@src/render/3d/sprites/supply-ship-scene.ts ↔ WindowParams@src/render/3d/sprites/house-scene.ts"
     },
     {
@@ -712,9 +724,6 @@
       "pair": "PieceShapePayload@src/shared/core/phantom-types.ts ↔ ScheduledPiecePlacement@src/game/scheduled-actions.ts"
     },
     {
-      "pair": "PieceShapePayload@src/shared/core/phantom-types.ts ↔ WallDestroyedMessage@src/shared/core/battle-events.ts"
-    },
-    {
       "pair": "PieceShapePayload@src/shared/core/phantom-types.ts ↔ WallShieldedMessage@src/shared/core/battle-events.ts"
     },
     {
@@ -739,16 +748,10 @@
       "pair": "PlaceCannonIntent@src/shared/core/system-interfaces.ts ↔ ScheduledPiecePlacement@src/game/scheduled-actions.ts"
     },
     {
-      "pair": "PlaceCannonIntent@src/shared/core/system-interfaces.ts ↔ WallDestroyedMessage@src/shared/core/battle-events.ts"
-    },
-    {
       "pair": "PlaceCannonIntent@src/shared/core/system-interfaces.ts ↔ WallShieldedMessage@src/shared/core/battle-events.ts"
     },
     {
       "pair": "PlacePieceIntent@src/shared/core/system-interfaces.ts ↔ ScheduledPiecePlacement@src/game/scheduled-actions.ts"
-    },
-    {
-      "pair": "PlacePieceIntent@src/shared/core/system-interfaces.ts ↔ WallDestroyedMessage@src/shared/core/battle-events.ts"
     },
     {
       "pair": "PlacePieceIntent@src/shared/core/system-interfaces.ts ↔ WallShieldedMessage@src/shared/core/battle-events.ts"
@@ -824,9 +827,6 @@
     },
     {
       "pair": "SailParams@src/render/3d/sprites/supply-ship-scene.ts ↔ WindowParams@src/render/3d/sprites/house-scene.ts"
-    },
-    {
-      "pair": "ScheduledPiecePlacement@src/game/scheduled-actions.ts ↔ WallDestroyedMessage@src/shared/core/battle-events.ts"
     },
     {
       "pair": "ScheduledPiecePlacement@src/game/scheduled-actions.ts ↔ WallShieldedMessage@src/shared/core/battle-events.ts"

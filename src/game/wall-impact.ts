@@ -102,7 +102,11 @@ export function applyWallShield(
     cannon.shieldHp = result.newShieldHp > 0 ? result.newShieldHp : undefined;
 }
 
-function findShieldingRampart(
+/** Find the wall owner's own live rampart whose shield covers (wallRow, wallCol)
+ *  — i.e. a hit on that wall would be absorbed. Owner-based: a player's rampart
+ *  shields that player's walls regardless of who fired. Exposed so the AI can
+ *  avoid self-shots (e.g. pocket destruction) that its own shield would eat. */
+export function findShieldingRampart(
   wallOwner: Player,
   wallRow: number,
   wallCol: number,

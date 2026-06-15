@@ -7,8 +7,11 @@
  */
 
 import { canPlayerFire, nextReadyCannon } from "../game/index.ts";
+import { isSuperCannon } from "../shared/core/battle-types.ts";
 import { SIM_TICK_DT } from "../shared/core/game-constants.ts";
 import type { TilePos } from "../shared/core/geometry-types.ts";
+import { getCannon } from "../shared/core/occupancy-queries.ts";
+import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import { packTile, pxToTile, tileCenterPx } from "../shared/core/spatial.ts";
 import type {
   BattleViewState,
@@ -217,7 +220,7 @@ export function tickBattle(
       tickChainMoving(host, phase, state);
       return {};
     case STEP.CHAIN_DWELLING:
-      return tickChainDwelling(host, phase);
+      return tickChainDwelling(host, phase, state);
     case STEP.THINKING:
       phase.state.timer--;
       if (phase.state.timer <= 0) {
@@ -406,6 +409,7 @@ function tickChainMoving(
 function tickChainDwelling(
   host: BattleHost,
   phase: BattlePhase,
+  state: BattleViewState,
 ): BattleTickResult {
   if (phase.state.step !== STEP.CHAIN_DWELLING) return {};
   const phaseState = phase.state;
@@ -414,6 +418,21 @@ function tickChainDwelling(
 
   if (!phase.chainTargets || phase.chainIdx >= phase.chainTargets.length) {
     // Drop any stale countdown chain-aim so PICKING picks fresh.
+    phase.crosshairTarget = null;
+    phase.state = { step: STEP.PICKING };
+    return {};
+  }
+  // Never spend a super gun on our OWN walls: a pocket-destruction chain fires
+  // at the player's own bordering walls, and a super gun's incendiary ball
+  // scorches our own territory (burning pit) instead of cleanly opening the
+  // pocket. If the next round-robin cannon is a super gun, abandon the cleanup
+  // and re-pick — the super gun gets an offensive target instead. (Super guns
+  // in grunt/wall chains are fine; only own-wall cleanup is off-limits.)
+  if (
+    phase.chainType === CHAIN.POCKET &&
+    nextReadyCannonIsSuper(state, host.playerId, host.cannonRotationIdx)
+  ) {
+    phase.chainTargets = undefined;
     phase.crosshairTarget = null;
     phase.state = { step: STEP.PICKING };
     return {};
@@ -429,6 +448,24 @@ function tickChainDwelling(
     origin: phase.originTag ?? CHAIN_TO_ORIGIN[phase.chainType],
     intendedTarget: phase.chainIntended?.[phase.chainIdx],
   };
+}
+
+/** Peek the cannon the next round-robin fire would use and report whether it's
+ *  a super gun. Mirrors the lookup `fireNextReadyCannon` does at commit time
+ *  (same `cannonRotationIdx`), so the brain's prediction matches the cannon
+ *  that actually fires. Pure — no rng, no rotation advance. */
+function nextReadyCannonIsSuper(
+  state: BattleViewState,
+  playerId: ValidPlayerId,
+  rotationIdx: number | undefined,
+): boolean {
+  const next = nextReadyCannon(state, playerId, rotationIdx);
+  if (!next) return false;
+  const cannon =
+    next.type === "own"
+      ? getCannon(state, playerId, next.ownIdx)
+      : next.captured.cannon;
+  return cannon != null && isSuperCannon(cannon);
 }
 
 function completeChainFire(

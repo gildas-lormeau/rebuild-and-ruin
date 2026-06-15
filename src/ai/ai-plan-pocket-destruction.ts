@@ -7,7 +7,7 @@
  * Impacts read as `own-wall` fires, NOT an attack on an enemy.
  */
 
-import { cannonShotsRicochet } from "../game/index.ts";
+import { cannonShotsRicochet, findShieldingRampart } from "../game/index.ts";
 import type { TilePos } from "../shared/core/geometry-types.ts";
 import type { TileKey } from "../shared/core/grid.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
@@ -95,6 +95,12 @@ export function planPocketDestruction(
         // The destroyed wall tile joins the outside flood too — reject walls
         // whose 8-dir neighborhood touches a large enclosure's interior.
         if (touchesLargeInterior(nr, nc, interior, pocketTiles)) continue;
+        // A shot at a wall inside the player's OWN live rampart shield would be
+        // absorbed (resolveWallShield is owner-based) — the wall survives, the
+        // pocket stays closed, and the shot needlessly drains the shield. Skip
+        // such borders; if every border of a pocket is shielded the pocket
+        // yields no target and is left intact.
+        if (findShieldingRampart(player, nr, nc)) continue;
         targets.push({ row: nr, col: nc });
         picked.add(neighborKey);
         found = true;
