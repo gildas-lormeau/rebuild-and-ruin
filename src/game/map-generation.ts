@@ -140,6 +140,8 @@ export function generateMap(rng: Rng): GameMap {
       const nudge = centroidR < junction.y ? -1 : 1;
       const newY = junction.y + nudge;
       if (newY >= 8 && newY <= GRID_ROWS - 9) {
+        const prevY = junction.y;
+        const prev = { zones, regionSizes, riverMidpoints };
         junction.y = newY;
         ({ zones, regionSizes, riverMidpoints } = generateRiverAndZones(
           tiles,
@@ -147,6 +149,14 @@ export function generateMap(rng: Rng): GameMap {
           exits,
           rng,
         ));
+        // The nudge improves height balance but repaints the zones, which
+        // can push area balance back past the strict ratio. The pre-nudge
+        // layout already cleared both gates, so revert to it rather than
+        // shipping an out-of-balance map.
+        if (!hasThreeBalancedZones(regionSizes, ZONE_BALANCE_RATIO)) {
+          junction.y = prevY;
+          ({ zones, regionSizes, riverMidpoints } = prev);
+        }
       }
     }
 
