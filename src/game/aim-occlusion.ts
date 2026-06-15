@@ -68,6 +68,28 @@ export function aimReachesTile(
   return snapped.row === row && snapped.col === col;
 }
 
+/** True when aiming at `(row, col)` would only redirect the shot onto a TOWER
+ *  under the battle tilt — an unconditionally wasted shot, since towers are
+ *  cannonball-invulnerable (only grunts kill them). Standard target SELECTION
+ *  uses this to skip an enemy wall hidden behind a tower: the aim seam would
+ *  snap the crosshair onto that tower, so no cannon could ever land the shot on
+ *  the wall. A WALL occluder is deliberately NOT rejected — the redirected shot
+ *  still damages a wall, a useful (if imprecise) hit. Camera-independent (fixed
+ *  pitch + GameState), so it's parity-safe for the mirror-simulated AI. */
+export function aimRedirectsOntoTower(
+  state: BattleViewState,
+  row: number,
+  col: number,
+): boolean {
+  const snapped = occludedAimTile(state, row, col);
+  if (snapped.row === row && snapped.col === col) return false;
+  // The crosshair snapped onto a nearer occluder; it's a wasted shot only when
+  // that occluder is a tower (cannonball-invulnerable). `visualTopAt` returns
+  // TOWER_TOP_Y exactly for an alive tower (the tallest obstacle), so reuse it
+  // rather than a separate occupancy query (no new same-layer import edge).
+  return visualTopAt(state, snapped.row, snapped.col) === TOWER_TOP_Y;
+}
+
 /** The tile a controller's crosshair would actually land on when aiming at
  *  `(row, col)` under the battle camera tilt. If a taller obstacle sits on
  *  the camera-near side and visually occludes the target, returns that

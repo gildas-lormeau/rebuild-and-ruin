@@ -10,7 +10,7 @@ import { canPlayerFire, nextReadyCannon } from "../game/index.ts";
 import { isSuperCannon } from "../shared/core/battle-types.ts";
 import { SIM_TICK_DT } from "../shared/core/game-constants.ts";
 import type { TilePos } from "../shared/core/geometry-types.ts";
-import { getCannon } from "../shared/core/occupancy-queries.ts";
+import { getCannon, hasTowerAt } from "../shared/core/occupancy-queries.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import { packTile, pxToTile, tileCenterPx } from "../shared/core/spatial.ts";
 import type {
@@ -623,7 +623,25 @@ function pickAndSnap(
   phase.intendedTarget = picked
     ? { row: pxToTile(picked.y), col: pxToTile(picked.x) }
     : null;
-  return snapAimToOcclusion(host, state, picked);
+  const snapped = snapAimToOcclusion(host, state, picked);
+  // Final guard: drop a pick the occlusion seam redirected onto an invulnerable
+  // tower — that cannonball is always wasted. `pickTarget`'s candidate-list
+  // filters already drop tower-occluded WALLS (so the breach walk can't fixate
+  // on one), leaving only residual cases here: e.g. a cannon whose jittered aim
+  // lands on a tower behind it. Returning null re-picks next tick (jitter + rng
+  // advance → a reachable aim) instead of firing into the tower.
+  if (snapped && phase.intendedTarget) {
+    const aimRow = pxToTile(snapped.y);
+    const aimCol = pxToTile(snapped.x);
+    if (
+      (aimRow !== phase.intendedTarget.row ||
+        aimCol !== phase.intendedTarget.col) &&
+      hasTowerAt(state, aimRow, aimCol)
+    ) {
+      return null;
+    }
+  }
+  return snapped;
 }
 
 /** Snap a single-shot aim target through the controller's `aim()` seam so the

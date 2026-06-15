@@ -7,6 +7,7 @@
  */
 
 import {
+  aimRedirectsOntoTower,
   canFireOwnCannon,
   getGruntTargetTower,
   pickSupplyShipTarget,
@@ -224,8 +225,16 @@ export function pickTarget(
   // to their floor/ceil tiles. Exact-comparing here silently disabled the
   // dedup for every even-size cannon candidate (an integer ball tile never
   // equals an x.5 candidate row).
+  // Also drop any tile whose aim the occlusion seam would only redirect onto a
+  // tower: that wall is hidden behind a camera-near tower under the battle tilt,
+  // so the crosshair snaps onto the (invulnerable) tower and the shot is wasted
+  // no matter which cannon fires. Skipping it here steers ranking to a reachable
+  // wall instead of fixating on one we can never hit. Consumes no rng (pure,
+  // synced GameState), so peer parity holds — same shape as the in-flight dedup.
   const filtered = targets.filter(
-    (tile) => !isTargetAreaInFlight(state, tile.row, tile.col, playerId),
+    (tile) =>
+      !isTargetAreaInFlight(state, tile.row, tile.col, playerId) &&
+      !aimRedirectsOntoTower(state, tile.row, tile.col),
   );
   if (filtered.length === 0) return null;
 
@@ -539,6 +548,11 @@ function collectStrategicWallTargets(
       // (owner-scoped — see the fairness note in pickTarget).
       if (isTileTargetedByInFlightBall(state, wallRow, wallCol, playerId))
         continue;
+      // A wall hidden behind a camera-near tower is unhittable — the aim seam
+      // would only redirect onto the (invulnerable) tower, wasting the shot. Skip
+      // it so a ready super gun / strategic shot picks a reachable load-bearing
+      // wall instead of fixating on one no cannon can land on.
+      if (aimRedirectsOntoTower(state, wallRow, wallCol)) continue;
       // Track obstacle directions: [north, south, west, east]
       const obstacles = computeCardinalObstacleMask(state, wallRow, wallCol, {
         excludeBalloonCannons: true,
@@ -599,7 +613,9 @@ function collectGruntBlockingWallTargets(
       const neighborKey = packTile(nr, nc);
       if (
         enemy.walls.has(neighborKey) &&
-        !isTileTargetedByInFlightBall(state, nr, nc, playerId)
+        !isTileTargetedByInFlightBall(state, nr, nc, playerId) &&
+        // Unhittable if a camera-near tower hides it (aim snaps onto the tower).
+        !aimRedirectsOntoTower(state, nr, nc)
       ) {
         gruntWalls.push({ row: nr, col: nc });
       }
@@ -769,7 +785,11 @@ function pickEnclosureWallTarget(
       if (
         !seen.has(neighborKey) &&
         enclosure.walls.has(neighborKey) &&
-        !isTileTargetedByInFlightBall(state, nr, nc, playerId)
+        !isTileTargetedByInFlightBall(state, nr, nc, playerId) &&
+        // Skip a border wall hidden behind a camera-near tower: the aim seam
+        // would snap onto the (invulnerable) tower, so drilling it never breaches
+        // — keep the walk on walls a cannon can actually land on.
+        !aimRedirectsOntoTower(state, nr, nc)
       ) {
         seen.add(neighborKey);
         borderWalls.push({ row: nr, col: nc });

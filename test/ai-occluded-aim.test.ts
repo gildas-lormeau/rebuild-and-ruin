@@ -65,7 +65,8 @@ Deno.test(
 
     try {
       // Play a fixed span of rounds (the game won't end on its own here).
-      sc.runUntil(() => sc.state.round >= 8, { timeoutMs: 600_000 });
+      // seed-4's first grunt sweep lands at round 11, so observe through it.
+      sc.runUntil(() => sc.state.round >= 12, { timeoutMs: 1_300_000 });
     } finally {
       setAiBattleDiagHook(undefined);
     }
