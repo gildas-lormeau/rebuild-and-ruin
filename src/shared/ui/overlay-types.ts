@@ -527,7 +527,11 @@ export interface RendererInterface {
    *  3D mode renders the WebGL scene into an FBO and reads it back via
    *  `readRenderTargetPixels` (skipping the fullscreen-quad blit to the
    *  default framebuffer); 2D mode draws into a hidden sibling canvas.
-   *  Result is copied into a banner-owned bridge canvas and returned.
+   *  Each call returns a FRESH, caller-owned snapshot canvas (not a reused
+   *  scratch buffer): the banner holds the pre-mutation prev-scene and the
+   *  post-mutation new-scene at the same time across a sweep, so a shared
+   *  buffer would have the second capture overwrite the first. Captures
+   *  happen only at phase transitions, so the per-call allocation is free.
    *  Returns undefined when no scene has been rendered yet (pre-first-frame
    *  or in headless stubs). */
   captureSceneOffscreen(

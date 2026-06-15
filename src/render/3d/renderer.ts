@@ -170,12 +170,6 @@ export function createRender3d(
   let captureWorldBridgeCanvas: HTMLCanvasElement | undefined;
   let captureWorldBridgeCtx: CanvasRenderingContext2D | undefined;
 
-  // Separate composite scratch canvas for the offscreen path so it doesn't
-  // share state with the visible-canvas `captureScene` path (which may run
-  // on the same tick for the A-snapshot).
-  let offscreenCompositeCanvas: HTMLCanvasElement | undefined;
-  let offscreenCompositeCtx: CanvasRenderingContext2D | undefined;
-
   // Composite a 2D UI snapshot (canvas) on top of a composite canvas
   // scaled to fill (targetW × targetH). Shared by the visible-canvas
   // capture path (`captureScene`) and the offscreen-capture path
@@ -704,22 +698,18 @@ export function createRender3d(
 
       const targetW = CANVAS_W;
       const targetH = CANVAS_H;
-      if (!offscreenCompositeCanvas || !offscreenCompositeCtx) {
-        offscreenCompositeCanvas = document.createElement("canvas");
-        offscreenCompositeCtx = offscreenCompositeCanvas.getContext("2d", {
-          willReadFrequently: true,
-        })!;
-      }
-      if (
-        offscreenCompositeCanvas.width !== targetW ||
-        offscreenCompositeCanvas.height !== targetH
-      ) {
-        offscreenCompositeCanvas.width = targetW;
-        offscreenCompositeCanvas.height = targetH;
-        offscreenCompositeCtx.imageSmoothingEnabled = false;
-      }
-      offscreenCompositeCtx.clearRect(0, 0, targetW, targetH);
-      offscreenCompositeCtx.drawImage(
+      // Fresh output canvas per capture — the caller (banner) keeps the
+      // prev-scene and new-scene snapshots alive side by side for the whole
+      // sweep, so a reused scratch buffer would let the second capture
+      // overwrite the first. Offscreen captures only happen at phase
+      // transitions (twice each), so the allocation is free; the per-frame
+      // FBO render path above stays on its reused targets.
+      const outCanvas = document.createElement("canvas");
+      outCanvas.width = targetW;
+      outCanvas.height = targetH;
+      const outCtx = outCanvas.getContext("2d", { willReadFrequently: true })!;
+      outCtx.imageSmoothingEnabled = false;
+      outCtx.drawImage(
         captureWorldBridgeCanvas,
         0,
         TOP_MARGIN_MAP_PX,
@@ -730,13 +720,11 @@ export function createRender3d(
         targetW,
         targetH,
       );
-      // Layer the 2D UI snapshot on top. Reuses the shared bridge canvas
-      // with the visible-scene capture path — the two paths never
-      // interleave within one synchronous call sequence (A via
-      // `captureScene`, then B via `captureSceneOffscreen`), so sharing is
-      // safe.
-      compositeUiSnapshot(offscreenCompositeCtx, uiSnapshot, targetW, targetH);
-      return offscreenCompositeCanvas;
+      // Layer the 2D UI snapshot on top. The inner `canvas2d.captureSceneOffscreen`
+      // bridge canvas it lives on is transient — consumed here, within this
+      // synchronous call, before any later capture reuses it.
+      compositeUiSnapshot(outCtx, uiSnapshot, targetW, targetH);
+      return outCanvas;
     },
     eventTarget: canvas2d.eventTarget,
     container: canvas2d.container,

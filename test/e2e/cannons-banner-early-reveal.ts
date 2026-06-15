@@ -1,21 +1,19 @@
 /**
- * E2E REGRESSION REPRO — currently FAILING by design.
+ * E2E REGRESSION GUARD — banner next-scene must not reveal early.
  *
- * Reproduces a recently-introduced regression where the banner's "next"
- * scene snapshot is revealed too early: while the "Place Cannons" banner is
- * still sweeping, the post-banner scene is already painted in regions the
- * sweep hasn't reached.
+ * Guards against the bug where the banner's "next" scene snapshot leaks in
+ * before the sweep reaches it: while the "Place Cannons" banner is still
+ * sweeping, the post-banner scene shows in regions the sweep hasn't covered.
+ * Root cause (regressed in b8aad5b0, fixed by returning a fresh offscreen
+ * snapshot per capture): the prev-scene and new-scene captures aliased one
+ * reused buffer, so the new scene overwrote the prev scene and painted the
+ * whole board.
  *
- * Probe: the tile at (23,3) holds a house. Captured at the exact moment the
- * "Place Cannons" banner is displayed (seed 355529, modern, round 1 — the
- * same moment as the reference full-screen snapshot), the house must NOT be
- * visible yet: until the sweep reveals it, that tile should still show the
- * previous scene. Today the next scene leaks through, so the tile reads as
- * the brown house — and the assertion below fails.
- *
- * Expected lifecycle:
- *   - NOW (regression present): FAILS — (23,3) is brownish (house revealed early).
- *   - AFTER the fix:            PASSES — (23,3) shows the prev scene (not brown).
+ * Probe: the tile at (23,3) holds a house. Captured early in the "Place
+ * Cannons" banner sweep (seed 355529, modern, round 1), the house must NOT
+ * be visible yet — until the sweep reaches that tile it shows the previous
+ * scene (grass). With the bug present the next scene leaks through and the
+ * tile reads as the brown house; with the fix it stays grass.
  *
  * This uses the `sc.tileImage` API as a pixel-precise probe. The PNG is
  * decoded in-browser (Image → 2D canvas → getImageData) because the rendered
@@ -86,8 +84,8 @@ async function main(): Promise<void> {
     );
 
     // The spec: until the banner sweep reaches this tile, the next scene
-    // (the house) must NOT be painted. FAILS today — the regression leaks
-    // the next snapshot, so the tile is already brown.
+    // (the house) must NOT be painted — the tile shows the prev scene
+    // (grass). Regresses to brown if the prev/new snapshots alias one buffer.
     test.check(
       `next scene not revealed early: (${HOUSE_ROW},${HOUSE_COL}) is NOT the brown house yet`,
       brownFrac < HOUSE_BROWN_THRESHOLD,

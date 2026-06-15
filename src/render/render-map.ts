@@ -158,17 +158,13 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
     deps.canvasFactory ?? (() => document.createElement("canvas"));
 
   let scene: OffscreenPair | undefined;
-  // Dedicated bridge canvases for banner snapshots. Sized to the game area
-  // (CANVAS_W × CANVAS_H). `captureScene` copies from the visible canvas into
-  // `bannerACapture`; `captureSceneOffscreen` copies from `offscreenDisplay`
-  // into `bannerBCapture`. Each capture populates a canvas and returns it —
-  // the banner state holds the reference for the duration of the sweep, so
-  // the canvas must not be stomped on mid-banner. Each is reused across
-  // banners (a new showBanner replaces the current state before re-capturing),
-  // and captureScene + captureSceneOffscreen write to different canvases so
-  // they can't collide within a single showBanner call.
+  // Reused bridge canvas for the `captureScene` (display-readback) A-snapshot,
+  // sized to the game area (CANVAS_W × CANVAS_H). Only one captureScene result
+  // is ever live (the banner's prev-scene fallback when no offscreen prime
+  // exists), so reuse is safe here. `captureSceneOffscreen`, by contrast,
+  // returns a FRESH canvas per call — the banner holds its prev-scene and
+  // new-scene snapshots simultaneously across a sweep.
   let bannerACapture: OffscreenPair | undefined;
-  let bannerBCapture: OffscreenPair | undefined;
   // Offscreen display-sized canvas for flash-free banner B-snapshot capture.
   // `drawFrame` paints into this instead of the visible canvas when the banner
   // system wants a post-mutation snapshot — the visible canvas stays
@@ -321,18 +317,6 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
       bannerACapture = { canvas, ctx };
     }
     return bannerACapture;
-  }
-
-  function getBannerBCapture(): OffscreenPair {
-    if (!bannerBCapture) {
-      const canvas = createOffscreenCanvas();
-      canvas.width = CANVAS_W;
-      canvas.height = CANVAS_H;
-      const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
-      ctx.imageSmoothingEnabled = false;
-      bannerBCapture = { canvas, ctx };
-    }
-    return bannerBCapture;
   }
 
   function ensureOffscreenSize(width: number, height: number): void {
@@ -554,8 +538,15 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
     if (offCanvas.height < topStripH + CANVAS_H || offCanvas.width < CANVAS_W) {
       return undefined;
     }
-    const { canvas: bridge, ctx: bridgeCtx } = getBannerBCapture();
-    bridgeCtx.clearRect(0, 0, CANVAS_W, CANVAS_H);
+    // Fresh canvas per call — the banner holds the prev-scene and new-scene
+    // snapshots side by side across a sweep, so a reused buffer would let the
+    // second capture overwrite the first. Cheap: captures only happen at
+    // phase transitions, never per frame.
+    const bridge = createOffscreenCanvas();
+    bridge.width = CANVAS_W;
+    bridge.height = CANVAS_H;
+    const bridgeCtx = bridge.getContext("2d", { willReadFrequently: true })!;
+    bridgeCtx.imageSmoothingEnabled = false;
     bridgeCtx.drawImage(
       offCanvas,
       0,

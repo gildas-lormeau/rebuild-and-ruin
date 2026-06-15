@@ -28,9 +28,10 @@ interface BannerSystemDeps {
   readonly rendererCaptureScene: () => HTMLCanvasElement | undefined;
   /** Full pipeline rendered to offscreen-only targets at fullMapVp (FBO
    *  readback 3D / hidden sibling canvas 2D) so the visible canvas never
-   *  flashes the captured scene. Used for every banner's B-snapshot and,
-   *  via `primePrevScene`, for the pre-mutation A-snapshot of a
-   *  transition's first banner. `undefined` in headless /
+   *  flashes the captured scene. Each call returns a fresh, caller-owned
+   *  snapshot canvas — used for every banner's B-snapshot and, via
+   *  `primePrevScene`, the pre-mutation A-snapshot, which the banner holds
+   *  side by side for the whole sweep. `undefined` in headless /
    *  pre-first-frame. */
   readonly captureSceneOffscreen: () => HTMLCanvasElement | undefined;
 }
@@ -74,6 +75,9 @@ export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
   let primedPrevScene: HTMLCanvasElement | undefined;
 
   function primePrevScene(): void {
+    // Each `captureSceneOffscreen` returns a fresh canvas, so this
+    // pre-mutation snapshot survives the post-mutation new-scene capture
+    // taken in the following `showBanner` — both are held for the sweep.
     primedPrevScene = captureSceneOffscreen();
   }
 

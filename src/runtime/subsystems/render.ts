@@ -138,7 +138,9 @@ interface RenderSystem {
    *  (the visible canvas is never written). Returns a banner-owned
    *  bridge canvas, or undefined when no scene has been rendered yet.
    *  Does NOT invoke touch-controls updates — those belong to the live
-   *  frame loop, not to a capture. */
+   *  frame loop, not to a capture. Returns a fresh, caller-owned snapshot
+   *  each call (see `RendererInterface.captureSceneOffscreen`), so the
+   *  primed prev-scene and the new-scene can coexist for the whole sweep. */
   captureSceneOffscreen: () => HTMLCanvasElement | undefined;
 }
 
