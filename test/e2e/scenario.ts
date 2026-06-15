@@ -149,6 +149,28 @@ export interface E2EScenario extends AsyncDisposable {
   /** Structured read of a single tile — mirrors the headless
    *  `Scenario.tileAt(row, col)`. Returns null before state is ready. */
   tileAt(row: number, col: number): Promise<TileInspection | null>;
+  /** Capture a PNG of the rendered canvas cropped to a tile's on-screen
+   *  bounding box. The tile's four world-space corners are projected
+   *  through the live camera (zoom + letterbox aware — the same path the
+   *  `*Tile(row, col)` input helpers use), and a Playwright screenshot is
+   *  clipped to the resulting client-space rectangle.
+   *
+   *  Captures the *current* rendered frame — the pixels-counterpart to
+   *  `tileAt`'s structured read. (Contrast `captureOn`, which freezes the
+   *  whole canvas at a bus-event moment.)
+   *
+   *  `spanRows` / `spanCols` (both default 1) widen the crop to a block of
+   *  tiles — e.g. `{ spanRows: 2, spanCols: 2 }` for a tower's full 2×2
+   *  footprint. `path` writes the PNG to disk (via Playwright) in addition
+   *  to returning the bytes.
+   *
+   *  Throws if the tile is not currently on-screen (the camera isn't
+   *  framing it, so the crop would be empty). Returns the PNG bytes. */
+  tileImage(
+    row: number,
+    col: number,
+    opts?: { spanRows?: number; spanCols?: number; path?: string },
+  ): Promise<Uint8Array>;
   /** Current UI mode (LOBBY, GAME, STOPPED, …) — stringified `Mode` enum key. */
   mode(): Promise<E2EMode>;
   /** Current game phase — `Phase` enum (string-valued), or "" before ready. */
@@ -621,6 +643,62 @@ export async function createE2EScenario(
     );
   }
 
+  /** Project a tile block's four world-space corners to a client-space
+   *  bounding box (Playwright screenshot-clip coords), clamped to the
+   *  viewport. Reuses the bridge's `worldToClient` so the crop tracks the
+   *  live camera (zoom + letterbox). `offscreen` is true when the clamped
+   *  box is empty — i.e. the tile isn't currently framed. */
+  async function tileClip(
+    row: number,
+    col: number,
+    spanRows: number,
+    spanCols: number,
+  ): Promise<{
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    offscreen: boolean;
+  }> {
+    const corners: [number, number][] = [
+      [col * TILE_SIZE, row * TILE_SIZE],
+      [(col + spanCols) * TILE_SIZE, row * TILE_SIZE],
+      [col * TILE_SIZE, (row + spanRows) * TILE_SIZE],
+      [(col + spanCols) * TILE_SIZE, (row + spanRows) * TILE_SIZE],
+    ];
+    return await page.evaluate((pts: [number, number][]) => {
+      const e2e = (globalThis as unknown as Record<string, unknown>).__e2e as
+        | { worldToClient?: (wx: number, wy: number) => { cx: number; cy: number } }
+        | undefined;
+      if (!e2e?.worldToClient) {
+        throw new Error("__e2e.worldToClient not available");
+      }
+      const worldToClient = e2e.worldToClient;
+      // `globalThis` is the browser window inside page.evaluate; cast to read
+      // the viewport size (deno-lint forbids bare `window` in source files).
+      const view = globalThis as unknown as {
+        innerWidth: number;
+        innerHeight: number;
+      };
+      const client = pts.map(([wx, wy]) => worldToClient(wx, wy));
+      const xs = client.map((p) => p.cx);
+      const ys = client.map((p) => p.cy);
+      const x0 = Math.max(0, Math.floor(Math.min(...xs)));
+      const y0 = Math.max(0, Math.floor(Math.min(...ys)));
+      const x1 = Math.min(view.innerWidth, Math.ceil(Math.max(...xs)));
+      const y1 = Math.min(view.innerHeight, Math.ceil(Math.max(...ys)));
+      const width = x1 - x0;
+      const height = y1 - y0;
+      return {
+        x: x0,
+        y: y0,
+        width: Math.max(0, width),
+        height: Math.max(0, height),
+        offscreen: width <= 0 || height <= 0,
+      };
+    }, corners);
+  }
+
   /** Dispatch a multi-touch `TouchEvent` at the canvas. World-space points
    *  are converted to client coords before crossing the Playwright IPC
    *  boundary. Playwright's `touchscreen.tap` is single-finger only, so
@@ -949,6 +1027,27 @@ export async function createE2EScenario(
         },
         [row, col] as [number, number],
       ) as Promise<TileInspection | null>,
+
+    tileImage: async (row, col, imgOpts) => {
+      const spanRows = imgOpts?.spanRows ?? 1;
+      const spanCols = imgOpts?.spanCols ?? 1;
+      const clip = await tileClip(row, col, spanRows, spanCols);
+      if (clip.offscreen) {
+        throw new Error(
+          `tileImage(${row}, ${col}): tile is off-screen — the camera ` +
+            `is not framing it, so the crop would be empty`,
+        );
+      }
+      return page.screenshot({
+        clip: {
+          x: clip.x,
+          y: clip.y,
+          width: clip.width,
+          height: clip.height,
+        },
+        path: imgOpts?.path,
+      });
+    },
 
     mode: () =>
       page.evaluate(() => {

@@ -7,7 +7,6 @@
  * and network for Playwright tests. Replaces the old runtime-test-globals.ts.
  */
 
-import { computeLetterboxLayout } from "../src/render/render-layout.ts";
 import { isStateInstalled, type RuntimeState } from "../src/runtime/state.ts";
 import type { RuntimeConfig } from "../src/runtime/types.ts";
 import type { Crosshair } from "../src/shared/core/battle-types.ts";
@@ -242,7 +241,17 @@ interface E2EBridgeDeps {
     enableMobileZoom: () => void;
   };
   renderer: {
-    eventTarget: HTMLElement;
+    /** The game-area container element. Used to convert the renderer's
+     *  container-relative `screenToContainerCSS` output into viewport
+     *  (client/page) coords for Playwright. */
+    container: HTMLElement;
+    /** Renderer's own world-screen → container-CSS conversion. The 3D
+     *  renderer reserves a `TOP_MARGIN_CANVAS_PX` strip above the game
+     *  area and accounts for it here (see render/3d/renderer.ts), so
+     *  routing through it keeps `worldToClient` aligned with what's drawn
+     *  — re-deriving the math dropped the strip and landed every point one
+     *  tile too high. */
+    screenToContainerCSS: (sx: number, sy: number) => { x: number; y: number };
   };
   /** The UI canvas used for E2E `captureOn` PNG snapshots. May be null
    *  if the bridge fires before the canvas mounts; capture entries are
@@ -502,36 +511,21 @@ function updateBridgeSnapshots(ref: E2EBridge, deps: E2EBridgeDeps): void {
   ref.camera.autoZoomOn = deps.camera.isMobileAutoZoom();
 }
 
-/** Inverse of clientToSurface — world pixels to client coordinates.
- *  Uses camera worldToScreen + letterbox-aware canvas→client conversion. */
+/** Inverse of clientToSurface — world pixels to client (viewport) coords.
+ *  Projects via the camera, then delegates to the renderer's own
+ *  `screenToContainerCSS` (which is letterbox-aware AND, in 3D mode,
+ *  accounts for the reserved `TOP_MARGIN_CANVAS_PX` top strip), and finally
+ *  adds the container's viewport offset. Routing through the renderer keeps
+ *  the result aligned with what's actually drawn — re-deriving the math here
+ *  dropped the strip offset and landed every point one tile too high. */
 function makeWorldToClient(
   deps: E2EBridgeDeps,
 ): (wx: number, wy: number) => { cx: number; cy: number } {
   return (wx: number, wy: number) => {
     const { sx, sy } = deps.camera.worldToScreen(wx, wy);
-    return canvasToClient(
-      sx,
-      sy,
-      deps.renderer.eventTarget as HTMLCanvasElement,
-    );
-  };
-}
-
-/** Inverse of clientToCanvas — backing-store pixels to client coordinates.
- *  Accounts for letterboxing (object-fit:contain). */
-function canvasToClient(
-  sx: number,
-  sy: number,
-  canvas: HTMLCanvasElement,
-): { cx: number; cy: number } {
-  const rect = canvas.getBoundingClientRect();
-  const { contentW, contentH, offsetX, offsetY } = computeLetterboxLayout(
-    canvas,
-    rect,
-  );
-  return {
-    cx: (sx / canvas.width) * contentW + offsetX + rect.left,
-    cy: (sy / canvas.height) * contentH + offsetY + rect.top,
+    const { x, y } = deps.renderer.screenToContainerCSS(sx, sy);
+    const rect = deps.renderer.container.getBoundingClientRect();
+    return { cx: x + rect.left, cy: y + rect.top };
   };
 }
 
