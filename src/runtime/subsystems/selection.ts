@@ -37,8 +37,10 @@ import { lockstepDebtTicks, type RuntimeState, setMode } from "../state.ts";
 import { advancePhaseTimer, isRemotePlayer } from "../tick-context.ts";
 import {
   ACCUM_SELECT,
-  type MutableAccums,
+  ACCUM_SELECT_ANNOUNCEMENT,
+  bumpAccum,
   resetAccum,
+  setAccum,
 } from "../timer-accums.ts";
 import type { RuntimeCamera } from "./camera.ts";
 
@@ -313,8 +315,11 @@ export function createSelectionSystem(
     // Armed explicitly on every entry so the skip never depends on the
     // accumulator happening to retain its game-start value across rounds
     // and FULL_STATE applies.
-    (runtimeState.accum as MutableAccums).selectAnnouncement =
-      state.round > 1 ? SELECT_ANNOUNCEMENT_DURATION : 0;
+    setAccum(
+      runtimeState.accum,
+      ACCUM_SELECT_ANNOUNCEMENT,
+      state.round > 1 ? SELECT_ANNOUNCEMENT_DURATION : 0,
+    );
   }
 
   function syncSelectionOverlay(): void {
@@ -509,7 +514,7 @@ export function createSelectionSystem(
     // `selectAnnouncement` at 0 for the game-start cycle and at
     // SELECT_ANNOUNCEMENT_DURATION (already consumed) for reselects.
     if (accum.selectAnnouncement < SELECT_ANNOUNCEMENT_DURATION) {
-      (accum as MutableAccums).selectAnnouncement += dt;
+      bumpAccum(accum, ACCUM_SELECT_ANNOUNCEMENT, dt);
       runtimeState.frame.announcement = BANNER_SELECT;
       state.timer = 0;
     } else {

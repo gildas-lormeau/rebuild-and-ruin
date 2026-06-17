@@ -32,6 +32,8 @@ export const ACCUM_CANNON = "cannon" satisfies keyof TimerAccums;
 export const ACCUM_GRUNT = "grunt" satisfies keyof TimerAccums;
 export const ACCUM_BUILD = "build" satisfies keyof TimerAccums;
 export const ACCUM_SELECT = "select" satisfies keyof TimerAccums;
+export const ACCUM_SELECT_ANNOUNCEMENT =
+  "selectAnnouncement" satisfies keyof TimerAccums;
 export const ACCUM_MODIFIER_REVEAL =
   "modifierReveal" satisfies keyof TimerAccums;
 
@@ -51,4 +53,24 @@ export function createTimerAccums(): TimerAccums {
  *  so callers don't need to import MutableAccums or write the cast inline. */
 export function resetAccum(accum: TimerAccums, key: keyof TimerAccums): void {
   (accum as MutableAccums)[key] = 0;
+}
+
+/** Set a single accumulator to an explicit value. Same blessed-cast
+ *  encapsulation as resetAccum, for the non-zero writes. */
+export function setAccum(
+  accum: TimerAccums,
+  key: keyof TimerAccums,
+  value: number,
+): void {
+  (accum as MutableAccums)[key] = value;
+}
+
+/** Advance a single accumulator by `delta`. Encapsulates the MutableAccums
+ *  cast so callers don't write the `+= dt` against a cast inline. */
+export function bumpAccum(
+  accum: TimerAccums,
+  key: keyof TimerAccums,
+  delta: number,
+): void {
+  (accum as MutableAccums)[key] += delta;
 }
