@@ -32,22 +32,33 @@ export type FreshInterior = ReadonlySet<TileKey> & {
   readonly __brand: "FreshInterior";
 };
 
-/** Game-owned scalar brand: a value only the game domain can mint, via the
- *  producers below. Reads flow freely — comparison and arithmetic collapse a
- *  branded value back to its plain base type — but writing a branded *field*
- *  requires a producer, so no other domain (notably runtime) can poke
- *  game-rule state inline (`player.lives--` no longer type-checks). Mirrors
- *  the FreshInterior pattern, generalized to scalars. */
-type GameOwned<T, Brand extends string> = T & { readonly __owned: Brand };
+/** Game-owned scalar brand: a value only the game domain can mint, via a
+ *  producer. Reads flow freely — comparison and arithmetic collapse a branded
+ *  value back to its plain base type — but writing a branded *field* requires
+ *  a producer, so no other domain (notably runtime) can poke game-rule state
+ *  inline (`player.lives--` no longer type-checks). Mirrors the FreshInterior
+ *  pattern, generalized to scalars. Shared vocabulary: GameState-level rule
+ *  fields (e.g. `Round` in types.ts) brand off this same helper. */
+export type GameOwned<T, Brand extends string> = T & {
+  readonly __owned: Brand;
+};
 
-/** Lives remaining — game-owned. Mint via `brandLives` (player creation /
- *  checkpoint restore) or mutate via `loseLife` / `eliminatePlayer`. */
+/** Lives remaining — game-owned. The field is `readonly` so `=`, `+=`, AND
+ *  `--` are all compile errors (branding alone misses `--`); writes go through
+ *  `loseLife` / `eliminatePlayer` / `restoreLives` / creation via
+ *  `initialLives`. */
 export type Lives = GameOwned<number, "Lives">;
 
-/** In-match flag (false = still playing) — game-owned. Mint via
- *  `brandEliminated` (creation / checkpoint restore) or set via
- *  `eliminatePlayer`. */
+/** In-match flag (false = still playing) — game-owned. `readonly`; set via
+ *  `eliminatePlayer` / `restoreEliminated` / creation via `notEliminated`. */
 export type Eliminated = GameOwned<boolean, "Eliminated">;
+
+/** Writable view of the game-owned Player rule fields. The producers below
+ *  cast through it to perform the one blessed write — mirrors `MutableAccums`
+ *  for the timer accumulators. Nothing else may mutate these fields. */
+type WritableRuleFields = {
+  -readonly [K in "lives" | "eliminated"]: Player[K];
+};
 
 export interface Player {
   id: ValidPlayerId;
@@ -73,9 +84,9 @@ export interface Player {
   /** Cannon positions (top-left tile of 2x2 cannon). */
   cannons: Cannon[];
   /** Lives remaining (starts at 3, lose 1 when failing to enclose any tower). */
-  lives: Lives;
+  readonly lives: Lives;
   /** Whether the player is eliminated (lives reached 0 and didn't continue). */
-  eliminated: Eliminated;
+  readonly eliminated: Eliminated;
   /** Accumulated territory points (scoring). */
   score: number;
   /** Default cannon facing (radians, 0 = up) — toward enemies, set at castle creation. */
@@ -162,13 +173,14 @@ export function isPlayerAlive(
 /** Decrement a player's lives by one (failed to enclose any tower this round).
  *  The sole in-game producer of a reduced `Lives` value. */
 export function loseLife(player: Player): void {
-  player.lives = brandLives(player.lives - 1);
+  (player as WritableRuleFields).lives = brandLives(player.lives - 1);
 }
 
 /** Mark a player as eliminated (lives = 0, eliminated = true). */
 export function eliminatePlayer(player: Player): void {
-  player.eliminated = brandEliminated(true);
-  player.lives = brandLives(0);
+  const writable = player as WritableRuleFields;
+  writable.eliminated = brandEliminated(true);
+  writable.lives = brandLives(0);
 }
 
 /** Starting lives for a freshly created player. Creation-time producer —
@@ -178,17 +190,23 @@ export function initialLives(): Lives {
   return brandLives(STARTING_LIVES);
 }
 
-/** Mint a `Lives` from trusted data at the checkpoint-restore boundary.
- *  The branded-write escape hatch — mirrors `brandFreshInterior`. For player
- *  creation use `initialLives()`; for the in-game decrement use `loseLife`. */
-export function brandLives(value: number): Lives {
-  return value as Lives;
+/** The not-yet-eliminated flag for a freshly created player. Creation-time
+ *  producer — mirrors `initialLives()`. */
+export function notEliminated(): Eliminated {
+  return brandEliminated(false);
 }
 
-/** Mint an `Eliminated` flag from trusted data (player creation, checkpoint
- *  restore). */
-export function brandEliminated(value: boolean): Eliminated {
-  return value as Eliminated;
+/** Restore a player's lives from trusted checkpoint data (post-construction
+ *  write at the deserialize boundary — the field is `readonly`, so even a
+ *  branded value can't be assigned inline). Takes a plain number so
+ *  `shared/core` stays free of protocol wire shapes. */
+export function restoreLives(player: Player, value: number): void {
+  (player as WritableRuleFields).lives = brandLives(value);
+}
+
+/** Restore a player's eliminated flag from trusted checkpoint data. */
+export function restoreEliminated(player: Player, value: boolean): void {
+  (player as WritableRuleFields).eliminated = brandEliminated(value);
 }
 
 /** Cannon tier for a player, derived from lives lost. Tier 1 at full lives,
@@ -303,6 +321,18 @@ export function isPlayerEliminated(
   player: { readonly eliminated?: boolean } | null | undefined,
 ): boolean {
   return !player || player.eliminated === true;
+}
+
+/** Mint a `Lives` — module-private; all field writes go through the producers
+ *  above (the field is `readonly`, so a minted value can't be assigned
+ *  except via the blessed `WritableRuleFields` cast). */
+function brandLives(value: number): Lives {
+  return value as Lives;
+}
+
+/** Mint an `Eliminated` — module-private (see `brandLives`). */
+function brandEliminated(value: boolean): Eliminated {
+  return value as Eliminated;
 }
 
 /** Clear the piece bag (end of build phase / life lost / reset).

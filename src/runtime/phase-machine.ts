@@ -46,7 +46,7 @@ import {
 } from "../shared/core/modifier-defs.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import { clearAllPlayerBags } from "../shared/core/player-types.ts";
-import type { GameState } from "../shared/core/types.ts";
+import { advanceRound, type GameState } from "../shared/core/types.ts";
 import type { UpgradePickDialogState } from "../shared/ui/interaction-types.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
 import {
@@ -453,7 +453,7 @@ const ROUND_END: Transition = {
     }
     // Game continues — advance the counter and emit ROUND_START so the
     // life-lost popup (and everything after it) reads the new round.
-    ctx.state.round++;
+    advanceRound(ctx.state);
     // gruntSpawnSeq deliberately NOT reset — it must keep advancing so
     // the per-round-first spawn lands at a different rotation than the
     // previous round's first spawn. Only the per-round used-tile set

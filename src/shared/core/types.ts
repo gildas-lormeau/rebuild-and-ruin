@@ -38,9 +38,21 @@ import type {
   SupplyShip,
 } from "./modifier-defs.ts";
 import type { PlayerId, ValidPlayerId } from "./player-slot.ts";
-import type { Player } from "./player-types.ts";
+import type { GameOwned, Player } from "./player-types.ts";
 import type { UpgradeId } from "./upgrade-defs.ts";
 import type { ZoneId } from "./zone-id.ts";
+
+/** Current round number (1-based) — game-owned. The field is `readonly` so
+ *  `++` / `=` are compile errors (branding alone misses `++`); writes go via
+ *  `initialRound` (creation), `advanceRound` (round-end), or `restoreRound`
+ *  (checkpoint). Stops the raw `state.round++` the runtime phase machine used
+ *  to perform inline. */
+export type Round = GameOwned<number, "Round">;
+
+/** Writable view of the game-owned `round` field — `advanceRound` /
+ *  `restoreRound` cast through it for the one blessed write. Mirrors
+ *  `MutableAccums` / `WritableRuleFields`. */
+type WritableRound = { -readonly [K in "round"]: Round };
 
 export interface GameState {
   /** Optional runtime-instance label for cross-runtime debugging.
@@ -65,7 +77,7 @@ export interface GameState {
   rng: Rng;
   map: GameMap;
   phase: Phase;
-  round: number;
+  readonly round: Round;
   /** Max rounds before the game ends (3, 5, 8, 12, or Infinity for "To The Death"). */
   maxRounds: number;
   /** Hits needed to destroy a cannon (configurable: 3, 6, 9, or 12). */
@@ -614,6 +626,26 @@ export function hasFeature(state: GameState, feature: FeatureId): boolean {
   return state.activeFeatures.has(feature);
 }
 
+/** Round number for a freshly created game (round 1). */
+export function initialRound(): Round {
+  return brandRound(1);
+}
+
+/** Advance to the next round. The sole in-game producer of an incremented
+ *  `Round` — replaces the raw `state.round++` that the runtime phase machine
+ *  used to perform inline (`round` is `readonly`, so even `++` is now a
+ *  compile error). Writes through the blessed `WritableRound` cast. */
+export function advanceRound(state: GameState): void {
+  (state as WritableRound).round = brandRound(state.round + 1);
+}
+
+/** Restore the round from trusted checkpoint data (post-construction write at
+ *  the deserialize boundary). Takes a plain number so callers needn't import
+ *  `Round`. */
+export function restoreRound(state: GameState, value: number): void {
+  (state as WritableRound).round = brandRound(value);
+}
+
 /** Max cannon slots a player may place this CANNON_PLACE phase, defaulting
  *  to 0 for an absent/sparse slot. The single source of truth for the
  *  empty-slot semantics — only meaningful while
@@ -625,6 +657,12 @@ export function cannonSlotsFor(
   playerId: ValidPlayerId,
 ): number {
   return state.cannonLimits[playerId] ?? 0;
+}
+
+/** Mint a `Round` — module-private; all field writes go through the producers
+ *  above via the `WritableRound` cast (the field is `readonly`). */
+function brandRound(value: number): Round {
+  return value as Round;
 }
 
 /** Create a fresh ModernState with all fields at their initial null values. */

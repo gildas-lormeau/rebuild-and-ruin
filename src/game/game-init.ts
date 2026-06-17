@@ -21,12 +21,16 @@ import { Phase } from "../shared/core/game-phase.ts";
 import type { GameMap } from "../shared/core/geometry-types.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import {
-  brandEliminated,
   emptyFreshInterior,
   initialLives,
+  notEliminated,
   type Player,
 } from "../shared/core/player-types.ts";
-import { type GameState, setGameMode } from "../shared/core/types.ts";
+import {
+  type GameState,
+  initialRound,
+  setGameMode,
+} from "../shared/core/types.ts";
 import type { ZoneId } from "../shared/core/zone-id.ts";
 import { Rng } from "../shared/platform/rng.ts";
 import { generateMap, topZonesBySize } from "./map-generation.ts";
@@ -87,7 +91,7 @@ function createGameState(
       interior: emptyFreshInterior(),
       cannons: [],
       lives: initialLives(),
-      eliminated: brandEliminated(false),
+      eliminated: notEliminated(),
       score: 0,
       defaultFacing: 0,
       castleWallTiles: new Set(),
@@ -104,7 +108,7 @@ function createGameState(
     map,
     bus: createGameEventBus(),
     phase: Phase.CASTLE_SELECT,
-    round: 1,
+    round: initialRound(),
     maxRounds: Infinity,
     cannonMaxHp: CANNON_MAX_HP,
     buildTimer: BUILD_TIMER,

@@ -35,13 +35,14 @@ import type { SerializedModifierTiles } from "../shared/core/modifier-defs.ts";
 import { getCannon } from "../shared/core/occupancy-queries.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import {
-  brandEliminated,
-  brandLives,
   type Player,
+  restoreEliminated,
+  restoreLives,
 } from "../shared/core/player-types.ts";
 import {
   type GameState,
   hasFeature,
+  restoreRound,
   setGameMode,
   type UpgradeOfferTuple,
 } from "../shared/core/types.ts";
@@ -134,7 +135,7 @@ export function restoreFullStateSnapshot(
 
   const nextPhase = Phase[msg.phase as keyof typeof Phase]!;
   setPhase(state, nextPhase);
-  state.round = msg.round;
+  restoreRound(state, msg.round);
   state.timer = msg.timer;
   state.battleCountdown = msg.battleCountdown;
   state.maxRounds = msg.maxRounds;
@@ -321,8 +322,8 @@ function applyPlayersCheckpoint(
     if (entry.castleWallTiles !== undefined) {
       player.castleWallTiles = new Set(entry.castleWallTiles as TileKey[]);
     }
-    player.lives = brandLives(entry.lives);
-    player.eliminated = brandEliminated(entry.eliminated);
+    restoreLives(player, entry.lives);
+    restoreEliminated(player, entry.eliminated);
     player.score = entry.score;
     player.upgrades = new Map((entry.upgrades ?? []) as [UpgradeId, number][]);
     player.damagedWalls = new Set((entry.damagedWalls ?? []) as TileKey[]);

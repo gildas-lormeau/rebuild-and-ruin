@@ -400,11 +400,14 @@ function acceptsAnyOfPrimitive(exprType: Type, litType: Type): boolean {
 
 function acceptsAnyBoolean(type: Type): boolean {
   if (isWideBoolean(type)) return true;
+  // Branded boolean (`boolean & { __owned }`) holds any boolean at runtime.
+  if (type.isIntersection())
+    return type.getIntersectionTypes().some(acceptsAnyBoolean);
   if (!type.isUnion()) return false;
   let sawTrue = false;
   let sawFalse = false;
   for (const member of type.getUnionTypes()) {
-    if (isWideBoolean(member)) return true;
+    if (acceptsAnyBoolean(member)) return true;
     if (member.isBooleanLiteral()) {
       if (member.getText() === "true") sawTrue = true;
       else if (member.getText() === "false") sawFalse = true;
@@ -415,14 +418,21 @@ function acceptsAnyBoolean(type: Type): boolean {
 
 function acceptsAnyString(type: Type): boolean {
   if (isWideString(type)) return true;
+  // Branded string (`string & { __brand }`) holds any string at runtime.
+  if (type.isIntersection())
+    return type.getIntersectionTypes().some(acceptsAnyString);
   if (!type.isUnion()) return false;
-  return type.getUnionTypes().some(isWideString);
+  return type.getUnionTypes().some(acceptsAnyString);
 }
 
 function acceptsAnyNumber(type: Type): boolean {
   if (isWideNumber(type)) return true;
+  // Branded number (`number & { __owned }`, e.g. Lives / Round) holds any
+  // number at runtime, so `=== <literal>` / `!== <literal>` is a real check.
+  if (type.isIntersection())
+    return type.getIntersectionTypes().some(acceptsAnyNumber);
   if (!type.isUnion()) return false;
-  return type.getUnionTypes().some(isWideNumber);
+  return type.getUnionTypes().some(acceptsAnyNumber);
 }
 
 function isWideBoolean(type: Type): boolean {
