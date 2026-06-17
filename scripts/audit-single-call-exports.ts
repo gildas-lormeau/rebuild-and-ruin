@@ -22,10 +22,15 @@
  *      to one, never inlined.
  *
  * Case 3 (legitimately naming a logic paragraph) is judgment-call; the
- * audit can't decide for you. JSDoc presence is used as a heuristic
- * API-surface marker — without --include-documented, exports that carry
- * a JSDoc comment are skipped on the assumption that the documentation
- * itself is the wrapper's purpose.
+ * audit can't decide for you. JSDoc presence is NOT a filter — a comment is
+ * prose, not a property of the code, so it can't distinguish an inlinable
+ * one-liner from an intentional abstraction. Documented exports are included
+ * by default and merely tagged `[doc]`; pass --skip-documented for the terse
+ * API-surface-only view. The one content-based exclusion is the cast seam
+ * (see isCastSeam): a body that is exactly `return <expr> as <Type>` exists
+ * to localize a type assertion (brand mints like `emptyFreshInterior`), so
+ * inlining it would scatter the cast — excluded by default, [cast-seam] when
+ * shown via --include-cast-seams.
  *
  * AUDIT-ONLY: no baseline, no exit code. Heuristic — review each
  * finding before applying.
@@ -73,8 +78,11 @@
  *   --min-statements=N     Min block statements to flag (default 1 — includes
  *                          one-liners the same-file-only SINGLE_CALLER gate
  *                          misses; raise to 3 for higher-signal extractions)
- *   --include-documented   Also flag exports that have a JSDoc comment
+ *   --skip-documented      Hide exports that have a JSDoc comment (terse,
+ *                          API-surface-only view; documented exports show
+ *                          by default, tagged [doc])
  *   --include-factories    Also flag DI factories (create / init prefix)
+ *   --include-cast-seams   Also flag cast seams (return <expr> as <Type>)
  */
 
 import process from "node:process";
@@ -94,6 +102,7 @@ interface Finding {
   name: string;
   statementCount: number;
   hasJsDoc: boolean;
+  isCastSeam: boolean;
   callerFile: string;
   callerLine: number;
 }
@@ -104,6 +113,7 @@ interface WalkOpts {
   minStatements: number;
   includeDocumented: boolean;
   includeFactories: boolean;
+  includeCastSeams: boolean;
 }
 
 main();
@@ -113,8 +123,9 @@ function main(): void {
   const includeServer = args.includes("--server");
   const includeTest = args.includes("--test");
   const json = args.includes("--json");
-  const includeDocumented = args.includes("--include-documented");
+  const skipDocumented = args.includes("--skip-documented");
   const includeFactories = args.includes("--include-factories");
+  const includeCastSeams = args.includes("--include-cast-seams");
   const filterArg = args.find((a) => a.startsWith("--filter="));
   const filter = filterArg
     ? new RegExp(filterArg.slice("--filter=".length))
@@ -136,8 +147,9 @@ function main(): void {
 
   const opts: WalkOpts = {
     minStatements,
-    includeDocumented,
+    includeDocumented: !skipDocumented,
     includeFactories,
+    includeCastSeams,
   };
   const findings: Finding[] = [];
 
@@ -171,8 +183,9 @@ function main(): void {
 
   for (const f of findings) {
     const doc = f.hasJsDoc ? " [doc]" : "";
+    const seam = f.isCastSeam ? " [cast-seam]" : "";
     console.log(
-      `  ${f.file}:${f.line}  ${f.name}${doc}  [${f.statementCount} stmts]`,
+      `  ${f.file}:${f.line}  ${f.name}${doc}${seam}  [${f.statementCount} stmts]`,
     );
     console.log(`    called from: ${f.callerFile}:${f.callerLine}`);
   }
@@ -194,7 +207,9 @@ function collectFromSourceFile(
     const docs = fn.getJsDocs().length > 0;
     if (docs && !opts.includeDocumented) continue;
     if (!opts.includeFactories && isFactoryName(nameNode.getText())) continue;
-    tryFlag(nameNode, relPath, stmtCount, docs, findings);
+    const castSeam = isCastSeam(fn);
+    if (castSeam && !opts.includeCastSeams) continue;
+    tryFlag(nameNode, relPath, stmtCount, docs, castSeam, findings);
   }
 
   for (const vd of sf.getDescendantsOfKind(SyntaxKind.VariableDeclaration)) {
@@ -218,7 +233,16 @@ function collectFromSourceFile(
     const docs = varStmt.getJsDocs().length > 0;
     if (docs && !opts.includeDocumented) continue;
     if (!opts.includeFactories && isFactoryName(nameNode.getText())) continue;
-    tryFlag(nameNode as Identifier, relPath, stmtCount, docs, findings);
+    const castSeam = isCastSeam(init as ArrowFunction | FunctionExpression);
+    if (castSeam && !opts.includeCastSeams) continue;
+    tryFlag(
+      nameNode as Identifier,
+      relPath,
+      stmtCount,
+      docs,
+      castSeam,
+      findings,
+    );
   }
 }
 
@@ -231,6 +255,7 @@ function tryFlag(
   file: string,
   stmtCount: number,
   hasJsDoc: boolean,
+  isCastSeam: boolean,
   out: Finding[],
 ): void {
   const refs = nameNode.findReferencesAsNodes();
@@ -259,9 +284,29 @@ function tryFlag(
     name: nameNode.getText(),
     statementCount: stmtCount,
     hasJsDoc,
+    isCastSeam,
     callerFile: callerSf.getFilePath().replace(`${process.cwd()}/`, ""),
     callerLine: callRef.getStartLineNumber(),
   });
+}
+
+/** A "cast seam": a body that is exactly `return <expr> as <Type>` (incl.
+ *  chained `as unknown as Brand`). The function's whole purpose is to be the
+ *  single blessed site of a type assertion — typically a brand mint
+ *  (`emptyFreshInterior`, `brandFreshInterior`). Inlining it would scatter the
+ *  cast across call sites, defeating the point. Content-based, not a name or
+ *  comment proxy — excluded by default; `--include-cast-seams` to widen. */
+function isCastSeam(
+  fn: FunctionDeclaration | ArrowFunction | FunctionExpression,
+): boolean {
+  const body = fn.getBody();
+  if (!body || !Node.isBlock(body)) return false;
+  const stmts = body.getStatements();
+  if (stmts.length !== 1) return false;
+  const stmt = stmts[0];
+  if (!Node.isReturnStatement(stmt)) return false;
+  const expr = stmt.getExpression();
+  return !!expr && Node.isAsExpression(expr);
 }
 
 function classifyRef(ref: Node): RefKind {
