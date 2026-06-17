@@ -4,6 +4,18 @@ A multiplayer Rampart remake for the web. Up to 3 players compete on a battlefie
 
 ---
 
+## Design Invariants (read first)
+
+These rules are load-bearing across the whole game and easy to miss because they're implied by many sections rather than stated in one. Anyone reasoning about new mechanics, upgrades, or modifiers should treat them as hard constraints — most "obvious" feature ideas that violate one of these are non-starters.
+
+- **Grunts are neutral hazards, not player-owned units.** Once spawned, a grunt belongs to no one. It locks onto the nearest alive tower *in the zone it occupies* and attacks whatever is there. Spawn *direction* can be aimed (destroying/enclosing a house pushes grunts toward opponents' zones), but there is no "your grunts," no commanding them after spawn, and no routing them tile-by-tile. Upgrades that treat grunts as a directed offensive unit don't fit the model.
+- **Zones are spatially sealed; you only ever touch your own zone.** A player builds, encloses, and destroys exclusively within their own zone. Enemy towers, houses, cannons, and dead-cannon debris are always in the enemy's zone and are physically unreachable — **the only thing that crosses a river is a cannonball.** You can never enclose, salvage, or otherwise spatially interact with another player's structures.
+- **Territory scoring is bracketed, not per-tile.** Interior tiles map to a tiered point table (see Scoring), so adding a handful of tiles usually scores **zero** — only crossing a bracket threshold pays out. Flat per-tile or perimeter bonuses are near-useless against this curve.
+- **Enclosure is continuous, not a one-time check.** A cannon fires only while *every* one of its tiles stays inside enclosed territory. Breaking your own wall (to insert a cannon, clear space, etc.) un-encloses the territory and silences every cannon in it until it's sealed again — so self-inflicted wall destruction is usually self-sabotage, not a clever tradeoff.
+- **Dead cannons persist as blocking debris.** A destroyed cannon doesn't vanish — its footprint keeps blocking piece placement, cannon placement, and grunt movement until the zone is reset. Mechanics that "make a dead cannon keep blocking" are no-ops; it already does.
+
+---
+
 ## Map
 
 - **Grid**: 44 columns × 28 rows.
