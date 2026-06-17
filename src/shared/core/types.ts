@@ -49,10 +49,25 @@ import type { ZoneId } from "./zone-id.ts";
  *  to perform inline. */
 export type Round = GameOwned<number, "Round">;
 
-/** Writable view of the game-owned `round` field — `advanceRound` /
- *  `restoreRound` cast through it for the one blessed write. Mirrors
- *  `MutableAccums` / `WritableRuleFields`. */
-type WritableRound = { -readonly [K in "round"]: Round };
+/** Cannonballs fired this battle round — game-owned. `readonly` (mutated via
+ *  `++`, which branding alone misses). Indexes `precomputedDustStormJitters`,
+ *  so a stray write silently desyncs dust-storm jitter cross-peer. Writes via
+ *  `initialShotsFired` / `incrementShotsFired` / `resetShotsFired` /
+ *  `restoreShotsFired`. */
+export type ShotsFired = GameOwned<number, "ShotsFired">;
+
+/** Match-lifetime grunt-spawn rotation counter — game-owned. `readonly`;
+ *  monotonic (never reset — see the field doc), drives synced spawn-tile
+ *  rotation, so a stray write desyncs grunt placement. Writes via
+ *  `initialGruntSpawnSeq` / `nextGruntSpawnSeq` / `restoreGruntSpawnSeq`. */
+export type GruntSpawnSeq = GameOwned<number, "GruntSpawnSeq">;
+
+/** Writable view of the game-owned GameState scalar fields — the producers
+ *  cast through it for the one blessed write. Mirrors `MutableAccums` /
+ *  `WritableRuleFields`. */
+type WritableGameOwned = {
+  -readonly [K in "round" | "shotsFired" | "gruntSpawnSeq"]: GameState[K];
+};
 
 export interface GameState {
   /** Optional runtime-instance label for cross-runtime debugging.
@@ -105,7 +120,7 @@ export interface GameState {
   /** Active cannonballs in flight. */
   cannonballs: Cannonball[];
   /** Number of cannonballs fired this battle round. */
-  shotsFired: number;
+  readonly shotsFired: ShotsFired;
   /** Active grunts on the map. */
   grunts: Grunt[];
   /** Match-lifetime counter advanced on each call to
@@ -115,7 +130,7 @@ export interface GameState {
    *  closest-to-tower tile. Deliberately NOT reset at round boundaries
    *  — keeping it monotonic prevents the per-round-first spawn from
    *  landing on the same tile every round. */
-  gruntSpawnSeq: number;
+  readonly gruntSpawnSeq: GruntSpawnSeq;
   /** Per-zone set of bank/edge tiles already used for grunt spawns in
    *  the current round. Acts as a hard guarantee against same-tile
    *  reuse even when grunts walk inland between spawn events (and the
@@ -634,16 +649,57 @@ export function initialRound(): Round {
 /** Advance to the next round. The sole in-game producer of an incremented
  *  `Round` — replaces the raw `state.round++` that the runtime phase machine
  *  used to perform inline (`round` is `readonly`, so even `++` is now a
- *  compile error). Writes through the blessed `WritableRound` cast. */
+ *  compile error). Writes through the blessed `WritableGameOwned` cast. */
 export function advanceRound(state: GameState): void {
-  (state as WritableRound).round = brandRound(state.round + 1);
+  (state as WritableGameOwned).round = brandRound(state.round + 1);
 }
 
 /** Restore the round from trusted checkpoint data (post-construction write at
  *  the deserialize boundary). Takes a plain number so callers needn't import
  *  `Round`. */
 export function restoreRound(state: GameState, value: number): void {
-  (state as WritableRound).round = brandRound(value);
+  (state as WritableGameOwned).round = brandRound(value);
+}
+
+/** Shots-fired counter for a freshly created game (0). */
+export function initialShotsFired(): ShotsFired {
+  return brandShotsFired(0);
+}
+
+/** Increment the battle's shots-fired counter (one cannonball launched). */
+export function incrementShotsFired(state: GameState): void {
+  (state as WritableGameOwned).shotsFired = brandShotsFired(
+    state.shotsFired + 1,
+  );
+}
+
+/** Reset the shots-fired counter at battle start. */
+export function resetShotsFired(state: GameState): void {
+  (state as WritableGameOwned).shotsFired = brandShotsFired(0);
+}
+
+/** Restore shots-fired from trusted checkpoint data. */
+export function restoreShotsFired(state: GameState, value: number): void {
+  (state as WritableGameOwned).shotsFired = brandShotsFired(value);
+}
+
+/** Grunt-spawn rotation counter for a freshly created game (0). */
+export function initialGruntSpawnSeq(): GruntSpawnSeq {
+  return brandGruntSpawnSeq(0);
+}
+
+/** Return the current grunt-spawn sequence number and advance it (post-
+ *  increment semantics — replaces `state.gruntSpawnSeq++`). The sole in-game
+ *  producer of an advanced counter. */
+export function nextGruntSpawnSeq(state: GameState): number {
+  const seq = state.gruntSpawnSeq;
+  (state as WritableGameOwned).gruntSpawnSeq = brandGruntSpawnSeq(seq + 1);
+  return seq;
+}
+
+/** Restore the grunt-spawn counter from trusted checkpoint data. */
+export function restoreGruntSpawnSeq(state: GameState, value: number): void {
+  (state as WritableGameOwned).gruntSpawnSeq = brandGruntSpawnSeq(value);
 }
 
 /** Max cannon slots a player may place this CANNON_PLACE phase, defaulting
@@ -660,9 +716,19 @@ export function cannonSlotsFor(
 }
 
 /** Mint a `Round` — module-private; all field writes go through the producers
- *  above via the `WritableRound` cast (the field is `readonly`). */
+ *  above via the `WritableGameOwned` cast (the field is `readonly`). */
 function brandRound(value: number): Round {
   return value as Round;
+}
+
+/** Mint a `ShotsFired` — module-private (see `brandRound`). */
+function brandShotsFired(value: number): ShotsFired {
+  return value as ShotsFired;
+}
+
+/** Mint a `GruntSpawnSeq` — module-private (see `brandRound`). */
+function brandGruntSpawnSeq(value: number): GruntSpawnSeq {
+  return value as GruntSpawnSeq;
 }
 
 /** Create a fresh ModernState with all fields at their initial null values. */

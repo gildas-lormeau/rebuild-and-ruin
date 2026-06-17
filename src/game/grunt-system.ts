@@ -55,7 +55,11 @@ import {
   unpackTile,
   zoneAt,
 } from "../shared/core/spatial.ts";
-import { type GameState, hasFeature } from "../shared/core/types.ts";
+import {
+  type GameState,
+  hasFeature,
+  nextGruntSpawnSeq,
+} from "../shared/core/types.ts";
 import type { ZoneId } from "../shared/core/zone-id.ts";
 import {
   getDeadZones,
@@ -610,7 +614,7 @@ function findGruntSpawnPositions(
   // tile. Optional minor RNG jitter swaps the top two ~30% of the time
   // to break stable mirror cycles. Applied identically to bank (primary
   // tier) and edge (fallback tier).
-  const seq = state.gruntSpawnSeq++;
+  const seq = nextGruntSpawnSeq(state);
   const jitter = state.rng.bool(GRUNT_SPAWN_JITTER_CHANCE);
   const rotateList = (arr: { row: number; col: number }[]): void => {
     if (arr.length < 2) return;

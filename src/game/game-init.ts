@@ -29,7 +29,9 @@ import {
 } from "../shared/core/player-types.ts";
 import {
   type GameState,
+  initialGruntSpawnSeq,
   initialRound,
+  initialShotsFired,
   setGameMode,
 } from "../shared/core/types.ts";
 import type { ZoneId } from "../shared/core/zone-id.ts";
@@ -118,9 +120,9 @@ function createGameState(
     players,
     timer: 0,
     cannonballs: [],
-    shotsFired: 0,
+    shotsFired: initialShotsFired(),
     grunts: [],
-    gruntSpawnSeq: 0,
+    gruntSpawnSeq: initialGruntSpawnSeq(),
     gruntSpawnUsedTiles: new Map(),
     towerAlive: map.towers.map(() => true),
     towerPendingRevive: new Set(),

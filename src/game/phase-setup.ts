@@ -41,7 +41,11 @@ import {
   unpackTile,
   zoneAt,
 } from "../shared/core/spatial.ts";
-import { type GameState, hasFeature } from "../shared/core/types.ts";
+import {
+  type GameState,
+  hasFeature,
+  resetShotsFired,
+} from "../shared/core/types.ts";
 import type { ZoneId } from "../shared/core/zone-id.ts";
 import { cleanupBalloonHitTrackingAfterBattle } from "./battle-system.ts";
 import {
@@ -142,7 +146,7 @@ export function prepareBattleState(state: GameState): ModifierDiff | null {
   // (when a modifier was rolled) or `enter-battle` calls the matching
   // game/ enter*Phase helper. state.phase stays on CANNON_PLACE until then.
   state.cannonballs = [];
-  state.shotsFired = 0;
+  resetShotsFired(state);
   state.pendingCannonFires.clear();
   onBattlePhaseStart(state, {
     filterActiveFiringCannons,

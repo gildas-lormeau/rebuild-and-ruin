@@ -43,7 +43,9 @@ import {
 import {
   type GameState,
   hasFeature,
+  restoreGruntSpawnSeq,
   restoreRound,
+  restoreShotsFired,
   setGameMode,
   type UpgradeOfferTuple,
 } from "../shared/core/types.ts";
@@ -140,9 +142,9 @@ export function restoreFullStateSnapshot(
   state.timer = msg.timer;
   state.battleCountdown = msg.battleCountdown;
   state.maxRounds = msg.maxRounds;
-  state.shotsFired = msg.shotsFired;
+  restoreShotsFired(state, msg.shotsFired);
   state.simTick = msg.simTick;
-  state.gruntSpawnSeq = msg.gruntSpawnSeq;
+  restoreGruntSpawnSeq(state, msg.gruntSpawnSeq);
   state.gruntSpawnUsedTiles = new Map(
     (msg.gruntSpawnUsedTiles ?? []).map(([zone, tiles]) => [
       zone as ZoneId,

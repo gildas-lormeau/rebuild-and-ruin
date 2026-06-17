@@ -73,6 +73,7 @@ import type { GameViewState } from "../shared/core/system-interfaces.ts";
 import { altitudeAt, horizontalAt } from "../shared/core/trajectory.ts";
 import {
   type GameState,
+  incrementShotsFired,
   packPendingCannonFireKey,
 } from "../shared/core/types.ts";
 import {
@@ -551,7 +552,7 @@ export function applyCannonFired(
   msg: CannonFiredMessage,
 ): boolean {
   if (state.phase !== Phase.BATTLE) return false;
-  state.shotsFired++;
+  incrementShotsFired(state);
   // Supply-ship `mortar_shot` bonus consumption — runs on every peer
   // (originator via applyCannonFiredOriginator, watchers from wire
   // receipt) so pendingSupplyBonuses stays sync'd cross-peer. The
@@ -1015,7 +1016,7 @@ function fireCannon(
     overrideMortar || undefined,
   );
   state.cannonballs.push(ball);
-  state.shotsFired++;
+  incrementShotsFired(state);
   if (overrideMortar) consumeOneSupplyBonus(state, playerId, "mortar_shot");
   state.bus.emit(BATTLE_MESSAGE.CANNON_FIRED, createCannonFiredMsg(ball));
   return true;
@@ -1082,7 +1083,7 @@ function fireCapturedCannon(
     captured.capturerId,
   );
   state.cannonballs.push(ball);
-  state.shotsFired++;
+  incrementShotsFired(state);
   state.bus.emit(BATTLE_MESSAGE.CANNON_FIRED, createCannonFiredMsg(ball));
   return true;
 }
