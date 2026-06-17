@@ -15,14 +15,15 @@ import {
   GAME_MODE_CLASSIC,
   GAME_MODE_MODERN,
   type GameMode,
-  STARTING_LIVES,
 } from "../shared/core/game-constants.ts";
 import { createGameEventBus } from "../shared/core/game-event-bus.ts";
 import { Phase } from "../shared/core/game-phase.ts";
 import type { GameMap } from "../shared/core/geometry-types.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import {
+  brandEliminated,
   emptyFreshInterior,
+  initialLives,
   type Player,
 } from "../shared/core/player-types.ts";
 import { type GameState, setGameMode } from "../shared/core/types.ts";
@@ -85,8 +86,8 @@ function createGameState(
       walls: new Set(),
       interior: emptyFreshInterior(),
       cannons: [],
-      lives: STARTING_LIVES,
-      eliminated: false,
+      lives: initialLives(),
+      eliminated: brandEliminated(false),
       score: 0,
       defaultFacing: 0,
       castleWallTiles: new Set(),

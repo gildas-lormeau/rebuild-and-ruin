@@ -15,6 +15,7 @@ import {
 } from "../src/game/modifiers/modifier-eligibility.ts";
 import { TOWER_SIZE } from "../src/shared/core/game-constants.ts";
 import type { TileKey } from "../src/shared/core/grid.ts";
+import { eliminatePlayer } from "../src/shared/core/player-types.ts";
 import { packTile } from "../src/shared/core/spatial.ts";
 import { createScenario } from "./scenario.ts";
 
@@ -52,7 +53,7 @@ Deno.test("active-zones: eliminated players are excluded", async () => {
   const targetZone = target.homeTower!.zone;
 
   assert(getActiveZones(sc.state).includes(targetZone));
-  target.eliminated = true;
+  eliminatePlayer(target);
   assert(!getActiveZones(sc.state).includes(targetZone));
 });
 

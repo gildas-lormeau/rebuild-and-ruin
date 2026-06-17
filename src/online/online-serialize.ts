@@ -34,7 +34,11 @@ import {
 import type { SerializedModifierTiles } from "../shared/core/modifier-defs.ts";
 import { getCannon } from "../shared/core/occupancy-queries.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
-import type { Player } from "../shared/core/player-types.ts";
+import {
+  brandEliminated,
+  brandLives,
+  type Player,
+} from "../shared/core/player-types.ts";
 import {
   type GameState,
   hasFeature,
@@ -317,8 +321,8 @@ function applyPlayersCheckpoint(
     if (entry.castleWallTiles !== undefined) {
       player.castleWallTiles = new Set(entry.castleWallTiles as TileKey[]);
     }
-    player.lives = entry.lives;
-    player.eliminated = entry.eliminated;
+    player.lives = brandLives(entry.lives);
+    player.eliminated = brandEliminated(entry.eliminated);
     player.score = entry.score;
     player.upgrades = new Map((entry.upgrades ?? []) as [UpgradeId, number][]);
     player.damagedWalls = new Set((entry.damagedWalls ?? []) as TileKey[]);

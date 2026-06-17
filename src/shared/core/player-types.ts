@@ -32,6 +32,23 @@ export type FreshInterior = ReadonlySet<TileKey> & {
   readonly __brand: "FreshInterior";
 };
 
+/** Game-owned scalar brand: a value only the game domain can mint, via the
+ *  producers below. Reads flow freely — comparison and arithmetic collapse a
+ *  branded value back to its plain base type — but writing a branded *field*
+ *  requires a producer, so no other domain (notably runtime) can poke
+ *  game-rule state inline (`player.lives--` no longer type-checks). Mirrors
+ *  the FreshInterior pattern, generalized to scalars. */
+type GameOwned<T, Brand extends string> = T & { readonly __owned: Brand };
+
+/** Lives remaining — game-owned. Mint via `brandLives` (player creation /
+ *  checkpoint restore) or mutate via `loseLife` / `eliminatePlayer`. */
+export type Lives = GameOwned<number, "Lives">;
+
+/** In-match flag (false = still playing) — game-owned. Mint via
+ *  `brandEliminated` (creation / checkpoint restore) or set via
+ *  `eliminatePlayer`. */
+export type Eliminated = GameOwned<boolean, "Eliminated">;
+
 export interface Player {
   id: ValidPlayerId;
   /** The tower this player selected as home castle. */
@@ -56,9 +73,9 @@ export interface Player {
   /** Cannon positions (top-left tile of 2x2 cannon). */
   cannons: Cannon[];
   /** Lives remaining (starts at 3, lose 1 when failing to enclose any tower). */
-  lives: number;
+  lives: Lives;
   /** Whether the player is eliminated (lives reached 0 and didn't continue). */
-  eliminated: boolean;
+  eliminated: Eliminated;
   /** Accumulated territory points (scoring). */
   score: number;
   /** Default cannon facing (radians, 0 = up) — toward enemies, set at castle creation. */
@@ -142,10 +159,36 @@ export function isPlayerAlive(
   return !!player && !player.eliminated;
 }
 
+/** Decrement a player's lives by one (failed to enclose any tower this round).
+ *  The sole in-game producer of a reduced `Lives` value. */
+export function loseLife(player: Player): void {
+  player.lives = brandLives(player.lives - 1);
+}
+
 /** Mark a player as eliminated (lives = 0, eliminated = true). */
 export function eliminatePlayer(player: Player): void {
-  player.eliminated = true;
-  player.lives = 0;
+  player.eliminated = brandEliminated(true);
+  player.lives = brandLives(0);
+}
+
+/** Starting lives for a freshly created player. Creation-time producer —
+ *  keeps the `STARTING_LIVES` knowledge next to the `Lives` type, mirroring
+ *  `emptyFreshInterior()` for the interior brand. */
+export function initialLives(): Lives {
+  return brandLives(STARTING_LIVES);
+}
+
+/** Mint a `Lives` from trusted data at the checkpoint-restore boundary.
+ *  The branded-write escape hatch — mirrors `brandFreshInterior`. For player
+ *  creation use `initialLives()`; for the in-game decrement use `loseLife`. */
+export function brandLives(value: number): Lives {
+  return value as Lives;
+}
+
+/** Mint an `Eliminated` flag from trusted data (player creation, checkpoint
+ *  restore). */
+export function brandEliminated(value: boolean): Eliminated {
+  return value as Eliminated;
 }
 
 /** Cannon tier for a player, derived from lives lost. Tier 1 at full lives,

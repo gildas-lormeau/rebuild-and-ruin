@@ -25,6 +25,7 @@ import {
   isPlayerAlive,
   isPlayerEliminated,
   isPlayerSeated,
+  loseLife,
   type Player,
 } from "../shared/core/player-types.ts";
 import {
@@ -478,7 +479,7 @@ function applyLifePenalties(state: GameState): {
     if (isPlayerEliminated(player)) continue;
     const hasAliveTower = filterAliveEnclosedTowers(player, state).length > 0;
     if (!hasAliveTower) {
-      player.lives--;
+      loseLife(player);
       emitGameEvent(state.bus, GAME_EVENT.LIFE_LOST, {
         playerId: player.id,
         livesRemaining: player.lives,
