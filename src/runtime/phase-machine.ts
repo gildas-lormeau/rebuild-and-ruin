@@ -435,16 +435,21 @@ const ROUND_END: Transition = {
     const { needsReselect, eliminated } = finalizeRound(ctx.state);
     ctx.scoreDelta.setPreScores(preScores);
     ctx.broadcast?.buildEnd?.();
-    // Decide game-over BEFORE the life-lost popup. The popup is just a
-    // continue/abandon prompt — its choice has no effect when the match
-    // is ending, so we suppress it on the game-over branch (the dialog
-    // step short-circuits when needsReselect + eliminated are both
-    // empty). The peek runs against the closing round (state.round not
-    // yet incremented). Tiebreak is score-only among alive players;
-    // eliminated players (lives = 0) are filtered out before the compare.
+    // Decide game-over BEFORE the life-lost popup. The interactive
+    // continue/abandon prompt is moot when the match is ending, so we
+    // carry NO `needsReselect` on this branch — but we DO carry
+    // `eliminated` so the life-lost-dialog step still shows the
+    // button-less "Eliminated" notice as its own beat (after the score
+    // overlay), telling the player who just lost their last life they're
+    // out before the game-over screen. With no interactive entry the
+    // dialog auto-resolves after a short dwell, then postDisplay routes
+    // straight to game-over. The peek runs against the closing round
+    // (state.round not yet incremented). Tiebreak is score-only among
+    // alive players; eliminated players (lives = 0) are filtered out
+    // before the compare.
     const gameOverOutcome = peekGameOverOutcome(ctx.state);
     if (gameOverOutcome) {
-      return { ...EMPTY_TRANSITION_RESULT, gameOverOutcome };
+      return { ...EMPTY_TRANSITION_RESULT, gameOverOutcome, eliminated };
     }
     // Game continues — advance the counter and emit ROUND_START so the
     // life-lost popup (and everything after it) reads the new round.

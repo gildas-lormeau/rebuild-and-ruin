@@ -43,9 +43,11 @@ export interface RuntimeLifeLost {
    *  also clears any pending `onResolved` callback so a force-clear
    *  (rematch, host-promote) can't fire it later. */
   set: (d: LifeLostDialogState | null) => void;
-  /** Drive the life-lost flow to completion: create the dialog, either
-   *  resolve immediately (all pre-resolved — only eliminations) or
-   *  show the modal and wait for `tick` to resolve every entry. The
+  /** Drive the life-lost flow to completion: create the dialog, then
+   *  either resolve immediately (no entries — nothing was lost), hold a
+   *  button-less "Eliminated" notice for a short dwell when every entry is
+   *  pre-resolved (only eliminations, no Continue/Abandon), or show the
+   *  interactive modal and wait for `tick` to resolve every entry. The
    *  `onResolved(continuing, abandoned)` callback fires exactly once.
    *  The CALLER eliminates abandoned players and routes the next phase
    *  (game-over / reselect / continue) — see the ROUND_END postDisplay
@@ -146,6 +148,15 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
    *  Tick is gated on Mode.LIFE_LOST. */
   let onResolvedCb: OnLifeLostResolved | undefined;
 
+  /** Seconds remaining on the eliminated-only "Eliminated" notice dwell.
+   *  Set in `show()` when every entry is already resolved (only
+   *  eliminations, no interactive Continue/Abandon) but there IS a panel
+   *  to show — the dialog would otherwise resolve on its first tick and
+   *  flash for one frame. While > 0 the tick loop just holds the panel,
+   *  then resolves (→ ABANDON for each entry). Deterministic sim-time, so
+   *  every peer resolves at the same tick. */
+  let noticeDwellRemaining = 0;
+
   /** Slots with a choice sent but not yet applied (online lockstep window
    *  between send and `applyAt`). Blocks duplicate sends while the entry
    *  still reads as PENDING — both from repeat clicks and from the
@@ -153,11 +164,13 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
    *  scheduled apply fires, wholesale on dialog teardown. */
   const inFlightChoices = new Set<ValidPlayerId>();
 
-  /** Drive the life-lost flow to completion. Either resolves
-   *  immediately (nothing to show) and calls `onResolved([], [])`, or
-   *  shows the modal dialog and calls `onResolved(continuing, abandoned)`
-   *  once the dialog's tick loop resolves every entry. The caller is
-   *  responsible for eliminating abandoned players.
+  /** Drive the life-lost flow to completion. Resolves immediately when
+   *  there's nothing to show (`onResolved([], [])`); holds a button-less
+   *  "Eliminated" notice for a short dwell when every entry is
+   *  pre-resolved (only eliminations); otherwise shows the interactive
+   *  modal and calls `onResolved(continuing, abandoned)` once the dialog's
+   *  tick loop resolves every entry. The caller is responsible for
+   *  eliminating abandoned players.
    *
    *  Drains queued early-arrived wire choices (online only) before
    *  returning, so the dialog's first tick observes them as if they
@@ -181,11 +194,26 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
       needsLocalInput: (playerId) =>
         !runtimeState.controllers[playerId]!.autoResolvesLifeLost(),
     });
-    // Skip dialog if all entries are already resolved (e.g. only eliminations).
     if (isLifeLostAllResolved(dialog)) {
-      deps.log("show lifeLost: all pre-resolved, skipping dialog");
-      onResolved(continuingPlayers(dialog), abandonedPlayers(dialog));
-      return false;
+      if (dialog.entries.length === 0) {
+        // Nothing to show — no life lost this round, or a game-over with
+        // no elimination. Resolve immediately.
+        deps.log("show lifeLost: no entries, skipping dialog");
+        onResolved(continuingPlayers(dialog), abandonedPlayers(dialog));
+        return false;
+      }
+      // Eliminated-only: a player lost their last life but there's no
+      // interactive Continue/Abandon prompt. Show the button-less
+      // "Eliminated" panel as its own sequential beat (after the score
+      // overlay) for the same dwell an AI entry would auto-resolve in,
+      // then resolve — mirrors the normal life-lost dialog instead of
+      // flashing for one frame. See `noticeDwellRemaining`.
+      deps.log("show lifeLost: eliminated-only notice, dwelling");
+      runtimeState.dialogs.lifeLost = dialog;
+      onResolvedCb = onResolved;
+      setMode(runtimeState, Mode.LIFE_LOST);
+      noticeDwellRemaining = LIFE_LOST_AUTO_DELAY;
+      return true;
     }
     runtimeState.dialogs.lifeLost = dialog;
     onResolvedCb = onResolved;
@@ -218,6 +246,16 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
   function tickLifeLostDialogSystem(dt: number) {
     const dialog = runtimeState.dialogs.lifeLost;
     if (!dialog) return;
+
+    // Eliminated-only notice: no interactive entries to tick — hold the
+    // panel for the dwell, then resolve (each entry is already ABANDON).
+    if (noticeDwellRemaining > 0) {
+      dialog.timer += dt;
+      noticeDwellRemaining -= dt;
+      deps.requestRender();
+      if (noticeDwellRemaining <= 0) resolveDialogNow(dialog);
+      return;
+    }
 
     const state = runtimeState.state;
     const dialogResolved = tickLifeLostDialog(
@@ -253,6 +291,7 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
     const continuing = continuingPlayers(dialog);
     const abandoned = abandonedPlayers(dialog);
     runtimeState.dialogs.lifeLost = null;
+    noticeDwellRemaining = 0;
     inFlightChoices.clear();
 
     const callback = onResolvedCb;
@@ -377,6 +416,7 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
       runtimeState.dialogs.lifeLost = dialog;
       if (dialog === null) {
         onResolvedCb = undefined;
+        noticeDwellRemaining = 0;
         inFlightChoices.clear();
       }
     },
