@@ -138,6 +138,7 @@
       "src/render/3d/entities/instance-bucket.ts",
       "src/runtime/banner-state.ts",
       "src/shared/core/player-interior.ts",
+      "src/shared/core/player-rules.ts",
       "src/shared/core/spatial.ts",
       "src/shared/core/system-interfaces.ts",
       "src/shared/core/types.ts",

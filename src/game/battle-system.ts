@@ -51,11 +51,12 @@ import {
   isCannonCapturedFrom,
 } from "../shared/core/occupancy-queries.ts";
 import { getInterior } from "../shared/core/player-interior.ts";
+import { addScore } from "../shared/core/player-rules.ts";
 import {
   isPlayerEliminated,
   type ValidPlayerId,
 } from "../shared/core/player-slot.ts";
-import { addScore, type Player } from "../shared/core/player-types.ts";
+import type { Player } from "../shared/core/player-types.ts";
 import { deletePlayerWallBattle } from "../shared/core/player-walls.ts";
 import {
   cannonCenter,

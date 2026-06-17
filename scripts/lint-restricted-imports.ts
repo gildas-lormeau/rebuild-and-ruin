@@ -97,9 +97,9 @@ const RUNTIME_FORBIDDEN_MUTATORS: Record<string, Set<string>> = {
     "initPlayerBag",
     "advancePlayerBag",
     "clearPlayerBag",
-    "eliminatePlayer",
     "selectPlayerTower",
   ]),
+  "player-rules.ts": new Set(["eliminatePlayer"]),
   "board-occupancy.ts": new Set([
     "addPlayerWall",
     "addPlayerWalls",

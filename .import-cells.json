@@ -348,9 +348,10 @@
   {
     "layer": 5,
     "domain": "shared",
-    "role": "first logic — spatial, interior, contracts & core state",
+    "role": "first logic — spatial, interior, contracts, core state & rule producers",
     "files": [
       "src/shared/core/player-interior.ts",
+      "src/shared/core/player-rules.ts",
       "src/shared/core/spatial.ts",
       "src/shared/core/system-interfaces.ts",
       "src/shared/core/types.ts",

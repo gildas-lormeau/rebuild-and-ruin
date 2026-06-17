@@ -19,12 +19,14 @@ import {
 import { createGameEventBus } from "../shared/core/game-event-bus.ts";
 import { Phase } from "../shared/core/game-phase.ts";
 import type { GameMap } from "../shared/core/geometry-types.ts";
-import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import {
-  emptyFreshInterior,
   initialLives,
   initialScore,
   notEliminated,
+} from "../shared/core/player-rules.ts";
+import type { ValidPlayerId } from "../shared/core/player-slot.ts";
+import {
+  emptyFreshInterior,
   type Player,
 } from "../shared/core/player-types.ts";
 import {

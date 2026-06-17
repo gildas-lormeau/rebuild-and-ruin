@@ -19,16 +19,18 @@ import { GRID_COLS, GRID_ROWS, type TileKey } from "../shared/core/grid.ts";
 import type { ModifierDiff } from "../shared/core/modifier-defs.ts";
 import { markInteriorFresh } from "../shared/core/player-interior.ts";
 import {
+  addScore,
+  eliminatePlayer,
+  loseLife,
+} from "../shared/core/player-rules.ts";
+import {
   isPlayerEliminated,
   type ValidPlayerId,
 } from "../shared/core/player-slot.ts";
 import {
-  addScore,
-  eliminatePlayer,
   initPlayerBag,
   isPlayerAlive,
   isPlayerSeated,
-  loseLife,
   type Player,
 } from "../shared/core/player-types.ts";
 import {

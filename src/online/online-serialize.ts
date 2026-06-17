@@ -33,13 +33,13 @@ import {
 } from "../shared/core/grid.ts";
 import type { SerializedModifierTiles } from "../shared/core/modifier-defs.ts";
 import { getCannon } from "../shared/core/occupancy-queries.ts";
-import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import {
-  type Player,
   restoreEliminated,
   restoreLives,
   restoreScore,
-} from "../shared/core/player-types.ts";
+} from "../shared/core/player-rules.ts";
+import type { ValidPlayerId } from "../shared/core/player-slot.ts";
+import type { Player } from "../shared/core/player-types.ts";
 import {
   type GameState,
   hasFeature,

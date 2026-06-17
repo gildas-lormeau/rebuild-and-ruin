@@ -124,7 +124,8 @@ const LABELS: Record<string, string> = {
   "5::protocol": "protocol message dispatch",
   "5::render": "3D instance bucketing",
   "5::runtime": "runtime banner state",
-  "5::shared": "first logic — spatial, interior, contracts & core state",
+  "5::shared":
+    "first logic — spatial, interior, contracts, core state & rule producers",
 
   // L6 — upgrades, modifiers & runtime contracts
   "6::ai":

@@ -1,13 +1,10 @@
 import { emitGameEvent, GAME_EVENT } from "../shared/core/game-event-bus.ts";
+import { eliminatePlayer } from "../shared/core/player-rules.ts";
 import {
   isPlayerEliminated,
   type ValidPlayerId,
 } from "../shared/core/player-slot.ts";
-import {
-  eliminatePlayer,
-  isPlayerAlive,
-  type Player,
-} from "../shared/core/player-types.ts";
+import { isPlayerAlive, type Player } from "../shared/core/player-types.ts";
 import type { GameState } from "../shared/core/types.ts";
 
 /** Reason a game-over fires. Carried on `GameOverOutcome` so the runtime
