@@ -47,6 +47,7 @@ import {
 } from "../shared/core/player-interior.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import {
+  addScore,
   advancePlayerBag,
   type FreshInterior,
   findTowerOwner,
@@ -453,7 +454,7 @@ function awardEndOfBuildPoints(
   for (const [threshold, points] of TERRITORY_POINT_TIERS) {
     if (territorySize >= threshold) {
       terrPts = points * territoryMult;
-      player.score += terrPts;
+      addScore(player, terrPts);
       break;
     }
   }
@@ -464,7 +465,7 @@ function awardEndOfBuildPoints(
   if (castleUnits > 0) {
     const idx = Math.min(castleUnits, CASTLE_BONUS_TABLE.length - 1);
     castlePts = CASTLE_BONUS_TABLE[idx]!;
-    player.score += castlePts;
+    addScore(player, castlePts);
   }
 }
 
@@ -522,7 +523,7 @@ function removeEnclosedGruntsAndRespawn(
   if (enclosed.length === 0) return;
 
   state.grunts = kept;
-  player.score += enclosed.length * DESTROY_GRUNT_POINTS;
+  addScore(player, enclosed.length * DESTROY_GRUNT_POINTS);
 
   // One event per connected enclosed region containing grunts — drives
   // the `woodcrus` SFX. A single placement that seals off two disjoint
@@ -671,7 +672,7 @@ function captureEnclosedBonusSquares(
     const bonusSquareKey = packTile(bonus.row, bonus.col);
     if (interior.has(bonusSquareKey)) {
       const pts = territoryBonusSquarePoints(territorySize);
-      player.score += pts;
+      addScore(player, pts);
       return false;
     }
     return true;

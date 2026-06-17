@@ -53,6 +53,7 @@ import {
 import { getInterior } from "../shared/core/player-interior.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import {
+  addScore,
   isPlayerEliminated,
   type Player,
 } from "../shared/core/player-types.ts";
@@ -857,9 +858,11 @@ function applyWallDestroyed(
   }
   const shooter = sid !== undefined ? state.players[sid] : undefined;
   if (shooter && event.playerId !== sid) {
-    shooter.score +=
+    addScore(
+      shooter,
       DESTROY_WALL_POINTS +
-      (suppressCombo ? 0 : scoreImpactCombo(state, COMBO_WALL, sid));
+        (suppressCombo ? 0 : scoreImpactCombo(state, COMBO_WALL, sid)),
+    );
   }
 }
 
@@ -875,9 +878,11 @@ function applyCannonDamaged(
   if (isCannonAlive(cannon)) return;
   const shooter = sid !== undefined ? state.players[sid] : undefined;
   if (!shooter || event.playerId === sid) return;
-  shooter.score +=
+  addScore(
+    shooter,
     DESTROY_CANNON_POINTS +
-    (suppressCombo ? 0 : scoreImpactCombo(state, COMBO_CANNON, sid));
+      (suppressCombo ? 0 : scoreImpactCombo(state, COMBO_CANNON, sid)),
+  );
   if (sid !== undefined) onCannonKilled(state, sid);
 }
 
@@ -903,9 +908,11 @@ function applyGruntKilled(
     (grunt) => !isAtTile(grunt, event.row, event.col),
   );
   if (!shooter) return;
-  shooter.score +=
+  addScore(
+    shooter,
     DESTROY_GRUNT_POINTS +
-    (suppressCombo ? 0 : scoreImpactCombo(state, COMBO_GRUNT, sid));
+      (suppressCombo ? 0 : scoreImpactCombo(state, COMBO_GRUNT, sid)),
+  );
 }
 
 function applyGruntChipped(state: GameState, event: GruntChippedMessage): void {

@@ -53,11 +53,15 @@ export type Lives = GameOwned<number, "Lives">;
  *  `eliminatePlayer` / `restoreEliminated` / creation via `notEliminated`. */
 export type Eliminated = GameOwned<boolean, "Eliminated">;
 
+/** Accumulated territory score — game-owned. `readonly`; add via `addScore`,
+ *  restore via `restoreScore`, creation via `initialScore`. */
+export type Score = GameOwned<number, "Score">;
+
 /** Writable view of the game-owned Player rule fields. The producers below
  *  cast through it to perform the one blessed write — mirrors `MutableAccums`
  *  for the timer accumulators. Nothing else may mutate these fields. */
 type WritableRuleFields = {
-  -readonly [K in "lives" | "eliminated"]: Player[K];
+  -readonly [K in "lives" | "eliminated" | "score"]: Player[K];
 };
 
 export interface Player {
@@ -88,7 +92,7 @@ export interface Player {
   /** Whether the player is eliminated (lives reached 0 and didn't continue). */
   readonly eliminated: Eliminated;
   /** Accumulated territory points (scoring). */
-  score: number;
+  readonly score: Score;
   /** Default cannon facing (radians, 0 = up) — toward enemies, set at castle creation. */
   defaultFacing: number;
   /** Wall tiles forming the home castle perimeter (from castle construction).
@@ -207,6 +211,23 @@ export function restoreLives(player: Player, value: number): void {
 /** Restore a player's eliminated flag from trusted checkpoint data. */
 export function restoreEliminated(player: Player, value: boolean): void {
   (player as WritableRuleFields).eliminated = brandEliminated(value);
+}
+
+/** Add territory points to a player's score. The sole in-game producer of an
+ *  increased `Score` (every scoring site is additive). */
+export function addScore(player: Player, points: number): void {
+  (player as WritableRuleFields).score = brandScore(player.score + points);
+}
+
+/** Starting score for a freshly created player (0). Creation-time producer —
+ *  mirrors `initialLives()`. */
+export function initialScore(): Score {
+  return brandScore(0);
+}
+
+/** Restore a player's score from trusted checkpoint data. */
+export function restoreScore(player: Player, value: number): void {
+  (player as WritableRuleFields).score = brandScore(value);
 }
 
 /** Cannon tier for a player, derived from lives lost. Tier 1 at full lives,
@@ -333,6 +354,11 @@ function brandLives(value: number): Lives {
 /** Mint an `Eliminated` — module-private (see `brandLives`). */
 function brandEliminated(value: boolean): Eliminated {
   return value as Eliminated;
+}
+
+/** Mint a `Score` — module-private (see `brandLives`). */
+function brandScore(value: number): Score {
+  return value as Score;
 }
 
 /** Clear the piece bag (end of build phase / life lost / reset).

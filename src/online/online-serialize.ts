@@ -38,6 +38,7 @@ import {
   type Player,
   restoreEliminated,
   restoreLives,
+  restoreScore,
 } from "../shared/core/player-types.ts";
 import {
   type GameState,
@@ -324,7 +325,7 @@ function applyPlayersCheckpoint(
     }
     restoreLives(player, entry.lives);
     restoreEliminated(player, entry.eliminated);
-    player.score = entry.score;
+    restoreScore(player, entry.score);
     player.upgrades = new Map((entry.upgrades ?? []) as [UpgradeId, number][]);
     player.damagedWalls = new Set((entry.damagedWalls ?? []) as TileKey[]);
     player.inGracePeriod = entry.inGracePeriod ?? false;

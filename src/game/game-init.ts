@@ -23,6 +23,7 @@ import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import {
   emptyFreshInterior,
   initialLives,
+  initialScore,
   notEliminated,
   type Player,
 } from "../shared/core/player-types.ts";
@@ -92,7 +93,7 @@ function createGameState(
       cannons: [],
       lives: initialLives(),
       eliminated: notEliminated(),
-      score: 0,
+      score: initialScore(),
       defaultFacing: 0,
       castleWallTiles: new Set(),
       upgrades: new Map(),

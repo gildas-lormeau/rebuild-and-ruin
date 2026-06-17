@@ -20,6 +20,7 @@ import type { ModifierDiff } from "../shared/core/modifier-defs.ts";
 import { markInteriorFresh } from "../shared/core/player-interior.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import {
+  addScore,
   eliminatePlayer,
   initPlayerBag,
   isPlayerAlive,
@@ -690,7 +691,7 @@ function awardComboBonuses(state: GameState): void {
   const bonuses = comboDemolitionBonus(tracker);
   for (let i = 0; i < bonuses.length; i++) {
     if (bonuses[i]! > 0 && isPlayerAlive(state.players[i])) {
-      state.players[i]!.score += bonuses[i]!;
+      addScore(state.players[i]!, bonuses[i]!);
     }
   }
   state.modern!.comboTracker = null;
