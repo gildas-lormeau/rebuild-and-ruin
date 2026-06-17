@@ -99,7 +99,7 @@ interface InitGameDeps
   difficulty: number;
   log: (msg: string) => void;
   setState: (nextState: GameState) => void;
-  setControllers: (nextControllers: readonly PlayerController[]) => void;
+  setControllers: (controllers: readonly PlayerController[]) => void;
   /** Liveness probe for the awaits in `bootstrapGame`: returns true once
    *  the session this bootstrap belongs to has been torn down
    *  (`bootGeneration` moved — see its doc in state.ts). Checked after
@@ -258,7 +258,7 @@ export async function bootstrapGame(deps: InitGameDeps): Promise<void> {
   //   identity preservation across promotion, checkpoint the strategy
   //   seeds into SerializedPlayer and restore them on rebuild.
   const factory = deps.controllerFactory ?? createController;
-  const nextControllers = await Promise.all(
+  const controllers = await Promise.all(
     Array.from({ length: playerCount }, (_, i) => {
       const pid = i as ValidPlayerId;
       const keys = deps.keyBindings[i];
@@ -315,7 +315,7 @@ export async function bootstrapGame(deps: InitGameDeps): Promise<void> {
 
   deps.setState(state);
   deps.onStateReady();
-  deps.setControllers(nextControllers);
+  deps.setControllers(controllers);
   deps.enterSelection();
 }
 
