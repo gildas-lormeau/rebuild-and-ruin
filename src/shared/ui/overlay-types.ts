@@ -27,7 +27,6 @@ import type {
   PiecePhantom as RenderPiecePhantom,
 } from "../core/phantom-types.ts";
 import type { ValidPlayerId } from "../core/player-slot.ts";
-import type { FreshInterior } from "../core/player-types.ts";
 import type { BannerContent, SceneCapture } from "./banner-content.ts";
 import type { GameOverFocus, LifeLostChoice } from "./interaction-types.ts";
 import type { RGB } from "./theme.ts";
@@ -582,8 +581,10 @@ export interface CastleData {
   /** Wall tile positions encoded as row*GRID_COLS+col. */
   walls: ReadonlySet<TileKey>;
   /** Enclosed territory: grass tiles fully surrounded by walls (inverse flood-fill).
-   *  Encoded as row*GRID_COLS+col. Used for cannon eligibility, grunt blocking, and scoring. */
-  interior: FreshInterior;
+   *  Encoded as row*GRID_COLS+col. A plain ReadonlySet — render only reads these
+   *  tiles, so it does not carry the game-domain `FreshInterior` freshness brand
+   *  (the source `player.interior` is already fresh and assigns through). */
+  interior: ReadonlySet<TileKey>;
   /** Cannon positions (top-left of 2×2 or 3×3 super) with HP. */
   cannons: Cannon[];
   /** Player index (for color). */

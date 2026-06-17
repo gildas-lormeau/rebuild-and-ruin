@@ -17,7 +17,6 @@ import { Phase } from "../../shared/core/game-phase.ts";
 import type { GameMap, TowerIdx } from "../../shared/core/geometry-types.ts";
 import { GRID_COLS, TILE_SIZE, type TileKey } from "../../shared/core/grid.ts";
 import type { ValidPlayerId } from "../../shared/core/player-slot.ts";
-import { emptyFreshInterior } from "../../shared/core/player-types.ts";
 import { WALL_DESTROY_ANIM_DURATION } from "../../shared/core/wall-destroy-anim.ts";
 import type {
   CastleData,
@@ -128,7 +127,7 @@ function warmCastle(
   }
   return {
     walls,
-    interior: emptyFreshInterior(),
+    interior: new Set<TileKey>(),
     cannons,
     playerId: PID0,
     // Mark one wall as damaged so the reinforced-walls crack variant links.
