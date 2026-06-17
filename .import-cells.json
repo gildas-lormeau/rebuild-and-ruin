@@ -11,7 +11,7 @@
   {
     "layer": 0,
     "domain": "game",
-    "role": "domain barrel",
+    "role": "domain barrel & dependency-free leaves",
     "files": [
       "src/game/index.ts",
       "src/game/trajectory.ts"

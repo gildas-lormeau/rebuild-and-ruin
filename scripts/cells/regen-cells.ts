@@ -84,7 +84,7 @@ const LABELS: Record<string, string> = {
   "0::ai": "AI tuning data",
   "1::ai": "AI utilities (secondsToTicks, traitLookup) + personality roll",
   "2::ai": "AI build-phase diagnostic hook (test-only event surface)",
-  "0::game": "domain barrel",
+  "0::game": "domain barrel & dependency-free leaves",
   "0::input": "input primitives & recorder",
   "0::online": "DOM lookup helpers",
   "0::protocol": "wire route constants",
