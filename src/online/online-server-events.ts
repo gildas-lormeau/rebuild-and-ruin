@@ -20,8 +20,10 @@ import {
   toCannonMode,
 } from "../shared/core/cannon-mode-defs.ts";
 import type { TowerIdx } from "../shared/core/geometry-types.ts";
-import type { ValidPlayerId } from "../shared/core/player-slot.ts";
-import { isPlayerEliminated } from "../shared/core/player-types.ts";
+import {
+  isPlayerEliminated,
+  type ValidPlayerId,
+} from "../shared/core/player-slot.ts";
 import { inBoundsStrict } from "../shared/core/spatial.ts";
 import type { PlayerController } from "../shared/core/system-interfaces.ts";
 import { type GameState, type SelectionState } from "../shared/core/types.ts";

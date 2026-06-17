@@ -51,12 +51,11 @@ import {
   isCannonCapturedFrom,
 } from "../shared/core/occupancy-queries.ts";
 import { getInterior } from "../shared/core/player-interior.ts";
-import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import {
-  addScore,
   isPlayerEliminated,
-  type Player,
-} from "../shared/core/player-types.ts";
+  type ValidPlayerId,
+} from "../shared/core/player-slot.ts";
+import { addScore, type Player } from "../shared/core/player-types.ts";
 import { deletePlayerWallBattle } from "../shared/core/player-walls.ts";
 import {
   cannonCenter,
@@ -70,7 +69,6 @@ import {
   TILE_CENTER_OFFSET,
 } from "../shared/core/spatial.ts";
 import type { GameViewState } from "../shared/core/system-interfaces.ts";
-import { altitudeAt, horizontalAt } from "../shared/core/trajectory.ts";
 import {
   type GameState,
   incrementShotsFired,
@@ -99,6 +97,7 @@ import {
   aimSurfaceAltitude,
   solveBallisticClearing,
 } from "./surface-elevation.ts";
+import { altitudeAt, horizontalAt } from "./trajectory.ts";
 import {
   ballSpeedMult,
   onCannonKilled,

@@ -1,9 +1,11 @@
 import { emitGameEvent, GAME_EVENT } from "../shared/core/game-event-bus.ts";
-import type { ValidPlayerId } from "../shared/core/player-slot.ts";
+import {
+  isPlayerEliminated,
+  type ValidPlayerId,
+} from "../shared/core/player-slot.ts";
 import {
   eliminatePlayer,
   isPlayerAlive,
-  isPlayerEliminated,
   type Player,
 } from "../shared/core/player-types.ts";
 import type { GameState } from "../shared/core/types.ts";

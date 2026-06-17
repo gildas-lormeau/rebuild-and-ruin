@@ -19,7 +19,8 @@ import type {
 } from "./geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, TILE_SIZE, Tile, type TileKey } from "./grid.ts";
 import type { ValidPlayerId } from "./player-slot.ts";
-import { type Player, playerByZone } from "./player-types.ts";
+import type { Player } from "./player-types.ts";
+import { playerByZone } from "./player-zones.ts";
 import type { ZoneCell, ZoneId } from "./zone-id.ts";
 
 /** 90° angle step (π/2 radians) — used for 4-direction snapping. */

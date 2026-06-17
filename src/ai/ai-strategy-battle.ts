@@ -35,11 +35,11 @@ import {
   type TileKey,
 } from "../shared/core/grid.ts";
 import { isCannonCapturedBy } from "../shared/core/occupancy-queries.ts";
-import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import {
   isPlayerEliminated,
-  type Player,
-} from "../shared/core/player-types.ts";
+  type ValidPlayerId,
+} from "../shared/core/player-slot.ts";
+import { type Player } from "../shared/core/player-types.ts";
 import {
   cannonSize,
   computeOutside,

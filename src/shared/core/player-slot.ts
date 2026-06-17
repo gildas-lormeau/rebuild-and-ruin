@@ -28,3 +28,11 @@ export const SPECTATOR_SLOT = -1 as PlayerId;
 export function isActivePlayer(playerId: PlayerId): playerId is ValidPlayerId {
   return playerId >= 0;
 }
+
+/** Check if a player is eliminated (or absent). Works with Player and structural types.
+ *  Returns true for null/undefined — a missing player is effectively eliminated. */
+export function isPlayerEliminated(
+  player: { readonly eliminated?: boolean } | null | undefined,
+): boolean {
+  return !player || player.eliminated === true;
+}

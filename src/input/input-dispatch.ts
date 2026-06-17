@@ -15,7 +15,7 @@ import {
 } from "../shared/core/game-phase.ts";
 import type { Tower, TowerIdx } from "../shared/core/geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "../shared/core/grid.ts";
-import { isPlayerEliminated } from "../shared/core/player-types.ts";
+import { isPlayerEliminated } from "../shared/core/player-slot.ts";
 import { towerAtPixel } from "../shared/core/spatial.ts";
 import {
   type InputReceiver,

@@ -20,12 +20,12 @@ import {
   SELECT_TIMER,
 } from "../shared/core/game-constants.ts";
 import { Phase } from "../shared/core/game-phase.ts";
-import type { PlayerId, ValidPlayerId } from "../shared/core/player-slot.ts";
 import {
-  initPlayerBag,
   isPlayerEliminated,
-  isPlayerSeated,
-} from "../shared/core/player-types.ts";
+  type PlayerId,
+  type ValidPlayerId,
+} from "../shared/core/player-slot.ts";
+import { initPlayerBag, isPlayerSeated } from "../shared/core/player-types.ts";
 import type { PlayerController } from "../shared/core/system-interfaces.ts";
 import type { GameState } from "../shared/core/types.ts";
 import { Rng } from "../shared/platform/rng.ts";

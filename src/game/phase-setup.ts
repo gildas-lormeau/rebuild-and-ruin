@@ -18,13 +18,15 @@ import { Phase } from "../shared/core/game-phase.ts";
 import { GRID_COLS, GRID_ROWS, type TileKey } from "../shared/core/grid.ts";
 import type { ModifierDiff } from "../shared/core/modifier-defs.ts";
 import { markInteriorFresh } from "../shared/core/player-interior.ts";
-import type { ValidPlayerId } from "../shared/core/player-slot.ts";
+import {
+  isPlayerEliminated,
+  type ValidPlayerId,
+} from "../shared/core/player-slot.ts";
 import {
   addScore,
   eliminatePlayer,
   initPlayerBag,
   isPlayerAlive,
-  isPlayerEliminated,
   isPlayerSeated,
   loseLife,
   type Player,

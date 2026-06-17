@@ -13,11 +13,11 @@ import {
   isCannonAlive,
 } from "../../shared/core/battle-types.ts";
 import type { TileKey } from "../../shared/core/grid.ts";
-import type { ValidPlayerId } from "../../shared/core/player-slot.ts";
 import {
-  cannonTier,
   isPlayerEliminated,
-} from "../../shared/core/player-types.ts";
+  type ValidPlayerId,
+} from "../../shared/core/player-slot.ts";
+import { cannonTier } from "../../shared/core/player-types.ts";
 import { cannonSize, packTile } from "../../shared/core/spatial.ts";
 import type { GameState, ModifierImpl } from "../../shared/core/types.ts";
 

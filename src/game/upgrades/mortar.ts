@@ -8,7 +8,7 @@
  */
 
 import { type Cannon, CannonMode } from "../../shared/core/battle-types.ts";
-import { isPlayerEliminated } from "../../shared/core/player-types.ts";
+import { isPlayerEliminated } from "../../shared/core/player-slot.ts";
 import type {
   BattleStartCannonDeps,
   GameState,

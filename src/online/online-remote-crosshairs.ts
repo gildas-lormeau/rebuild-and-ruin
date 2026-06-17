@@ -13,8 +13,10 @@ import type { Crosshair } from "../shared/core/battle-types.ts";
 import { CROSSHAIR_SPEED } from "../shared/core/game-constants.ts";
 import type { PixelPos } from "../shared/core/geometry-types.ts";
 import type { DedupChannel } from "../shared/core/phantom-types.ts";
-import type { ValidPlayerId } from "../shared/core/player-slot.ts";
-import { isPlayerEliminated } from "../shared/core/player-types.ts";
+import {
+  isPlayerEliminated,
+  type ValidPlayerId,
+} from "../shared/core/player-slot.ts";
 import type {
   BattleViewState,
   ControllerIdentity,

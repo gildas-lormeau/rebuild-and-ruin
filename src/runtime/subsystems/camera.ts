@@ -43,7 +43,7 @@ import type {
   PiecePhantom,
 } from "../../shared/core/phantom-types.ts";
 import type { ValidPlayerId } from "../../shared/core/player-slot.ts";
-import { enemyZones, zoneByPlayer } from "../../shared/core/player-types.ts";
+import { enemyZones, zoneByPlayer } from "../../shared/core/player-zones.ts";
 import {
   cannonSize,
   castleCenterPx as castleCenterPxShared,

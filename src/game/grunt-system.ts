@@ -36,10 +36,12 @@ import type {
   TowerIdx,
 } from "../shared/core/geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, type TileKey } from "../shared/core/grid.ts";
-import type { ValidPlayerId } from "../shared/core/player-slot.ts";
+import {
+  isPlayerEliminated,
+  type ValidPlayerId,
+} from "../shared/core/player-slot.ts";
 import {
   findTowerOwner,
-  isPlayerEliminated,
   isPlayerSeated,
   type Player,
 } from "../shared/core/player-types.ts";

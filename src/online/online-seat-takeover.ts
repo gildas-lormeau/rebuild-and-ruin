@@ -11,8 +11,10 @@ import type {
   ActionSchedule,
   ScheduledAction,
 } from "../shared/core/action-schedule.ts";
-import type { ValidPlayerId } from "../shared/core/player-slot.ts";
-import { isPlayerEliminated } from "../shared/core/player-types.ts";
+import {
+  isPlayerEliminated,
+  type ValidPlayerId,
+} from "../shared/core/player-slot.ts";
 import type { PlayerController } from "../shared/core/system-interfaces.ts";
 import type { GameState } from "../shared/core/types.ts";
 import { primeAiControllerForPhase } from "./online-host-promotion.ts";

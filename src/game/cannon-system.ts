@@ -25,12 +25,11 @@ import {
   assertInteriorFresh,
   getInterior,
 } from "../shared/core/player-interior.ts";
-import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import {
   isPlayerEliminated,
-  isPlayerSeated,
-  type Player,
-} from "../shared/core/player-types.ts";
+  type ValidPlayerId,
+} from "../shared/core/player-slot.ts";
+import { isPlayerSeated, type Player } from "../shared/core/player-types.ts";
 import {
   cannonSize,
   DIRS_4,

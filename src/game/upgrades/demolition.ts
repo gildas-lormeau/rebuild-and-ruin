@@ -8,7 +8,7 @@
  */
 
 import type { TileKey } from "../../shared/core/grid.ts";
-import { isPlayerEliminated } from "../../shared/core/player-types.ts";
+import { isPlayerEliminated } from "../../shared/core/player-slot.ts";
 import { deletePlayerWallsBatch } from "../../shared/core/player-walls.ts";
 import {
   computeOutside,

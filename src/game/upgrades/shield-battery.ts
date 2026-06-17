@@ -11,7 +11,7 @@ import {
   isBalloonCannon,
   isRampartCannon,
 } from "../../shared/core/battle-types.ts";
-import { isPlayerEliminated } from "../../shared/core/player-types.ts";
+import { isPlayerEliminated } from "../../shared/core/player-slot.ts";
 import { cannonSize, packTile } from "../../shared/core/spatial.ts";
 import type {
   BattleStartCannonDeps,

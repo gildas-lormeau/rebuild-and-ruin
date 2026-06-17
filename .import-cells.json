@@ -13,7 +13,8 @@
     "domain": "game",
     "role": "domain barrel",
     "files": [
-      "src/game/index.ts"
+      "src/game/index.ts",
+      "src/game/trajectory.ts"
     ]
   },
   {
@@ -108,7 +109,6 @@
       "src/shared/core/grid.ts",
       "src/shared/core/player-slot.ts",
       "src/shared/core/pool-def.ts",
-      "src/shared/core/trajectory.ts",
       "src/shared/core/zone-id.ts",
       "src/shared/platform/ail-to-wopl.ts",
       "src/shared/platform/platform.ts",
@@ -199,6 +199,7 @@
       "src/shared/core/geometry-types.ts",
       "src/shared/core/occlusion.ts",
       "src/shared/core/pieces.ts",
+      "src/shared/core/player-zones.ts",
       "src/shared/core/upgrade-defs.ts",
       "src/shared/core/wall-destroy-anim.ts",
       "src/shared/ui/theme.ts"

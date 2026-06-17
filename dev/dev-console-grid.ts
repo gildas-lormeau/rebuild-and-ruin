@@ -14,7 +14,7 @@ import type {
   PlayerId,
   ValidPlayerId,
 } from "../src/shared/core/player-slot.ts";
-import { isPlayerEliminated } from "../src/shared/core/player-types.ts";
+import { isPlayerEliminated } from "../src/shared/core/player-slot.ts";
 import {
   hasPitAt,
   inBounds,

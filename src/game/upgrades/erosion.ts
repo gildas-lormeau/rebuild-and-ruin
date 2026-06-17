@@ -1,12 +1,4 @@
-/**
- * Erosion upgrade — at pick time sweeps one layer of exposed walls
- * (≤1 orthogonal neighbor) from every alive player. Idempotent across
- * multiple pickers via a flag-count guard (each sweepIsolatedWalls peels
- * a layer; naive re-run would compound). Interior is rechecked by
- * `applyUpgradePicksFromDialog` after the entry batch resolves.
- */
-
-import { isPlayerEliminated } from "../../shared/core/player-types.ts";
+import { isPlayerEliminated } from "../../shared/core/player-slot.ts";
 import { sweepIsolatedWalls } from "../../shared/core/player-walls.ts";
 import type { GameState, UpgradeImpl } from "../../shared/core/types.ts";
 import { UID } from "../../shared/core/upgrade-defs.ts";

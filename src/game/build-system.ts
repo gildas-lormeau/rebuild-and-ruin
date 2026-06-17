@@ -45,13 +45,15 @@ import {
   getInterior,
   markInteriorFresh,
 } from "../shared/core/player-interior.ts";
-import type { ValidPlayerId } from "../shared/core/player-slot.ts";
+import {
+  isPlayerEliminated,
+  type ValidPlayerId,
+} from "../shared/core/player-slot.ts";
 import {
   addScore,
   advancePlayerBag,
   type FreshInterior,
   findTowerOwner,
-  isPlayerEliminated,
   isPlayerSeated,
   type Player,
 } from "../shared/core/player-types.ts";

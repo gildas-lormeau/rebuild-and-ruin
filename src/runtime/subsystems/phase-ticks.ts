@@ -40,8 +40,10 @@ import {
   type PiecePhantomPayload,
   piecePhantomKey,
 } from "../../shared/core/phantom-types.ts";
-import type { ValidPlayerId } from "../../shared/core/player-slot.ts";
-import { isPlayerEliminated } from "../../shared/core/player-types.ts";
+import {
+  isPlayerEliminated,
+  type ValidPlayerId,
+} from "../../shared/core/player-slot.ts";
 import {
   type CannonController,
   type PlayerController,

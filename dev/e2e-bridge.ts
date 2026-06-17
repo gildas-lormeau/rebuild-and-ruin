@@ -19,7 +19,7 @@ import { Phase } from "../src/shared/core/game-phase.ts";
 import type { Viewport } from "../src/shared/core/geometry-types.ts";
 import { TILE_SIZE } from "../src/shared/core/grid.ts";
 import type { ValidPlayerId } from "../src/shared/core/player-slot.ts";
-import { isPlayerEliminated } from "../src/shared/core/player-types.ts";
+import { isPlayerEliminated } from "../src/shared/core/player-slot.ts";
 import { tileCenterPx, unpackTile } from "../src/shared/core/spatial.ts";
 import { type GameViewState } from "../src/shared/core/system-interfaces.ts";
 import type { GameState } from "../src/shared/core/types.ts";

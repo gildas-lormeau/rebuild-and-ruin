@@ -35,7 +35,6 @@ import type { TileKey } from "../src/shared/core/grid.ts";
 import { Phase } from "../src/shared/core/game-phase.ts";
 import type { ValidPlayerId } from "../src/shared/core/player-slot.ts";
 import {
-  isPlayerEliminated,
   type Player,
 } from "../src/shared/core/player-types.ts";
 import {
@@ -51,6 +50,7 @@ import {
 } from "../src/shared/core/spatial.ts";
 import { IMPACT, type ImpactKind, classifyImpact } from "./impact-classify.ts";
 import type { Scenario } from "./scenario.ts";
+import { isPlayerEliminated } from "../src/shared/core/player-slot.ts";
 
 export interface PlayerBattleMetrics {
   round: number;

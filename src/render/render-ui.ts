@@ -5,7 +5,7 @@ import {
 import type { GameMap } from "../shared/core/geometry-types.ts";
 import { GRID_PORTRAIT_LAUNCHED, TILE_SIZE } from "../shared/core/grid.ts";
 import type { SupplyBonusId } from "../shared/core/modifier-defs.ts";
-import { isPlayerEliminated } from "../shared/core/player-types.ts";
+import { isPlayerEliminated } from "../shared/core/player-slot.ts";
 import { towerCenterPx } from "../shared/core/spatial.ts";
 import { IS_TOUCH_DEVICE } from "../shared/platform/platform.ts";
 import {

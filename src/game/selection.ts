@@ -2,11 +2,11 @@ import { emitGameEvent, GAME_EVENT } from "../shared/core/game-event-bus.ts";
 import { Phase } from "../shared/core/game-phase.ts";
 import type { TowerIdx } from "../shared/core/geometry-types.ts";
 import { getInterior } from "../shared/core/player-interior.ts";
-import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import {
   isPlayerEliminated,
-  selectPlayerTower,
-} from "../shared/core/player-types.ts";
+  type ValidPlayerId,
+} from "../shared/core/player-slot.ts";
+import { selectPlayerTower } from "../shared/core/player-types.ts";
 import { type GameState, type SelectionState } from "../shared/core/types.ts";
 import type { ZoneId } from "../shared/core/zone-id.ts";
 

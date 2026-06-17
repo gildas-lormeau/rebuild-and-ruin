@@ -26,12 +26,8 @@ import {
   packTile,
   pxToTile,
 } from "../shared/core/spatial.ts";
-import {
-  altitudeAt,
-  horizontalAt,
-  solveTrajectory,
-} from "../shared/core/trajectory.ts";
 import type { GameState } from "../shared/core/types.ts";
+import { altitudeAt, horizontalAt, solveTrajectory } from "./trajectory.ts";
 
 /** Options threaded through surface sampling. */
 interface SurfaceOpts {

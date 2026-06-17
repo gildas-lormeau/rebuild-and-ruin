@@ -11,11 +11,11 @@ import type {
   CannonPhantom,
   PiecePhantom,
 } from "../../shared/core/phantom-types.ts";
-import type { ValidPlayerId } from "../../shared/core/player-slot.ts";
 import {
-  cannonTier,
   isPlayerEliminated,
-} from "../../shared/core/player-types.ts";
+  type ValidPlayerId,
+} from "../../shared/core/player-slot.ts";
+import { cannonTier } from "../../shared/core/player-types.ts";
 import { selectRenderView } from "../../shared/core/render-view.ts";
 import type {
   InputReceiver,
