@@ -15,7 +15,6 @@ import type {
   TileBounds,
   TilePos,
   Tower,
-  TowerIdx,
 } from "./geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, TILE_SIZE, Tile, type TileKey } from "./grid.ts";
 import type { ValidPlayerId } from "./player-slot.ts";
@@ -226,33 +225,6 @@ export function snapAngle(angle: number, step: number): number {
  *  movement, and the cannon-aim animator. */
 export function facingFromVector(dx: number, dy: number): number {
   return Math.atan2(dx, -dy);
-}
-
-/** Find tower nearest to a world coordinate (tile-pixel space). */
-export function towerAtPixel(
-  towers: readonly TilePos[],
-  worldX: number,
-  worldY: number,
-): TowerIdx | undefined {
-  const tileCol = pxToTile(worldX);
-  const tileRow = pxToTile(worldY);
-
-  const HIT_RADIUS = 2;
-  let bestIdx: TowerIdx | undefined;
-  let bestDist = Infinity;
-
-  for (let i = 0; i < towers.length; i++) {
-    const tower = towers[i]!;
-    const dr = tileRow - (tower.row + 0.5);
-    const dc = tileCol - (tower.col + 0.5);
-    const dist = Math.sqrt(dr * dr + dc * dc);
-    if (dist < HIT_RADIUS && dist < bestDist) {
-      bestDist = dist;
-      bestIdx = i as TowerIdx;
-    }
-  }
-
-  return bestIdx;
 }
 
 /** Drop every item whose tile lies inside `tiles`. */

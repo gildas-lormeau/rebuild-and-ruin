@@ -13,10 +13,14 @@ import {
   isSelectionPhase,
   Phase,
 } from "../shared/core/game-phase.ts";
-import type { Tower, TowerIdx } from "../shared/core/geometry-types.ts";
+import type {
+  TilePos,
+  Tower,
+  TowerIdx,
+} from "../shared/core/geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "../shared/core/grid.ts";
 import { isPlayerEliminated } from "../shared/core/player-slot.ts";
-import { towerAtPixel } from "../shared/core/spatial.ts";
+import { pxToTile } from "../shared/core/spatial.ts";
 import {
   type InputReceiver,
   type PlayerController,
@@ -477,6 +481,34 @@ function findNearestTower(
     const score = secondary * 2 + primary;
     if (score < bestScore) {
       bestScore = score;
+      bestIdx = i as TowerIdx;
+    }
+  }
+
+  return bestIdx;
+}
+
+/** Find the tower nearest a world (tile-pixel) coordinate — pointer/tap
+ *  hit-testing for tower selection. */
+function towerAtPixel(
+  towers: readonly TilePos[],
+  worldX: number,
+  worldY: number,
+): TowerIdx | undefined {
+  const tileCol = pxToTile(worldX);
+  const tileRow = pxToTile(worldY);
+
+  const HIT_RADIUS = 2;
+  let bestIdx: TowerIdx | undefined;
+  let bestDist = Infinity;
+
+  for (let i = 0; i < towers.length; i++) {
+    const tower = towers[i]!;
+    const dr = tileRow - (tower.row + 0.5);
+    const dc = tileCol - (tower.col + 0.5);
+    const dist = Math.sqrt(dr * dr + dc * dc);
+    if (dist < HIT_RADIUS && dist < bestDist) {
+      bestDist = dist;
       bestIdx = i as TowerIdx;
     }
   }
