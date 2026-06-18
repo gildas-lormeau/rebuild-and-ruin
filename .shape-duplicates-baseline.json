@@ -685,7 +685,7 @@
       "pair": "ParapetParams@src/render/3d/sprites/tower-scene.ts ↔ SailParams@src/render/3d/sprites/supply-ship-scene.ts"
     },
     {
-      "pair": "ParitySnap@test/e2e/two-humans-online.ts ↔ Snap@test/debug-net-divergence.test.ts"
+      "pair": "ParitySnap@test/e2e/online-humans.ts ↔ Snap@test/debug-net-divergence.test.ts"
     },
     {
       "pair": "PhaseTicksDeps@src/runtime/subsystems/phase-ticks.ts ↔ PhaseTransitionCtx@src/runtime/phase-machine.ts"

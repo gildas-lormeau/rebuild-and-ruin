@@ -117,6 +117,17 @@ export interface E2EBridgeSnapshot {
    *  signal for the open life-lost CONTINUE → reselect fork. Empty outside
    *  CASTLE_SELECT. */
   selection: { pid: number; confirmed: boolean }[];
+  /** This peer's seated slot (`network.myPlayerId()`), or -1 in local play /
+   *  before seating. Pairs with `isHost` to verify host-migration outcomes:
+   *  after the host quits, the survivors observe the new host's slot here. */
+  myPlayerId: number;
+  /** Whether this peer is currently the authoritative host (`network.amHost()`).
+   *  Flips to true on the promoted survivor after a host migration — the signal
+   *  three-humans-online.ts asserts the promotion actually happened (a broken
+   *  migration otherwise only surfaces as a slow game-over timeout). Named
+   *  `amHost` (not `isHost`) to match `NetworkApi` and sidestep the eslint rule
+   *  banning direct `.isHost` access. */
+  amHost: boolean;
   paused: boolean;
   step: boolean;
   targeting: {
@@ -399,6 +410,8 @@ function buildBridge(
     },
     controller: null,
     selection: [],
+    myPlayerId: -1,
+    amHost: false,
     worldToClient,
     tileToClient: makeTileToClient(worldToClient),
     gameState: () =>
@@ -532,6 +545,10 @@ function updateBridgeSnapshots(ref: E2EBridge, deps: E2EBridgeDeps): void {
   ref.selection = [...runtimeState.selection.states.entries()].map(
     ([pid, sel]) => ({ pid, confirmed: sel.confirmed }),
   );
+
+  // --- Identity (host migration) ---
+  ref.myPlayerId = config.network.myPlayerId();
+  ref.amHost = config.network.amHost();
 
   // --- Targeting (battle simulation) ---
   if (ready) {
