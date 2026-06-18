@@ -47,6 +47,7 @@ import {
   controlsScreenHitTest,
   optionsScreenHitTest,
 } from "../render/render-ui-settings.ts";
+import { SELECT_TIMER } from "../shared/core/game-constants.ts";
 import { GAME_EVENT } from "../shared/core/game-event-bus.ts";
 import { Phase } from "../shared/core/game-phase.ts";
 import {
@@ -707,7 +708,21 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     // dialog and reports the `continuing` list back.
     lifeLostRoute: {
       onGameOver: (outcome) => phaseTicks.dispatchGameOver(outcome),
-      onReselect: (continuing) => selection.enter(continuing),
+      onReselect: (continuing) => {
+        // Re-enter CASTLE_SELECT locally on every peer (clone-everywhere).
+        selection.enter(continuing);
+        // The host additionally re-marks the server's tracked phase as
+        // CASTLE_SELECT. Mid-game reselect (unlike round-1 initial select,
+        // which sends SELECT_START from online/runtime/game.ts onGameStart)
+        // otherwise emits no phase marker, so the server stays at WALL_BUILD
+        // and its gate (PHASE_GATES[OPPONENT_TOWER_SELECTED] = {CASTLE_SELECT}
+        // in server/game-room.ts) DROPS the reselect tower-confirm — the host
+        // applies its own confirm locally while the relay-starved peer never
+        // does, forking the sim. Re-marking here lets the confirm relay.
+        if (isOnline && config.network.amHost()) {
+          config.network.send({ type: "selectStart", timer: SELECT_TIMER });
+        }
+      },
       // enterCannonPhase (inside the dispatched advance-to-cannon
       // transition) handles the phase flip + banner + setMode(GAME) via
       // the transition's postDisplay.
