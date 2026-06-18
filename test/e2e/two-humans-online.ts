@@ -89,20 +89,26 @@ const SEED = 42;
  *  server/game-room.ts). The online room also honors the `mode` + `seed`
  *  options via the host-create flow now.
  *
- *  Capped at 1 because MULTI-round parity needs an architectural change still
- *  open. The analogous grace for late CANNON_PLACE cannons does NOT work: a
- *  graced cannon arrives at the host after it advanced to BATTLE and is applied
- *  LATE (its applyAt is already past), so it joins the battle at a different
- *  point than on the owner (which applied it on time) and battle scoring
- *  diverges. Pieces tolerate late apply (lockstep bag-null gate + their only
- *  effect is end-of-build territory, computed once); cannons feed the
- *  immediately-following active BATTLE, so they need lockstep phase transitions
- *  (host must not enter BATTLE until in-flight CANNON_PLACE actions drain at
- *  their applyAt). Until that lands, rounds >= 2 can diverge by a cannon-driven
- *  battle outcome (e.g. one grunt kill, 16 pts). Keep at 1. */
-const ROUNDS = 1;
-/** Headless by default; set E2E_HEADFUL=1 to watch the two browsers play. */
-const HEADLESS = Deno.env.get("E2E_HEADFUL") !== "1";
+ *  Runs the full multi-round game: two humans + an AI, byte-identical state on
+ *  both peers through to game-over.
+ *
+ *  MUST run non-headless. Headless Chromium has no display/vsync to drive
+ *  `requestAnimationFrame`, so it throttles the sim's main loop unevenly across
+ *  the two co-hosted tabs — measured sim-tick skew spikes to ~64 ticks, far past
+ *  the 8-tick lockstep buffer (DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS). A wire
+ *  action then lands with its `applyAt` already in the receiver's past and
+ *  applies late, forking the game. With visible windows both tabs render at full
+ *  60Hz, skew stays <= 7 ticks (p99=1), and parity is exact across all rounds.
+ *  This is purely a headless-harness artifact: the netcode is sound (the
+ *  deterministic headless `network-bidirectional` test covers multi-round parity
+ *  under a mock clock; this test covers the real human -> WebSocket -> server ->
+ *  mirror-sim path that the in-memory relay stubs out). Anti-throttle launch
+ *  flags do not help — headless has no frame source to un-throttle. */
+const ROUNDS = 3;
+/** Non-headless is REQUIRED for parity — see the file header (headless RAF
+ *  throttling forks the two co-hosted sims). Not env-overridable: a headless
+ *  run would fail with a false divergence, which is a footgun, not a feature. */
+const HEADLESS = false;
 /** Wall-clock budget for each peer's minimal-input loop. fastMode is OFF so
  *  phases run at real duration and the human loop has time to inject input. */
 const DRIVE_TIMEOUT_MS = 240_000;
