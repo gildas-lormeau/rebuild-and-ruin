@@ -157,6 +157,13 @@ export const RAMPART_SHIELD_RADIUS = 2;
 export const BALLOON_FLIGHT_DURATION = 8.5;
 /** Duration of the impact flash effect in seconds. */
 export const IMPACT_FLASH_DURATION = 0.3;
+/** Total duration of the wall sink + tail-fade window (ms). Punchy
+ *  enough to read as an impact-driven collapse without slowing battle
+ *  pace. The render curve (`wallDestroyAnimAt` in shared/ui) consumes
+ *  the ms value; `ageImpacts` (battle-types) uses the derived seconds
+ *  for the impact-entry lifetime. */
+export const WALL_DESTROY_ANIM_DURATION_MS = 400;
+export const WALL_DESTROY_ANIM_DURATION = WALL_DESTROY_ANIM_DURATION_MS / 1000;
 /** Duration of phase-transition banner sweep in seconds. */
 export const BANNER_DURATION = 3.0;
 /** Duration of the player selection lobby in seconds. */

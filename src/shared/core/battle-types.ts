@@ -1,4 +1,5 @@
 import type { BallisticTrajectory } from "./battle-events.ts";
+import { WALL_DESTROY_ANIM_DURATION } from "./game-constants.ts";
 import type {
   CannonIdx,
   PixelPos,
@@ -7,7 +8,6 @@ import type {
 } from "./geometry-types.ts";
 import type { TileKey } from "./grid.ts";
 import type { ValidPlayerId } from "./player-slot.ts";
-import { WALL_DESTROY_ANIM_DURATION } from "./wall-destroy-anim.ts";
 
 export interface Grunt extends TilePos {
   /** Pathing target (a tower the grunt is walking toward) — used by

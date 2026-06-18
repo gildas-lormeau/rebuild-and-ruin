@@ -11,8 +11,8 @@ import {
   type DestroyedWall,
   WALL_BURN_DURATION,
 } from "../../../shared/core/battle-types.ts";
+import { WALL_DESTROY_ANIM_DURATION } from "../../../shared/core/game-constants.ts";
 import { TILE_SIZE } from "../../../shared/core/grid.ts";
-import { WALL_DESTROY_ANIM_DURATION } from "../../../shared/core/wall-destroy-anim.ts";
 import {
   createTileBurstManager,
   type EffectManager,

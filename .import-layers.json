@@ -81,8 +81,8 @@
       "src/shared/core/pieces.ts",
       "src/shared/core/player-zones.ts",
       "src/shared/core/upgrade-defs.ts",
-      "src/shared/core/wall-destroy-anim.ts",
-      "src/shared/ui/theme.ts"
+      "src/shared/ui/theme.ts",
+      "src/shared/ui/wall-destroy-anim.ts"
     ]
   },
   {

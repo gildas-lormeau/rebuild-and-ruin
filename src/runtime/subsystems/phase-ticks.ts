@@ -30,6 +30,7 @@ import {
   BATTLE_TIMER,
   IMPACT_FLASH_DURATION,
   MODIFIER_REVEAL_TIMER,
+  WALL_DESTROY_ANIM_DURATION,
 } from "../../shared/core/game-constants.ts";
 import { emitGameEvent, GAME_EVENT } from "../../shared/core/game-event-bus.ts";
 import { Phase } from "../../shared/core/game-phase.ts";
@@ -49,7 +50,6 @@ import {
   type PlayerController,
 } from "../../shared/core/system-interfaces.ts";
 import { cannonSlotsFor, type GameState } from "../../shared/core/types.ts";
-import { WALL_DESTROY_ANIM_DURATION } from "../../shared/core/wall-destroy-anim.ts";
 import type { UpgradePickDialogState } from "../../shared/ui/interaction-types.ts";
 import { Mode } from "../../shared/ui/ui-mode.ts";
 import type { BannerShow } from "../banner-state.ts";

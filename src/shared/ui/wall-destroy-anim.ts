@@ -6,7 +6,8 @@
  * underneath the held mesh — so cannonball, grunt read identically.
  */
 
-import { TILE_SIZE } from "./grid.ts";
+import { WALL_DESTROY_ANIM_DURATION_MS } from "../core/game-constants.ts";
+import { TILE_SIZE } from "../core/grid.ts";
 
 interface WallDestroyAnim {
   /** World-units the held wall is translated DOWN by. 0 during the
@@ -45,9 +46,6 @@ const SNAPSHOT: WallDestroyAnim = {
   dustOpacity: 0,
   debrisOpacity: 1,
 };
-/** Total duration of the sink + tail-fade window (ms). Punchy enough
- *  to read as an impact-driven collapse without slowing battle pace. */
-const WALL_DESTROY_ANIM_DURATION_MS = 400;
 /** World-units the held wall descends over the animation window. The
  *  wall body's authored top sits at ~26 world units (3.22 sprite units
  *  × `TILE_SIZE / 2` scale; see `elevation.ts`); dropping by `TILE_SIZE
@@ -60,10 +58,6 @@ const BRIDGE: WallDestroyAnim = {
   dustOpacity: 0,
   debrisOpacity: 1,
 };
-/** Same as a number of seconds — used for the impact-entry lifetime in
- *  `ageImpacts` so the held-mesh + dust + debris-fade-in stay alive
- *  for the full visual window before the entry is purged. */
-export const WALL_DESTROY_ANIM_DURATION = WALL_DESTROY_ANIM_DURATION_MS / 1000;
 
 /** Multipliers at a given progress time (ms). `<= 0` returns the
  *  snapshot state (held visible, no movement); `>= DURATION` returns
