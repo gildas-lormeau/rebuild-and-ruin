@@ -535,6 +535,9 @@
       "pair": "DustHost@src/render/3d/effects/wall-dust.ts ↔ SmokePuff@src/render/3d/effects/fire-burst.ts"
     },
     {
+      "pair": "E2EBridgeSnapshot@dev/e2e-bridge.ts ↔ FullStateMessage@src/protocol/protocol.ts"
+    },
+    {
       "pair": "E2EScenarioOptions@test/e2e/scenario.ts ↔ HeadlessRuntimeOptions@test/runtime-headless.ts"
     },
     {

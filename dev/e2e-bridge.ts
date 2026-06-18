@@ -95,6 +95,11 @@ export interface E2EBridgeSnapshot {
    *  before the mode transition completes. */
   lobbyActive: boolean;
   round: number;
+  /** Simulation tick counter (`state.simTick`), or -1 before state is ready.
+   *  The lockstep clock both peers advance in step — the right axis to align
+   *  two peers' logs on (their per-loop iteration counters are NOT comparable
+   *  across peers). */
+  simTick: number;
   timer: number;
   overlay: {
     hasBannerPrevScene: boolean;
@@ -104,6 +109,14 @@ export interface E2EBridgeSnapshot {
     ui: E2EUISnapshot;
   };
   controller: E2EControllerSnapshot | null;
+  /** Castle-select participants this cycle: the runtime-owned `selectionStates`
+   *  Map (keys + confirm status). This Map is NOT part of `GameState`, so it is
+   *  absent from `gameState()` and must be surfaced here. During a reselect
+   *  cycle (round > 1) these are the life-losers re-picking a tower; a cross-peer
+   *  mismatch here means the two peers built different reselect queues — the
+   *  signal for the open life-lost CONTINUE → reselect fork. Empty outside
+   *  CASTLE_SELECT. */
+  selection: { pid: number; confirmed: boolean }[];
   paused: boolean;
   step: boolean;
   targeting: {
@@ -370,6 +383,7 @@ function buildBridge(
     phase: "",
     lobbyActive: false,
     round: 0,
+    simTick: -1,
     timer: 0,
     overlay: {
       hasBannerPrevScene: false,
@@ -384,6 +398,7 @@ function buildBridge(
       },
     },
     controller: null,
+    selection: [],
     worldToClient,
     tileToClient: makeTileToClient(worldToClient),
     gameState: () =>
@@ -492,6 +507,7 @@ function updateBridgeSnapshots(ref: E2EBridge, deps: E2EBridgeDeps): void {
   ref.phase = ready ? runtimeState.state.phase : "";
   ref.lobbyActive = runtimeState.lobby.active;
   ref.round = ready ? runtimeState.state.round : 0;
+  ref.simTick = ready ? runtimeState.state.simTick : -1;
   ref.timer = ready ? runtimeState.state.timer : 0;
 
   // --- Overlay ---
@@ -508,6 +524,14 @@ function updateBridgeSnapshots(ref: E2EBridge, deps: E2EBridgeDeps): void {
   const myPid =
     config.network.myPlayerId() >= 0 ? config.network.myPlayerId() : 0;
   ref.controller = ready ? snapshotController(runtimeState, myPid) : null;
+
+  // --- Selection (reselect queue) ---
+  // selectionStates is runtime-owned (not on GameState), so it can't come
+  // through gameState(); surface it directly. Keys = participating slots,
+  // which during a reselect cycle is the queue of life-losers re-picking.
+  ref.selection = [...runtimeState.selection.states.entries()].map(
+    ([pid, sel]) => ({ pid, confirmed: sel.confirmed }),
+  );
 
   // --- Targeting (battle simulation) ---
   if (ready) {

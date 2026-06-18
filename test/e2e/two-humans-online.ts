@@ -20,6 +20,18 @@
  * localize the divergence. A full end-of-game parity check (towers, grunts,
  * cannonballs, winner) backs it up when no per-round divergence fires.
  *
+ * Divergence DIAGNOSIS: the round-boundary monitor can only say which round +
+ * field broke. To find the mechanism, each peer also runs an in-page
+ * per-sim-tick recorder (`TICK_RECORDER` → `globalThis.__tickRec`) capturing
+ * phase, per-slot lives/score/grace, the RNG cursor, the reselect queue
+ * (runtime-owned selectionStates, surfaced via the bridge's `selection` field)
+ * and the life-lost dialog choices. On a flagged divergence the test aligns
+ * both logs by simTick — the lockstep clock, not the non-comparable per-peer
+ * loop counter — and dumps the FIRST diverging tick + field + a context window
+ * (`dumpTickDivergence`). This is what lets the open life-lost CONTINUE →
+ * reselect fork be root-caused from the test itself instead of a throwaway
+ * script.
+ *
  * This is the only test that drives REAL human keypresses over a REAL
  * WebSocket / server (the headless parity tests stub the transport and drive an
  * AI brain on the human seat). It is slow and lives outside the pre-commit lane.
@@ -77,6 +89,73 @@ interface RunControl {
     | null;
 }
 
+/** One compact per-sim-tick sample from a peer's in-page recorder. Keyed by
+ *  `t` (state.simTick) — the lockstep clock both peers advance in step — so the
+ *  two peers' logs can be aligned tick-for-tick (their per-loop iteration
+ *  counters cannot). Carries exactly the signals the reselect fork needs:
+ *  phase, per-slot lives/score/grace, the RNG cursor, the reselect queue
+ *  (`sel`, from the runtime-owned selectionStates), and the life-lost dialog
+ *  choices (`ll`). */
+interface TickRec {
+  /** state.simTick. */
+  t: number;
+  /** Game phase. */
+  ph: string;
+  /** Round number. */
+  rnd: number;
+  /** Lives per slot. */
+  L: number[];
+  /** Score per slot. */
+  S: number[];
+  /** inGracePeriod per slot (1/0). */
+  G: number[];
+  /** RNG cursor (state.rng.getState()). */
+  r: number | null;
+  /** Reselect queue: selectionStates participants ("0c" = slot 0 confirmed). */
+  sel: string[];
+  /** Life-lost dialog entries ("0:CONTINUE"). */
+  ll: string[];
+}
+
+/** In-page per-frame recorder, installed on both peers. On every animation
+ *  frame it appends a {@link TickRec} keyed by state.simTick (deduped — one
+ *  row per tick) to `globalThis.__tickRec`. Reads only the e2e bridge, so it
+ *  never perturbs the sim. Read back after the run via {@link readTickLog} and
+ *  aligned by {@link dumpTickDivergence}. */
+const TICK_RECORDER = `
+(() => {
+  const w = globalThis;
+  if (w.__tickRec) return;
+  w.__tickRec = [];
+  const e2e = w.__e2e;
+  const loop = () => {
+    try {
+      const gs = e2e && e2e.gameState ? e2e.gameState() : null;
+      if (gs) {
+        const rec = w.__tickRec;
+        const prev = rec.length ? rec[rec.length - 1] : null;
+        if (!prev || prev.t !== gs.simTick) {
+          const ui = e2e.overlay && e2e.overlay.ui ? e2e.overlay.ui : null;
+          const ll = ui && ui.lifeLostDialog ? ui.lifeLostDialog.entries : [];
+          rec.push({
+            t: gs.simTick,
+            ph: gs.phase,
+            rnd: gs.round,
+            L: gs.players.map((p) => p.lives),
+            S: gs.players.map((p) => p.score),
+            G: gs.players.map((p) => (p.inGracePeriod ? 1 : 0)),
+            r: e2e.rngState ? e2e.rngState() : null,
+            sel: (e2e.selection || []).map((s) => s.pid + (s.confirmed ? "c" : "")),
+            ll: ll.map((en) => en.playerId + ":" + en.choice),
+          });
+        }
+      }
+    } catch (err) { /* bridge mid-rebuild — skip this frame */ }
+    w.requestAnimationFrame(loop);
+  };
+  w.requestAnimationFrame(loop);
+})();
+`;
 /** Fixed seed → stable map. The run is NOT bit-reproducible (real keypress
  *  timing is non-deterministic); parity here is cross-PEER, not cross-RUN. */
 const SEED = 42;
@@ -146,6 +225,13 @@ Deno.test("e2e online: two humans play a full game and see the same game", async
   });
   await client.input.pressKey(SLOT_KEYS[1]); // claim slot 1
 
+  // Install the per-sim-tick recorder on both peers up front (it no-ops until
+  // state is ready, so it captures from round 1). On a flagged divergence we
+  // read these back and align by simTick to pin the FIRST diverging tick +
+  // field — the diagnosis the round-boundary monitor can't give on its own.
+  await installTickRecorder(host);
+  await installTickRecorder(client);
+
   // --- Both humans play minimally + a monitor watches for divergence -----
   const ctrl: RunControl = { stop: false, divergence: null };
   const [hostActs, clientActs] = await Promise.all([
@@ -161,6 +247,13 @@ Deno.test("e2e online: two humans play a full game and see the same game", async
     console.log(`  DIVERGENCE at round ${round}: ${reason}`);
     if (h) console.log(`    HOST   round ${round}: ${JSON.stringify(h)}`);
     if (c) console.log(`    CLIENT round ${round}: ${JSON.stringify(c)}`);
+    // Pin the mechanism: align both peers' per-tick logs and dump the first
+    // diverging sim-tick + field + a context window around it.
+    const [hLog, cLog] = await Promise.all([
+      readTickLog(host),
+      readTickLog(client),
+    ]);
+    dumpTickDivergence(hLog, cLog);
     throw new Error(
       `peers diverged at round ${round}: ${reason} — the two humans did not ` +
         `play the same game`,
@@ -394,7 +487,7 @@ async function driveMinimalHuman(
 
   while (Date.now() - start < timeoutMs && !ctrl.stop) {
     iteration++;
-    const { mode, phase, timer } = await page
+    const { mode, phase, timer, tick } = await page
       .evaluate(() => {
         const e2e = (globalThis as unknown as Record<string, unknown>)
           .__e2e as Record<string, unknown> | undefined;
@@ -402,13 +495,16 @@ async function driveMinimalHuman(
           mode: (e2e?.mode as string) ?? "",
           phase: (e2e?.phase as string) ?? "",
           timer: (e2e?.timer as number) ?? 10,
+          tick: (e2e?.simTick as number) ?? -1,
         };
       })
-      .catch(() => ({ mode: "", phase: "", timer: 10 }));
+      .catch(() => ({ mode: "", phase: "", timer: 10, tick: -1 }));
 
     if (mode === "STOPPED") break;
     if (iteration % 25 === 0) {
-      console.log(`  ${label}: iter ${iteration} mode=${mode} phase=${phase}`);
+      // Key the log on simTick (the lockstep clock), NOT the per-peer iteration
+      // counter — so HOST and CLIENT lines for the same game-moment line up.
+      console.log(`  ${label}: tick ${tick} mode=${mode} phase=${phase}`);
     }
 
     if (mode === "LIFE_LOST") {
@@ -462,6 +558,96 @@ async function driveMinimalHuman(
     await page.waitForTimeout(150);
   }
   return iteration;
+}
+
+/** Install the per-sim-tick recorder ({@link TICK_RECORDER}) on a peer. */
+async function installTickRecorder(sc: E2EScenario): Promise<void> {
+  await sc.page.evaluate(TICK_RECORDER);
+}
+
+/** Read back a peer's recorded per-sim-tick log. */
+async function readTickLog(sc: E2EScenario): Promise<TickRec[]> {
+  return (await sc.page.evaluate(() => {
+    return (globalThis as unknown as { __tickRec?: TickRec[] }).__tickRec ?? [];
+  })) as TickRec[];
+}
+
+/** Align both peers' per-sim-tick logs and print the FIRST tick at which each
+ *  field (phase, lives, grace, reselect queue, life-lost choices, score, rng)
+ *  diverges, then a context window of full rows around the earliest one. This
+ *  is the diagnosis layer on top of the round-boundary monitor: the monitor
+ *  says WHICH round + field broke; this says the exact tick + mechanism. */
+function dumpTickDivergence(hLog: TickRec[], cLog: TickRec[]): void {
+  const hByTick = new Map(hLog.map((rec) => [rec.t, rec] as const));
+  const cByTick = new Map(cLog.map((rec) => [rec.t, rec] as const));
+  const common = [...hByTick.keys()]
+    .filter((tick) => cByTick.has(tick))
+    .sort((firstTick, secondTick) => firstTick - secondTick);
+  console.log(
+    `  [tick-diag] host ticks=${hLog.length} client ticks=${cLog.length} ` +
+      `common=${common.length}` +
+      (common.length ? ` (${common[0]}..${common[common.length - 1]})` : ""),
+  );
+  if (!common.length) return;
+
+  const fields: { key: string; of: (rec: TickRec) => unknown }[] = [
+    { key: "PHASE", of: (rec) => rec.ph },
+    { key: "LIVES", of: (rec) => rec.L },
+    { key: "GRACE", of: (rec) => rec.G },
+    { key: "SELECT", of: (rec) => rec.sel },
+    { key: "LIFELOST", of: (rec) => rec.ll },
+    { key: "SCORE", of: (rec) => rec.S },
+    { key: "RNG", of: (rec) => rec.r },
+  ];
+  const firstAt: Record<string, number | null> = {};
+  for (const field of fields) firstAt[field.key] = null;
+  for (const tick of common) {
+    const host = hByTick.get(tick)!;
+    const client = cByTick.get(tick)!;
+    for (const field of fields) {
+      if (firstAt[field.key] === null && jstr(field.of(host)) !== jstr(field.of(client))) {
+        firstAt[field.key] = tick;
+      }
+    }
+  }
+  for (const field of fields) {
+    console.log(
+      `  [tick-diag] first ${field.key.padEnd(8)} divergence: ${firstAt[field.key] ?? "none"}`,
+    );
+  }
+
+  const earliest = fields
+    .map((field) => firstAt[field.key])
+    .filter((tick): tick is number => tick !== null)
+    .sort((firstTick, secondTick) => firstTick - secondTick)[0];
+  if (earliest === undefined) {
+    console.log("  [tick-diag] no per-tick divergence on common ticks (skew only)");
+    return;
+  }
+  console.log(`  [tick-diag] === context around tick ${earliest} ===`);
+  for (const tick of common.filter((tick) => tick >= earliest - 12 && tick <= earliest + 4)) {
+    const host = hByTick.get(tick)!;
+    const client = cByTick.get(tick)!;
+    const diff = fields
+      .filter((field) => jstr(field.of(host)) !== jstr(field.of(client)))
+      .map((field) => field.key)
+      .join(",");
+    console.log(`  [tick-diag] t=${tick}${diff ? "  DIFF:" + diff : ""}`);
+    console.log(`  [tick-diag]   H ${tickStr(host)}`);
+    console.log(`  [tick-diag]   C ${tickStr(client)}`);
+  }
+}
+
+/** Compact one-line rendering of a {@link TickRec} for the context dump. */
+function tickStr(rec: TickRec): string {
+  return (
+    `r${rec.rnd} [${rec.ph}] L${jstr(rec.L)} S${jstr(rec.S)} G${jstr(rec.G)} ` +
+    `rng=${rec.r} sel[${rec.sel.join(" ")}] ll[${rec.ll.join(" ")}]`
+  );
+}
+
+function jstr(value: unknown): string {
+  return JSON.stringify(value);
 }
 
 function delay(ms: number): Promise<void> {
