@@ -24,7 +24,7 @@ import type {
   TowerIdx,
 } from "../shared/core/geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, type TileKey } from "../shared/core/grid.ts";
-import type { PieceShape } from "../shared/core/pieces.ts";
+import { type PieceShape, rotateCW } from "../shared/core/pieces.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import type { Player } from "../shared/core/player-types.ts";
 import {
@@ -49,7 +49,6 @@ import {
   hasAliveHouseAt,
   type OccupancyCache,
 } from "../shared/sim/board-occupancy.ts";
-import { rotateCW } from "../shared/sim/pieces.ts";
 import { getInterior } from "../shared/sim/player-interior.ts";
 import {
   hasFillableTowerHope,

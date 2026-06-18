@@ -16,6 +16,7 @@ import {
   TILE_SIZE,
 } from "../shared/core/grid.ts";
 import { Action, type KeyBindings } from "../shared/core/input-action.ts";
+import { rotateCW } from "../shared/core/pieces.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import type { Player } from "../shared/core/player-types.ts";
 import { cannonSize } from "../shared/core/spatial.ts";
@@ -32,7 +33,6 @@ import {
   type PlacePieceIntent,
 } from "../shared/core/system-interfaces.ts";
 import { cannonSlotsFor } from "../shared/core/types.ts";
-import { rotateCW } from "../shared/sim/pieces.ts";
 import { BaseController } from "./controller-base.ts";
 
 /** Speed multiplier when ROTATE (sprint) key is held during battle crosshair movement. */

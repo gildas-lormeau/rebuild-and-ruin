@@ -18,7 +18,7 @@ import { DIRS_4, packTile, unpackTile } from "../../src/shared/core/spatial.ts";
 import { setAiBuildDiagHook } from "../../src/ai/ai-build-diag.ts";
 import type { ValidPlayerId } from "../../src/shared/core/player-slot.ts";
 import type { PieceShape } from "../../src/shared/core/pieces.ts";
-import { ALL_PIECE_SHAPES } from "../../src/shared/sim/pieces.ts";
+import { ALL_PIECE_SHAPES } from "../../src/shared/core/pieces.ts";
 import type { TileRect } from "../../src/shared/core/geometry-types.ts";
 import {
   classifyIsolatedGapBlame,

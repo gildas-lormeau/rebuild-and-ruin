@@ -9,14 +9,13 @@
 import { canPlacePiece } from "../game/index.ts";
 import type { TilePos } from "../shared/core/geometry-types.ts";
 import { GRID_COLS, GRID_ROWS } from "../shared/core/grid.ts";
-import type { PieceShape } from "../shared/core/pieces.ts";
+import { type PieceShape, rotateCW, sameShape } from "../shared/core/pieces.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import { towerCenterTile } from "../shared/core/spatial.ts";
 import type {
   BuildViewState,
   PiecePlacementPreview,
 } from "../shared/core/system-interfaces.ts";
-import { rotateCW, sameShape } from "../shared/sim/pieces.ts";
 import {
   POST_PLACE_DELAY_SEC,
   POST_PLACE_SPREAD_SEC,
