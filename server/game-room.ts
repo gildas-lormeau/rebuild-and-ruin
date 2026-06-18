@@ -71,6 +71,17 @@ const phaseServerDisjointCheck: PhaseServerDisjoint = true;
 const RATE_LIMIT_PER_WINDOW = 100;
 // ~60fps × 4 players phantom updates; generous but blocks flooding
 const RATE_LIMIT_WINDOW_MS = 1000;
+/** Grace window after WALL_BUILD ends during which the server still relays a
+ *  non-host peer's `OPPONENT_PIECE_PLACED`. A peer places walls against its own
+ *  WALL_BUILD clock; the host's build-end marker advances the server's tracked
+ *  phase, and peer clock skew + wire latency can land an in-flight (validly
+ *  placed) piece at the server just after that. Without the grace the gate
+ *  drops it, so it never reaches the host and the wall set diverges (owner has
+ *  it, host doesn't). The receiver's lockstep `applyAt` + bag-null re-check
+ *  (scheduled-actions.ts / online-server-events.ts) keep the apply decision
+ *  symmetric once the message is relayed. 1s comfortably covers realistic skew;
+ *  the gate is a sanity guard, not anti-cheat (server is a relay — see CLAUDE.md). */
+const WALL_BUILD_PLACE_GRACE_MS = 1000;
 /** Exhaustive set of message types subject to rate limiting.
  *  All other types pass through without rate checks.
  *  CRITICAL: Only cosmetic/display messages belong here. Adding a game-state message
@@ -163,6 +174,11 @@ export class GameRoom {
    * See updatePhaseFromMessage() for all transitions. */
   private phase: ServerPhase = SERVER_ONLY_PHASE.LOBBY;
 
+  /** Wall-clock ms when the tracked phase last left WALL_BUILD (undefined until
+   *  the first such transition). Bounds the late-piece grace window (see
+   *  WALL_BUILD_PLACE_GRACE_MS). */
+  private leftWallBuildAtMs: number | undefined;
+
   /** Rate limit tracking: socket → type → { count, windowStart }. */
   private rateLimits = new Map<
     WebSocket,
@@ -218,10 +234,16 @@ export class GameRoom {
    *  If adding a new phase-changing message type, add its transition here
    *  AND add phase gating to PHASE_GATES below if the new phase restricts messages. */
   private updatePhaseFromMessage(type: string): void {
+    const prev = this.phase;
     if (type === MESSAGE.CANNON_START) this.phase = Phase.CANNON_PLACE;
     else if (type === MESSAGE.BATTLE_START) this.phase = Phase.BATTLE;
     else if (type === MESSAGE.BUILD_START) this.phase = Phase.WALL_BUILD;
     else if (type === MESSAGE.SELECT_START) this.phase = Phase.CASTLE_SELECT;
+    // Stamp the moment we leave WALL_BUILD so the gate can grace late, validly
+    // in-flight piece placements from non-host peers (see the gate below).
+    if (prev === Phase.WALL_BUILD && this.phase !== Phase.WALL_BUILD) {
+      this.leftWallBuildAtMs = Date.now();
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -289,7 +311,21 @@ export class GameRoom {
     // Cast is safe: PHASE_GATES is a Partial<Record<MessageType, ...>>, so
     // an unknown string key just yields undefined (no gate applied).
     const validPhases = PHASE_GATES[type as MessageType];
-    if (validPhases && !validPhases.has(this.phase)) return;
+    if (validPhases && !validPhases.has(this.phase)) {
+      // Grace exception: a non-host peer's `OPPONENT_PIECE_PLACED` placed near
+      // the end of its WALL_BUILD can reach the server just after the host's
+      // build-end marker advanced the tracked phase (peer clock skew + wire
+      // latency). Relay it during a short window after leaving WALL_BUILD so it
+      // still reaches every peer; the receiver's lockstep applyAt + bag-null
+      // re-check keep the apply decision symmetric. Without this the piece is
+      // dropped only on its way to the host, diverging the wall set.
+      const gracedLatePiece =
+        type === MESSAGE.OPPONENT_PIECE_PLACED &&
+        validPhases.has(Phase.WALL_BUILD) &&
+        this.leftWallBuildAtMs !== undefined &&
+        Date.now() - this.leftWallBuildAtMs <= WALL_BUILD_PLACE_GRACE_MS;
+      if (!gracedLatePiece) return;
+    }
 
     // ── Stage 4: Payload validation ──
     if (!validatePayload(msg)) return;
