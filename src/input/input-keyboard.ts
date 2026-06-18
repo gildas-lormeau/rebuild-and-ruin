@@ -1,6 +1,6 @@
-import { wrapIndex } from "../shared/core/cyclic.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import { type GameState } from "../shared/core/types.ts";
+import { wrapIndex } from "../shared/platform/cyclic.ts";
 import {
   KEY_DOWN,
   KEY_ENTER,

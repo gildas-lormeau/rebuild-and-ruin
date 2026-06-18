@@ -7,10 +7,10 @@
  * choices. Consumed by subsystems/upgrade-pick.ts.
  */
 
-import { wrapIndex } from "../../shared/core/cyclic.ts";
 import type { ValidPlayerId } from "../../shared/core/player-slot.ts";
 import type { GameState } from "../../shared/core/types.ts";
 import type { UpgradeId } from "../../shared/core/upgrade-defs.ts";
+import { wrapIndex } from "../../shared/platform/cyclic.ts";
 import {
   type AutoResolveDeps,
   shouldAutoResolve,

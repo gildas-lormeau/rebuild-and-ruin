@@ -3,8 +3,8 @@
  * Settings persistence (load/save) lives in player-config.ts alongside GameSettings.
  */
 
-import { wrapIndex } from "../core/cyclic.ts";
 import { GAME_MODE_CLASSIC, GAME_MODE_MODERN } from "../core/game-constants.ts";
+import { wrapIndex } from "../platform/cyclic.ts";
 import { KEY_DOWN, KEY_LEFT, KEY_RIGHT, KEY_UP } from "../platform/platform.ts";
 import type { OptionsContext } from "./interaction-types.ts";
 import { type GameSettings } from "./player-config.ts";

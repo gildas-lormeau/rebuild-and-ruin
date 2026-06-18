@@ -1,5 +1,4 @@
 import { isHuman } from "../../shared/core/controller-guards.ts";
-import { wrapIndex } from "../../shared/core/cyclic.ts";
 import type { TowerIdx } from "../../shared/core/geometry-types.ts";
 import { GRID_PORTRAIT_LAUNCHED } from "../../shared/core/grid.ts";
 import type { ValidPlayerId } from "../../shared/core/player-slot.ts";
@@ -11,6 +10,7 @@ import {
   type PlayerController,
 } from "../../shared/core/system-interfaces.ts";
 import type { ZoneId } from "../../shared/core/zone-id.ts";
+import { wrapIndex } from "../../shared/platform/cyclic.ts";
 import { IS_TOUCH_DEVICE } from "../../shared/platform/platform.ts";
 import { Action } from "../../shared/ui/input-action.ts";
 import type {
