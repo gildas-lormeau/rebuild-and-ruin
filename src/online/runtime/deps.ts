@@ -354,7 +354,6 @@ function buildGameDeps(init: DepsInit) {
   return {
     getState: () => init.runtime.runtimeState.state,
     initFromServer: init.initFromServer,
-    enterTowerSelection: () => init.runtime.selection.enter(),
   };
 }
 

@@ -104,7 +104,6 @@ export interface HandleServerLifecycleDeps {
   game: {
     getState: () => GameState | undefined;
     initFromServer: (msg: InitMessage) => Promise<void>;
-    enterTowerSelection: () => void;
   };
 
   transitions: {
@@ -304,9 +303,6 @@ export async function handleServerLifecycleMessage(
       return true;
 
     case MESSAGE.SELECT_START:
-      deps.game.enterTowerSelection();
-      return true;
-
     case MESSAGE.CANNON_START:
     case MESSAGE.BATTLE_START:
     case MESSAGE.BUILD_START:
@@ -315,6 +311,17 @@ export async function handleServerLifecycleMessage(
       // dispatches the matching transition locally from its own tick.
       // Acknowledge receipt (`return true`) so the wire stays free of
       // unhandled-message warnings.
+      //
+      // SELECT_START specifically must NOT re-enter tower selection here:
+      // every peer that receives it (seated client or spectator) already
+      // entered the round-1 initial cycle locally from `initFromServer`'s
+      // `bootstrapGame` → `enterSelection` (the host enters the same way and
+      // never sees its own SELECT_START). Re-entering on receipt ran the AI's
+      // `selectTower` a SECOND time on joiners, double-drawing the shared
+      // `state.rng` (one extra AI castle selection) and desyncing every
+      // joiner's mirror sim from tick 0. The host still SENDS SELECT_START so
+      // the server can track the phase (server/game-room.ts) for spectator
+      // boots; it is purely a phase marker on the wire, like the four below.
       //
       // Deliberately NO dialog cleanup here. A marker landing while this
       // peer's life-lost / upgrade-pick dialog is open just means our sim
