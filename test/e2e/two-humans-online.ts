@@ -80,12 +80,26 @@ interface RunControl {
 /** Fixed seed → stable map. The run is NOT bit-reproducible (real keypress
  *  timing is non-deterministic); parity here is cross-PEER, not cross-RUN. */
 const SEED = 42;
-/** Valid lobby "Battle Length" values are 1/3/5/8/12/Infinity. Capped at 1
- *  while debugging: the peers diverge inside round 1 (the round-1 battle
- *  already desyncs AI score + RNG), so a longer game just burns wall-clock
- *  before the monitor trips. Note: the online room takes its mode from the
- *  lobby UI default (modern), NOT the `mode` option below — that only affects
- *  local games. */
+/** Valid lobby "Battle Length" values are 1/3/5/8/12/Infinity.
+ *
+ *  ROUND 1 is fully parity-clean (host/client snapshots byte-identical). Two
+ *  cross-peer divergences were fixed to get here: a joiner double-entering
+ *  CASTLE_SELECT (RNG seed skew — SELECT_START is now an ack-only marker) and
+ *  the server's phase gate dropping late WALL_BUILD pieces (grace window in
+ *  server/game-room.ts). The online room also honors the `mode` + `seed`
+ *  options via the host-create flow now.
+ *
+ *  Capped at 1 because MULTI-round parity needs an architectural change still
+ *  open. The analogous grace for late CANNON_PLACE cannons does NOT work: a
+ *  graced cannon arrives at the host after it advanced to BATTLE and is applied
+ *  LATE (its applyAt is already past), so it joins the battle at a different
+ *  point than on the owner (which applied it on time) and battle scoring
+ *  diverges. Pieces tolerate late apply (lockstep bag-null gate + their only
+ *  effect is end-of-build territory, computed once); cannons feed the
+ *  immediately-following active BATTLE, so they need lockstep phase transitions
+ *  (host must not enter BATTLE until in-flight CANNON_PLACE actions drain at
+ *  their applyAt). Until that lands, rounds >= 2 can diverge by a cannon-driven
+ *  battle outcome (e.g. one grunt kill, 16 pts). Keep at 1. */
 const ROUNDS = 1;
 /** Headless by default; set E2E_HEADFUL=1 to watch the two browsers play. */
 const HEADLESS = Deno.env.get("E2E_HEADFUL") !== "1";
@@ -281,9 +295,19 @@ async function roundResultOf(sc: E2EScenario): Promise<RoundResult | null> {
 }
 
 /** Human-readable description of how two round results differ, or "" if equal.
- *  Compares the RNG cursor (keystone) and each slot's lives + score. */
+ *  Compares each slot's finalized lives + score for the closed round.
+ *
+ *  Deliberately does NOT compare the RNG cursor here. The cursor advances on
+ *  every draw, and this snapshot is taken at the wall-clock moment a peer is
+ *  first *observed* to have crossed into the next round — the two peers cross
+ *  at slightly different sim-ticks and have already consumed a different number
+ *  of the next round's early draws, so their cursors legitimately differ at
+ *  that instant (it measures sim-tick skew, not divergence). The RNG cursor is
+ *  only a valid cross-peer signal when quiescent — i.e. at game-over, where no
+ *  further draws occur — and is asserted there by `buildSnap` (`hSnap.rng ===
+ *  cSnap.rng`). Per-round, finalized lives + score are the stable, skew-free
+ *  parity signals. (`rng` is kept on RoundResult for the divergence log only.) */
 function roundResultDiff(a: RoundResult, b: RoundResult): string {
-  if (a.rng !== b.rng) return `rng ${a.rng} vs ${b.rng}`;
   if (a.players.length !== b.players.length) {
     return `player count ${a.players.length} vs ${b.players.length}`;
   }
