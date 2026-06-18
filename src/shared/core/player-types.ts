@@ -18,7 +18,7 @@ import type { UpgradeId } from "./upgrade-defs.ts";
  *  last wall mutation. Only produced by:
  *  - `recomputeInterior()` in board-occupancy.ts (after wall mutations)
  *  - `emptyFreshInterior()` below (initial player creation)
- *  - `brandFreshInterior()` below (checkpoint deserialization of trusted data)
+ *  - `markInteriorFresh()` in player-interior.ts (recheck output / trusted data)
  *  Consumers can read `.has()` / `.size` / iterate freely — the brand carries
  *  through because FreshInterior extends ReadonlySet<TileKey>. */
 export type FreshInterior = ReadonlySet<TileKey> & {
@@ -107,12 +107,6 @@ export interface Player {
 /** Create a branded empty interior set. Use at Player creation. */
 export function emptyFreshInterior(): FreshInterior {
   return new Set<TileKey>() as unknown as FreshInterior;
-}
-
-/** Brand an existing set as fresh interior. Use at checkpoint
- *  deserialization where the set is constructed from trusted data. */
-export function brandFreshInterior(set: ReadonlySet<TileKey>): FreshInterior {
-  return set as FreshInterior;
 }
 
 /** Type guard: player exists and is not eliminated.

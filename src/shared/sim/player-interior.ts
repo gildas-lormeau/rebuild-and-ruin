@@ -8,11 +8,7 @@
  */
 
 import type { TileKey } from "../core/grid.ts";
-import {
-  brandFreshInterior,
-  type FreshInterior,
-  type Player,
-} from "../core/player-types.ts";
+import type { FreshInterior, Player } from "../core/player-types.ts";
 
 const wallsEpoch = new WeakMap<Player, number>();
 const interiorEpoch = new WeakMap<Player, number>();
@@ -61,4 +57,11 @@ export function markInteriorFresh(
   }
   interiorEpoch.set(player, wallsEpoch.get(player) ?? 0);
   return player.interior;
+}
+
+/** The single blessed FreshInterior cast, colocated with its sole consumer
+ *  (markInteriorFresh). The set comes from recheckTerritory output or trusted
+ *  checkpoint data — already a fresh interior, so the brand just records it. */
+function brandFreshInterior(set: ReadonlySet<TileKey>): FreshInterior {
+  return set as FreshInterior;
 }
