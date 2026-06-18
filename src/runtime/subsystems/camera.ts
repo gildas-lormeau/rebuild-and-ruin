@@ -50,7 +50,7 @@ import {
   pxToTile,
   zoneAt,
 } from "../../shared/core/spatial.ts";
-import type { FrameContext, GameState } from "../../shared/core/types.ts";
+import type { GameState } from "../../shared/core/types.ts";
 import type { ZoneId } from "../../shared/core/zone-id.ts";
 import type { RenderOverlay } from "../../shared/ui/overlay-types.ts";
 import {
@@ -77,6 +77,7 @@ import {
   screenToWorld as projectScreenToWorld,
   worldToScreen as projectWorldToScreen,
 } from "../camera-projection.ts";
+import type { FrameContext } from "../state.ts";
 
 /** Public camera handle exposed on `GameRuntime`. Consumed via `Pick<>`
  *  by sub-systems that need a slice (selection, input, game-lifecycle);

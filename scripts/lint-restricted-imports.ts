@@ -72,10 +72,10 @@
  *    inversion — it means either a shared symbol is parked too high (extract
  *    it down) or the file itself is misclassified (relocate it). This is the
  *    generalization of the wall-destroy-anim split: a core file that needs a
- *    ui/sim symbol is the tell. Two pre-existing core->ui edges are
- *    grandfathered in `SHARED_TIER_BASELINE` (FrameContext.mode and the
- *    controller contracts) — documented debt, not a license for more. New
- *    inversions fail. See src/shared/README.md's decision tree.
+ *    ui/sim symbol is the tell. The remaining pre-existing core->ui edges are
+ *    grandfathered in `SHARED_TIER_BASELINE` (the system-interfaces controller
+ *    contracts) — documented debt, not a license for more. New inversions
+ *    fail. See src/shared/README.md's decision tree.
  *
  * Usage:
  *   deno run -A scripts/lint-restricted-imports.ts
@@ -207,7 +207,6 @@ const SHARED_TIER_BASELINE: Record<string, ReadonlySet<string>> = {
     "../ui/interaction-types.ts",
     "../ui/player-config.ts",
   ]),
-  "src/shared/core/types.ts": new Set(["../ui/ui-mode.ts"]),
 };
 
 main();

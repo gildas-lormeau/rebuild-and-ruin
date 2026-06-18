@@ -577,10 +577,10 @@
       "pair": "FlameSpec@src/render/3d/sprites/pit-scene.ts ↔ TurretParams@src/render/3d/sprites/grunt-scene.ts"
     },
     {
-      "pair": "FrameContext@src/shared/core/types.ts ↔ FrameContextInputs@src/runtime/main-loop.ts"
+      "pair": "FrameContext@src/runtime/state.ts ↔ FrameContextInputs@src/runtime/main-loop.ts"
     },
     {
-      "pair": "FrameContext@src/shared/core/types.ts ↔ OnlineOverlayParams@src/runtime/ui-contracts.ts"
+      "pair": "FrameContext@src/runtime/state.ts ↔ OnlineOverlayParams@src/runtime/ui-contracts.ts"
     },
     {
       "pair": "GameState@src/shared/core/types.ts ↔ GameViewState@src/shared/core/system-interfaces.ts"

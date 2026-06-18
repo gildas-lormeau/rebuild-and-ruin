@@ -3,7 +3,6 @@
  */
 
 import type { Rng } from "../platform/rng.ts";
-import type { Mode } from "../ui/ui-mode.ts";
 import type { ImpactEvent } from "./battle-events.ts";
 import type {
   BurningPit,
@@ -37,7 +36,7 @@ import type {
   SupplyBonusId,
   SupplyShip,
 } from "./modifier-defs.ts";
-import type { PlayerId, ValidPlayerId } from "./player-slot.ts";
+import type { ValidPlayerId } from "./player-slot.ts";
 import type { GameOwned, Player } from "./player-types.ts";
 import type { UpgradeId } from "./upgrade-defs.ts";
 import type { ZoneId } from "./zone-id.ts";
@@ -377,47 +376,6 @@ export interface SelectionState {
    *  enabling confirmation on the second tap. Reset on pointer-move to a
    *  different tower. Used by touch input to require a deliberate double-tap. */
   towerAlreadyHighlighted: boolean;
-}
-
-export interface FrameContext {
-  // Identity
-  readonly myPlayerId: PlayerId;
-  /** Point-of-view player for camera, sound, and haptics.
-   *  Online: myPlayerId. Local: pointer player slot. Demo: 0. */
-  readonly povPlayerId: ValidPlayerId;
-  readonly hostAtFrameStart: boolean;
-  /** Non-local player slots. See OnlineSession.remotePlayerSlots for full docs. */
-  readonly remotePlayerSlots: ReadonlySet<ValidPlayerId>;
-
-  // Mode / Phase
-  readonly mode: Mode;
-
-  /** True when the current game phase is BATTLE. */
-  readonly inBattle: boolean;
-
-  // Overlay flags
-  readonly isSelectionReady: boolean;
-
-  // Player presence
-  /** True when a local human player exists and is not eliminated.
-   *  Gates auto-zoom, crosshair rendering, and combo floating text. */
-  readonly hasPointerPlayer: boolean;
-
-  // Composite guards
-  /** Camera should unzoom (an overlay blocks gameplay — pause / quit
-   *  dialog / life-lost — or the phase timer is about to expire, or a
-   *  transition is running). */
-  readonly shouldUnzoom: boolean;
-  /** Life-lost dialog is open AND the local pov player has an unresolved
-   *  entry. While true, the camera holds the local player's home zone
-   *  (overrides the standard `hasLifeLostDialog → unzoom` behavior) so
-   *  the popup sits over their territory while they pick CONTINUE/ABANDON.
-   *  Flips false the moment their entry resolves, even if the dialog stays
-   *  open for other players — at which point the normal overlay-unzoom
-   *  takes over and the camera snaps to fullMap. */
-  readonly lifeLostKeepZoom: boolean;
-  /** Non-interactive transition — camera suppresses auto-zoom. */
-  readonly isTransition: boolean;
 }
 
 /** Result shape returned by every modifier's apply function. */

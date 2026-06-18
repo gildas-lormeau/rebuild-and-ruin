@@ -11,7 +11,7 @@ import {
   type PlayerId,
   type ValidPlayerId,
 } from "../shared/core/player-slot.ts";
-import { cannonSlotsFor, type FrameContext } from "../shared/core/types.ts";
+import { cannonSlotsFor } from "../shared/core/types.ts";
 import {
   LifeLostChoice,
   type QuitState,
@@ -24,6 +24,7 @@ import {
 import {
   bankLockstepDebt,
   consumeLockstepDebtTicks,
+  type FrameContext,
   freshFrame,
   isPaused,
   isSessionLive,
