@@ -65,6 +65,18 @@
  *    physical shared/sim/ subfolder makes the tier visible, this rule keeps
  *    presentation/wire code from reaching into it.
  *
+ * 9. The `src/shared/` subfolders form a strict dependency DAG:
+ *    `platform <- core <- {sim, ui}`. platform is zero-dep; core imports
+ *    only platform; sim and ui each import core + platform but NOT each
+ *    other (disjoint siblings). A lower tier importing a higher one is an
+ *    inversion — it means either a shared symbol is parked too high (extract
+ *    it down) or the file itself is misclassified (relocate it). This is the
+ *    generalization of the wall-destroy-anim split: a core file that needs a
+ *    ui/sim symbol is the tell. Two pre-existing core->ui edges are
+ *    grandfathered in `SHARED_TIER_BASELINE` (FrameContext.mode and the
+ *    controller contracts) — documented debt, not a license for more. New
+ *    inversions fail. See src/shared/README.md's decision tree.
+ *
  * Usage:
  *   deno run -A scripts/lint-restricted-imports.ts
  *
@@ -172,6 +184,31 @@ const SIM_TIER_ALLOWED_PREFIXES = [
   "src/online/",
   "src/runtime/",
 ];
+/** The shared/ subfolder dependency DAG: `platform <- core <- {sim, ui}`.
+ *  Each tier may import itself plus everything below it. sim and ui are
+ *  disjoint siblings (neither imports the other). A lower tier importing a
+ *  higher one is an inversion (rule 9). */
+const SHARED_TIER_ALLOWED: Record<string, ReadonlySet<string>> = {
+  platform: new Set(["platform"]),
+  core: new Set(["platform", "core"]),
+  sim: new Set(["platform", "core", "sim"]),
+  ui: new Set(["platform", "core", "ui"]),
+};
+/** Grandfathered core->ui inversions that predate rule 9 — documented debt,
+ *  keyed by importer path → the exact cross-tier sources it may import. These
+ *  are architectural contracts (FrameContext carries the ui Mode; the
+ *  controller interfaces reference input Action / KeyBindings / dialog state),
+ *  not quick extractions. The baseline only suppresses these exact edges;
+ *  any other shared-tier inversion — including a NEW import added to these
+ *  same files — fails. */
+const SHARED_TIER_BASELINE: Record<string, ReadonlySet<string>> = {
+  "src/shared/core/system-interfaces.ts": new Set([
+    "../ui/input-action.ts",
+    "../ui/interaction-types.ts",
+    "../ui/player-config.ts",
+  ]),
+  "src/shared/core/types.ts": new Set(["../ui/ui-mode.ts"]),
+};
 
 main();
 
@@ -190,6 +227,7 @@ function main(): void {
     checkControllerImports(filePath, content, violations);
     checkModifierRevealTimeImports(filePath, content, violations);
     checkSimTierImports(filePath, content, violations);
+    checkSharedTierImports(filePath, content, violations);
   }
 
   if (violations.length === 0) {
@@ -412,6 +450,36 @@ function checkSimTierImports(
       file: rel,
       line: imp.line,
       message: `Import from "${imp.source}" — src/shared/sim/ is the simulation-internals tier; only game/ai/controllers/online/runtime (and shared/ itself) may import it. render/input/protocol/entry consume game state through overlays + contracts (shared/ui, system-interfaces), never sim internals.`,
+    });
+  }
+}
+
+function checkSharedTierImports(
+  file: string,
+  content: string,
+  violations: Violation[],
+): void {
+  const rel = relative(process.cwd(), file);
+  const tierMatch = rel.match(/^src\/shared\/(core|sim|ui|platform)\//);
+  if (!tierMatch) return;
+  const tier = tierMatch[1]!;
+  const allowed = SHARED_TIER_ALLOWED[tier]!;
+  const grandfathered = SHARED_TIER_BASELINE[rel];
+
+  for (const imp of parseImports(content)) {
+    // Sibling imports inside shared/ look like `../<tier>/...` (same-tier
+    // imports use `./...` and never match). Capture the imported tier.
+    const importedMatch = imp.source.match(
+      /(?:\.\.\/)+(core|sim|ui|platform)\//,
+    );
+    if (!importedMatch) continue;
+    const importedTier = importedMatch[1]!;
+    if (allowed.has(importedTier)) continue;
+    if (grandfathered?.has(imp.source)) continue;
+    violations.push({
+      file: rel,
+      line: imp.line,
+      message: `Shared-tier inversion: shared/${tier}/ imports shared/${importedTier}/ ("${imp.source}"). The shared/ DAG is platform <- core <- {sim, ui} (sim and ui are disjoint siblings); a lower tier must not depend on a higher one. Fix: extract the shared symbol DOWN to the lower tier (as WALL_DESTROY_ANIM_DURATION moved to game-constants), or relocate the file. See src/shared/README.md's decision tree.`,
     });
   }
 }
