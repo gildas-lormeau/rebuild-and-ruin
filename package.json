@@ -116,6 +116,7 @@
     "audit:loose-params": "deno run -A scripts/audit-loose-params.ts",
     "audit:passthrough": "deno run -A scripts/audit-passthrough-functions.ts",
     "audit:single-call-exports": "deno run -A scripts/audit-single-call-exports.ts",
+    "audit:shared-spread": "deno run -A scripts/audit-shared-domain-spread.ts",
     "audit:nested-same-guard": "deno run -A scripts/audit-nested-same-guard.ts",
     "graph": "deno run -A scripts/layer-graph.ts",
     "graph:files": "deno run -A scripts/file-graph.ts --layout fdp"
