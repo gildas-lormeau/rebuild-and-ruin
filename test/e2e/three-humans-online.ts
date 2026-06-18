@@ -181,78 +181,81 @@ async function runThreeHumansGame(
   // --- The quitter is gone; the survivors carry the match ----------------
   assert(quitter.sc.page.isClosed(), `${quitter.name} should have quit`);
 
+  // Capture everything needed from the LIVE survivors in one parallel batch,
+  // then CLOSE their browsers immediately — the game is over and the test ends
+  // here. Every assertion below runs on this captured plain data, so nothing
+  // reads (or lets the user watch) a lingering game-over screen. Identities come
+  // from the monitor's live capture (ctrl.identities), not a post-game read —
+  // see RunControl.identities (teardown resets the slot to -1).
+  const captured = await Promise.all(
+    survivors.map(async (peer) => {
+      const identity = ctrl.identities.get(peer.name);
+      assert(identity, `${peer.name} identity was never captured live`);
+      return {
+        name: peer.name,
+        identity,
+        mode: await peer.sc.mode(),
+        snap: await buildSnap(peer.sc),
+        ends: await peer.sc.bus.events(GAME_EVENT.GAME_END),
+        fired: await firedSlots(peer.sc),
+      };
+    }),
+  );
+  await Promise.all(survivors.map((peer) => peer.sc.page.close().catch(() => {})));
+
   // 1. Migration happened: exactly one survivor is host, and it is the
   //    lowest-slot survivor (server promotes the lowest-slot alive player).
-  //    Identities come from the monitor's LIVE capture (ctrl.identities), not a
-  //    post-game read — see RunControl.identities (teardown resets the slot).
-  const hostFlags = survivors.map((peer) => {
-    const id = ctrl.identities.get(peer.name);
-    assert(id, `${peer.name} identity was never captured live`);
-    return { peer, ...id };
-  });
-  const hostsAmong = hostFlags.filter((entry) => entry.amHost);
+  const hostsAmong = captured.filter((cap) => cap.identity.amHost);
   assertEquals(
     hostsAmong.length,
     1,
     `exactly one survivor should be host after migration (got ${hostsAmong.length})`,
   );
-  const lowestSurvivorSlot = Math.min(...hostFlags.map((entry) => entry.myPlayerId));
+  const lowestSurvivorSlot = Math.min(...captured.map((cap) => cap.identity.myPlayerId));
   assertEquals(
-    hostsAmong[0]!.myPlayerId,
+    hostsAmong[0]!.identity.myPlayerId,
     lowestSurvivorSlot,
     "the promoted host should be the lowest-slot survivor",
   );
 
   // 2. Both survivors reached game-over.
-  for (const peer of survivors) {
-    assertEquals(await peer.sc.mode(), "STOPPED", `${peer.name} reached game-over`);
+  for (const cap of captured) {
+    assertEquals(cap.mode, "STOPPED", `${cap.name} reached game-over`);
   }
 
   // 3. Byte-identical end-of-game state across the survivors.
-  const snaps = await Promise.all(
-    survivors.map(async (peer) => ({ name: peer.name, snap: await buildSnap(peer.sc) })),
-  );
-  for (const { name, snap } of snaps) {
-    console.log(`  ${name} snap:`, JSON.stringify(snap));
-  }
-  const ref = snaps[0]!;
+  for (const cap of captured) console.log(`  ${cap.name} snap:`, JSON.stringify(cap.snap));
+  const ref = captured[0]!;
   assert(ref.snap.rng !== null, `${ref.name} rng cursor readable at game-over`);
-  for (const { name, snap } of snaps.slice(1)) {
-    assertEquals(snap.rng, ref.snap.rng, `RNG cursor diverged: ${ref.name} vs ${name}`);
-    assertEquals(snap.round, ref.snap.round, `round diverged: ${ref.name} vs ${name}`);
-    assertEquals(snap.players, ref.snap.players, `per-player state diverged: ${ref.name} vs ${name}`);
-    assertEquals(snap.towerAlive, ref.snap.towerAlive, `tower-alive diverged: ${ref.name} vs ${name}`);
-    assertEquals(snap.grunts, ref.snap.grunts, `grunts diverged: ${ref.name} vs ${name}`);
-    assertEquals(snap.cannonballs, ref.snap.cannonballs, `cannonballs diverged: ${ref.name} vs ${name}`);
+  for (const cap of captured.slice(1)) {
+    assertEquals(cap.snap.rng, ref.snap.rng, `RNG cursor diverged: ${ref.name} vs ${cap.name}`);
+    assertEquals(cap.snap.round, ref.snap.round, `round diverged: ${ref.name} vs ${cap.name}`);
+    assertEquals(cap.snap.players, ref.snap.players, `per-player state diverged: ${ref.name} vs ${cap.name}`);
+    assertEquals(cap.snap.towerAlive, ref.snap.towerAlive, `tower-alive diverged: ${ref.name} vs ${cap.name}`);
+    assertEquals(cap.snap.grunts, ref.snap.grunts, `grunts diverged: ${ref.name} vs ${cap.name}`);
+    assertEquals(cap.snap.cannonballs, ref.snap.cannonballs, `cannonballs diverged: ${ref.name} vs ${cap.name}`);
   }
 
-  // Every peer emits GAME_END exactly once, at the single finalizeGameOver
-  // chokepoint: the new host via its local game-over dispatch, a watcher via the
-  // wire GAME_OVER (which now reaches the chokepoint too). So BOTH survivors see
-  // exactly one and agree on the winner. This guards the watcher-GAME_END fix
-  // (game-lifecycle.ts:finalizeGameOver) — before it, a watcher whose local
-  // round-end was preempted by the wire GAME_OVER saw 0 on the round-exhaustion
-  // game-over path.
-  const ends = await Promise.all(
-    survivors.map(async (peer) => ({
-      name: peer.name,
-      events: await peer.sc.bus.events(GAME_EVENT.GAME_END),
-    })),
-  );
-  for (const { name, events } of ends) {
-    assertEquals(events.length, 1, `${name} saw exactly one game-end`);
+  // 4. Every peer emits GAME_END exactly once, at the single finalizeGameOver
+  //    chokepoint: the new host via its local game-over dispatch, a watcher via
+  //    the wire GAME_OVER (which now reaches the chokepoint too). So BOTH
+  //    survivors see exactly one and agree on the winner. This guards the
+  //    watcher-GAME_END fix (game-lifecycle.ts:finalizeGameOver) — before it, a
+  //    watcher whose local round-end was preempted by the wire GAME_OVER saw 0
+  //    on the round-exhaustion game-over path.
+  for (const cap of captured) {
+    assertEquals(cap.ends.length, 1, `${cap.name} saw exactly one game-end`);
   }
-  const refWinner = ends[0]!.events[0]!.winner;
-  for (const { name, events } of ends.slice(1)) {
-    assertEquals(events[0]!.winner, refWinner, `winner diverged: ${ends[0]!.name} vs ${name}`);
+  const refWinner = ref.ends[0]!.winner;
+  for (const cap of captured.slice(1)) {
+    assertEquals(cap.ends[0]!.winner, refWinner, `winner diverged: ${ref.name} vs ${cap.name}`);
   }
 
-  // Guard: each surviving human actually acted before the end. Slot from the
-  // live-captured identity (post-game read would be the spectator slot).
-  for (const peer of survivors) {
-    const fired = await firedSlots(peer.sc);
-    const slot = ctrl.identities.get(peer.name)!.myPlayerId;
-    assert(fired.has(slot), `${peer.name} (slot ${slot}) never fired a cannon`);
+  // 5. Guard: each surviving human actually acted before the end (slot from the
+  //    live-captured identity — a post-game read would be the spectator slot).
+  for (const cap of captured) {
+    const slot = cap.identity.myPlayerId;
+    assert(cap.fired.has(slot), `${cap.name} (slot ${slot}) never fired a cannon`);
   }
 }
 

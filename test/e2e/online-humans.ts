@@ -341,6 +341,10 @@ export async function monitorDivergence(
   const goneLogged = new Set<string>();
   const latestLives = new Map<string, number[]>();
   let aliveSig = "";
+  // Per-peer mode log (LOBBY → GAME → … → STOPPED). Logged on change so the run
+  // output shows each peer's screen lifecycle — e.g. that game-over (STOPPED) is
+  // terminal and no peer slips back to LOBBY / restarts a game.
+  const lastMode = new Map<string, string>();
 
   while (!ctrl.stop) {
     await delay(MONITOR_POLL_MS);
@@ -358,6 +362,10 @@ export async function monitorDivergence(
       } catch {
         if (sc.page.isClosed()) gone.add(name); // quit — stop tracking it
         continue; // else page mid-navigation — retry next poll
+      }
+      if (mode && lastMode.get(name) !== mode) {
+        console.log(`  [mode] ${name}: ${lastMode.get(name) ?? "—"} → ${mode}`);
+        lastMode.set(name, mode);
       }
       if (!result) continue;
       latestLives.set(name, result.players.map((player) => player.lives));
