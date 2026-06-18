@@ -55,6 +55,12 @@
  *                      enums, and plain constants are the game domain's shared
  *                      *vocabulary*, blessed in shared/core even at one
  *                      importer (game-constants, geometry-types, the pools).
+ *   --include-cast-seams  Also flag cast seams (`return <expr> as <Brand>`).
+ *                      Excluded by default: these are brand mints — the
+ *                      constructor of a shared branded type (e.g.
+ *                      emptyFreshInterior for FreshInterior). A type's mint
+ *                      belongs with the type regardless of consumer count, the
+ *                      same exclusion audit-single-call-exports.ts applies.
  *   --filter=<re>      Only show findings whose declaring file matches the re.
  *   --json             Emit JSON.
  *
@@ -67,6 +73,9 @@
 
 import process from "node:process";
 import {
+  type ArrowFunction,
+  type FunctionDeclaration,
+  type FunctionExpression,
   type Identifier,
   Node,
   Project,
@@ -110,6 +119,10 @@ interface RawExport {
    *  init, non-exported helper) — resolved at file granularity as a fallback. */
   consumerFallbackFiles: Set<string>;
   refCount: number;
+  /** Body is exactly `return <expr> as <Brand>` — a type-construction seam
+   *  (brand mint), not domain behavior. The mint of a shared type belongs
+   *  with the type regardless of consumer count. Excluded by default. */
+  isCastSeam: boolean;
 }
 
 /** Kinds that carry behavior (movable game logic) vs. vocabulary (types,
@@ -129,6 +142,7 @@ function main(): void {
   const includeInternal = args.includes("--include-internal");
   const transitive = args.includes("--transitive");
   const functionsOnly = args.includes("--functions-only");
+  const includeCastSeams = args.includes("--include-cast-seams");
   const maxArg = args.find((a) => a.startsWith("--max-domains="));
   const maxDomains = maxArg
     ? parseInt(maxArg.slice("--max-domains=".length), 10)
@@ -183,6 +197,7 @@ function main(): void {
       }
     }
 
+    if (exp.isCastSeam && !includeCastSeams) continue; // brand mint — belongs with its type
     if (functionsOnly && !BEHAVIOR_KINDS.has(exp.kind)) continue;
     if (domains.size > maxDomains) continue;
     if (domains.size === 0) {
@@ -264,6 +279,7 @@ function gatherExports(
         consumerSymbols,
         consumerFallbackFiles,
         refCount,
+        isCastSeam: isCastSeam(decl),
       });
       break; // one record per exported name
     }
@@ -316,6 +332,39 @@ function refinedKind(decl: Node): string {
     }
   }
   return decl.getKindName();
+}
+
+/** A "cast seam": a function whose whole body is `return <expr> as <Type>`
+ *  (incl. chained `as unknown as Brand`) or an arrow with an `as` expression
+ *  body. It exists to be the single blessed site that mints a branded type —
+ *  the constructor of a shared type, which belongs with the type regardless of
+ *  how many domains call it. Mirrors isCastSeam in audit-single-call-exports.ts.
+ *  Content-based (the body IS a type assertion), not a name/comment proxy. */
+function isCastSeam(decl: Node): boolean {
+  let fn: ArrowFunction | FunctionDeclaration | FunctionExpression | undefined;
+  if (Node.isFunctionDeclaration(decl)) {
+    fn = decl;
+  } else if (Node.isVariableDeclaration(decl)) {
+    const init = decl.getInitializer();
+    if (
+      init &&
+      (Node.isArrowFunction(init) || Node.isFunctionExpression(init))
+    ) {
+      fn = init;
+    }
+  }
+  if (!fn) return false;
+  const body = fn.getBody();
+  if (!body) return false;
+  // Arrow with an expression body: `(x) => x as T`.
+  if (Node.isAsExpression(body)) return true;
+  if (!Node.isBlock(body)) return false;
+  const stmts = body.getStatements();
+  if (stmts.length !== 1) return false;
+  const stmt = stmts[0];
+  if (!Node.isReturnStatement(stmt)) return false;
+  const expr = stmt.getExpression();
+  return !!expr && Node.isAsExpression(expr);
 }
 
 /** Symbol-granular transitive reach. The non-shared reach of an export is its
