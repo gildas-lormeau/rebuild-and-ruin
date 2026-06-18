@@ -31,7 +31,6 @@ import {
   snapshotTerritory,
 } from "../game/index.ts";
 import type { BalloonFlight } from "../shared/core/battle-types.ts";
-import { snapshotAllWalls } from "../shared/core/board-occupancy.ts";
 import { MODIFIER_ID } from "../shared/core/game-constants.ts";
 import {
   type BannerKind,
@@ -47,6 +46,7 @@ import {
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import { clearAllPlayerBags } from "../shared/core/player-types.ts";
 import { advanceRound, type GameState } from "../shared/core/types.ts";
+import { snapshotAllWalls } from "../shared/sim/board-occupancy.ts";
 import type { UpgradePickDialogState } from "../shared/ui/interaction-types.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
 import {

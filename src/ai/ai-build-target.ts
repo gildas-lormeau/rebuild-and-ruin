@@ -7,11 +7,6 @@
  */
 
 import { canPlacePiece, type PlacementContext } from "../game/index.ts";
-import {
-  hasAliveHouseAt,
-  hasGruntAt,
-  type OccupancyCache,
-} from "../shared/core/board-occupancy.ts";
 import type {
   TileBounds,
   TilePos,
@@ -20,13 +15,11 @@ import type {
   TowerIdx,
 } from "../shared/core/geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, type TileKey } from "../shared/core/grid.ts";
-import { hasCannonAt, hasTowerAt } from "../shared/core/occupancy-queries.ts";
 import {
   ALL_PIECE_SHAPES,
   type PieceShape,
   rotateCW,
 } from "../shared/core/pieces.ts";
-import { getInterior } from "../shared/core/player-interior.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import type { FreshInterior, Player } from "../shared/core/player-types.ts";
 import {
@@ -37,6 +30,13 @@ import {
   unpackTile,
 } from "../shared/core/spatial.ts";
 import type { BuildViewState } from "../shared/core/system-interfaces.ts";
+import {
+  hasAliveHouseAt,
+  hasGruntAt,
+  type OccupancyCache,
+} from "../shared/sim/board-occupancy.ts";
+import { hasCannonAt, hasTowerAt } from "../shared/sim/occupancy-queries.ts";
+import { getInterior } from "../shared/sim/player-interior.ts";
 import {
   emitTargetSelectedDiag,
   isAiBuildDiagHookActive,

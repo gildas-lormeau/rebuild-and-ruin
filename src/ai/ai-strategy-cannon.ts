@@ -18,15 +18,12 @@ import {
   isRampartCannon,
   isSuperCannon,
 } from "../shared/core/battle-types.ts";
-import { filterActiveEnemies } from "../shared/core/board-occupancy.ts";
 import {
   GAME_MODE_MODERN,
   RAMPART_SHIELD_RADIUS,
 } from "../shared/core/game-constants.ts";
 import type { GameMap, TilePos, Tower } from "../shared/core/geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, type TileKey } from "../shared/core/grid.ts";
-import { isCannonCaptured } from "../shared/core/occupancy-queries.ts";
-import { getInterior } from "../shared/core/player-interior.ts";
 import type { Player } from "../shared/core/player-types.ts";
 import {
   cannonSize,
@@ -44,6 +41,9 @@ import {
 import type { CannonViewState } from "../shared/core/system-interfaces.ts";
 import type { ZoneId } from "../shared/core/zone-id.ts";
 import type { Rng } from "../shared/platform/rng.ts";
+import { filterActiveEnemies } from "../shared/sim/board-occupancy.ts";
+import { isCannonCaptured } from "../shared/sim/occupancy-queries.ts";
+import { getInterior } from "../shared/sim/player-interior.ts";
 import type {
   CannonPlacement,
   CannonPlacementContext,

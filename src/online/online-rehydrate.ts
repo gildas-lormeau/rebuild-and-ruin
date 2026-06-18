@@ -18,10 +18,10 @@ import {
 import type { GameRuntime } from "../runtime/handle.ts";
 import { setMode } from "../runtime/state.ts";
 import type { BalloonFlight } from "../shared/core/battle-types.ts";
-import { filterAliveEnclosedTowers } from "../shared/core/board-occupancy.ts";
 import { Phase } from "../shared/core/game-phase.ts";
 import type { PlayerId } from "../shared/core/player-slot.ts";
 import { isPlayerAlive } from "../shared/core/player-types.ts";
+import { filterAliveEnclosedTowers } from "../shared/sim/board-occupancy.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
 import {
   rebuildControllersForPhase,

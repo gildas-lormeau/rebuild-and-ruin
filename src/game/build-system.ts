@@ -10,16 +10,6 @@ import {
   type Grunt,
 } from "../shared/core/battle-types.ts";
 import {
-  BONUS_PLACEMENT_BLOCKED,
-  collectAllInterior,
-  collectOccupiedTiles,
-  hasGruntAt,
-  hasWallAt,
-  isCannonEnclosed,
-  isTileOwnedByPlayer,
-  type OccupancyCache,
-} from "../shared/core/board-occupancy.ts";
-import {
   BONUS_SQUARE_MIN_DISTANCE,
   BONUS_SQUARES_PER_ZONE,
   CASTLE_BONUS_TABLE,
@@ -39,12 +29,7 @@ import {
   type Tile,
   type TileKey,
 } from "../shared/core/grid.ts";
-import { hasCannonAt, hasTowerAt } from "../shared/core/occupancy-queries.ts";
 import type { PieceShape } from "../shared/core/pieces.ts";
-import {
-  getInterior,
-  markInteriorFresh,
-} from "../shared/core/player-interior.ts";
 import { addScore } from "../shared/core/player-rules.ts";
 import {
   isPlayerEliminated,
@@ -57,7 +42,6 @@ import {
   isPlayerSeated,
   type Player,
 } from "../shared/core/player-types.ts";
-import { addPlayerWalls } from "../shared/core/player-walls.ts";
 import {
   computeOutside,
   DIRS_4,
@@ -75,6 +59,22 @@ import {
 import type { GameViewState } from "../shared/core/system-interfaces.ts";
 import type { GameState } from "../shared/core/types.ts";
 import type { ZoneCell, ZoneId } from "../shared/core/zone-id.ts";
+import {
+  BONUS_PLACEMENT_BLOCKED,
+  collectAllInterior,
+  collectOccupiedTiles,
+  hasGruntAt,
+  hasWallAt,
+  isCannonEnclosed,
+  isTileOwnedByPlayer,
+  type OccupancyCache,
+} from "../shared/sim/board-occupancy.ts";
+import { hasCannonAt, hasTowerAt } from "../shared/sim/occupancy-queries.ts";
+import {
+  getInterior,
+  markInteriorFresh,
+} from "../shared/sim/player-interior.ts";
+import { addPlayerWalls } from "../shared/sim/player-walls.ts";
 import { getDeadZones } from "./grunt-movement.ts";
 import { spawnGruntAtTile, spawnGruntGroupOnZone } from "./grunt-system.ts";
 import { topZonesBySize } from "./map-generation.ts";

@@ -23,7 +23,7 @@
 
 import { assert } from "@std/assert";
 import { setAiBattleDiagHook } from "../src/ai/ai-battle-diag.ts";
-import { hasTowerAt } from "../src/shared/core/occupancy-queries.ts";
+import { hasTowerAt } from "../src/shared/sim/occupancy-queries.ts";
 import { createScenario } from "./scenario.ts";
 
 interface WastedFire {

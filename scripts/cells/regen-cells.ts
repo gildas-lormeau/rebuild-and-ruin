@@ -71,6 +71,7 @@ const SUBPATH_PARTITIONS: Record<string, readonly string[]> = {
   game: ["modifiers", "upgrades"],
   render: ["3d/effects"],
   runtime: ["audio", "subsystems"],
+  shared: ["sim"],
 };
 // Role labels keyed by `${layer}::${domain}` (or
 // `${layer}::${domain}/${subdomain}` for subpath-partitioned cells, see
@@ -126,6 +127,7 @@ const LABELS: Record<string, string> = {
   "5::runtime": "runtime banner state",
   "5::shared":
     "first logic — spatial, interior, contracts, core state & rule producers",
+  "5::shared/sim": "sim internals — interior freshness epochs",
 
   // L6 — upgrades, modifiers & runtime contracts
   "6::ai":
@@ -143,7 +145,8 @@ const LABELS: Record<string, string> = {
   "6::runtime/audio": "audio players (music + sfx)",
   "6::runtime/subsystems": "haptics — leaf-depth subsystem factory",
   "6::server": "server game-room",
-  "6::shared": "shared wall mutators, occupancy queries, guards & deps",
+  "6::shared": "shared controller guards, render-view & input deps",
+  "6::shared/sim": "sim internals — occupancy queries & wall mutators",
 
   // L7 — entity renderers & cross-domain handlers
   "7::ai": "AI charity-sweep tactic planner (delegates to grunt sweep)",
@@ -160,7 +163,7 @@ const LABELS: Record<string, string> = {
     "main loop, castle-build, tick-consumers, battle-anim & runtime/timing contracts",
   "7::runtime/subsystems": "subsystem factories",
   "7::server": "server room manager",
-  "7::shared": "shared board occupancy",
+  "7::shared/sim": "sim internals — board occupancy & territory queries",
 
   // L8 — subsystems
   "8::ai":

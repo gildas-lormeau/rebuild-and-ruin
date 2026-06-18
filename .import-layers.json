@@ -137,11 +137,11 @@
       "src/protocol/protocol.ts",
       "src/render/3d/entities/instance-bucket.ts",
       "src/runtime/banner-state.ts",
-      "src/shared/core/player-interior.ts",
       "src/shared/core/player-rules.ts",
       "src/shared/core/spatial.ts",
       "src/shared/core/system-interfaces.ts",
       "src/shared/core/types.ts",
+      "src/shared/sim/player-interior.ts",
       "src/shared/ui/overlay-types.ts"
     ]
   },
@@ -212,9 +212,9 @@
       "src/runtime/tick-context.ts",
       "src/runtime/types.ts",
       "src/shared/core/controller-guards.ts",
-      "src/shared/core/occupancy-queries.ts",
-      "src/shared/core/player-walls.ts",
       "src/shared/core/render-view.ts",
+      "src/shared/sim/occupancy-queries.ts",
+      "src/shared/sim/player-walls.ts",
       "src/shared/ui/input-deps.ts"
     ]
   },
@@ -269,7 +269,7 @@
       "src/runtime/subsystems/upgrade-pick.ts",
       "src/runtime/tick-consumers.ts",
       "src/runtime/ui-contracts.ts",
-      "src/shared/core/board-occupancy.ts"
+      "src/shared/sim/board-occupancy.ts"
     ]
   },
   {

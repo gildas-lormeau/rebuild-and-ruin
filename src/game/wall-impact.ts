@@ -3,14 +3,14 @@ import {
   isCannonAlive,
   isRampartCannon,
 } from "../shared/core/battle-types.ts";
-import { isCannonEnclosed } from "../shared/core/board-occupancy.ts";
 import { RAMPART_SHIELD_RADIUS } from "../shared/core/game-constants.ts";
 import type { CannonIdx } from "../shared/core/geometry-types.ts";
 import type { TileKey } from "../shared/core/grid.ts";
-import { getCannon } from "../shared/core/occupancy-queries.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import type { Player } from "../shared/core/player-types.ts";
 import type { GameState } from "../shared/core/types.ts";
+import { isCannonEnclosed } from "../shared/sim/board-occupancy.ts";
+import { getCannon } from "../shared/sim/occupancy-queries.ts";
 import { shouldAbsorbWallHit } from "./upgrade-system.ts";
 
 export enum ShieldKind {

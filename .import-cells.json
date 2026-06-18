@@ -350,12 +350,20 @@
     "domain": "shared",
     "role": "first logic — spatial, interior, contracts, core state & rule producers",
     "files": [
-      "src/shared/core/player-interior.ts",
       "src/shared/core/player-rules.ts",
       "src/shared/core/spatial.ts",
       "src/shared/core/system-interfaces.ts",
       "src/shared/core/types.ts",
       "src/shared/ui/overlay-types.ts"
+    ]
+  },
+  {
+    "layer": 5,
+    "domain": "shared",
+    "subdomain": "sim",
+    "role": "sim internals — interior freshness epochs",
+    "files": [
+      "src/shared/sim/player-interior.ts"
     ]
   },
   {
@@ -505,13 +513,21 @@
   {
     "layer": 6,
     "domain": "shared",
-    "role": "shared wall mutators, occupancy queries, guards & deps",
+    "role": "shared controller guards, render-view & input deps",
     "files": [
       "src/shared/core/controller-guards.ts",
-      "src/shared/core/occupancy-queries.ts",
-      "src/shared/core/player-walls.ts",
       "src/shared/core/render-view.ts",
       "src/shared/ui/input-deps.ts"
+    ]
+  },
+  {
+    "layer": 6,
+    "domain": "shared",
+    "subdomain": "sim",
+    "role": "sim internals — occupancy queries & wall mutators",
+    "files": [
+      "src/shared/sim/occupancy-queries.ts",
+      "src/shared/sim/player-walls.ts"
     ]
   },
   {
@@ -646,9 +662,10 @@
   {
     "layer": 7,
     "domain": "shared",
-    "role": "shared board occupancy",
+    "subdomain": "sim",
+    "role": "sim internals — board occupancy & territory queries",
     "files": [
-      "src/shared/core/board-occupancy.ts"
+      "src/shared/sim/board-occupancy.ts"
     ]
   },
   {

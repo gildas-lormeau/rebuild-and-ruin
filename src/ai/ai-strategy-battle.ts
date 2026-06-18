@@ -19,10 +19,6 @@ import {
   isCannonAlive,
   isSuperCannon,
 } from "../shared/core/battle-types.ts";
-import {
-  computeCardinalObstacleMask,
-  filterActiveEnemies,
-} from "../shared/core/board-occupancy.ts";
 import type {
   CannonIdx,
   PixelPos,
@@ -34,7 +30,6 @@ import {
   TILE_SIZE,
   type TileKey,
 } from "../shared/core/grid.ts";
-import { isCannonCapturedBy } from "../shared/core/occupancy-queries.ts";
 import {
   isPlayerEliminated,
   type ValidPlayerId,
@@ -55,6 +50,11 @@ import {
 } from "../shared/core/spatial.ts";
 import type { BattleViewState } from "../shared/core/system-interfaces.ts";
 import type { Rng } from "../shared/platform/rng.ts";
+import {
+  computeCardinalObstacleMask,
+  filterActiveEnemies,
+} from "../shared/sim/board-occupancy.ts";
+import { isCannonCapturedBy } from "../shared/sim/occupancy-queries.ts";
 import type { PickPath } from "./ai-battle-diag.ts";
 import type { StrategicPixelPos } from "./ai-strategy-types.ts";
 import { traitLookup } from "./ai-utils.ts";

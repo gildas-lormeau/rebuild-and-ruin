@@ -1,10 +1,12 @@
-import { type Cannon, type Grunt, isBalloonCannon } from "./battle-types.ts";
-import type { BonusSquare, TowerIdx } from "./geometry-types.ts";
-import type { TileKey } from "./grid.ts";
-import { hasCannonAt, hasTowerAt } from "./occupancy-queries.ts";
-import { assertInteriorFresh } from "./player-interior.ts";
-import type { ValidPlayerId } from "./player-slot.ts";
-import { isPlayerAlive, type Player } from "./player-types.ts";
+import {
+  type Cannon,
+  type Grunt,
+  isBalloonCannon,
+} from "../core/battle-types.ts";
+import type { BonusSquare, TowerIdx } from "../core/geometry-types.ts";
+import type { TileKey } from "../core/grid.ts";
+import type { ValidPlayerId } from "../core/player-slot.ts";
+import { isPlayerAlive, type Player } from "../core/player-types.ts";
 import {
   cannonSize,
   computeCannonTileSet,
@@ -16,8 +18,10 @@ import {
   isTowerTile,
   isWater,
   packTile,
-} from "./spatial.ts";
-import type { GameViewState } from "./system-interfaces.ts";
+} from "../core/spatial.ts";
+import type { GameViewState } from "../core/system-interfaces.ts";
+import { hasCannonAt, hasTowerAt } from "./occupancy-queries.ts";
+import { assertInteriorFresh } from "./player-interior.ts";
 
 /** Pre-built tile-key Sets for fast O(1) occupancy checks.
  *  Build once via `buildOccupancyCache`, then pass to `canPlacePiece`

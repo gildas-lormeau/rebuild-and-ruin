@@ -7,13 +7,6 @@
 
 import type { Grunt } from "../shared/core/battle-types.ts";
 import {
-  findLivingTowerIndexAt,
-  hasAliveHouseAt,
-  hasGruntAt,
-  hasInteriorAt,
-  hasWallAt,
-} from "../shared/core/board-occupancy.ts";
-import {
   CATAPULT_TOWER_ATTACK_RANGE,
   MODIFIER_ID,
   TOWER_SIZE,
@@ -23,7 +16,6 @@ import type {
   Tower,
   TowerIdx,
 } from "../shared/core/geometry-types.ts";
-import { hasCannonAt, hasTowerAt } from "../shared/core/occupancy-queries.ts";
 import { isPlayerEliminated } from "../shared/core/player-slot.ts";
 import {
   DIRS_4,
@@ -40,6 +32,14 @@ import {
 } from "../shared/core/spatial.ts";
 import type { GameState } from "../shared/core/types.ts";
 import type { ZoneId } from "../shared/core/zone-id.ts";
+import {
+  findLivingTowerIndexAt,
+  hasAliveHouseAt,
+  hasGruntAt,
+  hasInteriorAt,
+  hasWallAt,
+} from "../shared/sim/board-occupancy.ts";
+import { hasCannonAt, hasTowerAt } from "../shared/sim/occupancy-queries.ts";
 
 /** Manhattan radius for checking if another grunt targeting the same tower is queued nearby. */
 const GRUNT_BLOCKED_NEARBY_DISTANCE = 2;

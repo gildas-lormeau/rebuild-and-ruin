@@ -59,12 +59,12 @@ const RULES: Rule[] = [
   {
     pattern: /state\.players\[[^\]]+\]\??\.cannons\[[^\]]+\]/,
     helper: "getCannon(state, playerId, cannonIdx)",
-    allow: new Set(["src/shared/core/occupancy-queries.ts"]),
+    allow: new Set(["src/shared/sim/occupancy-queries.ts"]),
   },
   {
     pattern: /state\.map\.houses\.some\(/,
     helper: "hasAliveHouseAt(state, r, c)",
-    allow: new Set(["src/shared/core/board-occupancy.ts"]),
+    allow: new Set(["src/shared/sim/board-occupancy.ts"]),
   },
   {
     // Catches both `map.zones[r][c]` reads and `const zones = state.map.zones`

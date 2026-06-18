@@ -9,7 +9,6 @@ import {
   recheckTerritory,
 } from "../../game/index.ts";
 import { DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS } from "../../shared/core/action-schedule.ts";
-import { filterAliveEnclosedTowers } from "../../shared/core/board-occupancy.ts";
 import { isHuman } from "../../shared/core/controller-guards.ts";
 import {
   SELECT_ANNOUNCEMENT_DURATION,
@@ -26,6 +25,7 @@ import {
 } from "../../shared/core/system-interfaces.ts";
 import type { SelectionState } from "../../shared/core/types.ts";
 import type { ZoneId } from "../../shared/core/zone-id.ts";
+import { filterAliveEnclosedTowers } from "../../shared/sim/board-occupancy.ts";
 import type { RenderOverlay } from "../../shared/ui/overlay-types.ts";
 import { Mode } from "../../shared/ui/ui-mode.ts";
 import { BANNER_SELECT } from "../banner-messages.ts";

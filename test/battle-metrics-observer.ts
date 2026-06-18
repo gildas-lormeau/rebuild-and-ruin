@@ -25,7 +25,7 @@ import {
   isBalloonCannon,
 } from "../src/shared/core/battle-types.ts";
 import { BATTLE_MESSAGE } from "../src/shared/core/battle-events.ts";
-import { getBattleInterior } from "../src/shared/core/board-occupancy.ts";
+import { getBattleInterior } from "../src/shared/sim/board-occupancy.ts";
 import type { CannonIdx } from "../src/shared/core/geometry-types.ts";
 import {
   GAME_EVENT,

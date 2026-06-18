@@ -10,13 +10,13 @@ import { canPlayerFire, nextReadyCannon } from "../game/index.ts";
 import { isSuperCannon } from "../shared/core/battle-types.ts";
 import { SIM_TICK_DT } from "../shared/core/game-constants.ts";
 import type { TilePos } from "../shared/core/geometry-types.ts";
-import { getCannon, hasTowerAt } from "../shared/core/occupancy-queries.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import { packTile, pxToTile, tileCenterPx } from "../shared/core/spatial.ts";
 import type {
   BattleViewState,
   FireIntent,
 } from "../shared/core/system-interfaces.ts";
+import { getCannon, hasTowerAt } from "../shared/sim/occupancy-queries.ts";
 import type { FireOrigin } from "./ai-battle-diag.ts";
 import {
   CHAIN,

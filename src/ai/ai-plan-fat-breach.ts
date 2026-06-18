@@ -7,10 +7,6 @@
  */
 
 import { shouldAbsorbWallHit } from "../game/index.ts";
-import {
-  filterActiveEnemies,
-  getBattleInterior,
-} from "../shared/core/board-occupancy.ts";
 import type { TilePos } from "../shared/core/geometry-types.ts";
 import type { TileKey } from "../shared/core/grid.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
@@ -25,6 +21,10 @@ import {
 } from "../shared/core/spatial.ts";
 import type { BattleViewState } from "../shared/core/system-interfaces.ts";
 import type { Rng } from "../shared/platform/rng.ts";
+import {
+  filterActiveEnemies,
+  getBattleInterior,
+} from "../shared/sim/board-occupancy.ts";
 import {
   countBrokenEnclosures,
   DESTROY_POCKET_MAX_SIZE,

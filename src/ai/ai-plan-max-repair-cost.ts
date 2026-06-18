@@ -7,7 +7,6 @@
  * deny). Shares CHAIN.STRUCTURAL; distinct via the `max_repair_cost` tag.
  */
 
-import { getBattleInterior } from "../shared/core/board-occupancy.ts";
 import type { TilePos } from "../shared/core/geometry-types.ts";
 import type { TileKey } from "../shared/core/grid.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
@@ -22,6 +21,7 @@ import {
 } from "../shared/core/spatial.ts";
 import type { BattleViewState } from "../shared/core/system-interfaces.ts";
 import type { Rng } from "../shared/platform/rng.ts";
+import { getBattleInterior } from "../shared/sim/board-occupancy.ts";
 import { isRingWallable } from "./ai-castle-rect.ts";
 import { pickTargetEnemy } from "./ai-plan-deny-enclosure.ts";
 import {

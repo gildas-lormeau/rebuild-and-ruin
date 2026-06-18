@@ -13,7 +13,7 @@ import {
   findEnclosureComponents,
   isEnclosureBroken,
 } from "../../src/ai/ai-strategy-battle.ts";
-import { getBattleInterior } from "../../src/shared/core/board-occupancy.ts";
+import { getBattleInterior } from "../../src/shared/sim/board-occupancy.ts";
 import { GAME_EVENT } from "../../src/shared/core/game-event-bus.ts";
 import { Phase } from "../../src/shared/core/game-phase.ts";
 import { GRID_COLS, GRID_ROWS, type TileKey } from "../../src/shared/core/grid.ts";

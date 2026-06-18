@@ -8,15 +8,15 @@
  */
 
 import { type PlacementContext } from "../game/index.ts";
-import { type OccupancyCache } from "../shared/core/board-occupancy.ts";
 import type { TileRect, Tower } from "../shared/core/geometry-types.ts";
 import { type TileKey } from "../shared/core/grid.ts";
 import { piecesInRoundPool } from "../shared/core/pieces.ts";
-import { getInterior } from "../shared/core/player-interior.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import type { Player } from "../shared/core/player-types.ts";
 import { unpackTile } from "../shared/core/spatial.ts";
 import type { BuildViewState } from "../shared/core/system-interfaces.ts";
+import { type OccupancyCache } from "../shared/sim/board-occupancy.ts";
+import { getInterior } from "../shared/sim/player-interior.ts";
 import { poolFillableTowerRing } from "./ai-build-target.ts";
 import type { PeekFitTarget } from "./ai-build-types.ts";
 

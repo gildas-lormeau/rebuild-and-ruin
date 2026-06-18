@@ -7,10 +7,6 @@
  * to the backing wall layer or dropped — see the validation step below.
  */
 
-import {
-  filterActiveEnemies,
-  getBattleInterior,
-} from "../shared/core/board-occupancy.ts";
 import { TOWER_SIZE } from "../shared/core/game-constants.ts";
 import type { TilePos } from "../shared/core/geometry-types.ts";
 import type { TileKey } from "../shared/core/grid.ts";
@@ -27,6 +23,10 @@ import {
 } from "../shared/core/spatial.ts";
 import type { BattleViewState } from "../shared/core/system-interfaces.ts";
 import type { Rng } from "../shared/platform/rng.ts";
+import {
+  filterActiveEnemies,
+  getBattleInterior,
+} from "../shared/sim/board-occupancy.ts";
 import { isRingWallable } from "./ai-castle-rect.ts";
 import { type EnclosureSeed, findEnclosureCut } from "./ai-min-cut.ts";
 import {

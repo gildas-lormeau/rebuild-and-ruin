@@ -7,12 +7,12 @@
  * build via recheckTerritory.
  */
 
-import type { TileKey } from "./grid.ts";
+import type { TileKey } from "../core/grid.ts";
 import {
   brandFreshInterior,
   type FreshInterior,
   type Player,
-} from "./player-types.ts";
+} from "../core/player-types.ts";
 
 const wallsEpoch = new WeakMap<Player, number>();
 const interiorEpoch = new WeakMap<Player, number>();

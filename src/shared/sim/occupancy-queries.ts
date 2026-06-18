@@ -2,11 +2,11 @@ import {
   type Cannon,
   type CapturedCannon,
   isBalloonCannon,
-} from "./battle-types.ts";
-import type { CannonIdx, Tower } from "./geometry-types.ts";
-import type { ValidPlayerId } from "./player-slot.ts";
-import type { Player } from "./player-types.ts";
-import { isCannonTile, isTowerTile } from "./spatial.ts";
+} from "../core/battle-types.ts";
+import type { CannonIdx, Tower } from "../core/geometry-types.ts";
+import type { ValidPlayerId } from "../core/player-slot.ts";
+import type { Player } from "../core/player-types.ts";
+import { isCannonTile, isTowerTile } from "../core/spatial.ts";
 
 type CapturedCannonState = {
   readonly capturedCannons: readonly CapturedCannon[];

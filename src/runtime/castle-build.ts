@@ -5,8 +5,8 @@
  */
 
 import { emitGameEvent, GAME_EVENT } from "../shared/core/game-event-bus.ts";
-import { addPlayerWall } from "../shared/core/player-walls.ts";
 import type { GameState } from "../shared/core/types.ts";
+import { addPlayerWall } from "../shared/sim/player-walls.ts";
 import type {
   CastleBuildState,
   CastleWallPlan,

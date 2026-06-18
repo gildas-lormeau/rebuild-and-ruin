@@ -4,11 +4,11 @@
  * Borrows planGruntSweep for the per-enemy targeting.
  */
 
-import { filterActiveEnemies } from "../shared/core/board-occupancy.ts";
 import type { TilePos } from "../shared/core/geometry-types.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import type { BattleViewState } from "../shared/core/system-interfaces.ts";
 import type { Rng } from "../shared/platform/rng.ts";
+import { filterActiveEnemies } from "../shared/sim/board-occupancy.ts";
 import { planGruntSweep } from "./ai-plan-grunt-sweep.ts";
 import { countUsableCannons } from "./ai-strategy-battle.ts";
 

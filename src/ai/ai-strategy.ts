@@ -9,7 +9,6 @@ import type {
   AiPersonality,
   ArchetypeId,
 } from "../shared/core/ai-personality.ts";
-import { filterActiveEnemies } from "../shared/core/board-occupancy.ts";
 import type {
   GameMap,
   PixelPos,
@@ -27,6 +26,7 @@ import type {
 } from "../shared/core/system-interfaces.ts";
 import type { ZoneId } from "../shared/core/zone-id.ts";
 import { Rng } from "../shared/platform/rng.ts";
+import { filterActiveEnemies } from "../shared/sim/board-occupancy.ts";
 import type { FireOrigin } from "./ai-battle-diag.ts";
 import type { AiPlacement } from "./ai-build-types.ts";
 import { CHAIN, type ChainType, TACTIC, type TacticId } from "./ai-chain.ts";

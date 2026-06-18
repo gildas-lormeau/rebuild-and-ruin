@@ -6,10 +6,6 @@
 import { GRID_COLS, GRID_ROWS, type TileKey } from "../../shared/core/grid.ts";
 import type { SerializedModifierTiles } from "../../shared/core/modifier-defs.ts";
 import {
-  hasCannonAt,
-  hasTowerAt,
-} from "../../shared/core/occupancy-queries.ts";
-import {
   DIRS_8,
   hasEnclosableMargin,
   isGrass,
@@ -20,6 +16,7 @@ import {
 } from "../../shared/core/spatial.ts";
 import type { GameState, ModifierImpl } from "../../shared/core/types.ts";
 import type { ZoneId } from "../../shared/core/zone-id.ts";
+import { hasCannonAt, hasTowerAt } from "../../shared/sim/occupancy-queries.ts";
 import { recomputeMapZones } from "../zone-recompute.ts";
 import { evictEntitiesOnTiles } from "./evict-tiles.ts";
 import {

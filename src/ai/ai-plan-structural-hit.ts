@@ -4,7 +4,6 @@
  * analysis than the other tactics: simulates wall removal and re-floods.
  */
 
-import { filterActiveEnemies } from "../shared/core/board-occupancy.ts";
 import type { GameMap, TilePos } from "../shared/core/geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, type TileKey } from "../shared/core/grid.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
@@ -19,6 +18,7 @@ import {
   unpackTile,
 } from "../shared/core/spatial.ts";
 import type { BattleViewState } from "../shared/core/system-interfaces.ts";
+import { filterActiveEnemies } from "../shared/sim/board-occupancy.ts";
 import {
   countBrokenEnclosures,
   DESTROY_POCKET_MAX_SIZE,

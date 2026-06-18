@@ -9,10 +9,6 @@
 import { BURNING_PIT_DURATION } from "../../shared/core/game-constants.ts";
 import { GRID_COLS, GRID_ROWS, type TileKey } from "../../shared/core/grid.ts";
 import {
-  hasCannonAt,
-  hasTowerAt,
-} from "../../shared/core/occupancy-queries.ts";
-import {
   DIRS_4,
   hasEnclosableMargin,
   isGrass,
@@ -22,6 +18,7 @@ import {
 } from "../../shared/core/spatial.ts";
 import type { GameState, ModifierImpl } from "../../shared/core/types.ts";
 import type { ZoneId } from "../../shared/core/zone-id.ts";
+import { hasCannonAt, hasTowerAt } from "../../shared/sim/occupancy-queries.ts";
 import { evictEntitiesOnTiles } from "./evict-tiles.ts";
 import {
   getActiveZones,

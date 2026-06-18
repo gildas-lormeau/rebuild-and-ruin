@@ -52,7 +52,7 @@ import { GAME_EVENT } from "../src/shared/core/game-event-bus.ts";
 import { Phase } from "../src/shared/core/game-phase.ts";
 import type { Tower } from "../src/shared/core/geometry-types.ts";
 import type { TileKey } from "../src/shared/core/grid.ts";
-import { getInterior } from "../src/shared/core/player-interior.ts";
+import { getInterior } from "../src/shared/sim/player-interior.ts";
 import { computeOutside, packTile } from "../src/shared/core/spatial.ts";
 import { createScenario, waitForEvent } from "../test/scenario.ts";
 

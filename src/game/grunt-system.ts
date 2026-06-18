@@ -10,11 +10,6 @@ import {
   type TowerKilledMessage,
 } from "../shared/core/battle-events.ts";
 import type { Grunt } from "../shared/core/battle-types.ts";
-import {
-  hasGruntAt,
-  hasInteriorAt,
-  hasWallAt,
-} from "../shared/core/board-occupancy.ts";
 import { FID } from "../shared/core/feature-defs.ts";
 import {
   CATAPULT_SPAWN_CHANCE,
@@ -45,7 +40,6 @@ import {
   isPlayerSeated,
   type Player,
 } from "../shared/core/player-types.ts";
-import { deletePlayerWallBattle } from "../shared/core/player-walls.ts";
 import {
   DIRS_4,
   distanceToTower,
@@ -63,6 +57,12 @@ import {
   nextGruntSpawnSeq,
 } from "../shared/core/types.ts";
 import type { ZoneId } from "../shared/core/zone-id.ts";
+import {
+  hasGruntAt,
+  hasInteriorAt,
+  hasWallAt,
+} from "../shared/sim/board-occupancy.ts";
+import { deletePlayerWallBattle } from "../shared/sim/player-walls.ts";
 import {
   getDeadZones,
   getGruntTargetTower,

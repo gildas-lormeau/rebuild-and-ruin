@@ -2,9 +2,9 @@ import {
   aliveCannons,
   isBalloonCannon,
 } from "../../shared/core/battle-types.ts";
-import { isCannonEnclosed } from "../../shared/core/board-occupancy.ts";
 import { Phase } from "../../shared/core/game-phase.ts";
 import { cannonCenter, facingFromVector } from "../../shared/core/spatial.ts";
+import { isCannonEnclosed } from "../../shared/sim/board-occupancy.ts";
 import { isSessionLive, type RuntimeState } from "../state.ts";
 
 interface FacingState {

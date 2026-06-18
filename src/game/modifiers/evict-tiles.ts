@@ -6,13 +6,13 @@
  */
 
 import type { TileKey } from "../../shared/core/grid.ts";
-import { removeWallFromAllPlayers } from "../../shared/core/player-walls.ts";
 import {
   cannonSize,
   filterOffTiles,
   packTile,
 } from "../../shared/core/spatial.ts";
 import type { GameState } from "../../shared/core/types.ts";
+import { removeWallFromAllPlayers } from "../../shared/sim/player-walls.ts";
 
 interface EvictOptions {
   readonly walls?: true;

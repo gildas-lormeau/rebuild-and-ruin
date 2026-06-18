@@ -1,7 +1,7 @@
 import { isPlayerEliminated } from "../../shared/core/player-slot.ts";
-import { sweepIsolatedWalls } from "../../shared/core/player-walls.ts";
 import type { GameState, UpgradeImpl } from "../../shared/core/types.ts";
 import { UID } from "../../shared/core/upgrade-defs.ts";
+import { sweepIsolatedWalls } from "../../shared/sim/player-walls.ts";
 
 export const erosionImpl: UpgradeImpl = { onPick };
 

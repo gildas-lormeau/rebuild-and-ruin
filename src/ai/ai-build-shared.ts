@@ -9,7 +9,6 @@
 import { TOWER_SIZE } from "../shared/core/game-constants.ts";
 import type { Tower } from "../shared/core/geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, type TileKey } from "../shared/core/grid.ts";
-import { getInterior } from "../shared/core/player-interior.ts";
 import {
   computeTrappedAfterAdd,
   isCannonTile,
@@ -20,6 +19,7 @@ import {
   unpackTile,
 } from "../shared/core/spatial.ts";
 import type { BuildViewState } from "../shared/core/system-interfaces.ts";
+import { getInterior } from "../shared/sim/player-interior.ts";
 import {
   candidateObstacleHits,
   candidateToPlacement,

@@ -5,7 +5,6 @@
  * Called by the build placement orchestrator (ai-strategy-build.ts).
  */
 
-import { computeCardinalObstacleMask } from "../shared/core/board-occupancy.ts";
 import type {
   TilePos,
   TileRect,
@@ -28,6 +27,7 @@ import {
   unpackTile,
 } from "../shared/core/spatial.ts";
 import type { BuildViewState } from "../shared/core/system-interfaces.ts";
+import { computeCardinalObstacleMask } from "../shared/sim/board-occupancy.ts";
 import type {
   AiPlacement,
   Candidate,

@@ -6,11 +6,6 @@ import {
   isCannonAlive,
   isRampartCannon,
 } from "../shared/core/battle-types.ts";
-import {
-  filterAliveEnclosedTowers,
-  hasWallAt,
-  isCannonEnclosed,
-} from "../shared/core/board-occupancy.ts";
 import { cannonModeDef } from "../shared/core/cannon-mode-defs.ts";
 import {
   RAMPART_SHIELD_HP,
@@ -21,10 +16,6 @@ import { emitGameEvent, GAME_EVENT } from "../shared/core/game-event-bus.ts";
 import { Phase } from "../shared/core/game-phase.ts";
 import type { CannonIdx, TilePos } from "../shared/core/geometry-types.ts";
 import type { TileKey } from "../shared/core/grid.ts";
-import {
-  assertInteriorFresh,
-  getInterior,
-} from "../shared/core/player-interior.ts";
 import {
   isPlayerEliminated,
   type ValidPlayerId,
@@ -50,6 +41,15 @@ import type {
   PlayerController,
 } from "../shared/core/system-interfaces.ts";
 import { cannonSlotsFor, type GameState } from "../shared/core/types.ts";
+import {
+  filterAliveEnclosedTowers,
+  hasWallAt,
+  isCannonEnclosed,
+} from "../shared/sim/board-occupancy.ts";
+import {
+  assertInteriorFresh,
+  getInterior,
+} from "../shared/sim/player-interior.ts";
 import { consumeSupplyBonuses } from "./modifiers/supply-ship.ts";
 import { cannonSlotsBonus, onCannonPlaced } from "./upgrade-system.ts";
 import { rapidEmplacementDiscount } from "./upgrades/rapid-emplacement.ts";

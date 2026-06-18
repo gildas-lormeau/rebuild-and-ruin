@@ -6,11 +6,6 @@
  * bottom-right corner of the tower's footprint.
  */
 
-import {
-  hasAliveHouseAt,
-  hasEnemyWallAt,
-  hasGruntAt,
-} from "../shared/core/board-occupancy.ts";
 import { TOWER_SIZE } from "../shared/core/game-constants.ts";
 import type { TileRect, Tower } from "../shared/core/geometry-types.ts";
 import {
@@ -19,7 +14,6 @@ import {
   type Tile,
   type TileKey,
 } from "../shared/core/grid.ts";
-import { hasCannonAt, hasTowerAt } from "../shared/core/occupancy-queries.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import type { FreshInterior } from "../shared/core/player-types.ts";
 import {
@@ -39,6 +33,12 @@ import type {
   BuildViewState,
   GameViewState,
 } from "../shared/core/system-interfaces.ts";
+import {
+  hasAliveHouseAt,
+  hasEnemyWallAt,
+  hasGruntAt,
+} from "../shared/sim/board-occupancy.ts";
+import { hasCannonAt, hasTowerAt } from "../shared/sim/occupancy-queries.ts";
 
 interface MarginCtx {
   readonly margin: number;

@@ -7,10 +7,10 @@
  * (has/iterate) stay in `board-occupancy.ts`.
  */
 
-import type { TileKey } from "./grid.ts";
+import type { TileKey } from "../core/grid.ts";
+import type { Player } from "../core/player-types.ts";
+import { countWallNeighbors, unpackTile } from "../core/spatial.ts";
 import { markWallsDirty } from "./player-interior.ts";
-import type { Player } from "./player-types.ts";
-import { countWallNeighbors, unpackTile } from "./spatial.ts";
 
 /** Add a single wall tile and mark dirty. */
 export function addPlayerWall(player: Player, key: TileKey): void {

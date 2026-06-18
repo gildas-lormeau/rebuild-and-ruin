@@ -6,7 +6,6 @@
  */
 
 import type { PlacementContext } from "../game/index.ts";
-import type { OccupancyCache } from "../shared/core/board-occupancy.ts";
 import type {
   Castle,
   TilePos,
@@ -19,6 +18,7 @@ import type { PieceShape } from "../shared/core/pieces.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import type { Player } from "../shared/core/player-types.ts";
 import type { BuildViewState } from "../shared/core/system-interfaces.ts";
+import type { OccupancyCache } from "../shared/sim/board-occupancy.ts";
 
 /** Result of enclosure analysis — which towers need walling, skip-home logic, etc. */
 export interface EnclosureAnalysis {

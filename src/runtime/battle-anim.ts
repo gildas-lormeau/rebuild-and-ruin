@@ -10,9 +10,9 @@
 import type { BattleCombatResult } from "../game/index.ts";
 import { BATTLE_MESSAGE } from "../shared/core/battle-events.ts";
 import type { BattleAnimState } from "../shared/core/battle-types.ts";
-import { getCannon } from "../shared/core/occupancy-queries.ts";
 import { cannonSize, packTile } from "../shared/core/spatial.ts";
 import type { GameState } from "../shared/core/types.ts";
+import { getCannon } from "../shared/sim/occupancy-queries.ts";
 
 /** Advance each in-flight balloon by `dt / duration` and clear the
  *  collection once all have reached `progress >= 1`. Returns whether the

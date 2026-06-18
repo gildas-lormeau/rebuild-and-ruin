@@ -28,7 +28,6 @@ import {
   isRampartCannon,
   isSuperCannon,
 } from "../shared/core/battle-types.ts";
-import { filterActiveEnemies } from "../shared/core/board-occupancy.ts";
 import { GRAVITY, MUZZLE_Y } from "../shared/core/elevation-constants.ts";
 import {
   BALL_SPEED,
@@ -46,18 +45,12 @@ import { emitGameEvent, GAME_EVENT } from "../shared/core/game-event-bus.ts";
 import { Phase } from "../shared/core/game-phase.ts";
 import type { CannonIdx, TilePos } from "../shared/core/geometry-types.ts";
 import { TILE_SIZE, type TileKey } from "../shared/core/grid.ts";
-import {
-  getCannon,
-  isCannonCapturedFrom,
-} from "../shared/core/occupancy-queries.ts";
-import { getInterior } from "../shared/core/player-interior.ts";
 import { addScore } from "../shared/core/player-rules.ts";
 import {
   isPlayerEliminated,
   type ValidPlayerId,
 } from "../shared/core/player-slot.ts";
 import type { Player } from "../shared/core/player-types.ts";
-import { deletePlayerWallBattle } from "../shared/core/player-walls.ts";
 import {
   cannonCenter,
   hasPitAt,
@@ -75,6 +68,13 @@ import {
   incrementShotsFired,
   packPendingCannonFireKey,
 } from "../shared/core/types.ts";
+import { filterActiveEnemies } from "../shared/sim/board-occupancy.ts";
+import {
+  getCannon,
+  isCannonCapturedFrom,
+} from "../shared/sim/occupancy-queries.ts";
+import { getInterior } from "../shared/sim/player-interior.ts";
+import { deletePlayerWallBattle } from "../shared/sim/player-walls.ts";
 import {
   filterActiveFiringCannons,
   isCannonEnclosed,

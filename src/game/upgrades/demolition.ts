@@ -9,7 +9,6 @@
 
 import type { TileKey } from "../../shared/core/grid.ts";
 import { isPlayerEliminated } from "../../shared/core/player-slot.ts";
-import { deletePlayerWallsBatch } from "../../shared/core/player-walls.ts";
 import {
   computeOutside,
   DIRS_8,
@@ -18,6 +17,7 @@ import {
   unpackTile,
 } from "../../shared/core/spatial.ts";
 import type { GameState, UpgradeImpl } from "../../shared/core/types.ts";
+import { deletePlayerWallsBatch } from "../../shared/sim/player-walls.ts";
 
 export const demolitionImpl: UpgradeImpl = { onPick };
 

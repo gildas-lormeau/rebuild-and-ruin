@@ -13,13 +13,6 @@ import {
   type PlacementContext,
 } from "../game/index.ts";
 import { isCannonAlive } from "../shared/core/battle-types.ts";
-import {
-  buildOccupancyCache,
-  collectAliveHouseKeys,
-  filterAliveEnclosedTowers,
-  hasAliveHouseAt,
-  type OccupancyCache,
-} from "../shared/core/board-occupancy.ts";
 import { MODIFIER_ID } from "../shared/core/game-constants.ts";
 import type {
   Castle,
@@ -32,7 +25,6 @@ import type {
 } from "../shared/core/geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, type TileKey } from "../shared/core/grid.ts";
 import { type PieceShape, rotateCW } from "../shared/core/pieces.ts";
-import { getInterior } from "../shared/core/player-interior.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import type { Player } from "../shared/core/player-types.ts";
 import {
@@ -50,6 +42,14 @@ import {
 } from "../shared/core/spatial.ts";
 import type { BuildViewState } from "../shared/core/system-interfaces.ts";
 import type { ZoneId } from "../shared/core/zone-id.ts";
+import {
+  buildOccupancyCache,
+  collectAliveHouseKeys,
+  filterAliveEnclosedTowers,
+  hasAliveHouseAt,
+  type OccupancyCache,
+} from "../shared/sim/board-occupancy.ts";
+import { getInterior } from "../shared/sim/player-interior.ts";
 import {
   hasFillableTowerHope,
   pickDesperateInteriorDiscard,

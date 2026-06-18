@@ -1,7 +1,6 @@
 import { emitGameEvent, GAME_EVENT } from "../shared/core/game-event-bus.ts";
 import { Phase } from "../shared/core/game-phase.ts";
 import type { TowerIdx } from "../shared/core/geometry-types.ts";
-import { getInterior } from "../shared/core/player-interior.ts";
 import {
   isPlayerEliminated,
   type ValidPlayerId,
@@ -9,6 +8,7 @@ import {
 import { selectPlayerTower } from "../shared/core/player-types.ts";
 import { type GameState, type SelectionState } from "../shared/core/types.ts";
 import type { ZoneId } from "../shared/core/zone-id.ts";
+import { getInterior } from "../shared/sim/player-interior.ts";
 
 export function initTowerSelection(
   state: GameState,

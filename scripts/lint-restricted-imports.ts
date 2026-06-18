@@ -56,6 +56,15 @@
  *    burst effects read `overlay.ui.modifierReveal.revealTimeMs` from the
  *    `MODIFIER_EFFECT_FACTORIES` registry.
  *
+ * 8. `src/shared/sim/*.ts` is the simulation-internals tier (occupancy
+ *    queries, interior freshness epochs, wall mutators). Only the simulation
+ *    domains — game/ai/controllers/online/runtime — plus shared/ itself may
+ *    import it. render/input/protocol and the entry roots are fenced out:
+ *    they read game state through overlays + contracts (shared/ui,
+ *    system-interfaces), never the sim mesh directly. Zero-hit today; the
+ *    physical shared/sim/ subfolder makes the tier visible, this rule keeps
+ *    presentation/wire code from reaching into it.
+ *
  * Usage:
  *   deno run -A scripts/lint-restricted-imports.ts
  *
@@ -154,6 +163,19 @@ const MODIFIER_REVEAL_TIME_IMPORTER = "src/runtime/subsystems/render.ts";
  *  their caller (see online-host-promotion.ts:AiPromotionDeps for the
  *  pattern). New roots must be justified in the import allowlist comment. */
 const CONTROLLER_IMPORT_ALLOWLIST = new Set(["src/runtime/bootstrap.ts"]);
+/** Domain path-prefixes permitted to import the `src/shared/sim/` tier (the
+ *  simulation internals: occupancy queries, interior epochs, wall mutators).
+ *  Everything else under src/ — render, input, protocol, and the entry roots —
+ *  is fenced out: those layers read game state through overlays + contracts,
+ *  not sim internals. */
+const SIM_TIER_ALLOWED_PREFIXES = [
+  "src/shared/",
+  "src/game/",
+  "src/ai/",
+  "src/controllers/",
+  "src/online/",
+  "src/runtime/",
+];
 
 main();
 
@@ -171,6 +193,7 @@ function main(): void {
     checkRuntimeHasFeatureCalls(filePath, content, violations);
     checkControllerImports(filePath, content, violations);
     checkModifierRevealTimeImports(filePath, content, violations);
+    checkSimTierImports(filePath, content, violations);
   }
 
   if (violations.length === 0) {
@@ -374,6 +397,25 @@ function checkControllerImports(
       file: rel,
       line: imp.line,
       message: `Import from "${imp.source}" — only composition-root files (${[...CONTROLLER_IMPORT_ALLOWLIST].join(", ")}) may import from src/controllers/. Helpers must receive controller construction via an injected deps bag (see online-host-promotion.ts for the pattern).`,
+    });
+  }
+}
+
+function checkSimTierImports(
+  file: string,
+  content: string,
+  violations: Violation[],
+): void {
+  const rel = relative(process.cwd(), file);
+  if (SIM_TIER_ALLOWED_PREFIXES.some((prefix) => rel.startsWith(prefix)))
+    return;
+
+  for (const imp of parseImports(content)) {
+    if (!imp.source.includes("/shared/sim/")) continue;
+    violations.push({
+      file: rel,
+      line: imp.line,
+      message: `Import from "${imp.source}" — src/shared/sim/ is the simulation-internals tier; only game/ai/controllers/online/runtime (and shared/ itself) may import it. render/input/protocol/entry consume game state through overlays + contracts (shared/ui, system-interfaces), never sim internals.`,
     });
   }
 }

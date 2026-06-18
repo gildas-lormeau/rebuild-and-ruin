@@ -6,10 +6,6 @@
  */
 
 import {
-  collectOccupiedTiles,
-  HOUSE_SPAWN_BLOCKED,
-} from "../shared/core/board-occupancy.ts";
-import {
   HOUSE_MIN_DISTANCE,
   MODIFIER_ID,
   type ModifierId,
@@ -42,6 +38,10 @@ import {
 import type { GameState } from "../shared/core/types.ts";
 import type { ZoneCell, ZoneId } from "../shared/core/zone-id.ts";
 import type { Rng } from "../shared/platform/rng.ts";
+import {
+  collectOccupiedTiles,
+  HOUSE_SPAWN_BLOCKED,
+} from "../shared/sim/board-occupancy.ts";
 
 type CastleSide = (typeof Side)[keyof typeof Side];
 

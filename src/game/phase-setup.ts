@@ -8,16 +8,11 @@
  */
 
 import { isBalloonCannon } from "../shared/core/battle-types.ts";
-import {
-  collectAllWalls,
-  filterAliveEnclosedTowers,
-} from "../shared/core/board-occupancy.ts";
 import { FID } from "../shared/core/feature-defs.ts";
 import { emitGameEvent, GAME_EVENT } from "../shared/core/game-event-bus.ts";
 import { Phase } from "../shared/core/game-phase.ts";
 import { GRID_COLS, GRID_ROWS, type TileKey } from "../shared/core/grid.ts";
 import type { ModifierDiff } from "../shared/core/modifier-defs.ts";
-import { markInteriorFresh } from "../shared/core/player-interior.ts";
 import {
   addScore,
   eliminatePlayer,
@@ -34,10 +29,6 @@ import {
   type Player,
 } from "../shared/core/player-types.ts";
 import {
-  clearPlayerWalls,
-  sweepIsolatedWalls,
-} from "../shared/core/player-walls.ts";
-import {
   DIRS_4,
   isGrass,
   packTile,
@@ -51,6 +42,15 @@ import {
   resetShotsFired,
 } from "../shared/core/types.ts";
 import type { ZoneId } from "../shared/core/zone-id.ts";
+import {
+  collectAllWalls,
+  filterAliveEnclosedTowers,
+} from "../shared/sim/board-occupancy.ts";
+import { markInteriorFresh } from "../shared/sim/player-interior.ts";
+import {
+  clearPlayerWalls,
+  sweepIsolatedWalls,
+} from "../shared/sim/player-walls.ts";
 import { cleanupBalloonHitTrackingAfterBattle } from "./battle-system.ts";
 import {
   finalizeTerritoryWithScoring,
