@@ -13,6 +13,7 @@ import {
   GAME_MODE_MODERN,
   type GameMode,
 } from "../shared/core/game-constants.ts";
+import type { KeyBindings } from "../shared/core/input-action.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import type {
   AimResolver,
@@ -23,7 +24,6 @@ import type { GameState } from "../shared/core/types.ts";
 import { MAX_UINT32, Rng } from "../shared/platform/rng.ts";
 import {
   type GameSettings,
-  type KeyBindings,
   MAX_PLAYERS,
   PLAYER_KEY_BINDINGS,
   SEED_RANDOM,

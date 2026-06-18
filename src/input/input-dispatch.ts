@@ -19,6 +19,7 @@ import type {
   TowerIdx,
 } from "../shared/core/geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "../shared/core/grid.ts";
+import { Action, isMovementAction } from "../shared/core/input-action.ts";
 import { isPlayerEliminated } from "../shared/core/player-slot.ts";
 import { pxToTile } from "../shared/core/spatial.ts";
 import {
@@ -27,7 +28,6 @@ import {
 } from "../shared/core/system-interfaces.ts";
 import { cannonSlotsFor, type GameState } from "../shared/core/types.ts";
 import type { ZoneId } from "../shared/core/zone-id.ts";
-import { Action, isMovementAction } from "../shared/ui/input-action.ts";
 import type {
   GameActionDeps,
   OverlayActionDeps,

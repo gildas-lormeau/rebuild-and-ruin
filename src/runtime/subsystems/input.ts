@@ -1,6 +1,7 @@
 import { isHuman } from "../../shared/core/controller-guards.ts";
 import type { TowerIdx } from "../../shared/core/geometry-types.ts";
 import { GRID_PORTRAIT_LAUNCHED } from "../../shared/core/grid.ts";
+import { Action } from "../../shared/core/input-action.ts";
 import type { ValidPlayerId } from "../../shared/core/player-slot.ts";
 import { zoneTowerCenterPx } from "../../shared/core/spatial.ts";
 import {
@@ -12,7 +13,6 @@ import {
 import type { ZoneId } from "../../shared/core/zone-id.ts";
 import { wrapIndex } from "../../shared/platform/cyclic.ts";
 import { IS_TOUCH_DEVICE } from "../../shared/platform/platform.ts";
-import { Action } from "../../shared/ui/input-action.ts";
 import type {
   FloatingActionsHandle,
   RegisterOnlineInputDeps,

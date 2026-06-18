@@ -6,6 +6,7 @@
 
 import type { Phase } from "../core/game-phase.ts";
 import type { TowerIdx, WorldPos } from "../core/geometry-types.ts";
+import type { Action, KeyBindings } from "../core/input-action.ts";
 import type { ValidPlayerId } from "../core/player-slot.ts";
 import type {
   BattleViewState,
@@ -16,7 +17,6 @@ import type {
 } from "../core/system-interfaces.ts";
 import type { GameState, SelectionState } from "../core/types.ts";
 import type { ZoneId } from "../core/zone-id.ts";
-import type { Action } from "./input-action.ts";
 import type {
   ControlsState,
   GameOverFocus,
@@ -30,7 +30,7 @@ import type {
   PhantomOverlay,
   RendererInterface,
 } from "./overlay-types.ts";
-import type { KeyBindings, SeedMode } from "./player-config.ts";
+import type { SeedMode } from "./player-config.ts";
 import type { Mode } from "./ui-mode.ts";
 
 /** Run `action` with the pointer (local human) controller. Returns `true`

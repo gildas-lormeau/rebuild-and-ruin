@@ -72,10 +72,11 @@
  *    inversion — it means either a shared symbol is parked too high (extract
  *    it down) or the file itself is misclassified (relocate it). This is the
  *    generalization of the wall-destroy-anim split: a core file that needs a
- *    ui/sim symbol is the tell. The remaining pre-existing core->ui edges are
- *    grandfathered in `SHARED_TIER_BASELINE` (the system-interfaces controller
- *    contracts) — documented debt, not a license for more. New inversions
- *    fail. See src/shared/README.md's decision tree.
+ *    ui/sim symbol is the tell. The one remaining pre-existing core->ui edge
+ *    is grandfathered in `SHARED_TIER_BASELINE` (system-interfaces referencing
+ *    the dialog-entry UI state its controller methods resolve) — documented
+ *    debt, not a license for more. New inversions fail. See
+ *    src/shared/README.md's decision tree.
  *
  * Usage:
  *   deno run -A scripts/lint-restricted-imports.ts
@@ -202,10 +203,14 @@ const SHARED_TIER_ALLOWED: Record<string, ReadonlySet<string>> = {
  *  any other shared-tier inversion — including a NEW import added to these
  *  same files — fails. */
 const SHARED_TIER_BASELINE: Record<string, ReadonlySet<string>> = {
+  // The controller contract references the transient dialog-entry shapes
+  // (LifeLostEntry / UpgradePickEntry) its resolve/commit methods operate on.
+  // These are genuine UI interaction state (focus, pulse timers) — moving
+  // them down would drag dialog animation state into core, so the seam stays
+  // grandfathered rather than inverted. The input vocabulary (Action,
+  // KeyBindings) that used to live here moved DOWN to core/input-action.ts.
   "src/shared/core/system-interfaces.ts": new Set([
-    "../ui/input-action.ts",
     "../ui/interaction-types.ts",
-    "../ui/player-config.ts",
   ]),
 };
 

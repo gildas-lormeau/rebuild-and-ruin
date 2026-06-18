@@ -1,10 +1,8 @@
 import type { Rng } from "../platform/rng.ts";
-import { Action } from "../ui/input-action.ts";
 import type {
   LifeLostEntry,
   UpgradePickEntry,
 } from "../ui/interaction-types.ts";
-import type { KeyBindings } from "../ui/player-config.ts";
 import type { AiPersonality } from "./ai-personality.ts";
 import {
   type BurningPit,
@@ -24,6 +22,7 @@ import type {
   WorldPos,
 } from "./geometry-types.ts";
 import type { TileKey } from "./grid.ts";
+import { Action, type KeyBindings } from "./input-action.ts";
 import type { SupplyShip } from "./modifier-defs.ts";
 import type { CannonPhantom, PiecePhantom } from "./phantom-types.ts";
 import type { PieceShape } from "./pieces.ts";

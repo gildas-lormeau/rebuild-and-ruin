@@ -8,6 +8,7 @@
 import type { UIContext } from "../runtime/ui-contracts.ts";
 import { GAME_MODE_MODERN } from "../shared/core/game-constants.ts";
 import type { GameMap } from "../shared/core/geometry-types.ts";
+import type { KeyBindings } from "../shared/core/input-action.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import { cannonTier } from "../shared/core/player-types.ts";
 import { IS_TOUCH_DEVICE, KEY_UP } from "../shared/platform/platform.ts";
@@ -15,7 +16,6 @@ import type { OptionEntry, RenderOverlay } from "../shared/ui/overlay-types.ts";
 import {
   ACTION_KEYS,
   getPlayerColor,
-  type KeyBindings,
   PLAYER_NAMES,
   SEED_CUSTOM,
 } from "../shared/ui/player-config.ts";

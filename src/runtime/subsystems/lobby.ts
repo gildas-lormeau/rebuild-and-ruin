@@ -5,6 +5,7 @@ import {
 } from "../../shared/core/game-constants.ts";
 import type { GameMap } from "../../shared/core/geometry-types.ts";
 import { CANVAS_H, CANVAS_W, TILE_SIZE } from "../../shared/core/grid.ts";
+import type { KeyBindings } from "../../shared/core/input-action.ts";
 import type { ValidPlayerId } from "../../shared/core/player-slot.ts";
 import {
   CURSOR_DEFAULT,
@@ -13,11 +14,7 @@ import {
 } from "../../shared/platform/platform.ts";
 import { Rng } from "../../shared/platform/rng.ts";
 import type { RenderOverlay } from "../../shared/ui/overlay-types.ts";
-import {
-  computeGameSeed,
-  type KeyBindings,
-  MAX_PLAYERS,
-} from "../../shared/ui/player-config.ts";
+import { computeGameSeed, MAX_PLAYERS } from "../../shared/ui/player-config.ts";
 import { Mode } from "../../shared/ui/ui-mode.ts";
 import { type RuntimeState, setMode } from "../state.ts";
 import type {

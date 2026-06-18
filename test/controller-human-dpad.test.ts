@@ -20,7 +20,7 @@ import type { ValidPlayerId } from "../src/shared/core/player-slot.ts";
 import {
   type BattleViewState
 } from "../src/shared/core/system-interfaces.ts";
-import { Action } from "../src/shared/ui/input-action.ts";
+import { Action } from "../src/shared/core/input-action.ts";
 import { PLAYER_KEY_BINDINGS } from "../src/shared/ui/player-config.ts";
 import { CROSSHAIR_SPEED } from "../src/shared/core/game-constants.ts";
 

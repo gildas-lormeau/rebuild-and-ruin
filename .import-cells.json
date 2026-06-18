@@ -106,6 +106,7 @@
       "src/shared/core/game-constants.ts",
       "src/shared/core/game-phase.ts",
       "src/shared/core/grid.ts",
+      "src/shared/core/input-action.ts",
       "src/shared/core/player-slot.ts",
       "src/shared/core/pool-def.ts",
       "src/shared/core/zone-id.ts",
@@ -116,7 +117,6 @@
       "src/shared/platform/sound-rsc.ts",
       "src/shared/platform/utils.ts",
       "src/shared/platform/xmi-to-smf.ts",
-      "src/shared/ui/input-action.ts",
       "src/shared/ui/settings-defs.ts",
       "src/shared/ui/ui-mode.ts"
     ]

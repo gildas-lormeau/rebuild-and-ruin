@@ -14,6 +14,7 @@ import type {
   ScheduledAction,
 } from "../shared/core/action-schedule.ts";
 import { CannonMode } from "../shared/core/battle-types.ts";
+import { Action } from "../shared/core/input-action.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import type {
   BuildViewState,
@@ -24,7 +25,6 @@ import type {
 } from "../shared/core/system-interfaces.ts";
 import type { GameState } from "../shared/core/types.ts";
 import type { UpgradeId } from "../shared/core/upgrade-defs.ts";
-import { Action } from "../shared/ui/input-action.ts";
 import {
   LifeLostChoice,
   type LifeLostEntry,

@@ -4,6 +4,7 @@ import type { Crosshair } from "../shared/core/battle-types.ts";
 import { NORMAL_CANNON_SIZE } from "../shared/core/game-constants.ts";
 import type { WorldPos } from "../shared/core/geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "../shared/core/grid.ts";
+import { Action, type KeyBindings } from "../shared/core/input-action.ts";
 import type {
   CannonPhantom,
   PiecePhantom,
@@ -30,12 +31,10 @@ import type {
 import type { UpgradeId } from "../shared/core/upgrade-defs.ts";
 import type { ZoneId } from "../shared/core/zone-id.ts";
 import { Rng } from "../shared/platform/rng.ts";
-import { Action } from "../shared/ui/input-action.ts";
 import type {
   LifeLostEntry,
   UpgradePickEntry,
 } from "../shared/ui/interaction-types.ts";
-import type { KeyBindings } from "../shared/ui/player-config.ts";
 
 const DEFAULT_CURSOR_ROW = Math.floor(GRID_ROWS / 2);
 const DEFAULT_CURSOR_COL = Math.floor(GRID_COLS / 2);

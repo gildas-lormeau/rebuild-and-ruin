@@ -1,3 +1,4 @@
+import type { KeyBindings } from "../shared/core/input-action.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import { type GameState } from "../shared/core/types.ts";
 import { wrapIndex } from "../shared/platform/cyclic.ts";
@@ -14,7 +15,6 @@ import { FOCUS_MENU, FOCUS_REMATCH } from "../shared/ui/interaction-types.ts";
 import {
   ACTION_KEYS,
   CONTROLS_COLUMN_COUNT,
-  type KeyBindings,
   MAX_SEED_LENGTH,
   SEED_CUSTOM,
   SEED_RANDOM,

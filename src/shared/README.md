@@ -24,7 +24,9 @@ registries, interfaces that `game/` and everyone else agree on.
   (Cannon, Cannonball, Grunt, BurningPit).
 - **Constants + enums**: `game-constants.ts` (balance tuning),
   `game-phase.ts` (Phase enum + predicates), `grid.ts` (dimensions +
-  Tile enum).
+  Tile enum), `input-action.ts` (the `Action` command vocabulary +
+  `KeyBindings` keymap the controller contract speaks in; binding
+  *data* stays in `shared/ui/player-config.ts`).
 - **Pools** (pattern documented in `CLAUDE.md` "Extension point
   registries"): `feature-defs.ts`, `upgrade-defs.ts`, `modifier-defs.ts`,
   `cannon-mode-defs.ts`. Each holds the `*_POOL`, `*_CONSUMERS`,
@@ -98,15 +100,14 @@ and `input/`.
   `isGameplayMode`). The orthogonal "what UI state am I in" axis
   (LOBBY / GAME / OPTIONS / BANNER / LIFE_LOST / UPGRADE_PICK /
   BALLOON_ANIM / SELECTION / STOPPED).
-- **`input-action.ts`** — `Action` enum (abstracted input actions
-  decoupled from raw keycodes).
 - **`interaction-types.ts`** — `LifeLostDialogState`,
   `UpgradePickDialogState`, `CastleBuildState`, `ControlsState`,
   `GameOverFocus`, `AutoResolveDeps`. Transient dialog/interaction
   state that lives on `runtimeState.dialogs.*`.
-- **`player-config.ts`** — `KeyBindings`, `GameSettings`, `PLAYER_NAMES`,
-  `PLAYER_COLORS`, `MAX_PLAYERS`, `computeGameSeed()`. Player/settings
-  config.
+- **`player-config.ts`** — `GameSettings`, `PLAYER_NAMES`,
+  `PLAYER_COLORS`, `PLAYER_KEY_BINDINGS`, `MAX_PLAYERS`,
+  `computeGameSeed()`. Player/settings config + binding *data* (the
+  `KeyBindings` *type* lives in `shared/core/input-action.ts`).
 - **`settings-defs.ts`** — Option labels, option keys, hit test
   constants. Declarative options menu schema.
 - **`settings-ui.ts`** — `cycleOption`, `formatKeyName`. Functions

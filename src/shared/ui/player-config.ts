@@ -11,6 +11,7 @@ import {
   type GameMode,
   HAPTICS_ON,
 } from "../core/game-constants.ts";
+import type { KeyBindings } from "../core/input-action.ts";
 import type { ValidPlayerId } from "../core/player-slot.ts";
 import {
   IS_TOUCH_DEVICE,
@@ -20,15 +21,6 @@ import {
   KEY_UP,
 } from "../platform/platform.ts";
 import type { RGB } from "./theme.ts";
-
-export interface KeyBindings {
-  up: string;
-  down: string;
-  left: string;
-  right: string;
-  confirm: string; // place / fire / select
-  rotate: string; // rotate piece / cycle cannon mode / accelerate crosshair
-}
 
 interface PlayerColor {
   wall: RGB;

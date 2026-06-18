@@ -3,8 +3,8 @@ import {
   isSelectionPhase,
   Phase,
 } from "../shared/core/game-phase.ts";
+import { Action } from "../shared/core/input-action.ts";
 import { CURSOR_DEFAULT, CURSOR_POINTER } from "../shared/platform/platform.ts";
-import { Action } from "../shared/ui/input-action.ts";
 import type { RegisterOnlineInputDeps } from "../shared/ui/input-deps.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
 import {

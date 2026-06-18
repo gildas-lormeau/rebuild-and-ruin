@@ -3,9 +3,9 @@ import {
   isSelectionPhase,
   Phase,
 } from "../shared/core/game-phase.ts";
+import { Action } from "../shared/core/input-action.ts";
 import { playerByZone, zoneByPlayer } from "../shared/core/player-zones.ts";
 import type { ZoneId } from "../shared/core/zone-id.ts";
-import { Action } from "../shared/ui/input-action.ts";
 import type {
   DpadDeps,
   FloatingActionsDeps,

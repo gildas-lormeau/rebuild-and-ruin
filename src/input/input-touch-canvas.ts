@@ -3,13 +3,13 @@ import {
   isSelectionPhase,
   Phase,
 } from "../shared/core/game-phase.ts";
+import { Action } from "../shared/core/input-action.ts";
 import { cannonSize } from "../shared/core/spatial.ts";
 import type {
   InputReceiver,
   PlayerController,
 } from "../shared/core/system-interfaces.ts";
 import type { GameState } from "../shared/core/types.ts";
-import { Action } from "../shared/ui/input-action.ts";
 import type { RegisterOnlineInputDeps } from "../shared/ui/input-deps.ts";
 import { TAP_MAX_DIST, TAP_MAX_TIME } from "./input.ts";
 import {

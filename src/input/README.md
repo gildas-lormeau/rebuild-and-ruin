@@ -97,9 +97,10 @@ for examples.
 
 ## Per-player key bindings
 
-Shared-screen play means each player has their own keybindings.
-`KeyBindings` lives in `src/shared/ui/player-config.ts`. Default
-bindings are in `PLAYER_KEY_BINDINGS`. The keyboard handler routes
+Shared-screen play means each player has their own keybindings. The
+`KeyBindings` type lives in `src/shared/core/input-action.ts` (alongside
+the `Action` vocabulary it maps); the default binding *data* is in
+`PLAYER_KEY_BINDINGS` in `src/shared/ui/player-config.ts`. The keyboard handler routes
 events by checking `event.key` against each player's bindings in
 turn. First match wins. Don't assume keys are unique across players —
 the user can (and does) rebind.
@@ -119,7 +120,7 @@ the UI visibility.
 ## Common operations
 
 ### Add a new key binding
-1. Add a new `Action` to the enum in `src/shared/ui/input-action.ts`.
+1. Add a new `Action` to the enum in `src/shared/core/input-action.ts`.
 2. Add a default binding in `PLAYER_KEY_BINDINGS` in
    `shared/ui/player-config.ts`.
 3. Handle the action in `input-keyboard.ts` or wherever relevant.
@@ -177,8 +178,10 @@ into `controller-human.ts` to see intent generation.
   via the deps bag.
 - **[src/player/controller-human.ts](../player/controller-human.ts)**
   — The human controller that consumes the events this folder emits.
+- **[src/shared/core/input-action.ts](../shared/core/input-action.ts)**
+  — `Action` vocabulary + the `KeyBindings` type.
 - **[src/shared/ui/player-config.ts](../shared/ui/player-config.ts)**
-  — `KeyBindings` + `PLAYER_KEY_BINDINGS` (default bindings).
+  — `PLAYER_KEY_BINDINGS` (default binding data).
 - **[test/input-lobby.test.ts](../../test/input-lobby.test.ts)** —
   Example of driving lobby input through the real dispatch path.
 - **[test/haptics-observer.test.ts](../../test/haptics-observer.test.ts)**
