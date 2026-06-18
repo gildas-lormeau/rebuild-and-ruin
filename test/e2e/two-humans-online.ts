@@ -7,9 +7,12 @@
  *   - client→ joins the room, seats itself in slot 1
  *   - slot 2 is left empty → the lobby fills it with an AI on start
  *
- * Each human plays *minimally* (seat, nudge the cursor, press the rotate +
- * action keys, fire roughly in battle) so the slot-2 AI beats them; the match
- * runs to game-over.
+ * Each human plays *minimally*: seat, build poorly (random nudges), but in
+ * battle AIM at the nearest enemy structure and fire (so opponent damage is
+ * exercised), and on a life loss pick CONTINUE or ABANDON at random (~50/50,
+ * so both the reselect and elimination paths get covered over many runs). They
+ * still build badly, so the slot-2 AI beats them and the match runs to
+ * game-over.
  *
  * Divergence detection: a concurrent monitor compares the two peers at every
  * ROUND boundary (the quiescent point where scores are finalized and there is
@@ -198,12 +201,20 @@ const MONITOR_POLL_MS = 250;
  *  scripts/online-e2e.ts): slot 0 = "n", slot 1 = "f", slot 2 = "h". */
 const SLOT_KEYS = ["n", "f", "h"] as const;
 
-Deno.test("e2e online: two humans play a full game and see the same game", async () => {
+// Modern by default — it's the superset: classic's flow PLUS the
+// MODIFIER_REVEAL (waited through) and UPGRADE_PICK (driven in
+// driveMinimalHuman) phases, whose modifier/upgrade RNG is mirror-simmed on
+// every peer, so parity must hold there too. The body is parameterized by mode
+// so a `runTwoHumansGame("classic")` test is one line away if needed.
+Deno.test("e2e online: two humans play a full modern game and see the same game", () =>
+  runTwoHumansGame("modern"));
+
+async function runTwoHumansGame(mode: "classic" | "modern"): Promise<void> {
   // --- Seat two humans + leave slot 2 for the AI -------------------------
   await using host = await createE2EScenario({
     seed: SEED,
     rounds: ROUNDS,
-    mode: "classic",
+    mode,
     online: "host",
     humans: 0, // online path seats slots manually below
     headless: HEADLESS,
@@ -216,7 +227,7 @@ Deno.test("e2e online: two humans play a full game and see the same game", async
   await using client = await createE2EScenario({
     seed: SEED,
     rounds: ROUNDS,
-    mode: "classic",
+    mode,
     online: "join",
     roomCode: code,
     humans: 0,
@@ -289,7 +300,9 @@ Deno.test("e2e online: two humans play a full game and see the same game", async
   const clientFired = await firedSlots(client);
   assert(hostFired.has(0), "host's human (slot 0) never fired a cannon");
   assert(clientFired.has(1), "client's human (slot 1) never fired a cannon");
-});
+}
+
+;
 
 /**
  * Poll both peers and compare the stable outcome of each round. Records each
@@ -470,9 +483,10 @@ async function firedSlots(sc: E2EScenario): Promise<Set<number>> {
  * Drive a single browser peer with minimal human input until the game stops or
  * the monitor flags a divergence (`ctrl.stop`). Ported (simplified) from
  * `simulateHumanPlayLoop` in scripts/online-e2e.ts — seat/confirm with "n",
- * rotate with "b", nudge the cursor with arrows, fire in battle with "n", and
- * ABANDON on the life-lost dialog so an idle player can't stall the match.
- * Returns the number of action iterations taken.
+ * rotate with "b", nudge the cursor with arrows; in BATTLE aim at the nearest
+ * enemy target and fire (`aimAtEnemyAndFire`); on a life loss pick CONTINUE or
+ * ABANDON at random; and in modern's UPGRADE_PICK confirm a pick so the match
+ * keeps advancing. Returns the number of action iterations taken.
  */
 async function driveMinimalHuman(
   sc: E2EScenario,
@@ -508,9 +522,17 @@ async function driveMinimalHuman(
     }
 
     if (mode === "LIFE_LOST") {
-      await page.keyboard.press("ArrowRight");
-      await page.waitForTimeout(80);
-      await page.keyboard.press("n"); // abandon → keep the match terminating
+      // ~50/50 CONTINUE vs ABANDON so runs exercise BOTH the reselect path
+      // (CONTINUE → CASTLE_SELECT, default focus) and elimination (ABANDON).
+      // The reselect fork is fixed (host now re-broadcasts SELECT_START), so
+      // CONTINUE is a real path to cover, not a workaround.
+      if (Math.random() < 0.5) {
+        await page.keyboard.press("n"); // CONTINUE (default focus)
+      } else {
+        await page.keyboard.press("ArrowRight");
+        await page.waitForTimeout(80);
+        await page.keyboard.press("n"); // ABANDON
+      }
       await page.waitForTimeout(250);
       continue;
     }
@@ -523,6 +545,16 @@ async function driveMinimalHuman(
         await page.keyboard.press("n"); // confirm castle/tower selection
         await page.waitForTimeout(250);
       }
+      continue;
+    }
+
+    if (mode === "UPGRADE_PICK") {
+      // Modern mode only: arrows move focus across the offered upgrades,
+      // "n" confirms the pick. Resolving it keeps the match advancing.
+      await page.keyboard.press(Math.random() < 0.5 ? "ArrowRight" : "ArrowLeft");
+      await page.waitForTimeout(150);
+      await page.keyboard.press("n"); // confirm upgrade pick
+      await page.waitForTimeout(250);
       continue;
     }
 
@@ -546,11 +578,9 @@ async function driveMinimalHuman(
     }
 
     if (phase === "BATTLE") {
-      // Minimal aim: nudge the crosshair a bit, then fire.
-      await page.keyboard.press(dirs[Math.floor(Math.random() * dirs.length)]);
-      await page.waitForTimeout(40);
-      await page.keyboard.press("n"); // fire
-      await page.waitForTimeout(120);
+      // Aim at the nearest ENEMY target and fire, so the humans actually
+      // damage opponents' walls/cannons (not their own structures).
+      await aimAtEnemyAndFire(page);
       continue;
     }
 
@@ -648,6 +678,54 @@ function tickStr(rec: TickRec): string {
 
 function jstr(value: unknown): string {
   return JSON.stringify(value);
+}
+
+/** Basic battle aim-bot: hill-climb the crosshair toward the nearest ENEMY
+ *  target (`targeting.enemyTargets` excludes our own slot) and fire when within
+ *  8px — so the simulated humans damage opponents instead of their own zone.
+ *  Ported from scripts/online-e2e.ts simulateHumanPlayLoop. One step per call
+ *  (the drive loop re-invokes each tick). */
+async function aimAtEnemyAndFire(page: E2EScenario["page"]): Promise<void> {
+  const aim = await page
+    .evaluate(() => {
+      const e2e = (globalThis as unknown as Record<string, unknown>).__e2e as
+        | Record<string, Record<string, unknown>>
+        | undefined;
+      const targets = e2e?.targeting?.enemyTargets as
+        | { x: number; y: number }[]
+        | undefined;
+      const ch = e2e?.controller?.crosshair as
+        | { x: number; y: number }
+        | undefined;
+      if (!targets || targets.length === 0 || !ch) return null;
+      let best = targets[0]!;
+      let bestDist = Infinity;
+      for (const target of targets) {
+        const dist = Math.hypot(target.x - ch.x, target.y - ch.y);
+        if (dist < bestDist) {
+          bestDist = dist;
+          best = target;
+        }
+      }
+      return { dx: best.x - ch.x, dy: best.y - ch.y, dist: bestDist };
+    })
+    .catch(() => null);
+  if (aim && aim.dist > 8) {
+    const key =
+      Math.abs(aim.dx) > Math.abs(aim.dy)
+        ? aim.dx > 0
+          ? "ArrowRight"
+          : "ArrowLeft"
+        : aim.dy > 0
+          ? "ArrowDown"
+          : "ArrowUp";
+    await page.keyboard.down(key);
+    await page.waitForTimeout(150);
+    await page.keyboard.up(key);
+  } else {
+    await page.keyboard.press("n"); // crosshair on an enemy target — fire
+    await page.waitForTimeout(100);
+  }
 }
 
 function delay(ms: number): Promise<void> {
