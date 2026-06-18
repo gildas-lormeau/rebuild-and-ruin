@@ -64,13 +64,20 @@ export function peekLastPlayerStanding(
   return { winner, reason: "last-player-standing" };
 }
 
-/** Emit GAME_END for an outcome decided earlier by `peekGameOverOutcome`.
- *  Split from the peek so the bus event fires at dispatch time (after the
- *  score overlay), not at decision time (during the round-end mutate). */
-export function emitGameEnd(state: GameState, outcome: GameOverOutcome): void {
+/** Emit GAME_END for the decided winner. Called from the single game-over
+ *  chokepoint (`finalizeGameOver` in game-lifecycle.ts) so EVERY peer emits it
+ *  exactly once — the host + a non-preempted watcher reach it via their local
+ *  game-over dispatch, a preempted watcher via the wire GAME_OVER handler. The
+ *  event fires at dispatch time (after the score overlay), not at decision time.
+ *  Takes just the winner (not the full GameOverOutcome) so the watcher's wire
+ *  path — which has no locally-computed outcome/reason — can call it too. */
+export function emitGameEnd(
+  state: GameState,
+  winner: { id: ValidPlayerId },
+): void {
   emitGameEvent(state.bus, GAME_EVENT.GAME_END, {
     round: state.round,
-    winner: outcome.winner.id,
+    winner: winner.id,
   });
 }
 

@@ -261,6 +261,7 @@ export function createGameOverPayload(
     serverPayload: {
       type: MESSAGE.GAME_OVER,
       winner: winnerName,
+      winnerId: winner.id,
       scores: state.players.map((player) => ({
         name: playerNames[player.id] ?? `P${player.id + 1}`,
         score: player.score,

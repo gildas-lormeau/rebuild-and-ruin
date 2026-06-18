@@ -15,7 +15,10 @@ export function handleGameOverTransition(
   runtime: GameRuntime,
 ): void {
   if (msg.type !== MESSAGE.GAME_OVER) return;
-  runtime.lifecycle.finalizeGameOver(() => {
+  // finalizeGameOver emits GAME_END (once) for `winnerId` — so a watcher whose
+  // own local round-end was preempted by this message still emits it. If this
+  // peer already finalized locally (mode STOPPED), the emit is skipped there.
+  runtime.lifecycle.finalizeGameOver({ id: msg.winnerId }, () => {
     runtime.runtimeState.frame.gameOver = {
       winner: msg.winner,
       scores: msg.scores.map((score, idx) => ({

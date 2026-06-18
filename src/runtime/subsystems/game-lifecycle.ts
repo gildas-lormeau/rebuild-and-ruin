@@ -7,6 +7,7 @@
  * lean.
  */
 
+import { emitGameEnd as emitGameEndEvent } from "../../game/index.ts";
 import { DEMO_RETURN_DELAY_MS } from "../../shared/core/game-constants.ts";
 import type { ValidPlayerId } from "../../shared/core/player-slot.ts";
 import {
@@ -30,6 +31,10 @@ interface GameLifecycleDeps {
 
   // Game end
   readonly setGameOverFrame: (winner: { id: ValidPlayerId }) => void;
+  /** Emit the GAME_END bus event for the winner. Called once from
+   *  `finalizeGameOver` (the single game-over chokepoint) so every peer emits
+   *  it exactly once regardless of which path reached game-over. */
+  readonly emitGameEnd: (winner: { id: ValidPlayerId }) => void;
   readonly onEndGame?: (winner: { id: ValidPlayerId }) => void;
   readonly isAllAi: () => boolean;
   readonly isModeStopped: () => boolean;
@@ -98,8 +103,13 @@ export interface RuntimeLifecycle {
    *  last-player-standing included, via the life-lost route) and the
    *  watcher's MESSAGE.GAME_OVER handler (re-paints from the host's
    *  authoritative scores). Idempotent — safe when the local dispatch
-   *  fires before the message arrives. */
-  finalizeGameOver: (setFrame: () => void) => void;
+   *  fires before the message arrives; GAME_END is emitted only on the FIRST
+   *  finalize (the mode!==STOPPED transition), so the double call never
+   *  double-emits. */
+  finalizeGameOver: (
+    winner: { id: ValidPlayerId },
+    setFrame: () => void,
+  ) => void;
 }
 
 interface GameLifecycleSystem extends RuntimeLifecycle {
@@ -186,13 +196,26 @@ export function createGameLifecycle(
     deps.clearAnnouncement();
   }
 
-  /** Shared terminal sequence for game-over: snapshot the game-over frame
-   *  (every peer's `endGame` builds it from its own live state; the
-   *  watcher's MESSAGE.GAME_OVER handler re-paints from the host's
-   *  authoritative scores), then clean up display caches, then render +
-   *  stop the loop. Idempotent — safe to call twice when the local
-   *  dispatch fires before MESSAGE.GAME_OVER arrives. */
-  function finalizeGameOver(setFrame: () => void): void {
+  /** Shared terminal sequence for game-over: emit GAME_END (once), snapshot the
+   *  game-over frame (every peer's `endGame` builds it from its own live state;
+   *  the watcher's MESSAGE.GAME_OVER handler re-paints from the host's
+   *  authoritative scores), then clean up display caches, then render + stop the
+   *  loop. Idempotent — safe to call twice when the local dispatch fires before
+   *  MESSAGE.GAME_OVER arrives.
+   *
+   *  GAME_END is emitted HERE, the single chokepoint every game-over path funnels
+   *  through, and gated on the first finalize (mode !== STOPPED). This is the fix
+   *  for the watcher GAME_END gap: a watcher whose own local round-end routing is
+   *  preempted by the incoming wire GAME_OVER (which stops its runtime) used to
+   *  never emit GAME_END; now its wire handler reaches this chokepoint and emits.
+   *  The double call (local dispatch then wire echo) emits only on the first —
+   *  the second sees mode STOPPED and skips. Emitted BEFORE teardown so the
+   *  still-subscribed observers (game-end SFX) fire. */
+  function finalizeGameOver(
+    winner: { id: ValidPlayerId },
+    setFrame: () => void,
+  ): void {
+    if (!deps.isModeStopped()) deps.emitGameEnd(winner);
     setFrame();
     teardownSession();
     deps.render();
@@ -200,7 +223,7 @@ export function createGameLifecycle(
   }
 
   function endGame(winner: { id: ValidPlayerId }): void {
-    finalizeGameOver(() => deps.setGameOverFrame(winner));
+    finalizeGameOver(winner, () => deps.setGameOverFrame(winner));
     deps.onEndGame?.(winner);
 
     // Demo auto-return is a local single-player affordance. Online sessions
@@ -307,6 +330,7 @@ export function buildLifecycleDeps(
         runtimeState.state.players,
       );
     },
+    emitGameEnd: (winner) => emitGameEndEvent(runtimeState.state, winner),
     onEndGame: config.onEndGame
       ? (winner) => config.onEndGame!(winner, runtimeState.state)
       : undefined,

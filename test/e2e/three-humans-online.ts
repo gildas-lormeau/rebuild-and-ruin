@@ -226,19 +226,26 @@ async function runThreeHumansGame(
     assertEquals(snap.cannonballs, ref.snap.cannonballs, `cannonballs diverged: ${ref.name} vs ${name}`);
   }
 
-  // GAME_END on the bus is the NEW HOST's signal: the promoted host drives
-  // game-over locally (its phase-machine routes round-end → game-over) and
-  // emits GAME_END + broadcasts the authoritative GAME_OVER. A watcher survivor
-  // reaches game-over via that incoming GAME_OVER — which STOPS its runtime and
-  // can preempt its own local round-end before it would emit — so a watcher
-  // legitimately sees 0 GAME_END (a known, accepted host/watcher gap; whether
-  // the watcher wins the race is timing-dependent). Require the emit from the
-  // new host only. Winner AGREEMENT across survivors needs no separate check:
-  // the byte-identical player snapshots above already prove both peers hold the
-  // same final scores/lives, from which the winner is derived identically.
-  const newHost = hostsAmong[0]!.peer;
-  const hostEnds = await newHost.sc.bus.events(GAME_EVENT.GAME_END);
-  assertEquals(hostEnds.length, 1, `${newHost.name} (new host) saw exactly one game-end`);
+  // Every peer emits GAME_END exactly once, at the single finalizeGameOver
+  // chokepoint: the new host via its local game-over dispatch, a watcher via the
+  // wire GAME_OVER (which now reaches the chokepoint too). So BOTH survivors see
+  // exactly one and agree on the winner. This guards the watcher-GAME_END fix
+  // (game-lifecycle.ts:finalizeGameOver) — before it, a watcher whose local
+  // round-end was preempted by the wire GAME_OVER saw 0 on the round-exhaustion
+  // game-over path.
+  const ends = await Promise.all(
+    survivors.map(async (peer) => ({
+      name: peer.name,
+      events: await peer.sc.bus.events(GAME_EVENT.GAME_END),
+    })),
+  );
+  for (const { name, events } of ends) {
+    assertEquals(events.length, 1, `${name} saw exactly one game-end`);
+  }
+  const refWinner = ends[0]!.events[0]!.winner;
+  for (const { name, events } of ends.slice(1)) {
+    assertEquals(events[0]!.winner, refWinner, `winner diverged: ${ends[0]!.name} vs ${name}`);
+  }
 
   // Guard: each surviving human actually acted before the end. Slot from the
   // live-captured identity (post-game read would be the spectator slot).

@@ -214,6 +214,11 @@ interface BuildEndMessage {
 interface GameOverMessage {
   type: "gameOver";
   winner: string;
+  /** Winner's slot id. Carried alongside the display `winner` name so a watcher
+   *  reaching game-over via this message (its own local round-end preempted) can
+   *  emit GAME_END with the correct slot — the name alone can't be mapped back
+   *  reliably. See game-lifecycle.ts:finalizeGameOver. */
+  winnerId: ValidPlayerId;
   scores: { name: string; score: number; eliminated: boolean }[];
 }
 

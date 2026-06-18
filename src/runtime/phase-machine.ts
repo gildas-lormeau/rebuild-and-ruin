@@ -10,7 +10,6 @@
 import {
   applyUpgradePicks,
   eliminatePlayers,
-  emitGameEnd,
   emitRoundStart,
   enterBattlePhase,
   enterCannonPhase,
@@ -1005,13 +1004,15 @@ function routeLifeLostResolution(
   const route = ctx.lifeLostRoute;
   if (!route) return;
   if (result.gameOverOutcome) {
-    emitGameEnd(ctx.state, result.gameOverOutcome);
+    // GAME_END is emitted by the single `finalizeGameOver` chokepoint (reached
+    // via `onGameOver` → game-over transition → endGame), NOT here — so a
+    // watcher whose local round-end is preempted by the wire GAME_OVER still
+    // emits it. See game-lifecycle.ts:finalizeGameOver.
     route.onGameOver(result.gameOverOutcome);
     return;
   }
   const lateOutcome = peekLastPlayerStanding(ctx.state);
   if (lateOutcome) {
-    emitGameEnd(ctx.state, lateOutcome);
     route.onGameOver(lateOutcome);
     return;
   }
