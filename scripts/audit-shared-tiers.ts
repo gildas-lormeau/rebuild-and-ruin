@@ -42,8 +42,20 @@
  *   constructor-setters (setGameMode) and cosmetic animation agers
  *   (ageImpacts) mutate params too but legitimately stay in core.
  *
- * AUDIT-ONLY: always exits 0, no baseline. Sections B and C are heuristic —
- * each hit needs the per-symbol judgment the report describes.
+ * Section D — STATIC VOCABULARY PARKED IN SIM (heuristic, the pieces shape):
+ *   The symmetric inverse of C — a `shared/sim` function that is PURE (no Rng,
+ *   mutates no param) yet takes ≥1 parameter, none typed as a live game-state
+ *   struct (`LIVE_STATE_TYPES`). It operates on static DEFINITIONS, not state
+ *   (`rotateCW(piece: PieceShape)`), so it is determinism-irrelevant vocabulary
+ *   over-fenced in sim and could move down to core. The hard part is the FP
+ *   wall: sim legitimately holds pure board QUERIES (`hasWallAt`,
+ *   `isCannonCaptured`) — they are excluded because they take a live-state
+ *   param. The live-state filter is what makes this axis tool-able rather than
+ *   a noisy "any pure sim fn" flag; it is intentionally generous (substring
+ *   match) to miss-rather-than-misflag.
+ *
+ * AUDIT-ONLY: always exits 0, no baseline. Sections B/C/D are heuristic — each
+ * hit needs the per-symbol judgment the report describes.
  *
  * Usage:
  *   deno run -A scripts/audit-shared-tiers.ts [--json]
@@ -82,6 +94,13 @@ interface ParkedMutator {
   evidence: string;
 }
 
+interface ParkedVocab {
+  file: string;
+  symbol: string;
+  /** The param list that shows it operates on static definitions, not state. */
+  params: string;
+}
+
 interface ExportRec {
   name: string;
   isFunction: boolean;
@@ -99,6 +118,14 @@ const SRC = join(process.cwd(), "src");
  *  prove the function writes through its argument. */
 const MUTATING_METHODS =
   "add|delete|clear|set|push|pop|shift|unshift|splice|sort|reverse|fill";
+/** Live game-state struct names. A sim function whose params name one of these
+ *  operates on evolving game state (a query/behavior that belongs in sim);
+ *  matched as a SUBSTRING (no `\b`) so compound types — `CapturedCannonState`,
+ *  `GameViewState`, `ValidPlayerId` — all count, biasing Section D toward
+ *  false-NEGATIVES (miss a candidate) over false-positives (wrongly flag a
+ *  legitimate board query). The list is the curated heart of the heuristic. */
+const LIVE_STATE_TYPES =
+  /Player|GameState|GameViewState|BuildViewState|CannonViewState|BattleViewState|ModernState|LobbyState|SelectionState|Cannon|Grunt|BurningPit|Tower|House|BonusSquare|BagState|OccupancyCache/;
 
 main();
 
@@ -111,23 +138,28 @@ function main(): void {
   const allImports: ImportRec[] = [];
   const exportsByFile = new Map<string, ExportRec[]>();
   const coreContent = new Map<string, string>();
+  const simContent = new Map<string, string>();
   for (const file of files) {
     const rel = relative(process.cwd(), file);
     const content = readFileSync(file, "utf8");
     allImports.push(...parseImports(rel, content));
     if (sharedTier(rel)) exportsByFile.set(rel, parseExports(content));
     if (sharedTier(rel) === "core") coreContent.set(rel, content);
+    if (sharedTier(rel) === "sim") simContent.set(rel, content);
   }
 
   const inversions = findInversions(allImports);
   const parked = findParkedBehavior(allImports, exportsByFile);
   const mutators = findParkedMutators(coreContent);
+  const vocab = findParkedVocabulary(simContent);
 
   if (asJson) {
-    console.log(JSON.stringify({ inversions, parked, mutators }, null, 2));
+    console.log(
+      JSON.stringify({ inversions, parked, mutators, vocab }, null, 2),
+    );
     return;
   }
-  report(inversions, parked, mutators);
+  report(inversions, parked, mutators, vocab);
 }
 
 /** Section A: shared lower-tier files importing a higher shared tier. */
@@ -217,6 +249,41 @@ function findParkedMutators(coreContent: Map<string, string>): ParkedMutator[] {
   return out.sort(
     (a, b) => a.file.localeCompare(b.file) || a.symbol.localeCompare(b.symbol),
   );
+}
+
+/** Section D: static vocabulary parked in sim that belongs in core — the
+ *  symmetric inverse of Section C, and the axis that hid the pieces shape
+ *  catalog / rotation from every other tool. A `shared/sim` function is a
+ *  candidate when it is PURE (consumes no Rng AND mutates no param — the
+ *  opposite of what earns a place in sim) yet still takes ≥1 parameter, none
+ *  of whose types name a live game-state struct (`LIVE_STATE_TYPES`). Such a
+ *  function operates on static DEFINITIONS (e.g. `rotateCW(piece: PieceShape)`),
+ *  not evolving state, so it is determinism-irrelevant vocabulary over-fenced
+ *  in sim. The ≥1-param rule excludes pure zero-arg producers (`initialLives`),
+ *  which are cohesive with their write-surface cluster; the live-state filter
+ *  excludes the legitimate pure board queries (`hasWallAt(state: …)`,
+ *  `isCannonCaptured(…, cannon: Cannon)`). Heuristic — the candidate still
+ *  needs the cohesion judgment (does it share data with sim behavior?). */
+function findParkedVocabulary(simContent: Map<string, string>): ParkedVocab[] {
+  const out: ParkedVocab[] = [];
+  for (const [file, content] of simContent) {
+    for (const fn of extractFunctions(content)) {
+      if (touchesRng(fn.params, fn.body)) continue; // genuine sim (RNG draw)
+      if (mutatesParam(fn.params, fn.body)) continue; // genuine sim (write)
+      if (parseParamNames(fn.params).length === 0) continue; // zero-arg producer
+      if (LIVE_STATE_TYPES.test(fn.params)) continue; // operates on live state
+      out.push({ file, symbol: fn.name, params: collapse(fn.params) });
+    }
+  }
+  return out.sort(
+    (a, b) => a.file.localeCompare(b.file) || a.symbol.localeCompare(b.symbol),
+  );
+}
+
+/** True when a function consumes randomness — a parameter typed `Rng`, or any
+ *  `rng` reference in the body. RNG consumption is the headline sim signal. */
+function touchesRng(params: string, body: string): boolean {
+  return /\bRng\b/.test(params) || /\brng\b/.test(body);
 }
 
 /** Pull exported function declarations with their param list + body text,
@@ -325,6 +392,7 @@ function report(
   inversions: Inversion[],
   parked: ParkedFn[],
   mutators: ParkedMutator[],
+  vocab: ParkedVocab[],
 ): void {
   console.log("=== Section A — tier inversions (shared lower -> higher) ===");
   console.log("    DAG: platform <- core <- {sim, ui}\n");
@@ -389,6 +457,33 @@ function report(
         "        constructor-setter like setGameMode → leave;\n" +
         "    (c) cosmetic/animation state aged each frame (ageImpacts) → leave;\n" +
         "        it belongs with its anim state, NOT the deterministic sim.\n",
+    );
+  }
+
+  console.log(
+    "=== Section D — static vocabulary parked in sim (could be core) ===",
+  );
+  console.log(
+    "    pure sim functions (no Rng, no param mutation) that take ≥1 param,",
+  );
+  console.log(
+    "    none typed as a live game-state struct — they operate on static",
+  );
+  console.log(
+    "    definitions (PieceShape), not state. The inverse of Section C.\n",
+  );
+  if (vocab.length === 0) {
+    console.log("  none\n");
+  } else {
+    for (const v of vocab) {
+      console.log(`  ${v.file}  ${v.symbol}(${v.params})`);
+    }
+    console.log(
+      `\n  ${vocab.length} candidate(s). Heuristic — purity alone is not\n` +
+        "  misplacement (sim holds pure board QUERIES by design; those take a\n" +
+        "  live-state param and are excluded). Confirm each: is it determinism-\n" +
+        "  irrelevant vocabulary that shares no data with the sim behavior around\n" +
+        "  it? If so, move it to core with the types it operates on.\n",
     );
   }
 }
