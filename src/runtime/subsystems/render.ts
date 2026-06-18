@@ -371,15 +371,23 @@ export function createRenderSystem(deps: RenderSystemDeps): RenderSystem {
  *  loop over controllers covers both local and remote previews.
  *  Eliminated players are skipped here so callers don't have to
  *  filter, and stale phantoms left on a just-eliminated controller
- *  don't render. Returns undefined when no phantoms exist — keeps
- *  `overlay.phantoms.piecePhantoms` undefined in non-build phases. */
+ *  don't render. Returns undefined when no phantoms exist.
+ *
+ *  Phase gate: piece phantoms are a WALL_BUILD-only placement preview, so
+ *  this returns undefined in every other phase. The gate is load-bearing,
+ *  not belt-and-suspenders — a REMOTE controller's `currentBuildPhantoms`
+ *  is written by the inbound network handler and only cleared for LOCAL
+ *  controllers at build-finalize (`finalizeLocalControllersBuildPhase`),
+ *  so without it a remote slot's last preview renders into BATTLE. (The
+ *  cannon counterpart had this exact bug — a ghost cannon shown in battle.) */
 function buildPiecePhantomsUnion(runtimeState: {
   controllers: ReadonlyArray<{
     playerId: ValidPlayerId;
     currentBuildPhantoms: readonly PiecePhantom[];
   }>;
-  state: { players: readonly { eliminated?: boolean }[] };
+  state: { phase: Phase; players: readonly { eliminated?: boolean }[] };
 }): readonly PiecePhantom[] | undefined {
+  if (runtimeState.state.phase !== Phase.WALL_BUILD) return undefined;
   const out: PiecePhantom[] = [];
   for (const ctrl of runtimeState.controllers) {
     if (isPlayerEliminated(runtimeState.state.players[ctrl.playerId])) continue;
@@ -392,15 +400,22 @@ function buildPiecePhantomsUnion(runtimeState: {
  *  controller's `currentCannonPhantom` (at most one each). Remote-
  *  controlled slots have their field written by the inbound network
  *  handler. Eliminated players are skipped (see piece-phantom counterpart
- *  for rationale). Returns undefined when no phantoms exist — keeps
- *  `overlay.phantoms.cannonPhantoms` undefined in non-cannon phases. */
+ *  for rationale). Returns undefined when no phantoms exist.
+ *
+ *  Phase gate: cannon phantoms are a CANNON_PLACE-only placement preview.
+ *  The gate is load-bearing — a REMOTE controller's `currentCannonPhantom`
+ *  is written by the inbound network handler and only cleared for LOCAL
+ *  controllers at `finalizeCannonPhase`; `finalizeRemoteCannonController`
+ *  runs `initCannons` alone and leaves the field set. Without the gate
+ *  that stale preview renders as a ghost cannon all through BATTLE. */
 function buildCannonPhantomsUnion(runtimeState: {
   controllers: ReadonlyArray<{
     playerId: ValidPlayerId;
     currentCannonPhantom: CannonPhantom | undefined;
   }>;
-  state: { players: readonly { eliminated?: boolean }[] };
+  state: { phase: Phase; players: readonly { eliminated?: boolean }[] };
 }): readonly CannonPhantom[] | undefined {
+  if (runtimeState.state.phase !== Phase.CANNON_PLACE) return undefined;
   const out: CannonPhantom[] = [];
   for (const ctrl of runtimeState.controllers) {
     if (isPlayerEliminated(runtimeState.state.players[ctrl.playerId])) continue;
