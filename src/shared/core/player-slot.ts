@@ -29,8 +29,12 @@ export function isActivePlayer(playerId: PlayerId): playerId is ValidPlayerId {
   return playerId >= 0;
 }
 
-/** Check if a player is eliminated (or absent). Works with Player and structural types.
- *  Returns true for null/undefined — a missing player is effectively eliminated. */
+/** True if a player is eliminated or absent (null/undefined ⇒ effectively
+ *  eliminated). Deliberately works on the minimal `{ eliminated? }` slot shape
+ *  — NOT the full `Player` struct — so it stays at L0 and is callable from
+ *  low-layer code (e.g. zone math in `player-zones.ts`) that must not import
+ *  `Player`. Its narrowing inverse `isPlayerAlive` (a `player is Player` guard)
+ *  lives in `player-types.ts` (L4) with the struct it narrows to. */
 export function isPlayerEliminated(
   player: { readonly eliminated?: boolean } | null | undefined,
 ): boolean {

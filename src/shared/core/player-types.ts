@@ -109,8 +109,12 @@ export function emptyFreshInterior(): FreshInterior {
   return new Set<TileKey>() as unknown as FreshInterior;
 }
 
-/** Type guard: player exists and is not eliminated.
- *  Use this instead of the `!player || player.eliminated` pattern. */
+/** Type guard: player exists and is not eliminated — narrows to `Player`, so
+ *  it lives here (L4) with the struct it narrows to. Its plain-boolean inverse
+ *  `isPlayerEliminated` lives in `player-slot.ts` (L0): that one works on the
+ *  minimal `{ eliminated? }` slot shape, so low-layer code (e.g. zone math)
+ *  can call it without depending on the full `Player` type. Want the
+ *  narrowing → use this; just want a boolean at any layer → use that. */
 export function isPlayerAlive(
   player: Player | null | undefined,
 ): player is Player {
