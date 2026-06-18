@@ -12,6 +12,7 @@ import {
   MESSAGE,
   type ServerMessage,
 } from "../protocol/protocol.ts";
+import type { ResolvedChoice } from "../shared/core/dialog-state.ts";
 import {
   GAME_MODE_MODERN,
   type GameMode,
@@ -26,7 +27,6 @@ import {
   SPECTATOR_SLOT,
   type ValidPlayerId,
 } from "../shared/core/player-slot.ts";
-import type { ResolvedChoice } from "../shared/ui/interaction-types.ts";
 
 export interface OnlineSession {
   socket: WebSocket | null;

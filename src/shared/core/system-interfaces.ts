@@ -1,8 +1,4 @@
 import type { Rng } from "../platform/rng.ts";
-import type {
-  LifeLostEntry,
-  UpgradePickEntry,
-} from "../ui/interaction-types.ts";
 import type { AiPersonality } from "./ai-personality.ts";
 import {
   type BurningPit,
@@ -12,6 +8,7 @@ import {
   type Crosshair,
   type Grunt,
 } from "./battle-types.ts";
+import type { LifeLostEntry, UpgradePickEntry } from "./dialog-state.ts";
 import type { GameMode, ModifierId } from "./game-constants.ts";
 import type { GameEventBus } from "./game-event-bus.ts";
 import type { Phase } from "./game-phase.ts";

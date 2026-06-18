@@ -21,6 +21,11 @@ import type {
 } from "../ai/ai-strategy-types.ts";
 import { secondsToTicks } from "../ai/ai-utils.ts";
 import { occludedAimWorld } from "../game/index.ts";
+import {
+  LifeLostChoice,
+  type LifeLostEntry,
+  type UpgradePickEntry,
+} from "../shared/core/dialog-state.ts";
 import { CROSSHAIR_SPEED, SIM_TICK_DT } from "../shared/core/game-constants.ts";
 import type {
   PixelPos,
@@ -38,11 +43,6 @@ import {
   type UpgradePickViewState,
 } from "../shared/core/system-interfaces.ts";
 import type { ZoneId } from "../shared/core/zone-id.ts";
-import {
-  LifeLostChoice,
-  type LifeLostEntry,
-  type UpgradePickEntry,
-} from "../shared/ui/interaction-types.ts";
 import { type AiCommitPort, DIRECT_COMMIT_PORT } from "./ai-commit-port.ts";
 import { BaseController } from "./controller-base.ts";
 

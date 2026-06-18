@@ -27,7 +27,6 @@ import {
 import { adoptDialogEntryToAi } from "../src/runtime/dialogs/dialog-tick.ts";
 import { createLifeLostDialogState } from "../src/runtime/dialogs/life-lost-core.ts";
 import type { PlayerController } from "../src/shared/core/system-interfaces.ts";
-import { LifeLostChoice } from "../src/shared/ui/interaction-types.ts";
 import { handleServerLifecycleMessage } from "../src/online/online-server-lifecycle.ts";
 import { syncAccumulatorsFromTimer } from "../src/online/online-host-promotion.ts";
 import type { MutableAccums } from "../src/runtime/timer-accums.ts";
@@ -40,6 +39,7 @@ import {
 } from "../src/shared/core/game-constants.ts";
 import type { GameState } from "../src/shared/core/types.ts";
 import type { PlayerId, ValidPlayerId } from "../src/shared/core/player-slot.ts";
+import { LifeLostChoice } from "../src/shared/core/dialog-state.ts";
 
 interface ReclaimHarness {
   deps: SeatReclaimDeps;

@@ -4,6 +4,10 @@
  * input/ can both reference them without a cross-domain dependency.
  */
 
+import type {
+  LifeLostDialogState,
+  UpgradePickDialogState,
+} from "../core/dialog-state.ts";
 import type { Phase } from "../core/game-phase.ts";
 import type { TowerIdx, WorldPos } from "../core/geometry-types.ts";
 import type { Action, KeyBindings } from "../core/input-action.ts";
@@ -20,10 +24,8 @@ import type { ZoneId } from "../core/zone-id.ts";
 import type {
   ControlsState,
   GameOverFocus,
-  LifeLostDialogState,
   OptionsContext,
   QuitState,
-  UpgradePickDialogState,
 } from "./interaction-types.ts";
 import type {
   LoupeHandle,

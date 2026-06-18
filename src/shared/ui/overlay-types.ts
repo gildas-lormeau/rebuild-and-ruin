@@ -12,6 +12,7 @@ import type {
   ShieldFlash,
   ThawingTile,
 } from "../core/battle-types.ts";
+import type { LifeLostChoice } from "../core/dialog-state.ts";
 import type { ModifierId } from "../core/game-constants.ts";
 import { Phase } from "../core/game-phase.ts";
 import type {
@@ -28,7 +29,7 @@ import type {
 } from "../core/phantom-types.ts";
 import type { ValidPlayerId } from "../core/player-slot.ts";
 import type { BannerContent, SceneCapture } from "./banner-content.ts";
-import type { GameOverFocus, LifeLostChoice } from "./interaction-types.ts";
+import type { GameOverFocus } from "./interaction-types.ts";
 import type { RGB } from "./theme.ts";
 
 export type { RenderCannonPhantom, RenderPiecePhantom };

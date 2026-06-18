@@ -1,15 +1,15 @@
 import {
+  LifeLostChoice,
+  type LifeLostDialogState,
+  type LifeLostEntry,
+  type ResolvedChoice,
+} from "../../shared/core/dialog-state.ts";
+import {
   DIALOG_FORCE_GRACE,
   LIFE_LOST_AUTO_DELAY,
   LIFE_LOST_MAX_TIMER,
 } from "../../shared/core/game-constants.ts";
 import type { ValidPlayerId } from "../../shared/core/player-slot.ts";
-import {
-  LifeLostChoice,
-  type LifeLostDialogState,
-  type LifeLostEntry,
-  type ResolvedChoice,
-} from "../../shared/ui/interaction-types.ts";
 import { Mode } from "../../shared/ui/ui-mode.ts";
 import {
   adoptDialogEntryToAi,

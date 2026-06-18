@@ -8,6 +8,10 @@
  */
 
 import { canPlayerBuild } from "../game/index.ts";
+import type {
+  LifeLostDialogState,
+  UpgradePickDialogState,
+} from "../shared/core/dialog-state.ts";
 import {
   isPlacementPhase,
   isSelectionPhase,
@@ -34,11 +38,7 @@ import type {
   PointerMoveDeps,
   QuitButtonDeps,
 } from "../shared/ui/input-deps.ts";
-import type {
-  ControlsState,
-  LifeLostDialogState,
-  UpgradePickDialogState,
-} from "../shared/ui/interaction-types.ts";
+import type { ControlsState } from "../shared/ui/interaction-types.ts";
 import { isInteractiveMode, Mode } from "../shared/ui/ui-mode.ts";
 
 const TOUCH_CLICK_SUPPRESS_MS = 500;

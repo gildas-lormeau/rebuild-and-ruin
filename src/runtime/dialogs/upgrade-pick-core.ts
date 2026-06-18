@@ -7,16 +7,16 @@
  * choices. Consumed by subsystems/upgrade-pick.ts.
  */
 
+import type {
+  AutoResolveDeps,
+  UpgradePickDialogState,
+  UpgradePickEntry,
+} from "../../shared/core/dialog-state.ts";
+import { shouldAutoResolve } from "../../shared/core/dialog-state.ts";
 import type { ValidPlayerId } from "../../shared/core/player-slot.ts";
 import type { GameState } from "../../shared/core/types.ts";
 import type { UpgradeId } from "../../shared/core/upgrade-defs.ts";
 import { wrapIndex } from "../../shared/platform/cyclic.ts";
-import {
-  type AutoResolveDeps,
-  shouldAutoResolve,
-  type UpgradePickDialogState,
-  type UpgradePickEntry,
-} from "../../shared/ui/interaction-types.ts";
 import { tickDialogWithFallback } from "./dialog-tick.ts";
 
 interface CreateUpgradePickDeps extends AutoResolveDeps {

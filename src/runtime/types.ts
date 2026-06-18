@@ -9,6 +9,7 @@
 
 import type { GameMessage, ServerMessage } from "../protocol/protocol.ts";
 import type { Crosshair } from "../shared/core/battle-types.ts";
+import type { ResolvedChoice } from "../shared/core/dialog-state.ts";
 import type { PlayerId, ValidPlayerId } from "../shared/core/player-slot.ts";
 import type {
   BattleController,
@@ -24,7 +25,6 @@ import type {
 } from "../shared/core/system-interfaces.ts";
 import type { GameState } from "../shared/core/types.ts";
 import type { UpgradeId } from "../shared/core/upgrade-defs.ts";
-import type { ResolvedChoice } from "../shared/ui/interaction-types.ts";
 import type { RendererInterface } from "../shared/ui/overlay-types.ts";
 import type { TimingApi } from "./timing-api.ts";
 

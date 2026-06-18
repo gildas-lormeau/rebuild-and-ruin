@@ -7,6 +7,10 @@
  * subsystems/input.ts.
  */
 
+import type {
+  UpgradePickDialogState,
+  UpgradePickEntry,
+} from "../../shared/core/dialog-state.ts";
 import {
   DIALOG_FORCE_GRACE,
   SIM_TICK_DT,
@@ -16,10 +20,6 @@ import {
 } from "../../shared/core/game-constants.ts";
 import { type ValidPlayerId } from "../../shared/core/player-slot.ts";
 import type { UpgradeId } from "../../shared/core/upgrade-defs.ts";
-import type {
-  UpgradePickDialogState,
-  UpgradePickEntry,
-} from "../../shared/ui/interaction-types.ts";
 import { Mode } from "../../shared/ui/ui-mode.ts";
 import {
   adoptDialogEntryToAi,

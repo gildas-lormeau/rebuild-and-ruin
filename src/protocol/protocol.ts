@@ -19,6 +19,7 @@ import {
   type WallDestroyedMessage,
   type WallShieldedMessage,
 } from "../shared/core/battle-events.ts";
+import type { ResolvedChoice } from "../shared/core/dialog-state.ts";
 import { GAME_MODE_MODERN } from "../shared/core/game-constants.ts";
 import type { CannonIdx, TowerIdx } from "../shared/core/geometry-types.ts";
 // Serialized sub-types and checkpoint data — defined in shared/core/* and
@@ -36,7 +37,6 @@ import type {
   PiecePlacedPayload,
 } from "../shared/core/phantom-types.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
-import type { ResolvedChoice } from "../shared/ui/interaction-types.ts";
 import type {
   SerializedBonusSquare,
   SerializedBurningPit,

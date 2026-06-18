@@ -17,6 +17,10 @@ import type {
   ShieldFlash,
   ThawingTile,
 } from "../shared/core/battle-types.ts";
+import type {
+  LifeLostDialogState,
+  UpgradePickDialogState,
+} from "../shared/core/dialog-state.ts";
 import type { BannerKind } from "../shared/core/game-event-bus.ts";
 import { Phase } from "../shared/core/game-phase.ts";
 import type { GameMap } from "../shared/core/geometry-types.ts";
@@ -36,9 +40,7 @@ import type {
 } from "../shared/ui/input-deps.ts";
 import type {
   ControlsState,
-  LifeLostDialogState,
   OptionsContext,
-  UpgradePickDialogState,
 } from "../shared/ui/interaction-types.ts";
 import type {
   BannerUi,

@@ -81,6 +81,7 @@
       "src/shared/core/pieces.ts",
       "src/shared/core/player-zones.ts",
       "src/shared/core/upgrade-defs.ts",
+      "src/shared/ui/interaction-types.ts",
       "src/shared/ui/theme.ts",
       "src/shared/ui/wall-destroy-anim.ts"
     ]
@@ -107,8 +108,8 @@
       "src/runtime/camera-projection.ts",
       "src/runtime/dialogs/dialog-tick.ts",
       "src/shared/core/battle-events.ts",
+      "src/shared/core/dialog-state.ts",
       "src/shared/sim/pieces.ts",
-      "src/shared/ui/interaction-types.ts",
       "src/shared/ui/player-config.ts"
     ]
   },

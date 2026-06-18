@@ -42,6 +42,12 @@ registries, interfaces that `game/` and everyone else agree on.
 - **System contracts**: `system-interfaces.ts` (PlayerController,
   BuildViewState, CannonViewState, BattleViewState, HapticsSystem,
   SoundSystem — the cross-domain interfaces).
+- **Dialog decision state**: `dialog-state.ts` (`LifeLostEntry`,
+  `UpgradePickEntry`, their `*DialogState` wrappers, `LifeLostChoice`,
+  `shouldAutoResolve`). The inter-round dialog scratchpad the AI
+  controller, orchestrator, and renderer all mutate — decision state,
+  not UI chrome, so it sits with the controller contract that operates
+  on it (NOT in `shared/ui`).
 
 **When to add here:** the new file is a *type* or *enum* or *pool
 definition* consumed by game/ AND at least one other domain.
@@ -100,10 +106,11 @@ and `input/`.
   `isGameplayMode`). The orthogonal "what UI state am I in" axis
   (LOBBY / GAME / OPTIONS / BANNER / LIFE_LOST / UPGRADE_PICK /
   BALLOON_ANIM / SELECTION / STOPPED).
-- **`interaction-types.ts`** — `LifeLostDialogState`,
-  `UpgradePickDialogState`, `CastleBuildState`, `ControlsState`,
-  `GameOverFocus`, `AutoResolveDeps`. Transient dialog/interaction
-  state that lives on `runtimeState.dialogs.*`.
+- **`interaction-types.ts`** — `OptionsContext`, `QuitState`,
+  `CastleBuildState`, `ControlsState`, `GameOverFocus`. Genuinely-UI
+  screen state (options, quit countdown, controls rebinding, game-over
+  focus). The dialog *decision* state moved to
+  `shared/core/dialog-state.ts`.
 - **`player-config.ts`** — `GameSettings`, `PLAYER_NAMES`,
   `PLAYER_COLORS`, `PLAYER_KEY_BINDINGS`, `MAX_PLAYERS`,
   `computeGameSeed()`. Player/settings config + binding *data* (the

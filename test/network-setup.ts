@@ -54,7 +54,6 @@ import {
 } from "../src/online/online-presence-state.ts";
 import type { ValidPlayerId } from "../src/shared/core/player-slot.ts";
 import type { UpgradeId } from "../src/shared/core/upgrade-defs.ts";
-import type { UpgradePickDialogState } from "../src/shared/ui/interaction-types.ts";
 import type {
   OnlinePhaseTicks,
   RuntimeConfig,
@@ -70,6 +69,7 @@ import {
   type ScenarioOptions,
   wrapHeadless,
 } from "./scenario.ts";
+import type { UpgradePickDialogState } from "../src/shared/core/dialog-state.ts";
 
 export interface NetworkedPair {
   /** Host runtime — real game, real broadcasts. */

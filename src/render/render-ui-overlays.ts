@@ -1,6 +1,12 @@
 import type { LobbyHit, OnlineOverlayParams } from "../runtime/ui-contracts.ts";
 import type { BalloonFlight, Cannonball } from "../shared/core/battle-types.ts";
 import {
+  LifeLostChoice,
+  type LifeLostDialogState,
+  type ResolvedChoice,
+  type UpgradePickDialogState,
+} from "../shared/core/dialog-state.ts";
+import {
   LIFE_LOST_MAX_TIMER,
   MODIFIER_ID,
   UPGRADE_PICK_MAX_TIMER,
@@ -31,10 +37,6 @@ import {
   FOCUS_MENU,
   FOCUS_REMATCH,
   type GameOverFocus,
-  LifeLostChoice,
-  type LifeLostDialogState,
-  type ResolvedChoice,
-  type UpgradePickDialogState,
 } from "../shared/ui/interaction-types.ts";
 import {
   type BannerUi,

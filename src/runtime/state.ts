@@ -6,6 +6,10 @@ import {
   type BattleAnimState,
   createBattleAnimState,
 } from "../shared/core/battle-types.ts";
+import type {
+  LifeLostDialogState,
+  UpgradePickDialogState,
+} from "../shared/core/dialog-state.ts";
 import { SIM_TICK_US } from "../shared/core/game-constants.ts";
 import type { PlayerId, ValidPlayerId } from "../shared/core/player-slot.ts";
 import { type PlayerController } from "../shared/core/system-interfaces.ts";
@@ -17,10 +21,8 @@ import {
 import {
   type CastleBuildState,
   type ControlsState,
-  type LifeLostDialogState,
   type OptionsContext,
   type QuitState,
-  type UpgradePickDialogState,
 } from "../shared/ui/interaction-types.ts";
 import type { FrameData, RenderOverlay } from "../shared/ui/overlay-types.ts";
 import {

@@ -1,4 +1,5 @@
 import { isCannonPlacementComplete } from "../game/index.ts";
+import { LifeLostChoice } from "../shared/core/dialog-state.ts";
 import {
   MAX_FRAME_DT,
   PHASE_ENDING_THRESHOLD,
@@ -12,10 +13,7 @@ import {
   type ValidPlayerId,
 } from "../shared/core/player-slot.ts";
 import { cannonSlotsFor } from "../shared/core/types.ts";
-import {
-  LifeLostChoice,
-  type QuitState,
-} from "../shared/ui/interaction-types.ts";
+import { type QuitState } from "../shared/ui/interaction-types.ts";
 import {
   isGameplayMode,
   isTransitionMode,

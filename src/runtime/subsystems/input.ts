@@ -1,4 +1,5 @@
 import { isHuman } from "../../shared/core/controller-guards.ts";
+import type { ResolvedChoice } from "../../shared/core/dialog-state.ts";
 import type { TowerIdx } from "../../shared/core/geometry-types.ts";
 import { GRID_PORTRAIT_LAUNCHED } from "../../shared/core/grid.ts";
 import { Action } from "../../shared/core/input-action.ts";
@@ -22,7 +23,6 @@ import {
   FOCUS_MENU,
   FOCUS_REMATCH,
   type GameOverFocus,
-  type ResolvedChoice,
 } from "../../shared/ui/interaction-types.ts";
 import type {
   LoupeHandle,

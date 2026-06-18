@@ -1,4 +1,9 @@
 import {
+  LIFE_LOST_FOCUS_ABANDON,
+  LIFE_LOST_FOCUS_CONTINUE,
+  LifeLostChoice,
+} from "../shared/core/dialog-state.ts";
+import {
   type ModifierId,
   UPGRADE_PICK_PULSE_DURATION,
 } from "../shared/core/game-constants.ts";
@@ -8,13 +13,7 @@ import type { SupplyBonusId } from "../shared/core/modifier-defs.ts";
 import { isPlayerEliminated } from "../shared/core/player-slot.ts";
 import { towerCenterPx } from "../shared/core/spatial.ts";
 import { IS_TOUCH_DEVICE } from "../shared/platform/platform.ts";
-import {
-  FOCUS_MENU,
-  FOCUS_REMATCH,
-  LIFE_LOST_FOCUS_ABANDON,
-  LIFE_LOST_FOCUS_CONTINUE,
-  LifeLostChoice,
-} from "../shared/ui/interaction-types.ts";
+import { FOCUS_MENU, FOCUS_REMATCH } from "../shared/ui/interaction-types.ts";
 import {
   type GameOverOverlay,
   type RenderOverlay,

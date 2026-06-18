@@ -8,6 +8,7 @@
  */
 
 import type { ImpactEvent } from "../shared/core/battle-events.ts";
+import type { UpgradePickDialogState } from "../shared/core/dialog-state.ts";
 import { FID } from "../shared/core/feature-defs.ts";
 import { emitGameEvent, GAME_EVENT } from "../shared/core/game-event-bus.ts";
 import type { TileKey } from "../shared/core/grid.ts";
@@ -40,7 +41,6 @@ import {
   productHooks,
   sumHooks,
 } from "../shared/platform/utils.ts";
-import type { UpgradePickDialogState } from "../shared/ui/interaction-types.ts";
 import { architectImpl } from "./upgrades/architect.ts";
 import { ceasefireImpl } from "./upgrades/ceasefire.ts";
 import { clearTheFieldImpl } from "./upgrades/clear-the-field.ts";

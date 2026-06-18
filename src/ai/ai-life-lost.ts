@@ -7,12 +7,12 @@
  * via `deriveAiStrategySeed` — mirrors `aiPickUpgrade`.
  */
 
-import type { GameViewState } from "../shared/core/system-interfaces.ts";
 import {
   LifeLostChoice,
   type LifeLostEntry,
   type ResolvedChoice,
-} from "../shared/ui/interaction-types.ts";
+} from "../shared/core/dialog-state.ts";
+import type { GameViewState } from "../shared/core/system-interfaces.ts";
 
 /** AI decision for a pending life-lost entry. */
 export function aiChooseLifeLost(

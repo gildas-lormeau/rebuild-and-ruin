@@ -7,6 +7,11 @@
  */
 
 import type {
+  LifeLostEntry,
+  ResolvedChoice,
+  UpgradePickEntry,
+} from "../shared/core/dialog-state.ts";
+import type {
   BattleViewState,
   BuildViewState,
   CannonViewState,
@@ -15,11 +20,6 @@ import type {
   UpgradePickViewState,
 } from "../shared/core/system-interfaces.ts";
 import type { ZoneId } from "../shared/core/zone-id.ts";
-import type {
-  LifeLostEntry,
-  ResolvedChoice,
-  UpgradePickEntry,
-} from "../shared/ui/interaction-types.ts";
 import type {
   BattleHost,
   BattleTickResult,

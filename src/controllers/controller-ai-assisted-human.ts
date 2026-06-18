@@ -14,6 +14,12 @@ import type {
   ScheduledAction,
 } from "../shared/core/action-schedule.ts";
 import { CannonMode } from "../shared/core/battle-types.ts";
+import {
+  LifeLostChoice,
+  type LifeLostEntry,
+  type ResolvedChoice,
+  type UpgradePickEntry,
+} from "../shared/core/dialog-state.ts";
 import { Action } from "../shared/core/input-action.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import type {
@@ -25,12 +31,6 @@ import type {
 } from "../shared/core/system-interfaces.ts";
 import type { GameState } from "../shared/core/types.ts";
 import type { UpgradeId } from "../shared/core/upgrade-defs.ts";
-import {
-  LifeLostChoice,
-  type LifeLostEntry,
-  type ResolvedChoice,
-  type UpgradePickEntry,
-} from "../shared/ui/interaction-types.ts";
 import { type CommitSenders, networkedCommitPort } from "./ai-commit-port.ts";
 import { AiController } from "./controller-ai.ts";
 

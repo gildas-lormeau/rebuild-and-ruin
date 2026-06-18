@@ -24,6 +24,7 @@ import {
   WALL_BURN_DURATION,
 } from "../../shared/core/battle-types.ts";
 import { isHuman } from "../../shared/core/controller-guards.ts";
+import type { UpgradePickDialogState } from "../../shared/core/dialog-state.ts";
 import {
   BALLOON_FLIGHT_DURATION,
   BATTLE_COUNTDOWN,
@@ -50,7 +51,6 @@ import {
   type PlayerController,
 } from "../../shared/core/system-interfaces.ts";
 import { cannonSlotsFor, type GameState } from "../../shared/core/types.ts";
-import type { UpgradePickDialogState } from "../../shared/ui/interaction-types.ts";
 import { Mode } from "../../shared/ui/ui-mode.ts";
 import type { BannerShow } from "../banner-state.ts";
 import {

@@ -72,10 +72,11 @@
  *    inversion — it means either a shared symbol is parked too high (extract
  *    it down) or the file itself is misclassified (relocate it). This is the
  *    generalization of the wall-destroy-anim split: a core file that needs a
- *    ui/sim symbol is the tell. The one remaining pre-existing core->ui edge
- *    is grandfathered in `SHARED_TIER_BASELINE` (system-interfaces referencing
- *    the dialog-entry UI state its controller methods resolve) — documented
- *    debt, not a license for more. New inversions fail. See
+ *    ui/sim symbol is the tell. `SHARED_TIER_BASELINE` is currently empty —
+ *    the historical core->ui edges were all resolved by extracting the
+ *    misclassified symbol down (input vocabulary, FrameContext, the dialog
+ *    decision-state cluster). Any new inversion fails; if one is ever
+ *    genuinely unavoidable, grandfather it here with a comment. See
  *    src/shared/README.md's decision tree.
  *
  * Usage:
@@ -202,17 +203,13 @@ const SHARED_TIER_ALLOWED: Record<string, ReadonlySet<string>> = {
  *  not quick extractions. The baseline only suppresses these exact edges;
  *  any other shared-tier inversion — including a NEW import added to these
  *  same files — fails. */
-const SHARED_TIER_BASELINE: Record<string, ReadonlySet<string>> = {
-  // The controller contract references the transient dialog-entry shapes
-  // (LifeLostEntry / UpgradePickEntry) its resolve/commit methods operate on.
-  // These are genuine UI interaction state (focus, pulse timers) — moving
-  // them down would drag dialog animation state into core, so the seam stays
-  // grandfathered rather than inverted. The input vocabulary (Action,
-  // KeyBindings) that used to live here moved DOWN to core/input-action.ts.
-  "src/shared/core/system-interfaces.ts": new Set([
-    "../ui/interaction-types.ts",
-  ]),
-};
+// Empty: every historical core->ui edge was resolved by extracting the
+// misclassified symbol DOWN to core rather than grandfathering it —
+// input vocabulary (Action, KeyBindings) -> core/input-action.ts,
+// FrameContext -> runtime/state.ts, and the dialog decision-state cluster
+// (LifeLostEntry / UpgradePickEntry / choices) -> core/dialog-state.ts.
+// Add an entry here only if a future inversion is genuinely unavoidable.
+const SHARED_TIER_BASELINE: Record<string, ReadonlySet<string>> = {};
 
 main();
 

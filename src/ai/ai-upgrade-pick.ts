@@ -9,6 +9,7 @@
 
 import { deriveAiStrategySeed } from "../shared/core/ai-seed.ts";
 import { isBalloonCannon, isCannonAlive } from "../shared/core/battle-types.ts";
+import type { UpgradePickEntry } from "../shared/core/dialog-state.ts";
 import { GRID_COLS, GRID_ROWS } from "../shared/core/grid.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import { zoneAt } from "../shared/core/spatial.ts";
@@ -16,7 +17,6 @@ import type { UpgradePickViewState } from "../shared/core/system-interfaces.ts";
 import { UID, type UpgradeId } from "../shared/core/upgrade-defs.ts";
 import { Rng } from "../shared/platform/rng.ts";
 import { getInterior } from "../shared/sim/player-interior.ts";
-import type { UpgradePickEntry } from "../shared/ui/interaction-types.ts";
 import { secondsToTicks } from "./ai-utils.ts";
 
 const SMALL_PIECES_TERRITORY_RATIO = 0.8;

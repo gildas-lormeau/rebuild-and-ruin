@@ -19,6 +19,12 @@ import {
   CANNON_MODE_IDS,
   toCannonMode,
 } from "../shared/core/cannon-mode-defs.ts";
+import {
+  LifeLostChoice,
+  type LifeLostDialogState,
+  type ResolvedChoice,
+  type UpgradePickDialogState,
+} from "../shared/core/dialog-state.ts";
 import type { TowerIdx } from "../shared/core/geometry-types.ts";
 import {
   isPlayerEliminated,
@@ -27,12 +33,6 @@ import {
 import { inBoundsStrict } from "../shared/core/spatial.ts";
 import type { PlayerController } from "../shared/core/system-interfaces.ts";
 import { type GameState, type SelectionState } from "../shared/core/types.ts";
-import {
-  LifeLostChoice,
-  type LifeLostDialogState,
-  type ResolvedChoice,
-  type UpgradePickDialogState,
-} from "../shared/ui/interaction-types.ts";
 import type { OnlineSession } from "./online-session.ts";
 import { type RemoteCrosshairTargets } from "./online-types.ts";
 

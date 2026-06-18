@@ -64,11 +64,12 @@ Workflow tools at `scripts/cells/`:
 File → domain is derived from path (`src/X/...` → `X`, `src/<root>.ts` → `entry`, `server/...` → `server`), with the `exceptions` block in `.domain-boundaries.json` for role-overrides like `server/server.ts → entry`. Full workflow reference in `docs/cell-system.md`.
 
 ### Type file organization (L1–L4)
-- `interaction-types.ts` (L1) — LifeLostDialogState, UpgradePickDialogState, ControlsState, CastleBuildState, CastleWallPlan, GameOverFocus
+- `interaction-types.ts` (shared/ui, L1) — OptionsContext, QuitState, ControlsState, CastleBuildState, CastleWallPlan, GameOverFocus (genuinely-UI screen state)
 - `geometry-types.ts` (L1) — TilePos, GameMap, Tower, Castle, House, BonusSquare, Viewport
 - `battle-types.ts` (L2) — Cannon, Cannonball, Grunt, BurningPit, CapturedCannon, CannonMode, BattleAnimState
+- `dialog-state.ts` (shared/core, L2) — LifeLostEntry, UpgradePickEntry, their *DialogState wrappers, LifeLostChoice, shouldAutoResolve (inter-round dialog *decision* state the AI + orchestrator mutate; not UI chrome)
 - `player-types.ts` (L3) — Player, FreshInterior, and player helpers (isPlayerAlive, isPlayerSeated, emptyFreshInterior, brandFreshInterior)
-- `types.ts` (L4) — GameState, ModernState, LobbyState, SelectionState, FrameContext, and state helpers
+- `types.ts` (L4) — GameState, ModernState, LobbyState, SelectionState, and state helpers (FrameContext is runtime-only — lives in `runtime/state.ts`)
 - `system-interfaces.ts` (L4) — Controller interfaces and per-phase state slices: `GameViewState` (base: phase + players + map), `BuildViewState` (10 fields), `CannonViewState` (7), `BattleViewState` (15). Decouples controllers, AI strategy, and input/online modules from types.ts. Controllers return intent objects (`FireIntent`, `PlacePieceIntent`) instead of mutating state directly — the orchestrator (runtime, online, AI tick) executes mutations against the real mutable GameState.
 
 ### Spatial algorithms (`docs/spatial-algorithms.md`)

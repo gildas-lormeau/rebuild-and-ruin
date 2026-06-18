@@ -337,19 +337,19 @@
       "label": "Dialog / castle interaction state — probe-verified",
       "targets": [
         {
-          "file": "src/shared/ui/interaction-types.ts",
+          "file": "src/shared/core/dialog-state.ts",
           "interface": "LifeLostEntry"
         },
         {
-          "file": "src/shared/ui/interaction-types.ts",
+          "file": "src/shared/core/dialog-state.ts",
           "interface": "LifeLostDialogState"
         },
         {
-          "file": "src/shared/ui/interaction-types.ts",
+          "file": "src/shared/core/dialog-state.ts",
           "interface": "UpgradePickEntry"
         },
         {
-          "file": "src/shared/ui/interaction-types.ts",
+          "file": "src/shared/core/dialog-state.ts",
           "interface": "UpgradePickDialogState"
         },
         {
@@ -357,7 +357,7 @@
           "interface": "ControlsState"
         },
         {
-          "file": "src/shared/ui/interaction-types.ts",
+          "file": "src/shared/core/dialog-state.ts",
           "interface": "AutoResolveDeps"
         },
         {

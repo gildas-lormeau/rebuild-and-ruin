@@ -22,9 +22,9 @@ import {
   sanitizeRoomSettings,
 } from "../src/protocol/protocol.ts";
 import { CANNON_MODE_IDS } from "../src/shared/core/cannon-mode-defs.ts";
+import { LifeLostChoice } from "../src/shared/core/dialog-state.ts";
 import { Phase } from "../src/shared/core/game-phase.ts";
 import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "../src/shared/core/grid.ts";
-import { LifeLostChoice } from "../src/shared/ui/interaction-types.ts";
 import { MAX_PLAYERS } from "../src/shared/ui/player-config.ts";
 import { safeSendRaw } from "./send-utils.ts";
 

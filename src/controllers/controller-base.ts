@@ -1,6 +1,10 @@
 import { autoPlaceRound1Cannons, nextReadyCannon } from "../game/index.ts";
 import { deriveAiStrategySeed } from "../shared/core/ai-seed.ts";
 import type { Crosshair } from "../shared/core/battle-types.ts";
+import type {
+  LifeLostEntry,
+  UpgradePickEntry,
+} from "../shared/core/dialog-state.ts";
 import { NORMAL_CANNON_SIZE } from "../shared/core/game-constants.ts";
 import type { WorldPos } from "../shared/core/geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "../shared/core/grid.ts";
@@ -31,10 +35,6 @@ import type {
 import type { UpgradeId } from "../shared/core/upgrade-defs.ts";
 import type { ZoneId } from "../shared/core/zone-id.ts";
 import { Rng } from "../shared/platform/rng.ts";
-import type {
-  LifeLostEntry,
-  UpgradePickEntry,
-} from "../shared/ui/interaction-types.ts";
 
 const DEFAULT_CURSOR_ROW = Math.floor(GRID_ROWS / 2);
 const DEFAULT_CURSOR_COL = Math.floor(GRID_COLS / 2);
