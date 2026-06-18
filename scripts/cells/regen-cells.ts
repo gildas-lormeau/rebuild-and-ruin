@@ -112,6 +112,7 @@ const LABELS: Record<string, string> = {
   "2::render/3d/effects": "effect terrain SDF texture",
   "2::runtime": "camera projection math & dialog lockstep helpers",
   "2::shared": "derived shared types & UI configs",
+  "2::shared/sim": "sim internals — piece shapes & bag generation",
 
   // L3 — wire payloads & shared definitions
   "3::online": "presence wire payload",
@@ -127,7 +128,8 @@ const LABELS: Record<string, string> = {
   "5::runtime": "runtime banner state",
   "5::shared":
     "first logic — spatial, interior, contracts, core state & rule producers",
-  "5::shared/sim": "sim internals — interior freshness epochs",
+  "5::shared/sim":
+    "sim internals — interior freshness epochs & piece-bag lifecycle",
 
   // L6 — upgrades, modifiers & runtime contracts
   "6::ai":

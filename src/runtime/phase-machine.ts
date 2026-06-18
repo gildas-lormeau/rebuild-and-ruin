@@ -44,9 +44,9 @@ import {
   modifierDef,
 } from "../shared/core/modifier-defs.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
-import { clearAllPlayerBags } from "../shared/core/player-types.ts";
 import { advanceRound, type GameState } from "../shared/core/types.ts";
 import { snapshotAllWalls } from "../shared/sim/board-occupancy.ts";
+import { clearAllPlayerBags } from "../shared/sim/player-bag.ts";
 import type { UpgradePickDialogState } from "../shared/ui/interaction-types.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
 import {

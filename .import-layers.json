@@ -107,6 +107,7 @@
       "src/runtime/camera-projection.ts",
       "src/runtime/dialogs/dialog-tick.ts",
       "src/shared/core/battle-events.ts",
+      "src/shared/sim/pieces.ts",
       "src/shared/ui/interaction-types.ts",
       "src/shared/ui/player-config.ts"
     ]
@@ -141,6 +142,7 @@
       "src/shared/core/spatial.ts",
       "src/shared/core/system-interfaces.ts",
       "src/shared/core/types.ts",
+      "src/shared/sim/player-bag.ts",
       "src/shared/sim/player-interior.ts",
       "src/shared/ui/overlay-types.ts"
     ]

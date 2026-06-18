@@ -10,16 +10,13 @@
 import { canPlacePiece, type PlacementContext } from "../game/index.ts";
 import type { TilePos, Tower } from "../shared/core/geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, type TileKey } from "../shared/core/grid.ts";
-import {
-  type PieceShape,
-  piecesInRoundPool,
-  rotateCW,
-} from "../shared/core/pieces.ts";
+import type { PieceShape } from "../shared/core/pieces.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import type { Player } from "../shared/core/player-types.ts";
 import { manhattanDistance, packTile } from "../shared/core/spatial.ts";
 import type { BuildViewState } from "../shared/core/system-interfaces.ts";
 import type { OccupancyCache } from "../shared/sim/board-occupancy.ts";
+import { piecesInRoundPool, rotateCW } from "../shared/sim/pieces.ts";
 import { getInterior } from "../shared/sim/player-interior.ts";
 import { poolFillableTowerRing } from "./ai-build-target.ts";
 import type { AiPlacement } from "./ai-build-types.ts";

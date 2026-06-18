@@ -25,10 +25,11 @@ import {
   type PlayerId,
   type ValidPlayerId,
 } from "../shared/core/player-slot.ts";
-import { initPlayerBag, isPlayerSeated } from "../shared/core/player-types.ts";
+import { isPlayerSeated } from "../shared/core/player-types.ts";
 import type { PlayerController } from "../shared/core/system-interfaces.ts";
 import type { GameState } from "../shared/core/types.ts";
 import { Rng } from "../shared/platform/rng.ts";
+import { initPlayerBag } from "../shared/sim/player-bag.ts";
 
 /** AI dependencies injected by the caller — keeps this file free of any
  *  `controllers/` or `ai/` imports. The caller wires up the concrete

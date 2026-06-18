@@ -98,16 +98,12 @@ const ALLOWED_SUBSYSTEM_DOMAINS = new Set(["shared", "runtime", "game"]);
 /** Mutation helpers from `src/shared/core/*` that runtime must not import.
  *  Keyed by module basename. Read-only predicates (is*, has*, get*, find*,
  *  filter*, collect*, snapshot*, assert*) are NOT listed — they stay allowed.
- *  Update this list when a new mutator is added to one of the 4 listed files;
+ *  Update this list when a new mutator is added to one of the listed files;
  *  the matching `PURITY_SOURCE_ALLOWED_IMPORTERS` map below documents the
  *  (source → importer → symbols) exemptions. */
 const RUNTIME_FORBIDDEN_MUTATORS: Record<string, Set<string>> = {
-  "player-types.ts": new Set([
-    "initPlayerBag",
-    "advancePlayerBag",
-    "clearPlayerBag",
-    "selectPlayerTower",
-  ]),
+  "player-types.ts": new Set(["selectPlayerTower"]),
+  "player-bag.ts": new Set(["initPlayerBag", "advancePlayerBag"]),
   "player-rules.ts": new Set(["eliminatePlayer"]),
   "board-occupancy.ts": new Set([
     "addPlayerWall",

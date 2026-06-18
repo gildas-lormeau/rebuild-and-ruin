@@ -26,10 +26,8 @@ import {
 import type { GameMap } from "../../src/shared/core/geometry-types.ts";
 import { Phase } from "../../src/shared/core/game-phase.ts";
 import { GRID_COLS, GRID_ROWS, Tile } from "../../src/shared/core/grid.ts";
-import {
-  initPlayerBag,
-  isPlayerSeated,
-} from "../../src/shared/core/player-types.ts";
+import { isPlayerSeated } from "../../src/shared/core/player-types.ts";
+import { initPlayerBag } from "../../src/shared/sim/player-bag.ts";
 import type { ValidPlayerId } from "../../src/shared/core/player-slot.ts";
 import { packTile } from "../../src/shared/core/spatial.ts";
 import type { GameState } from "../../src/shared/core/types.ts";

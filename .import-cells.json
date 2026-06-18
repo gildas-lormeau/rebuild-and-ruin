@@ -284,6 +284,15 @@
     ]
   },
   {
+    "layer": 2,
+    "domain": "shared",
+    "subdomain": "sim",
+    "role": "sim internals — piece shapes & bag generation",
+    "files": [
+      "src/shared/sim/pieces.ts"
+    ]
+  },
+  {
     "layer": 3,
     "domain": "online",
     "role": "presence wire payload",
@@ -361,8 +370,9 @@
     "layer": 5,
     "domain": "shared",
     "subdomain": "sim",
-    "role": "sim internals — interior freshness epochs",
+    "role": "sim internals — interior freshness epochs & piece-bag lifecycle",
     "files": [
+      "src/shared/sim/player-bag.ts",
       "src/shared/sim/player-interior.ts"
     ]
   },

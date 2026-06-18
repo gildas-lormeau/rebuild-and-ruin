@@ -23,7 +23,6 @@ import {
   type ValidPlayerId,
 } from "../shared/core/player-slot.ts";
 import {
-  initPlayerBag,
   isPlayerAlive,
   isPlayerSeated,
   type Player,
@@ -46,6 +45,7 @@ import {
   collectAllWalls,
   filterAliveEnclosedTowers,
 } from "../shared/sim/board-occupancy.ts";
+import { initPlayerBag } from "../shared/sim/player-bag.ts";
 import { markInteriorFresh } from "../shared/sim/player-interior.ts";
 import {
   clearPlayerWalls,

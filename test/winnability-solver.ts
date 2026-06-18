@@ -18,7 +18,8 @@
  * mismatch, no matter what the AI does.
  */
 
-import { rotateCW, type PieceShape } from "../src/shared/core/pieces.ts";
+import type { PieceShape } from "../src/shared/core/pieces.ts";
+import { rotateCW } from "../src/shared/sim/pieces.ts";
 import { GRID_COLS, GRID_ROWS, type TileKey } from "../src/shared/core/grid.ts";
 import { packTile, unpackTile } from "../src/shared/core/spatial.ts";
 

@@ -17,11 +17,8 @@ import { createScenario, waitForEvent } from "../scenario.ts";
 import { Phase } from "../../src/shared/core/game-phase.ts";
 import { GAME_EVENT } from "../../src/shared/core/game-event-bus.ts";
 import { setAiBuildDiagHook } from "../../src/ai/ai-build-diag.ts";
-import {
-  ALL_PIECE_SHAPES,
-  rotateCW,
-  type PieceShape,
-} from "../../src/shared/core/pieces.ts";
+import type { PieceShape } from "../../src/shared/core/pieces.ts";
+import { ALL_PIECE_SHAPES, rotateCW } from "../../src/shared/sim/pieces.ts";
 import {
   GRID_COLS,
   GRID_ROWS,

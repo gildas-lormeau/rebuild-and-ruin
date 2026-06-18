@@ -36,7 +36,6 @@ import {
   type ValidPlayerId,
 } from "../shared/core/player-slot.ts";
 import {
-  advancePlayerBag,
   type FreshInterior,
   findTowerOwner,
   isPlayerSeated,
@@ -70,6 +69,7 @@ import {
   type OccupancyCache,
 } from "../shared/sim/board-occupancy.ts";
 import { hasCannonAt, hasTowerAt } from "../shared/sim/occupancy-queries.ts";
+import { advancePlayerBag } from "../shared/sim/player-bag.ts";
 import {
   getInterior,
   markInteriorFresh,
