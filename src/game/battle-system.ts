@@ -45,7 +45,6 @@ import { emitGameEvent, GAME_EVENT } from "../shared/core/game-event-bus.ts";
 import { Phase } from "../shared/core/game-phase.ts";
 import type { CannonIdx, TilePos } from "../shared/core/geometry-types.ts";
 import { TILE_SIZE, type TileKey } from "../shared/core/grid.ts";
-import { addScore } from "../shared/core/player-rules.ts";
 import {
   isPlayerEliminated,
   type ValidPlayerId,
@@ -74,6 +73,7 @@ import {
   isCannonCapturedFrom,
 } from "../shared/sim/occupancy-queries.ts";
 import { getInterior } from "../shared/sim/player-interior.ts";
+import { addScore } from "../shared/sim/player-rules.ts";
 import { deletePlayerWallBattle } from "../shared/sim/player-walls.ts";
 import {
   filterActiveFiringCannons,

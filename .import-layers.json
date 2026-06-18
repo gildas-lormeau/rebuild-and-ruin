@@ -139,12 +139,12 @@
       "src/protocol/protocol.ts",
       "src/render/3d/entities/instance-bucket.ts",
       "src/runtime/banner-state.ts",
-      "src/shared/core/player-rules.ts",
       "src/shared/core/spatial.ts",
       "src/shared/core/system-interfaces.ts",
       "src/shared/core/types.ts",
       "src/shared/sim/player-bag.ts",
       "src/shared/sim/player-interior.ts",
+      "src/shared/sim/player-rules.ts",
       "src/shared/ui/overlay-types.ts"
     ]
   },

@@ -14,11 +14,6 @@ import { Phase } from "../shared/core/game-phase.ts";
 import { GRID_COLS, GRID_ROWS, type TileKey } from "../shared/core/grid.ts";
 import type { ModifierDiff } from "../shared/core/modifier-defs.ts";
 import {
-  addScore,
-  eliminatePlayer,
-  loseLife,
-} from "../shared/core/player-rules.ts";
-import {
   isPlayerEliminated,
   type ValidPlayerId,
 } from "../shared/core/player-slot.ts";
@@ -47,6 +42,11 @@ import {
 } from "../shared/sim/board-occupancy.ts";
 import { initPlayerBag } from "../shared/sim/player-bag.ts";
 import { markInteriorFresh } from "../shared/sim/player-interior.ts";
+import {
+  addScore,
+  eliminatePlayer,
+  loseLife,
+} from "../shared/sim/player-rules.ts";
 import {
   clearPlayerWalls,
   sweepIsolatedWalls,

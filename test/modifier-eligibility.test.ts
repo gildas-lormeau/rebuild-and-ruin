@@ -15,7 +15,7 @@ import {
 } from "../src/game/modifiers/modifier-eligibility.ts";
 import { TOWER_SIZE } from "../src/shared/core/game-constants.ts";
 import type { TileKey } from "../src/shared/core/grid.ts";
-import { eliminatePlayer } from "../src/shared/core/player-rules.ts";
+import { eliminatePlayer } from "../src/shared/sim/player-rules.ts";
 import { packTile } from "../src/shared/core/spatial.ts";
 import { createScenario } from "./scenario.ts";
 

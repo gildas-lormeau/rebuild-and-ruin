@@ -7,8 +7,8 @@
  * *types* stay with the struct in `player-types.ts` (read vocabulary).
  */
 
-import { STARTING_LIVES } from "./game-constants.ts";
-import type { Eliminated, Lives, Player, Score } from "./player-types.ts";
+import { STARTING_LIVES } from "../core/game-constants.ts";
+import type { Eliminated, Lives, Player, Score } from "../core/player-types.ts";
 
 /** Writable view of the game-owned Player rule fields. The producers below
  *  cast through it to perform the one blessed write — mirrors `MutableAccums`

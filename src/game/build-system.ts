@@ -30,7 +30,6 @@ import {
   type TileKey,
 } from "../shared/core/grid.ts";
 import type { PieceShape } from "../shared/core/pieces.ts";
-import { addScore } from "../shared/core/player-rules.ts";
 import {
   isPlayerEliminated,
   type ValidPlayerId,
@@ -74,6 +73,7 @@ import {
   getInterior,
   markInteriorFresh,
 } from "../shared/sim/player-interior.ts";
+import { addScore } from "../shared/sim/player-rules.ts";
 import { addPlayerWalls } from "../shared/sim/player-walls.ts";
 import { getDeadZones } from "./grunt-movement.ts";
 import { spawnGruntAtTile, spawnGruntGroupOnZone } from "./grunt-system.ts";

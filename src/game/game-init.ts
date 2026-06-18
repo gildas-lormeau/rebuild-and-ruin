@@ -19,11 +19,6 @@ import {
 import { createGameEventBus } from "../shared/core/game-event-bus.ts";
 import { Phase } from "../shared/core/game-phase.ts";
 import type { GameMap } from "../shared/core/geometry-types.ts";
-import {
-  initialLives,
-  initialScore,
-  notEliminated,
-} from "../shared/core/player-rules.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import {
   emptyFreshInterior,
@@ -38,6 +33,11 @@ import {
 } from "../shared/core/types.ts";
 import type { ZoneId } from "../shared/core/zone-id.ts";
 import { Rng } from "../shared/platform/rng.ts";
+import {
+  initialLives,
+  initialScore,
+  notEliminated,
+} from "../shared/sim/player-rules.ts";
 import { generateMap, topZonesBySize } from "./map-generation.ts";
 
 /** Create a game from a seed: construct state.rng, generate map (advancing

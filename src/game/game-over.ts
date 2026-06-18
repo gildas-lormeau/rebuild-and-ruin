@@ -1,11 +1,11 @@
 import { emitGameEvent, GAME_EVENT } from "../shared/core/game-event-bus.ts";
-import { eliminatePlayer } from "../shared/core/player-rules.ts";
 import {
   isPlayerEliminated,
   type ValidPlayerId,
 } from "../shared/core/player-slot.ts";
 import { isPlayerAlive, type Player } from "../shared/core/player-types.ts";
 import type { GameState } from "../shared/core/types.ts";
+import { eliminatePlayer } from "../shared/sim/player-rules.ts";
 
 /** Reason a game-over fires. Carried on `GameOverOutcome` so the runtime
  *  can log which path ended the match; not consumed by game flow. */

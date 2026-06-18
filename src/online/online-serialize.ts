@@ -32,11 +32,6 @@ import {
   type TileKey,
 } from "../shared/core/grid.ts";
 import type { SerializedModifierTiles } from "../shared/core/modifier-defs.ts";
-import {
-  restoreEliminated,
-  restoreLives,
-  restoreScore,
-} from "../shared/core/player-rules.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import type { Player } from "../shared/core/player-types.ts";
 import {
@@ -51,6 +46,11 @@ import {
 import type { UpgradeId } from "../shared/core/upgrade-defs.ts";
 import type { ZoneId } from "../shared/core/zone-id.ts";
 import { getCannon } from "../shared/sim/occupancy-queries.ts";
+import {
+  restoreEliminated,
+  restoreLives,
+  restoreScore,
+} from "../shared/sim/player-rules.ts";
 
 interface FullStateResult {
   balloonFlights?: { flight: BalloonFlight; progress: number }[];
