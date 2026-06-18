@@ -11,6 +11,7 @@ import type {
   CapturedCannon,
   Grunt,
 } from "./battle-types.ts";
+import type { LifeLostChoiceOverride } from "./dialog-state.ts";
 import {
   EMPTY_FEATURES,
   type FeatureId,
@@ -251,6 +252,12 @@ export interface TestHooks {
   /** When set, `drawOffers` returns this id as the first of the 3 offers.
    *  The remaining 2 are drawn normally from the (filtered) pool. */
   forceUpgrade?: UpgradeId;
+  /** Force a player's life-lost dialog decision (CONTINUE/ABANDON) instead of
+   *  the AI default (always CONTINUE). Consumed at the decision site
+   *  (`aiChooseLifeLost`) per `entry.playerId`; fires only when that player
+   *  actually reaches a life-loss. Lets a test drive the human ABANDON /
+   *  elimination path that no seed can produce. Never serialized. */
+  lifeLostChoices?: readonly LifeLostChoiceOverride[];
 }
 
 /** State exclusive to modern mode. null on GameState in classic mode. */

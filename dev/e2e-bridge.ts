@@ -134,6 +134,15 @@ interface E2EBridge extends E2EBridgeSnapshot {
    *  null before the state is ready (lobby). Sets/Maps are converted to
    *  arrays; `bus` and `rng` are dropped. */
   gameState: () => SerializedGameState | null;
+  /** The simulation RNG cursor (`state.rng.getState()`) — a single scalar
+   *  that advances on every RNG draw. Returns null before state is ready.
+   *  Exposed separately from `gameState()` because the `rng` service object
+   *  itself is dropped from `SerializedGameState`; only this cursor is
+   *  serializable. Identical RNG cursors on two peers at the same point in a
+   *  match is the strongest cross-peer determinism signal — every AI/RNG
+   *  draw is mirror-simulated on every peer, so divergence shows up here
+   *  first. */
+  rngState: () => number | null;
   /** Text-grid snapshot of the map — identical output to the headless
    *  ASCII renderer (`AsciiRenderer.snapshot()`), produced on demand
    *  from the live `GameState`. Returns null before state is ready.
@@ -380,6 +389,10 @@ function buildBridge(
     gameState: () =>
       isStateInstalled(deps.runtimeState)
         ? serializeGameState(deps.runtimeState.state)
+        : null,
+    rngState: () =>
+      isStateInstalled(deps.runtimeState)
+        ? deps.runtimeState.state.rng.getState()
         : null,
     asciiSnapshot: (opts) =>
       isStateInstalled(deps.runtimeState)

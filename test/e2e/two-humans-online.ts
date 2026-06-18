@@ -1,0 +1,439 @@
+/**
+ * E2E network test: two real human players run a game to the end and must
+ * observe the SAME game.
+ *
+ * Models two humans on two browsers, connected through the real Deno server:
+ *   - host  → creates a room, seats itself in slot 0
+ *   - client→ joins the room, seats itself in slot 1
+ *   - slot 2 is left empty → the lobby fills it with an AI on start
+ *
+ * Each human plays *minimally* (seat, nudge the cursor, press the rotate +
+ * action keys, fire roughly in battle) so the slot-2 AI beats them; the match
+ * runs to game-over.
+ *
+ * Divergence detection: a concurrent monitor compares the two peers at every
+ * ROUND boundary (the quiescent point where scores are finalized and there is
+ * no wire-lag transient) and STOPS the whole test at the FIRST round where they
+ * disagree — reporting which round and what differed. The keystone signal is
+ * the RNG cursor (`sc.rngState()`): every AI/RNG draw is mirror-simulated on
+ * every peer, so identical cursors prove lockstep; per-slot lives + score
+ * localize the divergence. A full end-of-game parity check (towers, grunts,
+ * cannonballs, winner) backs it up when no per-round divergence fires.
+ *
+ * This is the only test that drives REAL human keypresses over a REAL
+ * WebSocket / server (the headless parity tests stub the transport and drive an
+ * AI brain on the human seat). It is slow and lives outside the pre-commit lane.
+ *
+ * Run: deno test --no-check -A test/e2e/two-humans-online.ts
+ *      (E2E_HEADFUL=1 to watch the two browsers play)
+ * Requires: npm run dev (vite on port 5173) AND deno task server (port 8001)
+ */
+
+import { assert, assertEquals } from "@std/assert";
+import {
+  createE2EScenario,
+  type E2EScenario,
+  GAME_EVENT,
+} from "./scenario.ts";
+
+/** Per-slot game state compared across peers. */
+interface PlayerSnap {
+  readonly id: number;
+  readonly lives: number;
+  readonly walls: number;
+  readonly cannons: number;
+  readonly enclosedTowers: number;
+  readonly score: number;
+}
+
+/** Full cross-peer "same game" snapshot — mirrors the headless `Snap` in
+ *  test/debug-net-divergence.test.ts, built from serialized bridge state
+ *  (`gameState()` arrays + the `rngState()` scalar). Game-state only — no
+ *  cosmetic fields (cosmetic divergence is OK). */
+interface ParitySnap {
+  readonly rng: number | null;
+  readonly round: number;
+  readonly phase: string;
+  readonly players: readonly PlayerSnap[];
+  readonly towerAlive: readonly boolean[];
+  readonly grunts: readonly { row: number; col: number }[];
+  readonly cannonballs: number;
+}
+
+/** The stable outcome of one round — captured at the round boundary (start of
+ *  the next round / game-over), where scores are finalized and the RNG cursor
+ *  is between draws. lives + score + rng is the minimal robust triple. */
+interface RoundResult {
+  readonly observedAtRound: number;
+  readonly rng: number | null;
+  readonly players: readonly { id: number; lives: number; score: number }[];
+}
+
+/** Shared run control across the two drive loops + the monitor. */
+interface RunControl {
+  stop: boolean;
+  divergence:
+    | { round: number; reason: string; host?: RoundResult; client?: RoundResult }
+    | null;
+}
+
+/** Fixed seed → stable map. The run is NOT bit-reproducible (real keypress
+ *  timing is non-deterministic); parity here is cross-PEER, not cross-RUN. */
+const SEED = 42;
+/** Valid lobby "Battle Length" values are 1/3/5/8/12/Infinity. Capped at 1
+ *  while debugging: the peers diverge inside round 1 (the round-1 battle
+ *  already desyncs AI score + RNG), so a longer game just burns wall-clock
+ *  before the monitor trips. Note: the online room takes its mode from the
+ *  lobby UI default (modern), NOT the `mode` option below — that only affects
+ *  local games. */
+const ROUNDS = 1;
+/** Headless by default; set E2E_HEADFUL=1 to watch the two browsers play. */
+const HEADLESS = Deno.env.get("E2E_HEADFUL") !== "1";
+/** Wall-clock budget for each peer's minimal-input loop. fastMode is OFF so
+ *  phases run at real duration and the human loop has time to inject input. */
+const DRIVE_TIMEOUT_MS = 240_000;
+/** Monitor poll interval — phases run real-time (seconds) so 250ms reliably
+ *  samples each round boundary without missing a transition. */
+const MONITOR_POLL_MS = 250;
+/** Slot-claim keys in the online lobby (per `selectSlot` in
+ *  scripts/online-e2e.ts): slot 0 = "n", slot 1 = "f", slot 2 = "h". */
+const SLOT_KEYS = ["n", "f", "h"] as const;
+
+Deno.test("e2e online: two humans play a full game and see the same game", async () => {
+  // --- Seat two humans + leave slot 2 for the AI -------------------------
+  await using host = await createE2EScenario({
+    seed: SEED,
+    rounds: ROUNDS,
+    mode: "classic",
+    online: "host",
+    humans: 0, // online path seats slots manually below
+    headless: HEADLESS,
+    fastMode: false, // real-time phases so human input lands
+  });
+  await host.input.pressKey(SLOT_KEYS[0]); // claim slot 0
+
+  const code = await host.roomCode();
+
+  await using client = await createE2EScenario({
+    seed: SEED,
+    rounds: ROUNDS,
+    mode: "classic",
+    online: "join",
+    roomCode: code,
+    humans: 0,
+    headless: HEADLESS,
+    fastMode: false,
+  });
+  await client.input.pressKey(SLOT_KEYS[1]); // claim slot 1
+
+  // --- Both humans play minimally + a monitor watches for divergence -----
+  const ctrl: RunControl = { stop: false, divergence: null };
+  const [hostActs, clientActs] = await Promise.all([
+    driveMinimalHuman(host, "HOST", DRIVE_TIMEOUT_MS, ctrl),
+    driveMinimalHuman(client, "CLIENT", DRIVE_TIMEOUT_MS, ctrl),
+    monitorDivergence(host, client, ctrl),
+  ]);
+  console.log(`  HOST actions=${hostActs}, CLIENT actions=${clientActs}`);
+
+  // --- First divergence wins: fail fast with the diverging round ---------
+  if (ctrl.divergence) {
+    const { round, reason, host: h, client: c } = ctrl.divergence;
+    console.log(`  DIVERGENCE at round ${round}: ${reason}`);
+    if (h) console.log(`    HOST   round ${round}: ${JSON.stringify(h)}`);
+    if (c) console.log(`    CLIENT round ${round}: ${JSON.stringify(c)}`);
+    throw new Error(
+      `peers diverged at round ${round}: ${reason} — the two humans did not ` +
+        `play the same game`,
+    );
+  }
+
+  // --- No per-round divergence: full end-of-game parity backstop ---------
+  assertEquals(await host.mode(), "STOPPED", "host reached game-over");
+  assertEquals(await client.mode(), "STOPPED", "client reached game-over");
+
+  const hSnap = await buildSnap(host);
+  const cSnap = await buildSnap(client);
+  console.log("  HOST  snap:", JSON.stringify(hSnap));
+  console.log("  CLIENT snap:", JSON.stringify(cSnap));
+
+  assert(hSnap.rng !== null, "host rng cursor readable at game-over");
+  assertEquals(hSnap.rng, cSnap.rng, "RNG cursors diverged between peers");
+  assertEquals(hSnap.round, cSnap.round, "round diverged");
+  assertEquals(hSnap.players, cSnap.players, "per-player state diverged");
+  assertEquals(hSnap.towerAlive, cSnap.towerAlive, "tower-alive set diverged");
+  assertEquals(hSnap.grunts, cSnap.grunts, "grunt positions diverged");
+  assertEquals(hSnap.cannonballs, cSnap.cannonballs, "cannonball count diverged");
+
+  // Same outcome + same per-round sequence on both peers' bus logs.
+  const hEnd = await host.bus.events(GAME_EVENT.GAME_END);
+  const cEnd = await client.bus.events(GAME_EVENT.GAME_END);
+  assertEquals(hEnd.length, 1, "host saw exactly one game-end");
+  assertEquals(cEnd.length, 1, "client saw exactly one game-end");
+  assertEquals(hEnd[0].winner, cEnd[0].winner, "winners diverged between peers");
+
+  // Guard: each human actually acted (test can't pass on idle/unseated peers).
+  const hostFired = await firedSlots(host);
+  const clientFired = await firedSlots(client);
+  assert(hostFired.has(0), "host's human (slot 0) never fired a cannon");
+  assert(clientFired.has(1), "client's human (slot 1) never fired a cannon");
+});
+
+/**
+ * Poll both peers and compare the stable outcome of each round. Records each
+ * peer's round-N result at the moment it crosses into round N+1 (or stops),
+ * then compares once both peers have closed round N. Sets `ctrl.divergence`
+ * and `ctrl.stop` at the FIRST diverging round so the drive loops halt.
+ * Returns 0 (its return value is unused; signature matches the drive loops for
+ * a clean `Promise.all`).
+ */
+async function monitorDivergence(
+  host: E2EScenario,
+  client: E2EScenario,
+  ctrl: RunControl,
+): Promise<number> {
+  const peers: readonly [string, E2EScenario][] = [
+    ["HOST", host],
+    ["CLIENT", client],
+  ];
+  const closed: Record<string, Map<number, RoundResult>> = {
+    HOST: new Map<number, RoundResult>(),
+    CLIENT: new Map<number, RoundResult>(),
+  };
+  const prevRound: Record<string, number | null> = { HOST: null, CLIENT: null };
+  const finalRound: Record<string, number | null> = { HOST: null, CLIENT: null };
+  const compared = new Set<number>();
+
+  while (!ctrl.stop) {
+    await delay(MONITOR_POLL_MS);
+    for (const [name, sc] of peers) {
+      let mode = "";
+      let result: RoundResult | null = null;
+      try {
+        mode = await sc.mode();
+        result = await roundResultOf(sc);
+      } catch {
+        continue; // page mid-navigation / closed — retry next poll
+      }
+      if (!result) continue;
+      const round = result.observedAtRound;
+      if (prevRound[name] === null) {
+        prevRound[name] = round;
+      } else if (round > prevRound[name]!) {
+        // The previous round just closed; this snapshot (taken at the new
+        // round's quiescent start) is that round's finalized outcome.
+        closed[name].set(prevRound[name]!, result);
+        prevRound[name] = round;
+      }
+      if (mode === "STOPPED" && finalRound[name] === null) {
+        finalRound[name] = round;
+        closed[name].set(round, result); // last round never "advances"
+      }
+    }
+
+    // Compare every round both peers have now closed.
+    for (const round of closed.HOST.keys()) {
+      if (compared.has(round) || !closed.CLIENT.has(round)) continue;
+      compared.add(round);
+      const h = closed.HOST.get(round)!;
+      const c = closed.CLIENT.get(round)!;
+      const reason = roundResultDiff(h, c);
+      if (reason) {
+        ctrl.divergence = { round, reason, host: h, client: c };
+        ctrl.stop = true;
+        return 0;
+      }
+    }
+
+    // Both ended: a different final round = one peer played a different game.
+    if (finalRound.HOST !== null && finalRound.CLIENT !== null) {
+      if (finalRound.HOST !== finalRound.CLIENT) {
+        ctrl.divergence = {
+          round: Math.min(finalRound.HOST, finalRound.CLIENT),
+          reason:
+            `game length differs — HOST ended at round ${finalRound.HOST}, ` +
+            `CLIENT ended at round ${finalRound.CLIENT}`,
+        };
+      }
+      ctrl.stop = true;
+      return 0;
+    }
+  }
+  return 0;
+}
+
+/** Read a peer's current round outcome (round + rng + per-slot lives/score). */
+async function roundResultOf(sc: E2EScenario): Promise<RoundResult | null> {
+  const rng = await sc.rngState();
+  const state = (await sc.gameState()) as {
+    round: number;
+    players: { id: number; lives: number; score: number }[];
+  } | null;
+  if (!state) return null;
+  return {
+    observedAtRound: state.round,
+    rng,
+    players: state.players.map((player) => ({
+      id: player.id,
+      lives: player.lives,
+      score: player.score,
+    })),
+  };
+}
+
+/** Human-readable description of how two round results differ, or "" if equal.
+ *  Compares the RNG cursor (keystone) and each slot's lives + score. */
+function roundResultDiff(a: RoundResult, b: RoundResult): string {
+  if (a.rng !== b.rng) return `rng ${a.rng} vs ${b.rng}`;
+  if (a.players.length !== b.players.length) {
+    return `player count ${a.players.length} vs ${b.players.length}`;
+  }
+  for (let i = 0; i < a.players.length; i++) {
+    const ap = a.players[i]!;
+    const bp = b.players[i]!;
+    if (ap.lives !== bp.lives) {
+      return `slot ${ap.id} lives ${ap.lives} vs ${bp.lives}`;
+    }
+    if (ap.score !== bp.score) {
+      return `slot ${ap.id} score ${ap.score} vs ${bp.score}`;
+    }
+  }
+  return "";
+}
+
+/** Build a peer's full parity snapshot from the serialized bridge state + rng. */
+async function buildSnap(sc: E2EScenario): Promise<ParitySnap> {
+  const rng = await sc.rngState();
+  const state = (await sc.gameState()) as {
+    round: number;
+    phase: string;
+    players: {
+      id: number;
+      lives: number;
+      walls: unknown[];
+      cannons: { hp: number }[];
+      enclosedTowers: unknown[];
+      score: number;
+    }[];
+    towerAlive: boolean[];
+    grunts: { row: number; col: number }[];
+    cannonballs: unknown[];
+  } | null;
+  assert(state !== null, "game state readable at game-over");
+  return {
+    rng,
+    round: state.round,
+    phase: String(state.phase),
+    players: state.players.map((player) => ({
+      id: player.id,
+      lives: player.lives,
+      walls: player.walls.length,
+      cannons: player.cannons.filter((cannon) => cannon.hp > 0).length,
+      enclosedTowers: player.enclosedTowers.length,
+      score: player.score,
+    })),
+    towerAlive: [...state.towerAlive],
+    grunts: state.grunts.map((grunt) => ({ row: grunt.row, col: grunt.col })),
+    cannonballs: state.cannonballs.length,
+  };
+}
+
+/** Slot ids that fired at least one cannon in this peer's bus log. */
+async function firedSlots(sc: E2EScenario): Promise<Set<number>> {
+  const fired = await sc.bus.events(GAME_EVENT.CANNON_FIRED);
+  return new Set(fired.map((event) => event.playerId));
+}
+
+/**
+ * Drive a single browser peer with minimal human input until the game stops or
+ * the monitor flags a divergence (`ctrl.stop`). Ported (simplified) from
+ * `simulateHumanPlayLoop` in scripts/online-e2e.ts — seat/confirm with "n",
+ * rotate with "b", nudge the cursor with arrows, fire in battle with "n", and
+ * ABANDON on the life-lost dialog so an idle player can't stall the match.
+ * Returns the number of action iterations taken.
+ */
+async function driveMinimalHuman(
+  sc: E2EScenario,
+  label: string,
+  timeoutMs: number,
+  ctrl: RunControl,
+): Promise<number> {
+  const page = sc.page;
+  const start = Date.now();
+  const dirs = ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"];
+  let iteration = 0;
+
+  while (Date.now() - start < timeoutMs && !ctrl.stop) {
+    iteration++;
+    const { mode, phase, timer } = await page
+      .evaluate(() => {
+        const e2e = (globalThis as unknown as Record<string, unknown>)
+          .__e2e as Record<string, unknown> | undefined;
+        return {
+          mode: (e2e?.mode as string) ?? "",
+          phase: (e2e?.phase as string) ?? "",
+          timer: (e2e?.timer as number) ?? 10,
+        };
+      })
+      .catch(() => ({ mode: "", phase: "", timer: 10 }));
+
+    if (mode === "STOPPED") break;
+    if (iteration % 25 === 0) {
+      console.log(`  ${label}: iter ${iteration} mode=${mode} phase=${phase}`);
+    }
+
+    if (mode === "LIFE_LOST") {
+      await page.keyboard.press("ArrowRight");
+      await page.waitForTimeout(80);
+      await page.keyboard.press("n"); // abandon → keep the match terminating
+      await page.waitForTimeout(250);
+      continue;
+    }
+
+    if (mode === "SELECTION") {
+      if (timer > 4) {
+        await page.keyboard.press(Math.random() < 0.5 ? "ArrowRight" : "ArrowLeft");
+        await page.waitForTimeout(400);
+      } else {
+        await page.keyboard.press("n"); // confirm castle/tower selection
+        await page.waitForTimeout(250);
+      }
+      continue;
+    }
+
+    if (phase === "CANNON_PLACE") {
+      await page.keyboard.press(dirs[Math.floor(Math.random() * dirs.length)]);
+      await page.waitForTimeout(40);
+      await page.keyboard.press("n"); // place a cannon
+      await page.waitForTimeout(150);
+      continue;
+    }
+
+    if (phase === "WALL_BUILD") {
+      for (let nudge = 0; nudge < 1 + Math.floor(Math.random() * 3); nudge++) {
+        await page.keyboard.press(dirs[Math.floor(Math.random() * dirs.length)]);
+        await page.waitForTimeout(30);
+      }
+      if (Math.random() < 0.3) await page.keyboard.press("b"); // rotate piece
+      await page.keyboard.press("n"); // place piece
+      await page.waitForTimeout(120);
+      continue;
+    }
+
+    if (phase === "BATTLE") {
+      // Minimal aim: nudge the crosshair a bit, then fire.
+      await page.keyboard.press(dirs[Math.floor(Math.random() * dirs.length)]);
+      await page.waitForTimeout(40);
+      await page.keyboard.press("n"); // fire
+      await page.waitForTimeout(120);
+      continue;
+    }
+
+    // MODIFIER_REVEAL / transitions / banners — wait it out.
+    await page.waitForTimeout(150);
+  }
+  return iteration;
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}

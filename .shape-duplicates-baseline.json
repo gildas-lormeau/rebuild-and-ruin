@@ -472,9 +472,6 @@
       "pair": "CargoCrateParams@src/render/3d/sprites/supply-ship-scene.ts ↔ TurretParams@src/render/3d/sprites/tower-scene.ts"
     },
     {
-      "pair": "CastleData@src/shared/ui/overlay-types.ts ↔ Player@src/shared/core/player-types.ts"
-    },
-    {
       "pair": "CheeksSupportsParams@src/render/3d/sprites/cannon-scene.ts ↔ DoorParams@src/render/3d/sprites/house-scene.ts"
     },
     {
@@ -683,6 +680,9 @@
     },
     {
       "pair": "ParapetParams@src/render/3d/sprites/tower-scene.ts ↔ SailParams@src/render/3d/sprites/supply-ship-scene.ts"
+    },
+    {
+      "pair": "ParitySnap@test/e2e/two-humans-online.ts ↔ Snap@test/debug-net-divergence.test.ts"
     },
     {
       "pair": "PhaseTicksDeps@src/runtime/subsystems/phase-ticks.ts ↔ PhaseTransitionCtx@src/runtime/phase-machine.ts"

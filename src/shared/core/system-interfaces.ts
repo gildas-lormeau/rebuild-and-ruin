@@ -8,7 +8,11 @@ import {
   type Crosshair,
   type Grunt,
 } from "./battle-types.ts";
-import type { LifeLostEntry, UpgradePickEntry } from "./dialog-state.ts";
+import type {
+  LifeLostChoiceOverride,
+  LifeLostEntry,
+  UpgradePickEntry,
+} from "./dialog-state.ts";
 import type { GameMode, ModifierId } from "./game-constants.ts";
 import type { GameEventBus } from "./game-event-bus.ts";
 import type { Phase } from "./game-phase.ts";
@@ -49,6 +53,13 @@ export interface GameViewState {
    *  Universal across phases — every phase view reads them for placement /
    *  movement / obstacle checks. */
   readonly burningPits: readonly BurningPit[];
+  /** Test-only decision overrides — the subset of `GameState.testHooks` read
+   *  on the decision path (life-lost). `GameState` satisfies this
+   *  structurally, so no cast is needed at call sites. Undefined in
+   *  production. */
+  readonly testHooks?: {
+    readonly lifeLostChoices?: readonly LifeLostChoiceOverride[];
+  };
 }
 
 /** Build-phase state slice.  10 fields (vs 25 on GameState).

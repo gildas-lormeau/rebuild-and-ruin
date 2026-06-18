@@ -18,6 +18,15 @@ export enum LifeLostChoice {
 
 export type ResolvedChoice = LifeLostChoice.CONTINUE | LifeLostChoice.ABANDON;
 
+/** Test-only forced life-lost decision for one player slot. The AI default is
+ *  always CONTINUE, so the human ABANDON path is otherwise unreachable from a
+ *  pure AI-played scenario — this lets a test drive it deterministically.
+ *  Read at the decision site (`aiChooseLifeLost`); see `TestHooks`. */
+export interface LifeLostChoiceOverride {
+  readonly playerId: ValidPlayerId;
+  readonly choice: ResolvedChoice;
+}
+
 export interface LifeLostEntry {
   playerId: ValidPlayerId;
   lives: number;

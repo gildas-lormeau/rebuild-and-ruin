@@ -14,10 +14,17 @@ import {
 } from "../shared/core/dialog-state.ts";
 import type { GameViewState } from "../shared/core/system-interfaces.ts";
 
-/** AI decision for a pending life-lost entry. */
+/** AI decision for a pending life-lost entry. Defaults to CONTINUE; a
+ *  test-only `testHooks.lifeLostChoices` override for this player wins (the
+ *  only way to reach the human ABANDON / elimination path deterministically).
+ *  Reading the override is pure — no `state.rng` draw — so the determinism
+ *  contract above still holds. */
 export function aiChooseLifeLost(
-  _entry: LifeLostEntry,
-  _state: GameViewState,
+  entry: LifeLostEntry,
+  state: GameViewState,
 ): ResolvedChoice {
-  return LifeLostChoice.CONTINUE;
+  const forced = state.testHooks?.lifeLostChoices?.find(
+    (override) => override.playerId === entry.playerId,
+  );
+  return forced?.choice ?? LifeLostChoice.CONTINUE;
 }

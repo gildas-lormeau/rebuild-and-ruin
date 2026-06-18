@@ -131,6 +131,14 @@ export interface E2EScenario extends AsyncDisposable {
    *  `bus` / `rng` services are dropped. Returns `null` before the state
    *  is ready (e.g. while the lobby is still up). */
   gameState(): Promise<SerializedGameState | null>;
+  /** The simulation RNG cursor (`state.rng.getState()`) — a single scalar
+   *  that advances on every RNG draw. Returns null before state is ready.
+   *  Surfaced separately from `gameState()` because the `rng` service is
+   *  dropped from `SerializedGameState`; only this cursor is serializable.
+   *  Equal cursors on two online peers at the same match point is the
+   *  strongest determinism/parity signal — AI and RNG draws are
+   *  mirror-simulated on every peer, so divergence surfaces here first. */
+  rngState(): Promise<number | null>;
   /** Text-grid snapshot of the map — same format as the headless
    *  `AsciiRenderer.snapshot()`. Produced on demand from the live
    *  `GameState`. Returns null before the state is ready. `layer`
@@ -997,6 +1005,14 @@ export async function createE2EScenario(
         if (!e2e) throw new Error("__e2e bridge not available");
         return e2e.gameState?.() ?? null;
       }) as Promise<SerializedGameState | null>,
+
+    rngState: () =>
+      page.evaluate(() => {
+        const e2e = (globalThis as unknown as Record<string, unknown>)
+          .__e2e as { rngState?: () => number | null } | undefined;
+        if (!e2e) throw new Error("__e2e bridge not available");
+        return e2e.rngState?.() ?? null;
+      }),
 
     asciiSnapshot: (opts) =>
       page.evaluate(
