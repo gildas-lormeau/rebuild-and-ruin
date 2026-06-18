@@ -497,6 +497,13 @@ export async function createE2EScenario(
     await page.waitForSelector("#page-online[data-ready]", { timeout: ONLINE_PAGE_TIMEOUT_MS });
     await page.selectOption("#create-wait", "10");
     await page.selectOption("#create-rounds", String(rounds));
+    // The online room's mode + seed come from the create form, NOT the
+    // `?mode=` URL param / localStorage seed (those only drive local games).
+    // Honor the `mode` / `seed` options here so an online host actually
+    // plays the requested mode on the requested map — without this the room
+    // silently used the lobby defaults (modern, random seed).
+    if (mode) await page.selectOption("#create-game-mode", mode);
+    if (seed !== undefined) await page.fill("#create-seed", String(seed));
     await page.click("#btn-create-confirm");
     await waitForPageFn(
       page,
