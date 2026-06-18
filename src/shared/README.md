@@ -1,11 +1,11 @@
 # `src/shared/` — Cross-domain foundation
 
 Everything that multiple domains depend on lives here: game state
-types, network wire format, UI state types, platform primitives,
-geometry, spatial helpers, pool registries, the event bus. Every
-non-entry domain (`game`, `ai`, `player`, `input`, `render`, `online`,
-`runtime`) imports from `shared/`; nothing else is allowed to import
-laterally.
+types, UI state types, platform primitives, geometry, spatial
+helpers, deterministic simulation behavior, pool registries, the
+event bus. Every non-entry domain (`protocol`, `game`, `ai`,
+`controllers`, `input`, `render`, `online`, `runtime`) imports from
+`shared/`; nothing else is allowed to import laterally.
 
 **Invariant: `src/shared/` has four subfolders and zero loose files.**
 If you're tempted to add a file at `shared/` root, something is
@@ -34,39 +34,55 @@ registries, interfaces that `game/` and everyone else agree on.
   `game-event-bus.ts` (typed pub/sub).
 - **Spatial**: `geometry-types.ts` (TilePos, Viewport, GameMap),
   `spatial.ts` (packTile/unpackTile, tile helpers, castle center
-  math), `board-occupancy.ts` (wall/interior/territory tracking),
-  `pieces.ts` (tetromino shapes).
+  math, the `computeOutside` flood). The board-occupancy *queries*
+  and piece-bag *logic* live in `shared/sim/`; `pieces.ts` here holds
+  only the `PieceShape` / `BagState` types.
 - **System contracts**: `system-interfaces.ts` (PlayerController,
   BuildViewState, CannonViewState, BattleViewState, HapticsSystem,
   SoundSystem — the cross-domain interfaces).
 
 **When to add here:** the new file is a *type* or *enum* or *pool
 definition* consumed by game/ AND at least one other domain.
-**When NOT to add here:** if it's game logic (mutation functions), it
-goes in `src/game/`. If it's UI state, it goes in `shared/ui/`. If
-it's a wire format, it goes in `shared/net/`.
+**When NOT to add here:** if it's game-only logic (mutation functions
+used by a single domain), it goes in `src/game/`. If it's *shared*
+deterministic sim behavior (board/bag/interior mutation or `state.rng`
+draws needed by 2+ domains), it goes in `shared/sim/`. If it's UI
+state, `shared/ui/`. If it's a wire format, it goes in the top-level
+`src/protocol/` domain — not under `shared/`.
 
-### `shared/net/` — wire format + checkpoints
-Network seam. Consumed primarily by `online/` but also by `runtime/`
-(runtime-types.ts imports message types), `entry/`, and `server/`.
+### `shared/sim/` — deterministic simulation behavior
+Game *logic* (mutation + query functions over the `Player` / board
+structs) that more than one domain needs and that must run
+**symmetrically on every peer**. This is the behavior counterpart to
+`shared/core`'s types: the struct modules in `core/` carry no logic,
+so the write-surfaces and board algorithms live here instead.
+Consumed by `game/`, `ai/`, and `runtime/`.
 
-- **`protocol.ts`** — ServerMessage/GameMessage unions, MESSAGE
-  constants. The canonical wire format.
-- **`checkpoint-data.ts`** — BattleStartData (rng resync) plus the
-  serialized field shapes used by FULL_STATE (join / host migration).
-  Phase-marker checkpoints (BUILD_START / BUILD_END / CANNON_START)
-  carry no payload — watchers derive state locally on receipt.
-- **`tick-context.ts`** — `HostNetContext`, `TimerAccums`,
-  `isHostInContext()` helper. The per-frame networking context
-  that gates host/watcher behavior.
-- **`phantom-types.ts`** — `DedupChannel` interface + `NOOP_DEDUP_CHANNEL`
-  sentinel. The opaque type for per-player dedup state (aim, cannon
-  phantom, piece phantom).
-- **`routes.ts`** — Server HTTP route constants (`API_ROOMS_PATH`,
-  `HEALTH_PATH`, `WS_PLAY_PATH`).
+- **`board-occupancy.ts`** — wall / interior / territory occupancy
+  *queries* (`hasWallAt`, `collectOccupiedTiles`, `getBattleInterior`,
+  `buildOccupancyCache`, the cardinal-obstacle mask).
+- **`occupancy-queries.ts`** — captured-cannon predicates
+  (`isCannonCaptured`, `isCannonCapturedBy`, `isCannonCapturedFrom`).
+- **`player-walls.ts`** — the canonical write-surface for every
+  `player.walls` mutation. Build edits call `markWallsDirty`;
+  battle/modifier `delete*` edits intentionally skip dirty-marking
+  (interior is stale by design during battle, rechecked next phase).
+- **`player-interior.ts`** — interior freshness via lazy epoch pairs
+  (`wallsEpoch` / `interiorEpoch`): `markWallsDirty`,
+  `recomputeInterior`, `assertInteriorFresh`.
+- **`player-bag.ts`** — the piece-bag lifecycle (`advancePlayerBag`,
+  `clearAllPlayerBags`). Drives `state.rng`, so it must run on every
+  peer in the same order.
+- **`pieces.ts`** — the bag *algorithm* (shape catalog, round-weighted
+  generation, draw + rotation) over the `PieceShape` / `BagState`
+  types declared in `shared/core/pieces.ts`.
 
-**When to add here:** any type that crosses the network boundary, or
-any shared structure used by both host and watcher code paths.
+**When to add here:** a function (not a type) that mutates a board
+collection or draws from `state.rng`, carries a determinism contract,
+and is needed by 2+ domains. **When NOT:** pure types/enums →
+`shared/core/`; logic only one domain uses → that domain (e.g.
+`src/game/`); a pure derived query with no determinism contract used
+by a single domain → that domain.
 
 ### `shared/ui/` — UI/interaction types
 UI state types + interaction DTOs consumed by `runtime/`, `render/`,
@@ -119,39 +135,46 @@ entirely, these files would still be valid.
   package.
 
 **When to add here:** the file has zero imports from `shared/core/`,
-`shared/ui/`, `shared/net/`, or any domain. Pure platform detection
+`shared/sim/`, `shared/ui/`, or any domain. Pure platform detection
 or generic helpers.
 
 ## File placement decision tree
 
 When you're about to add a file to `shared/`, work through this:
 
-1. **Does it know anything about game rules, state, or entities?**
+1. **Is it deterministic sim *behavior*?** (mutates board / walls /
+   interior / bag state, or draws from `state.rng`, and 2+ domains
+   need it) → `shared/sim/`
+   *(Check this before core — sim functions also "know about game
+   state," so the behavior test must win first.)*
+2. **Is it a *type*, enum, pool registry, or predicate about game
+   rules, state, or entities?**
    → `shared/core/`
-2. **Does it cross the network?** (serialized message, wire format,
-   session state, dedup channel, tick context)
-   → `shared/net/`
 3. **Is it UI state, render overlay, theme, or interaction?**
    → `shared/ui/`
 4. **Is it a zero-dep generic utility?**
    → `shared/platform/`
-5. **None of the above?**
+5. **Does it cross the network?** (serialized message, wire format,
+   checkpoint payload, dedup channel, tick context) → that's the
+   top-level `src/protocol/` domain, **not** `shared/`.
+6. **None of the above?**
    → Reconsider whether it belongs in `shared/` at all. It might
      belong in a specific domain (`game/`, `runtime/`, etc.). If it
      really is cross-domain but doesn't fit any category, the
      category is probably wrong — propose a new subfolder rather
      than dropping it at `shared/` root.
 
-## Why four subfolders, not one flat directory
+## Why subfolders, not one flat directory
 
-Before today's split, `shared/` had 38 loose files. After the split,
-natural coupling (Louvain clustering) exactly matches the subfolder
-boundaries for `ui/` (all 11 files cluster together) and `net/`
-(all 5 files plus `router.ts`). `platform/` and `core/` scatter
-across multiple clusters, which is expected and fine — those are
-semantic groupings, not coupling-based. See
-`skills/layer-graph-cleanup.md` for the full analysis from the split
-session.
+The original split (38 loose files → subfolders) used natural
+coupling (Louvain clustering): `ui/` files cluster tightly together,
+while `platform/` and `core/` scatter across clusters — expected,
+since those are semantic groupings, not coupling-based. `sim/` was
+later carved out of `core/` to separate deterministic *behavior*
+(write-surfaces, board algorithms) from the *types* they operate on,
+and the network wire format graduated to its own top-level
+`src/protocol/` domain. See `skills/layer-graph-cleanup.md` for the
+original analysis.
 
 The split also establishes a crisp rule: **if a file is at
 `shared/` root, something is uncategorized**. That rule is
@@ -172,9 +195,12 @@ here" drift.
   don't have to accept the whole state. When narrowing types, use
   these ViewStates — don't widen to `GameState`.
 
-- **`shared/net/protocol.ts` is load-bearing.** Changes here cascade
-  to host + watcher + server. Run `npm run test:sync` after any
-  protocol change.
+- **`shared/sim/` runs on every peer — keep it deterministic.** These
+  functions drive `state.rng` and mutate shared board state; changing
+  draw order or mutation timing diverges host vs. watcher. Run
+  `npm run test:determinism` and `npm run test:net` after editing
+  anything here. (The wire format itself lives in `src/protocol/` —
+  see that domain's README.)
 
 - **`shared/core/game-constants.ts` has 56 dependents.** It's a
   foundational tuning file — changes to any constant propagate
@@ -197,9 +223,11 @@ here" drift.
 - **[src/game/README.md](../game/README.md)** — How `shared/core/`
   types are consumed by the game domain.
 - **[src/runtime/README.md](../runtime/README.md)** — How
-  `shared/ui/` and `shared/net/` are threaded through the runtime.
+  `shared/ui/` is threaded through the runtime.
+- **[src/protocol/README.md](../protocol/README.md)** — The wire
+  format + checkpoints that used to live under `shared/net/`.
 - **[src/online/README.md](../online/README.md)** — How
-  `shared/net/` is the protocol seam.
+  `src/protocol/` is the network seam.
 - **[CLAUDE.md](../../CLAUDE.md)** — "Type file organization" and
   "Extension point registries" sections cover the pool pattern and
   subfolder conventions.
