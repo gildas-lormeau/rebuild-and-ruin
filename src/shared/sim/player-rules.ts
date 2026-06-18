@@ -1,13 +1,14 @@
 /**
- * Player rule-field write surface — the sole authority that writes the
- * game-owned `Player` fields (`lives`, `eliminated`, `score`), which are
- * `readonly` + branded. The only branded-value mints are the private
- * `brand*` fns below, so every write flows through a producer here. Consumed
- * by `game/` (live play) + `online/` (checkpoint restore) only; the brand
- * *types* stay with the struct in `player-types.ts` (read vocabulary).
+ * Player write-surface — the authority that mutates `Player` fields: the
+ * game-owned branded scalars `lives` / `eliminated` / `score` (the only mints
+ * are the private `brand*` producers below, so every write flows through one)
+ * plus `homeTower` selection (`selectPlayerTower`). Consumed by `game/`,
+ * `online/` (checkpoint restore), and `ai/` only; the brand *types* stay with
+ * the struct in `player-types.ts`.
  */
 
 import { STARTING_LIVES } from "../core/game-constants.ts";
+import type { Tower } from "../core/geometry-types.ts";
 import type { Eliminated, Lives, Player, Score } from "../core/player-types.ts";
 
 /** Writable view of the game-owned Player rule fields. The producers below
@@ -71,6 +72,20 @@ export function initialScore(): Score {
 /** Restore a player's score from trusted checkpoint data. */
 export function restoreScore(player: Player, value: number): void {
   (player as WritableRuleFields).score = brandScore(value);
+}
+
+/** Set a player's home tower. Called during selection phase when a player
+ *  picks or changes their highlighted tower.
+ *
+ *  Deliberately does NOT touch `enclosedTowers` — that list is derived
+ *  state, maintained by `updateEnclosedTowers` in build-system.ts via the
+ *  territory flood-fill. Seeding it here would create a "ghost"
+ *  enclosure at the moment of highlight (before any walls exist), which
+ *  misleads consumers that treat `enclosedTowers` as "towers actually
+ *  enclosed by my territory" — notably the SFX layer, which uses the
+ *  list to decide whether a player deserves the fanfare. */
+export function selectPlayerTower(player: Player, tower: Tower): void {
+  player.homeTower = tower;
 }
 
 /** Mint a `Lives` — module-private; all field writes go through the producers

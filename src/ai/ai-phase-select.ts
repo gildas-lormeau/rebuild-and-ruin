@@ -6,9 +6,9 @@
  */
 
 import type { TowerIdx } from "../shared/core/geometry-types.ts";
-import { selectPlayerTower } from "../shared/core/player-types.ts";
 import type { GameViewState } from "../shared/core/system-interfaces.ts";
 import type { ZoneId } from "../shared/core/zone-id.ts";
+import { selectPlayerTower } from "../shared/sim/player-rules.ts";
 import { STEP } from "./ai-constants.ts";
 import type { SelectionHost } from "./ai-strategy-types.ts";
 

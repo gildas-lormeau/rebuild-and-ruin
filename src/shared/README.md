@@ -81,12 +81,12 @@ Consumed by `game/`, `ai/`, and `runtime/`.
 - **`player-bag.ts`** — the piece-bag lifecycle (`advancePlayerBag`,
   `clearAllPlayerBags`). Drives `state.rng`, so it must run on every
   peer in the same order.
-- **`player-rules.ts`** — the write-surface + producers for the
-  game-owned branded `Player` scalars: `loseLife`, `eliminatePlayer`,
-  `addScore`, the `restore*` deserialization setters, and the
-  `initial*` / `notEliminated` factories. Mutates `Player` symmetrically
-  on every peer (game + online), so it belongs with the other
-  `player-*` write-surfaces here, not in `core/`.
+- **`player-rules.ts`** — the canonical `Player`-field write-surface:
+  the branded-scalar producers (`loseLife`, `eliminatePlayer`,
+  `addScore`, the `restore*` setters, the `initial*` / `notEliminated`
+  factories) plus `selectPlayerTower` (home-tower selection). Mutates
+  `Player` symmetrically on every peer (game + online + ai), so it
+  belongs with the other `player-*` write-surfaces here, not in `core/`.
 - **`pieces.ts`** — the bag *algorithm* (shape catalog, round-weighted
   generation, draw + rotation) over the `PieceShape` / `BagState`
   types declared in `shared/core/pieces.ts`.

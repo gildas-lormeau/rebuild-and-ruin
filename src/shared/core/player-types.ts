@@ -133,20 +133,6 @@ export function cannonTier(player: { readonly lives: number }): 1 | 2 | 3 {
   return 1;
 }
 
-/** Set a player's home tower. Called during selection phase when a player
- *  picks or changes their highlighted tower.
- *
- *  Deliberately does NOT touch `enclosedTowers` — that list is derived
- *  state, maintained by `updateEnclosedTowers` in build-system.ts via the
- *  territory flood-fill. Seeding it here would create a "ghost"
- *  enclosure at the moment of highlight (before any walls exist), which
- *  misleads consumers that treat `enclosedTowers` as "towers actually
- *  enclosed by my territory" — notably the SFX layer, which uses the
- *  list to decide whether a player deserves the fanfare. */
-export function selectPlayerTower(player: Player, tower: Tower): void {
-  player.homeTower = tower;
-}
-
 /** Find which player currently owns the tower at the given index, or
  *  `undefined` when no seated player has enclosed it. Linear scan over
  *  at most four players × a handful of owned towers — call sites that

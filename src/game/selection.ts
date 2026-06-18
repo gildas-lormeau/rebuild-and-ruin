@@ -5,10 +5,10 @@ import {
   isPlayerEliminated,
   type ValidPlayerId,
 } from "../shared/core/player-slot.ts";
-import { selectPlayerTower } from "../shared/core/player-types.ts";
 import { type GameState, type SelectionState } from "../shared/core/types.ts";
 import type { ZoneId } from "../shared/core/zone-id.ts";
 import { getInterior } from "../shared/sim/player-interior.ts";
+import { selectPlayerTower } from "../shared/sim/player-rules.ts";
 
 export function initTowerSelection(
   state: GameState,
