@@ -30,8 +30,20 @@
  *   de-share candidates are out of scope here — use
  *   `audit-shared-domain-spread.ts` for those.
  *
- * AUDIT-ONLY: always exits 0, no baseline. Section B is heuristic — each hit
- * needs the per-file judgment (is the lone consumer tier its true home?).
+ * Section C — WRITE-SURFACE PARKED IN CORE (heuristic, the player-rules shape):
+ *   A `shared/core` function that MUTATES one of its parameters (assigns to a
+ *   param property, or calls a mutating method on it — directly or via an
+ *   `as`-cast alias). Deterministic write behavior over a game struct is what
+ *   `shared/sim/` is for ("the struct modules in core/ carry no logic, so the
+ *   write-surfaces live [in sim]"). This is the core<->sim axis Section B
+ *   (core<->ui) is blind to — it found `selectPlayerTower` after `player-rules`
+ *   moved by hand. NOTE the false-positive classes the report names: a
+ *   write-surface is not automatically a SIM write-surface — GameState
+ *   constructor-setters (setGameMode) and cosmetic animation agers
+ *   (ageImpacts) mutate params too but legitimately stay in core.
+ *
+ * AUDIT-ONLY: always exits 0, no baseline. Sections B and C are heuristic —
+ * each hit needs the per-symbol judgment the report describes.
  *
  * Usage:
  *   deno run -A scripts/audit-shared-tiers.ts [--json]
@@ -63,6 +75,13 @@ interface ParkedFn {
   consumerDomains: string[];
 }
 
+interface ParkedMutator {
+  file: string;
+  symbol: string;
+  /** The mutation site that proves it writes its argument. */
+  evidence: string;
+}
+
 interface ExportRec {
   name: string;
   isFunction: boolean;
@@ -76,6 +95,10 @@ const SHARED_TIER_ALLOWED: Record<string, ReadonlySet<string>> = {
   ui: new Set(["platform", "core", "ui"]),
 };
 const SRC = join(process.cwd(), "src");
+/** Mutating methods that, called on a parameter (or a property of one),
+ *  prove the function writes through its argument. */
+const MUTATING_METHODS =
+  "add|delete|clear|set|push|pop|shift|unshift|splice|sort|reverse|fill";
 
 main();
 
@@ -83,24 +106,28 @@ function main(): void {
   const asJson = process.argv.includes("--json");
   const files = collectFiles(SRC);
 
-  // One pass: parse every import in src/ with resolved targets.
+  // One pass: parse every import in src/ with resolved targets, and keep
+  // the raw text of each shared/core file (Section C needs function bodies).
   const allImports: ImportRec[] = [];
   const exportsByFile = new Map<string, ExportRec[]>();
+  const coreContent = new Map<string, string>();
   for (const file of files) {
     const rel = relative(process.cwd(), file);
     const content = readFileSync(file, "utf8");
     allImports.push(...parseImports(rel, content));
     if (sharedTier(rel)) exportsByFile.set(rel, parseExports(content));
+    if (sharedTier(rel) === "core") coreContent.set(rel, content);
   }
 
   const inversions = findInversions(allImports);
   const parked = findParkedBehavior(allImports, exportsByFile);
+  const mutators = findParkedMutators(coreContent);
 
   if (asJson) {
-    console.log(JSON.stringify({ inversions, parked }, null, 2));
+    console.log(JSON.stringify({ inversions, parked, mutators }, null, 2));
     return;
   }
-  report(inversions, parked);
+  report(inversions, parked, mutators);
 }
 
 /** Section A: shared lower-tier files importing a higher shared tier. */
@@ -170,7 +197,135 @@ function findParkedBehavior(
   );
 }
 
-function report(inversions: Inversion[], parked: ParkedFn[]): void {
+/** Section C: write-surfaces parked in core that belong in sim. A `shared/core`
+ *  function that MUTATES one of its parameters (assigns to a param property, or
+ *  calls a mutating method on it — directly or via an `as`-cast alias) is
+ *  deterministic write behavior over a game struct. The README reserves that
+ *  for `shared/sim/` ("the struct modules in core/ carry no logic, so the
+ *  write-surfaces live [in sim]") — it is exactly what `player-rules.ts` was
+ *  before it moved. This is the core<->sim axis Section B (core<->ui) cannot
+ *  see. Heuristic: brace/paren-balanced body scan, so string/comment braces or
+ *  object return types can occasionally skew a body slice. */
+function findParkedMutators(coreContent: Map<string, string>): ParkedMutator[] {
+  const out: ParkedMutator[] = [];
+  for (const [file, content] of coreContent) {
+    for (const fn of extractFunctions(content)) {
+      const evidence = mutatesParam(fn.params, fn.body);
+      if (evidence) out.push({ file, symbol: fn.name, evidence });
+    }
+  }
+  return out.sort(
+    (a, b) => a.file.localeCompare(b.file) || a.symbol.localeCompare(b.symbol),
+  );
+}
+
+/** Pull exported function declarations with their param list + body text,
+ *  via paren/brace balancing. Skips overload signatures (no body). */
+function extractFunctions(
+  content: string,
+): { name: string; params: string; body: string }[] {
+  const out: { name: string; params: string; body: string }[] = [];
+  const head =
+    /export\s+(?:async\s+)?function\s+([A-Za-z_$][\w$]*)\s*(?:<[^>]*>)?\s*\(/g;
+  let m: RegExpExecArray | null;
+  while ((m = head.exec(content)) !== null) {
+    const name = m[1]!;
+    const params = balanced(content, head.lastIndex - 1, "(", ")");
+    if (!params) continue;
+    // Walk past the return type to the body's opening brace. An overload
+    // (signature ending in `;` before any `{`) has no body — skip it.
+    let i = params.end;
+    while (i < content.length && content[i] !== "{" && content[i] !== ";") i++;
+    if (content[i] !== "{") continue;
+    const body = balanced(content, i, "{", "}");
+    if (!body) continue;
+    out.push({ name, params: params.text, body: body.text });
+  }
+  return out;
+}
+
+/** Return the substring inside the balanced `open`/`close` pair that starts at
+ *  `start`, plus the index just past the closing delimiter. */
+function balanced(
+  source: string,
+  start: number,
+  open: string,
+  close: string,
+): { text: string; end: number } | null {
+  if (source[start] !== open) return null;
+  let depth = 0;
+  for (let i = start; i < source.length; i++) {
+    const c = source[i];
+    if (c === open) depth++;
+    else if (c === close && --depth === 0) {
+      return { text: source.slice(start + 1, i), end: i + 1 };
+    }
+  }
+  return null;
+}
+
+/** If the body writes through a parameter, return the proving snippet; else
+ *  null. Tracks `const alias = param as T` / `const alias = param` aliases so
+ *  the common `const w = player as Writable; w.lives = …` shape is caught. */
+function mutatesParam(paramList: string, body: string): string | null {
+  const names = new Set(parseParamNames(paramList));
+  if (names.size === 0) return null;
+  for (const m of body.matchAll(
+    /(?:const|let)\s+(\w+)\s*=\s*(\w+)\s*(?:as\b|;)/g,
+  )) {
+    if (names.has(m[2]!)) names.add(m[1]!);
+  }
+  for (const name of names) {
+    // `name.prop = …` (incl. compound `+=`), excluding ==, =>, <=, >=.
+    const assign = new RegExp(
+      `\\b${name}(?:\\.\\w+)+\\s*[+\\-*/]?=(?![=>])`,
+    ).exec(body);
+    if (assign) return collapse(assign[0]);
+    const method = new RegExp(
+      `\\b${name}(?:\\.\\w+)*\\.(?:${MUTATING_METHODS})\\s*\\(`,
+    ).exec(body);
+    if (method) return collapse(method[0]);
+  }
+  return null;
+}
+
+/** Extract bare parameter identifiers from a param list (drops types,
+ *  defaults, destructuring, `this`). */
+function parseParamNames(paramList: string): string[] {
+  const names: string[] = [];
+  let depth = 0;
+  let current = "";
+  for (const ch of paramList) {
+    if (ch === "(" || ch === "[" || ch === "{" || ch === "<") depth++;
+    else if (ch === ")" || ch === "]" || ch === "}" || ch === ">") depth--;
+    else if (ch === "," && depth === 0) {
+      pushParamName(current, names);
+      current = "";
+      continue;
+    }
+    current += ch;
+  }
+  pushParamName(current, names);
+  return names;
+}
+
+function pushParamName(raw: string, out: string[]): void {
+  const name = raw
+    .trim()
+    .replace(/^(?:readonly\s+)?/, "")
+    .match(/^([A-Za-z_$][\w$]*)/)?.[1];
+  if (name && name !== "this") out.push(name);
+}
+
+function collapse(text: string): string {
+  return text.replace(/\s+/g, " ").trim();
+}
+
+function report(
+  inversions: Inversion[],
+  parked: ParkedFn[],
+  mutators: ParkedMutator[],
+): void {
   console.log("=== Section A — tier inversions (shared lower -> higher) ===");
   console.log("    DAG: platform <- core <- {sim, ui}\n");
   if (inversions.length === 0) {
@@ -204,6 +359,36 @@ function report(inversions: Inversion[], parked: ParkedFn[]): void {
     }
     console.log(
       `\n  ${parked.length} candidate(s). Heuristic — confirm each: is the lone consumer tier its true home? If so, move the function there.\n`,
+    );
+  }
+
+  console.log(
+    "=== Section C — write-surfaces parked in core (should be sim) ===",
+  );
+  console.log(
+    "    core functions that MUTATE a parameter (assign to a param property",
+  );
+  console.log(
+    "    or call a mutating method on it). Deterministic write behavior over a",
+  );
+  console.log(
+    "    game struct belongs in shared/sim/ — the player-rules shape.\n",
+  );
+  if (mutators.length === 0) {
+    console.log("  none\n");
+  } else {
+    for (const mut of mutators) {
+      console.log(`  ${mut.file}  ${mut.symbol}()   [${mut.evidence}]`);
+    }
+    console.log(
+      `\n  ${mutators.length} candidate(s). Heuristic — "write-surface" is not\n` +
+        '  the same as "deterministic-sim write-surface." Classify each:\n' +
+        "    (a) cross-domain deterministic mutation of a game struct → move to sim\n" +
+        "        (the player-rules / selectPlayerTower shape);\n" +
+        "    (b) state-assembly helper cohesive with its type, e.g. a GameState\n" +
+        "        constructor-setter like setGameMode → leave;\n" +
+        "    (c) cosmetic/animation state aged each frame (ageImpacts) → leave;\n" +
+        "        it belongs with its anim state, NOT the deterministic sim.\n",
     );
   }
 }
