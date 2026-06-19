@@ -85,8 +85,15 @@ const SEED = 42;
 const ROUNDS = 3;
 /** Non-headless is REQUIRED for parity — see ./online-humans.ts. */
 const HEADLESS = false;
-/** Wall-clock budget per peer's input loop (real-time phases, fastMode off). */
-const DRIVE_TIMEOUT_MS = 300_000;
+/** Wall-clock budget per peer's input loop. Phases run in real time
+ *  (fastMode off), so a full match takes seconds-per-phase × phases × rounds.
+ *  The longest case (the rounds:5 UPGRADE_PICK migration) runs ~350–400s of
+ *  real time; the budget MUST exceed that or the drivers stop feeding input
+ *  mid-match and the still-alive human seats sit frozen for the rest of the
+ *  game (a harness artifact that reads as "a player can't play round 4/5",
+ *  NOT a game bug). 600s leaves headroom; drivers exit early via ctrl.stop at
+ *  game-over, so the extra budget only matters when a match overruns. */
+const DRIVE_TIMEOUT_MS = 600_000;
 /** Quit-watcher poll interval. */
 const QUIT_POLL_MS = 150;
 
@@ -133,28 +140,34 @@ async function runThreeHumansGame(
 
   const code = await host.roomCode();
 
-  await using peer1 = await createE2EScenario({
-    seed: SEED,
-    rounds,
-    mode,
-    online: "join",
-    roomCode: code,
-    humans: 0,
-    headless: HEADLESS,
-    fastMode: false,
-  });
+  // Launch both joining peers CONCURRENTLY. Sequential creation stacked two
+  // non-headless browser launches inside the host's wait window — the second
+  // peer routinely missed it. Parallel launch ~halves the join latency.
+  const joins = await Promise.all([
+    createE2EScenario({
+      seed: SEED,
+      rounds,
+      mode,
+      online: "join",
+      roomCode: code,
+      humans: 0,
+      headless: HEADLESS,
+      fastMode: false,
+    }),
+    createE2EScenario({
+      seed: SEED,
+      rounds,
+      mode,
+      online: "join",
+      roomCode: code,
+      humans: 0,
+      headless: HEADLESS,
+      fastMode: false,
+    }),
+  ]);
+  await using peer1 = joins[0]!;
+  await using peer2 = joins[1]!;
   await peer1.input.pressKey(SLOT_KEYS[1]); // claim slot 1
-
-  await using peer2 = await createE2EScenario({
-    seed: SEED,
-    rounds,
-    mode,
-    online: "join",
-    roomCode: code,
-    humans: 0,
-    headless: HEADLESS,
-    fastMode: false,
-  });
   await peer2.input.pressKey(SLOT_KEYS[2]); // claim slot 2
 
   const peers: readonly PeerHandle[] = [

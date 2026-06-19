@@ -74,6 +74,13 @@ export interface E2EScenarioOptions {
   online?: "host" | "join";
   /** Room code to join when `online: "join"`. */
   roomCode?: string;
+  /** Host-only "Wait for Players" window in seconds — the lobby auto-start
+   *  countdown (server `autoStartTimer`). EVERY joining peer must create +
+   *  join + seat before it expires, so multi-peer tests that launch several
+   *  non-headless browsers need a window wider than the stacked launch cost
+   *  (10s is too tight for 3 browsers). Must be one of the `#create-wait`
+   *  option values (2/10/30/60/90/120). Defaults to 10. */
+  createWait?: number;
   /** Emulate a touch device (mobile). Sets `isMobile: true`,
    *  `hasTouch: true`, a phone-sized viewport, and a mobile UA on the
    *  Playwright browser context. Flips `IS_TOUCH_DEVICE` inside the
@@ -88,6 +95,12 @@ export interface E2EScenarioOptions {
    *  timings are meaningless to DevTools, and the whole point of a
    *  CPU profile / Chrome trace is real wall-clock frame cost. */
   fastMode?: boolean;
+  /** Wall-anchored speed multiplier for fast-mode (e.g. 2 = run the sim 2×
+   *  real time). When set, fast-mode keeps RAF at its real ~60fps cadence and
+   *  only scales the reported timestamp — so two co-hosted peers stay anchored
+   *  to the wall clock and parity can survive. Omit for the default 100ms/frame
+   *  jump mode (single-peer only). Ignored unless `fastMode` is true. */
+  fastFactor?: number;
   /** Disable Chrome's GPU program / shader disk caches at launch so
    *  every run pays the first-use shader-compile cost. Perf-only —
    *  use when measuring cold-start hitches that the OS/Chrome would
@@ -444,14 +457,29 @@ export async function createE2EScenario(
     autoStartGame = true,
     online,
     roomCode: joinCode,
+    createWait = 10,
     mobile = false,
     fastMode = true,
+    fastFactor,
     coldStart = false,
   } = opts;
 
-  const launchArgs = coldStart
-    ? ["--disable-gpu-program-cache", "--disable-gpu-shader-disk-cache"]
-    : [];
+  const launchArgs = [
+    // Keep occluded / unfocused windows running at full speed. Multi-peer
+    // non-headless parity tests stack several browser windows that inevitably
+    // overlap; without these, an occluded window is "backgrounded" by Chrome,
+    // which (a) throttles its requestAnimationFrame → sim-tick skew past the
+    // lockstep buffer → spurious parity fork, and (b) fires visibilitychange
+    // "hidden", tripping the away-watchdog into a self-disconnect (a spurious
+    // mid-game host migration). Both are browser-environment artifacts, not
+    // game bugs — disabling backgrounding keeps every peer at 60fps.
+    "--disable-backgrounding-occluded-windows",
+    "--disable-renderer-backgrounding",
+    "--disable-background-timer-throttling",
+    ...(coldStart
+      ? ["--disable-gpu-program-cache", "--disable-gpu-shader-disk-cache"]
+      : []),
+  ];
   const browser = await chromium.launch({ headless, args: launchArgs });
   // Mobile emulation: Playwright's `isMobile: true` + `hasTouch: true`
   // are what the runtime's `IS_TOUCH_DEVICE` detection keys on, so the
@@ -495,7 +523,7 @@ export async function createE2EScenario(
     // Create an online room.
     await page.click("#btn-online");
     await page.waitForSelector("#page-online[data-ready]", { timeout: ONLINE_PAGE_TIMEOUT_MS });
-    await page.selectOption("#create-wait", "10");
+    await page.selectOption("#create-wait", String(createWait));
     await page.selectOption("#create-rounds", String(rounds));
     // The online room's mode + seed come from the create form, NOT the
     // `?mode=` URL param / localStorage seed (those only drive local games).
@@ -535,7 +563,7 @@ export async function createE2EScenario(
     await page.waitForSelector("#game-container.active", { timeout: 5000 });
   }
 
-  if (fastMode) await installFastMode(page);
+  if (fastMode) await installFastMode(page, fastFactor);
 
   // Join human slots (local only — online lobby handles slots differently).
   // Skipped when autoStartGame is false so tests can drive the lobby UI
