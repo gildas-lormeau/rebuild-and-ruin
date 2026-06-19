@@ -92,6 +92,29 @@ export interface RunControl {
    *  reading after STOPPED is racy (it intermittently returns -1). Keyed by
    *  PeerHandle.name. */
   identities: Map<string, { myPlayerId: number; amHost: boolean }>;
+  /** Per-peer, per-round cursor activity, sampled live by the monitor from the
+   *  peer's OWN controller (buildCursor / cannonCursor / crosshair). Lets a test
+   *  assert that an ALIVE player actually moves its cursor each round (it's
+   *  really playing, not stuck) and a DEAD player does not (the eliminated-
+   *  spectator gate holds). Only intra-phase moves count — a cursor reset at a
+   *  phase boundary is not a move. Keyed `name → round → activity`. */
+  cursors: Map<string, Map<number, CursorActivity>>;
+}
+
+/** One peer's cursor activity within one round (see {@link RunControl.cursors}). */
+export interface CursorActivity {
+  /** Polls where the local player was alive (lives > 0). */
+  aliveSamples: number;
+  /** Intra-phase cursor moves while alive — the "is actually playing" signal. */
+  aliveMoves: number;
+  /** Intra-phase cursor moves while DEAD — should stay 0 (spectator gate). */
+  deadMoves: number;
+  /** Longest run of consecutive polls where the cursor stayed STILL while the
+   *  player was alive in an interactive BUILD phase (WALL_BUILD / CANNON_PLACE),
+   *  same phase throughout. A whole-round freeze (issue 1) AND a freeze partway
+   *  through a phase (issue 2 — "placed some, then froze") both blow this up;
+   *  normal play moves the cursor every ~120ms so the streak stays tiny. */
+  maxStaticStreak: number;
 }
 
 /** One compact per-sim-tick sample from a peer's in-page recorder. Keyed by
@@ -135,6 +158,10 @@ interface DriveOptions {
 /** Monitor poll interval — phases run real-time (seconds) so 250ms reliably
  *  samples each round boundary without missing a transition. */
 const MONITOR_POLL_MS = 250;
+/** Interactive phases where a human continuously drives a build/place cursor
+ *  (so a sustained still cursor = a freeze). BATTLE is excluded: the aim-bot
+ *  legitimately holds the crosshair still once it's on a target and fires. */
+const BUILD_PHASES = new Set(["WALL_BUILD", "CANNON_PLACE"]);
 /** In-page per-frame recorder, installed on every peer. On each animation
  *  frame it appends a {@link TickRec} keyed by state.simTick (deduped — one row
  *  per tick) to `globalThis.__tickRec`. Reads only the e2e bridge, so it never
@@ -174,6 +201,30 @@ const TICK_RECORDER = `
   w.requestAnimationFrame(loop);
 })();
 `;
+/** Align every live peer's per-sim-tick log against the first and print the
+ *  FIRST tick at which each field (phase, lives, grace, reselect queue,
+ *  life-lost choices, score, rng) diverges from the reference, then a context
+ *  window of full rows around the earliest one. The diagnosis layer on top of
+ *  the round-boundary monitor: the monitor says WHICH round + field broke;
+ *  this says the exact tick + mechanism. `logs[0]` is the reference. */
+/** Fields compared per simTick. At a common simTick, in-lockstep peers agree on
+ *  ALL of these; ANY difference is a real cross-peer fork (NOT round-boundary
+ *  wall-clock skew). */
+const TICK_FIELDS: { key: string; of: (rec: TickRec) => unknown }[] = [
+  { key: "PHASE", of: (rec) => rec.ph },
+  { key: "LIVES", of: (rec) => rec.L },
+  { key: "GRACE", of: (rec) => rec.G },
+  { key: "SELECT", of: (rec) => rec.sel },
+  { key: "LIFELOST", of: (rec) => rec.ll },
+  { key: "SCORE", of: (rec) => rec.S },
+  { key: "RNG", of: (rec) => rec.r },
+];
+/** Number of consecutive common ticks a divergence must hold to count as a real
+ *  fork. A genuine fork PERSISTS — once two sims diverge they can't re-sync
+ *  without a checkpoint. A phase-transition boundary, by contrast, makes PHASE +
+ *  RNG flip for ≤ a couple ticks (the recorder sampled the two peers on opposite
+ *  sides of one transition) and then re-converges; this window filters those. */
+const TICK_DIVERGENCE_PERSIST = 20;
 /** Slot-claim keys in the online lobby (per `selectSlot` in
  *  scripts/online-e2e.ts): slot 0 = "n", slot 1 = "f", slot 2 = "h". */
 export const SLOT_KEYS = ["n", "f", "h"] as const;
@@ -204,7 +255,7 @@ export async function driveMinimalHuman(
   while (Date.now() - start < timeoutMs && !ctrl.stop) {
     if (page.isClosed()) break; // this peer quit — stop driving it
     iteration++;
-    const { mode, phase, timer, tick, lives } = await page
+    const { mode, phase, timer, tick, lives, me } = await page
       .evaluate(() => {
         const e2e = (globalThis as unknown as Record<string, unknown>)
           .__e2e as Record<string, unknown> | undefined;
@@ -215,9 +266,10 @@ export async function driveMinimalHuman(
           timer: (e2e?.timer as number) ?? 10,
           tick: (e2e?.simTick as number) ?? -1,
           lives: gs ? gs.players.map((player) => player.lives) : [],
+          me: (e2e?.myPlayerId as number) ?? -1,
         };
       })
-      .catch(() => ({ mode: "", phase: "", timer: 10, tick: -1, lives: [] as number[] }));
+      .catch(() => ({ mode: "", phase: "", timer: 10, tick: -1, lives: [] as number[], me: -1 }));
 
     if (mode === "STOPPED") break;
     // Surface every per-slot lives change, deduped — so the log shows each
@@ -251,6 +303,16 @@ export async function driveMinimalHuman(
         await page.keyboard.press("n"); // ABANDON
       }
       await page.waitForTimeout(250);
+      continue;
+    }
+
+    // Eliminated (0 lives) = a spectator: a real human whose player is dead
+    // can't place/aim cannons, build, reselect, or pick upgrades. Issue NO
+    // gameplay input — just watch — so the test doesn't drive a dead seat (the
+    // "dead player still moving cannons" artifact). LIFE_LOST is handled above
+    // so the dialog that eliminated us is still dismissed.
+    if (me >= 0 && me < lives.length && lives[me] === 0) {
+      await page.waitForTimeout(150);
       continue;
     }
 
@@ -345,6 +407,13 @@ export async function monitorDivergence(
   // output shows each peer's screen lifecycle — e.g. that game-over (STOPPED) is
   // terminal and no peer slips back to LOBBY / restarts a game.
   const lastMode = new Map<string, string>();
+  // Cursor-activity tracking: a peer's own controller cursor each poll, to prove
+  // alive players actually move (play) and dead players don't. prevSig/prevPhase
+  // gate out phase-boundary cursor resets (only intra-phase moves count).
+  const prevCursorSig = new Map<string, string>();
+  const prevCursorPhase = new Map<string, string>();
+  const staticStreak = new Map<string, number>(); // consecutive still-while-building polls
+  for (const { name } of peers) ctrl.cursors.set(name, new Map());
 
   while (!ctrl.stop) {
     await delay(MONITOR_POLL_MS);
@@ -370,6 +439,45 @@ export async function monitorDivergence(
       if (!result) continue;
       latestLives.set(name, result.players.map((player) => player.lives));
       const round = result.observedAtRound;
+
+      // Cursor activity: did THIS peer's own controller cursor move this poll,
+      // and was its player alive? Counts only intra-phase moves (a cursor reset
+      // at a phase boundary is excluded via the phase guard).
+      if (mode !== "STOPPED") {
+        const cur = await readCursorSig(sc).catch(() => null);
+        const myId = ctrl.identities.get(name)?.myPlayerId ?? -1;
+        const myLives = result.players.find((player) => player.id === myId)?.lives;
+        if (cur && myLives !== undefined) {
+          const prevSig = prevCursorSig.get(name);
+          const samePhase = prevCursorPhase.get(name) === cur.phase;
+          const moved = prevSig !== undefined && samePhase && prevSig !== cur.sig;
+          const byRound = ctrl.cursors.get(name)!;
+          const act = byRound.get(round) ??
+            { aliveSamples: 0, aliveMoves: 0, deadMoves: 0, maxStaticStreak: 0 };
+          if (myLives > 0) {
+            act.aliveSamples++;
+            if (moved) act.aliveMoves++;
+          } else if (moved) {
+            act.deadMoves++;
+          }
+          // Static-streak (issue 2): count consecutive STILL polls while alive
+          // in an interactive build phase, same phase throughout. A move, a
+          // phase change, death, or a non-build phase resets it.
+          const building =
+            myLives > 0 && samePhase && BUILD_PHASES.has(cur.phase);
+          if (building && !moved) {
+            const next = (staticStreak.get(name) ?? 0) + 1;
+            staticStreak.set(name, next);
+            if (next > act.maxStaticStreak) act.maxStaticStreak = next;
+          } else {
+            staticStreak.set(name, 0);
+          }
+          byRound.set(round, act);
+          prevCursorSig.set(name, cur.sig);
+          prevCursorPhase.set(name, cur.phase);
+        }
+      }
+
       if (prevRound.get(name) === null) {
         prevRound.set(name, round);
       } else if (round > prevRound.get(name)!) {
@@ -426,15 +534,35 @@ export async function monitorDivergence(
       for (const peer of have.slice(1)) {
         const peerResult = closed.get(peer.name)!.get(round)!;
         const reason = roundResultDiff(refResult, peerResult);
-        if (reason) {
-          ctrl.divergence = {
-            round,
-            reason: `${ref.name} vs ${peer.name}: ${reason}`,
-            results: { [ref.name]: refResult, [peer.name]: peerResult },
-          };
-          ctrl.stop = true;
-          return 0;
+        if (!reason) continue;
+        // CONFIRM against the per-simTick logs before failing. The round-result
+        // sample is taken at the wall-clock instant a peer is first observed in
+        // the next round; if a life penalty lands AT that boundary, the two
+        // peers (same simTick, different wall-clock) can be sampled on opposite
+        // sides of the transition → a phantom lives/score mismatch. A real fork
+        // shows up as peers disagreeing at a COMMON simTick; skew does not.
+        const [logRef, logPeer] = await Promise.all([
+          readTickLog(ref.sc),
+          readTickLog(peer.sc),
+        ]);
+        const real = firstTickDivergence(logRef, logPeer);
+        if (!real) {
+          console.log(
+            `  [monitor] round ${round} ${ref.name} vs ${peer.name} mismatch (${reason}) ` +
+              `is skew-only — no per-tick divergence; continuing`,
+          );
+          compared.add(round); // settled as skew — don't re-check it
+          continue;
         }
+        ctrl.divergence = {
+          round,
+          reason:
+            `${ref.name} vs ${peer.name}: ${reason} ` +
+            `(confirmed at tick ${real.tick}, field ${real.field})`,
+          results: { [ref.name]: refResult, [peer.name]: peerResult },
+        };
+        ctrl.stop = true;
+        return 0;
       }
       // Every live peer has weighed in on this round — freeze it.
       if (liveNames.every((name) => closed.get(name)!.has(round))) compared.add(round);
@@ -516,6 +644,50 @@ export async function readIdentity(
   });
 }
 
+/** Assert each named peer's player actually MOVED its cursor in every round it
+ *  was alive (it was really playing — catches an alive-but-stuck player), and
+ *  did NOT move while dead (the eliminated-spectator gate held). `minSamples`
+ *  ignores rounds where the peer was only briefly alive (too few polls to judge).
+ *  Reads {@link RunControl.cursors}. */
+export function assertCursorActivity(
+  ctrl: RunControl,
+  names: readonly string[],
+  minSamples = 4,
+  maxStaticPolls = 24,
+): void {
+  for (const name of names) {
+    const byRound = ctrl.cursors.get(name);
+    if (!byRound) continue;
+    let deadMoves = 0;
+    for (const [round, act] of byRound) {
+      deadMoves += act.deadMoves;
+      if (act.aliveSamples >= minSamples) {
+        // Issue 1: a whole round alive without ever moving the cursor.
+        assert(
+          act.aliveMoves > 0,
+          `${name} was alive for ${act.aliveSamples} polls in round ${round} ` +
+            `but never moved its cursor — an alive player should be playing`,
+        );
+        // Issue 2: a sustained freeze partway through a build phase (the player
+        // placed some pieces, then the cursor went still for too long).
+        assert(
+          act.maxStaticStreak <= maxStaticPolls,
+          `${name} froze in round ${round}: its cursor sat still for ` +
+            `${act.maxStaticStreak} consecutive polls while alive in a build ` +
+            `phase — it should keep placing pieces (max ${maxStaticPolls})`,
+        );
+      }
+    }
+    // Lenient: a dead player's cursor should be still. Allow a couple of stray
+    // moves (a late checkpoint/adoption can nudge it) but not sustained control.
+    assert(
+      deadMoves <= 2,
+      `${name} moved its cursor ${deadMoves}× while its player was dead — a ` +
+        `dead player should be a spectator (eliminated-spectator gate broken)`,
+    );
+  }
+}
+
 /** Slot ids that fired at least one cannon in this peer's bus log. */
 export async function firedSlots(sc: E2EScenario): Promise<Set<number>> {
   const fired = await sc.bus.events(GAME_EVENT.CANNON_FIRED);
@@ -537,12 +709,47 @@ export async function readTickLog(sc: E2EScenario): Promise<TickRec[]> {
     .catch(() => [])) as TickRec[];
 }
 
-/** Align every live peer's per-sim-tick log against the first and print the
- *  FIRST tick at which each field (phase, lives, grace, reselect queue,
- *  life-lost choices, score, rng) diverges from the reference, then a context
- *  window of full rows around the earliest one. The diagnosis layer on top of
- *  the round-boundary monitor: the monitor says WHICH round + field broke;
- *  this says the exact tick + mechanism. `logs[0]` is the reference. */
+/** First simTick (+ field) at which two peers' tick logs ACTUALLY diverge AND
+ *  stay diverged — aligned by simTick (immune to round-boundary wall-clock skew)
+ *  and persistence-gated (immune to single-tick phase-transition blips). Returns
+ *  null when the logs agree, or only blip transiently, at every common tick —
+ *  proving a flagged round-boundary mismatch was skew, not a fork. */
+export function firstTickDivergence(
+  logA: readonly TickRec[],
+  logB: readonly TickRec[],
+): { tick: number; field: string } | null {
+  const aByTick = new Map(logA.map((rec) => [rec.t, rec] as const));
+  const bByTick = new Map(logB.map((rec) => [rec.t, rec] as const));
+  const common = [...aByTick.keys()]
+    .filter((tick) => bByTick.has(tick))
+    .sort((first, second) => first - second);
+  const fieldDiffAt = (tick: number): string | null => {
+    const a = aByTick.get(tick)!;
+    const b = bByTick.get(tick)!;
+    for (const field of TICK_FIELDS) {
+      if (jstr(field.of(a)) !== jstr(field.of(b))) return field.key;
+    }
+    return null;
+  };
+  for (let i = 0; i < common.length; i++) {
+    const field = fieldDiffAt(common[i]!);
+    if (!field) continue;
+    // Confirm the divergence persists across the next window of common ticks. A
+    // transient (phase-boundary) blip re-converges within it; a fork does not.
+    const end = Math.min(i + TICK_DIVERGENCE_PERSIST, common.length);
+    if (end - i < TICK_DIVERGENCE_PERSIST) break; // too few ticks left to confirm
+    let persists = true;
+    for (let j = i + 1; j < end; j++) {
+      if (!fieldDiffAt(common[j]!)) {
+        persists = false;
+        break;
+      }
+    }
+    if (persists) return { tick: common[i]!, field };
+  }
+  return null;
+}
+
 export function dumpTickDivergence(
   logs: readonly { name: string; log: TickRec[] }[],
 ): void {
@@ -556,16 +763,7 @@ export function dumpTickDivergence(
   const ref = withRows[0]!;
   const refByTick = new Map(ref.log.map((rec) => [rec.t, rec] as const));
 
-  const fields: { key: string; of: (rec: TickRec) => unknown }[] = [
-    { key: "PHASE", of: (rec) => rec.ph },
-    { key: "LIVES", of: (rec) => rec.L },
-    { key: "GRACE", of: (rec) => rec.G },
-    { key: "SELECT", of: (rec) => rec.sel },
-    { key: "LIFELOST", of: (rec) => rec.ll },
-    { key: "SCORE", of: (rec) => rec.S },
-    { key: "RNG", of: (rec) => rec.r },
-  ];
-
+  const fields = TICK_FIELDS;
   let earliest: number | undefined;
   for (const peer of withRows.slice(1)) {
     const peerByTick = new Map(peer.log.map((rec) => [rec.t, rec] as const));
@@ -608,6 +806,35 @@ export function dumpTickDivergence(
 
 export function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** This peer's OWN controller cursor as a single signature (buildCursor +
+ *  cannonCursor + crosshair) plus the current phase. The monitor diffs the
+ *  signature poll-to-poll to detect cursor movement; the phase gates out
+ *  phase-boundary cursor resets. Null while no controller (e.g. spectator). */
+async function readCursorSig(
+  sc: E2EScenario,
+): Promise<{ sig: string; phase: string } | null> {
+  return (await sc.page.evaluate(() => {
+    const e2e = (globalThis as unknown as Record<string, unknown>).__e2e as
+      | Record<string, unknown>
+      | undefined;
+    const phase = (e2e?.phase as string) ?? "";
+    const ctrl = e2e?.controller as
+      | {
+          buildCursor: { row: number; col: number } | null;
+          cannonCursor: { row: number; col: number } | null;
+          crosshair: { x: number; y: number } | null;
+        }
+      | null
+      | undefined;
+    if (!ctrl) return null;
+    const bc = ctrl.buildCursor;
+    const cc = ctrl.cannonCursor;
+    const ch = ctrl.crosshair;
+    const sig = `b${bc?.row},${bc?.col}|c${cc?.row},${cc?.col}|x${ch?.x},${ch?.y}`;
+    return { sig, phase };
+  })) as { sig: string; phase: string } | null;
 }
 
 /** Basic battle aim-bot: hill-climb the crosshair toward the nearest ENEMY

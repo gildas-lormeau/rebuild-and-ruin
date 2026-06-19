@@ -96,7 +96,12 @@ async function runTwoHumansGame(mode: "classic" | "modern"): Promise<void> {
   await installTickRecorder(client);
 
   // --- Both humans play minimally + a monitor watches for divergence -----
-  const ctrl: RunControl = { stop: false, divergence: null, identities: new Map() };
+  const ctrl: RunControl = {
+    stop: false,
+    divergence: null,
+    identities: new Map(),
+    cursors: new Map(),
+  };
   const peers = [
     { name: "HOST", sc: host },
     { name: "CLIENT", sc: client },

@@ -8,20 +8,22 @@
  *   - peer2 → joins, seats itself in slot 2
  *
  * Partway through the match one peer CLOSES ITS BROWSER (the quit), the same
- * way a real player closing the tab / losing their connection would. The
- * default quitter is the HOST (slot 0) — its socket closing is the
- * host-migration edge case: the server promotes the lowest-slot survivor
- * (slot 1) to host, that peer broadcasts a FULL_STATE checkpoint, and every
- * survivor adopts it (see src/online/runtime/promote.ts). The quit moment
- * (round + phase) is a parameter so multiple disconnection windows can be
- * exercised — mid-BATTLE vs mid-WALL_BUILD land in different promotion-repair
- * branches of promote.ts.
+ * way a real player closing the tab / losing their connection would. WHO quits
+ * and WHEN are parameters:
+ *   - HOST (slot 0) quits → host migration: the server promotes the lowest-slot
+ *     survivor to host, that peer broadcasts a FULL_STATE checkpoint, and every
+ *     survivor adopts it (src/online/runtime/promote.ts). Different quit phases
+ *     (CANNON_PLACE, BATTLE, WALL_BUILD, UPGRADE_PICK) land in different
+ *     promotion-repair branches.
+ *   - NON-host (slot 1/2) quits → NO migration: the server parks the seat and
+ *     the unchanged host schedules an AI takeover (online-seat-takeover.ts).
  *
- * After the quit the two survivors play on (the quitter's seat becomes AI via
- * the seat-takeover the new host stamps). The test asserts:
- *   1. the promotion happened — exactly one survivor reports `isHost`, and it is
- *      the lowest-slot survivor (a broken migration otherwise only surfaces as a
- *      slow game-over timeout);
+ * After the quit the two survivors play on (the quitter's seat becomes AI). The
+ * test asserts:
+ *   1. host identity is correct — exactly one survivor is host, and it is the
+ *      lowest surviving slot (the promoted survivor on a host quit, or the
+ *      unchanged slot-0 host on a non-host quit; a broken migration otherwise
+ *      only surfaces as a slow game-over timeout);
  *   2. the survivors never diverge — the same N-peer round-boundary monitor as
  *      two-humans-online.ts watches per-slot lives/score every round and stops
  *      at the first disagreement (the quitter is dropped from comparison, not
@@ -42,6 +44,7 @@
 
 import { assert, assertEquals } from "@std/assert";
 import {
+  assertCursorActivity,
   buildSnap,
   delay,
   driveMinimalHuman,
@@ -59,9 +62,20 @@ import { createE2EScenario, GAME_EVENT } from "./scenario.ts";
 /** When + who quits the match. `phase` is matched against the bridge's `phase`
  *  (the Phase enum string) the first time the quitter is at-or-past `round`. */
 interface QuitMoment {
+  /** Which peer closes its browser. Slot 0 = the HOST → server migrates (the
+   *  lowest-slot survivor is promoted). Slot 1/2 = a NON-host → no migration,
+   *  the server just parks the seat and the host schedules an AI takeover. */
   readonly quitterSlot: 0 | 1 | 2;
   readonly round: number;
-  readonly phase: "BATTLE" | "WALL_BUILD";
+  /** Matched against the bridge's `phase` (the Phase enum string). Different
+   *  phases land in different promotion-repair branches of promote.ts
+   *  (battle-intro, round-end fast-forward, cannon-entry prime, upgrade-pick
+   *  force-resolve). UPGRADE_PICK requires modern mode + round ≥ 3. */
+  readonly phase: "CANNON_PLACE" | "BATTLE" | "WALL_BUILD" | "UPGRADE_PICK";
+  /** Battle Length for this scenario (default {@link ROUNDS}). UPGRADE_PICK
+   *  needs ≥ 4: the offer is for the NEXT round, so the FINAL round has no
+   *  upgrade phase — round 3 only shows UPGRADE_PICK when a round 4 follows. */
+  readonly rounds?: number;
 }
 
 /** Fixed seed → stable map (parity here is cross-PEER, not cross-RUN). */
@@ -76,22 +90,39 @@ const DRIVE_TIMEOUT_MS = 300_000;
 /** Quit-watcher poll interval. */
 const QUIT_POLL_MS = 150;
 
-// Host (slot 0) quits — the host-migration cases. Two moments, two distinct
-// promotion-repair windows in promote.ts (battle-intro vs round-end/build).
+// HOST (slot 0) quits — the host-migration cases. Each phase lands in a
+// different promotion-repair branch of promote.ts (battle-intro skip,
+// round-end fast-forward, cannon-entry prime, upgrade-pick force-resolve).
 Deno.test("e2e online: host quits mid-BATTLE, two survivors finish in sync (migration)", () =>
   runThreeHumansGame("modern", { quitterSlot: 0, round: 2, phase: "BATTLE" }));
 
 Deno.test("e2e online: host quits mid-WALL_BUILD, two survivors finish in sync (migration)", () =>
   runThreeHumansGame("modern", { quitterSlot: 0, round: 2, phase: "WALL_BUILD" }));
 
+Deno.test("e2e online: host quits mid-CANNON_PLACE, two survivors finish in sync (migration)", () =>
+  runThreeHumansGame("modern", { quitterSlot: 0, round: 2, phase: "CANNON_PLACE" }));
+
+// Modern only: UPGRADE_PICK exists from round 3. Exercises promote.ts's
+// resolveUpgradePickNow repair (the phase has no self-driving timer, so a
+// botched promotion there hangs the match forever).
+Deno.test("e2e online: host quits mid-UPGRADE_PICK, two survivors finish in sync (migration)", () =>
+  runThreeHumansGame("modern", { quitterSlot: 0, round: 3, phase: "UPGRADE_PICK", rounds: 5 }));
+
+// NON-host (slot 2 / Gold) quits — no migration; the seat is parked and the
+// host schedules an AI takeover (online-seat-takeover.ts). The two survivors,
+// INCLUDING the unchanged host, must finish in sync.
+Deno.test("e2e online: non-host (slot 2) quits mid-BATTLE — AI takeover, no migration", () =>
+  runThreeHumansGame("modern", { quitterSlot: 2, round: 2, phase: "BATTLE" }));
+
 async function runThreeHumansGame(
   mode: "classic" | "modern",
   quit: QuitMoment,
 ): Promise<void> {
+  const rounds = quit.rounds ?? ROUNDS;
   // --- Seat three humans -------------------------------------------------
   await using host = await createE2EScenario({
     seed: SEED,
-    rounds: ROUNDS,
+    rounds,
     mode,
     online: "host",
     humans: 0, // online path seats slots manually below
@@ -104,7 +135,7 @@ async function runThreeHumansGame(
 
   await using peer1 = await createE2EScenario({
     seed: SEED,
-    rounds: ROUNDS,
+    rounds,
     mode,
     online: "join",
     roomCode: code,
@@ -116,7 +147,7 @@ async function runThreeHumansGame(
 
   await using peer2 = await createE2EScenario({
     seed: SEED,
-    rounds: ROUNDS,
+    rounds,
     mode,
     online: "join",
     roomCode: code,
@@ -140,7 +171,12 @@ async function runThreeHumansGame(
   // --- Drive all three + monitor divergence + trigger the quit -----------
   // The quitter's drive is wrapped so the in-flight keypress that races the
   // page-close resolves cleanly instead of rejecting the whole Promise.all.
-  const ctrl: RunControl = { stop: false, divergence: null, identities: new Map() };
+  const ctrl: RunControl = {
+    stop: false,
+    divergence: null,
+    identities: new Map(),
+    cursors: new Map(),
+  };
   // Always CONTINUE on a life loss: random abandons would routinely end a
   // 3-human match in round 1, before the quitter reaches its mid-game quit
   // moment. The quit (a closed socket) is the disconnection event under test
@@ -203,19 +239,26 @@ async function runThreeHumansGame(
   );
   await Promise.all(survivors.map((peer) => peer.sc.page.close().catch(() => {})));
 
-  // 1. Migration happened: exactly one survivor is host, and it is the
-  //    lowest-slot survivor (server promotes the lowest-slot alive player).
+  // 1. Exactly one survivor is host, and it is the lowest-slot survivor. When
+  //    the HOST quit, the server promoted the lowest-slot survivor (migration);
+  //    when a NON-host quit, the original host (slot 0) survived and stays host
+  //    (no migration — just an AI seat-takeover of the quitter's slot). Either
+  //    way the host is the lowest surviving slot, computed statically from who
+  //    quit (stronger than re-deriving it from the captured identities).
+  const survivorSlots = ([0, 1, 2] as const).filter((slot) => slot !== quit.quitterSlot);
+  const expectedHostSlot = Math.min(...survivorSlots);
   const hostsAmong = captured.filter((cap) => cap.identity.amHost);
   assertEquals(
     hostsAmong.length,
     1,
-    `exactly one survivor should be host after migration (got ${hostsAmong.length})`,
+    `exactly one survivor should be host (got ${hostsAmong.length})`,
   );
-  const lowestSurvivorSlot = Math.min(...captured.map((cap) => cap.identity.myPlayerId));
   assertEquals(
     hostsAmong[0]!.identity.myPlayerId,
-    lowestSurvivorSlot,
-    "the promoted host should be the lowest-slot survivor",
+    expectedHostSlot,
+    quit.quitterSlot === 0
+      ? "host migration should promote the lowest-slot survivor"
+      : "a non-host quit should NOT migrate the host (slot 0 stays host)",
   );
 
   // 2. Both survivors reached game-over.
@@ -257,6 +300,12 @@ async function runThreeHumansGame(
     const slot = cap.identity.myPlayerId;
     assert(cap.fired.has(slot), `${cap.name} (slot ${slot}) never fired a cannon`);
   }
+
+  // 6. Each survivor MOVED its cursor in every round it was alive (it was
+  //    actually playing, not stuck — the round-grained check catches a stall at
+  //    a specific round, e.g. an alive player that stops building mid-game), and
+  //    did NOT move its cursor while dead (the eliminated-spectator gate held).
+  assertCursorActivity(ctrl, survivors.map((peer) => peer.name));
 }
 
 /** Poll the quitter until it is at-or-past the target round in the target phase,
