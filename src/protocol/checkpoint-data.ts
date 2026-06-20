@@ -68,6 +68,11 @@ export interface SerializedPlayer {
   /** True during the grace-period battle after a fresh castle build
    *  (round 1 auto-build or mid-game reselect). */
   inGracePeriod?: boolean;
+  /** Round-robin index of the last cannon fired this battle (combined own +
+   *  captured list). Carried so a mid-battle join/migration resumes the
+   *  selector where it left off — it can't be re-derived. Omitted when
+   *  undefined (no fire yet / outside battle); `0` is a valid index. */
+  cannonRotationIdx?: number;
 }
 
 export interface SerializedBurningPit {

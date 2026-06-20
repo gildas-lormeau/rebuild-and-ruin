@@ -105,6 +105,7 @@ function createGameState(
       inGracePeriod: false,
       bag: undefined,
       currentPiece: undefined,
+      cannonRotationIdx: undefined,
     });
   }
 

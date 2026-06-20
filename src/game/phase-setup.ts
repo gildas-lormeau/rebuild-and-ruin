@@ -157,6 +157,12 @@ export function prepareBattleState(state: GameState): ModifierDiff | null {
   state.cannonballs = [];
   resetShotsFired(state);
   state.pendingCannonFires.clear();
+  // Reset the per-player round-robin cannon selector each battle. Lives on
+  // GameState (see Player.cannonRotationIdx) so this runs once per peer in
+  // lockstep — replaces the old per-controller reset in initBattleState.
+  for (const player of state.players) {
+    player.cannonRotationIdx = undefined;
+  }
   onBattlePhaseStart(state, {
     filterActiveFiringCannons,
     isCannonEnclosed,

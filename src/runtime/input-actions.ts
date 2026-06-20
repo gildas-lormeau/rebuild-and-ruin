@@ -33,7 +33,7 @@ export function createLocalInputActions(
     fire: (ctrl, gameState) => {
       const intent = ctrl.fire(gameState);
       if (!intent) return;
-      executeCannonFire(runtimeState.state, intent, ctrl);
+      executeCannonFire(runtimeState.state, intent);
     },
   };
 }

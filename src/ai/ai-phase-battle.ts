@@ -430,7 +430,11 @@ function tickChainDwelling(
   // in grunt/wall chains are fine; only own-wall cleanup is off-limits.)
   if (
     phase.chainType === CHAIN.POCKET &&
-    nextReadyCannonIsSuper(state, host.playerId, host.cannonRotationIdx)
+    nextReadyCannonIsSuper(
+      state,
+      host.playerId,
+      state.players[host.playerId]?.cannonRotationIdx,
+    )
   ) {
     phase.chainTargets = undefined;
     phase.crosshairTarget = null;

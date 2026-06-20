@@ -8,9 +8,9 @@
  */
 
 import {
+  executeCannonFire,
   executePlaceCannon,
   executePlacePiece,
-  fireNextReadyCannon,
   scheduleCannonFire,
   scheduleCannonPlacement,
   schedulePiecePlacement,
@@ -22,7 +22,6 @@ import type {
   PiecePlacedPayload,
 } from "../shared/core/phantom-types.ts";
 import type {
-  BattleController,
   BattleViewState,
   BuildController,
   BuildViewState,
@@ -33,9 +32,10 @@ import type {
 } from "../shared/core/system-interfaces.ts";
 import type { GameState } from "../shared/core/types.ts";
 
-/** Apply-strategy for AiController's three mutating commits. Returns mirror
- *  the executors: a success bool for placements, the new rotation index (or
- *  null when no cannon fired) for fire. */
+/** Apply-strategy for AiController's three mutating commits. Each returns a
+ *  success bool — for fire, whether a cannon was ready and fired. The
+ *  round-robin selector now lives on GameState (`player.cannonRotationIdx`),
+ *  advanced by the executors, so the controller no longer threads an index. */
 export interface AiCommitPort {
   placePiece(
     state: BuildViewState,
@@ -47,11 +47,7 @@ export interface AiCommitPort {
     intent: PlaceCannonIntent,
     maxSlots: number,
   ): boolean;
-  fire(
-    state: BattleViewState,
-    intent: FireIntent,
-    ctrl: BattleController,
-  ): number | null;
+  fire(state: BattleViewState, intent: FireIntent): boolean;
 }
 
 /** Wire-broadcast callbacks the networked port needs — a structural subset
@@ -70,16 +66,8 @@ export const DIRECT_COMMIT_PORT: AiCommitPort = {
     executePlacePiece(state as GameState, intent, ctrl),
   placeCannon: (state, intent, maxSlots) =>
     executePlaceCannon(state as GameState, intent, maxSlots),
-  fire: (state, intent, ctrl) => {
-    const fired = fireNextReadyCannon(
-      state as GameState,
-      intent.playerId,
-      ctrl.cannonRotationIdx,
-      intent.targetRow,
-      intent.targetCol,
-    );
-    return fired ? fired.rotationIdx : null;
-  },
+  fire: (state, intent) =>
+    executeCannonFire(state as GameState, intent) !== null,
 };
 
 /** Deferred-apply port: schedule the apply on the lockstep queue with a
@@ -122,18 +110,17 @@ export function networkedCommitPort(opts: {
       senders.sendCannonPlaced(stamped);
       return true;
     },
-    fire(state, intent, ctrl) {
-      if (isQuarantined()) return null;
-      const fired = scheduleCannonFire({
+    fire(state, intent) {
+      if (isQuarantined()) return false;
+      const msg = scheduleCannonFire({
         schedule,
         state: state as GameState,
         intent,
-        ctrl,
         safetyTicks,
       });
-      if (!fired) return null;
-      senders.sendCannonFired(fired.msg);
-      return fired.rotationIdx;
+      if (!msg) return false;
+      senders.sendCannonFired(msg);
+      return true;
     },
   };
 }

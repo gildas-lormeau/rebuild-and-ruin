@@ -8,7 +8,6 @@
 
 import type { Cannonball } from "../shared/core/battle-types.ts";
 import type {
-  BattleController,
   BuildController,
   FireIntent,
   PlaceCannonIntent,
@@ -78,22 +77,20 @@ export function executePlaceCannon(
   );
 }
 
-/** Execute a fire intent against game state.
- *  On success, updates the controller's cannon rotation index.
+/** Execute a fire intent against game state. The round-robin selector
+ *  (`player.cannonRotationIdx`) is read and advanced inside
+ *  `fireNextReadyCannon` — GameState owns it, not the controller.
  *  Returns the newly created cannonball, or null if no cannon was ready. */
 export function executeCannonFire(
   state: GameState,
   intent: FireIntent,
-  ctrl: BattleController,
 ): Cannonball | null {
   const fired = fireNextReadyCannon(
     state,
     intent.playerId,
-    ctrl.cannonRotationIdx,
     intent.targetRow,
     intent.targetCol,
   );
   if (!fired) return null;
-  ctrl.cannonRotationIdx = fired.rotationIdx;
   return state.cannonballs[state.cannonballs.length - 1]!;
 }

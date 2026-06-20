@@ -332,6 +332,8 @@ function applyPlayersCheckpoint(
     player.upgrades = new Map((entry.upgrades ?? []) as [UpgradeId, number][]);
     player.damagedWalls = new Set((entry.damagedWalls ?? []) as TileKey[]);
     player.inGracePeriod = entry.inGracePeriod ?? false;
+    // Direct assign: undefined (omitted) = no fire yet; 0 is a valid index.
+    player.cannonRotationIdx = entry.cannonRotationIdx;
   }
 }
 
@@ -392,6 +394,9 @@ function serializePlayerCore(player: Player) {
     damagedWalls:
       player.damagedWalls.size > 0 ? [...player.damagedWalls] : undefined,
     inGracePeriod: player.inGracePeriod || undefined,
+    // Direct (not `|| undefined`): 0 is a valid rotation index. JSON drops
+    // the key when undefined (no fire yet / outside battle).
+    cannonRotationIdx: player.cannonRotationIdx,
   };
 }
 

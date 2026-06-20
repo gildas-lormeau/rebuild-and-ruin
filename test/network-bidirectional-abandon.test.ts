@@ -32,15 +32,18 @@ import {
 
 const WIRE_DELAY_FRAMES = 5;
 // Seeds where slot 0 or 1 reaches a life-loss within the round budget, so the
-// forced ABANDON actually fires (verified empirically).
+// forced ABANDON actually fires (verified empirically via tmp probing). These
+// are dynamics-tuned fixtures: re-probed after cannonRotationIdx moved onto
+// GameState (the assisted-AI's lockstep fire selector now advances at apply
+// time, shifting battle outcomes), which is why the prior seeds drifted.
 const TRIALS: {
   readonly seed: number;
   readonly mode: "classic" | "modern";
   readonly rounds: number;
 }[] = [
-  { seed: 13, mode: "classic", rounds: 5 },
-  { seed: 256, mode: "classic", rounds: 8 },
-  { seed: 123, mode: "modern", rounds: 8 },
+  { seed: 5, mode: "classic", rounds: 5 },
+  { seed: 10, mode: "classic", rounds: 8 },
+  { seed: 11, mode: "modern", rounds: 8 },
 ];
 
 void _forceScenarioFirst;

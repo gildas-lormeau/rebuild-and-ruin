@@ -60,6 +60,14 @@ export interface CannonFiredMessage extends BallisticTrajectory {
    *  rollout — local-only emits (bus replay, host fanout from
    *  battle-system.ts) leave it undefined; the wire path always sets it. */
   applyAt?: number;
+  /** Combined-cannon round-robin index the originator advanced to for this
+   *  fire (`prepareCannonFireForLockstep` pinned it). Receivers apply it as
+   *  `player.cannonRotationIdx` in `applyCannonFired` so the selector stays
+   *  lockstep — it can't be re-derived receiver-side (the originator picked
+   *  against a board that may change by applyAt). Set by the wire path
+   *  (`scheduleCannonFire`); undefined on local bus emits
+   *  (`createCannonFiredMsg`), which never reach `applyCannonFired`. */
+  rotationIdx?: number;
 }
 
 /** Shared shape for impact events located at a tile and attributed to a

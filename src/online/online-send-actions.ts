@@ -86,16 +86,17 @@ export function createOnlineSendActions(deps: OnlineSendActionsDeps) {
     if (isQuarantined()) return;
     const intent = ctrl.fire(gameState);
     if (!intent) return;
-    const fired = scheduleCannonFire({
+    const msg = scheduleCannonFire({
       schedule,
       state: getState(),
       intent,
-      ctrl,
       safetyTicks,
     });
-    if (!fired) return;
-    ctrl.cannonRotationIdx = fired.rotationIdx;
-    send(fired.msg);
+    if (!msg) return;
+    // The round-robin advance rides the wire (`msg.rotationIdx`) and is
+    // applied as `player.cannonRotationIdx` in `applyCannonFired` on every
+    // peer — no controller-local write here.
+    send(msg);
   }
 
   return { tryPlacePiece, tryPlaceCannon, fire };

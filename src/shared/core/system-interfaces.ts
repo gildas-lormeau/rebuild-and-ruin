@@ -302,10 +302,6 @@ export interface CannonController {
 }
 
 export interface BattleController {
-  /** Round-robin index into combined cannon list. undefined = no cannon fired yet this round.
-   *  Written by the orchestrator after executing a FireIntent. */
-  cannonRotationIdx: number | undefined;
-
   /** Called each frame during battle. Uses state.battleCountdown and state.timer to decide behavior. */
   battleTick(state: BattleViewState, dt: number): void;
 
@@ -329,9 +325,11 @@ export interface BattleController {
    *  AiController resolves only (its crosshair glides via stepCrosshairToward). */
   aim(state: BattleViewState, x: number, y: number): WorldPos;
 
-  /** Initialize battle-phase state (cannon rotation index, crosshair position).
-   *  Called once at battle start — not a full game reset (see reset() for that).
-   *  Scope: resets cannonRotationIdx + centers cursors on home tower. */
+  /** Initialize battle-phase cursor state. Called once at battle start — not
+   *  a full game reset (see reset() for that). Scope: centers cursors on the
+   *  home tower. The round-robin cannon selector lives on GameState
+   *  (`player.cannonRotationIdx`, reset in `prepareBattleState`), so it is
+   *  not touched here. */
   initBattleState(state?: BattleViewState): void;
 
   endBattle(): void;

@@ -102,6 +102,14 @@ export interface Player {
   bag: BagState | undefined;
   /** Current piece drawn from the bag (may be rotated by player input). */
   currentPiece: PieceShape | undefined;
+  /** Round-robin index into the combined cannon list (own + captured) of the
+   *  last cannon this player fired; `undefined` = no cannon fired yet this
+   *  round. The deterministic selector `nextReadyCannon` advances from here.
+   *  Lives on GameState (not the controller) so every peer advances it in
+   *  lockstep — the engine writes it (`fireNextReadyCannon` for the immediate
+   *  path, `applyCannonFired` from the wired `rotationIdx` for the lockstep
+   *  path) and reset each battle in `prepareBattleState`. */
+  cannonRotationIdx: number | undefined;
 }
 
 /** Create a branded empty interior set. Use at Player creation. */

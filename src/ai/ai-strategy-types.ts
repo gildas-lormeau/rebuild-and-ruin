@@ -180,10 +180,6 @@ export interface BattleHost {
   readonly playerId: ValidPlayerId;
   readonly strategy: AiStrategy;
   crosshair: PixelPos;
-  /** Round-robin position of the last cannon this controller fired (undefined
-   *  before the first shot). The brain peeks the *next* ready cannon from here
-   *  to keep super guns off our own walls — see `tickChainDwelling`. */
-  readonly cannonRotationIdx: number | undefined;
   /** When true, the battle brain keeps aiming (think/pick/move/dwell) while
    *  every cannon reloads — like a human, who can move the crosshair freely
    *  during reload — instead of freezing until one is ready. */

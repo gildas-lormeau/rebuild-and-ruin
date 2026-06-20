@@ -263,22 +263,21 @@ export class AiController extends BaseController {
   battleTick(state: BattleViewState, _dt: number): void {
     const result = this.brain.battle.tick(this, state);
     if (!result.commit) return;
-    const rotationIdx = this.commit.fire(state, result.commit, this);
-    if (rotationIdx !== null) {
-      this.cannonRotationIdx = rotationIdx;
-      if (result.origin && isAiBattleDiagHookActive()) {
-        emitFireDecisionDiag({
-          origin: result.origin,
-          pickPath: result.pickPath,
-          intendedTarget: result.intendedTarget,
-          aimTarget: {
-            row: result.commit.targetRow,
-            col: result.commit.targetCol,
-          },
-        });
-      }
+    // The fire executor advances the synced selector
+    // (`player.cannonRotationIdx`); the controller only needs success/fail.
+    const fired = this.commit.fire(state, result.commit);
+    if (fired && result.origin && isAiBattleDiagHookActive()) {
+      emitFireDecisionDiag({
+        origin: result.origin,
+        pickPath: result.pickPath,
+        intendedTarget: result.intendedTarget,
+        aimTarget: {
+          row: result.commit.targetRow,
+          col: result.commit.targetCol,
+        },
+      });
     }
-    this.brain.battle.onFireResult(this, state, rotationIdx !== null);
+    this.brain.battle.onFireResult(this, state, fired);
   }
 
   // -----------------------------------------------------------------------

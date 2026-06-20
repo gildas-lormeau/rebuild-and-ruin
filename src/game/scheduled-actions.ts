@@ -17,7 +17,6 @@ import type { CannonPlacedPayload } from "../shared/core/phantom-types.ts";
 import type { PieceShape } from "../shared/core/pieces.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import type {
-  BattleController,
   BuildViewState,
   FireIntent,
   PlaceCannonIntent,
@@ -113,20 +112,20 @@ export function schedulePiecePlacement(args: {
  *  `applyCannonFired` for the same `applyAt` so the ball-push, scoring,
  *  and bus-driven side effects align across peers.
  *
- *  Returns the stamped wire message + new rotation index, or null when no
- *  cannon is ready (caller treats as a no-op — no enqueue, no broadcast). */
+ *  Returns the stamped wire message (carrying the advanced `rotationIdx`),
+ *  or null when no cannon is ready (caller treats as a no-op — no enqueue,
+ *  no broadcast). The rotation index rides the wire and is applied as
+ *  `player.cannonRotationIdx` in `applyCannonFired` on every peer. */
 export function scheduleCannonFire(args: {
   schedule: (action: ScheduledAction<GameState>) => void;
   state: GameState;
   intent: FireIntent;
-  ctrl: BattleController;
   safetyTicks: number;
-}): { msg: CannonFiredMessage; rotationIdx: number } | null {
-  const { schedule, state, intent, ctrl, safetyTicks } = args;
+}): CannonFiredMessage | null {
+  const { schedule, state, intent, safetyTicks } = args;
   const fired = prepareCannonFireForLockstep(
     state,
     intent.playerId,
-    ctrl.cannonRotationIdx,
     intent.targetRow,
     intent.targetCol,
   );
@@ -135,13 +134,14 @@ export function scheduleCannonFire(args: {
   const msg: CannonFiredMessage = {
     ...createCannonFiredMsg(fired.ball),
     applyAt,
+    rotationIdx: fired.rotationIdx,
   };
   schedule({
     applyAt,
     playerId: intent.playerId,
     apply: (drainState) => applyCannonFiredOriginator(drainState, msg),
   });
-  return { msg, rotationIdx: fired.rotationIdx };
+  return msg;
 }
 
 /** Originator-side cannon-place scheduler. Validates against `cannonLimits`

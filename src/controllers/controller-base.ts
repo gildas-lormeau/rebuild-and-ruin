@@ -76,9 +76,6 @@ export abstract class BaseController implements PlayerController {
     x: DEFAULT_CURSOR_COL * TILE_SIZE,
     y: DEFAULT_CURSOR_ROW * TILE_SIZE,
   };
-  /** Round-robin index into combined cannon list. undefined = no cannon fired yet this round.
-   *  Reset in initBattleState() and onLifeLost(). */
-  cannonRotationIdx: number | undefined;
 
   /** Resolves a raw battle-aim input to the occluded crosshair world position.
    *  Injected at construction: camera-backed for humans, sim-only for AI. */
@@ -174,10 +171,13 @@ export abstract class BaseController implements PlayerController {
   abstract battleTick(state: BattleViewState, dt: number): void;
 
   /** @final Template method — do NOT override. Override onResetBattle() instead.
-   *  Initializes battle-phase state (cannonRotationIdx, cursors), then calls hook.
-   *  Scope: cannonRotationIdx + cursor centering only — not a full game reset (see reset()). */
+   *  Centers cursors on the home tower, then calls the hook. The round-robin
+   *  cannon selector now lives on GameState (`player.cannonRotationIdx`,
+   *  reset each battle in `prepareBattleState`) — the controller no longer
+   *  resets it here. NOTE: this must NOT clear it: on a mid-battle
+   *  join/migration, `applySerializedPlayer` restores the live index before
+   *  `initBattleState` runs, and a reset here would wipe it. */
   initBattleState(state?: BattleViewState): void {
-    this.cannonRotationIdx = undefined;
     if (state) {
       const player = state.players[this.playerId];
       if (player?.homeTower) {
@@ -214,9 +214,10 @@ export abstract class BaseController implements PlayerController {
   }
   /** Called at the end of the battle phase (e.g. clear held input actions). */
   endBattle(): void {}
-  onLifeLost(): void {
-    this.cannonRotationIdx = undefined;
-  }
+  /** Base no-op hook (subclasses clear their own transient state). The
+   *  round-robin cannon selector lives on GameState now — reset each battle
+   *  in `prepareBattleState`, not per-controller. */
+  onLifeLost(): void {}
   reset(): void {
     this.buildCursor = { row: DEFAULT_CURSOR_ROW, col: DEFAULT_CURSOR_COL };
     this.cannonCursor = { row: DEFAULT_CURSOR_ROW, col: DEFAULT_CURSOR_COL };
@@ -224,7 +225,6 @@ export abstract class BaseController implements PlayerController {
       x: DEFAULT_CURSOR_COL * TILE_SIZE,
       y: DEFAULT_CURSOR_ROW * TILE_SIZE,
     };
-    this.cannonRotationIdx = undefined;
   }
   /** Called at start of cannon phase. Override to reset cannon cursor/mode. */
   startCannonPhase(_state: CannonViewState): void {}
@@ -310,8 +310,8 @@ export abstract class BaseController implements PlayerController {
     if (state.timer <= 0 || state.battleCountdown > 0) return null;
     const targetRow = pxToTile(this.crosshair.y);
     const targetCol = pxToTile(this.crosshair.x);
-    if (!nextReadyCannon(state, this.playerId, this.cannonRotationIdx))
-      return null;
+    const rotationIdx = state.players[this.playerId]?.cannonRotationIdx;
+    if (!nextReadyCannon(state, this.playerId, rotationIdx)) return null;
     return { playerId: this.playerId, targetRow, targetCol };
   }
 

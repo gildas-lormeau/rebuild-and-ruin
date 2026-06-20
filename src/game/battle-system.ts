@@ -383,18 +383,23 @@ export function snapshotTerritory(players: readonly Player[]): Set<TileKey>[] {
 export function fireNextReadyCannon(
   state: GameState,
   playerId: ValidPlayerId,
-  rotationIdx: number | undefined,
   targetRow: number,
   targetCol: number,
-): { result: CombinedCannonResult; rotationIdx: number } | null {
-  const result = nextReadyCannon(state, playerId, rotationIdx);
+): CombinedCannonResult | null {
+  const player = state.players[playerId];
+  const result = nextReadyCannon(state, playerId, player?.cannonRotationIdx);
   if (!result) return null;
   if (result.type === "own") {
     fireCannon(state, playerId, result.ownIdx, targetRow, targetCol);
   } else {
     fireCapturedCannon(state, result.captured, targetRow, targetCol);
   }
-  return { result, rotationIdx: result.combinedIdx };
+  // Immediate path (local play + AI slots mirror-simmed on every peer):
+  // advance the synced round-robin index right here. The lockstep human
+  // path defers this to `applyCannonFired` (from the wired `rotationIdx`)
+  // so it lands at the same applyAt tick on every peer.
+  if (player) player.cannonRotationIdx = result.combinedIdx;
+  return result;
 }
 
 /** Originator path for the lockstep scheduled-actions queue.
@@ -416,11 +421,14 @@ export function fireNextReadyCannon(
 export function prepareCannonFireForLockstep(
   state: GameState,
   playerId: ValidPlayerId,
-  rotationIdx: number | undefined,
   targetRow: number,
   targetCol: number,
 ): { ball: Cannonball; rotationIdx: number } | null {
-  const result = nextReadyCannon(state, playerId, rotationIdx);
+  const result = nextReadyCannon(
+    state,
+    playerId,
+    state.players[playerId]?.cannonRotationIdx,
+  );
   if (!result) return null;
   let ball: Cannonball;
   if (result.type === "own") {
@@ -558,6 +566,16 @@ export function applyCannonFired(
 ): boolean {
   if (state.phase !== Phase.BATTLE) return false;
   incrementShotsFired(state);
+  // Lockstep path: advance the synced round-robin index from the value the
+  // originator pinned (`prepareCannonFireForLockstep`) and put on the wire.
+  // Runs on every peer at the same applyAt tick (originator via
+  // applyCannonFiredOriginator, receivers from wire), so the selector stays
+  // in lockstep. Can't be re-derived here — the originator picked against a
+  // board that may have changed by applyAt.
+  if (msg.rotationIdx !== undefined) {
+    const firingPlayer = state.players[msg.playerId];
+    if (firingPlayer) firingPlayer.cannonRotationIdx = msg.rotationIdx;
+  }
   // Supply-ship `mortar_shot` bonus consumption — runs on every peer
   // (originator via applyCannonFiredOriginator, watchers from wire
   // receipt) so pendingSupplyBonuses stays sync'd cross-peer. The

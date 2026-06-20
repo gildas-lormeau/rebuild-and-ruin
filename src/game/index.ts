@@ -11,7 +11,6 @@ export {
   canFireOwnCannon,
   canPlayerFire,
   emitBattleCeaseIfTimerCrossed,
-  fireNextReadyCannon,
   nextReadyCannon,
   setBattleCountdown,
   snapshotTerritory,

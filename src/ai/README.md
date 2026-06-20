@@ -188,8 +188,9 @@ contract as human controllers:
   blocked-retry semantics survive moving the commit out of the
   brain.
 - **Battle phase** returns a `FireIntent` via `BattleTickResult.commit`.
-  The controller commits via `fireNextReadyCannon` /
-  `scheduleCannonFire`, then feeds the result to
+  The controller commits through its port (`executeCannonFire` /
+  `scheduleCannonFire`, which advance the GameState-owned
+  `player.cannonRotationIdx`), then feeds the success/fail result to
   `brain.battle.onFireResult(...)` — preserves the
   `CANNON_RETRY_WAIT` semantics for "no cannon ready yet" by
   re-aiming the same crosshair on the next pass.
