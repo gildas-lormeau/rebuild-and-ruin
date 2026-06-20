@@ -103,21 +103,13 @@ export class AiController extends BaseController {
     return this.aimResolver(state, x, y);
   }
 
-  /** When true, castle rects hug the river bank (plug approach).
-   *  When false (default), rects shrink at bank corners (tighter ring). */
-  get bankHugging(): boolean {
-    return this.strategy.bankHugging;
-  }
-  set bankHugging(bankHugging: boolean) {
-    this.strategy.bankHugging = bankHugging;
-  }
-
   // -----------------------------------------------------------------------
   // Trait-derived getters (used by phase Host interfaces)
   // -----------------------------------------------------------------------
 
-  /** Delay multiplier derived from thinkingSpeed: 1=slow(1.4×), 2=normal(1×), 3=fast(0.65×). */
-  get delayScale(): number {
+  /** Delay multiplier derived from thinkingSpeed: 1=slow(1.4×), 2=normal(1×), 3=fast(0.65×).
+   *  Private — consumed only by `scaledDelay` below, not by any Host interface. */
+  private get delayScale(): number {
     return [1.4, 1.0, 0.65][this.strategy.thinkingSpeed - 1]!;
   }
 
@@ -138,8 +130,9 @@ export class AiController extends BaseController {
   }
 
   /** Battle boost threshold in pixels.
-   *  cursorSkill 1=never boosts (Infinity), 2=always (0, default), 3=always (0). */
-  get battleBoostDist(): number {
+   *  cursorSkill 1=never boosts (Infinity), 2=always (0, default), 3=always (0).
+   *  Private — consumed only by `stepCrosshairToward` below, not by any Host interface. */
+  private get battleBoostDist(): number {
     return this.strategy.cursorSkill === 1 ? Infinity : 0;
   }
 
