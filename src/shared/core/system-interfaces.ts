@@ -311,10 +311,15 @@ export interface BattleController {
    *  The orchestrator executes the actual mutation via fireNextReadyCannon(). */
   fire(state: BattleViewState): FireIntent | null;
 
-  // ── Crosshair: BattleController owns the controller's aim cursor. The
-  //    field is encapsulated (not declared like buildCursor/cannonCursor)
-  //    because getCrosshair decorates it with playerId. These four methods
-  //    are its only accessors: read, absolute-set, occlusion-resolve-and-set,
+  // ── Crosshair: BattleController owns the controller's aim cursor. Unlike
+  //    buildCursor/cannonCursor, the raw field is NOT surfaced here — the
+  //    runtime/render/input path has no need for raw access: it reads through
+  //    getCrosshair() (which tags the position with playerId for the per-player
+  //    `frame.crosshairs` list) and writes through the setters below. (The
+  //    field itself is still a public class field — it must be, to satisfy
+  //    `BattleHost.crosshair`, the seam the AI brain mutates in place to avoid
+  //    a per-frame allocation in the battle loop.) These four methods are this
+  //    interface's only accessors: read, absolute-set, occlusion-resolve-and-set,
   //    and tower-center. ──
 
   getCrosshair(): Crosshair;
