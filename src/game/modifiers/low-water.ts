@@ -7,6 +7,10 @@
  * bonus / castle-prebuild see water. Clear evicts walls + grunts on it.
  */
 
+import {
+  BOARD_LOCAL_SITE,
+  deriveBoardLocalSeed,
+} from "../../shared/core/ai-seed.ts";
 import type { GameMap } from "../../shared/core/geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, type TileKey } from "../../shared/core/grid.ts";
 import type { SerializedModifierTiles } from "../../shared/core/modifier-defs.ts";
@@ -18,7 +22,7 @@ import {
   unpackTile,
 } from "../../shared/core/spatial.ts";
 import { type GameState, type ModifierImpl } from "../../shared/core/types.ts";
-import type { Rng } from "../../shared/platform/rng.ts";
+import { Rng } from "../../shared/platform/rng.ts";
 import { recomputeMapZones } from "../zone-recompute.ts";
 import { evictEntitiesOnTiles } from "./evict-tiles.ts";
 
@@ -28,7 +32,19 @@ export const lowWaterImpl: ModifierImpl = {
   // which is the territory-geometry change. The post-apply
   // `recheckTerritory` runs anyway because no `skipsRecheck` is set.
   apply: (state: GameState) => {
-    const exposed = computeExposedRiverbedTiles(state.map, state.rng);
+    // R5b: shuffles a board-derived bank list — draw from a private Rng so the
+    // shared cursor advance stays board-independent.
+    const exposed = computeExposedRiverbedTiles(
+      state.map,
+      new Rng(
+        deriveBoardLocalSeed(
+          state.rng.seed,
+          state.round,
+          BOARD_LOCAL_SITE.LOW_WATER_RIVERBED,
+          0,
+        ),
+      ),
+    );
     if (exposed.size === 0) {
       return { changedTiles: [], gruntsSpawned: 0 };
     }

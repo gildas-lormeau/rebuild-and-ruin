@@ -3,6 +3,10 @@
  */
 
 import {
+  BOARD_LOCAL_SITE,
+  deriveBoardLocalSeed,
+} from "../shared/core/ai-seed.ts";
+import {
   BATTLE_MESSAGE,
   type CannonDamagedMessage,
   type CannonFiredMessage,
@@ -67,6 +71,7 @@ import {
   incrementShotsFired,
   packPendingCannonFireKey,
 } from "../shared/core/types.ts";
+import { Rng } from "../shared/platform/rng.ts";
 import { filterActiveEnemies } from "../shared/sim/board-occupancy.ts";
 import {
   getCannon,
@@ -1429,8 +1434,19 @@ function collectHouseImpacts(
         shooterId,
         shooterCannonIdx,
       });
-      // Grunt spawn is RNG-based — compute it here so the host decides
-      if (state.rng.bool(HOUSE_GRUNT_SPAWN_CHANCE)) {
+      // Grunt spawn is RNG-based — compute it here so the host decides.
+      // R5b: this fires per cannonball-destroyed house — a board-dependent
+      // count — so roll on a private Rng keyed by the impact tile; the shared
+      // cursor must not advance per house hit.
+      const houseGruntRng = new Rng(
+        deriveBoardLocalSeed(
+          state.rng.seed,
+          state.round,
+          BOARD_LOCAL_SITE.BATTLE_HOUSE_GRUNT,
+          packTile(row, col),
+        ),
+      );
+      if (houseGruntRng.bool(HOUSE_GRUNT_SPAWN_CHANCE)) {
         const spawnPos = findGruntSpawnNear(state, row, col);
         if (spawnPos) {
           events.push({
@@ -1479,7 +1495,11 @@ function collectGruntImpacts(
       shooterId,
       shooterCannonIdx,
     });
-    const respawn = onGruntKilled(state, shooterId);
+    const respawn = onGruntKilled(
+      state,
+      shooterId,
+      packTile(grunt.row, grunt.col),
+    );
     if (respawn) {
       const spawnPos = findGruntSpawnNear(
         state,
@@ -1577,7 +1597,16 @@ function resolveBalloonCaptures(
       if (capturerIds.length === 0) continue;
       const target = thisRoundTargets.get(cannon);
       const victimId = target?.victimId ?? player.id;
-      const winnerId = state.rng.pick(capturerIds);
+      // R5b: one pick per captured cannon — count is board-dependent. Pick on a
+      // private Rng keyed by the cannon's tile so the shared cursor is unmoved.
+      const winnerId = new Rng(
+        deriveBoardLocalSeed(
+          state.rng.seed,
+          state.round,
+          BOARD_LOCAL_SITE.CAPTURED_CANNON_PICK,
+          packTile(cannon.row, cannon.col),
+        ),
+      ).pick(capturerIds);
       state.capturedCannons.push({
         cannon,
         cannonIdx: cannonIdx as CannonIdx,

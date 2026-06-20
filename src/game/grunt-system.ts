@@ -5,6 +5,10 @@
  */
 
 import {
+  BOARD_LOCAL_SITE,
+  deriveBoardLocalSeed,
+} from "../shared/core/ai-seed.ts";
+import {
   BATTLE_MESSAGE,
   type ImpactEvent,
   type TowerKilledMessage,
@@ -57,6 +61,7 @@ import {
   nextGruntSpawnSeq,
 } from "../shared/core/types.ts";
 import type { ZoneId } from "../shared/core/zone-id.ts";
+import { Rng } from "../shared/platform/rng.ts";
 import {
   hasGruntAt,
   hasInteriorAt,
@@ -303,10 +308,20 @@ export function updateGruntBlockedBattles(state: GameState): void {
  *  any grunt adjacent to a wall flips the flag. */
 export function rollGruntWallAttacks(state: GameState): void {
   const sapperActive = state.modern?.activeModifier === MODIFIER_ID.SAPPER;
+  // R5b: one bool per eligible grunt — count is board-dependent. Draw from a
+  // private Rng (once per round) so the shared cursor advance is fixed at zero.
+  const localRng = new Rng(
+    deriveBoardLocalSeed(
+      state.rng.seed,
+      state.round,
+      BOARD_LOCAL_SITE.GRUNT_WALL_ATTACK,
+      0,
+    ),
+  );
   for (const grunt of state.grunts) {
     if (!canAttemptWallAttack(state, grunt, sapperActive)) continue;
 
-    if (sapperActive || state.rng.bool(GRUNT_WALL_ATTACK_CHANCE)) {
+    if (sapperActive || localRng.bool(GRUNT_WALL_ATTACK_CHANCE)) {
       grunt.attackingWall = true;
     }
   }
@@ -543,8 +558,20 @@ function addGrunt(
 ): void {
   if (!inBounds(row, col) || !isGrass(state.map.tiles, row, col)) return;
   const grunt: Grunt = { row, col, blockedRounds: 0 };
-  if (hasFeature(state, FID.CATAPULTS) && state.rng.bool(CATAPULT_SPAWN_CHANCE))
-    grunt.kind = "catapult";
+  // R5b: addGrunt is called a board-dependent number of times per round, so the
+  // catapult roll runs on a private Rng (keyed by spawn tile) — the shared
+  // cursor must not advance per-grunt. Same tile on two peers → same kind.
+  if (hasFeature(state, FID.CATAPULTS)) {
+    const localRng = new Rng(
+      deriveBoardLocalSeed(
+        state.rng.seed,
+        state.round,
+        BOARD_LOCAL_SITE.CATAPULT_KIND,
+        packTile(row, col),
+      ),
+    );
+    if (localRng.bool(CATAPULT_SPAWN_CHANCE)) grunt.kind = "catapult";
+  }
   state.grunts.push(grunt);
   state.bus.emit(GAME_EVENT.GRUNT_SPAWN, {
     type: GAME_EVENT.GRUNT_SPAWN,
@@ -617,7 +644,17 @@ function findGruntSpawnPositions(
   // to break stable mirror cycles. Applied identically to bank (primary
   // tier) and edge (fallback tier).
   const seq = nextGruntSpawnSeq(state);
-  const jitter = state.rng.bool(GRUNT_SPAWN_JITTER_CHANCE);
+  // R5b: this fn is called a board-dependent number of times per round, so the
+  // jitter bool draws from a private Rng (keyed by the spawn sequence) instead
+  // of advancing the shared cursor once per call.
+  const jitter = new Rng(
+    deriveBoardLocalSeed(
+      state.rng.seed,
+      state.round,
+      BOARD_LOCAL_SITE.GRUNT_SPAWN_JITTER,
+      seq,
+    ),
+  ).bool(GRUNT_SPAWN_JITTER_CHANCE);
   const rotateList = (arr: { row: number; col: number }[]): void => {
     if (arr.length < 2) return;
     const rotation = seq % arr.length;

@@ -253,9 +253,10 @@ export function onImpactResolved(
 export function onGruntKilled(
   state: GameState,
   shooterId: ValidPlayerId,
+  killedGruntTile: number,
 ): ConscriptionRespawnTarget | null {
   return firstNonNullHook(UPGRADE_IMPL_LIST, (impl) =>
-    impl.onGruntKilled?.(state, shooterId),
+    impl.onGruntKilled?.(state, shooterId, killedGruntTile),
   );
 }
 

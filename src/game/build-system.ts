@@ -5,6 +5,10 @@
  */
 
 import {
+  BOARD_LOCAL_SITE,
+  deriveBoardLocalSeed,
+} from "../shared/core/ai-seed.ts";
+import {
   aliveCannons,
   CannonMode,
   type Grunt,
@@ -57,6 +61,7 @@ import {
 import type { GameViewState } from "../shared/core/system-interfaces.ts";
 import type { GameState } from "../shared/core/types.ts";
 import type { ZoneCell, ZoneId } from "../shared/core/zone-id.ts";
+import { Rng } from "../shared/platform/rng.ts";
 import {
   BONUS_PLACEMENT_BLOCKED,
   collectAllInterior,
@@ -358,7 +363,16 @@ export function replenishBonusSquares(state: GameState): void {
       enclosed,
     );
 
-    state.rng.shuffle(candidates);
+    // R5b: candidate count is board-derived — shuffle on a private Rng (keyed
+    // by zone) so the shared cursor advance stays board-independent.
+    new Rng(
+      deriveBoardLocalSeed(
+        state.rng.seed,
+        state.round,
+        BOARD_LOCAL_SITE.BONUS_REFILL,
+        zoneId,
+      ),
+    ).shuffle(candidates);
 
     let placed = 0;
     for (const [r, c] of candidates) {
@@ -543,8 +557,19 @@ function removeEnclosedGruntsAndRespawn(
   // clustering at the closest-to-tower stretch.
   const counts = new Array<number>(enemies.length).fill(0);
   let enemyIdx = 0;
+  // R5b: one respawn roll per enclosed grunt — count is board-dependent. Draw
+  // from a private Rng (keyed by the enclosing player) so the shared cursor is
+  // unmoved; recheckTerritory calls this many times per round.
+  const localRng = new Rng(
+    deriveBoardLocalSeed(
+      state.rng.seed,
+      state.round,
+      BOARD_LOCAL_SITE.ENCLOSED_GRUNT_RESPAWN,
+      player.id,
+    ),
+  );
   for (let i = 0; i < enclosed.length; i++) {
-    if (!state.rng.bool(ENCLOSED_GRUNT_RESPAWN_CHANCE)) continue;
+    if (!localRng.bool(ENCLOSED_GRUNT_RESPAWN_CHANCE)) continue;
     counts[enemyIdx % enemies.length] = counts[enemyIdx % enemies.length]! + 1;
     enemyIdx++;
   }

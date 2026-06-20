@@ -36,10 +36,6 @@ import type { ModifierId } from "../src/shared/core/game-constants.ts";
 import { GAME_EVENT } from "../src/shared/core/game-event-bus.ts";
 import { Phase } from "../src/shared/core/game-phase.ts";
 import { IMPLEMENTED_MODIFIERS } from "../src/shared/core/modifier-defs.ts";
-import {
-  IMPLEMENTED_UPGRADES,
-  type UpgradeId,
-} from "../src/shared/core/upgrade-defs.ts";
 import type { Scenario } from "./scenario.ts";
 
 export interface SeedCondition {
@@ -56,24 +52,15 @@ export type SeedConditionName = keyof typeof SEED_CONDITIONS;
 /** Default round budget. Most modern-mode conditions fire within 15 rounds; bump
  *  per-entry if a specific condition needs more headroom. */
 const DEFAULT_ROUNDS = 15;
-/** Every implemented upgrade/modifier is auto-registered as a seed condition
- *  by reading `IMPLEMENTED_UPGRADES` / `IMPLEMENTED_MODIFIERS` from the pool
- *  registries. Flipping `implemented: true` on a pool entry is the only step —
- *  run `npm run record-seeds` to pick up the new condition.
+/** Every implemented modifier is auto-registered as a seed condition by reading
+ *  `IMPLEMENTED_MODIFIERS` from the pool registry. Flipping `implemented: true`
+ *  on a pool entry is the only step — run `npm run record-seeds` to pick up the
+ *  new condition. (Upgrades are NOT seed-registered: upgrades.test.ts forces
+ *  each via `testHooks.forceUpgrade`, so they need no seed.)
  *
  *  Caveat: a pool entry with `implemented: false` has no seed fixture, so
- *  `loadSeed("upgrade:x")` on an unimplemented id fails at test time rather
+ *  `loadSeed("modifier:x")` on an unimplemented id fails at test time rather
  *  than compile time. That's intentional — don't seed what doesn't exist. */
-const UPGRADE_CONDITIONS: Record<string, SeedCondition> = Object.fromEntries(
-  IMPLEMENTED_UPGRADES.map((def) => [
-    `upgrade:${def.id}`,
-    {
-      mode: "modern",
-      rounds: DEFAULT_ROUNDS,
-      match: (sc) => latchUpgradePicked(sc, def.id),
-    } satisfies SeedCondition,
-  ]),
-);
 const MODIFIER_CONDITIONS: Record<string, SeedCondition> = Object.fromEntries(
   IMPLEMENTED_MODIFIERS.map((def) => [
     `modifier:${def.id}`,
@@ -85,7 +72,6 @@ const MODIFIER_CONDITIONS: Record<string, SeedCondition> = Object.fromEntries(
   ]),
 );
 export const SEED_CONDITIONS: Readonly<Record<string, SeedCondition>> = {
-  ...UPGRADE_CONDITIONS,
   ...MODIFIER_CONDITIONS,
   "modifier:sinkhole_then_high_tide": {
     mode: "modern",
@@ -112,17 +98,6 @@ export const SEED_CONDITIONS: Readonly<Record<string, SeedCondition>> = {
     match: (sc) => () =>
       sc.state.phase === Phase.CASTLE_SELECT && sc.state.round > 1,
   },
-  // The generic `upgrade:shield_battery` condition latches on the pick alone,
-  // which can land on a seed where the first picker's shielded cannon never
-  // survives into a BATTLE phase — so the effect-fires step in upgrades.test.ts
-  // has nothing to observe. This variant requires the effect to actually
-  // manifest (first picker holds a shielded cannon during BATTLE), mirroring
-  // that test's probe. Overrides the auto-generated entry above.
-  "upgrade:shield_battery": {
-    mode: "modern",
-    rounds: DEFAULT_ROUNDS,
-    match: (sc) => latchShieldBatteryEffective(sc),
-  },
   // The generic `modifier:sapper` condition latches on the first sapper roll,
   // which can land on a round where no grunt is targeting a wall — leaving the
   // reveal test with 0 targeted walls to render. This variant requires at least
@@ -134,46 +109,6 @@ export const SEED_CONDITIONS: Readonly<Record<string, SeedCondition>> = {
     match: (sc) => latchSapperTargetsWalls(sc),
   },
 };
-
-/** Latch a bus event fire behind a closure flag. Returns the poller. */
-function latchUpgradePicked(
-  sc: Scenario,
-  upgradeId: UpgradeId,
-): () => boolean {
-  let seen = false;
-  sc.bus.on(GAME_EVENT.UPGRADE_PICKED, (ev) => {
-    if (ev.upgradeId === upgradeId) seen = true;
-  });
-  return () => seen;
-}
-
-/** Latch shield_battery's effect: the first player to pick it later holds a
- *  shielded cannon during a BATTLE phase. Mirrors the effect probe in
- *  upgrades.test.ts so the recorded seed actually exercises the shield, not
- *  just the pick. */
-function latchShieldBatteryEffective(sc: Scenario): () => boolean {
-  let picker: number | undefined;
-  let inBattle = false;
-  let seen = false;
-  sc.bus.on(GAME_EVENT.UPGRADE_PICKED, (ev) => {
-    if (ev.upgradeId === "shield_battery" && picker === undefined) {
-      picker = ev.playerId;
-    }
-  });
-  sc.bus.on(GAME_EVENT.PHASE_START, (ev) => {
-    if (ev.phase === Phase.BATTLE) inBattle = true;
-  });
-  sc.bus.on(GAME_EVENT.PHASE_END, (ev) => {
-    if (ev.phase === Phase.BATTLE) inBattle = false;
-  });
-  sc.bus.onAny(() => {
-    if (!inBattle || picker === undefined) return;
-    if (sc.state.players[picker]?.cannons.some((c) => c.shielded === true)) {
-      seen = true;
-    }
-  });
-  return () => seen;
-}
 
 /** Latch a modifier firing (any instance of the given id). Subscribes to
  *  `MODIFIER_APPLIED` — the dedicated domain event. The banner no longer

@@ -7,6 +7,10 @@
  * online — collapsing would diverge watcher from host.
  */
 
+import {
+  BOARD_LOCAL_SITE,
+  deriveBoardLocalSeed,
+} from "../shared/core/ai-seed.ts";
 import { isBalloonCannon } from "../shared/core/battle-types.ts";
 import { FID } from "../shared/core/feature-defs.ts";
 import { emitGameEvent, GAME_EVENT } from "../shared/core/game-event-bus.ts";
@@ -36,6 +40,7 @@ import {
   resetShotsFired,
 } from "../shared/core/types.ts";
 import type { ZoneId } from "../shared/core/zone-id.ts";
+import { Rng } from "../shared/platform/rng.ts";
 import {
   collectAllWalls,
   filterAliveEnclosedTowers,
@@ -368,15 +373,27 @@ export function prepareCastleWallsForPlayer(
   const planTiles = effectivePlanTiles(state);
   const castle = createCastle(player.homeTower, planTiles, state.map.towers);
 
-  // Get wall tiles and apply clumsy builders to a temp set
+  // Get wall tiles and apply clumsy builders to a temp set. R5b: clumsy-builder
+  // + ring-order draws scale with the (board-derived) wall-ring size, so they
+  // run on a private Rng keyed by the player — the shared cursor advance must
+  // stay board-independent. The plan itself is already deterministic; this only
+  // moves the cosmetic-jitter draws off the shared stream.
   const wallTiles = computeCastleWallTiles(castle, planTiles);
   const tempWalls = new Set<TileKey>();
   for (const [r, c] of wallTiles) tempWalls.add(packTile(r, c));
+  const castleRng = new Rng(
+    deriveBoardLocalSeed(
+      state.rng.seed,
+      state.round,
+      BOARD_LOCAL_SITE.CASTLE_CLUMSY,
+      playerId,
+    ),
+  );
   applyClumsyBuilders(
     tempWalls,
     castle,
     planTiles,
-    state.rng,
+    castleRng,
     state.map.towers,
   );
 
@@ -384,7 +401,7 @@ export function prepareCastleWallsForPlayer(
     castle,
     wallTiles,
     tempWalls,
-    state.rng,
+    castleRng,
   );
   player.castleWallTiles = new Set(ordered);
   return { playerId: player.id, tiles: ordered };

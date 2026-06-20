@@ -3,6 +3,10 @@
  * Destroys walls, houses, grunts, bonus squares, and burning pits on affected tiles.
  */
 
+import {
+  BOARD_LOCAL_SITE,
+  deriveBoardLocalSeed,
+} from "../../shared/core/ai-seed.ts";
 import { GRID_COLS, GRID_ROWS, type TileKey } from "../../shared/core/grid.ts";
 import type { SerializedModifierTiles } from "../../shared/core/modifier-defs.ts";
 import {
@@ -16,6 +20,7 @@ import {
 } from "../../shared/core/spatial.ts";
 import type { GameState, ModifierImpl } from "../../shared/core/types.ts";
 import type { ZoneId } from "../../shared/core/zone-id.ts";
+import { Rng } from "../../shared/platform/rng.ts";
 import { hasCannonAt, hasTowerAt } from "../../shared/sim/occupancy-queries.ts";
 import { recomputeMapZones } from "../zone-recompute.ts";
 import { evictEntitiesOnTiles } from "./evict-tiles.ts";
@@ -167,7 +172,16 @@ function applySinkhole(state: GameState): ReadonlySet<TileKey> {
   const allSunk = new Set<TileKey>();
   for (let i = 0; i < activeZones.length; i++) {
     const placements = placementsPerZone[i]!;
-    const pick = state.rng.pick(placements);
+    // R5b: one pick per active zone — count is board-dependent. Pick on a
+    // private Rng keyed by zone so the shared cursor advance is fixed.
+    const pick = new Rng(
+      deriveBoardLocalSeed(
+        state.rng.seed,
+        state.round,
+        BOARD_LOCAL_SITE.SINKHOLE_PLACEMENT,
+        activeZones[i]!,
+      ),
+    ).pick(placements);
     for (const [dr, dc] of pick.shape) {
       allSunk.add(packTile(pick.row + dr, pick.col + dc));
     }

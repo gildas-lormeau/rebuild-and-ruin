@@ -6,6 +6,10 @@
  */
 
 import {
+  BOARD_LOCAL_SITE,
+  deriveBoardLocalSeed,
+} from "../shared/core/ai-seed.ts";
+import {
   HOUSE_MIN_DISTANCE,
   MODIFIER_ID,
   type ModifierId,
@@ -37,7 +41,7 @@ import {
 } from "../shared/core/spatial.ts";
 import type { GameState } from "../shared/core/types.ts";
 import type { ZoneCell, ZoneId } from "../shared/core/zone-id.ts";
-import type { Rng } from "../shared/platform/rng.ts";
+import { Rng } from "../shared/platform/rng.ts";
 import {
   collectOccupiedTiles,
   HOUSE_SPAWN_BLOCKED,
@@ -451,8 +455,18 @@ function spawnHousesInZone(state: GameState, zoneId: ZoneId): void {
     }
   }
 
-  // Shuffle once so ties in distance are broken by random order
-  state.rng.shuffle(candidates);
+  // Shuffle once so ties in distance are broken by random order. R5b: the
+  // candidate count is board-derived, so shuffle on a private Rng (keyed by
+  // zone) — the shared cursor must not advance by a board-dependent count.
+  const localRng = new Rng(
+    deriveBoardLocalSeed(
+      state.rng.seed,
+      state.round,
+      BOARD_LOCAL_SITE.HOUSE_REFILL,
+      zoneId,
+    ),
+  );
+  localRng.shuffle(candidates);
 
   const existingHouses = state.map.houses;
   const needed =

@@ -7,6 +7,10 @@
  * cannon-system to avoid an L5 → L6 import cycle.
  */
 
+import {
+  BOARD_LOCAL_SITE,
+  deriveBoardLocalSeed,
+} from "../../shared/core/ai-seed.ts";
 import { type Cannon, CannonMode } from "../../shared/core/battle-types.ts";
 import { isPlayerEliminated } from "../../shared/core/player-slot.ts";
 import type {
@@ -15,6 +19,7 @@ import type {
   UpgradeImpl,
 } from "../../shared/core/types.ts";
 import { UID } from "../../shared/core/upgrade-defs.ts";
+import { Rng } from "../../shared/platform/rng.ts";
 
 /** Mortar cannonball speed multiplier (half speed). */
 const MORTAR_SPEED_MULT = 0.5;
@@ -47,7 +52,17 @@ function onBattlePhaseStart(
           deps.isCannonEnclosed(cannon, player),
       );
     if (normalCannons.length === 0) continue;
-    const elected = state.rng.pick(normalCannons);
+    // R5b: one election per Mortar-owning player with eligible cannons — count
+    // is board-dependent. Pick on a private Rng keyed by player so the shared
+    // cursor advance is fixed.
+    const elected = new Rng(
+      deriveBoardLocalSeed(
+        state.rng.seed,
+        state.round,
+        BOARD_LOCAL_SITE.MORTAR_ELECTION,
+        player.id,
+      ),
+    ).pick(normalCannons);
     elected.mortar = true;
   }
 }

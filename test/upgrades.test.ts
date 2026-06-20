@@ -1,18 +1,16 @@
 /**
- * Upgrade tests — one step per implemented upgrade, grouped by seed.
+ * Upgrade tests — one game per implemented upgrade.
  *
- * Seeds are looked up by name via `loadSeed("upgrade:<id>")`, which reads
- * `test/seed-fixtures.json`. When RNG drifts, run `npm run record-seeds`
- * to rescan and rewrite the fixture — no per-test rehunting needed.
+ * Each test forces its upgrade via `testHooks.forceUpgrade` (makes it the first
+ * offer) plus `disabledUpgrades` (removes every other id from the pool), so the
+ * offer list is just `[upgradeId]` and all players pick it every round from
+ * round 3. The pick is therefore guaranteed by construction — no seed registry,
+ * no RNG drift. This replaced a seed-grouped design that broke whenever the
+ * shared-RNG stream shifted (e.g. the R5b fix); see docs/runtime-invariants.md.
  *
- * Multiple upgrades frequently share a seed (seed 0 alone covers ~11
- * upgrades), so tests group by the resolved seed: one runGame per unique
- * seed, per-upgrade assertions as `t.step`s. This keeps per-upgrade failure
- * attribution while minimizing scenario startup cost.
- *
- * Each step asserts (1) the upgrade was picked and (2) its effect fired,
- * when an `EFFECT_PROBES` entry exists. Upgrades without a probe get a
- * pick-only assertion. To add a probe:
+ * Each test asserts (1) the upgrade was picked and (2) its effect fired, when an
+ * `EFFECT_PROBES` entry exists. Upgrades without a probe get a pick-only
+ * assertion. To add a probe:
  *   1. Add an entry to EFFECT_PROBES keyed by UpgradeId.
  *   2. `install(sc)` subscribes to the bus and/or snapshots state, and
  *      returns a finalizer that answers "did the effect fire for this picker?".
@@ -25,9 +23,11 @@ import { assert } from "@std/assert";
 import { buildTimerBonus } from "../src/game/index.ts";
 import { GAME_EVENT } from "../src/shared/core/game-event-bus.ts";
 import { Phase } from "../src/shared/core/game-phase.ts";
-import type { UpgradeId } from "../src/shared/core/upgrade-defs.ts";
+import {
+  IMPLEMENTED_UPGRADES,
+  type UpgradeId,
+} from "../src/shared/core/upgrade-defs.ts";
 import { createScenario, type Scenario } from "./scenario.ts";
-import SEED_FIXTURES from "./seed-fixtures.json" with { type: "json" };
 
 interface Pick {
   readonly upgradeId: UpgradeId;
@@ -42,37 +42,19 @@ interface EffectProbe {
   install(sc: Scenario): (picker: number) => boolean;
 }
 
-const UPGRADE_IDS: readonly UpgradeId[] = [
-  "mortar",
-  "rapid_fire",
-  "ricochet",
-  "shield_battery",
-  "reinforced_walls",
-  "master_builder",
-  "small_pieces",
-  "double_time",
-  "architect",
-  "foundations",
-  "reclamation",
-  "territorial_ambition",
-  "conscription",
-  "salvage",
-  "ceasefire",
-  "supply_drop",
-  "second_wind",
-  "demolition",
-  "clear_the_field",
-];
-/** 20-round modern games can run ~24 min of sim time end-to-end
- *  (castle-select + build + cannon + battle phases average ~72 s /
- *  round). Matches the seed registry scanner's budget
- *  (`scripts/record-seeds.ts`) with a safety margin. */
+/** Every implemented upgrade — derived from the pool so new upgrades are
+ *  auto-covered. Upgrades without an `EFFECT_PROBES` entry get a pick-only
+ *  assertion. */
+const UPGRADE_IDS: readonly UpgradeId[] = IMPLEMENTED_UPGRADES.map(
+  (def) => def.id,
+);
+/** Generous sim-time ceiling for a full modern game (mock clock on headless). */
 const MAX_TIMEOUT_MS = 1_800_000;
-/** Rounds per scenario run. Enough rounds so every targeted upgrade has
- *  multiple chances to be picked and fire its effect. Matches
- *  `DEFAULT_ROUNDS` in seed-conditions.ts so seeds reproduce the same
- *  draft schedule the scanner observed. */
-const ROUNDS = 15;
+/** Rounds per run. The forced upgrade is picked from round 3 (the first
+ *  UPGRADE_PICK phase), so a handful of rounds gives every effect — including
+ *  battle-conditional ones (reinforced_walls absorb, mortar fire) — several
+ *  post-pick battle phases to manifest across all three forced players. */
+const ROUNDS = 8;
 /** Effect probes for the 9 easy-tier upgrades. See file header for the
  *  design rationale. Missing entries fall back to pick-only assertions.
  *
@@ -293,75 +275,51 @@ const EFFECT_PROBES: Partial<Record<UpgradeId, EffectProbe>> = {
     },
   },
 };
-/** Override seeds for upgrades whose effect-observable condition is not
- *  satisfied by the registry seed. The seed registry only checks "was the
- *  upgrade picked?" — downstream observability (cannons inside home region
- *  for shield_battery, enemy ball landing on picker's wall for
- *  reinforced_walls) depends on AI gameplay and isn't covered. Same shape
- *  as `PER_MODIFIER_SEED` in test/modifiers.test.ts. Refresh by writing a
- *  throwaway probe that scans seeds and checks both `picked` and the
- *  effect-fires predicate for the first picker. */
-const PER_UPGRADE_SEED: Partial<Record<UpgradeId, number>> = {};
-const seedGroups = new Map<number, UpgradeId[]>();
+/** One game per upgrade. `forceUpgrade` makes the upgrade the first offer and
+ *  `disabledUpgrades` removes every other id from the pool, so the offer list
+ *  is just `[upgradeId]` and all three (AI) players pick it every round from
+ *  round 3 on. No seeds, no drift — the pick is guaranteed by construction, so
+ *  the only thing left to verify is that the effect fires. Drives off a single
+ *  fixed seed (the draws that would pick upgrades are short-circuited, so the
+ *  seed only flavors map + AI movement). */
+const SEED = 0;
 
 for (const upgradeId of UPGRADE_IDS) {
-  const seed = PER_UPGRADE_SEED[upgradeId] ??
-    (SEED_FIXTURES as Record<string, number>)[`upgrade:${upgradeId}`];
-  if (seed === undefined) {
-    throw new Error(
-      `upgrades.test.ts: no seed for "upgrade:${upgradeId}" in test/seed-fixtures.json — run \`npm run record-seeds\``,
-    );
-  }
-  const list = seedGroups.get(seed) ?? [];
-  list.push(upgradeId);
-  seedGroups.set(seed, list);
-}
+  Deno.test(`upgrades: ${upgradeId} is forced-picked + effect fires`, async () => {
+    const sc = await createScenario({
+      seed: SEED,
+      mode: "modern",
+      rounds: ROUNDS,
+      testHooks: {
+        forceUpgrade: upgradeId,
+        disabledUpgrades: UPGRADE_IDS.filter((id) => id !== upgradeId),
+      },
+    });
 
-for (const [seed, upgradeIds] of [...seedGroups].sort(([a], [b]) => a - b)) {
-  Deno.test(`upgrades: seed=${seed} modern picks + effects`, async (t) => {
-    const sc = await createScenario({ seed, mode: "modern", rounds: ROUNDS });
-
-    // Install effect probes BEFORE driving the game so nothing is missed.
-    const finalizers = new Map<UpgradeId, (picker: number) => boolean>();
-    for (const upgradeId of upgradeIds) {
-      const probe = EFFECT_PROBES[upgradeId];
-      if (probe) finalizers.set(upgradeId, probe.install(sc));
-    }
+    // Install the effect probe BEFORE driving the game so nothing is missed.
+    const probe = EFFECT_PROBES[upgradeId];
+    const finalizer = probe?.install(sc);
 
     const picks: Pick[] = [];
     sc.bus.on(GAME_EVENT.UPGRADE_PICKED, (ev) => {
       picks.push({ upgradeId: ev.upgradeId, playerId: ev.playerId });
     });
 
-    // Run the full game so every probe has maximum opportunity to fire.
     sc.runGame({ timeoutMs: MAX_TIMEOUT_MS });
 
-    for (const upgradeId of upgradeIds) {
-      await t.step(`"${upgradeId}" is picked`, () => {
-        const hit = picks.find((pick) => pick.upgradeId === upgradeId);
-        assert(
-          hit !== undefined,
-          `expected "${upgradeId}" to be picked in seed=${seed}, saw picks=${picks
-            .map((pick) => `${pick.upgradeId}(p${pick.playerId})`)
-            .join(",")}`,
-        );
-      });
+    const hit = picks.find((pick) => pick.upgradeId === upgradeId);
+    assert(
+      hit !== undefined,
+      `expected "${upgradeId}" to be force-picked, saw picks=${picks
+        .map((pick) => `${pick.upgradeId}(p${pick.playerId})`)
+        .join(",")}`,
+    );
 
-      const finalizer = finalizers.get(upgradeId);
-      const probe = EFFECT_PROBES[upgradeId];
-      if (!finalizer || !probe) continue;
-
-      await t.step(`"${upgradeId}" effect fires (${probe.description})`, () => {
-        const picker = picks.find((p) => p.upgradeId === upgradeId)?.playerId;
-        assert(
-          picker !== undefined,
-          `cannot verify effect — "${upgradeId}" was never picked`,
-        );
-        assert(
-          finalizer(picker),
-          `effect not observed for "${upgradeId}" (picker=p${picker}): ${probe.description}`,
-        );
-      });
+    if (finalizer && probe) {
+      assert(
+        finalizer(hit.playerId),
+        `effect not observed for "${upgradeId}" (picker=p${hit.playerId}): ${probe.description}`,
+      );
     }
   });
 }

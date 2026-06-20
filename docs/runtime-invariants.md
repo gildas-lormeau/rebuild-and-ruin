@@ -166,6 +166,49 @@ invariant today), and an **Anchor** to where that fact lives.
   *Check:* any new resync/re-prime path — confirm it is broadcast and that
   post-serialize rng draws are identical on all peers.
 
+- **R5b — Shared-`state.rng` draw COUNTS must be board-independent.** R5 demands
+  the same draws in the same order; this is the prerequisite that makes that
+  possible. A draw whose *number* of consumptions depends on volatile board
+  state (wall / interior / grunt / cannon occupancy) turns **any** cross-peer
+  board difference — skew past the SAFETY buffer, real-world jitter, a momentary
+  desync the buffer *should* absorb — into a **permanent, total** fork of the
+  shared stream: the cursor goes off-by-N and every later AI / modifier / battle
+  draw lands shifted. It is also **silent** — a single stale stamp is under the
+  lag detector's 5-in-2s disconnect threshold — and the **zero-skew parity gates
+  cannot catch it** (`network-bidirectional` / `network-vs-local` run identical
+  boards → identical counts → no fork).
+  *Status — FIXED 2026-06-20.* Every board-dependent-count `state.rng` draw now
+  runs on a **private `Rng`** seeded by `deriveBoardLocalSeed(state.rng.seed,
+  round, BOARD_LOCAL_SITE.*, key)` (`shared/core/ai-seed.ts`). Reading
+  `state.rng.seed` does NOT advance the cursor, so these sites advance the shared
+  cursor by **zero** — a transient board diff stays a small *local* diff instead
+  of forking the stream. Proven by `test/skew-repro.test.ts`: across a constant
+  wire-delay sweep of 4–20 (the 8-tick SAFETY buffer breached by up to 12 ticks),
+  the shared cursor **never** forks; only small bounded board diffs remain, and no
+  peer is eliminated-on-one-side. Determinism fixtures + both zero-skew parity
+  gates stay green.
+  *Converted sites* (`BOARD_LOCAL_SITE` tag → location): HOUSE_REFILL
+  (`castle-generation › spawnHousesInZone`), CATAPULT_KIND + GRUNT_WALL_ATTACK +
+  GRUNT_SPAWN_JITTER (`grunt-system`), ENCLOSED_GRUNT_RESPAWN + BONUS_REFILL
+  (`build-system`), BATTLE_HOUSE_GRUNT + CAPTURED_CANNON_PICK (`battle-system`),
+  WILDFIRE_SPREAD (`modifiers/fire`), SINKHOLE_PLACEMENT (`modifiers/sinkhole`),
+  LOW_WATER_RIVERBED (`modifiers/low-water`), MORTAR_ELECTION (`upgrades/mortar`),
+  RICOCHET_SCATTER (`upgrades/ricochet`), CONSCRIPTION_RESPAWN
+  (`upgrades/conscription`), PIECE_BAG (`shared/sim/player-bag › initPlayerBag`),
+  CASTLE_CLUMSY (`phase-setup › prepareCastleWallsForPlayer`). The original trace
+  (headless three-humans, `dumpRngTraceDivergence`) caught `spawnHousesInZone` +
+  the `applyPiecePlacement → addGrunt` house-destruction spawn first; the bag and
+  castle clumsy-builder draws were the higher-frequency amplifiers found via the
+  skew sweep.
+  *Anchor:* `shared/core/ai-seed.ts › deriveBoardLocalSeed` + `BOARD_LOCAL_SITE`.
+  *Check:* a new `state.rng.{shuffle,pick,int,bool}` whose iteration count derives
+  from board occupancy (a shuffle over a board-derived list, or a per-grunt /
+  per-house / per-tile loop, or a single draw in a fn *called* a board-dependent
+  number of times) MUST instead draw from a private `Rng` via
+  `deriveBoardLocalSeed` with a fresh `BOARD_LOCAL_SITE` tag. A single
+  `int`/`bool`/`pick` whose *count* is fixed (one per round, one per fixed slot)
+  is fine even if its *result* is board-dependent — only the draw COUNT matters.
+
 - **R6 — `runtimeState` writes are owned; reads are free.** Each
   *persistent* `runtimeState.*` field is *written* by exactly one sub-system
   (identifiable by name); any sub-system may read. A second writer is the bug.

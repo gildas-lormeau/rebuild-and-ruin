@@ -538,10 +538,13 @@ export interface UpgradeImpl {
     hitCol: number,
     initialImpactEvents: readonly ImpactEvent[],
   ) => Generator<BounceDescriptor, void> | undefined;
-  /** Query for a grunt respawn target after a kill. First non-null wins. */
+  /** Query for a grunt respawn target after a kill. First non-null wins.
+   *  `killedGruntTile` is the packed tile of the dead grunt — a board-independent
+   *  per-kill discriminator for the R5b derived respawn roll. */
   onGruntKilled?: (
     state: GameState,
     shooterId: ValidPlayerId,
+    killedGruntTile: number,
   ) => ConscriptionRespawnTarget | null;
   /** Side effects after a cannon kill (e.g. salvage slots). */
   onCannonKilled?: (state: GameState, shooterId: ValidPlayerId) => void;

@@ -6,6 +6,10 @@
  * burn predicate and scar applicator sit at the same layer as their callers.
  */
 
+import {
+  BOARD_LOCAL_SITE,
+  deriveBoardLocalSeed,
+} from "../../shared/core/ai-seed.ts";
 import { BURNING_PIT_DURATION } from "../../shared/core/game-constants.ts";
 import { GRID_COLS, GRID_ROWS, type TileKey } from "../../shared/core/grid.ts";
 import {
@@ -18,6 +22,7 @@ import {
 } from "../../shared/core/spatial.ts";
 import type { GameState, ModifierImpl } from "../../shared/core/types.ts";
 import type { ZoneId } from "../../shared/core/zone-id.ts";
+import { Rng } from "../../shared/platform/rng.ts";
 import { hasCannonAt, hasTowerAt } from "../../shared/sim/occupancy-queries.ts";
 import { evictEntitiesOnTiles } from "./evict-tiles.ts";
 import {
@@ -62,11 +67,22 @@ function applyDryLightning(state: GameState): ReadonlySet<TileKey> {
       }
     }
     if (candidates.length === 0) continue;
+    // R5b: count + shuffle iterate over a board-derived candidate list per
+    // active zone — draw from a private Rng (keyed by zone) so the shared
+    // cursor advance stays board-independent.
+    const localRng = new Rng(
+      deriveBoardLocalSeed(
+        state.rng.seed,
+        state.round,
+        BOARD_LOCAL_SITE.WILDFIRE_SPREAD,
+        zone,
+      ),
+    );
     const count = Math.min(
-      state.rng.int(DRY_LIGHTNING_MIN, DRY_LIGHTNING_MAX),
+      localRng.int(DRY_LIGHTNING_MIN, DRY_LIGHTNING_MAX),
       candidates.length,
     );
-    state.rng.shuffle(candidates);
+    localRng.shuffle(candidates);
     for (let idx = 0; idx < count; idx++) allStrikes.add(candidates[idx]!);
   }
   if (allStrikes.size === 0) return allStrikes;
@@ -125,9 +141,20 @@ function generateWildfireScar(state: GameState, zone: ZoneId): Set<TileKey> {
   }
   if (candidates.length === 0) return new Set();
 
+  // R5b: scar growth draws a board-dependent number of times (spine walk +
+  // per-spine-tile fatten). Run the whole generation on a private Rng (keyed by
+  // zone) so the shared cursor advance is fixed regardless of how the fire grew.
+  const scarRng = new Rng(
+    deriveBoardLocalSeed(
+      state.rng.seed,
+      state.round,
+      BOARD_LOCAL_SITE.WILDFIRE_SPREAD,
+      zone,
+    ),
+  );
   let best = new Set<TileKey>();
   for (let attempt = 0; attempt < 3; attempt++) {
-    const scar = growWildfireFromSeed(state, canBurn, candidates);
+    const scar = growWildfireFromSeed(scarRng, canBurn, candidates);
     if (scar.size > best.size) best = scar;
     if (best.size >= WILDFIRE_SPINE_LENGTH) break;
   }
@@ -162,24 +189,24 @@ function buildCanBurnPredicate(
 
 /** Grow a single wildfire scar from a random seed via cardinal walk + fatten. */
 function growWildfireFromSeed(
-  state: GameState,
+  rng: Rng,
   canBurn: (row: number, col: number) => boolean,
   candidates: readonly { row: number; col: number }[],
 ): Set<TileKey> {
-  const seed = state.rng.pick(candidates);
+  const seed = rng.pick(candidates);
   const spine: { row: number; col: number }[] = [seed];
   const scar = new Set<TileKey>();
   scar.add(packTile(seed.row, seed.col));
   let cr = seed.row;
   let cc = seed.col;
-  let mainDir = state.rng.int(0, DIRS_4.length - 1);
+  let mainDir = rng.int(0, DIRS_4.length - 1);
 
   const maxAttempts = WILDFIRE_SPINE_LENGTH * 8;
   let attempts = 0;
   while (spine.length < WILDFIRE_SPINE_LENGTH && attempts++ < maxAttempts) {
-    const dirIdx = state.rng.bool(WILDFIRE_MAIN_DIR_BIAS)
+    const dirIdx = rng.bool(WILDFIRE_MAIN_DIR_BIAS)
       ? mainDir
-      : state.rng.int(0, DIRS_4.length - 1);
+      : rng.int(0, DIRS_4.length - 1);
     const [dr, dc] = DIRS_4[dirIdx]!;
     const nr = cr + dr;
     const nc = cc + dc;
@@ -190,7 +217,7 @@ function growWildfireFromSeed(
       cr = nr;
       cc = nc;
     } else {
-      mainDir = (mainDir + (state.rng.bool() ? 1 : 3)) % DIRS_4.length;
+      mainDir = (mainDir + (rng.bool() ? 1 : 3)) % DIRS_4.length;
     }
   }
 
@@ -201,7 +228,7 @@ function growWildfireFromSeed(
       const nc = tile.col + dc;
       if (scar.has(packTile(nr, nc))) continue;
       if (!canBurn(nr, nc)) continue;
-      if (state.rng.bool(WILDFIRE_FATTEN_CHANCE)) {
+      if (rng.bool(WILDFIRE_FATTEN_CHANCE)) {
         scar.add(packTile(nr, nc));
       }
     }

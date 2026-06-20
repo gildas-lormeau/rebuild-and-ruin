@@ -274,7 +274,7 @@ const EFFECT_PROBES: Partial<Record<ModifierId, EffectProbe>> = {
 // retuning drifts it, re-scan: boot this exact scenario over seed = 0..N
 // and keep the first whose `state.modern.pendingSupplyBonuses` gains an
 // "extra_build_time" entry during a BATTLE phase.
-const EXTRA_BUILD_TIME_SEED = 8;
+const EXTRA_BUILD_TIME_SEED = 7;
 
 for (const modifierId of MODIFIER_IDS) {
   Deno.test(`modifiers: ${modifierId} fires + effect observed`, async () => {

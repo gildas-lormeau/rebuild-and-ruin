@@ -6,18 +6,35 @@
  * them, kept out of shared/core so the struct module carries no sim logic.
  */
 
+import { BOARD_LOCAL_SITE, deriveBoardLocalSeed } from "../core/ai-seed.ts";
 import type { Player } from "../core/player-types.ts";
-import type { Rng } from "../platform/rng.ts";
+import { Rng } from "../platform/rng.ts";
 import { createBag, nextPiece } from "./pieces.ts";
 
-/** Create a new piece bag on a player and draw the first piece. */
+/** Create a new piece bag on a player and draw the first piece.
+ *
+ *  R5b: bag refills happen a board-dependent number of times per round (one per
+ *  ~7 pieces placed, and placement count tracks how the build unfolds), and each
+ *  refill shuffles via the bag's Rng. So the bag must NOT draw from `state.rng`
+ *  — instead it gets a PRIVATE Rng derived from the match seed + (round, slot).
+ *  `rng` is `state.rng`; we read only its immutable `.seed` (no cursor advance),
+ *  keeping the shared cursor board-independent. The derivation is symmetric on
+ *  every peer, so the migration redeal reproduces the same bag. */
 export function initPlayerBag(
   player: Player,
   round: number,
   rng: Rng,
   smallPieces?: boolean,
 ): void {
-  player.bag = createBag(round, rng, smallPieces);
+  const bagRng = new Rng(
+    deriveBoardLocalSeed(
+      rng.seed,
+      round,
+      BOARD_LOCAL_SITE.PIECE_BAG,
+      player.id,
+    ),
+  );
+  player.bag = createBag(round, bagRng, smallPieces);
   player.currentPiece = nextPiece(player.bag);
 }
 
