@@ -138,6 +138,7 @@ interface InputSystemDeps {
     | "centerCameraOnTap"
     | "povPlayerId"
     | "getEnemyZones"
+    | "battleTargetZone"
     | "getViewedZone"
     | "setCameraZone"
     | "enableMobileZoom"
@@ -637,6 +638,7 @@ function buildZoomDeps(deps: InputSystemDeps) {
     setCameraZone: camera.setCameraZone,
     povPlayerId: camera.povPlayerId,
     getEnemyZones: camera.getEnemyZones,
+    getAnchorZone: camera.battleTargetZone,
     aimAtZone: (zone: ZoneId) => {
       const state = safeState(runtimeState);
       if (!state) return;

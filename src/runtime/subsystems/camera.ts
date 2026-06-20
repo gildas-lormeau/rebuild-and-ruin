@@ -148,6 +148,12 @@ export interface RuntimeCamera {
   // Zone queries
   povPlayerId: () => number;
   getEnemyZones: () => ZoneId[];
+  /** The enemy zone the battle-start crosshair will occupy — the restored
+   *  last-aimed enemy (if still alive), else the best enemy. Drives the
+   *  touch zone-cycle "anchor": the round's cycle leads with this zone so a
+   *  Z-press walks the opponents before ever returning home. Null when there
+   *  is no enemy. */
+  battleTargetZone: () => ZoneId | null;
 
   // Zoom state
   getCameraZone: () => ZoneId | undefined;
@@ -1413,6 +1419,7 @@ export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
     centerCameraOnTap,
     povPlayerId,
     getEnemyZones,
+    battleTargetZone,
     snapToFullMapForTransition,
     awaitPitchSettled,
     getCameraZone: getZoneTarget,

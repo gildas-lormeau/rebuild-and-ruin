@@ -129,6 +129,11 @@ export interface ZoomButtonDeps {
   setCameraZone: (zone: ZoneId) => void;
   povPlayerId: () => number;
   getEnemyZones: () => ZoneId[];
+  /** The enemy zone the cycle should lead with each round — the restored
+   *  last-aimed enemy, else the best enemy ("last opponent or default"). The
+   *  cycle is ordered [anchor, other enemies…, own] so the player's own zone
+   *  is always reached last. Null when there is no enemy. */
+  getAnchorZone: () => ZoneId | null;
   /** Move the human crosshair to a zone's home tower (battle auto-zoom). */
   aimAtZone?: (zone: ZoneId) => void;
 }

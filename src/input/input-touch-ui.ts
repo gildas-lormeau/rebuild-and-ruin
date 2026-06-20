@@ -134,10 +134,25 @@ export function createZoneCycleButton(
 } {
   const buttons = queryAll(container, "zoom-zone");
 
+  // Per-round cycle order, rebuilt when the round, enemy set, or own zone
+  // changes. The own zone is placed LAST and the enemies are rotated so the
+  // round's anchor (last-aimed / best enemy) leads — so a Z-press during
+  // battle walks the opponents before ever returning home ("most of the time
+  // the player wants to attack"). Stable within a round even as the player
+  // re-aims, so own stays last for the whole round.
+  let cycleKey = "";
+  let cycleOrder: ZoneId[] = [];
+
   function getCycle(): ZoneId[] {
     const myZone = zoneByPlayer(deps.getState(), deps.povPlayerId());
     const enemies = deps.getEnemyZones();
-    return myZone !== null ? [myZone, ...enemies] : enemies;
+    const key = `${deps.getState()?.round ?? -1}|${myZone ?? -1}|${enemies.join(",")}`;
+    if (key !== cycleKey) {
+      cycleKey = key;
+      const ordered = rotateToFront(enemies, deps.getAnchorZone());
+      cycleOrder = myZone !== null ? [...ordered, myZone] : ordered;
+    }
+    return cycleOrder;
   }
 
   /** Resolve the zone the player is conceptually "looking at": the camera's
@@ -519,6 +534,15 @@ function zoomButtonBg(pid: number, fallbackBg: string): string {
     return rgb(PLAYER_COLORS[pid]!.interiorLight, ZOOM_BUTTON_ALPHA);
   }
   return fallbackBg;
+}
+
+/** Rotate `arr` so `first` leads, preserving wrap-around order (e.g.
+ *  [A,B,C] with first=B → [B,C,A]). Returns a copy unchanged when `first`
+ *  is null or absent. */
+function rotateToFront<T>(arr: readonly T[], first: T | null): T[] {
+  const idx = first === null ? -1 : arr.indexOf(first);
+  if (idx <= 0) return [...arr];
+  return [...arr.slice(idx), ...arr.slice(0, idx)];
 }
 
 /** Query all elements matching a data-action within a container. */
