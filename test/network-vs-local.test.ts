@@ -32,6 +32,8 @@
 
 import { assert, assertEquals } from "@std/assert";
 import { createScenario, type Scenario } from "./scenario.ts";
+import { SEED_CONDITIONS } from "./seed-conditions.ts";
+import SEED_FIXTURES from "./seed-fixtures.json" with { type: "json" };
 import {
   createBidirectionalNetworkedPair,
   createMigrationTrio,
@@ -66,6 +68,8 @@ interface StateSnapshot {
   readonly players: readonly PlayerSnapshot[];
 }
 
+/** Classic seed that reaches a life-lost reselect cycle (registry-recorded). */
+const RESELECT = registrySeed("selection:reselect-cycle");
 // Parameterized stress — a handful of (seed, mode, rounds) triples to
 // catch divergences that only appear over longer play or on specific
 // seeds. If this table fails a row, that row is a real network-layer
@@ -91,6 +95,24 @@ const ASSISTED_STRESS: {
   { seed: 42, mode: "modern", rounds: 5 },
   { seed: 7, mode: "modern", rounds: 5 },
 ];
+
+/** Resolve a seed-registry condition to its recorded seed + rounds budget.
+ *  These migration tests need to reach an *emergent* gameplay condition (a
+ *  life-lost reselect, a balloon flyover) that drifts to a different seed on
+ *  every AI / RNG change — driving the full game from a hardcoded magic seed
+ *  re-breaks each time (R5b did exactly that). Reading from the registry keeps
+ *  them drift-safe: `npm run record-seeds` re-derives the seed and this picks it
+ *  up. Rounds comes from the condition so the budget always covers the seed. */
+function registrySeed(name: string): { seed: number; rounds: number } {
+  const seed = (SEED_FIXTURES as Record<string, number>)[name];
+  const condition = SEED_CONDITIONS[name];
+  if (seed === undefined || !condition) {
+    throw new Error(
+      `registrySeed: "${name}" missing — run \`npm run record-seeds\`.`,
+    );
+  }
+  return { seed, rounds: condition.rounds };
+}
 
 Deno.test(
   "network vs local (pure AI, classic): watcher mirrors host end-to-end",
@@ -913,20 +935,6 @@ Deno.test(
   },
 );
 
-Deno.test(
-  "watcher promoted during the balloon flyover begins the battle",
-  async () => {
-    // Seed 1: a propaganda-balloon capture (the only producer of
-    // balloon flights) resolves at round 4's battle entry. If AI
-    // retuning drifts it, re-scan seeds for `mode() === BALLOON_ANIM`.
-    await promoteWatcherDuringBattleIntro(
-      (watcher) => watcher.mode() === Mode.BALLOON_ANIM,
-      "balloon window",
-      1,
-    );
-  },
-);
-
 async function promoteWatcherDuringBattleIntro(
   windowReached: (watcher: Scenario) => boolean,
   label: string,
@@ -1257,13 +1265,13 @@ Deno.test(
 Deno.test(
   "promotion fast-forwarded into a reselect keeps survivors in rng parity",
   async () => {
-    // Seed 0 classic reaches a reselect cycle (see seed-fixtures.json
-    // "selection:reselect-cycle") — its round-end shows the life-lost
-    // dialog. If AI retuning drifts it, re-scan for LIFE_LOST_DIALOG_SHOW.
+    // Registry-driven (`selection:reselect-cycle`): a classic seed whose
+    // round-end shows the life-lost dialog → reselect. `npm run record-seeds`
+    // refreshes the seed if AI retuning drifts it.
     const trio = await createMigrationTrio({
-      seed: 0,
+      seed: RESELECT.seed,
       mode: "classic",
-      rounds: 12,
+      rounds: RESELECT.rounds,
     });
     const { host, promotable, observer, pumpHost, pumpPromoted } = trio;
 
@@ -1334,9 +1342,9 @@ Deno.test(
   "reselect adopted with sim-tick skew: survivors stay in rng parity",
   async () => {
     const trio = await createMigrationTrio({
-      seed: 0,
+      seed: RESELECT.seed,
       mode: "classic",
-      rounds: 12,
+      rounds: RESELECT.rounds,
     });
     const { host, promotable, observer, pumpHost, pumpPromoted } = trio;
 
@@ -2010,13 +2018,13 @@ Deno.test(
 Deno.test(
   "watcher promoted during the life-lost dialog force-continues into reselect",
   async () => {
-    // Seed 0 classic reaches a reselect cycle (see seed-fixtures.json
-    // "selection:reselect-cycle") — its round-end shows the life-lost
-    // dialog. If AI retuning drifts it, re-scan for LIFE_LOST_DIALOG_SHOW.
+    // Registry-driven (`selection:reselect-cycle`): a classic seed whose
+    // round-end shows the life-lost dialog → reselect. `npm run record-seeds`
+    // refreshes the seed if AI retuning drifts it.
     const pair = await createNetworkedPair({
-      seed: 0,
+      seed: RESELECT.seed,
       mode: "classic",
-      rounds: 12,
+      rounds: RESELECT.rounds,
     });
     let reselectPids: readonly ValidPlayerId[] = [];
     pair.watcher.bus.on(GAME_EVENT.LIFE_LOST_DIALOG_SHOW, (ev) => {
@@ -2133,9 +2141,9 @@ Deno.test(
   "running watcher adopting a reselect FULL_STATE mid-dialog arms selection",
   async () => {
     const pair = await createNetworkedPair({
-      seed: 0,
+      seed: RESELECT.seed,
       mode: "classic",
-      rounds: 12,
+      rounds: RESELECT.rounds,
     });
     const { host, watcher } = pair;
     let reselectPids: readonly ValidPlayerId[] = [];

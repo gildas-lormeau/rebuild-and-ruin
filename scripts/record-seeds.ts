@@ -46,6 +46,11 @@ interface CliConfig {
   timeoutMsPerSeed: number;
   parallel: number;
   worker: { id: number; shards: number } | null;
+  /** Which mode group a worker scans. Set by the parent via `--mode` so a
+   *  worker scans ONLY its assigned mode — without it a worker re-scans every
+   *  mode (2× redundant work + cross-mode hits mislabeled under the wrong
+   *  group header). Null for the parent process. */
+  mode: "classic" | "modern" | null;
 }
 
 interface WorkerHit {
@@ -119,6 +124,7 @@ function parseArgs(): CliConfig {
   let timeoutMsPerSeed = 1_800_000;
   let parallel = 1;
   let worker: CliConfig["worker"] = null;
+  let mode: CliConfig["mode"] = null;
   for (let idx = 0; idx < args.length; idx++) {
     const arg = args[idx];
     if (arg === "--max" && args[idx + 1]) max = Number(args[++idx]);
@@ -128,9 +134,11 @@ function parseArgs(): CliConfig {
       parallel = Math.max(1, Number(args[++idx]));
     } else if (arg === "--worker" && args[idx + 1] && args[idx + 2]) {
       worker = { id: Number(args[++idx]), shards: Number(args[++idx]) };
+    } else if (arg === "--mode" && args[idx + 1]) {
+      mode = args[++idx] === "modern" ? "modern" : "classic";
     }
   }
-  return { max, timeoutMsPerSeed, parallel, worker };
+  return { max, timeoutMsPerSeed, parallel, worker, mode };
 }
 
 async function scanModeParallel(
@@ -155,6 +163,8 @@ async function scanModeParallel(
         "--worker",
         String(id),
         String(workerCount),
+        "--mode",
+        mode,
       ],
       stdout: "piped",
       stderr: "piped",
@@ -219,26 +229,23 @@ async function drainWorker(
 
 async function runWorker(config: CliConfig): Promise<void> {
   const { id, shards } = config.worker!;
-  const byMode = new Map<"classic" | "modern", Map<string, SeedCondition>>();
+  // Scan ONLY the mode the parent assigned via `--mode` — the parent spawns a
+  // worker pool per mode, so a worker that re-scanned every mode would double
+  // the work and emit cross-mode hits under the wrong group's progress header.
+  const mode = config.mode ?? "classic";
+  const group = new Map<string, SeedCondition>();
   for (const [name, cond] of Object.entries(SEED_CONDITIONS)) {
-    let group = byMode.get(cond.mode);
-    if (!group) {
-      group = new Map();
-      byMode.set(cond.mode, group);
-    }
-    group.set(name, cond);
+    if (cond.mode === mode) group.set(name, cond);
   }
-  for (const [mode, group] of byMode) {
-    await scanMode(
-      mode,
-      group,
-      config,
-      (seed) => seed % shards === id,
-      (hit) => {
-        console.log(JSON.stringify(hit));
-      },
-    );
-  }
+  await scanMode(
+    mode,
+    group,
+    config,
+    (seed) => seed % shards === id,
+    (hit) => {
+      console.log(JSON.stringify(hit));
+    },
+  );
 }
 
 async function scanMode(
