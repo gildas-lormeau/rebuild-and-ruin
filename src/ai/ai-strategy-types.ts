@@ -11,16 +11,19 @@ import type {
   PixelPos,
   TilePos,
   Tower,
-  WorldPos,
 } from "../shared/core/geometry-types.ts";
 import type { PieceShape } from "../shared/core/pieces.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import type { Player } from "../shared/core/player-types.ts";
 import type {
+  BattleController,
   BattleViewState,
+  BuildController,
   BuildViewState,
+  CannonController,
   CannonPlacementPreview,
   CannonViewState,
+  ControllerIdentity,
   FireIntent,
   PiecePlacementPreview,
   PlaceCannonIntent,
@@ -136,48 +139,49 @@ export interface BattlePlan {
  *  modules accept a Host parameter so they can be tested without the full
  *  AiController class. The controller satisfies the union of all four
  *  Host interfaces (static assertion in controller-ai.ts). */
-export interface SelectionHost {
-  readonly playerId: ValidPlayerId;
+// The members each Host shares with the controller surface are pulled in via
+// `Pick<…>` of the controller interfaces (shared/core/system-interfaces.ts)
+// rather than re-declared, so a signature change on the controller side can't
+// silently drift from the Host the brain depends on. Each Host then adds only
+// the AI-specific members (strategy, scaledDelay, trait getters, cursor steppers)
+// that have no controller-interface counterpart.
+export interface SelectionHost extends Pick<ControllerIdentity, "playerId"> {
   readonly strategy: AiStrategy;
   /** Returns `(base + rng * spread) * delayScale` — humanizes AI timing per difficulty. */
   scaledDelay(base: number, spread: number): number;
 }
 
-export interface BuildHost {
-  readonly playerId: ValidPlayerId;
+/** Shared shape behind BuildHost + CannonHost: both phases step a tile cursor
+ *  one axis at a time. Only the cursor field + its speed getter differ, so the
+ *  common members live here and the two Hosts can't drift from each other. */
+interface TileCursorHost extends Pick<ControllerIdentity, "playerId"> {
   readonly strategy: AiStrategy;
-  buildCursor: TilePos;
+  readonly boostThreshold: number;
+  scaledDelay(base: number, spread: number): number;
+  stepTileCursorToward(
+    cursor: TilePos,
+    targetRow: number,
+    targetCol: number,
+    baseSpeed: number,
+    boostThreshold: number,
+  ): boolean;
+}
+
+export interface BuildHost
+  extends TileCursorHost,
+    Pick<BuildController, "buildCursor" | "clampBuildCursor"> {
   readonly buildCursorSpeed: number;
-  readonly boostThreshold: number;
-  scaledDelay(base: number, spread: number): number;
-  clampBuildCursor(piece: PieceShape | undefined): void;
-  stepTileCursorToward(
-    cursor: TilePos,
-    targetRow: number,
-    targetCol: number,
-    baseSpeed: number,
-    boostThreshold: number,
-  ): boolean;
 }
 
-export interface CannonHost {
-  readonly playerId: ValidPlayerId;
-  readonly strategy: AiStrategy;
-  cannonCursor: TilePos;
+export interface CannonHost
+  extends TileCursorHost,
+    Pick<CannonController, "cannonCursor"> {
   readonly cannonCursorSpeed: number;
-  readonly boostThreshold: number;
-  scaledDelay(base: number, spread: number): number;
-  stepTileCursorToward(
-    cursor: TilePos,
-    targetRow: number,
-    targetCol: number,
-    baseSpeed: number,
-    boostThreshold: number,
-  ): boolean;
 }
 
-export interface BattleHost {
-  readonly playerId: ValidPlayerId;
+export interface BattleHost
+  extends Pick<ControllerIdentity, "playerId">,
+    Pick<BattleController, "aim" | "fire"> {
   readonly strategy: AiStrategy;
   crosshair: PixelPos;
   /** When true, the battle brain keeps aiming (think/pick/move/dwell) while
@@ -186,12 +190,6 @@ export interface BattleHost {
   readonly anticipatesTarget: boolean;
   scaledDelay(base: number, spread: number): number;
   stepCrosshairToward(tx: PixelPos["x"], ty: PixelPos["y"]): boolean;
-  fire(state: BattleViewState): FireIntent | null;
-  /** Resolve a world-px aim point through the controller's occlusion model
-   *  (sim-only for AI) and return the occluded world position — the same seam
-   *  a human pointer drives. The brain reattaches its strategic metadata to
-   *  the result; the crosshair itself glides via `stepCrosshairToward`. */
-  aim(state: BattleViewState, x: number, y: number): WorldPos;
 }
 
 export interface AiStrategy {
