@@ -237,9 +237,14 @@ export abstract class BaseController implements PlayerController {
   /** Called at start of cannon phase. Override to reset cannon cursor/mode. */
   startCannonPhase(_state: CannonViewState): void {}
 
-  /** Base returns false (human never auto-confirms — confirmation is driven by UI).
-   *  AI overrides to return true after its selection animation completes. */
-  selectionTick(_dt: number, _state?: GameViewState): boolean {
+  /** Advance selection (no-op for a human — confirmation is driven by UI).
+   *  AiController overrides to animate the browse → confirm sequence. */
+  selectionTick(_dt: number, _state?: GameViewState): void {}
+
+  /** Whether this controller has auto-confirmed its tower choice. Base is
+   *  always false — a human never auto-confirms; UI input drives confirmation.
+   *  AiController overrides to read its selection state machine. */
+  isSelectionConfirmed(): boolean {
     return false;
   }
 

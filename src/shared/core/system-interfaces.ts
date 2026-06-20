@@ -185,11 +185,14 @@ interface SelectionController {
    *  advance. */
   selectTower(state: GameViewState, zone: ZoneId): void;
 
-  /** Tick during selection phase.
-   *  Returns true when the player has confirmed their tower choice (AI auto-confirms
-   *  after an animation delay; human always returns false — confirmation is driven by
-   *  explicit UI input, not by the tick). */
-  selectionTick(dt: number, state?: GameViewState): boolean;
+  /** Advance the selection phase one frame (AI animates its browse → confirm;
+   *  human is a no-op — its choice is driven by explicit UI input). Poll
+   *  `isSelectionConfirmed()` afterward to detect completion. */
+  selectionTick(dt: number, state?: GameViewState): void;
+
+  /** True once the controller has auto-confirmed its tower choice. AI flips
+   *  true after its animation completes; human is always false (UI-driven). */
+  isSelectionConfirmed(): boolean;
 }
 
 /** Wall build phase. */

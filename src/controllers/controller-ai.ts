@@ -169,8 +169,12 @@ export class AiController extends BaseController {
     this.brain.selection.init(this, state, zone);
   }
 
-  override selectionTick(_dt: number, state?: GameViewState): boolean {
-    return this.brain.selection.tick(this, state);
+  override selectionTick(_dt: number, state?: GameViewState): void {
+    this.brain.selection.tick(this, state);
+  }
+
+  override isSelectionConfirmed(): boolean {
+    return this.brain.selection.confirmed();
   }
 
   // -----------------------------------------------------------------------

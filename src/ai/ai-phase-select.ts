@@ -20,7 +20,8 @@ type AiSelectionState =
       browseTimer: number;
       confirmInitialDelay: number;
     }
-  | { step: "confirming"; timer: number };
+  | { step: "confirming"; timer: number }
+  | { step: "confirmed" };
 
 interface SelectionPhase {
   state: AiSelectionState;
@@ -92,16 +93,20 @@ export function initSelection(
   if (firstTower) selectPlayerTower(player, firstTower);
 }
 
-/** Advance the selection state machine. Returns true when confirmed. */
+/** Advance the selection state machine. Browses towers, then dwells, then
+ *  transitions to the terminal CONFIRMED step. Query confirmation separately
+ *  via `isSelectionConfirmed` — the tick itself no longer signals completion
+ *  through a return value. */
 export function tickSelection(
   host: SelectionHost,
   phase: SelectionPhase,
   // Optional: selection phase can tick without state during initial lobby setup.
   state?: GameViewState,
-): boolean {
+): void {
   switch (phase.state.step) {
     case STEP.IDLE:
-      return false;
+    case STEP.CONFIRMED:
+      return;
     case STEP.BROWSING: {
       const selectionState = phase.state;
       selectionState.browseTimer--;
@@ -119,7 +124,7 @@ export function tickSelection(
           if (nextTower && browsePlayer)
             selectPlayerTower(browsePlayer, nextTower);
         }
-        return false;
+        return;
       }
       if (selectionState.queue.length <= 1) {
         phase.state = {
@@ -127,11 +132,18 @@ export function tickSelection(
           timer: selectionState.confirmInitialDelay,
         };
       }
-      return false;
+      return;
     }
     case STEP.CONFIRMING: {
       phase.state.timer--;
-      return phase.state.timer <= 0;
+      if (phase.state.timer <= 0) phase.state = { step: STEP.CONFIRMED };
+      return;
     }
   }
+}
+
+/** True once the browse → dwell animation has completed and the AI has
+ *  committed to its chosen home tower (terminal CONFIRMED step). */
+export function isSelectionConfirmed(phase: SelectionPhase): boolean {
+  return phase.state.step === STEP.CONFIRMED;
 }

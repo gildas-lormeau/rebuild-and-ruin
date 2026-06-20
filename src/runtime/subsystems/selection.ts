@@ -543,7 +543,8 @@ export function createSelectionSystem(
 
       const ctrl = runtimeState.controllers[pid]!;
       const towerBefore = state.players[pid]!.homeTower;
-      if (ctrl.selectionTick(dt, state)) {
+      ctrl.selectionTick(dt, state);
+      if (ctrl.isSelectionConfirmed()) {
         confirmSelectionAndStartBuild(pid);
         continue;
       }

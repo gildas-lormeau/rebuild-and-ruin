@@ -12,6 +12,7 @@ export const STEP = {
   IDLE: "idle",
   BROWSING: "browsing",
   CONFIRMING: "confirming",
+  CONFIRMED: "confirmed",
   THINKING: "thinking",
   MOVING: "moving",
   DWELLING: "dwelling",

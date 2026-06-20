@@ -32,7 +32,8 @@ import type {
 
 interface AiBrainSelection {
   init(host: SelectionHost, state: GameViewState, zone: ZoneId): void;
-  tick(host: SelectionHost, state?: GameViewState): boolean;
+  tick(host: SelectionHost, state?: GameViewState): void;
+  confirmed(): boolean;
   reset(): void;
 }
 

@@ -35,6 +35,7 @@ import {
 import {
   createSelectionPhase,
   initSelection,
+  isSelectionConfirmed,
   resetSelectionPhase,
   tickSelection,
 } from "./ai-phase-select.ts";
@@ -55,6 +56,7 @@ export function createDefaultAiBrain(): AiBrain {
       init: (host, state, zone) =>
         initSelection(host, selectionPhase, state, zone),
       tick: (host, state) => tickSelection(host, selectionPhase, state),
+      confirmed: () => isSelectionConfirmed(selectionPhase),
       reset: () => resetSelectionPhase(selectionPhase),
     },
     build: {
