@@ -383,23 +383,34 @@ export class HumanController extends BaseController implements InputReceiver {
   }
 
   override endBattle(): void {
-    this.heldActions.clear();
-    this.dpadVector = undefined;
+    this.clearHeldInput();
   }
 
   override onLifeLost(): void {
     super.onLifeLost();
-    this.cannonPlaceMode = CannonMode.NORMAL;
-    this.heldActions.clear();
-    this.dpadVector = undefined;
+    this.clearTransientInputState();
   }
 
   /** Reset state for new game. */
   override reset(): void {
     super.reset();
-    this.cannonPlaceMode = CannonMode.NORMAL;
+    this.clearTransientInputState();
+  }
+
+  /** Drop any held keys and the analog d-pad vector. Shared by `endBattle`
+   *  (battle exit) and the heavier `clearTransientInputState`. */
+  private clearHeldInput(): void {
     this.heldActions.clear();
     this.dpadVector = undefined;
+  }
+
+  /** Shared body of `onLifeLost` / `reset`: revert the cannon-mode selection
+   *  to NORMAL and clear held input so a fresh phase starts with no carryover.
+   *  `endBattle` does NOT reset the cannon mode (battle exit leaves the next
+   *  cannon phase to re-arm it), so it uses `clearHeldInput` alone. */
+  private clearTransientInputState(): void {
+    this.cannonPlaceMode = CannonMode.NORMAL;
+    this.clearHeldInput();
   }
 }
 

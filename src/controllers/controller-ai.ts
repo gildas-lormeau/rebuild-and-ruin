@@ -336,20 +336,25 @@ export class AiController extends BaseController {
 
   override onLifeLost(): void {
     super.onLifeLost();
-    this.brain.selection.reset();
-    this.brain.build.reset();
-    this.brain.cannon.reset();
-    this.brain.battle.resetKeepOrbit();
+    this.resetBrains();
     this.strategy.onLifeLost();
   }
 
   override reset(): void {
     super.reset();
+    this.resetBrains();
+    this.strategy.reset();
+  }
+
+  /** Reset every per-phase brain to idle — shared by `onLifeLost` and the
+   *  full game `reset`, which differ only in how they reset `strategy`
+   *  (handled by each caller). The battle brain keeps its orbit angle
+   *  (`resetKeepOrbit`) so the cosmetic crosshair orbit doesn't snap. */
+  private resetBrains(): void {
     this.brain.selection.reset();
     this.brain.build.reset();
     this.brain.cannon.reset();
     this.brain.battle.resetKeepOrbit();
-    this.strategy.reset();
   }
 
   // -----------------------------------------------------------------------
