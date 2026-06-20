@@ -20,7 +20,7 @@ import {
   type ResolvedChoice,
   type UpgradePickEntry,
 } from "../shared/core/dialog-state.ts";
-import { Action } from "../shared/core/input-action.ts";
+import { Action, type KeyBindings } from "../shared/core/input-action.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import type {
   BuildViewState,
@@ -191,6 +191,8 @@ export class AiAssistedHumanController
 
   // ── InputReceiver stubs (v1 — no real human input handled yet) ──
 
+  updateBindings(_keys: KeyBindings): void {}
+  endBattle(): void {}
   matchKey(_key: string): Action | null {
     return null;
   }

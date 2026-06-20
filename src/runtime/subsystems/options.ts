@@ -1,3 +1,4 @@
+import { isHuman } from "../../shared/core/controller-guards.ts";
 import type { GameMap } from "../../shared/core/geometry-types.ts";
 import { MAP_PX_H, MAP_PX_W, SCALE } from "../../shared/core/grid.ts";
 import type { ValidPlayerId } from "../../shared/core/player-slot.ts";
@@ -194,6 +195,7 @@ export function createOptionsSystem(deps: OptionsSystemDeps): OptionsSystem {
   function closeControls(): void {
     if (runtimeState.optionsUI.context.kind === "gameplay") {
       for (const ctrl of runtimeState.controllers) {
+        if (!isHuman(ctrl)) continue;
         const keyBindings = runtimeState.settings.keyBindings[ctrl.playerId];
         if (keyBindings) ctrl.updateBindings(keyBindings);
       }

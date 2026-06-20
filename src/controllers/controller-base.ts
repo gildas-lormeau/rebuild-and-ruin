@@ -8,7 +8,7 @@ import type {
 import { NORMAL_CANNON_SIZE } from "../shared/core/game-constants.ts";
 import type { WorldPos } from "../shared/core/geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "../shared/core/grid.ts";
-import { Action, type KeyBindings } from "../shared/core/input-action.ts";
+import { Action } from "../shared/core/input-action.ts";
 import type {
   CannonPhantom,
   PiecePhantom,
@@ -97,7 +97,6 @@ export abstract class BaseController implements PlayerController {
     return { ...this.crosshair, playerId: this.playerId };
   }
 
-  updateBindings(_keys: KeyBindings): void {}
   /** Pick a tower. Must set buildCursor/crosshair to the chosen tower. */
   abstract selectTower(state: GameViewState, zone: ZoneId): void;
   /** Place cannons. AI places all immediately; Human sets up cursor/mode. */
@@ -223,8 +222,6 @@ export abstract class BaseController implements PlayerController {
   protected initCannons(state: CannonViewState, maxSlots: number): void {
     autoPlaceRound1Cannons(state, this.playerId, maxSlots);
   }
-  /** Called at the end of the battle phase (e.g. clear held input actions). */
-  endBattle(): void {}
   /** Base no-op hook (subclasses clear their own transient state). The
    *  round-robin cannon selector lives on GameState now — reset each battle
    *  in `prepareBattleState`, not per-controller. */

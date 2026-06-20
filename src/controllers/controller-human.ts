@@ -63,8 +63,8 @@ export class HumanController extends BaseController implements InputReceiver {
     this.keyMap = buildKeyMap(keys);
   }
 
-  /** Rebuild the key map from updated bindings. */
-  override updateBindings(keys: KeyBindings): void {
+  /** Rebuild the key map from updated bindings (InputReceiver). */
+  updateBindings(keys: KeyBindings): void {
     this.keyMap = buildKeyMap(keys);
   }
 
@@ -382,7 +382,7 @@ export class HumanController extends BaseController implements InputReceiver {
     return this.cannonPlaceMode;
   }
 
-  override endBattle(): void {
+  endBattle(): void {
     this.clearHeldInput();
   }
 

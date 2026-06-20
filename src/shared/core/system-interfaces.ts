@@ -169,9 +169,6 @@ export interface ControllerIdentity {
   /** Discriminant for the isHuman type guard (string union, not enum — only two values). */
   readonly kind: "human" | "ai";
 
-  /** Update key bindings (no-op for AI). */
-  updateBindings(keys: KeyBindings): void;
-
   /** Center cursors/crosshair on a tower position. */
   centerOn(row: number, col: number): void;
 
@@ -335,8 +332,6 @@ export interface BattleController {
    *  (`player.cannonRotationIdx`, reset in `prepareBattleState`), so it is
    *  not touched here. */
   initBattleState(state?: BattleViewState): void;
-
-  endBattle(): void;
 }
 
 /** Upgrade-pick dialog resolution (modern mode).
@@ -467,6 +462,10 @@ export type AimResolver = (
 
 /** Human input handling — no-op in BaseController, overridden by HumanController. */
 export interface InputReceiver {
+  /** Rebuild the key map from updated bindings. Human-only — AI has no key
+   *  map, so this lives here rather than on the shared controller surface. */
+  updateBindings(keys: KeyBindings): void;
+
   /** Match a keyboard key to an action name. Returns null if no match. */
   matchKey(key: string): Action | null;
 
@@ -486,6 +485,10 @@ export interface InputReceiver {
   /** Release the analog d-pad vector (touchend / touchcancel / phase
    *  exit). Crosshair movement falls back to `heldActions`. */
   clearDpadVector(): void;
+
+  /** Clear held keys / d-pad at battle exit. Human-only — AI holds no input
+   *  state, so it lives here rather than on the shared BattleController. */
+  endBattle(): void;
 
   /** Rotate the current build piece clockwise. */
   rotatePiece(state: BuildViewState): void;

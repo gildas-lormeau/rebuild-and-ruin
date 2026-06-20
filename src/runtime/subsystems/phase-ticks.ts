@@ -410,7 +410,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       ceasefireSkipBattle: () => enterBuildSkippingBattle(runtimeState.state),
       startBuildPhaseLocal: startBuildPhase,
       endBattleLocalControllers: () => {
-        for (const ctrl of local) ctrl.endBattle();
+        for (const ctrl of local) if (isHuman(ctrl)) ctrl.endBattle();
       },
       saveBattleCrosshair: deps.saveBattleCrosshair,
       awaitPitchSettled: deps.awaitPitchSettled,
