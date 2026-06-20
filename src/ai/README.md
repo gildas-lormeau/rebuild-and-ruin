@@ -30,9 +30,10 @@ Each game phase the AI plays through is decomposed into three layers:
    the AI's cursor right now" state.
 3. **Brain** (`ai-brain.ts`) — Aggregates the four phase machines
    plus the dialog auto-resolvers behind one `AiBrain` interface
-   (`ai-brain-types.ts`). One brain instance per AI player. The
-   controller (`src/controllers/controller-ai.ts`) owns cursor +
-   trait state and delegates every phase tick to its injected brain.
+   (`ai-brain-types.ts`). One brain instance per AI player, and the
+   brain owns the strategy. The controller
+   (`src/controllers/controller-ai.ts`) owns cursor/crosshair state and
+   delegates every phase tick to its injected brain.
 
 This split lets strategy modules stay unit-testable (no animation,
 no `GameState` writes — snapshot-in, decision-out from the caller's
@@ -62,7 +63,8 @@ modules.
    (`ai-brain-types.ts`). One instance per AI-controlled slot,
    injected into
    [`src/controllers/controller-ai.ts`](../controllers/controller-ai.ts)
-   which owns the cursor/trait state and forwards each tick.
+   which owns the cursor/crosshair state and forwards each tick. The
+   brain holds the strategy (passed to `createDefaultAiBrain`).
 
 4. **[ai-phase-build.ts](./ai-phase-build.ts)** — The most complex
    phase machine — piece placement with cursor animation and
@@ -222,11 +224,12 @@ gets a matching phase module. Pattern:
 
 ### Tune difficulty
 Difficulty lives in strategy traits (`thinkingSpeed`, `cursorSkill`,
-`spatialAwareness`) plus the constants in `ai-constants.ts`. The
-controller derives `delayScale` / `boostThreshold` / etc. from those
-traits — see `src/controllers/controller-ai.ts`. Higher difficulty
-means more evaluation candidates, deeper lookahead, and better
-tie-breaking — never "cheating" rule breaks.
+`spatialAwareness`) plus the constants in `ai-constants.ts`.
+`DefaultStrategy` derives the timing/movement tuning (`scaledDelay`,
+`boostThreshold`, `anticipatesTarget`, `battleBoostDist`) from those
+traits — see `ai-strategy.ts`. Higher difficulty means more evaluation
+candidates, deeper lookahead, and better tie-breaking — never "cheating"
+rule breaks.
 
 ### Debug AI behavior
 The scenario API (`test/scenario.ts`) plays real games with real AI
