@@ -37,6 +37,7 @@ import type { UpgradeId } from "../../shared/core/upgrade-defs.ts";
 import { MAX_PLAYERS, PLAYER_NAMES } from "../../shared/ui/player-config.ts";
 import { createAwayWatchdog } from "../online-away-watchdog.ts";
 import { canvas, worldCanvas } from "../online-dom.ts";
+import { createHeartbeatMonitor } from "../online-heartbeat.ts";
 import { createLagDetector } from "../online-lag-detector.ts";
 import {
   broadcastLocalCrosshair as broadcastLocalCrosshairImpl,
@@ -52,6 +53,7 @@ import { initPromote } from "./promote.ts";
 import { createOnlineRuntimeSessionHelpers } from "./session.ts";
 import {
   disconnectAway,
+  disconnectDesync,
   disconnectTooMuchLag,
   initWs,
   rejoinAfterAway,
@@ -114,6 +116,23 @@ const sendActions = createOnlineSendActions({
   safetyTicks: DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS,
   isQuarantined: () =>
     lockstepDebtTicks(runtime.runtimeState) >= LOCKSTEP_QUARANTINE_DEBT_TICKS,
+});
+// ── Desync-detection heartbeat ─────────────────────────────────────
+// The host samples its shared-RNG cursor each tick and broadcasts it every
+// HEARTBEAT_INTERVAL_TICKS; non-host peers compare it against their own cursor
+// at the matching simTick and self-disconnect on a fork. `getState` captures
+// `runtime` by closure (declared just below, like `sendActions`) — `recordTick`
+// only runs after init. See online-heartbeat.ts for the why.
+const heartbeat = createHeartbeatMonitor({
+  getState: () => runtime.runtimeState.state,
+  amHost: network.amHost,
+  send,
+  onDesync: (simTick, localRngState, hostRngState) => {
+    devLog(
+      `DESYNC @simTick=${simTick}: local rng=${localRngState} host rng=${hostRngState} — leaving`,
+    );
+    disconnectDesync();
+  },
 });
 // ── Runtime creation ────────────────────────────────────────────────
 const runtime: GameRuntime = createGameRuntime({
@@ -258,6 +277,9 @@ const runtime: GameRuntime = createGameRuntime({
   // tick (requestTick + SAFETY) has arrived (online-resync-defer.ts).
   onlineHostAfterFrame: () =>
     pollDeferredResyncs({ runtime, session: ctx.session, send }),
+  // Per-sim-tick desync fingerprint: record this peer's cursor and (host only)
+  // broadcast it. Fires on every peer, every live tick (online-heartbeat.ts).
+  onSimTickAdvanced: heartbeat.recordTick,
 });
 
 /** Pre-warm both audio sub-systems (music WASM + SFX AudioContext) inside a
@@ -311,7 +333,14 @@ export function initOnlineRuntime(): void {
   initDeps({
     runtime,
     initFromServer: sessionHelpers.initFromServer,
-    restoreFullState: sessionHelpers.restoreFullState,
+    // Adopting a full-state checkpoint (migration / rejoin) sets a fresh
+    // simTick + rng cursor; flush the heartbeat history so no comparison spans
+    // the discontinuity (a stale pre-adoption entry for the adopted tick would
+    // otherwise read as a false desync).
+    restoreFullState: (msg) => {
+      heartbeat.reset();
+      sessionHelpers.restoreFullState(msg);
+    },
     showWaitingRoom: sessionHelpers.showWaitingRoom,
     client: defaultClient,
     onStaleStamp: () => lagDetector.recordStaleStamp(timing.now()),
@@ -322,6 +351,11 @@ export function initOnlineRuntime(): void {
   // routes those calls into handleServerMessage. A loopback test would
   // register the same dispatcher against a different NetworkApi instance.
   network.onMessage(handleServerMessage);
+
+  // Desync detection rides the same incoming-message bus as a second,
+  // self-contained subscriber: it acts only on heartbeat messages and ignores
+  // everything else, so it needs no hook into handleServerMessage / deps.ts.
+  network.onMessage(heartbeat.onMessage);
 
   document.addEventListener(GAME_EXIT_EVENT, () => {
     runtime.shutdown();

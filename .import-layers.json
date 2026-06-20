@@ -194,6 +194,7 @@
       "src/game/upgrades/small-pieces.ts",
       "src/game/upgrades/supply-drop.ts",
       "src/game/upgrades/territorial-ambition.ts",
+      "src/online/online-heartbeat.ts",
       "src/online/online-host-promotion.ts",
       "src/online/online-lobby-ui.ts",
       "src/online/online-rejoin.ts",

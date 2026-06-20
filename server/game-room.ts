@@ -127,6 +127,10 @@ const HOST_ONLY: ReadonlySet<string> = new Set([
   MESSAGE.PIT_CREATED,
   MESSAGE.ICE_THAWED,
   MESSAGE.TOWER_KILLED,
+  // Only the host emits the desync heartbeat; gating it here means a buggy or
+  // malicious non-host fingerprint is never relayed (so it can't false-trip a
+  // healthy peer). Carries no phase, so updatePhaseFromMessage ignores it.
+  MESSAGE.HEARTBEAT,
 ] as const satisfies readonly MessageType[]);
 // Upper bounds for payload validation — reject clearly malformed values before relaying.
 // These are generous limits (well above real game maximums) to catch garbage data.
@@ -412,6 +416,11 @@ function validatePayload(msg: Record<string, unknown>): boolean {
     case MESSAGE.OPPONENT_CANNON_PHANTOM:
       return (
         hasValidPlayer(msg) && hasValidGridPos(msg) && hasValidCannonMode(msg)
+      );
+    case MESSAGE.HEARTBEAT:
+      return (
+        isInt(msg.simTick, 0, Number.MAX_SAFE_INTEGER) &&
+        isInt(msg.rngState, 0, 0xffffffff)
       );
     default:
       // Unknown types pass through: host-only messages are already gated by the

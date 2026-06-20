@@ -331,6 +331,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     render: () => render(),
     requestRender,
     tickMode,
+    onSimTickAdvanced: config.onSimTickAdvanced,
     onAfterFrame: () => {
       // Per-frame tick event + presentational derivations. Gated on
       // `isSessionLive` (state installed AND in a gameplay mode), NOT on

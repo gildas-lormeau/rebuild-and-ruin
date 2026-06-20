@@ -209,6 +209,47 @@ invariant today), and an **Anchor** to where that fact lives.
   `int`/`bool`/`pick` whose *count* is fixed (one per round, one per fixed slot)
   is fine even if its *result* is board-dependent — only the draw COUNT matters.
 
+- **R5c — Desync heartbeat (detection, complements R5b).** R5b makes a fork
+  *unlikely to cascade*; it adds **no detection**. The only divergence-adjacent
+  signal is the lag detector — a *timing* proxy (stale-stamp count), blind to a
+  fork with no late applies (cross-engine float, a future un-hardened
+  board-dependent draw, a migration-reconstruction asymmetry). The heartbeat
+  closes that gap: the **host** samples its shared-RNG cursor
+  (`state.rng.getState()`, a pure read — does NOT advance it) once per live sim
+  tick at the post-`drainUpTo` boundary (`runtime/main-loop.ts › runOneSubStep`,
+  via the ungated `onSimTickAdvanced` hook) and broadcasts it every
+  `HEARTBEAT_INTERVAL_TICKS` tagged with the `simTick`. Each **non-host** peer
+  compares it against its OWN cursor at the *matching simTick* — peers run skewed,
+  so the compare MUST be keyed by simTick, never now-vs-now; this needs a small
+  `(simTick → rngState)` ring buffer + a pending map for host-ahead fingerprints.
+  A mismatch → `disconnectDesync()` (same surface as a lag disconnect, no
+  auto-rejoin): the diverged peer self-removes and the room heals around the host
+  via the normal `PLAYER_LEFT` flow.
+  *Why the RNG cursor (not a board checksum):* post-R5b the cursor is
+  board-independent per tick, so at a matching simTick it is peer-identical unless
+  the sim *truly* forked — and within the 8-tick SAFETY buffer no wire action is
+  ever stale, so a benign transient board diff (sampled at a skewed tick, then
+  self-healed) leaves the cursor untouched → near-zero false positives. A board
+  checksum would false-positive on exactly those benign diffs. *Why host-emits /
+  non-hosts-compare (not all-emit):* if every peer compared every peer's
+  heartbeat, a single forked peer would make every healthy peer detect the
+  mismatch and leave, collapsing the room; anchoring on the host (already the
+  checkpoint/migration source every peer mirrors) means only the diverged peer
+  goes. Triple-gated to host-only: the module's `amHost()` emit gate, the
+  server's `HOST_ONLY` relay gate, and the receiver's `amHost()` ignore.
+  *Reset:* full-state adoption (migration / rejoin) flushes the ring buffer so a
+  comparison never spans the discontinuity (a stale pre-adoption entry for the
+  adopted tick would read as a false desync).
+  *Blind spot (acknowledged):* a board-only diff that never reaches the cursor
+  (e.g. pure cross-engine float in a position that doesn't change a draw count)
+  stays uncaught — a heavier board-hash heartbeat is the follow-on if ever needed.
+  *Anchor:* `online/online-heartbeat.ts › createHeartbeatMonitor`; wired in
+  `online/runtime/game.ts`. Tests: `test/online-heartbeat.test.ts` (poison /
+  skew / pending / host-ignore / reset).
+  *Check:* a new periodic cross-peer fingerprint must stay host-emitted + keyed
+  by simTick; never compare board state directly under skew, and never let
+  non-hosts emit (room-collapse hazard).
+
 - **R6 — `runtimeState` writes are owned; reads are free.** Each
   *persistent* `runtimeState.*` field is *written* by exactly one sub-system
   (identifiable by name); any sub-system may read. A second writer is the bug.

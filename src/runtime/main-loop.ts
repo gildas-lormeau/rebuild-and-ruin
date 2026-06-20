@@ -109,6 +109,11 @@ interface RuntimeLoopDeps {
    *  switch + assertNever in the composition root so an unknown mode is
    *  a loud failure rather than a silent no-op. */
   tickMode: (mode: Exclude<Mode, Mode.STOPPED>, dt: number) => void;
+  /** Fired once per live sim tick, immediately after the action-schedule
+   *  drain (the boundary where `state.rng` is peer-identical absent a real
+   *  determinism bug). Online wires this to the desync-detection heartbeat
+   *  (online-heartbeat.ts). Undefined in local play. */
+  onSimTickAdvanced?: () => void;
   onAfterFrame?: () => void;
 }
 
@@ -213,6 +218,10 @@ export function createRuntimeLoop(deps: RuntimeLoopDeps): {
         deps.runtimeState.state.simTick,
         deps.runtimeState.state,
       );
+      // Desync-detection sample point: both peers have applied the identical
+      // `applyAt <= simTick` action set in identical order here, so the shared
+      // RNG cursor is peer-identical unless the sim has truly forked.
+      deps.onSimTickAdvanced?.();
     }
 
     // Catch-up is presentational too: while meaningfully behind, tell the

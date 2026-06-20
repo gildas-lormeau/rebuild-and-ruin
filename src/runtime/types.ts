@@ -255,6 +255,12 @@ export interface RuntimeConfig {
    *  reaches `requestTick + SAFETY`. Undefined in local play. */
   onlineHostAfterFrame?: () => void;
 
+  /** Online-only per-sim-tick hook, called on every peer right after each
+   *  sub-step's schedule drain (NOT host-gated — the host emits and non-hosts
+   *  compare inside the callback). Drives the desync-detection heartbeat
+   *  (online-heartbeat.ts). Undefined in local play. */
+  onSimTickAdvanced?: () => void;
+
   /** Test-only sub-system observers. Threaded from the test scenario
    *  through `createHeadlessRuntime` so tests can capture intents
    *  (haptics, render) without monkey-patching module state.

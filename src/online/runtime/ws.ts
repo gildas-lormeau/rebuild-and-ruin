@@ -34,6 +34,7 @@ const ANNOUNCEMENT_RECONNECTING = "Reconnecting\u2026";
 const ANNOUNCEMENT_DISCONNECTED = "Disconnected from server";
 const ANNOUNCEMENT_AWAY = "Disconnected — away too long";
 const ANNOUNCEMENT_LAG = "Disconnected — connection too unstable";
+const ANNOUNCEMENT_DESYNC = "Disconnected — game state desynchronized";
 
 // ── Late-bound state ───────────────────────────────────────────────
 let _rt: WsRuntimeDeps;
@@ -68,6 +69,17 @@ export function disconnectAway(): void {
  *  takeover / host migration that heals the room. */
 export function disconnectTooMuchLag(): void {
   deliberateLeave(ANNOUNCEMENT_LAG);
+}
+
+/** Deliberate self-disconnect for a non-host peer whose mirror sim has silently
+ *  forked from the host's — detected by the desync heartbeat (online-heartbeat.ts)
+ *  comparing the host's RNG-cursor fingerprint against this peer's own cursor at
+ *  the matching simTick. Like `disconnectTooMuchLag` there is NO auto-rejoin: the
+ *  board is already diverged, so rejoining would just re-fork; the player re-enters
+ *  fresh. The socket close drives the server's PLAYER_LEFT / HOST_LEFT flow, so
+ *  the room heals around the host (lockstep AI takeover / migration). */
+export function disconnectDesync(): void {
+  deliberateLeave(ANNOUNCEMENT_DESYNC);
 }
 
 /** Auto-rejoin on tab-return after an away-disconnect (online-away-watchdog.ts

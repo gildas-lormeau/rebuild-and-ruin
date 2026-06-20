@@ -536,6 +536,19 @@ interface RequestSeatReclaimForwardedMessage {
   playerId: ValidPlayerId;
 }
 
+/** Host→peers desync-detection heartbeat. The host broadcasts its shared-RNG
+ *  cursor (`rngState`) tagged with the `simTick` it was sampled at, every
+ *  HEARTBEAT_INTERVAL_TICKS (see online-heartbeat.ts). Non-host peers compare it
+ *  against their own cursor at the matching simTick: a mismatch means the mirror
+ *  sim has silently forked, so the peer self-disconnects rather than play on a
+ *  diverged board. Carries no game-state fields — a pure fingerprint. HOST_ONLY
+ *  on the server, so only the host's heartbeat is ever relayed. */
+interface HeartbeatMessage {
+  type: "heartbeat";
+  simTick: number;
+  rngState: number;
+}
+
 export type ServerMessage =
   // Connection
   | InitMessage
@@ -583,6 +596,7 @@ export type ServerMessage =
   | RequestResyncMessage
   | RequestSeatReclaimForwardedMessage
   | HostLeftMessage
+  | HeartbeatMessage
   | FullStateMessage;
 
 /** Any message sent over the wire (client or server). */
@@ -638,6 +652,8 @@ export const MESSAGE = {
   SEAT_RECLAIM: "seatReclaim",
   REQUEST_RESYNC: "requestResync",
   HOST_LEFT: "hostLeft",
+  // Desync detection
+  HEARTBEAT: "heartbeat",
 } as const;
 export const DEFAULT_CANNON_HP = 3;
 

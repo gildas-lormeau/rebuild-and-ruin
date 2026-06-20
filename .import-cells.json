@@ -461,6 +461,7 @@
     "domain": "online",
     "role": "online lobby UI & session state",
     "files": [
+      "src/online/online-heartbeat.ts",
       "src/online/online-host-promotion.ts",
       "src/online/online-lobby-ui.ts",
       "src/online/online-rejoin.ts",
