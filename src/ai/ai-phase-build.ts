@@ -23,8 +23,12 @@ import {
   PRE_PLACE_SPREAD_SEC,
   STEP,
 } from "./ai-constants.ts";
-import type { BuildHost, BuildTickResult } from "./ai-strategy-types.ts";
-import { secondsToTicks } from "./ai-utils.ts";
+import type {
+  AiStrategy,
+  BuildHost,
+  BuildTickResult,
+} from "./ai-strategy-types.ts";
+import { secondsToTicks, traitLookup } from "./ai-utils.ts";
 
 type BuildTarget = { piece: PieceShape } & TilePos;
 
@@ -44,6 +48,9 @@ type BuildState =
 
 interface BuildPhase {
   state: BuildState;
+  /** The brain's strategy — read for placement decisions, rotation-frame rng,
+   *  and the scaled think/place delays. */
+  readonly strategy: AiStrategy;
 }
 
 /** Base delay per rotation animation frame (ticks). */
@@ -62,10 +69,10 @@ const QUICK_RETHINK_DELAY = secondsToTicks(0.1);
  *  (skill 1→[0], 2→[1], 3→[2]).
  *  Reduced from [8,12,14] to compensate for Manhattan movement being faster
  *  than the old diagonal (Euclidean) movement on non-axis-aligned paths. */
-export const BUILD_CURSOR_SPEEDS = [5, 8, 10] as const;
+const BUILD_CURSOR_SPEEDS = [5, 8, 10] as const;
 
-export function createBuildPhase(): BuildPhase {
-  return { state: { step: STEP.IDLE } };
+export function createBuildPhase(strategy: AiStrategy): BuildPhase {
+  return { state: { step: STEP.IDLE }, strategy };
 }
 
 export function resetBuildPhase(phase: BuildPhase): void {
@@ -78,12 +85,12 @@ export function initBuild(
   phase: BuildPhase,
   state: BuildViewState,
 ): void {
-  const target = computeNextPlacement(host, state);
+  const target = computeNextPlacement(host, phase.strategy, state);
   if (target) {
     phase.state = {
       step: STEP.MOVING,
       target,
-      rotation: buildRotationFor(host, state, target),
+      rotation: buildRotationFor(host, phase.strategy, state, target),
     };
   } else {
     phase.state = { step: STEP.THINKING, timer: 0 };
@@ -96,7 +103,7 @@ export function finalizeBuild(
   state: BuildViewState,
 ): void {
   phase.state = { step: STEP.IDLE };
-  host.strategy.assessBuildEnd(state, host.playerId);
+  phase.strategy.assessBuildEnd(state, host.playerId);
 }
 
 export function tickBuild(
@@ -125,12 +132,12 @@ export function tickBuild(
         return { phantoms: [phantomAtCursor(host, state)] };
       }
       // Timer expired — compute next placement
-      const target = computeNextPlacement(host, state);
+      const target = computeNextPlacement(host, phase.strategy, state);
       if (target) {
         phase.state = {
           step: STEP.MOVING,
           target,
-          rotation: buildRotationFor(host, state, target),
+          rotation: buildRotationFor(host, phase.strategy, state, target),
         };
         return { phantoms: tickMoving(host, phase, state) };
       }
@@ -150,17 +157,17 @@ export function tickBuild(
         host.buildCursor,
         home.row,
         home.col,
-        host.buildCursorSpeed,
+        traitLookup(phase.strategy.cursorSkill, BUILD_CURSOR_SPEEDS),
         Infinity,
       );
       phaseState.retryTimer--;
       if (phaseState.retryTimer <= 0) {
-        const target = computeNextPlacement(host, state);
+        const target = computeNextPlacement(host, phase.strategy, state);
         if (target) {
           phase.state = {
             step: STEP.MOVING,
             target,
-            rotation: buildRotationFor(host, state, target),
+            rotation: buildRotationFor(host, phase.strategy, state, target),
           };
         } else {
           phaseState.retryTimer = secondsToTicks(1.0);
@@ -208,17 +215,16 @@ export function tickBuild(
  *  with QUICK_RETHINK_DELAY so the strategy picks a different placement.
  *  Called from the controller right after committing the intent
  *  returned by `tickBuild`. */
-export function onBuildPlaceResult(
-  host: BuildHost,
-  phase: BuildPhase,
-  success: boolean,
-): void {
+export function onBuildPlaceResult(phase: BuildPhase, success: boolean): void {
   if (phase.state.step !== STEP.DWELLING) return;
   const phaseState = phase.state;
   if (success) {
     phase.state = {
       step: STEP.THINKING,
-      timer: host.scaledDelay(POST_PLACE_DELAY_SEC, POST_PLACE_SPREAD_SEC),
+      timer: phase.strategy.scaledDelay(
+        POST_PLACE_DELAY_SEC,
+        POST_PLACE_SPREAD_SEC,
+      ),
     };
     return;
   }
@@ -247,7 +253,8 @@ function tickMoving(
       rotation.idx++;
       if (rotation.idx < rotation.seq.length) {
         rotation.timer =
-          ROTATION_FRAME_BASE + host.strategy.rng.next() * ROTATION_FRAME_RANGE;
+          ROTATION_FRAME_BASE +
+          phase.strategy.rng.next() * ROTATION_FRAME_RANGE;
       }
     }
   }
@@ -257,14 +264,17 @@ function tickMoving(
     host.buildCursor,
     target.row,
     target.col,
-    host.buildCursorSpeed,
-    host.boostThreshold,
+    traitLookup(phase.strategy.cursorSkill, BUILD_CURSOR_SPEEDS),
+    phase.strategy.boostThreshold,
   );
   if (arrived && rotation.idx >= rotation.seq.length) {
     phase.state = {
       step: STEP.DWELLING,
       target,
-      timer: host.scaledDelay(PRE_PLACE_DELAY_SEC, PRE_PLACE_SPREAD_SEC),
+      timer: phase.strategy.scaledDelay(
+        PRE_PLACE_DELAY_SEC,
+        PRE_PLACE_SPREAD_SEC,
+      ),
       hasRetried: false,
     };
   }
@@ -304,6 +314,7 @@ function tickMoving(
 /** Build rotation animation sequence from current bag piece to target orientation. */
 function buildRotationFor(
   host: BuildHost,
+  strategy: AiStrategy,
   state: BuildViewState,
   target: BuildTarget,
 ): BuildRotation {
@@ -324,8 +335,7 @@ function buildRotationFor(
   return {
     seq,
     idx: 0,
-    timer:
-      ROTATION_INITIAL_BASE + host.strategy.rng.next() * ROTATION_INITIAL_RANGE,
+    timer: ROTATION_INITIAL_BASE + strategy.rng.next() * ROTATION_INITIAL_RANGE,
   };
 }
 
@@ -357,19 +367,15 @@ function makePhantom(
 
 function computeNextPlacement(
   host: BuildHost,
+  strategy: AiStrategy,
   state: BuildViewState,
 ): BuildTarget | null {
   const currentPiece = state.players[host.playerId]?.currentPiece;
   if (!currentPiece) return null;
-  const result = host.strategy.pickPlacement(
-    state,
-    host.playerId,
-    currentPiece,
-    {
-      row: Math.round(host.buildCursor.row),
-      col: Math.round(host.buildCursor.col),
-    },
-  );
+  const result = strategy.pickPlacement(state, host.playerId, currentPiece, {
+    row: Math.round(host.buildCursor.row),
+    col: Math.round(host.buildCursor.col),
+  });
   return result
     ? { piece: result.piece, row: result.row, col: result.col }
     : null;

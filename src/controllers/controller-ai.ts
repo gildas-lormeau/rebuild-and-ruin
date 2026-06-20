@@ -66,8 +66,10 @@ const _assertAiControllerSatisfiesAllHosts = (
 
 export class AiController extends BaseController {
   override readonly kind: "ai" | "human" = "ai";
-  /** Pluggable AI strategy (decision-making). */
-  readonly strategy: AiStrategy;
+  /** Pluggable AI strategy. The brain owns it for decisions + tuning; the
+   *  controller keeps a private reference only for its own cursor-jitter rng,
+   *  the battle-orbit re-roll, and lifecycle reset. */
+  private readonly strategy: AiStrategy;
   /** Pluggable AI brain (phase state machines + decision dispatch). */
   protected readonly brain: AiBrain;
   /** Apply-strategy for the three mutating commits. Direct (mutate
@@ -101,57 +103,6 @@ export class AiController extends BaseController {
    *  crosshair instantly. The brain stores the result as its aim target. */
   override aim(state: BattleViewState, x: number, y: number): WorldPos {
     return this.aimResolver(state, x, y);
-  }
-
-  // -----------------------------------------------------------------------
-  // Trait-derived getters (used by phase Host interfaces)
-  // -----------------------------------------------------------------------
-
-  /** Delay multiplier derived from thinkingSpeed: 1=slow(1.4×), 2=normal(1×), 3=fast(0.65×).
-   *  Private — consumed only by `scaledDelay` below, not by any Host interface. */
-  private get delayScale(): number {
-    return [1.4, 1.0, 0.65][this.strategy.thinkingSpeed - 1]!;
-  }
-
-  /** Build cursor speed scaled by cursorSkill. */
-  get buildCursorSpeed(): number {
-    return this.brain.build.cursorSpeedFor(this.strategy.cursorSkill);
-  }
-
-  /** Cannon cursor speed scaled by cursorSkill. */
-  get cannonCursorSpeed(): number {
-    return this.brain.cannon.cursorSpeedFor(this.strategy.cursorSkill);
-  }
-
-  /** Distance threshold (tiles) below which the cursor uses 1× instead of 2× speed.
-   *  cursorSkill 1=8 (rarely boosts), 2=5 (default), 3=3 (boosts early). */
-  get boostThreshold(): number {
-    return [8, 5, 3][this.strategy.cursorSkill - 1]!;
-  }
-
-  /** Battle boost threshold in pixels.
-   *  cursorSkill 1=never boosts (Infinity), 2=always (0, default), 3=always (0).
-   *  Private — consumed only by `stepCrosshairToward` below, not by any Host interface. */
-  private get battleBoostDist(): number {
-    return this.strategy.cursorSkill === 1 ? Infinity : 0;
-  }
-
-  /** Whether the AI keeps aiming while every cannon reloads (cursorSkill >= 2). */
-  get anticipatesTarget(): boolean {
-    return this.strategy.cursorSkill >= 2;
-  }
-
-  /** Humanize AI timing — returns an integer **tick count**.
-   *  Callers in ai-phase-*.ts decrement by 1 each AI sub-step.
-   *  Typical ranges (seconds, before delayScale):
-   *    Selection: 0.8–1.0s base (slow, mimics browsing)
-   *    Build/Cannon: 0.2–0.3s base (fast placement decisions)
-   *    Battle: 0.1–0.2s base (reactive targeting)
-   *  delayScale: ~1.4× easy, 1.0× normal, ~0.65× hard. */
-  scaledDelay(base: number, spread: number): number {
-    const seconds =
-      (base + this.strategy.rng.next() * spread) * this.delayScale;
-    return secondsToTicks(seconds);
   }
 
   // -----------------------------------------------------------------------
@@ -432,7 +383,7 @@ export class AiController extends BaseController {
     const fraction = moveStepFraction(
       Math.sqrt(dx * dx + dy * dy),
       CROSSHAIR_SPEED,
-      this.battleBoostDist,
+      this.strategy.battleBoostDist,
     );
     if (fraction >= 1) {
       this.crosshair.x = tx;

@@ -63,7 +63,7 @@ import type {
   CannonPlacementContext,
   StrategicPixelPos,
 } from "./ai-strategy-types.ts";
-import { traitLookup } from "./ai-utils.ts";
+import { secondsToTicks, traitLookup } from "./ai-utils.ts";
 
 /** Shared empty exclusion set `planBattle` falls back to when the entry call
  *  omits the param (no allocation per battle). Entry-vs-replan is flagged by
@@ -107,6 +107,11 @@ const MAX_REPAIR_COST_PROBABILITY = 0.4;
 const WEAK_DENY_ENCLOSURE_PROBABILITY = 0.15;
 /** Minimum usable cannons to attempt an ice trench (lower than general chain threshold). */
 const ICE_TRENCH_MIN_CANNONS = 4;
+/** Delay multiplier by thinkingSpeed (1=slow 1.4×, 2=normal 1×, 3=fast 0.65×). */
+const DELAY_SCALE_BY_THINKING_SPEED = [1.4, 1.0, 0.65] as const;
+/** Tile-cursor boost-distance threshold (tiles) by cursorSkill
+ *  (1=8 rarely boosts, 2=5 default, 3=3 boosts early). */
+const TILE_BOOST_THRESHOLD_BY_CURSOR_SKILL = [8, 5, 3] as const;
 
 export class DefaultStrategy implements AiStrategy {
   /** Shot count per cannon — tracks hits to know when to stop targeting.
@@ -174,6 +179,31 @@ export class DefaultStrategy implements AiStrategy {
     this.caresAboutHouses = personality.caresAboutHouses;
     this.caresAboutBonuses = personality.caresAboutBonuses;
     this.bankHugging = personality.bankHugging;
+  }
+
+  // ── Trait-derived timing/movement tuning (moved off AiController so the
+  //    brain reads it from the strategy directly instead of round-tripping
+  //    through the host). ──
+
+  /** Delay multiplier derived from thinkingSpeed. */
+  private get delayScale(): number {
+    return DELAY_SCALE_BY_THINKING_SPEED[this.thinkingSpeed - 1]!;
+  }
+
+  scaledDelay(base: number, spread: number): number {
+    return secondsToTicks((base + this.rng.next() * spread) * this.delayScale);
+  }
+
+  get boostThreshold(): number {
+    return TILE_BOOST_THRESHOLD_BY_CURSOR_SKILL[this.cursorSkill - 1]!;
+  }
+
+  get anticipatesTarget(): boolean {
+    return this.cursorSkill >= 2;
+  }
+
+  get battleBoostDist(): number {
+    return this.cursorSkill === 1 ? Number.POSITIVE_INFINITY : 0;
   }
 
   /** Castle ring margin for secondary towers (derived from aggressiveness). */

@@ -48,8 +48,6 @@ interface AiBrainBuild {
   onPlaceResult(host: BuildHost, state: BuildViewState, success: boolean): void;
   finalize(host: BuildHost, state: BuildViewState): void;
   reset(): void;
-  /** Cursor speed (tiles/sec) for a given strategy cursorSkill (1..3). */
-  cursorSpeedFor(cursorSkill: 1 | 2 | 3): number;
 }
 
 interface AiBrainCannon {
@@ -70,8 +68,6 @@ interface AiBrainCannon {
   /** maxSlots captured at init — assisted-human reads this when scheduling
    *  cannon placements through the wire path. */
   readonly maxSlots: number;
-  /** Cursor speed (tiles/sec) for a given strategy cursorSkill (1..3). */
-  cursorSpeedFor(cursorSkill: 1 | 2 | 3): number;
 }
 
 interface AiBrainBattle {

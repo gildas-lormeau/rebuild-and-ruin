@@ -139,25 +139,18 @@ export interface BattlePlan {
  *  modules accept a Host parameter so they can be tested without the full
  *  AiController class. The controller satisfies the union of all four
  *  Host interfaces (static assertion in controller-ai.ts). */
-// The members each Host shares with the controller surface are pulled in via
-// `Pick<…>` of the controller interfaces (shared/core/system-interfaces.ts)
-// rather than re-declared, so a signature change on the controller side can't
-// silently drift from the Host the brain depends on. Each Host then adds only
-// the AI-specific members (strategy, scaledDelay, trait getters, cursor steppers)
-// that have no controller-interface counterpart.
-export interface SelectionHost extends Pick<ControllerIdentity, "playerId"> {
-  readonly strategy: AiStrategy;
-  /** Returns `(base + rng * spread) * delayScale` — humanizes AI timing per difficulty. */
-  scaledDelay(base: number, spread: number): number;
-}
+// The brain now owns its `strategy` (held on each phase object) and reads
+// timing/movement tuning off it directly, so the Hosts no longer carry
+// strategy or the trait getters. What remains is what only the controller can
+// provide: cursor/crosshair state, the cursor steppers (which mutate that
+// state), and the commit seam (aim/fire). The shared members are pulled in via
+// `Pick<…>` of the controller interfaces so a controller-side signature change
+// can't silently drift from the Host the brain depends on.
+export type SelectionHost = Pick<ControllerIdentity, "playerId">;
 
 /** Shared shape behind BuildHost + CannonHost: both phases step a tile cursor
- *  one axis at a time. Only the cursor field + its speed getter differ, so the
- *  common members live here and the two Hosts can't drift from each other. */
+ *  one axis at a time. Only the cursor field (+ clamp, for build) differs. */
 interface TileCursorHost extends Pick<ControllerIdentity, "playerId"> {
-  readonly strategy: AiStrategy;
-  readonly boostThreshold: number;
-  scaledDelay(base: number, spread: number): number;
   stepTileCursorToward(
     cursor: TilePos,
     targetRow: number,
@@ -167,28 +160,16 @@ interface TileCursorHost extends Pick<ControllerIdentity, "playerId"> {
   ): boolean;
 }
 
-export interface BuildHost
-  extends TileCursorHost,
-    Pick<BuildController, "buildCursor" | "clampBuildCursor"> {
-  readonly buildCursorSpeed: number;
-}
+export type BuildHost = TileCursorHost &
+  Pick<BuildController, "buildCursor" | "clampBuildCursor">;
 
-export interface CannonHost
-  extends TileCursorHost,
-    Pick<CannonController, "cannonCursor"> {
-  readonly cannonCursorSpeed: number;
-}
+export type CannonHost = TileCursorHost &
+  Pick<CannonController, "cannonCursor">;
 
 export interface BattleHost
   extends Pick<ControllerIdentity, "playerId">,
     Pick<BattleController, "aim" | "fire"> {
-  readonly strategy: AiStrategy;
   crosshair: PixelPos;
-  /** When true, the battle brain keeps aiming (think/pick/move/dwell) while
-   *  every cannon reloads — like a human, who can move the crosshair freely
-   *  during reload — instead of freezing until one is ready. */
-  readonly anticipatesTarget: boolean;
-  scaledDelay(base: number, spread: number): number;
   stepCrosshairToward(tx: PixelPos["x"], ty: PixelPos["y"]): boolean;
 }
 
@@ -206,6 +187,23 @@ export interface AiStrategy {
    *  the diag-emit path to tag a non-chain fire as `focus_fire` (vs the
    *  unfocused `default`). */
   readonly focusFirePlayerId: ValidPlayerId | undefined;
+
+  // ── Trait-derived timing/movement tuning. Pure functions of the rolled
+  //    personality traits (+ rng for scaledDelay). The brain reads these
+  //    instead of reaching back through the controller, and the controller's
+  //    cursor mechanics read battleBoostDist for the same source of truth. ──
+
+  /** Humanize AI timing — returns an integer tick count. Derived from
+   *  thinkingSpeed (delay scale) plus an rng jitter over [base, base+spread]. */
+  scaledDelay(base: number, spread: number): number;
+  /** Tile-cursor boost-distance threshold (tiles), derived from cursorSkill —
+   *  below it the cursor moves at 1× instead of 2×. */
+  readonly boostThreshold: number;
+  /** Whether the AI keeps aiming while every cannon reloads (cursorSkill ≥ 2). */
+  readonly anticipatesTarget: boolean;
+  /** Battle crosshair boost-distance threshold (px), derived from cursorSkill
+   *  (skill 1 = never boosts → Infinity; 2/3 = always → 0). */
+  readonly battleBoostDist: number;
 
   /** Pick a home tower for the AI player. Returns the chosen tower or null. */
   chooseBestTower(map: GameMap, zone: ZoneId): Tower | null;

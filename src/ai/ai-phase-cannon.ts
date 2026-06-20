@@ -23,11 +23,13 @@ import {
   STEP,
 } from "./ai-constants.ts";
 import type {
+  AiStrategy,
   CannonHost,
   CannonPlacement,
   CannonPlacementContext,
   CannonTickResult,
 } from "./ai-strategy-types.ts";
+import { traitLookup } from "./ai-utils.ts";
 
 type CannonState =
   | { step: "idle" }
@@ -48,6 +50,9 @@ interface CannonPhase {
   currentTarget: CannonPlacement | undefined;
   maxSlots: number;
   displayedMode: CannonMode | undefined;
+  /** The brain's strategy — read for placement decisions, the scaled
+   *  think/place delays, and cursor-speed/boost tuning. */
+  readonly strategy: AiStrategy;
 }
 
 /** Pause during cannon mode switch animation (e.g. normal → balloon). */
@@ -55,15 +60,16 @@ const MODE_SWITCH_DELAY_SEC = 0.25;
 const MODE_SWITCH_SPREAD_SEC = 0.2;
 /** AI cannon-phase cursor speed in tiles per second, indexed by cursorSkill-1
  *  (skill 1→[0], 2→[1], 3→[2]). */
-export const CANNON_CURSOR_SPEEDS = [3, 4, 5] as const;
+const CANNON_CURSOR_SPEEDS = [3, 4, 5] as const;
 
-export function createCannonPhase(): CannonPhase {
+export function createCannonPhase(strategy: AiStrategy): CannonPhase {
   return {
     state: { step: STEP.IDLE },
     ctx: undefined,
     currentTarget: undefined,
     maxSlots: 0,
     displayedMode: undefined,
+    strategy,
   };
 }
 
@@ -84,7 +90,7 @@ export function initCannon(
   state: CannonViewState,
   maxSlots: number,
 ): void {
-  phase.ctx = host.strategy.initCannonPhase(
+  phase.ctx = phase.strategy.initCannonPhase(
     state.players[host.playerId]!,
     maxSlots,
   );
@@ -93,7 +99,10 @@ export function initCannon(
   phase.displayedMode = undefined;
   phase.state = {
     step: STEP.THINKING,
-    timer: host.scaledDelay(POST_PLACE_DELAY_SEC, POST_PLACE_SPREAD_SEC),
+    timer: phase.strategy.scaledDelay(
+      POST_PLACE_DELAY_SEC,
+      POST_PLACE_SPREAD_SEC,
+    ),
   };
 }
 
@@ -128,7 +137,7 @@ export function* flushCannon(
     if (phase.ctx) {
       const player = state.players[host.playerId]!;
       while (true) {
-        const target = host.strategy.nextCannonPlacement(
+        const target = phase.strategy.nextCannonPlacement(
           player,
           phase.maxSlots,
           state,
@@ -169,7 +178,7 @@ export function tickCannon(
         phase.state = { step: STEP.IDLE };
         return { phantom: null };
       }
-      const target = host.strategy.nextCannonPlacement(
+      const target = phase.strategy.nextCannonPlacement(
         player,
         phase.maxSlots,
         state,
@@ -185,7 +194,7 @@ export function tickCannon(
         phase.displayedMode = target.mode;
         phase.state = {
           step: STEP.MODE_SWITCHING,
-          timer: host.scaledDelay(
+          timer: phase.strategy.scaledDelay(
             MODE_SWITCH_DELAY_SEC,
             MODE_SWITCH_SPREAD_SEC,
           ),
@@ -240,7 +249,10 @@ export function tickCannon(
         phase.currentTarget = undefined;
         phase.state = {
           step: STEP.THINKING,
-          timer: host.scaledDelay(POST_PLACE_DELAY_SEC, POST_PLACE_SPREAD_SEC),
+          timer: phase.strategy.scaledDelay(
+            POST_PLACE_DELAY_SEC,
+            POST_PLACE_SPREAD_SEC,
+          ),
         };
         return { phantom: null, commit };
       }
@@ -267,13 +279,16 @@ function tickMoving(
       host.cannonCursor,
       target.row,
       target.col,
-      host.cannonCursorSpeed,
-      host.boostThreshold,
+      traitLookup(phase.strategy.cursorSkill, CANNON_CURSOR_SPEEDS),
+      phase.strategy.boostThreshold,
     )
   ) {
     phase.state = {
       step: STEP.DWELLING,
-      timer: host.scaledDelay(PRE_PLACE_DELAY_SEC, PRE_PLACE_SPREAD_SEC),
+      timer: phase.strategy.scaledDelay(
+        PRE_PLACE_DELAY_SEC,
+        PRE_PLACE_SPREAD_SEC,
+      ),
     };
   }
   const curRow = Math.round(host.cannonCursor.row);

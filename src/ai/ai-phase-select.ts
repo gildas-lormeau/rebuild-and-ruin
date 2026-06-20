@@ -10,7 +10,7 @@ import type { GameViewState } from "../shared/core/system-interfaces.ts";
 import type { ZoneId } from "../shared/core/zone-id.ts";
 import { selectPlayerTower } from "../shared/sim/player-rules.ts";
 import { STEP } from "./ai-constants.ts";
-import type { SelectionHost } from "./ai-strategy-types.ts";
+import type { AiStrategy, SelectionHost } from "./ai-strategy-types.ts";
 
 type AiSelectionState =
   | { step: "idle" }
@@ -25,6 +25,9 @@ type AiSelectionState =
 
 interface SelectionPhase {
   state: AiSelectionState;
+  /** The brain's strategy — read for the chosen tower, browse rng, and the
+   *  scaled browse/confirm delays. */
+  readonly strategy: AiStrategy;
 }
 
 /** Minimum number of *other* towers to visit before the chosen one. */
@@ -40,8 +43,8 @@ const BROWSE_SPREAD_SEC = 0.6;
 const CONFIRM_INITIAL_DELAY_SEC = 1.0;
 const CONFIRM_INITIAL_SPREAD_SEC = 0.6;
 
-export function createSelectionPhase(): SelectionPhase {
-  return { state: { step: STEP.IDLE } };
+export function createSelectionPhase(strategy: AiStrategy): SelectionPhase {
+  return { state: { step: STEP.IDLE }, strategy };
 }
 
 export function resetSelectionPhase(phase: SelectionPhase): void {
@@ -57,7 +60,8 @@ export function initSelection(
 ): void {
   const player = state.players[host.playerId];
   if (!player) return;
-  const chosenTower = host.strategy.chooseBestTower(state.map, zone);
+  const { strategy } = phase;
+  const chosenTower = strategy.chooseBestTower(state.map, zone);
 
   // Build browse queue: visit MIN_BROWSE_COUNT..MIN+RANGE-1 random zone towers
   // before the chosen one (currently 1–3).
@@ -65,12 +69,11 @@ export function initSelection(
   const others = zoneTowers.filter((tower) => tower !== chosenTower);
   const browseCount = Math.min(
     others.length,
-    MIN_BROWSE_COUNT +
-      Math.floor(host.strategy.rng.next() * BROWSE_COUNT_RANGE),
+    MIN_BROWSE_COUNT + Math.floor(strategy.rng.next() * BROWSE_COUNT_RANGE),
   );
   // Shuffle and take browseCount
   for (let i = others.length - 1; i > 0; i--) {
-    const j = Math.floor(host.strategy.rng.next() * (i + 1));
+    const j = Math.floor(strategy.rng.next() * (i + 1));
     [others[i], others[j]] = [others[j]!, others[i]!];
   }
   const queue = others.slice(0, browseCount).map((tower) => tower.index);
@@ -79,8 +82,8 @@ export function initSelection(
   phase.state = {
     step: STEP.BROWSING,
     queue,
-    browseTimer: host.scaledDelay(BROWSE_DELAY_SEC, BROWSE_SPREAD_SEC),
-    confirmInitialDelay: host.scaledDelay(
+    browseTimer: strategy.scaledDelay(BROWSE_DELAY_SEC, BROWSE_SPREAD_SEC),
+    confirmInitialDelay: strategy.scaledDelay(
       CONFIRM_INITIAL_DELAY_SEC,
       CONFIRM_INITIAL_SPREAD_SEC,
     ),
@@ -112,7 +115,7 @@ export function tickSelection(
       selectionState.browseTimer--;
       if (selectionState.browseTimer <= 0 && selectionState.queue.length > 1) {
         selectionState.queue.shift();
-        selectionState.browseTimer = host.scaledDelay(
+        selectionState.browseTimer = phase.strategy.scaledDelay(
           BROWSE_DELAY_SEC,
           BROWSE_SPREAD_SEC,
         );

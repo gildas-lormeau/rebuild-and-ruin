@@ -21,8 +21,9 @@ export function createDefaultAiDeps(
   rng: Rng,
   personality: AiPersonality,
 ): AiDeps {
+  const strategy = new DefaultStrategy(rng, personality);
   return {
-    strategy: new DefaultStrategy(rng, personality),
-    brain: createDefaultAiBrain(),
+    strategy,
+    brain: createDefaultAiBrain(strategy),
   };
 }

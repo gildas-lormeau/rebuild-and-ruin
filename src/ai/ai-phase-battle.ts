@@ -26,6 +26,7 @@ import {
 } from "./ai-chain.ts";
 import { STEP } from "./ai-constants.ts";
 import type {
+  AiStrategy,
   BattleHost,
   BattlePlan,
   BattleTickResult,
@@ -68,6 +69,9 @@ interface BattlePhase extends BattlePlan {
   usedTactics: Set<TacticId>;
   /** Persistent orbit phase — accumulated across battles for natural variation. */
   orbitAngle: number;
+  /** The brain's strategy — read for chain planning, target picking, shot
+   *  tracking, focus-fire status, orbit rng, anticipation, and scaled delays. */
+  readonly strategy: AiStrategy;
 }
 
 /** Map a chain-attack kind to its FireOrigin tag. CHAIN.WALL aggregates
@@ -107,7 +111,7 @@ const POST_FIRE_THINK_SPREAD_SEC = 0.2;
 /** Retry wait when no cannon is ready to fire (ticks). */
 const CANNON_RETRY_WAIT = secondsToTicks(0.05);
 
-export function createBattlePhase(): BattlePhase {
+export function createBattlePhase(strategy: AiStrategy): BattlePhase {
   return {
     state: { step: STEP.IDLE },
     crosshairTarget: null,
@@ -118,6 +122,7 @@ export function createBattlePhase(): BattlePhase {
     chainType: CHAIN.WALL,
     usedTactics: new Set(),
     orbitAngle: 0,
+    strategy,
   };
 }
 
@@ -151,7 +156,7 @@ export function initBattle(
   phase.originTag = undefined;
   phase.usedTactics.clear();
   if (state) {
-    const plan = host.strategy.planBattle(state, host.playerId);
+    const plan = phase.strategy.planBattle(state, host.playerId);
     phase.chainIntended = plan.chainTargets
       ? [...plan.chainTargets]
       : undefined;
@@ -175,7 +180,7 @@ export function tickBattle(
   // dead and the last ball landed), so a cannonless brain can't spin.
   if (
     !nextReadyCannon(state, host.playerId) &&
-    !(host.anticipatesTarget && canPlayerFire(state, host.playerId))
+    !(phase.strategy.anticipatesTarget && canPlayerFire(state, host.playerId))
   ) {
     return {};
   }
@@ -241,7 +246,10 @@ export function tickBattle(
         ) {
           phase.state = {
             step: STEP.DWELLING,
-            timer: host.scaledDelay(PRE_FIRE_DELAY_SEC, PRE_FIRE_SPREAD_SEC),
+            timer: phase.strategy.scaledDelay(
+              PRE_FIRE_DELAY_SEC,
+              PRE_FIRE_SPREAD_SEC,
+            ),
           };
         }
       } else {
@@ -311,7 +319,7 @@ function tickCountdown(
       if (!phaseState.orbit) {
         const strategic = !!phase.crosshairTarget.strategic;
         const boost = strategic ? 1.2 : 1;
-        const rng = host.strategy.rng;
+        const rng = phase.strategy.rng;
         const speedBase = strategic
           ? ORBIT_SPEED_STRATEGIC_RAD_S
           : ORBIT_SPEED_DEFAULT_RAD_S;
@@ -396,7 +404,10 @@ function tickChainMoving(
   if (host.stepCrosshairToward(center.x, center.y)) {
     phase.state = {
       step: STEP.CHAIN_DWELLING,
-      timer: host.scaledDelay(CHAIN_DWELL_DELAY_SEC, CHAIN_DWELL_SPREAD_SEC),
+      timer: phase.strategy.scaledDelay(
+        CHAIN_DWELL_DELAY_SEC,
+        CHAIN_DWELL_SPREAD_SEC,
+      ),
     };
   }
 }
@@ -513,7 +524,7 @@ function replanChain(
   phase: BattlePhase,
   state: BattleViewState,
 ): boolean {
-  const plan = host.strategy.planBattle(
+  const plan = phase.strategy.planBattle(
     state,
     host.playerId,
     phase.usedTactics,
@@ -580,7 +591,7 @@ function tickDwelling(
     return {};
   }
   const origin: FireOrigin =
-    host.strategy.focusFirePlayerId !== undefined ? "focus_fire" : "default";
+    phase.strategy.focusFirePlayerId !== undefined ? "focus_fire" : "default";
   // pickPath is the sub-branch of pickTarget that produced the tile we're
   // firing at — still on crosshairTarget here (nulled only after the
   // commit resolves in completeStandardFire).
@@ -604,14 +615,17 @@ function completeStandardFire(
     phaseState.timer = CANNON_RETRY_WAIT;
     return;
   }
-  host.strategy.trackShot(state, host.playerId, host.crosshair);
+  phase.strategy.trackShot(state, host.playerId, host.crosshair);
   // Random thinking delay before picking next target. The pick itself
   // happens in PICKING, after the delay — against the board as it is
   // then, not as it was at fire time.
   phase.crosshairTarget = null;
   phase.state = {
     step: STEP.THINKING,
-    timer: host.scaledDelay(POST_FIRE_THINK_SEC, POST_FIRE_THINK_SPREAD_SEC),
+    timer: phase.strategy.scaledDelay(
+      POST_FIRE_THINK_SEC,
+      POST_FIRE_THINK_SPREAD_SEC,
+    ),
   };
 }
 
@@ -623,7 +637,11 @@ function pickAndSnap(
   phase: BattlePhase,
   state: BattleViewState,
 ): StrategicPixelPos | null {
-  const picked = host.strategy.pickTarget(state, host.playerId, host.crosshair);
+  const picked = phase.strategy.pickTarget(
+    state,
+    host.playerId,
+    host.crosshair,
+  );
   phase.intendedTarget = picked
     ? { row: pxToTile(picked.y), col: pxToTile(picked.x) }
     : null;

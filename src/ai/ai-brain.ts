@@ -15,7 +15,6 @@ import {
   tickBattle,
 } from "./ai-phase-battle.ts";
 import {
-  BUILD_CURSOR_SPEEDS,
   createBuildPhase,
   finalizeBuild,
   initBuild,
@@ -24,7 +23,6 @@ import {
   tickBuild,
 } from "./ai-phase-build.ts";
 import {
-  CANNON_CURSOR_SPEEDS,
   createCannonPhase,
   flushCannon,
   initCannon,
@@ -39,17 +37,17 @@ import {
   resetSelectionPhase,
   tickSelection,
 } from "./ai-phase-select.ts";
+import type { AiStrategy } from "./ai-strategy-types.ts";
 import { tickAiUpgradePickEntry } from "./ai-upgrade-pick.ts";
-import { traitLookup } from "./ai-utils.ts";
 
-/** Build a fresh default brain. Caller owns the returned object; each
- *  controller instance must get its own brain (the closure captures
- *  phase state, which is per-controller). */
-export function createDefaultAiBrain(): AiBrain {
-  const selectionPhase = createSelectionPhase();
-  const buildPhase = createBuildPhase();
-  const cannonPhase = createCannonPhase();
-  const battlePhase = createBattlePhase();
+/** Build a fresh default brain bound to `strategy`. Caller owns the returned
+ *  object; each controller instance must get its own brain (the closure
+ *  captures both the strategy and the per-phase state). */
+export function createDefaultAiBrain(strategy: AiStrategy): AiBrain {
+  const selectionPhase = createSelectionPhase(strategy);
+  const buildPhase = createBuildPhase(strategy);
+  const cannonPhase = createCannonPhase(strategy);
+  const battlePhase = createBattlePhase(strategy);
 
   return {
     selection: {
@@ -62,11 +60,10 @@ export function createDefaultAiBrain(): AiBrain {
     build: {
       init: (host, state) => initBuild(host, buildPhase, state),
       tick: (host, state) => tickBuild(host, buildPhase, state),
-      onPlaceResult: (host, _state, success) =>
-        onBuildPlaceResult(host, buildPhase, success),
+      onPlaceResult: (_host, _state, success) =>
+        onBuildPlaceResult(buildPhase, success),
       finalize: (host, state) => finalizeBuild(host, buildPhase, state),
       reset: () => resetBuildPhase(buildPhase),
-      cursorSpeedFor: (skill) => traitLookup(skill, BUILD_CURSOR_SPEEDS),
     },
     cannon: {
       init: (host, state, maxSlots) =>
@@ -78,7 +75,6 @@ export function createDefaultAiBrain(): AiBrain {
       get maxSlots() {
         return cannonPhase.maxSlots;
       },
-      cursorSpeedFor: (skill) => traitLookup(skill, CANNON_CURSOR_SPEEDS),
     },
     battle: {
       init: (host, state) => initBattle(host, battlePhase, state),
