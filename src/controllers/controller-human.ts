@@ -46,8 +46,6 @@ export class HumanController extends BaseController implements InputReceiver {
   private keyMap: Map<string, Action>;
 
   private cannonPlaceMode: CannonMode = CannonMode.NORMAL;
-  /** Whether this game is modern mode (gates modern-only cannon modes). */
-  private modern = false;
   /** Actions currently held for continuous crosshair movement. */
   private readonly heldActions = new Set<Action>();
   /** Analog d-pad vector for continuous crosshair aiming (touch circle pad).
@@ -74,10 +72,9 @@ export class HumanController extends BaseController implements InputReceiver {
     // Human selects via UI — selectionTick() drives confirmation
   }
 
-  placeCannons(state: CannonViewState, _maxSlots: number): void {
+  placeCannons(_state: CannonViewState, _maxSlots: number): void {
     // Human places cannons interactively — nothing to do here
     this.cannonPlaceMode = CannonMode.NORMAL;
-    this.modern = state.gameMode === "modern";
   }
 
   isCannonPhaseDone(state: CannonViewState, maxSlots: number): boolean {
@@ -335,7 +332,7 @@ export class HumanController extends BaseController implements InputReceiver {
   cycleCannonMode(state: CannonViewState, maxSlots: number): void {
     const player = state.players[this.playerId]!;
     const used = cannonSlotsUsed(player);
-    const modes = cannonModesForGame(this.modern);
+    const modes = cannonModesForGame(state.gameMode === "modern");
     const currentIdx = modes.findIndex(
       (def) => def.id === this.cannonPlaceMode,
     );
