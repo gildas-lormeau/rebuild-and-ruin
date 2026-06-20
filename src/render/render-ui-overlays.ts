@@ -626,7 +626,13 @@ function buildStatusBar(
   povPlayerId: ValidPlayerId,
   playerColors: ReadonlyArray<{ wall: RGB }>,
 ): UIOverlay["statusBar"] {
-  if (view.phase === Phase.CASTLE_SELECT || view.phase === Phase.BATTLE) {
+  // Hidden during BATTLE, and during the initial CASTLE_SELECT at game start
+  // (round 1, before the first round plays). Mid-game reselect cycles
+  // (round > 1) keep the bar so the player retains round/score context.
+  if (
+    view.phase === Phase.BATTLE ||
+    (view.phase === Phase.CASTLE_SELECT && view.round === 1)
+  ) {
     return undefined;
   }
   const povPlayer = view.players.find((player) => player.id === povPlayerId);
