@@ -1,35 +1,24 @@
-import {
-  isPlacementPhase,
-  isSelectionPhase,
-  Phase,
-} from "../shared/core/game-phase.ts";
+import { isSelectionPhase, Phase } from "../shared/core/game-phase.ts";
 import { Action } from "../shared/core/input-action.ts";
 import { playerByZone, zoneByPlayer } from "../shared/core/player-zones.ts";
 import type { ZoneId } from "../shared/core/zone-id.ts";
 import type {
   DpadDeps,
-  FloatingActionsDeps,
-  FloatingActionsHandle,
   QuitButtonDeps,
   ZoomButtonDeps,
 } from "../shared/ui/input-deps.ts";
 import { PLAYER_COLORS } from "../shared/ui/player-config.ts";
 import { rgb, TOUCH_ZOOM_BG, ZOOM_BUTTON_ALPHA } from "../shared/ui/theme.ts";
 import { isInteractiveMode, Mode } from "../shared/ui/ui-mode.ts";
-import { TAP_MAX_DIST } from "./input.ts";
 import {
   dispatchGameAction,
   dispatchOverlayAction,
-  dispatchPlacementConfirm,
   dispatchQuit,
-  rotatePlacement,
 } from "./input-dispatch.ts";
 
 const CLS_DISABLED = "disabled";
 const CLS_HIDDEN = "hidden";
-const CLS_FADED = "faded";
 const CLICK_EVENT = "click";
-const FLOATING_ACTIONS_ID = "floating-actions";
 /** Fraction of the dpad radius treated as a center dead-zone — touches
  *  within it produce no direction (suppresses jitter near the origin). */
 const DPAD_DEAD_ZONE = 0.15;
@@ -225,82 +214,6 @@ export function createZoneCycleButton(
   };
 }
 
-/**
- * Wire the floating Rotate + Confirm buttons that appear near the phantom
- * when the player uses direct touch on the canvas map.
- */
-export function createFloatingActions(
-  deps: FloatingActionsDeps,
-  element: HTMLElement,
-): FloatingActionsHandle {
-  const btnRotate = element.querySelector<HTMLButtonElement>(
-    '[data-action="float-rotate"]',
-  )!;
-  const btnConfirm = element.querySelector<HTMLButtonElement>(
-    '[data-action="float-confirm"]',
-  )!;
-
-  function handleRotate() {
-    deps.emitUiTap?.();
-    const state = deps.getState();
-    if (!state || !isInteractiveMode(deps.getMode())) return;
-    deps.withPointerPlayer((human) =>
-      rotatePlacement(human, state, deps.onPieceRotated),
-    );
-  }
-
-  function handleConfirm() {
-    deps.emitUiTap?.();
-    const state = deps.getState();
-    if (!state || !isInteractiveMode(deps.getMode())) return;
-    deps.withPointerPlayer((human) => {
-      dispatchPlacementConfirm(human, state, deps);
-    });
-  }
-
-  for (const [btn, handler] of [
-    [btnRotate, handleRotate],
-    [btnConfirm, handleConfirm],
-  ] as const) {
-    wireDragOrTap(btn, handler, deps.onDrag);
-  }
-
-  // Capture phase so we run before the buttons' own touchstart handlers
-  // call stopPropagation — restoring opacity the instant a finger lands.
-  element.addEventListener(
-    "touchstart",
-    () => element.classList.remove(CLS_FADED),
-    { capture: true, passive: true },
-  );
-
-  return {
-    update(visible, x, y, nearTop, leftHanded) {
-      element.classList.toggle("visible", visible);
-      if (!visible) {
-        element.classList.remove(CLS_FADED);
-        return;
-      }
-      const h = element.offsetHeight;
-      const gap = h * 0.25;
-      let left: number;
-      let top: number;
-      if (nearTop) {
-        const sign = leftHanded ? 1 : -1;
-        left = x + sign * (h + gap);
-        top = y;
-      } else {
-        left = x;
-        top = y - h - gap;
-      }
-      element.style.left = `${Math.round(Math.max(0, left))}px`;
-      element.style.top = `${Math.round(Math.max(0, top))}px`;
-    },
-    setConfirmValid(valid) {
-      btnConfirm.classList.toggle(CLS_DISABLED, !valid);
-    },
-  };
-}
-
 /** Action button: confirm selection / place piece / place cannon / lobby join. */
 function handleDpadAction(deps: DpadDeps): void {
   deps.emitUiTap?.();
@@ -391,20 +304,10 @@ function wireDpadCircle(
       const vec = computeDpadVector(dpad, touch);
       if (isBattlePhase()) {
         if (vec !== undefined) setVector(vec);
-      } else {
-        const phase = deps.getState()?.phase;
-        if (phase !== undefined && isPlacementPhase(phase)) {
-          // Dim the floating rotate/confirm so they don't obscure the
-          // gameplay under the cursor while navigating with the d-pad.
-          document
-            .getElementById(FLOATING_ACTIONS_ID)
-            ?.classList.add(CLS_FADED);
-        }
-        if (vec !== undefined) {
-          const cardinal = vectorToCardinal(vec);
-          lastCardinal = cardinal;
-          startRepeat(cardinal);
-        }
+      } else if (vec !== undefined) {
+        const cardinal = vectorToCardinal(vec);
+        lastCardinal = cardinal;
+        startRepeat(cardinal);
       }
     }
 
@@ -623,64 +526,6 @@ function queryAll(container: HTMLElement, action: string): HTMLButtonElement[] {
   return Array.from(
     container.querySelectorAll<HTMLButtonElement>(`[data-action="${action}"]`),
   );
-}
-
-/** Wire a button for drag-or-tap discrimination: short touches fire `onTap`,
- *  longer drags forward to `onDrag`. Used by floating action buttons. */
-function wireDragOrTap(
-  btn: HTMLButtonElement,
-  onTap: () => void,
-  onDrag?: (clientX: number, clientY: number) => void,
-): void {
-  let startX = 0;
-  let startY = 0;
-  let dragged = false;
-  btn.addEventListener(
-    "touchstart",
-    (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      pressDown(btn);
-      const touch = e.touches[0];
-      if (touch) {
-        startX = touch.clientX;
-        startY = touch.clientY;
-      }
-      dragged = false;
-    },
-    { passive: false },
-  );
-  btn.addEventListener(
-    "touchmove",
-    (e) => {
-      e.preventDefault();
-      const touch = e.touches[0];
-      if (!touch) return;
-      if (
-        !dragged &&
-        Math.hypot(touch.clientX - startX, touch.clientY - startY) >
-          TAP_MAX_DIST
-      ) {
-        dragged = true;
-        pressUp(btn);
-      }
-      if (dragged) onDrag?.(touch.clientX, touch.clientY);
-    },
-    { passive: false },
-  );
-  btn.addEventListener(
-    "touchend",
-    (e) => {
-      e.preventDefault();
-      pressUp(btn);
-      if (!dragged) onTap();
-    },
-    { passive: false },
-  );
-  btn.addEventListener("touchcancel", () => {
-    pressUp(btn);
-    dragged = false;
-  });
 }
 
 /** Visual press feedback via CSS class. */

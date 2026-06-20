@@ -8,6 +8,8 @@ import {
 import { CannonMode } from "../shared/core/battle-types.ts";
 import { cannonModesForGame } from "../shared/core/cannon-mode-defs.ts";
 import { CROSSHAIR_SPEED } from "../shared/core/game-constants.ts";
+import { Phase } from "../shared/core/game-phase.ts";
+import type { WorldPos } from "../shared/core/geometry-types.ts";
 import {
   GRID_COLS,
   GRID_ROWS,
@@ -380,6 +382,34 @@ export class HumanController extends BaseController implements InputReceiver {
 
   getCannonPlaceMode(): CannonMode {
     return this.cannonPlaceMode;
+  }
+
+  /** World-pixel anchor that reproduces the current placement cursor when fed
+   *  back through `dispatchPointerMoveWorld` (the inverse of `setBuildCursor` /
+   *  `setCannonCursor`). Touch relative-drag anchors its delta here so the
+   *  piece tracks the finger's movement while staying offset from it. */
+  placementCursorWorld(state: GameViewState): WorldPos | null {
+    if (state.phase === Phase.WALL_BUILD) {
+      const piece = state.players[this.playerId]?.currentPiece;
+      if (!piece) return null;
+      // setBuildCursor subtracts the pivot from the pointer tile; add it back
+      // here (+0.5 for the tile centre) so the round-trip lands on the cursor.
+      const [pr, pc] = piece.pivot;
+      return {
+        wx: (this.buildCursor.col + pc + 0.5) * TILE_SIZE,
+        wy: (this.buildCursor.row + pr + 0.5) * TILE_SIZE,
+      };
+    }
+    if (state.phase === Phase.CANNON_PLACE) {
+      // setCannonCursor subtracts a half-footprint (centre → top-left anchor);
+      // add it back so the anchor is the footprint centre.
+      const halfPx = (cannonSize(this.cannonPlaceMode) * TILE_SIZE) / 2;
+      return {
+        wx: this.cannonCursor.col * TILE_SIZE + halfPx,
+        wy: this.cannonCursor.row * TILE_SIZE + halfPx,
+      };
+    }
+    return null;
   }
 
   endBattle(): void {

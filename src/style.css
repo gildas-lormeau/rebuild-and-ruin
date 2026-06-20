@@ -66,14 +66,12 @@ body {
     transform 0.25s ease-out;
 }
 
-[data-action="confirm"],
-[data-action="float-confirm"] {
+[data-action="confirm"] {
   background: #4a7a4a;
   border-color: #6a9a6a;
 }
 
-[data-action="rotate"],
-[data-action="float-rotate"] {
+[data-action="rotate"] {
   background: #7a7a3a;
   border-color: #9a9a5a;
 }
@@ -143,39 +141,6 @@ body {
 }
 .hidden {
   visibility: hidden;
-}
-
-/* ===== Floating contextual buttons (direct-touch placement) ===== */
-.floating-actions {
-  position: absolute;
-  display: flex;
-  gap: var(--gap);
-  z-index: 10;
-  pointer-events: none;
-  opacity: 0;
-  transform: translateX(-50%);
-  transition: opacity 0.12s ease-out;
-}
-
-.floating-actions.visible {
-  opacity: 1;
-}
-
-.floating-actions.visible .btn-round {
-  pointer-events: auto;
-}
-
-.floating-actions .btn-round.disabled {
-  opacity: 0.55;
-  pointer-events: none;
-}
-
-/* Faded while the player is using the d-pad in BUILD/CANNON_PLACE — keeps
-   the contextual rotate/confirm visible without obscuring the gameplay
-   under the cursor. Cleared on touch of a piece/cannon or of the floating
-   buttons themselves. */
-.floating-actions.visible.faded {
-  opacity: 0.3;
 }
 
 /* ===== Game container ===== */
@@ -338,11 +303,6 @@ body {
    the orientation lock isn't honoured, the grid axes are still 28×44
    and the landscape layout would render the map sideways. */
 body.is-portrait {
-  .floating-actions .btn-round {
-    width: min(72px, 12.5vmin);
-    height: min(72px, 12.5vmin);
-  }
-
   .portrait-bottom .btn-round {
     flex-shrink: 1;
   }

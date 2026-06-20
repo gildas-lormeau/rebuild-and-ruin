@@ -4,12 +4,6 @@ import {
   Phase,
 } from "../shared/core/game-phase.ts";
 import { Action } from "../shared/core/input-action.ts";
-import { cannonSize } from "../shared/core/spatial.ts";
-import type {
-  InputReceiver,
-  PlayerController,
-} from "../shared/core/system-interfaces.ts";
-import type { GameState } from "../shared/core/types.ts";
 import type { RegisterOnlineInputDeps } from "../shared/ui/input-deps.ts";
 import { TAP_MAX_DIST, TAP_MAX_TIME } from "./input.ts";
 import {
@@ -29,10 +23,6 @@ interface GestureState {
   touchStartX: number;
   touchStartY: number;
   touchStartTime: number;
-  /** True when touchstart landed on the current phantom. Lets a tap on the
-   *  piece itself confirm placement (like the overlay confirm button) even
-   *  when direct-touch is locked. */
-  startedOnPhantom: boolean;
   pinchActive: boolean;
   pinchStartDist: number;
   /** True once fingers moved apart during a pinch (distinguishes zoom from two-finger tap). */
@@ -89,7 +79,6 @@ function createGestureState(): GestureState {
     touchStartX: 0,
     touchStartY: 0,
     touchStartTime: 0,
-    startedOnPhantom: false,
     pinchActive: false,
     pinchStartDist: 0,
     pinchMoved: false,
@@ -104,7 +93,6 @@ function handleTouchStart(
   deps: RegisterOnlineInputDeps,
 ): void {
   e.preventDefault();
-  gestureState.startedOnPhantom = false;
   const { renderer, getState, getMode, coords } = deps;
 
   // Two-finger pinch start (minimum 2 fingers to distinguish from single-touch pan)
@@ -139,29 +127,28 @@ function handleTouchStart(
   const state = getState();
   if (!state || deps.lobby.isActive()) return;
 
-  // Placement phases: skip the absolute cursor-move on touchstart. Pure
-  // taps stay inert (the player commits via tap-on-piece or the overlay
-  // confirm button); if the player drags, touchmove falls through to
-  // absolute pointer-move (no anchor set), so the piece tracks the finger
-  // directly. The onPhantom flag is recorded so a tap on the piece itself
-  // confirms placement (same effect as the overlay confirm button).
+  // Placement phases: don't move the piece on touchstart — a pure tap stays
+  // inert here and commits on touchend (a tap anywhere on screen, not just on
+  // the piece). Instead, seed the delta-drag anchor at the piece's CURRENT
+  // world position, so a subsequent drag (touchmove) nudges the piece by the
+  // finger's screen-delta. The finger stays offset from the piece, so it never
+  // hides the target tile — and the drag can start anywhere on screen.
   if (
     isPlacementPhase(state.phase) &&
     shouldHandleGameInput(getMode(), state)
   ) {
-    const tile = coords.pixelToTile(x, y);
-    deps.withPointerPlayer((human) => {
-      gestureState.startedOnPhantom = isOnPhantom(
-        human,
-        state,
-        tile.row,
-        tile.col,
-      );
-    });
-    if (gestureState.startedOnPhantom) {
-      document.getElementById("floating-actions")?.classList.remove("faded");
-    }
     gestureState.dragAnchor = null;
+    deps.withPointerPlayer((human) => {
+      const anchorWorld = human.placementCursorWorld(state);
+      if (anchorWorld) {
+        gestureState.dragAnchor = {
+          worldX: anchorWorld.wx,
+          worldY: anchorWorld.wy,
+          screenX: x,
+          screenY: y,
+        };
+      }
+    });
     return;
   }
 
@@ -301,12 +288,12 @@ function handleTouchEnd(
     dispatchTowerSelect(w.wx, w.wy, state, deps, true);
   }
 
-  // Build / Cannon placement: only tap-on-piece commits (same effect as
-  // the overlay confirm button). Tap on empty map is inert — the player
-  // repositions by dragging the piece (touchmove tracks the finger) and
-  // commits via tap-on-piece, the overlay confirm button, or the d-pad +
-  // a confirm key. Drag-end never commits.
-  if (tap && gestureState.startedOnPhantom && isPlacementPhase(state.phase)) {
+  // Build / Cannon placement: a tap anywhere on screen commits (the piece is
+  // already positioned — the player repositions by dragging from anywhere,
+  // which touchmove tracks as a finger-relative nudge, then taps to place).
+  // A drag is not a tap, so drag-end never commits; an invalid placement is a
+  // no-op. Rotate is the two-finger tap; both work without an on-piece target.
+  if (tap && isPlacementPhase(state.phase)) {
     dispatchPlacement(state, deps);
   }
 
@@ -331,29 +318,4 @@ function isTap(touch: Touch, gestureState: GestureState): boolean {
   const dist = Math.sqrt(dx * dx + dy * dy);
   const duration = performance.now() - gestureState.touchStartTime;
   return dist < TAP_MAX_DIST && duration < TAP_MAX_TIME;
-}
-
-/** Check whether a tile position overlaps the current piece/cannon phantom. */
-function isOnPhantom(
-  human: PlayerController & InputReceiver,
-  state: GameState,
-  row: number,
-  col: number,
-): boolean {
-  const phase = state.phase;
-  if (phase === Phase.WALL_BUILD) {
-    const piece = state.players[human.playerId]?.currentPiece;
-    if (!piece) return false;
-    const cr = human.buildCursor.row;
-    const cc = human.buildCursor.col;
-    return piece.offsets.some(([dr, dc]) => cr + dr === row && cc + dc === col);
-  }
-  if (phase === Phase.CANNON_PLACE) {
-    const mode = human.getCannonPlaceMode();
-    const size = cannonSize(mode);
-    const cr = human.cannonCursor.row;
-    const cc = human.cannonCursor.col;
-    return row >= cr && row < cr + size && col >= cc && col < cc + size;
-  }
-  return false;
 }

@@ -19,7 +19,6 @@ interface TouchButtonState {
   quit: boolean;
 }
 
-const NEAR_TOP_THRESHOLD = 0.15;
 const INTERACTIVE = "interactive";
 const TOUCH_BUTTON_STATES: Record<Mode, TouchButtonState> = {
   [Mode.LOBBY]: {
@@ -110,7 +109,6 @@ const TOUCH_BUTTON_STATES: Record<Mode, TouchButtonState> = {
 export function updateTouchControls(deps: TouchControlsDeps): void {
   updateLoupe(deps);
   updateButtons(deps);
-  updateFloatingActions(deps);
 }
 
 function updateLoupe(deps: TouchControlsDeps): void {
@@ -174,44 +172,6 @@ function updateButtons(deps: TouchControlsDeps): void {
   // Zoom, quit
   deps.zoneCycleButton?.update(on(buttonStates.zoom));
   deps.quitButton?.update(buttonStates.quit ? deps.state.phase : null);
-}
-
-function updateFloatingActions(deps: TouchControlsDeps): void {
-  if (!deps.floatingActions) return;
-  const phase = deps.state.phase;
-  const human = deps.pointerPlayer();
-  const phantomValid = pointerPhantomValid(phase, human, deps.phantoms);
-  const visible =
-    human !== null &&
-    deps.mode === Mode.GAME &&
-    isPlacementPhase(phase) &&
-    phantomValid !== undefined;
-  if (!visible) {
-    deps.floatingActions.update(false, 0, 0, false, false);
-    return;
-  }
-
-  // Phantom center in world-pixel (tile-pixel) coordinates
-  let wx: number;
-  let wy: number;
-  if (phase === Phase.WALL_BUILD) {
-    const cursor = human.buildCursor;
-    const piece = deps.state.players[human.playerId]?.currentPiece;
-    const pc = piece ? piece.pivot[1] : 0;
-    wx = (cursor.col + pc + 0.5) * TILE_SIZE;
-    wy = cursor.row * TILE_SIZE;
-  } else {
-    const cursor = human.cannonCursor;
-    wx = (cursor.col + 1) * TILE_SIZE;
-    wy = cursor.row * TILE_SIZE;
-  }
-
-  // World-pixel → screen-pixel (camera), then → CSS relative to container
-  const { sx, sy } = deps.worldToScreen(wx, wy);
-  const { x: cssX, y: cssY } = deps.screenToContainerCSS(sx, sy);
-  const nearTop = cssY < deps.containerHeight * NEAR_TOP_THRESHOLD;
-  deps.floatingActions.update(true, cssX, cssY, nearTop, deps.leftHanded);
-  deps.floatingActions.setConfirmValid(phantomValid);
 }
 
 /** @returns true if phantom valid, false if invalid, undefined if no phantom for this phase. */

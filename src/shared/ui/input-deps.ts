@@ -119,26 +119,6 @@ export interface DpadDeps {
   overlay: OverlayActionDeps;
 }
 
-export interface FloatingActionsDeps {
-  getState: () => GameState | undefined;
-  getMode: () => Mode;
-  withPointerPlayer: WithPointerPlayer;
-  tryPlacePiece: (
-    human: PlayerController & InputReceiver,
-    state: BuildViewState,
-  ) => boolean;
-  tryPlaceCannon: (
-    human: PlayerController & InputReceiver,
-    state: CannonViewState,
-    max: number,
-  ) => boolean;
-  onPieceRotated?: () => void;
-  /** Emit a `uiTap` bus event — see `DpadDeps.emitUiTap`. */
-  emitUiTap?: () => void;
-  /** Forward a drag touch to the canvas pointer-move logic. */
-  onDrag?: (clientX: number, clientY: number) => void;
-}
-
 export interface ZoomButtonDeps {
   getState: () => GameState | undefined;
   /** The zone the user is visually looking at right now — explicit zone
@@ -177,19 +157,6 @@ export interface ZoomButton {
 
 export interface QuitButton {
   update(phase: Phase | null): void;
-}
-
-export interface FloatingActionsHandle {
-  /** Reposition + show/hide based on current phantom screen coords. */
-  update: (
-    visible: boolean,
-    x: number,
-    y: number,
-    nearTop: boolean,
-    leftHanded: boolean,
-  ) => void;
-  /** Toggle the confirm button's disabled look based on placement validity. */
-  setConfirmValid: (valid: boolean) => void;
 }
 
 export interface RegisterOnlineInputDeps {
@@ -323,14 +290,9 @@ export interface TouchControlsDeps {
    *  controller's `currentBuildPhantoms` / `currentCannonPhantom` + the
    *  runtime's remote slot). */
   phantoms: Pick<PhantomOverlay, "piecePhantoms" | "cannonPhantoms">;
-  leftHanded: boolean;
   pointerPlayer: () => (PlayerController & InputReceiver) | null;
   dpad: Dpad | null;
-  floatingActions: FloatingActionsHandle | null;
   zoneCycleButton: ZoomButton | null;
   quitButton: QuitButton | null;
   loupeHandle: LoupeHandle | null;
-  worldToScreen: (wx: number, wy: number) => { sx: number; sy: number };
-  screenToContainerCSS: (sx: number, sy: number) => { x: number; y: number };
-  containerHeight: number;
 }

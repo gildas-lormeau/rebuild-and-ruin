@@ -15,7 +15,6 @@ import type { ZoneId } from "../../shared/core/zone-id.ts";
 import { wrapIndex } from "../../shared/platform/cyclic.ts";
 import { IS_TOUCH_DEVICE } from "../../shared/platform/platform.ts";
 import type {
-  FloatingActionsHandle,
   RegisterOnlineInputDeps,
   WithPointerPlayer,
 } from "../../shared/ui/input-deps.ts";
@@ -34,7 +33,6 @@ import { type RuntimeState, safeState, setMode } from "../state.ts";
 import type { NetworkApi, OnlineActions } from "../types.ts";
 import type {
   CreateDpadFn,
-  CreateFloatingActionsFn,
   CreateQuitButtonFn,
   CreateZoneCycleButtonFn,
   DispatchPointerMoveFn,
@@ -162,11 +160,8 @@ interface InputSystemDeps {
     readonly createDpad: CreateDpadFn;
     readonly createQuitButton: CreateQuitButtonFn;
     readonly createZoneCycleButton: CreateZoneCycleButtonFn;
-    readonly createFloatingActions: CreateFloatingActionsFn;
   };
 
-  /** The element for floating action buttons (pre-existing in the HTML). */
-  readonly floatingActionsEl: HTMLElement | null;
   /** Mark the game container for touch panel CSS layout. */
   readonly markTouchPanels: () => void;
 
@@ -196,7 +191,6 @@ type PlaceCannonFn = (
 
 export interface TouchHandles {
   readonly dpad: DpadHandle | null;
-  readonly floatingActions: FloatingActionsHandle | null;
   readonly zoneCycleButton: ZoomButtonHandle | null;
   readonly quitButton: QuitButtonHandle | null;
   readonly loupeHandle: LoupeHandle | null;
@@ -256,7 +250,6 @@ export function createInputSystem(deps: InputSystemDeps): InputSystem {
 
   function resetForLobby(): void {
     runtimeState.inputTracking.mouseJoinedSlot = null;
-    touch.floatingActions?.update(false, 0, 0, false, false);
     touch.dpad?.update(null);
     touch.quitButton?.update(null);
     touch.zoneCycleButton?.update(false);
@@ -277,7 +270,6 @@ function setupTouchControls(
 
   setupDpadAndActions(inputDeps, touch, deps);
   setupZoomButtons(touch, deps);
-  setupFloatingActions(inputDeps, touch, deps);
 
   // Skip loupe wiring when booted in portrait — the CSS hides it and
   // a null handle short-circuits `updateTouchControls` upstream, so the
@@ -654,35 +646,4 @@ function buildZoomDeps(deps: InputSystemDeps) {
       if (human) human.setCrosshair(px.x, px.y);
     },
   };
-}
-
-function setupFloatingActions(
-  inputDeps: RegisterOnlineInputDeps,
-  touch: MutableTouchHandles,
-  deps: InputSystemDeps,
-): void {
-  const { runtimeState, renderer, withPointerPlayer } = deps;
-  const { tryPlacePiece: placePieceAction, tryPlaceCannon: placeCannonAction } =
-    inputDeps.gameAction;
-
-  const floatingEl = deps.floatingActionsEl;
-  if (floatingEl) {
-    touch.floatingActions = deps.touchFactories.createFloatingActions(
-      {
-        getState: () => safeState(runtimeState),
-        getMode: () => runtimeState.mode,
-        withPointerPlayer,
-        emitUiTap: deps.emitUiTap,
-        tryPlacePiece: placePieceAction,
-        tryPlaceCannon: placeCannonAction,
-        onDrag: (clientX, clientY) => {
-          const state = safeState(runtimeState);
-          if (!state) return;
-          const { x, y } = renderer.clientToSurface(clientX, clientY);
-          deps.inputHandlers.dispatchPointerMove(x, y, state, inputDeps);
-        },
-      },
-      floatingEl,
-    );
-  }
 }

@@ -23,7 +23,6 @@ import type {
 } from "../../shared/core/system-interfaces.ts";
 import type {
   Dpad,
-  FloatingActionsHandle,
   QuitButton,
   TouchControlsDeps,
   ZoomButton,
@@ -110,20 +109,10 @@ interface RenderSystemDeps {
   readonly pointerPlayer: () => (PlayerController & InputReceiver) | null;
   readonly getTouch: () => {
     dpad: Dpad | null;
-    floatingActions: FloatingActionsHandle | null;
     zoneCycleButton: ZoomButton | null;
     quitButton: QuitButton | null;
     loupeHandle: LoupeHandle | null;
   };
-  readonly worldToScreen: (
-    wx: number,
-    wy: number,
-  ) => { sx: number; sy: number };
-  readonly screenToContainerCSS: (
-    sx: number,
-    sy: number,
-  ) => { x: number; y: number };
-  readonly getContainerHeight: () => number;
   readonly updateTouchControls: (deps: TouchControlsDeps) => void;
 }
 
@@ -315,16 +304,11 @@ export function createRenderSystem(deps: RenderSystemDeps): RenderSystem {
       mode: runtimeState.mode,
       state: runtimeState.state,
       phantoms: runtimeState.overlay.phantoms ?? {},
-      leftHanded: runtimeState.settings.leftHanded,
       pointerPlayer: deps.pointerPlayer,
       dpad: touch.dpad,
-      floatingActions: touch.floatingActions,
       zoneCycleButton: touch.zoneCycleButton,
       quitButton: touch.quitButton,
       loupeHandle: touch.loupeHandle,
-      worldToScreen: deps.worldToScreen,
-      screenToContainerCSS: deps.screenToContainerCSS,
-      containerHeight: deps.getContainerHeight(),
     });
   }
 

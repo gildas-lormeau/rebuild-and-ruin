@@ -31,8 +31,6 @@ import type { GameState, LobbyState } from "../shared/core/types.ts";
 import type { SceneCapture } from "../shared/ui/banner-content.ts";
 import type {
   DpadDeps,
-  FloatingActionsDeps,
-  FloatingActionsHandle,
   PointerMoveDeps,
   QuitButtonDeps,
   RegisterOnlineInputDeps,
@@ -243,11 +241,6 @@ export type CreateZoneCycleButtonFn = (
   deps: ZoomButtonDeps,
   container: HTMLElement,
 ) => { update: (active: boolean) => void };
-
-export type CreateFloatingActionsFn = (
-  deps: FloatingActionsDeps,
-  element: HTMLElement,
-) => FloatingActionsHandle;
 
 export type CreateQuitButtonFn = (
   deps: QuitButtonDeps,

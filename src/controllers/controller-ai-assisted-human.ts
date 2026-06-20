@@ -20,6 +20,7 @@ import {
   type ResolvedChoice,
   type UpgradePickEntry,
 } from "../shared/core/dialog-state.ts";
+import type { WorldPos } from "../shared/core/geometry-types.ts";
 import { Action, type KeyBindings } from "../shared/core/input-action.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import type {
@@ -210,5 +211,8 @@ export class AiAssistedHumanController
   cycleCannonMode(_state: CannonViewState, _maxSlots: number): void {}
   getCannonPlaceMode(): CannonMode {
     return CannonMode.NORMAL;
+  }
+  placementCursorWorld(_state: GameViewState): WorldPos | null {
+    return null;
   }
 }

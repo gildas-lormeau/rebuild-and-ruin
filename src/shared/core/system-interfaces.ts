@@ -522,6 +522,14 @@ export interface InputReceiver {
   cycleCannonMode(state: CannonViewState, maxSlots: number): void;
 
   getCannonPlaceMode(): CannonMode;
+
+  /** World-pixel anchor that reproduces the current placement cursor when fed
+   *  back through `dispatchPointerMoveWorld` — i.e. the inverse of
+   *  `setBuildCursor` / `setCannonCursor`. Touch relative-drag seeds its delta
+   *  anchor with this so the piece tracks the finger's screen-delta while
+   *  staying offset from the finger (never hidden under it) instead of snapping
+   *  to it. Returns null outside WALL_BUILD / CANNON_PLACE (or with no piece). */
+  placementCursorWorld(state: GameViewState): WorldPos | null;
 }
 
 /** Reason a haptic call was made — lets the observer (and future debug
