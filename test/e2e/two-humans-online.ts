@@ -139,6 +139,16 @@ async function runTwoHumansGame(mode: "classic" | "modern"): Promise<void> {
   assertEquals(await host.mode(), "STOPPED", "host reached game-over");
   assertEquals(await client.mode(), "STOPPED", "client reached game-over");
 
+  // No peer self-disconnected on a desync: the heartbeat (online-heartbeat.ts)
+  // fires DESYNC_DETECTED if the host's RNG-cursor fingerprint disagrees with a
+  // peer's own cursor at the matching simTick. Over a full real-browser match
+  // this is the direct silent-divergence guard.
+  assertEquals(
+    (await client.bus.events(GAME_EVENT.DESYNC_DETECTED)).length,
+    0,
+    "client fired a desync disconnect",
+  );
+
   const hSnap = await buildSnap(host);
   const cSnap = await buildSnap(client);
   console.log("  HOST  snap:", JSON.stringify(hSnap));

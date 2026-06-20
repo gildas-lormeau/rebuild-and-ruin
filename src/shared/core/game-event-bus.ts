@@ -275,6 +275,18 @@ type ModernEvent =
  *  the control itself knowing about the feedback subsystem. */
 type InteractionEvent = { type: "uiTap" };
 
+/** Network / runtime-health events. Observational only — control flow (the
+ *  self-disconnect) runs independently of the bus. */
+type NetworkEvent = {
+  /** A non-host peer's mirror sim forked from the host's: the host's RNG-cursor
+   *  fingerprint disagreed with this peer's own cursor at the matching simTick
+   *  (online-heartbeat.ts). Fires once, just before the peer self-disconnects. */
+  type: "desyncDetected";
+  simTick: number;
+  localRngState: number;
+  hostRngState: number;
+};
+
 /** Origin annotation on `cameraTarget` events — fixture readability and
  *  test-side filtering. Drives no game logic. */
 export type CameraTargetSource =
@@ -289,7 +301,8 @@ type GameEvent =
   | LifecycleEvent
   | EntityEvent
   | ModernEvent
-  | InteractionEvent;
+  | InteractionEvent
+  | NetworkEvent;
 
 /** Union of all event type strings. */
 type GameEventType = GameEvent["type"];
@@ -392,6 +405,9 @@ const MODERN_EVENT = {
 const INTERACTION_EVENT = {
   UI_TAP: "uiTap",
 } as const;
+const NETWORK_EVENT = {
+  DESYNC_DETECTED: "desyncDetected",
+} as const;
 const busComplete: BusComplete = true;
 /** All event type constants. Use GAME_EVENT.* in emit/on/off calls. */
 export const GAME_EVENT = {
@@ -400,6 +416,7 @@ export const GAME_EVENT = {
   ...ENTITY_EVENT,
   ...MODERN_EVENT,
   ...INTERACTION_EVENT,
+  ...NETWORK_EVENT,
 } as const;
 
 export function createGameEventBus(): GameEventBus {

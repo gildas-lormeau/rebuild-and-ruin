@@ -246,6 +246,7 @@ async function runThreeHumansGame(
         mode: await peer.sc.mode(),
         snap: await buildSnap(peer.sc),
         ends: await peer.sc.bus.events(GAME_EVENT.GAME_END),
+        desyncs: await peer.sc.bus.events(GAME_EVENT.DESYNC_DETECTED),
         fired: await firedSlots(peer.sc),
       };
     }),
@@ -277,6 +278,20 @@ async function runThreeHumansGame(
   // 2. Both survivors reached game-over.
   for (const cap of captured) {
     assertEquals(cap.mode, "STOPPED", `${cap.name} reached game-over`);
+  }
+
+  // 2b. No survivor self-disconnected on a desync: the heartbeat
+  //     (online-heartbeat.ts) compares the host's RNG-cursor fingerprint
+  //     against each peer's own cursor at the matching simTick and fires
+  //     DESYNC_DETECTED on a fork. Over a full real-browser match this is the
+  //     direct silent-divergence guard — a mid-game fork that the end-state
+  //     parity checks below might not localize surfaces here as a clear event.
+  for (const cap of captured) {
+    assertEquals(
+      cap.desyncs.length,
+      0,
+      `${cap.name} fired a desync disconnect: ${JSON.stringify(cap.desyncs)}`,
+    );
   }
 
   // 3. Byte-identical end-of-game state across the survivors.

@@ -29,6 +29,7 @@ import {
   DIFFICULTY_PARAMS,
   SELECT_TIMER,
 } from "../../shared/core/game-constants.ts";
+import { emitGameEvent, GAME_EVENT } from "../../shared/core/game-event-bus.ts";
 import {
   isActivePlayer,
   type ValidPlayerId,
@@ -131,6 +132,16 @@ const heartbeat = createHeartbeatMonitor({
     devLog(
       `DESYNC @simTick=${simTick}: local rng=${localRngState} host rng=${hostRngState} — leaving`,
     );
+    // Observational: surfaces the fork to bus observers (E2E parity guards,
+    // telemetry) before the self-disconnect. The disconnect runs regardless.
+    const state = runtime.runtimeState.state;
+    if (state) {
+      emitGameEvent(state.bus, GAME_EVENT.DESYNC_DETECTED, {
+        simTick,
+        localRngState,
+        hostRngState,
+      });
+    }
     disconnectDesync();
   },
 });
