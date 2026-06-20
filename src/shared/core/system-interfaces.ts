@@ -289,16 +289,20 @@ export interface CannonController {
    *  renders with the preview. */
   startCannonPhase(state: CannonViewState): void;
 
-  /** Flush any remaining auto-placement queue (cannon timer expired).
-   *  Do NOT call directly — use finalizeCannonPhase() which guarantees flush->init order. */
-  flushCannons(state: CannonViewState, maxSlots: number): void;
-
-  /** End-of-cannon-phase finalization (flush + init). Use for LOCAL controllers.
-   *  Remote controllers only need initCannons() (their client handles flush). */
-  finalizeCannonPhase(state: CannonViewState, maxSlots: number): void;
-
-  /** Round-1 safety net: auto-place cannons if none were manually placed. No-op on round 2+. */
-  initCannons(state: CannonViewState, maxSlots: number): void;
+  /** End-of-cannon-phase finalization. The single entry point for both
+   *  localities — `isLocal` carries the parity split:
+   *  - local: flush this peer's planned placements, run the round-1 safety
+   *    net, and clear the cannon phantom;
+   *  - remote: run only the round-1 safety net (the slot's placements
+   *    already arrived over the wire; the render phase-gate clears the
+   *    stale phantom).
+   *  The flush and the round-1 auto-place are controller-internal steps,
+   *  not part of the public contract. */
+  finalizeCannonPhase(
+    state: CannonViewState,
+    maxSlots: number,
+    isLocal: boolean,
+  ): void;
 }
 
 export interface BattleController {

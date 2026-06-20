@@ -46,7 +46,7 @@ stateDiagram-v2
 - **broadcasts:** `buildEnd`
 - **display:** `score-overlay`, `life-lost-dialog`
 - **dispatches:** _ctx.lifeLostRoute → game-over / reselect / advance-to-cannon_
-- **external dispatchers:** `phase-ticks.ts:833`
+- **external dispatchers:** `phase-ticks.ts:835`
 
 ### `battle-done`
 
@@ -56,7 +56,7 @@ stateDiagram-v2
 - **broadcasts:** `buildStart`
 - **display:** —
 - **dispatches:** `enter-upgrade-pick`, `enter-wall-build`
-- **external dispatchers:** `phase-ticks.ts:767`
+- **external dispatchers:** `phase-ticks.ts:769`
 
 ### `ceasefire`
 
@@ -66,7 +66,7 @@ stateDiagram-v2
 - **broadcasts:** `buildStart`
 - **display:** —
 - **dispatches:** `enter-upgrade-pick`, `enter-wall-build`
-- **external dispatchers:** `phase-ticks.ts:356`
+- **external dispatchers:** `phase-ticks.ts:353`
 
 ### `enter-upgrade-pick`
 
@@ -106,7 +106,7 @@ stateDiagram-v2
 - **broadcasts:** `cannonStart`
 - **display:** —
 - **dispatches:** `enter-cannon-place`
-- **external dispatchers:** `phase-ticks.ts:339`
+- **external dispatchers:** `phase-ticks.ts:336`
 
 ### `advance-to-cannon`
 
@@ -116,7 +116,7 @@ stateDiagram-v2
 - **broadcasts:** `cannonStart`
 - **display:** —
 - **dispatches:** `enter-cannon-place`
-- **external dispatchers:** `phase-ticks.ts:335`
+- **external dispatchers:** `phase-ticks.ts:332`
 
 ### `game-over`
 
@@ -126,7 +126,7 @@ stateDiagram-v2
 - **broadcasts:** —
 - **display:** —
 - **dispatches:** —
-- **external dispatchers:** `phase-ticks.ts:343`
+- **external dispatchers:** `phase-ticks.ts:340`
 
 ### `cannon-place-done`
 
@@ -136,7 +136,7 @@ stateDiagram-v2
 - **broadcasts:** `battleStart`
 - **display:** —
 - **dispatches:** `enter-modifier-reveal`, `enter-battle`
-- **external dispatchers:** `phase-ticks.ts:359`
+- **external dispatchers:** `phase-ticks.ts:356`
 
 ### `enter-modifier-reveal`
 
@@ -156,7 +156,7 @@ stateDiagram-v2
 - **broadcasts:** —
 - **display:** `banner(battle)`
 - **dispatches:** —
-- **external dispatchers:** `phase-ticks.ts:649`
+- **external dispatchers:** `phase-ticks.ts:651`
 
 ## Review hints (auto-derived)
 

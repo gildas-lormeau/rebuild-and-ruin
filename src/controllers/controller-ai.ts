@@ -238,7 +238,10 @@ export class AiController extends BaseController {
     return phantom;
   }
 
-  flushCannons(state: CannonViewState, maxSlots: number): void {
+  protected override flushCannons(
+    state: CannonViewState,
+    maxSlots: number,
+  ): void {
     // Commit intents in order; stop on the first validation failure so a
     // wedge in the brain's planning (mismatched slot accounting, occupied
     // tile, etc.) can't burn frames retrying the same intent.

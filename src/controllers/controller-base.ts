@@ -189,27 +189,38 @@ export abstract class BaseController implements PlayerController {
 
   /** Subclass hook called after base battle state is reset. Override for AI battle planning etc. */
   protected onResetBattle(_state?: BattleViewState): void {}
-  /** @internal Called only from finalizeCannonPhase(). Do NOT call directly. */
-  abstract flushCannons(state: CannonViewState, maxSlots: number): void;
+  /** Flush this peer's queued auto-placements (cannon timer expired). Base
+   *  no-op; AiController overrides to drain its planned placement intents.
+   *  Protected — an internal step of the `finalizeCannonPhase` template,
+   *  run for local slots only. */
+  protected flushCannons(_state: CannonViewState, _maxSlots: number): void {}
 
-  /** End-of-cannon-phase finalization: flush remaining placements, then auto-place
-   *  round-1 cannons if none were placed. Guarantees correct flush→init ordering.
-   *  Drops any lingering cannon-phantom snapshot so the render path doesn't keep
-   *  drawing the last preview into the battle phase. (Symmetric to
-   *  `finalizeBuildPhase` clearing `currentBuildPhantoms`.)
-   *  Call this for LOCAL controllers; remote controllers only need initCannons(). */
-  finalizeCannonPhase(state: CannonViewState, maxSlots: number): void {
-    this.flushCannons(state, maxSlots);
+  /** End-of-cannon-phase finalization. `isLocal` carries the parity split:
+   *  - local: flush this peer's queued placements, run the round-1 safety
+   *    net, then drop the lingering cannon-phantom snapshot so the render
+   *    path doesn't draw the last preview into battle (symmetric to
+   *    `finalizeBuildPhase` clearing `currentBuildPhantoms`);
+   *  - remote: run only the round-1 safety net. The slot's placements
+   *    already arrived over the wire, so re-running the flush would
+   *    double-commit; the stale phantom is cleared by the render phase-gate
+   *    (`buildCannonPhantomsUnion`), matching the build path.
+   *  Flush must precede init so the safety net sees the flushed placements. */
+  finalizeCannonPhase(
+    state: CannonViewState,
+    maxSlots: number,
+    isLocal: boolean,
+  ): void {
+    if (isLocal) this.flushCannons(state, maxSlots);
     this.initCannons(state, maxSlots);
-    this.currentCannonPhantom = undefined;
+    if (isLocal) this.currentCannonPhantom = undefined;
   }
 
   /** Round-1 safety net: auto-place cannons if none were manually placed.
-   *  Public because remote controllers call it directly (their client handles
-   *  flush locally, so the host only runs initCannons for them).
-   *  Contrast with initBuildPhase which is private — it's an internal step of
-   *  the startBuildPhase template method and never called externally. */
-  initCannons(state: CannonViewState, maxSlots: number): void {
+   *  No-op on round 2+. Protected — an internal step of the
+   *  `finalizeCannonPhase` template, run on every peer (it's deterministic
+   *  from state, so local and remote must both apply it to stay in lockstep).
+   *  Contrast with initBuildPhase which is private for the same reason. */
+  protected initCannons(state: CannonViewState, maxSlots: number): void {
     autoPlaceRound1Cannons(state, this.playerId, maxSlots);
   }
   /** Called at the end of the battle phase (e.g. clear held input actions). */

@@ -46,10 +46,7 @@ import {
   isPlayerEliminated,
   type ValidPlayerId,
 } from "../../shared/core/player-slot.ts";
-import {
-  type CannonController,
-  type PlayerController,
-} from "../../shared/core/system-interfaces.ts";
+import { type PlayerController } from "../../shared/core/system-interfaces.ts";
 import { cannonSlotsFor, type GameState } from "../../shared/core/types.ts";
 import { Mode } from "../../shared/ui/ui-mode.ts";
 import type { BannerShow } from "../banner-state.ts";
@@ -608,14 +605,19 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     // `tickDialogWithFallback` allResolved return (per-entry choice).
     if (state.timer > 0 && !allCannonPlaceDone(state)) return false;
 
-    // PASS 2: finalize controllers for phase transition.
-    // Local vs remote use different finalize entry points — the helpers
-    // below encode the split so the two paths cannot be merged.
-    const remote = runtimeState.controllers.filter((ctrl) =>
-      isRemotePlayer(ctrl.playerId, remotePlayerSlots),
-    );
-    for (const ctrl of remote) finalizeRemoteCannonController(ctrl, state);
-    for (const ctrl of local) finalizeLocalCannonController(ctrl, state);
+    // PASS 2: finalize every controller for the phase transition. The
+    // `isLocal` flag carries the parity split — local slots flush their
+    // planned placements and clear the phantom; remote slots run only the
+    // deterministic round-1 safety net (their placements already arrived
+    // over the wire). See `finalizeCannonPhase`.
+    for (const ctrl of runtimeState.controllers) {
+      const isLocal = !isRemotePlayer(ctrl.playerId, remotePlayerSlots);
+      ctrl.finalizeCannonPhase(
+        state,
+        cannonSlotsFor(state, ctrl.playerId),
+        isLocal,
+      );
+    }
     startBattle();
     return true;
   }
@@ -910,34 +912,6 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     tickOnlineAnnouncement,
     syncCrosshairs,
   };
-}
-
-/** Finalize a LOCAL controller at the end of cannon phase.
- *  Local controllers own an auto-placement queue that must be flushed before
- *  `initCannons` runs the round-1 safety net, so this routes through
- *  `finalizeCannonPhase` which guarantees flush → init order. Calling
- *  `initCannons` directly on a local controller would skip the flush and
- *  corrupt cannon state. */
-function finalizeLocalCannonController(
-  ctrl: CannonController & { readonly playerId: ValidPlayerId },
-  state: GameState,
-): void {
-  const maxSlots = cannonSlotsFor(state, ctrl.playerId);
-  ctrl.finalizeCannonPhase(state, maxSlots);
-}
-
-/** Finalize a REMOTE controller at the end of cannon phase.
- *  Remote controllers' cannons were already flushed client-side before the
- *  wire placements arrived, so only the round-1 safety-net init is needed
- *  here. Calling `finalizeCannonPhase` would re-run the flush against an
- *  empty local queue — a no-op today, but it couples the remote path to
- *  local-only queue semantics and is explicitly not the contract. */
-function finalizeRemoteCannonController(
-  ctrl: CannonController & { readonly playerId: ValidPlayerId },
-  state: GameState,
-): void {
-  const maxSlots = cannonSlotsFor(state, ctrl.playerId);
-  ctrl.initCannons(state, maxSlots);
 }
 
 /** Pass 1 of the battle-phase tick: tick every local controller and collect
