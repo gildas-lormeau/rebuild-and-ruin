@@ -163,14 +163,11 @@ export type PiecePlacementPreview = PiecePhantom;
 /** Visual preview of a cannon the player is about to place (not yet committed to game state). */
 export type CannonPlacementPreview = CannonPhantom;
 
-/** Identity, lifecycle, and cursor centering — the minimal slice every consumer needs. */
+/** Identity and lifecycle — the minimal slice every consumer needs. */
 export interface ControllerIdentity {
   readonly playerId: ValidPlayerId;
   /** Discriminant for the isHuman type guard (string union, not enum — only two values). */
   readonly kind: "human" | "ai";
-
-  /** Center cursors/crosshair on a tower position. */
-  centerOn(row: number, col: number): void;
 
   /** Reset stale state after losing a life (before reselection). */
   onLifeLost(): void;
@@ -311,6 +308,12 @@ export interface BattleController {
    *  The orchestrator executes the actual mutation via fireNextReadyCannon(). */
   fire(state: BattleViewState): FireIntent | null;
 
+  // ── Crosshair: BattleController owns the controller's aim cursor. The
+  //    field is encapsulated (not declared like buildCursor/cannonCursor)
+  //    because getCrosshair decorates it with playerId. These four methods
+  //    are its only accessors: read, absolute-set, occlusion-resolve-and-set,
+  //    and tower-center. ──
+
   getCrosshair(): Crosshair;
 
   /** Set crosshair to absolute pixel position (mouse). */
@@ -325,6 +328,12 @@ export interface BattleController {
    *  position. HumanController snaps the crosshair onto it immediately;
    *  AiController resolves only (its crosshair glides via stepCrosshairToward). */
   aim(state: BattleViewState, x: number, y: number): WorldPos;
+
+  /** Center the crosshair (and seed the build cursor) on a tower position.
+   *  Cross-phase position reset, invoked at battle start (`initBattleState`)
+   *  and on tower-selection confirm. Lives here with the other crosshair
+   *  accessors rather than in the identity slice. */
+  centerOn(row: number, col: number): void;
 
   /** Initialize battle-phase cursor state. Called once at battle start — not
    *  a full game reset (see reset() for that). Scope: centers cursors on the
