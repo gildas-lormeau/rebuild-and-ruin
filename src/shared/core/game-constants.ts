@@ -52,22 +52,15 @@ export const BONUS_SQUARES_PER_ZONE = 3;
 /** Minimum Manhattan distance between any two bonus squares. */
 export const BONUS_SQUARE_MIN_DISTANCE = 3;
 /**
- * Territory points — tiered by number of interior squares (SNES table).
- * Thresholds are perfect squares: 1, 4, 9, 16, 25, 36, 49, 64, 81, 100.
- * Each entry is [minSquares, points].
+ * Territory points — 1 point per enclosed interior square (linear).
+ * Verified against the actual Rampart ROM: a fresh square castle with a
+ * 36-square interior scores 36 territory + 700 castle bonus = 736, and the
+ * 33-35 variance from terrain-pinched gaps reproduces the original's "736,
+ * sometimes a little less" behavior. The tiered table printed in the SNES
+ * *manual* (25-35 → 500, 36-48 → 600, …) is wrong — every shipped version
+ * scores territory linearly.
  */
-export const TERRITORY_POINT_TIERS: readonly [number, number][] = [
-  [100, 1000],
-  [81, 900],
-  [64, 800],
-  [49, 700],
-  [36, 600],
-  [25, 500],
-  [16, 400],
-  [9, 300],
-  [4, 200],
-  [1, 100],
-];
+export const TERRITORY_POINTS_PER_SQUARE = 1;
 /**
  * Castle bonus — escalating by number of "castle units" enclosed.
  * Home castle = 2 units, other castles = 1 unit each.

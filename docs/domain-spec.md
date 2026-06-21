@@ -31,7 +31,7 @@ Reverse-engineered from the implementation. Describes *what* the system does, no
 | **Owned Towers** | All towers currently enclosed by a player's walls. More towers = more cannon slots. |
 | **Lives** | A player starts with 3 lives. Loses 1 when failing to enclose any tower at the end of a build phase. At 0 lives, the player must choose to continue or forfeit. |
 | **Elimination** | A player is eliminated when they lose all lives and choose not to continue (or fail to reselect a castle). Eliminated players no longer participate. |
-| **Score** | Accumulated points from territory size, castle bonuses, wall/grunt/cannon destruction. Tiered by interior size (SNES scoring table). |
+| **Score** | Accumulated points from territory size, castle bonuses, wall/grunt/cannon destruction. Territory = 1 point per enclosed square (linear, matching the original ROM). |
 | **Default Facing** | The initial angle cannons point — toward the enemy, computed at castle creation. |
 
 ### 1.3 Fortification (Walls & Territory)
@@ -209,7 +209,7 @@ WALL_BUILD  (closing phase of every round — scoring, tower revival, and life c
   Grunts → move toward target towers (1 tile/sec; pace back-and-forth if blocked)
   System → Sweeps isolated walls (batch collect-then-delete, one layer per player)
   System → Recomputes territory (flood-fill)
-  System → Scores territory (tiered points + castle bonus)
+  System → Scores territory (1 point per enclosed square + castle bonus)
   System → Checks tower enclosure:
     - Enclosed dead towers → marked "pending revive"
     - Previously pending towers still enclosed → revived
@@ -242,7 +242,7 @@ GAME_OVER
 
 | Event | Points |
 |-------|--------|
-| Territory enclosure | 100-1000 (tiered by area: 1-100+ tiles) |
+| Territory enclosure | 1 point per enclosed square (linear) |
 | Castle bonus | 500-1400 (by number of castle units enclosed) |
 | Wall destroyed | 2 per tile |
 | Grunt killed | 16 |

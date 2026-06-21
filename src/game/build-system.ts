@@ -22,7 +22,7 @@ import {
   MODIFIER_ID,
   type ModifierId,
   RAMPART_SHIELD_HP,
-  TERRITORY_POINT_TIERS,
+  TERRITORY_POINTS_PER_SQUARE,
   TOWER_SIZE,
 } from "../shared/core/game-constants.ts";
 import { emitGameEvent, GAME_EVENT } from "../shared/core/game-event-bus.ts";
@@ -464,16 +464,11 @@ function awardEndOfBuildPoints(
   player: Player,
   territorySize: number,
 ): void {
-  // Territory points (tiered by interior size)
+  // Territory points — 1 point per enclosed square (linear; see
+  // TERRITORY_POINTS_PER_SQUARE). The upgrade multiplier still applies.
   const territoryMult = territoryScoreMult(player);
-  let terrPts = 0;
-  for (const [threshold, points] of TERRITORY_POINT_TIERS) {
-    if (territorySize >= threshold) {
-      terrPts = points * territoryMult;
-      addScore(player, terrPts);
-      break;
-    }
-  }
+  const terrPts = territorySize * TERRITORY_POINTS_PER_SQUARE * territoryMult;
+  if (terrPts > 0) addScore(player, terrPts);
 
   // Castle bonus (home castle = 2 units, others = 1 unit)
   const castleUnits = countCastleBonusUnits(state, player);
