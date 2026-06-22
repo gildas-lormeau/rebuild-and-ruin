@@ -110,8 +110,13 @@ export const GRUNT_WALL_ATTACK_CHANCE = 0.25;
 export const GRUNT_WALL_ATTACK_MIN_BATTLES = 2;
 /** Probability that an enclosed grunt respawns on an enemy zone. */
 export const ENCLOSED_GRUNT_RESPAWN_CHANCE = 0.5;
-/** Probability per attempt that a grunt spawns on a player's zone between battles. */
-export const INTERBATTLE_GRUNT_SPAWN_CHANCE = 0.1;
+/** Probability per attempt that a grunt spawns on a player's zone between
+ *  battles. With ATTEMPTS=2 this is Binomial(2, p): p=0.25 → mean 0.5
+ *  grunts/alive-player/round ({P0 .56, P1 .375, P2 .06}), matching the rate
+ *  reverse-engineered from 14 recorded 3-player DOS games (~0.5/alive-player,
+ *  death-adjusted; placement/timing already faithful). The earlier 0.1 spawned
+ *  ~2.5× too few (mean 0.2, no attacker in 81% of a player's rounds). */
+export const INTERBATTLE_GRUNT_SPAWN_CHANCE = 0.25;
 /** Number of spawn attempts per player between battles. */
 export const INTERBATTLE_GRUNT_SPAWN_ATTEMPTS = 2;
 export const FIRST_GRUNT_SPAWN_ROUND = 2;

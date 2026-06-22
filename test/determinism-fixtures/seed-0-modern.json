@@ -6,7 +6,7 @@
     "rounds": 2
   },
   "timeoutMs": 480000,
-  "eventCount": 8276,
+  "eventCount": 8278,
   "events": [
     {
       "type": "tick",
@@ -39994,6 +39994,24 @@
       }
     },
     {
+      "type": "gruntSpawn",
+      "payload": {
+        "col": 14,
+        "round": 2,
+        "row": 16,
+        "source": "zone-pick"
+      }
+    },
+    {
+      "type": "gruntSpawn",
+      "payload": {
+        "col": 43,
+        "round": 2,
+        "row": 10,
+        "source": "zone-pick"
+      }
+    },
+    {
       "type": "phaseEnd",
       "payload": {
         "phase": "BATTLE",
@@ -44770,16 +44788,16 @@
     {
       "type": "gruntSpawn",
       "payload": {
-        "col": 14,
+        "col": 13,
         "round": 2,
-        "row": 16,
+        "row": 14,
         "source": "zone-pick"
       }
     },
     {
       "type": "gruntSpawn",
       "payload": {
-        "col": 24,
+        "col": 25,
         "round": 2,
         "row": 12,
         "source": "zone-pick"
@@ -45195,15 +45213,6 @@
     {
       "type": "gruntSpawn",
       "payload": {
-        "col": 13,
-        "round": 2,
-        "row": 14,
-        "source": "zone-pick"
-      }
-    },
-    {
-      "type": "gruntSpawn",
-      "payload": {
         "col": 10,
         "round": 2,
         "row": 7,
@@ -45222,9 +45231,9 @@
     {
       "type": "gruntSpawn",
       "payload": {
-        "col": 34,
+        "col": 14,
         "round": 2,
-        "row": 13,
+        "row": 18,
         "source": "zone-pick"
       }
     },
@@ -45232,6 +45241,15 @@
       "type": "gruntSpawn",
       "payload": {
         "col": 32,
+        "round": 2,
+        "row": 14,
+        "source": "zone-pick"
+      }
+    },
+    {
+      "type": "gruntSpawn",
+      "payload": {
+        "col": 30,
         "round": 2,
         "row": 14,
         "source": "zone-pick"
@@ -50062,15 +50080,6 @@
     {
       "type": "gruntSpawn",
       "payload": {
-        "col": 30,
-        "round": 2,
-        "row": 14,
-        "source": "zone-pick"
-      }
-    },
-    {
-      "type": "gruntSpawn",
-      "payload": {
         "col": 29,
         "round": 2,
         "row": 15,
@@ -50089,27 +50098,36 @@
     {
       "type": "gruntSpawn",
       "payload": {
+        "col": 25,
+        "round": 2,
+        "row": 16,
+        "source": "zone-pick"
+      }
+    },
+    {
+      "type": "gruntSpawn",
+      "payload": {
+        "col": 16,
+        "round": 2,
+        "row": 13,
+        "source": "zone-pick"
+      }
+    },
+    {
+      "type": "gruntSpawn",
+      "payload": {
+        "col": 17,
+        "round": 2,
+        "row": 14,
+        "source": "zone-pick"
+      }
+    },
+    {
+      "type": "gruntSpawn",
+      "payload": {
         "col": 14,
         "round": 2,
-        "row": 9,
-        "source": "zone-pick"
-      }
-    },
-    {
-      "type": "gruntSpawn",
-      "payload": {
-        "col": 27,
-        "round": 2,
-        "row": 11,
-        "source": "zone-pick"
-      }
-    },
-    {
-      "type": "gruntSpawn",
-      "payload": {
-        "col": 26,
-        "round": 2,
-        "row": 12,
+        "row": 8,
         "source": "zone-pick"
       }
     },
@@ -50366,7 +50384,7 @@
       "payload": {
         "col": 11,
         "round": 2,
-        "row": 10,
+        "row": 9,
         "source": "zone-pick"
       }
     },
@@ -50391,18 +50409,18 @@
     {
       "type": "gruntSpawn",
       "payload": {
-        "col": 17,
+        "col": 29,
         "round": 2,
-        "row": 14,
+        "row": 10,
         "source": "zone-pick"
       }
     },
     {
       "type": "gruntSpawn",
       "payload": {
-        "col": 29,
+        "col": 28,
         "round": 2,
-        "row": 10,
+        "row": 11,
         "source": "zone-pick"
       }
     },

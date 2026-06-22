@@ -273,10 +273,10 @@ const EFFECT_PROBES: Partial<Record<ModifierId, EffectProbe>> = {
 // `extra_build_time` (1 in 4 at spawn). ~1 in 15 seeds qualifies. If AI
 // retuning drifts it, re-scan: boot this exact scenario over seed = 0..N
 // and keep the first whose `state.modern.pendingSupplyBonuses` gains an
-// "extra_build_time" entry during a BATTLE phase. (Re-probed 7 -> 43 -> 59 as
-// grunt directional inertia, then the grunt stick-vs-switch rule, shifted
-// battle dynamics.)
-const EXTRA_BUILD_TIME_SEED = 59;
+// "extra_build_time" entry during a BATTLE phase. (Re-probed 7 -> 43 -> 59 ->
+// 28 as grunt directional inertia, the grunt stick-vs-switch rule, then the
+// grunt-spawn-rate bump shifted battle dynamics.)
+const EXTRA_BUILD_TIME_SEED = 28;
 
 for (const modifierId of MODIFIER_IDS) {
   Deno.test(`modifiers: ${modifierId} fires + effect observed`, async () => {

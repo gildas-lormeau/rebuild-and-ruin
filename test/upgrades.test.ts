@@ -281,8 +281,12 @@ const EFFECT_PROBES: Partial<Record<UpgradeId, EffectProbe>> = {
  *  round 3 on. No seeds, no drift — the pick is guaranteed by construction, so
  *  the only thing left to verify is that the effect fires. Drives off a single
  *  fixed seed (the draws that would pick upgrades are short-circuited, so the
- *  seed only flavors map + AI movement). */
-const SEED = 0;
+ *  seed only flavors map + AI movement). The seed IS sensitive for the
+ *  demolition probe specifically — it observes a net wall-count drop across the
+ *  pick→next-battle-end window (which spans a rebuild), so a seed where every
+ *  player rebuilds back past the strip reads as "not observed". Re-picked 0→1
+ *  when the grunt-spawn-rate bump drifted seed-0 into that masking case. */
+const SEED = 1;
 
 for (const upgradeId of UPGRADE_IDS) {
   Deno.test(`upgrades: ${upgradeId} is forced-picked + effect fires`, async () => {
