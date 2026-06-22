@@ -35,17 +35,18 @@ const WIRE_DELAY_FRAMES = 5;
 // forced ABANDON actually fires (verified empirically via tmp probing against
 // THIS bidirectional harness — an all-AI probe diverges and gives false hits).
 // These are dynamics-tuned fixtures: any change to battle/grunt dynamics shifts
-// which towers die and drifts the seeds. Last re-probed after grunt movement
-// gained directional inertia (lastMoveAxis tie-break), which changed grunt
-// paths → tower-kill outcomes; the prior seeds (5/10/11) stopped firing.
+// which towers die and drifts the seeds. Last re-probed after the grunt
+// movement model changed (directional inertia + the stick-vs-switch rule: a
+// grunt whose heading is grunt-blocked piles rather than routing around),
+// which shifted grunt paths → tower-kill outcomes; prior seeds stopped firing.
 const TRIALS: {
   readonly seed: number;
   readonly mode: "classic" | "modern";
   readonly rounds: number;
 }[] = [
   { seed: 9, mode: "classic", rounds: 5 },
-  { seed: 13, mode: "classic", rounds: 8 },
-  { seed: 41, mode: "modern", rounds: 8 },
+  { seed: 11, mode: "classic", rounds: 8 },
+  { seed: 1, mode: "modern", rounds: 8 },
 ];
 
 void _forceScenarioFirst;

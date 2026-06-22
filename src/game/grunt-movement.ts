@@ -335,8 +335,26 @@ function gruntCandidateMoves(state: GameState, grunt: Grunt): TilePos[] {
   });
   sideways.sort((a, b) => a.dist - b.dist);
 
+  // Stick rule (reverse-engineered, 14 games): when a grunt's chosen heading
+  // (the top forward move) is blocked by ANOTHER GRUNT, it WAITS/piles 86% of
+  // the time rather than routing around (only 4% switch to the other axis). So
+  // if the top forward tile is grunt-occupied, commit to that axis — drop
+  // forward moves on the other axis. The grunt then queues behind the blocker
+  // (pauses, or paces via a sideways move) instead of dispersing toward a
+  // secondary approach. Closest-first move order in `moveGrunts` still advances
+  // the queue whenever the leader can move, so this only bites when the leader
+  // is genuinely stuck — the real pile-up case.
+  const committedAxis =
+    forward.length > 0 &&
+    hasGruntAt(state.grunts, forward[0]!.row, forward[0]!.col, grunt)
+      ? forward[0]!.axis
+      : null;
+
   const moves: TilePos[] = [];
-  for (const move of forward) moves.push({ row: move.row, col: move.col });
+  for (const move of forward) {
+    if (committedAxis && move.axis !== committedAxis) continue;
+    moves.push({ row: move.row, col: move.col });
+  }
   for (const move of sideways) moves.push({ row: move.row, col: move.col });
 
   return moves;
