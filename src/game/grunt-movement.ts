@@ -282,7 +282,12 @@ function gruntCandidateMoves(state: GameState, grunt: Grunt): TilePos[] {
   const towerDist = (r: number, c: number) => distanceToTower(target, r, c);
 
   const curDist = towerDist(grunt.row, grunt.col);
-  const forward: { row: number; col: number; dist: number }[] = [];
+  const forward: {
+    row: number;
+    col: number;
+    dist: number;
+    axis: "row" | "col";
+  }[] = [];
   const sideways: { row: number; col: number; dist: number }[] = [];
 
   for (const [dr, dc] of DIRS_4) {
@@ -295,7 +300,12 @@ function gruntCandidateMoves(state: GameState, grunt: Grunt): TilePos[] {
 
     const newDist = towerDist(nr, nc);
     if (newDist < curDist) {
-      forward.push({ row: nr, col: nc, dist: newDist });
+      forward.push({
+        row: nr,
+        col: nc,
+        dist: newDist,
+        axis: dr !== 0 ? "row" : "col",
+      });
     } else {
       // Allow sideways moves that don't move away on the moving axis
       if (isSidewaysAxisAllowed(target, grunt.row, grunt.col, nr, nc, dr)) {
@@ -304,7 +314,25 @@ function gruntCandidateMoves(state: GameState, grunt: Grunt): TilePos[] {
     }
   }
 
-  forward.sort((a, b) => a.dist - b.dist);
+  // Tie-break among equally-greedy forward moves (reverse-engineered from
+  // recorded original-Rampart play, 14 games): (1) directional INERTIA —
+  // continue the axis of the last move (~79% of off-axis choices); (2) failing
+  // that, the LARGER remaining-gap axis (~59% standalone); (3) DIRS_4 order.
+  const lastTowerRow = target.row + TOWER_SIZE - 1;
+  const lastTowerCol = target.col + TOWER_SIZE - 1;
+  const rowGap = Math.max(0, target.row - grunt.row, grunt.row - lastTowerRow);
+  const colGap = Math.max(0, target.col - grunt.col, grunt.col - lastTowerCol);
+  const largerAxis = rowGap === colGap ? null : rowGap > colGap ? "row" : "col";
+  const inertiaAxis = grunt.lastMoveAxis;
+  forward.sort((a, b) => {
+    if (a.dist !== b.dist) return a.dist - b.dist;
+    const aInertia = a.axis === inertiaAxis ? 0 : 1;
+    const bInertia = b.axis === inertiaAxis ? 0 : 1;
+    if (aInertia !== bInertia) return aInertia - bInertia;
+    const aLarger = a.axis === largerAxis ? 0 : 1;
+    const bLarger = b.axis === largerAxis ? 0 : 1;
+    return aLarger - bLarger;
+  });
   sideways.sort((a, b) => a.dist - b.dist);
 
   const moves: TilePos[] = [];
@@ -370,6 +398,7 @@ function applyGruntMove(grunt: Grunt, row: number, col: number): void {
   const dr = row - grunt.row;
   const dc = col - grunt.col;
   grunt.facing = facingFromVector(dc, dr);
+  grunt.lastMoveAxis = dr !== 0 ? "row" : "col";
   grunt.row = row;
   grunt.col = col;
 }

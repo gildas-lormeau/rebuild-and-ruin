@@ -556,6 +556,7 @@ function gruntWireFields(grunt: SerializedGrunt): SerializedGrunt {
     chipped: grunt.chipped,
     kind: grunt.kind,
     slowSkip: grunt.slowSkip,
+    lastMoveAxis: grunt.lastMoveAxis,
   };
 }
 

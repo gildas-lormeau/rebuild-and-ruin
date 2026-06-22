@@ -36,6 +36,14 @@ export interface Grunt extends TilePos {
   targetedWall?: TileKey;
   /** Facing angle in radians (snapped to 90°). 0 = up. */
   facing?: number;
+  /** Axis of this grunt's most recent build-phase move ("row" | "col").
+   *  Drives the movement tie-break: among equally-greedy forward moves the
+   *  grunt continues on its current axis (directional inertia), reproducing
+   *  original Rampart's long single-axis approach runs rather than the
+   *  row-first stair the naive DIRS_4 order produces. Unset on a fresh
+   *  grunt (first move falls back to larger-gap then DIRS_4 order). Set in
+   *  `applyGruntMove`; serialized so a migrated host keeps the heading. */
+  lastMoveAxis?: "row" | "col";
   /** True after this grunt has absorbed one frostbite hit (next hit kills).
    *  Set only when frostbite is the active modifier; otherwise ignored. Lives
    *  on the grunt itself so chip state dies when the grunt dies — no separate

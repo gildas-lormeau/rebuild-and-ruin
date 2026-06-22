@@ -34,16 +34,16 @@ interface Fixture {
 
 const FIXTURES = [
   "seed-42-classic.json",
-  // 5-round modern fixtures exercise the round-3+ feature gates:
-  // modifier rolls (MODIFIER_FIRST_ROUND=3), upgrade pick lifecycle
-  // (UPGRADE_FIRST_ROUND=3, suppressed for the final round). Both
-  // fixtures include multiple modifierApplied + upgradePicked events,
-  // and seed-0 picks the Ceasefire upgrade — exercising the full
-  // ceasefire path (enterBuildSkippingBattle → finalizeBattle).
-  // Adding a new modifier or upgrade shifts weighted-selection thresholds
-  // and will diverge here — that's the whole point of the gate. Re-record
-  // (with a written reason) only when an intentional registry change
-  // makes the divergence expected.
+  // Two short (2-round) modern-mode fixtures. They lock determinism of the
+  // modern runtime path — the feature-gated branches that classic never
+  // takes (e.g. catapult-variant grunt spawning, combo bookkeeping, which are
+  // active from round 1). They do NOT reach the round-3 feature gates:
+  // modifier rolls (MODIFIER_FIRST_ROUND=3) and the upgrade-pick lifecycle
+  // (UPGRADE_FIRST_ROUND=3) never fire in a 2-round match, so these fixtures
+  // contain zero modifierApplied / upgradePicked events. Determinism of those
+  // round-3+ paths is covered by test:modifiers / test:upgrades, not here —
+  // bump these fixtures to rounds>=3 if that coverage should move into the
+  // determinism suite.
   "seed-7-modern.json",
   "seed-0-modern.json",
   // Balloon fixture: seed-0 classic produces a balloon battle from round 3

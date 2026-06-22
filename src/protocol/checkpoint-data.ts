@@ -46,6 +46,9 @@ export interface SerializedGrunt {
   kind?: "catapult";
   /** Catapult skip-tick toggle — omitted when absent. */
   slowSkip?: true;
+  /** Axis of the grunt's last build-phase move — drives the movement
+   *  tie-break (directional inertia). Omitted on a grunt that hasn't moved. */
+  lastMoveAxis?: "row" | "col";
 }
 
 export interface SerializedPlayer {

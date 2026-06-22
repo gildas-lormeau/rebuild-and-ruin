@@ -32,18 +32,20 @@ import {
 
 const WIRE_DELAY_FRAMES = 5;
 // Seeds where slot 0 or 1 reaches a life-loss within the round budget, so the
-// forced ABANDON actually fires (verified empirically via tmp probing). These
-// are dynamics-tuned fixtures: re-probed after cannonRotationIdx moved onto
-// GameState (the assisted-AI's lockstep fire selector now advances at apply
-// time, shifting battle outcomes), which is why the prior seeds drifted.
+// forced ABANDON actually fires (verified empirically via tmp probing against
+// THIS bidirectional harness — an all-AI probe diverges and gives false hits).
+// These are dynamics-tuned fixtures: any change to battle/grunt dynamics shifts
+// which towers die and drifts the seeds. Last re-probed after grunt movement
+// gained directional inertia (lastMoveAxis tie-break), which changed grunt
+// paths → tower-kill outcomes; the prior seeds (5/10/11) stopped firing.
 const TRIALS: {
   readonly seed: number;
   readonly mode: "classic" | "modern";
   readonly rounds: number;
 }[] = [
-  { seed: 5, mode: "classic", rounds: 5 },
-  { seed: 10, mode: "classic", rounds: 8 },
-  { seed: 11, mode: "modern", rounds: 8 },
+  { seed: 9, mode: "classic", rounds: 5 },
+  { seed: 13, mode: "classic", rounds: 8 },
+  { seed: 41, mode: "modern", rounds: 8 },
 ];
 
 void _forceScenarioFirst;
