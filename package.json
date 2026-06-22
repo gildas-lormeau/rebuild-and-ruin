@@ -34,6 +34,7 @@
     "test:network-abandon": "timeout 60 deno test --no-check -A test/network-bidirectional-abandon.test.ts",
     "test:camera-zoom-parity": "timeout 120 deno test --no-check test/camera-zoom-parity.test.ts",
     "record-determinism": "deno run -A scripts/record-determinism.ts",
+    "check-determinism": "deno run -A scripts/check-determinism.ts",
     "record-checkpoint": "deno run -A scripts/record-checkpoint.ts",
     "test:online": "timeout 10 deno test --no-check test/online-unit.test.ts",
     "test:online-heartbeat": "timeout 30 deno test --no-check test/online-heartbeat.test.ts",
