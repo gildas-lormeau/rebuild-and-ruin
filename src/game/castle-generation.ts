@@ -58,8 +58,22 @@ type GapsValidator = (gap: Gaps) => boolean;
 const Side = { L: 0, R: 1, T: 2, B: 3 } as const;
 const ALL_SIDES: readonly CastleSide[] = [Side.L, Side.R, Side.T, Side.B];
 const HOUSE_SPAWN_MARGIN = 2;
-/** Max houses when refilling a zone mid-game (lower than initial to leave room). */
-const REFILL_HOUSES_PER_ZONE = 8;
+/**
+ * Houses a zone starts with (game start + after a life-loss reselect, where
+ * `resetZoneState` clears the zone). DOS Rampart seeds 10/zone; scaled to 12
+ * for this port's larger 44×28 grid (~1.23× the DOS 40×25 area) to keep the
+ * house density matched. Reverse-engineered from 14 recorded games — every
+ * full recording opens at exactly 10/zone, no variation.
+ */
+const INITIAL_HOUSES_PER_ZONE = 12;
+/**
+ * New houses added to each surviving zone every round (the population grows;
+ * houses are NOT capped — they accumulate, reaching 30+/zone in a long game).
+ * DOS reverse-engineered growth is ~+2/zone/round (per-zone deltas were always
+ * 0/1/2, never ≥3, mode 2, mean ≈1.6 with detection occlusion; the cleanest
+ * zones approach a steady +2). Additive, not proportional to current count.
+ */
+const HOUSES_GROWTH_PER_ROUND = 2;
 /** Clumsy builder: chance per corner to add a bump wall tile. */
 const CLUMSY_CORNER_CHANCE = 1 / 12;
 /** Clumsy builder: chance per wall tile to add an adjacent tile. */
@@ -369,23 +383,44 @@ export function applyClumsyBuilders(
 }
 
 /**
- * Called at the start of each build phase:
- * Refill houses in zones that have fewer than the refill cap.
+ * Seed a freshly-(re)built zone up to the initial house count. Called after
+ * castle construction — game start (all zones empty) and the reselect after a
+ * life loss (where `resetZoneState` cleared the loser's zone). Zones that have
+ * accumulated growth above the base are left untouched, so an unrelated
+ * player's reselect never resets a healthy neighbour.
  */
-export function startOfBuildPhaseHousekeeping(state: GameState): void {
+export function seedInitialHouses(state: GameState): void {
   for (const player of state.players) {
     if (!isPlayerSeated(player)) continue;
     const zone = player.homeTower.zone;
     const aliveInZone = state.map.houses.filter(
       (h) => h.zone === zone && h.alive,
     ).length;
-    if (aliveInZone < REFILL_HOUSES_PER_ZONE) {
+    if (aliveInZone < INITIAL_HOUSES_PER_ZONE) {
       // Remove dead houses in zone first to free up positions
       state.map.houses = state.map.houses.filter(
         (h) => h.zone !== zone || h.alive,
       );
-      spawnHousesInZone(state, zone);
+      spawnHousesInZone(state, zone, INITIAL_HOUSES_PER_ZONE - aliveInZone);
     }
+  }
+}
+
+/**
+ * Grow each surviving zone's population by a fixed number of houses. Called
+ * once per round at battle-done (before the next build). Houses accumulate
+ * across rounds without a cap — matching DOS Rampart, where the house field
+ * grows ~+2/zone/round all game. Dead houses (destroyed in battle) are dropped
+ * first so the new ones can reuse their spots.
+ */
+export function growZoneHouses(state: GameState): void {
+  for (const player of state.players) {
+    if (!isPlayerSeated(player)) continue;
+    const zone = player.homeTower.zone;
+    state.map.houses = state.map.houses.filter(
+      (h) => h.zone !== zone || h.alive,
+    );
+    spawnHousesInZone(state, zone, HOUSES_GROWTH_PER_ROUND);
   }
 }
 
@@ -428,11 +463,17 @@ export function orderCastleWallsForAnimation(
 }
 
 /**
- * Spawn houses in a single zone, avoiding walls, cannons, towers, and their margins.
- * Appends new houses to state.map.houses.
- * Private — only called internally during castle finalization.
+ * Spawn up to `count` new houses in a single zone, avoiding walls, cannons,
+ * towers, and their margins. Appends to state.map.houses (existing houses are
+ * kept). Places fewer than `count` if the zone runs out of valid spots — the
+ * natural cap that produces the original's late-game +1/+0 rounds in crowded
+ * zones. Private — only called internally during castle finalization.
  */
-function spawnHousesInZone(state: GameState, zoneId: ZoneId): void {
+function spawnHousesInZone(
+  state: GameState,
+  zoneId: ZoneId,
+  count: number,
+): void {
   const { tiles, towers, zones } = state.map;
   const towerTiles = buildTowerTileSet(towers);
 
@@ -469,13 +510,10 @@ function spawnHousesInZone(state: GameState, zoneId: ZoneId): void {
   localRng.shuffle(candidates);
 
   const existingHouses = state.map.houses;
-  const needed =
-    REFILL_HOUSES_PER_ZONE -
-    existingHouses.filter((h) => h.zone === zoneId && h.alive).length;
 
   // Furthest-point sampling: greedily pick the candidate that maximizes
   // its minimum distance to all already-placed houses, spreading them evenly.
-  for (let placed = 0; placed < needed && candidates.length > 0; placed++) {
+  for (let placed = 0; placed < count && candidates.length > 0; placed++) {
     let bestIdx = -1;
     let bestDist = -1;
     for (let i = 0; i < candidates.length; i++) {

@@ -35,18 +35,19 @@ const WIRE_DELAY_FRAMES = 5;
 // forced ABANDON actually fires (verified empirically via tmp probing against
 // THIS bidirectional harness — an all-AI probe diverges and gives false hits).
 // These are dynamics-tuned fixtures: any change to battle/grunt dynamics shifts
-// which towers die and drifts the seeds. Last re-probed after the grunt
-// re-target change (a grunt re-acquires the next nearest in-zone tower when its
-// target dies instead of parking on the corpse) — more towers die, shifting
-// elimination timing; prior classic seeds (39/27) stopped firing.
+// which towers die and drifts the seeds. Last re-probed after the house-spawn
+// change (initial 8→12/zone + ~+2/zone/round accumulating growth instead of a
+// refill-to-8 cap) — more houses shift enclosure/grunt dynamics and elimination
+// timing; prior seeds (classic-r8 3, modern-r8 14) stopped firing. Re-probed via
+// tmp/probe-abandon-strict.ts (full-parity: fires AND stays in lockstep).
 const TRIALS: {
   readonly seed: number;
   readonly mode: "classic" | "modern";
   readonly rounds: number;
 }[] = [
   { seed: 34, mode: "classic", rounds: 5 },
-  { seed: 3, mode: "classic", rounds: 8 },
-  { seed: 14, mode: "modern", rounds: 8 },
+  { seed: 5, mode: "classic", rounds: 8 },
+  { seed: 10, mode: "modern", rounds: 8 },
 ];
 
 void _forceScenarioFirst;

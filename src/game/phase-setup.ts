@@ -74,8 +74,9 @@ import {
   computeCastleWallTiles,
   createCastle,
   effectivePlanTiles,
+  growZoneHouses,
   orderCastleWallsForAnimation,
-  startOfBuildPhaseHousekeeping,
+  seedInitialHouses,
 } from "./castle-generation.ts";
 import { comboDemolitionBonus, createComboTracker } from "./combos.ts";
 import { getDeadZones, getGruntTargetTower } from "./grunt-movement.ts";
@@ -111,10 +112,10 @@ interface ScoreDelta {
 /** Grunts spawned per player on first battle when nobody fires. */
 const IDLE_FIRST_BATTLE_GRUNTS = 2;
 
-/** Finalize castle construction — claim territory, refill houses, replenish bonus squares. */
+/** Finalize castle construction — claim territory, seed houses, replenish bonus squares. */
 export function finalizeCastleConstruction(state: GameState): void {
   recheckTerritory(state);
-  startOfBuildPhaseHousekeeping(state);
+  seedInitialHouses(state);
   replenishBonusSquares(state);
 }
 
@@ -274,7 +275,7 @@ export function prepareNextRound(state: GameState): void {
   // round would grant no exclusive window in the build phase it was picked
   // for, and host/watcher would disagree.
   resetPlayerUpgrades(state);
-  startOfBuildPhaseHousekeeping(state);
+  growZoneHouses(state);
 
   // Per-player piece bag init — moved out of controller.startBuildPhase
   // so host and watcher consume RNG identically (watchers have no local

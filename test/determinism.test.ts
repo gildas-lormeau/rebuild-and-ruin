@@ -55,7 +55,8 @@ const FIXTURES = [
   // balloons used to animate through the tilt. A regression in that
   // sequencing diverges here. (Was seed-0 until the grunt-spawn-rate bump
   // shifted seed-0's cannon elections away from balloons — re-derived to
-  // seed-3 via the tmp/find-balloon-seed probe; 3 balloon anims.)
+  // seed-3 via the tmp/find-balloon-seed probe; 2 balloon anims after the
+  // house-spawn change shifted seed-3's dynamics from 3.)
   "seed-3-classic-balloon.json",
   // Camera-determinism fixture: same headless run as seed-42-classic but
   // with mobileZoomEnabled=true so CAMERA_TARGET events are emitted at

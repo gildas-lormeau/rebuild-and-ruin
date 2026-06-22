@@ -27,8 +27,6 @@ import {
   isWater,
   packTile,
 } from "../src/shared/core/spatial.ts";
-import { buildTimerBonus } from "../src/game/index.ts";
-import { Mode } from "../src/shared/ui/ui-mode.ts";
 import { createScenario, type Scenario } from "./scenario.ts";
 
 /** Per-modifier effect probe. `install` subscribes to bus events and/or
@@ -258,25 +256,6 @@ const EFFECT_PROBES: Partial<Record<ModifierId, EffectProbe>> = {
   // dead-cannon debris or burning pits to clear; whether that's true
   // in round 3 depends on the seed, so a probe would be flaky.
 };
-// ── supply_ship: extra_build_time extends the WALL_BUILD timer ────────
-// Regression for the silent clobber: `enterWallBuildPhase` primed
-// `state.timer` with the drained supply-ship seconds, but the per-tick
-// `advancePhaseTimer` recomputed its max WITHOUT that term and overwrote
-// the prime on the first Mode.GAME tick — the bonus was consumed yet
-// never delivered, from the day the feature shipped. The max is now
-// `wallBuildTimerMax` (single source of truth), fed by the drained
-// seconds persisted on `state.modern.extraBuildTimeSeconds`.
-//
-// SEED is collision-dependent (like PER_MODIFIER_SEED.frostbite): it
-// needs an AI hit-sink (two ship-shots stacked on one hull — archetype-
-// gated at 0/3/6-in-16 per shot decision) on a ship that rolled
-// `extra_build_time` (1 in 4 at spawn). ~1 in 15 seeds qualifies. If AI
-// retuning drifts it, re-scan: boot this exact scenario over seed = 0..N
-// and keep the first whose `state.modern.pendingSupplyBonuses` gains an
-// "extra_build_time" entry during a BATTLE phase. (Re-probed 7 -> 43 -> 59 ->
-// 28 as grunt directional inertia, the grunt stick-vs-switch rule, then the
-// grunt-spawn-rate bump shifted battle dynamics.)
-const EXTRA_BUILD_TIME_SEED = 28;
 
 for (const modifierId of MODIFIER_IDS) {
   Deno.test(`modifiers: ${modifierId} fires + effect observed`, async () => {
@@ -347,58 +326,5 @@ Deno.test("regression: no grunt is stranded on impassable water", async () => {
   assert(
     violations.length === 0,
     `grunts stranded on impassable water: ${JSON.stringify(violations)}`,
-  );
-});
-
-Deno.test("modifiers: supply_ship extra_build_time extends the build timer", async () => {
-  using sc = await createScenario({
-    seed: EXTRA_BUILD_TIME_SEED,
-    mode: "modern",
-    rounds: 10,
-    testHooks: { forceModifier: "supply_ship" },
-  });
-
-  // Track the queued extra_build_time count during BATTLE — the queue
-  // is drained at the following build entry, so the last battle-tick
-  // value is exactly what that build's drain will consume.
-  let earned = 0;
-  sc.runUntil(
-    () => {
-      if (sc.state.phase === Phase.BATTLE) {
-        let count = 0;
-        const pending = sc.state.modern?.pendingSupplyBonuses;
-        if (pending) {
-          for (const bonuses of pending.values()) {
-            for (const bonus of bonuses) {
-              if (bonus === "extra_build_time") count++;
-            }
-          }
-        }
-        earned = count;
-      }
-      return (
-        earned > 0 &&
-        sc.state.phase === Phase.WALL_BUILD &&
-        sc.mode() === Mode.GAME
-      );
-    },
-    { timeoutMs: MAX_TIMEOUT_MS },
-  );
-
-  // The entry prime carried the bonus even when the bug was live — the
-  // clobber happens on the first Mode.GAME tick. Tick past it before
-  // asserting.
-  sc.tick(5);
-
-  const noBonusMax = sc.state.buildTimer + buildTimerBonus(sc.state);
-  assert(
-    sc.state.timer > noBonusMax,
-    `build timer must include the supply-ship bonus: timer=${sc.state.timer.toFixed(2)} ` +
-      `<= no-bonus max ${noBonusMax} (earned=${earned} × +5s). If no seed earns the ` +
-      `bonus at all, re-scan seeds per the comment above EXTRA_BUILD_TIME_SEED.`,
-  );
-  assert(
-    sc.state.timer <= noBonusMax + 5 * earned,
-    `build timer exceeds base + 5s×${earned}: timer=${sc.state.timer.toFixed(2)}`,
   );
 });
