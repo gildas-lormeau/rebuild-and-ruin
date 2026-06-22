@@ -116,9 +116,13 @@ export function getLiveTargetTower(
 /**
  * Lock a grunt onto its nearest tower target if not already locked.
  * Sets the pathing target (`grunt.targetTowerIdx`) used by `moveGrunts`.
- * Sticky across ticks once set, cleared only when the target's zone is
- * eliminated — the stickiness avoids cross-zone oscillation during
- * frozen-river crossings. `gruntAttackTowers` does NOT use this field;
+ * Sticky across ticks while the target tower is alive; re-acquired (next
+ * nearest in-zone tower) once the target dies, and dropped when the
+ * target's zone is eliminated. The stickiness-while-alive avoids cross-zone
+ * oscillation during frozen-river crossings; the re-acquire-on-death
+ * reproduces original Rampart grunts moving on to the next tower after a
+ * kill rather than parking on the corpse (recorded games, e.g. rampart_017
+ * id2: (3,11)→(8,4)→(20,14)). `gruntAttackTowers` does NOT use this field;
  * it derives the attack target from the grunt's current zone every
  * tick (so a grunt stranded in another zone attacks adjacent towers
  * THERE, regardless of its sticky pathing goal).
@@ -128,10 +132,13 @@ function lockGruntTarget(
   grunt: Grunt,
   deadZones: ReadonlySet<ZoneId>,
 ): void {
-  // Drop stale target if it points at an eliminated player's zone
+  // Drop the locked target if its tower has died (re-acquire below) or its
+  // zone is eliminated; otherwise keep the sticky lock.
   if (grunt.targetTowerIdx !== undefined) {
-    const targetZone = getGruntTargetTower(state, grunt)?.zone;
-    if (targetZone !== undefined && deadZones.has(targetZone)) {
+    const target = getGruntTargetTower(state, grunt);
+    const targetDead = !state.towerAlive[grunt.targetTowerIdx];
+    const zoneDead = target?.zone !== undefined && deadZones.has(target.zone);
+    if (targetDead || zoneDead) {
       grunt.targetTowerIdx = undefined;
     } else {
       return;
@@ -221,10 +228,9 @@ function moveOneGrunt(state: GameState, grunt: Grunt): boolean {
         return false;
       }
     }
-    // Dead target tower — stop once adjacent to its footprint
-    if (tower && !state.towerAlive[grunt.targetTowerIdx]!) {
-      if (distanceToTower(tower, grunt.row, grunt.col) <= 1) return false;
-    }
+    // (A dead target is impossible here: lockGruntTarget re-acquires or clears
+    // it in moveGrunts' pass 1 before this pass runs, and no tower dies during
+    // the move pass.)
   }
 
   const candidates = gruntCandidateMoves(state, grunt);

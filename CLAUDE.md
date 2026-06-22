@@ -123,7 +123,7 @@ The single `lint-registries.ts` pre-commit check iterates all 4 `*_CONSUMERS` ma
 - Burning pits: grass tiles blocked for 3 battle rounds
 - Wall sweep: batch collect-then-delete, one layer per call, twice per round (end-of-cannon + deferred end-of-build)
 - `recheckTerritory()` for mid-build use, `finalizeTerritoryWithScoring()` at end-of-build adds scoring + tower revival; final grunt sweep fixes race condition
-- Grunt movement: ticks ONLY during WALL_BUILD — grunts are static for the entire BATTLE phase (battle plans against "grunts about to move" reason about the NEXT build, not the current battle); no retargeting after tower kill, pace back-and-forth when blocked by walls, stay put once adjacent to target tower
+- Grunt movement: ticks ONLY during WALL_BUILD — grunts are static for the entire BATTLE phase (battle plans against "grunts about to move" reason about the NEXT build, not the current battle); re-acquire the next nearest in-zone tower when the locked target dies (move on after a kill, don't park on the corpse — `lockGruntTarget`), pace back-and-forth when blocked by walls, stay put once adjacent to target tower
 - Grunt distance: computed to nearest tile of 2x2 tower (not top-left corner)
 - Zones fully isolated by rivers; no cross-zone interaction for grunts, walls, pieces (only cannonballs cross)
 

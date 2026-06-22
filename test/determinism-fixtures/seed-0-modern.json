@@ -6,7 +6,7 @@
     "rounds": 2
   },
   "timeoutMs": 480000,
-  "eventCount": 8278,
+  "eventCount": 8276,
   "events": [
     {
       "type": "tick",
@@ -50373,13 +50373,6 @@
       }
     },
     {
-      "type": "gruntsEnclosed",
-      "payload": {
-        "count": 1,
-        "playerId": 1
-      }
-    },
-    {
       "type": "gruntSpawn",
       "payload": {
         "col": 11,
@@ -50394,15 +50387,6 @@
         "col": 15,
         "round": 2,
         "row": 19,
-        "source": "zone-pick"
-      }
-    },
-    {
-      "type": "gruntSpawn",
-      "payload": {
-        "col": 15,
-        "round": 2,
-        "row": 22,
         "source": "zone-pick"
       }
     },
