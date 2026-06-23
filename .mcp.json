@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "rebuild-and-ruin-play": {
+      "command": "deno",
+      "args": ["run", "-A", "scripts/mcp-play/server.ts"]
+    }
+  }
+}

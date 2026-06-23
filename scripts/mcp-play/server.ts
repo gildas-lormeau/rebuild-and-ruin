@@ -7,8 +7,9 @@
  * Implements the minimal MCP surface an agent host needs: `initialize`,
  * `tools/list`, `tools/call`, `ping`.
  *
- * Each tool returns the resulting board observation as pretty JSON, so the
- * agent sees the new state immediately after acting. One game at a time.
+ * Each tool returns the resulting board observation rendered as an annotated
+ * ASCII board (pass observe's format:'json' for the raw observation object), so
+ * the agent sees the new state immediately after acting. One game at a time.
  *
  * Run: deno run -A scripts/mcp-play/server.ts
  * (dev/research tool — never wired into determinism or parity suites.)
@@ -16,8 +17,14 @@
 
 import { toCannonMode } from "../../src/shared/core/cannon-mode-defs.ts";
 import type { ValidPlayerId } from "../../src/shared/core/player-slot.ts";
-import { type BuildBudget, createMcpGame, type McpGame } from "./harness.ts";
+import {
+  type BuildBudget,
+  createMcpGame,
+  type McpGame,
+  type Observation,
+} from "./harness.ts";
 import type { AgentDecision } from "./mcp-brain.ts";
+import { renderObservation } from "./render.ts";
 
 interface JsonRpcRequest {
   jsonrpc: "2.0";
@@ -112,8 +119,18 @@ const TOOLS: ToolDef[] = [
   {
     name: "observe",
     description:
-      "Return the current board observation without taking an action (phase, timer, ASCII board, your pieces/cannons, opponents).",
-    inputSchema: { type: "object", properties: {} },
+      "Return the current board observation without taking an action (phase, timer, ASCII board, your pieces/cannons, opponents). Renders the annotated board as text by default; pass format:'json' for the raw structured observation.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        format: {
+          type: "string",
+          enum: ["text", "json"],
+          description:
+            "Output format. 'text' (default) = the annotated ASCII board; 'json' = the raw structured observation object.",
+        },
+      },
+    },
     handler: () => requireGame().observe(),
   },
   {
@@ -695,7 +712,9 @@ async function handleRequest(req: JsonRpcRequest): Promise<void> {
             {
               type: "text",
               text: `Error: unknown argument(s) [${
-                unknown.join(", ")
+                unknown.join(
+                  ", ",
+                )
               }] for '${name}'. Accepted: [${accepted.join(", ") || "none"}].`,
             },
           ],
@@ -704,8 +723,15 @@ async function handleRequest(req: JsonRpcRequest): Promise<void> {
       }
       try {
         const result = await tool.handler(args);
+        // Observation-shaped results render to the annotated ASCII board so the
+        // agent reads the new state directly; observe({format:'json'}) opts back
+        // into raw JSON, and non-observation payloads (check/plan/save) stay JSON.
+        const wantJson = name === "observe" && args.format === "json";
+        const text = !wantJson && isObservation(result)
+          ? renderObservation(result)
+          : JSON.stringify(result, null, 2);
         reply(req.id, {
-          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+          content: [{ type: "text", text }],
         });
       } catch (error) {
         // Tool-level failure: report as an error result so the agent sees it.
@@ -728,6 +754,19 @@ async function handleRequest(req: JsonRpcRequest): Promise<void> {
         replyError(req.id, -32601, `Method not found: ${req.method}`);
       }
   }
+}
+
+/** Does a tool result look like a board observation (vs a check/plan/save
+ *  payload)? Observation-shaped results render to the annotated ASCII board;
+ *  everything else stays raw JSON. Keyed on the two fields only an observation
+ *  has — a string `phase` and a string `board`. */
+function isObservation(value: unknown): value is Observation {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    typeof (value as { phase?: unknown }).phase === "string" &&
+    typeof (value as { board?: unknown }).board === "string"
+  );
 }
 
 /** Keys in `args` the tool's schema doesn't declare. A misspelled optional arg

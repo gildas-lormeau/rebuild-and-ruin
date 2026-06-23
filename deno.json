@@ -1,7 +1,8 @@
 {
   "unstable": ["sloppy-imports"],
   "tasks": {
-    "server": "deno run -A server/server.ts"
+    "server": "deno run -A server/server.ts",
+    "play": "deno run -A scripts/mcp-play/server.ts"
   },
   "compilerOptions": {
     "lib": ["esnext", "dom", "dom.iterable", "deno.ns"]
