@@ -77,7 +77,15 @@ interface Journal {
   )[];
 }
 
-const SERVER_INFO = { name: "rebuild-and-ruin-play", version: "0.1.0" };
+// The running build is identified by the newest mtime across the mcp-play
+// source files, captured at process launch. A stdio server reads its source
+// once at spawn and never reloads, so if those files change afterwards the
+// running process is stale — `serverBanner()` detects that by re-stat'ing.
+// (Auto-derived rather than a hand-bumped semver, which rots and, frozen at
+// spawn, can't tell you newer code exists — the exact trap that wasted time.)
+const BUILD_STAMP_MS = sourceMtimeMs();
+const BUILD_STAMP = formatStamp(BUILD_STAMP_MS);
+const SERVER_INFO = { name: "rebuild-and-ruin-play", version: BUILD_STAMP };
 const DEFAULT_PROTOCOL_VERSION = "2024-11-05";
 const DEFAULT_SAVE_PATH = "mcp-play-save.json";
 const TOOLS: ToolDef[] = [
@@ -779,10 +787,15 @@ export async function callTool(
     // reads the new state directly; observe({format:'json'}) opts back into raw
     // JSON, and non-observation payloads (check/plan/save) stay JSON.
     const wantJson = name === "observe" && args.format === "json";
-    const text =
+    const rendered =
       !wantJson && isObservation(result)
         ? renderObservation(result)
         : JSON.stringify(result, null, 2);
+    // new_game opens a session, so it's the right place to surface the build
+    // stamp and (critically) a staleness warning — a subprocess spawned from
+    // now-edited source is caught the moment a game starts, not via ps/git.
+    const text =
+      name === "new_game" ? `${serverBanner()}\n${rendered}` : rendered;
     return { text, isError: false };
   } catch (error) {
     return {
@@ -831,4 +844,40 @@ function replyError(
 function send(message: Record<string, unknown>): void {
   const line = `${JSON.stringify(message)}\n`;
   Deno.stdout.writeSync(new TextEncoder().encode(line));
+}
+
+/** Build/staleness banner prepended to new_game output. If the source changed
+ *  since launch the running stdio process is stale (it won't reload on its
+ *  own) — say so and tell the agent to reconnect. */
+function serverBanner(): string {
+  const now = sourceMtimeMs();
+  if (now > BUILD_STAMP_MS) {
+    return `⚠ SERVER STALE — running build ${BUILD_STAMP}, source now ${formatStamp(
+      now,
+    )}. Reconnect the MCP server to load the latest code.`;
+  }
+  return `server build ${BUILD_STAMP} (current)`;
+}
+
+/** Newest mtime (epoch ms) across the mcp-play source files whose change means
+ *  the live (spawn-frozen) process is stale; 0 if none can be stat'd (degrades
+ *  to an "unknown" stamp rather than throwing). The list is inlined so this
+ *  stays self-contained — it runs at module load, before most consts exist. */
+function sourceMtimeMs(): number {
+  const sourceFiles = ["server.ts", "harness.ts", "render.ts", "mcp-brain.ts"];
+  let newest = 0;
+  for (const name of sourceFiles) {
+    try {
+      const ms = Deno.statSync(new URL(name, import.meta.url)).mtime?.getTime();
+      if (ms && ms > newest) newest = ms;
+    } catch {
+      // A missing/unreadable source file simply doesn't contribute to the stamp.
+    }
+  }
+  return newest;
+}
+
+/** Format an mtime as a compact, sortable UTC stamp for the version string. */
+function formatStamp(ms: number): string {
+  return ms === 0 ? "unknown" : `${new Date(ms).toISOString().slice(0, 19)}Z`;
 }
