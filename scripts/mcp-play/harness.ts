@@ -524,6 +524,12 @@ export interface McpGame {
    *  Pass a `budget` (maxSeconds / maxPieces) to stop early and reserve the rest
    *  of the phase for a second build instead of gambling the whole timer. */
   build(towerIdx?: number, budget?: BuildBudget): Observation;
+  /** WALL_BUILD: make your EXISTING ring sweep-proof — anchor every fragile wall
+   *  (≤1 wall-neighbour tile the round-end sweep deletes) so it gains a second
+   *  neighbour. One call instead of the hand-placement whack-a-mole where each
+   *  manual anchor spawns a fresh fragile stub. Reports fragile before→after;
+   *  does NOT enclose a new tower (build) or lay a line (path). Honours `budget`. */
+  reinforce(budget?: BuildBudget): Observation;
   /** WALL_BUILD: lay a wall LINE from `from` to `to` (straight when aligned, else
    *  an L) using whatever pieces arrive — the geometric counterpart to `build`'s
    *  enclose. For pre-claiming a flank, bridging two towers, or splitting a
@@ -1556,20 +1562,44 @@ export async function createMcpGame(
   }
 
   /** What happened to ME this battle — the return-fire I take while a one-call
-   *  bombard/breach runs (and can't react to). Walls lost, and whether my own
-   *  ring was breached (cannons going inert is the live tell — enclosedTowers
-   *  only recomputes next build). Appended to the attack result so a breached
-   *  castle + disarmed battery isn't a surprise at the next build. */
+   *  bombard/breach runs (and can't react to). Walls lost AND WHERE they fell
+   *  (a few sample tiles nearest my home, so I see which face was hit, not just a
+   *  count), plus whether my own ring was breached (cannons going inert is the
+   *  live tell — enclosedTowers only recomputes next build). Appended to the
+   *  attack result so a breached castle + disarmed battery isn't a surprise at
+   *  the next build. Takes the pre-battle wall SET (not a count) so it can diff
+   *  the exact tiles the enemy destroyed. */
   function battleSelfReport(
-    myWallsBefore: number,
+    wallsBefore: ReadonlySet<number>,
     inertBefore: number,
   ): string {
     const me = sc.state.players[agentSlot];
-    const wallsLost = myWallsBefore - (me?.walls.size ?? myWallsBefore);
+    const lost = [...wallsBefore]
+      .filter((key) => !me?.walls.has(key as Parameters<typeof unpackTile>[0]))
+      .map((key) => unpackTile(key as Parameters<typeof unpackTile>[0]));
     const inertNow = cannonsUnenclosedCount();
     const total = me?.cannons.length ?? 0;
     const parts: string[] = [];
-    if (wallsLost > 0) parts.push(`you lost ${wallsLost} walls`);
+    if (lost.length > 0) {
+      // Sample the lost tiles NEAREST my home tower first — the breach closest
+      // to the core is the one most urgent to reseal, and a 4-tile sample with
+      // a side label tells me where without dumping the whole list.
+      const home = me?.homeTower;
+      const ordered = home
+        ? [...lost].sort(
+            (a, b) =>
+              (a.row - home.row) ** 2 +
+              (a.col - home.col) ** 2 -
+              ((b.row - home.row) ** 2 + (b.col - home.col) ** 2),
+          )
+        : lost;
+      const sample = ordered
+        .slice(0, 4)
+        .map((tile) => `(${tile.row},${tile.col})`)
+        .join(",");
+      const more = lost.length > 4 ? "…" : "";
+      parts.push(`you lost ${lost.length} walls near ${sample}${more}`);
+    }
     if (inertNow > inertBefore) {
       parts.push(
         `ring breached — ${inertNow}/${total} cannons now inert (reseal first this build)`,
@@ -2313,6 +2343,121 @@ export async function createMcpGame(
     return observe();
   }
 
+  /** Empty cells orthogonally adjacent to a fragile wall — a wall placed on one
+   *  gives that fragile tile a second wall-neighbour, so the round-end sweep
+   *  keeps it. Skips water / off-board / already-walled cells; the placer
+   *  enforces full legality (own grass, no overlap). */
+  function fragileAnchorTargets(
+    fragile: { row: number; col: number }[],
+  ): Set<number> {
+    const me = sc.state.players[agentSlot];
+    const out = new Set<number>();
+    if (!me) return out;
+    for (const tile of fragile) {
+      for (const [dr, dc] of DIRS_4) {
+        const row = tile.row + dr;
+        const col = tile.col + dc;
+        if (!inBounds(row, col)) continue;
+        if (isWater(sc.state.map.tiles, row, col)) continue;
+        const key = packTile(row, col);
+        if (me.walls.has(key)) continue;
+        // Only anchor where a wall would ITSELF be sweep-safe — ≥2 existing wall
+        // neighbours (the fragile tile + ≥1 more) — so reinforce never trades one
+        // stub for a fresh one. A floating segment far from the ring yields no
+        // such cell; reinforce then reports "extend a wall to them" rather than
+        // churning the count upward.
+        if (countWallNeighbors(me.walls, row, col) >= 2) out.add(key);
+      }
+    }
+    return out;
+  }
+
+  /** WALL_BUILD: spend build time making my EXISTING ring sweep-proof — placing
+   *  pieces against my fragile walls (≤1 wall-neighbour tiles the round-end sweep
+   *  deletes) so each gains a second neighbour. The one-call answer to the
+   *  hand-placement whack-a-mole where every manual anchor spawns a fresh fragile
+   *  stub: it re-reads the fragile set each step and aims at the empty cells next
+   *  to them (the placer's multi-cell piece tends to bridge back to the ring),
+   *  until none remain, time runs low, or it can't anchor the rest. Reports
+   *  fragile before→after so a partial pass is honest. Does NOT enclose a new
+   *  tower (that's build_toward) or lay a line (build_path) — pure consolidation
+   *  of what's already standing. Honours the same `budget` (maxSeconds/maxPieces).
+   */
+  function reinforce(budget?: BuildBudget): Observation {
+    if (sc.state.phase !== Phase.WALL_BUILD) {
+      bridge.lastResult = {
+        kind: "build",
+        success: false,
+        reason: "not in WALL_BUILD",
+      };
+      return observe();
+    }
+    const fragileBefore = fragileWallsFor().length;
+    if (fragileBefore === 0) {
+      bridge.lastResult = {
+        kind: "build",
+        success: true,
+        reason: "done: no fragile walls — your ring is already sweep-proof",
+      };
+      return observe();
+    }
+    const startTimer = sc.state.timer;
+    const pieceCap = Math.min(
+      budget?.maxPieces ?? MAX_BUILD_PIECES,
+      MAX_BUILD_PIECES,
+    );
+    let placed = 0;
+    let stall = 0;
+    let outcome = "done";
+    let prevFragile = fragileBefore;
+    while (!gameOver() && sc.state.phase === Phase.WALL_BUILD) {
+      const stop = buildStop(placed, startTimer, pieceCap, budget);
+      if (stop) {
+        outcome = stop;
+        break;
+      }
+      const fragile = fragileWallsFor();
+      if (fragile.length === 0) break;
+      const targets = fragileAnchorTargets(fragile);
+      if (targets.size === 0) {
+        outcome = "stuck";
+        break;
+      }
+      const step = placeTowardTargets(targets);
+      if (step.noPiece) continue;
+      if (step.landed) placed++;
+      // Progress = the fragile COUNT actually fell. A placement that lands but
+      // doesn't shrink the set (or spawns a new stub) counts toward the stall
+      // limit, so reinforce stops churning on an un-anchorable island instead of
+      // eating the whole build (an on-target hit alone isn't progress here).
+      const nowFragile = step.landed ? fragileWallsFor().length : prevFragile;
+      if (nowFragile < prevFragile) {
+        stall = 0;
+        prevFragile = nowFragile;
+      } else {
+        stall++;
+      }
+      if (stall >= BUILD_STALL_LIMIT) {
+        outcome = "stuck";
+        break;
+      }
+    }
+    const fragileAfter = fragileWallsFor().length;
+    const elapsed = Math.round((startTimer - sc.state.timer) * 10) / 10;
+    const note =
+      fragileAfter === 0
+        ? " — ring is sweep-proof"
+        : fragileAfter < fragileBefore
+          ? " — fewer fragile tiles; call again or pass"
+          : " — couldn't anchor the rest (isolated stubs / no fitting piece); place by hand or extend a wall to them";
+    bridge.lastResult = {
+      kind: "build",
+      success: placed > 0 || fragileAfter < fragileBefore,
+      reason: `${outcome}: placed ${placed}, fragile ${fragileBefore}→${fragileAfter}, ~${elapsed}s${note}`,
+    };
+    return observe();
+  }
+
   /** Lay a wall LINE from `from` to `to` (straight when aligned, else an L),
    *  placing whatever pieces arrive over the route — the geometric counterpart to
    *  `buildToward`. For pre-claiming a flank or splitting a captured region across
@@ -2495,7 +2640,7 @@ export async function createMcpGame(
     const me = sc.state.players[agentSlot];
     const wallsBefore = sc.state.players[targetSlot]?.walls.size ?? 0;
     const scoreBefore = me?.score ?? 0;
-    const myWallsBefore = me?.walls.size ?? 0;
+    const myWallsBefore = new Set(me?.walls);
     const inertBefore = cannonsUnenclosedCount();
     const budget = quanta ?? Infinity;
     let spent = 0;
@@ -2698,7 +2843,7 @@ export async function createMcpGame(
     const me = sc.state.players[agentSlot];
     const wallsBefore = sc.state.players[targetSlot]?.walls.size ?? 0;
     const scoreBefore = me?.score ?? 0;
-    const myWallsBefore = me?.walls.size ?? 0;
+    const myWallsBefore = new Set(me?.walls);
     const inertBefore = cannonsUnenclosedCount();
     const stillEnclosed = () =>
       sc.state.players[targetSlot]?.enclosedTowers.some(
@@ -2810,7 +2955,7 @@ export async function createMcpGame(
     };
     const wallsBefore = sc.state.players[targetSlot]?.walls.size ?? 0;
     const scoreBefore = me?.score ?? 0;
-    const myWallsBefore = me?.walls.size ?? 0;
+    const myWallsBefore = new Set(me?.walls);
     const inertBefore = cannonsUnenclosedCount();
     // Every tile a super shot actually aimed at (bound or re-aimed) — counting
     // pits over THIS set credits re-aimed fresh tiles too, which a fixed
@@ -2903,6 +3048,7 @@ export async function createMcpGame(
     act,
     pass,
     build: buildToward,
+    reinforce,
     path: buildPath,
     bombard: bombardSlot,
     breach: breachSlot,

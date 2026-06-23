@@ -59,6 +59,7 @@ interface Journal {
         maxSeconds?: number;
         maxPieces?: number;
       }
+    | { t: "reinforce"; maxSeconds?: number; maxPieces?: number }
     | {
         t: "path";
         from: { row: number; col: number };
@@ -296,6 +297,25 @@ const TOOLS: ToolDef[] = [
       ),
   },
   {
+    name: "reinforce",
+    description:
+      "WALL_BUILD: spend build time making your EXISTING ring sweep-proof — it re-reads your fragile walls (≤1 wall-neighbour tiles the round-end sweep DELETES — see observation.fragileWalls) and places each arriving piece against them so every one gains a second neighbour. The one-call fix for the hand-placement whack-a-mole where each manual anchor spawns a fresh fragile stub. Use it after a build_toward/build_path leaves fragile ends, before you pass, to bank the territory you just walled. Does NOT enclose a new tower (use build_toward) or lay a line (use build_path) — pure consolidation. Read lastResult for fragile before→after + outcome (done/time/stuck). Optional maxSeconds / maxPieces to reserve the rest of the phase.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        maxSeconds: {
+          type: "number",
+          description: "Cap build-seconds spent THIS call (reserve the rest).",
+        },
+        maxPieces: {
+          type: "number",
+          description: "Cap pieces placed THIS call.",
+        },
+      },
+    },
+    handler: (args) => recordReinforce(budgetArg(args)),
+  },
+  {
     name: "build_path",
     description:
       "WALL_BUILD: lay a straight wall LINE (or an L, when the endpoints aren't row/col-aligned) from `from` to `to`, placing whatever pieces arrive over the route — the geometric counterpart to build_toward. Use it to pre-claim a flank, bridge two towers, or start a region you'll close next round. CRITICAL: partial walls survive the round-end sweep ONLY where each tile keeps ≥2 orthogonal wall-neighbours, so ANCHOR both ends on existing wall — a floating segment's open ends erode ~1 tile per sweep. lastResult reports tiles laid + any sweep-fragile ends; cross-check observation.fragileWalls. Optional maxSeconds / maxPieces to reserve time.",
@@ -468,6 +488,7 @@ const TOOLS: ToolDef[] = [
         if (move.t === "act") game.act(move.decision);
         else if (move.t === "pass") game.pass(move.n, move.seconds);
         else if (move.t === "build") game.build(move.towerIdx, budgetOf(move));
+        else if (move.t === "reinforce") game.reinforce(budgetOf(move));
         else if (move.t === "path") {
           game.path(move.from, move.to, budgetOf(move));
         } else if (move.t === "breach") game.breach(move.slot, move.towerIdx);
@@ -515,6 +536,17 @@ function recordBuild(towerIdx?: number, budget?: BuildBudget): unknown {
   journal?.moves.push({
     t: "build",
     towerIdx,
+    maxSeconds: budget?.maxSeconds,
+    maxPieces: budget?.maxPieces,
+  });
+  return observation;
+}
+
+/** Make the existing ring sweep-proof AND journal it. */
+function recordReinforce(budget?: BuildBudget): unknown {
+  const observation = requireGame().reinforce(budget);
+  journal?.moves.push({
+    t: "reinforce",
     maxSeconds: budget?.maxSeconds,
     maxPieces: budget?.maxPieces,
   });

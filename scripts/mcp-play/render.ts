@@ -37,17 +37,29 @@ export function renderObservation(obs: Observation): string {
 
   // ── standings: sort by projected score, mark me ─────────────────────────────
   const layout = obs.layout ?? [];
+  // Mid-reseal, my projection EXCLUDES my breached territory (it's worth 0 "if
+  // finalized now") while rivals' intact enclosures count in full — so the
+  // headline can read like I'm losing when a single reseal restores the lead.
+  // Flag it instead of letting the number mislead an autonomous agent. The tell
+  // is stranded cannons (a sealed ring went open); this is 0 at game start /
+  // pre-build, so it doesn't false-fire before there's anything to reseal.
+  const breached = obs.me.cannonsUnenclosed > 0;
   if (layout.length > 0) {
     const ranked = [...layout].sort((a, b) => b.projected - a.projected);
     const parts = ranked.map(
       (player) =>
         `${player.name} ${player.projected}` +
         (player.projected === player.score ? "" : `(now ${player.score})`) +
-        (player.isMe ? "*" : ""),
+        (player.isMe ? (breached ? "*⚠" : "*") : ""),
     );
     lines.push(
       `STANDINGS (projected if round finalized now): ${parts.join(" > ")}`,
     );
+    if (breached) {
+      lines.push(
+        "   ⚠ your projection EXCLUDES your breached/unsealed territory (worth 0 'if finalized now') — RESEAL to restore it; the lead may flip back",
+      );
+    }
   }
 
   lines.push(`EXPECTED: ${obs.expected}`);
@@ -163,9 +175,21 @@ export function renderObservation(obs: Observation): string {
   }
 
   // ── threats: grunts bearing down on my towers ───────────────────────────────
-  if (obs.threats) {
-    lines.push("  ⚠ THREATS (grunts on your towers — most urgent first):");
-    for (const threat of obs.threats) {
+  // List in FULL only the ones that can actually reach a tower this build —
+  // EXPOSED (tower not walled) or actively ATTACKING. The many [walled] grunts
+  // can't touch a tower while the ring holds, so collapse them to one summary
+  // line instead of burying the urgent ones under a dozen harmless rows.
+  if (obs.threats && obs.threats.length > 0) {
+    const urgent = obs.threats.filter(
+      (threat) => !threat.towerEnclosed || threat.attacking,
+    );
+    const walled = obs.threats.filter(
+      (threat) => threat.towerEnclosed && !threat.attacking,
+    );
+    lines.push(
+      "  ⚠ THREATS (grunts that can reach a tower — most urgent first):",
+    );
+    for (const threat of urgent) {
       const grunt = threat.grunt;
       const tower = threat.tower;
       const flag = threat.towerEnclosed ? "walled" : "EXPOSED";
@@ -175,6 +199,12 @@ export function renderObservation(obs: Observation): string {
         : "";
       lines.push(
         `     ${threat.kind} (${grunt.row},${grunt.col}) -> tower ${tower.idx} (${tower.row},${tower.col}) dist ${threat.distance} [${flag}]${attacking}${wall}`,
+      );
+    }
+    if (walled.length > 0) {
+      const nearest = walled[0]!;
+      lines.push(
+        `     + ${walled.length} grunt(s) behind your walls (nearest: ${nearest.kind} dist ${nearest.distance} → tower ${nearest.tower.idx}) — can't reach while that ring holds`,
       );
     }
   }
