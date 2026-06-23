@@ -100,6 +100,21 @@ export function renderObservation(obs: Observation): string {
     });
     lines.push(`  BATTERY by tower: ${parts.join(" | ")}`);
   }
+  const captured = me.capturedCannons ?? [];
+  if (captured.length > 0) {
+    const list = captured
+      .map(
+        (cannon) => `${cannon.mode}(${cannon.row},${cannon.col})→${cannon.by}`,
+      )
+      .join("  ");
+    lines.push(
+      `  ⚠ CAPTURED by enemy balloons — these fire for the captor this battle, NOT you${
+        captured.some((cannon) => cannon.mode === "super")
+          ? " (a captured super = pit_strike can't plant)"
+          : ""
+      }: ${list}`,
+    );
+  }
   if (me.cannonPositions.length > 0) {
     const guns = me.cannonPositions.map(
       (cannon) =>

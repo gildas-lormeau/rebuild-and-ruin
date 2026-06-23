@@ -421,6 +421,19 @@ export interface Observation {
      *  per castle pocket — the battery health a rebuild decision turns on. Empty
      *  until you place cannons. */
     cannonsByTower: TowerCannons[];
+    /** Cannons an opponent's balloon has CAPTURED from you this battle — they
+     *  fire for the captor, not you, so they silently drop out of your own
+     *  bombard/breach/pit. A balloon (launched in the cannon→battle gap) takes a
+     *  normal gun with one hit, a super with TWO. Empty in the normal case;
+     *  non-empty means your effective battery is smaller than it looks — and a
+     *  captured super means `pit_strike` has no gun to plant pits with. */
+    capturedCannons: {
+      row: number;
+      col: number;
+      mode: CannonMode;
+      /** Name of the opponent now firing this cannon. */
+      by: string;
+    }[];
     /** BATTLE: how many of your cannons can fire THIS INSTANT. A cannon reloads
      *  only when its previous ball lands (one ball in flight per cannon), so
      *  firing more than this many in a burst just wastes actions on reload —
@@ -1374,6 +1387,13 @@ export async function createMcpGame(
         reason: "arc cannon — not on the direct-fire path",
       };
     }
+    const captor = captorOf(cannon);
+    if (captor) {
+      return {
+        canFire: false,
+        reason: `captured by ${captor} — fires for them this battle, not you`,
+      };
+    }
     if (!isCannonEnclosed(cannon, me)) {
       return {
         canFire: false,
@@ -1455,6 +1475,84 @@ export async function createMcpGame(
       (count, cannon) => count + (isCannonEnclosed(cannon, me) ? 0 : 1),
       0,
     );
+  }
+
+  /** Name of the opponent who captured `cannon` from me, or null if it's still
+   *  mine. A balloon (one for a normal gun, TWO for a super) launched in the
+   *  cannon→battle gap can seize one of my cannons; a captured gun fires for the
+   *  captor this battle, so it silently drops out of my own bombard/pit. */
+  function captorOf(cannon: Cannon): string | null {
+    const taken = sc.state.capturedCannons.find(
+      (entry) => entry.cannon === cannon && entry.victimId === agentSlot,
+    );
+    return taken
+      ? (PLAYER_NAMES[taken.capturerId] ?? `P${taken.capturerId}`)
+      : null;
+  }
+
+  /** My cannons that an opponent's balloon has captured this battle — they fire
+   *  for the captor, not me. Surfaced so a captured super (the pit-strike gun) or
+   *  any lost cannon is visible BEFORE I commit a battle action, the way a human
+   *  sees the enemy-coloured gun on their board. */
+  function capturedFromMe(): {
+    row: number;
+    col: number;
+    mode: CannonMode;
+    by: string;
+  }[] {
+    return sc.state.capturedCannons
+      .filter((entry) => entry.victimId === agentSlot)
+      .map((entry) => ({
+        row: entry.cannon.row,
+        col: entry.cannon.col,
+        mode: entry.cannon.mode,
+        by: PLAYER_NAMES[entry.capturerId] ?? `P${entry.capturerId}`,
+      }));
+  }
+
+  /** My super cannons that can actually plant pits this battle: alive, enclosed,
+   *  and NOT captured. `pit_strike` needs one of these — an alive-but-captured
+   *  super looks armed but fires for the enemy, so checking `isSuperCannon &&
+   *  isCannonAlive` alone (what the pit-target gate used to do) promised a pit
+   *  capability that never materialised. */
+  function usableSuperCannons(): Cannon[] {
+    const me = sc.state.players[agentSlot];
+    if (!me) return [];
+    return me.cannons.filter(
+      (cannon) =>
+        isSuperCannon(cannon) &&
+        isCannonAlive(cannon) &&
+        isCannonEnclosed(cannon, me) &&
+        captorOf(cannon) === null,
+    );
+  }
+
+  /** Why `pit_strike` fell back to a plain bombard, or null when there was simply
+   *  no super to begin with (bombard IS the right call then — no note needed).
+   *  Names the cause (captured / destroyed / unenclosed) so a no-pit fallback is
+   *  never the old silent surprise. */
+  function superUnusableReason(): string | null {
+    const me = sc.state.players[agentSlot];
+    const supers = (me?.cannons ?? []).filter((cannon) =>
+      isSuperCannon(cannon),
+    );
+    if (supers.length === 0) return null;
+    const captured = supers.find((cannon) => captorOf(cannon) !== null);
+    if (captured) {
+      return `your super at (${captured.row},${captured.col}) was CAPTURED by ${captorOf(
+        captured,
+      )} — it fires for them, not you`;
+    }
+    if (supers.every((cannon) => !isCannonAlive(cannon))) {
+      return "your super was destroyed";
+    }
+    const unenclosed = supers.find(
+      (cannon) => me && !isCannonEnclosed(cannon, me),
+    );
+    if (unenclosed) {
+      return `your super at (${unenclosed.row},${unenclosed.col}) is unenclosed (ring breached) — reseal to re-arm`;
+    }
+    return "your super can't fire this battle";
   }
 
   /** What happened to ME this battle — the return-fire I take while a one-call
@@ -1669,6 +1767,7 @@ export async function createMcpGame(
           };
         }),
         cannonsByTower: cannonsByTowerFor(),
+        capturedCannons: capturedFromMe(),
         cannonsReady: cannonsReadyCount(),
         cannonsUnenclosed: cannonsUnenclosedCount(),
         walls: me.walls.size,
@@ -1750,11 +1849,10 @@ export async function createMcpGame(
           ),
           towers: opponentTowersFor(slot),
         }));
-      // Pit targets only matter if I have a super to plant them with.
-      const haveSuper = (state.players[agentSlot]?.cannons ?? []).some(
-        (cannon) => isSuperCannon(cannon) && isCannonAlive(cannon),
-      );
-      if (haveSuper) {
+      // Pit targets only matter if I have a super that can actually fire for me
+      // — an alive-but-captured super can't plant pits, so it shouldn't dangle
+      // pit targets I can't act on.
+      if (usableSuperCannons().length > 0) {
         const pits = pitTargetsFor();
         if (pits.length > 0) observation.pitTargets = pits;
       }
@@ -2669,12 +2767,21 @@ export async function createMcpGame(
       return observe();
     }
     const me = sc.state.players[agentSlot];
-    const haveSuper = (me?.cannons ?? []).some(
-      (cannon) => isSuperCannon(cannon) && isCannonAlive(cannon),
-    );
-    // No super → this is just a bombard; say so by delegating rather than
-    // pretending to plant pits a normal ball can't make.
-    if (!haveSuper) return bombardSlot(targetSlot);
+    // A pit needs a super that can actually fire for ME. A captured (or
+    // destroyed/unenclosed) super looks armed but plants nothing — fall back to
+    // a plain bombard and SAY why, instead of running a doomed strike that
+    // reports 0 pits with a misleading "reloading / battle ended" note.
+    if (usableSuperCannons().length === 0) {
+      // Snapshot WHY before bombarding — bombardSlot runs the whole battle, and
+      // a capture is released at battle end, so reading the reason afterwards
+      // would lose the "captured by X" detail.
+      const why = superUnusableReason();
+      bombardSlot(targetSlot);
+      if (why && bridge.lastResult?.reason) {
+        bridge.lastResult.reason = `pit-strike → bombard (${why}); ${bridge.lastResult.reason}`;
+      }
+      return observe();
+    }
     // Auto-aim (no explicit targets) lets the super RE-AIM once its initial picks
     // are razed; explicit targets are honoured verbatim (no re-aim).
     const autoTargets = !(targets && targets.length > 0);

@@ -381,7 +381,7 @@ const TOOLS: ToolDef[] = [
   {
     name: "pit_strike",
     description:
-      "BATTLE: drive the whole battle like bombard, but AIM your SUPER cannon(s) at enemy wall tiles to plant burning PITS while normal cannons chip. A super ball pits a tile it hits AS A WALL, and the pit blocks rebuilding for several rounds — so a pit on a load-bearing / un-reroutable wall denies their reseal, unlike a bombard hit they patch next build. See observation.pitTargets for the best walls (ranked by choke = un-reroutable sides); omit targets to use them automatically. No super cannon → behaves as a plain bombard. Read lastResult for pits planted + return fire.",
+      "BATTLE: drive the whole battle like bombard, but AIM your SUPER cannon(s) at enemy wall tiles to plant burning PITS while normal cannons chip. A super ball pits a tile it hits AS A WALL, and the pit blocks rebuilding for several rounds — so a pit on a load-bearing / un-reroutable wall denies their reseal, unlike a bombard hit they patch next build. See observation.pitTargets for the best walls (ranked by choke = un-reroutable sides); omit targets to use them automatically. No super that can fire FOR you (none placed, or it was destroyed / unenclosed / CAPTURED by an enemy balloon — see observation.me.capturedCannons) → behaves as a plain bombard and lastResult says why. Read lastResult for pits planted + return fire.",
     inputSchema: {
       type: "object",
       properties: {
