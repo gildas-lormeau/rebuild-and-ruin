@@ -170,6 +170,61 @@ const TOOLS: ToolDef[] = [
       ),
   },
   {
+    name: "placements",
+    description:
+      "WALL_BUILD: EVERY legal placement of the current piece whose footprint touches a zone (default = your wall frontier), best-first, each annotated with sealsTower (lands on a tile that closes that pocket — including inner-corner diagonal-leak seals), coversDrift (pre-empts a converging grunt), fillsGap, touchingWalls. The exhaustive answer to 'which placement closes/fills this here?' — retires guess-and-check check_placement loops. Focus a spot with aroundRow/aroundCol (+radius, default 3) or a rect (minRow/maxRow/minCol/maxCol); omit all for the whole frontier. Read-only, no clock.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        aroundRow: {
+          type: "number",
+          description: "Center a square window here (with aroundCol + radius).",
+        },
+        aroundCol: { type: "number" },
+        radius: {
+          type: "number",
+          description:
+            "Half-size of the aroundRow/aroundCol window (default 3).",
+        },
+        minRow: { type: "number" },
+        maxRow: { type: "number" },
+        minCol: { type: "number" },
+        maxCol: { type: "number" },
+      },
+    },
+    handler: (args) => {
+      let zone: {
+        minRow?: number;
+        maxRow?: number;
+        minCol?: number;
+        maxCol?: number;
+      } | null = null;
+      if (args.aroundRow !== undefined && args.aroundCol !== undefined) {
+        const centerRow = num(args, "aroundRow");
+        const centerCol = num(args, "aroundCol");
+        const radius = args.radius === undefined ? 3 : num(args, "radius");
+        zone = {
+          minRow: centerRow - radius,
+          maxRow: centerRow + radius,
+          minCol: centerCol - radius,
+          maxCol: centerCol + radius,
+        };
+      } else if (
+        ["minRow", "maxRow", "minCol", "maxCol"].some(
+          (key) => args[key] !== undefined,
+        )
+      ) {
+        zone = {
+          minRow: args.minRow === undefined ? undefined : num(args, "minRow"),
+          maxRow: args.maxRow === undefined ? undefined : num(args, "maxRow"),
+          minCol: args.minCol === undefined ? undefined : num(args, "minCol"),
+          maxCol: args.maxCol === undefined ? undefined : num(args, "maxCol"),
+        };
+      }
+      return requireGame().placements(zone);
+    },
+  },
+  {
     name: "select_castle",
     description:
       "CASTLE_SELECT: choose your home tower by its index (see observation.towers).",

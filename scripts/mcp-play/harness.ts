@@ -138,6 +138,33 @@ export interface BuildSuggestion {
   touchingWalls: number;
 }
 
+/** One legal placement of the current piece within a queried zone, annotated
+ *  with what it accomplishes — the exhaustive, decision-linked counterpart to
+ *  the top-6 `buildSuggestions`. Replaces guess-and-check `check_placement`
+ *  loops: ask once, get every option in the window scored against the live
+ *  seal/drift signals. */
+export interface ZonePlacement extends BuildSuggestion {
+  /** Tower index this placement single-tile-SEALS — set when any of the piece's
+   *  tiles lands on a `sealTiles` entry (a tile that, walled, encloses that
+   *  tower, INCLUDING inner-corner diagonal-leak seals). The headline: a
+   *  placement with `sealsTower` set closes a pocket outright. Absent otherwise. */
+  sealsTower?: number;
+  /** True if any tile lands on a grunt-DRIFT tile — placing it pre-empts a
+   *  converging grunt (the "wall these FIRST" move). */
+  coversDrift: boolean;
+}
+
+/** Result of a zone-placement query: the current piece, the resolved window,
+ *  and every legal placement within it (capped, best-first). `total` is the
+ *  pre-cap count so a truncation is visible. */
+export interface ZonePlacements {
+  piece: string | null;
+  zone: { minRow: number; maxRow: number; minCol: number; maxCol: number };
+  total: number;
+  shown: number;
+  placements: ZonePlacement[];
+}
+
 /** Optional stop conditions for a build executor (`build_toward` / `build_path`):
  *  bank partial progress and RESERVE the rest of the phase for a follow-up build
  *  instead of gambling the whole timer on one enclosure (the round-2 over-commit
@@ -643,6 +670,18 @@ export interface McpGame {
     rotation?: number,
     mode?: CannonMode,
   ): CheckResult;
+  /** WALL_BUILD: every legal placement of the current piece whose footprint
+   *  touches `zone` (default = wall bbox ± a margin), annotated with
+   *  `sealsTower` / `coversDrift` / `fillsGap` / `touchingWalls`. The exhaustive
+   *  alternative to guess-and-check `check`. */
+  placements(
+    zone: {
+      minRow?: number;
+      maxRow?: number;
+      minCol?: number;
+      maxCol?: number;
+    } | null,
+  ): ZonePlacements;
   readonly agentSlot: ValidPlayerId;
   readonly scenario: Scenario;
 }
@@ -682,6 +721,16 @@ const GRUNT_DRIFT_MAX_HORIZON = 30;
  *  closing — a single placed wall can only seal a near-complete ring, so beyond
  *  this there's no single-tile seal to find and the scan would be wasted. */
 const SEAL_FINDER_MAX_GAPS = 3;
+/** Default zone for a no-arg `placements` query: the wall bounding box grown by
+ *  this many tiles (the buildable frontier). */
+const PLACEMENT_ZONE_PAD = 2;
+/** Max placements returned by a `placements` query (best-first); `total` still
+ *  reports the full count so truncation is visible. */
+const MAX_ZONE_PLACEMENTS = 24;
+/** Largest piece extent in tiles — the anchor-scan margin so a placement whose
+ *  anchor sits just outside the zone but whose tiles reach into it is still
+ *  enumerated. */
+const MAX_PIECE_EXTENT = 3;
 /** `build_toward` stops with this much build time left, so the phase-end sweep
  *  doesn't fire mid-placement and the agent isn't surprised by a phase flip. */
 const MIN_BUILD_LEFT_SEC = 1.5;
@@ -866,6 +915,154 @@ export async function createMcpGame(
       (a, b) => b.fillsGap - a.fillsGap || b.touchingWalls - a.touchingWalls,
     );
     return out.slice(0, 6);
+  }
+
+  /** Score one placement's footprint: wall-adjacency (`touchingWalls`),
+   *  1-wide-hole plugs (`fillsGap`), and the live-signal hits — `sealsTower` (a
+   *  tile that closes a pocket) and `coversDrift` (a converging-grunt tile). */
+  function annotateBuildPlacement(
+    tiles: readonly (readonly [number, number])[],
+    isWall: (row: number, col: number) => boolean,
+    sealOf: ReadonlyMap<number, number>,
+    driftSet: ReadonlySet<number>,
+  ): {
+    fillsGap: number;
+    touchingWalls: number;
+    sealsTower?: number;
+    coversDrift: boolean;
+  } {
+    let touching = 0;
+    let fillsGap = 0;
+    let sealsTower: number | undefined;
+    let coversDrift = false;
+    for (const [tileRow, tileCol] of tiles) {
+      const up = isWall(tileRow - 1, tileCol);
+      const down = isWall(tileRow + 1, tileCol);
+      const left = isWall(tileRow, tileCol - 1);
+      const right = isWall(tileRow, tileCol + 1);
+      touching += [up, down, left, right].filter(Boolean).length;
+      if ((up && down) || (left && right)) fillsGap++;
+      const tileKey = packTile(tileRow, tileCol);
+      const seals = sealOf.get(tileKey);
+      if (seals !== undefined) sealsTower = seals;
+      if (driftSet.has(tileKey)) coversDrift = true;
+    }
+    return {
+      fillsGap,
+      touchingWalls: touching,
+      coversDrift,
+      ...(sealsTower !== undefined ? { sealsTower } : {}),
+    };
+  }
+
+  /** Rank zone placements: seals first (they close a pocket), then drift
+   *  pre-empts, then the base fillsGap/touching tiebreaks. */
+  function compareZonePlacements(a: ZonePlacement, b: ZonePlacement): number {
+    return (
+      Number(b.sealsTower !== undefined) - Number(a.sealsTower !== undefined) ||
+      Number(b.coversDrift) - Number(a.coversDrift) ||
+      b.fillsGap - a.fillsGap ||
+      b.touchingWalls - a.touchingWalls
+    );
+  }
+
+  /** Every legal placement of the current piece whose footprint touches `zone`
+   *  (default = wall bbox ± PLACEMENT_ZONE_PAD), annotated with what it does:
+   *  `sealsTower` (lands on a seal tile → closes that pocket), `coversDrift`
+   *  (pre-empts a converging grunt), plus the `fillsGap`/`touchingWalls` of the
+   *  base suggestions. The exhaustive answer that retires guess-and-check
+   *  `check_placement` loops; reads the live seal/drift signals so "which
+   *  placement closes this?" is one query. */
+  function placementsInZone(
+    zone: {
+      minRow?: number;
+      maxRow?: number;
+      minCol?: number;
+      maxCol?: number;
+    } | null,
+  ): ZonePlacements {
+    const state = sc.state;
+    const player = state.players[agentSlot]!;
+    const piece = player.currentPiece;
+    const bounds = wallBounds(player.walls);
+    const fallback = bounds
+      ? {
+          minRow: bounds.minRow - PLACEMENT_ZONE_PAD,
+          maxRow: bounds.maxRow + PLACEMENT_ZONE_PAD,
+          minCol: bounds.minCol - PLACEMENT_ZONE_PAD,
+          maxCol: bounds.maxCol + PLACEMENT_ZONE_PAD,
+        }
+      : { minRow: 0, maxRow: GRID_ROWS - 1, minCol: 0, maxCol: GRID_COLS - 1 };
+    const rect = {
+      minRow: Math.max(0, zone?.minRow ?? fallback.minRow),
+      maxRow: Math.min(GRID_ROWS - 1, zone?.maxRow ?? fallback.maxRow),
+      minCol: Math.max(0, zone?.minCol ?? fallback.minCol),
+      maxCol: Math.min(GRID_COLS - 1, zone?.maxCol ?? fallback.maxCol),
+    };
+    if (!piece) {
+      return { piece: null, zone: rect, total: 0, shown: 0, placements: [] };
+    }
+    // Gather the live seal/drift tiles to annotate against (one candidate pass).
+    const sealOf = new Map<number, number>();
+    const driftSet = new Set<number>();
+    for (const candidate of enclosureCandidatesFor()) {
+      for (const seal of candidate.sealTiles) {
+        sealOf.set(packTile(seal.row, seal.col), candidate.towerIdx);
+      }
+      for (const drift of candidate.driftTiles) {
+        driftSet.add(packTile(drift.row, drift.col));
+      }
+    }
+    const inZone = (tileRow: number, tileCol: number): boolean =>
+      tileRow >= rect.minRow &&
+      tileRow <= rect.maxRow &&
+      tileCol >= rect.minCol &&
+      tileCol <= rect.maxCol;
+    const isWall = (tileRow: number, tileCol: number): boolean =>
+      inBounds(tileRow, tileCol) &&
+      player.walls.has(packTile(tileRow, tileCol));
+    const seen = new Set<string>();
+    const out: ZonePlacement[] = [];
+    for (let rotation = 0; rotation < 4; rotation++) {
+      const offsets = rotatedOffsets(piece, rotation);
+      for (
+        let row = rect.minRow - MAX_PIECE_EXTENT;
+        row <= rect.maxRow;
+        row++
+      ) {
+        for (
+          let col = rect.minCol - MAX_PIECE_EXTENT;
+          col <= rect.maxCol;
+          col++
+        ) {
+          if (!canPlacePiece(state, agentSlot, offsets, row, col)) continue;
+          const tiles = offsets.map(
+            ([dr, dc]) => [row + dr, col + dc] as const,
+          );
+          if (!tiles.some(([r, c]) => inZone(r, c))) continue;
+          const key = tiles
+            .map(([r, c]) => `${r},${c}`)
+            .sort()
+            .join("|");
+          if (seen.has(key)) continue;
+          seen.add(key);
+          out.push({
+            row,
+            col,
+            rotation,
+            ...annotateBuildPlacement(tiles, isWall, sealOf, driftSet),
+          });
+        }
+      }
+    }
+    out.sort(compareZonePlacements);
+    return {
+      piece: piece.name,
+      zone: rect,
+      total: out.length,
+      shown: Math.min(out.length, MAX_ZONE_PLACEMENTS),
+      placements: out.slice(0, MAX_ZONE_PLACEMENTS),
+    };
   }
 
   /** The interior rect a tower's enclosure fills: home reuses its existing wall
@@ -3408,6 +3605,7 @@ export async function createMcpGame(
     pitStrike,
     enclosurePlan,
     check,
+    placements: placementsInZone,
     agentSlot,
     scenario: sc,
   };
