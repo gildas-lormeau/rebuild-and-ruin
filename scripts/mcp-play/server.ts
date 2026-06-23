@@ -307,7 +307,7 @@ const TOOLS: ToolDef[] = [
   {
     name: "reinforce",
     description:
-      "WALL_BUILD: spend build time making your EXISTING ring sweep-proof — it re-reads your fragile walls (≤1 wall-neighbour tiles the round-end sweep DELETES — see observation.fragileWalls) and places each arriving piece against them so every one gains a second neighbour. The one-call fix for the hand-placement whack-a-mole where each manual anchor spawns a fresh fragile stub. Use it after a build_toward/build_path leaves fragile ends, before you pass, to bank the territory you just walled. Does NOT enclose a new tower (use build_toward) or lay a line (use build_path) — pure consolidation. Read lastResult for fragile before→after + outcome (done/time/stuck). Optional maxSeconds / maxPieces to reserve the rest of the phase.",
+      "WALL_BUILD: anchor the loose ends of an UN-CLOSED wall — it re-reads your fragile walls (≤1 wall-neighbour tiles the round-end sweep DELETES — see observation.fragileWalls) and places each arriving piece against them so every one gains a second neighbour. NARROW USE: a closed pocket is ALREADY sweep-proof — its ring walls always keep ≥2 neighbours, so the sweep can only ever shave dangling stubs, never open a sealed castle. Reinforcing a finished castle just spends pieces (and can bury a fat wall). Reach for this only to preserve a build_path PRE-CLAIM line you'll close a later round. Does NOT enclose a tower (build_toward) or lay a line (build_path). Read lastResult for fragile before→after. Optional maxSeconds / maxPieces.",
     inputSchema: {
       type: "object",
       properties: {

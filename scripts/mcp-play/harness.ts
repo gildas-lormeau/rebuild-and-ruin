@@ -56,6 +56,7 @@ import {
   cannonSize,
   countWallNeighbors,
   DIRS_4,
+  DIRS_8,
   distanceToTower,
   hasPitAt,
   inBounds,
@@ -480,12 +481,23 @@ export interface Observation {
    *  by how many of its tiles touch your existing ring (so ring repairs sort
    *  above isolated drops). A ready-made shortlist so you needn't hunt the grid. */
   suggestions?: BuildSuggestion[];
-  /** WALL_BUILD only: MY wall tiles with ≤1 orthogonal wall-neighbour — exactly
-   *  what the round-end sweep (`sweepIsolatedWalls`) deletes. A lone segment's
-   *  open ends sit here; give each a 2nd wall neighbour (extend or anchor it) or
-   *  it erodes next round. The durability lens for cross-round building — empty
-   *  means nothing of yours is sweep-fragile. Omitted when there's nothing. */
+  /** WALL_BUILD only: MY wall tiles with ≤1 orthogonal wall-neighbour — the loose
+   *  ends of my wall network, exactly what the round-end sweep (`sweepIsolatedWalls`)
+   *  deletes. HARMLESS to a sealed castle: a wall on a closed ring always keeps ≥2
+   *  neighbours, so the sweep can only ever remove dangling stubs — it can never
+   *  open an enclosure. So these only matter for a cross-round PRE-CLAIM line (a
+   *  `build_path` segment you haven't closed yet): its open ends erode ~1 tile/round
+   *  until anchored. On a finished pocket they're free real estate — a fine place to
+   *  dump a dud piece. Omitted when there's nothing. */
   fragileWalls?: { row: number; col: number }[];
+  /** WALL_BUILD only: MY redundant inner wall tiles — every 8-dir neighbour is my
+   *  own wall or interior, so NONE faces outside (the same test `demolition` uses to
+   *  strip walls). These are "fat": thickness past a single shell that buys no
+   *  enclosure, wastes the pieces that built it, and is a liability — scattered enemy
+   *  fire that chips a fat blob can still breach the live shell behind it while you've
+   *  spent your build budget on walls doing nothing. Prefer a one-tile-thick ring +
+   *  spend the saved pieces expanding or repairing. Omitted when there's none. */
+  fatWalls?: { row: number; col: number }[];
   /** BATTLE only: each living opponent with intact walls, leader first, plus a
    *  contiguous sample of their wall tiles to aim at — so you can point-and-shoot
    *  without decoding the ASCII grid. Hitting any wall both scores you points and
@@ -524,11 +536,13 @@ export interface McpGame {
    *  Pass a `budget` (maxSeconds / maxPieces) to stop early and reserve the rest
    *  of the phase for a second build instead of gambling the whole timer. */
   build(towerIdx?: number, budget?: BuildBudget): Observation;
-  /** WALL_BUILD: make your EXISTING ring sweep-proof — anchor every fragile wall
-   *  (≤1 wall-neighbour tile the round-end sweep deletes) so it gains a second
-   *  neighbour. One call instead of the hand-placement whack-a-mole where each
-   *  manual anchor spawns a fresh fragile stub. Reports fragile before→after;
-   *  does NOT enclose a new tower (build) or lay a line (path). Honours `budget`. */
+  /** WALL_BUILD: anchor the loose ends (fragile, ≤1-neighbour tiles) of an
+   *  UN-CLOSED wall so they survive the round-end sweep into next round. NARROW
+   *  USE: a closed pocket's ring is already sweep-proof (ring walls always keep ≥2
+   *  neighbours), so reinforcing a finished castle is wasted pieces — and can even
+   *  bury a fat wall behind the shell. Reach for this only to preserve a `path`
+   *  pre-claim line you'll close later. Reports fragile before→after; honours
+   *  `budget`. */
   reinforce(budget?: BuildBudget): Observation;
   /** WALL_BUILD: lay a wall LINE from `from` to `to` (straight when aligned, else
    *  an L) using whatever pieces arrive — the geometric counterpart to `build`'s
@@ -1854,6 +1868,8 @@ export async function createMcpGame(
       observation.suggestions = buildSuggestionsFor();
       const fragile = fragileWallsFor();
       if (fragile.length > 0) observation.fragileWalls = fragile;
+      const fat = fatWallsFor();
+      if (fat.length > 0) observation.fatWalls = fat;
     }
 
     if (phase === Phase.BATTLE) {
@@ -2389,17 +2405,18 @@ export async function createMcpGame(
     return out;
   }
 
-  /** WALL_BUILD: spend build time making my EXISTING ring sweep-proof — placing
-   *  pieces against my fragile walls (≤1 wall-neighbour tiles the round-end sweep
-   *  deletes) so each gains a second neighbour. The one-call answer to the
-   *  hand-placement whack-a-mole where every manual anchor spawns a fresh fragile
-   *  stub: it re-reads the fragile set each step and aims at the empty cells next
-   *  to them (the placer's multi-cell piece tends to bridge back to the ring),
-   *  until none remain, time runs low, or it can't anchor the rest. Reports
-   *  fragile before→after so a partial pass is honest. Does NOT enclose a new
-   *  tower (that's build_toward) or lay a line (build_path) — pure consolidation
-   *  of what's already standing. Honours the same `budget` (maxSeconds/maxPieces).
-   */
+  /** WALL_BUILD: anchor my fragile walls (≤1-neighbour tiles the round-end sweep
+   *  deletes) by placing pieces beside them so each gains a second neighbour. It
+   *  re-reads the fragile set each step and aims at the empty cells next to them
+   *  until none remain, time runs low, or it can't anchor the rest, reporting
+   *  fragile before→after.
+   *
+   *  NARROW USE: this only matters for an UN-CLOSED wall — a `build_path`
+   *  pre-claim line whose open ends would erode before you seal it. A closed
+   *  pocket is already sweep-proof (ring walls always keep ≥2 neighbours), so
+   *  reinforcing a finished castle spends pieces for nothing and risks burying a
+   *  fat wall behind the shell. Does NOT enclose a tower (build_toward) or lay a
+   *  line (build_path). Honours the same `budget` (maxSeconds/maxPieces). */
   function reinforce(budget?: BuildBudget): Observation {
     if (sc.state.phase !== Phase.WALL_BUILD) {
       bridge.lastResult = {
@@ -2636,6 +2653,39 @@ export async function createMcpGame(
     for (const key of me.walls) {
       const { row, col } = unpackTile(key as Parameters<typeof unpackTile>[0]);
       if (countWallNeighbors(me.walls, row, col) <= 1) out.push({ row, col });
+    }
+    return out;
+  }
+
+  /** MY "fat" walls — redundant inner tiles whose every 8-dir neighbour is my own
+   *  wall or interior (none faces outside). This is the exact non-load-bearing test
+   *  `demolition` uses to strip walls: a single shell encloses the same territory,
+   *  so each of these is a wasted piece and a target a tighter ring wouldn't expose.
+   *  `me.interior` stands in for "inside" (a tile is wall / interior / outside), so a
+   *  wall counts as load-bearing the moment any diagonal or orthogonal neighbour is
+   *  off-board or outside. Before a pocket seals interior is empty, so nothing reads
+   *  as fat — fat only exists once there's enclosed space behind the wall. */
+  function fatWallsFor(): { row: number; col: number }[] {
+    const me = sc.state.players[agentSlot];
+    if (!me) return [];
+    const out: { row: number; col: number }[] = [];
+    for (const key of me.walls) {
+      const { row, col } = unpackTile(key as Parameters<typeof unpackTile>[0]);
+      let loadBearing = false;
+      for (const [dr, dc] of DIRS_8) {
+        const nr = row + dr;
+        const nc = col + dc;
+        if (!inBounds(nr, nc)) {
+          loadBearing = true;
+          break;
+        }
+        const nkey = packTile(nr, nc);
+        if (!me.walls.has(nkey) && !me.interior.has(nkey)) {
+          loadBearing = true;
+          break;
+        }
+      }
+      if (!loadBearing) out.push({ row, col });
     }
     return out;
   }

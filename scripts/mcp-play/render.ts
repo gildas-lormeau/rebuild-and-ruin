@@ -278,13 +278,20 @@ export function renderObservation(obs: Observation): string {
     }
   }
 
-  // ── fragile walls: my ≤1-neighbour tiles the round-end sweep deletes ─────────
-  if (obs.fragileWalls && obs.fragileWalls.length > 0) {
-    const tiles = obs.fragileWalls
-      .map((tile) => `(${tile.row},${tile.col})`)
-      .join(" ");
+  // ── fat walls: redundant inner walls (the real wall liability) ──────────────
+  if (obs.fatWalls && obs.fatWalls.length > 0) {
     lines.push(
-      `  ⚠ FRAGILE WALLS (${obs.fragileWalls.length}, ≤1 wall-neighbor — round-end sweep deletes these; anchor or extend): ${tiles}`,
+      `  ⚠ FAT WALLS (${obs.fatWalls.length}) — redundant inner walls (every 8-dir neighbor is yours, so they guard nothing a single shell wouldn't): wasted pieces and a scattered-fire liability. Build a one-tile-thick ring; spend the saved pieces expanding or repairing: ${tileList(obs.fatWalls)}`,
+    );
+  }
+
+  // ── loose wall ends: ≤1-neighbour stubs the round-end sweep deletes ─────────
+  // NOT an alarm — a closed ring's walls always keep ≥2 neighbours, so the sweep
+  // can only ever shave dangling stubs; it can never open a sealed pocket. They
+  // only cost you on an UN-closed cross-round pre-claim line (build_path).
+  if (obs.fragileWalls && obs.fragileWalls.length > 0) {
+    lines.push(
+      `  ◦ loose wall ends (${obs.fragileWalls.length}, ≤1 wall-neighbor — swept at round end): harmless to a sealed castle (you can even dump a dud piece here); only anchor one if it's part of a build_path pre-claim you'll close a later round: ${tileList(obs.fragileWalls)}`,
     );
   }
 
@@ -386,6 +393,19 @@ function standingsLines(obs: Observation): string[] {
     );
   }
   return out;
+}
+
+/** Format a tile list as "(r,c) (r,c) …", capped so a big set (fat walls can run
+ *  to dozens) can't blow up the line — appends "+N more" when truncated. */
+function tileList(
+  tiles: readonly { row: number; col: number }[],
+  cap = 12,
+): string {
+  const shown = tiles
+    .slice(0, cap)
+    .map((tile) => `(${tile.row},${tile.col})`)
+    .join(" ");
+  return tiles.length > cap ? `${shown} +${tiles.length - cap} more` : shown;
 }
 
 /** Render a bounding box (`CastleBounds`) or a home position, or an em-dash when
