@@ -329,6 +329,32 @@ export function finalizeTerritoryWithScoring(state: GameState): void {
   refillRampartShields(state);
 }
 
+/** Points the next end-of-build finalize would ADD to `player` if it ran on the
+ *  CURRENT interior — territory + castle bonus + capturable bonus squares. The
+ *  read-only twin of `captureEnclosedBonusSquares` + `awardEndOfBuildPoints` (no
+ *  mutation), reusing the same formula so it can't drift. The live `player.score`
+ *  omits the in-progress round's territory until finalize, so adding this to it
+ *  projects standings mid-build ("who's actually ahead"). Reads `player.interior`
+ *  as-is, like the rest of the read path — caller ensures it's reasonably fresh. */
+export function projectedFinalizeDelta(
+  state: GameState,
+  player: Player,
+): number {
+  const territorySize = player.interior.size;
+  let pts =
+    territorySize * TERRITORY_POINTS_PER_SQUARE * territoryScoreMult(player);
+  const castleUnits = countCastleBonusUnits(state, player);
+  if (castleUnits > 0) {
+    pts +=
+      CASTLE_BONUS_TABLE[Math.min(castleUnits, CASTLE_BONUS_TABLE.length - 1)]!;
+  }
+  let enclosedBonuses = 0;
+  for (const bonus of state.bonusSquares) {
+    if (player.interior.has(packTile(bonus.row, bonus.col))) enclosedBonuses++;
+  }
+  return pts + enclosedBonuses * territoryBonusSquarePoints(territorySize);
+}
+
 /**
  * Replenish bonus squares to maintain BONUS_SQUARES_PER_ZONE per zone.
  * Placed on free grass tiles with 1-tile gap from borders and river,

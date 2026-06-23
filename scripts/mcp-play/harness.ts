@@ -18,14 +18,17 @@
  * parity suites (the agent slot is non-deterministic by design).
  */
 
-import { asciiSnapshot } from "../../dev/dev-console-grid.ts";
+import { asciiSnapshot, zoneBounds } from "../../dev/dev-console-grid.ts";
 import { castleRect, isTowerEnclosable } from "../../src/ai/ai-castle-rect.ts";
 import { findEnclosureCut } from "../../src/ai/ai-min-cut.ts";
 import { DefaultStrategy } from "../../src/ai/ai-strategy.ts";
 import { AiController } from "../../src/controllers/controller-ai.ts";
 import { createController } from "../../src/controllers/controller-factory.ts";
 import { canFireOwnCannon } from "../../src/game/battle-system.ts";
-import { canPlacePiece } from "../../src/game/build-system.ts";
+import {
+  canPlacePiece,
+  projectedFinalizeDelta,
+} from "../../src/game/build-system.ts";
 import {
   cannonSlotsUsed,
   canPlaceCannon,
@@ -285,6 +288,15 @@ export interface PlayerLayout {
   walls: number;
   cannons: number;
   enclosedTowers: number;
+  /** Banked score: territory from PAST rounds' finalizes + battle points. The
+   *  live number — it does NOT yet include the in-progress round's territory. */
+  score: number;
+  /** score + the territory this player would bank if the build finalized NOW
+   *  (enclosed interior + capturable bonus squares + castle bonus). THE
+   *  standings number: the live `score` hides the current round's territory
+   *  until finalize, so two players can look level mid-build while one is far
+   *  ahead on enclosed-but-unbanked ground. Sort by this to read who's winning. */
+  projected: number;
 }
 
 export interface Observation {
@@ -307,6 +319,18 @@ export interface Observation {
   /** ASCII board: cropped to the agent's zone (with coords) during build /
    *  cannon / select; full map during battle so the agent can aim at rivals. */
   board: string;
+  /** Absolute tile range the `board` covers — top-left glyph = (minRow, minCol).
+   *  Cropped build/cannon/select board = your zone + 2-tile margin; battle = the
+   *  full map. Anchors the stacked column header so a glyph maps to (row, col)
+   *  without miscounting. (Precise coords for anything actionable already arrive
+   *  structured — threats, bonusTargets, suggestions, enclosureCandidates,
+   *  fragileWalls, cannonsByTower — so reach for those before counting glyphs.) */
+  boardBounds: {
+    minRow: number;
+    maxRow: number;
+    minCol: number;
+    maxCol: number;
+  };
   me: {
     slot: number;
     lives: number;
@@ -477,6 +501,9 @@ const BATTLE_TARGET_SAMPLE = 10;
 const BREACH_RADIUS = 6;
 /** How many placements to surface per cannon mode in CANNON_PLACE. */
 const CANNON_SUGGESTION_PER_MODE = 3;
+/** Tile margin around the agent's zone in the cropped board — kept in one place
+ *  so the rendered crop and the reported `boardBounds` can't drift apart. */
+const BOARD_CROP_PAD = 2;
 /** `build_toward` stops with this much build time left, so the phase-end sweep
  *  doesn't fire mid-placement and the agent isn't surprised by a phase flip. */
 const MIN_BUILD_LEFT_SEC = 1.5;
@@ -1211,6 +1238,33 @@ export async function createMcpGame(
     );
   }
 
+  /** What happened to ME this battle — the return-fire I take while a one-call
+   *  bombard/breach runs (and can't react to). Walls lost, and whether my own
+   *  ring was breached (cannons going inert is the live tell — enclosedTowers
+   *  only recomputes next build). Appended to the attack result so a breached
+   *  castle + disarmed battery isn't a surprise at the next build. */
+  function battleSelfReport(
+    myWallsBefore: number,
+    inertBefore: number,
+  ): string {
+    const me = sc.state.players[agentSlot];
+    const wallsLost = myWallsBefore - (me?.walls.size ?? myWallsBefore);
+    const inertNow = cannonsUnenclosedCount();
+    const total = me?.cannons.length ?? 0;
+    const parts: string[] = [];
+    if (wallsLost > 0) parts.push(`you lost ${wallsLost} walls`);
+    if (inertNow > inertBefore) {
+      parts.push(
+        `ring breached — ${inertNow}/${total} cannons now inert (reseal first this build)`,
+      );
+    } else if (inertNow > 0) {
+      parts.push(
+        `${inertNow}/${total} cannons inert (unenclosed — reseal to re-arm)`,
+      );
+    }
+    return parts.length > 0 ? `; ${parts.join(", ")}` : "";
+  }
+
   /** The best legal placement of `piece` that covers the most `targets` (min-cut
    *  tiles) with the least waste — the per-piece executor for `build_toward`. It
    *  reacts to whatever piece arrived (never peeks the bag), so a plan is honest. */
@@ -1282,6 +1336,34 @@ export async function createMcpGame(
     return [coverage, -(offsets.length - coverage), touching];
   }
 
+  /** The absolute tile window the `board` covers — mirrors asciiSnapshot's crop
+   *  (battle = full map; otherwise the agent's zone padded by BOARD_CROP_PAD,
+   *  clamped) so the agent can anchor a glyph to (row, col) without recounting
+   *  the stacked header. Reuses the renderer's own `zoneBounds` to stay in sync. */
+  function boardBoundsFor(battle: boolean): {
+    minRow: number;
+    maxRow: number;
+    minCol: number;
+    maxCol: number;
+  } {
+    const full = {
+      minRow: 0,
+      maxRow: GRID_ROWS - 1,
+      minCol: 0,
+      maxCol: GRID_COLS - 1,
+    };
+    if (battle) return full;
+    const zone = sc.state.playerZones[agentSlot];
+    const base = zone !== undefined ? zoneBounds(sc.state, zone) : undefined;
+    if (!base) return full;
+    return {
+      minRow: Math.max(0, base.minRow - BOARD_CROP_PAD),
+      maxRow: Math.min(GRID_ROWS - 1, base.maxRow + BOARD_CROP_PAD),
+      minCol: Math.max(0, base.minCol - BOARD_CROP_PAD),
+      maxCol: Math.min(GRID_COLS - 1, base.maxCol + BOARD_CROP_PAD),
+    };
+  }
+
   function observe(): Observation {
     const state = sc.state;
     const phase = state.phase;
@@ -1292,7 +1374,7 @@ export async function createMcpGame(
       state,
       battle
         ? { coords: true }
-        : { cropTo: agentSlot, cropPad: 2, coords: true },
+        : { cropTo: agentSlot, cropPad: BOARD_CROP_PAD, coords: true },
     );
 
     const observation: Observation = {
@@ -1315,9 +1397,12 @@ export async function createMcpGame(
         walls: player.walls.size,
         cannons: player.cannons.length,
         enclosedTowers: player.enclosedTowers.length,
+        score: player.score,
+        projected: player.score + projectedFinalizeDelta(state, player),
       })),
       cannonballsInFlight: state.cannonballs.length,
       board,
+      boardBounds: boardBoundsFor(battle),
       me: {
         slot: agentSlot,
         lives: me.lives,
@@ -1929,6 +2014,8 @@ export async function createMcpGame(
     const me = sc.state.players[agentSlot];
     const wallsBefore = sc.state.players[targetSlot]?.walls.size ?? 0;
     const scoreBefore = me?.score ?? 0;
+    const myWallsBefore = me?.walls.size ?? 0;
+    const inertBefore = cannonsUnenclosedCount();
     const budget = quanta ?? Infinity;
     let spent = 0;
     let fired = 0;
@@ -1971,19 +2058,13 @@ export async function createMcpGame(
       wallsBefore - (sc.state.players[targetSlot]?.walls.size ?? 0);
     const pointsGained =
       (sc.state.players[agentSlot]?.score ?? 0) - scoreBefore;
-    // Surface inert cannons: a weak bombard is usually because some of your guns
-    // sit in breached (unenclosed) territory and never fired — easy to miss.
-    const inert = cannonsUnenclosedCount();
-    const inertNote =
-      inert > 0
-        ? `; ${inert}/${sc.state.players[agentSlot]?.cannons.length ?? 0} cannons inert (unenclosed — reseal to re-arm)`
-        : "";
     bridge.lastResult = {
       kind: "fire",
       success: fired > 0,
-      // pointsGained is MY attributed score; the wall delta is the target's
-      // total loss in the window (other players may have hit it too).
-      reason: `fired ${fired}, +${pointsGained} pts (target lost ${wallsDestroyed} walls)${inertNote}`,
+      // pointsGained is MY attributed score; the target wall delta is its total
+      // loss in the window (other players may have hit it too); the self-report
+      // is the return fire I took while this ran.
+      reason: `fired ${fired}, +${pointsGained} pts (target lost ${wallsDestroyed} walls)${battleSelfReport(myWallsBefore, inertBefore)}`,
     };
     return observe();
   }
@@ -2085,6 +2166,8 @@ export async function createMcpGame(
     const me = sc.state.players[agentSlot];
     const wallsBefore = sc.state.players[targetSlot]?.walls.size ?? 0;
     const scoreBefore = me?.score ?? 0;
+    const myWallsBefore = me?.walls.size ?? 0;
+    const inertBefore = cannonsUnenclosedCount();
     const stillEnclosed = () =>
       sc.state.players[targetSlot]?.enclosedTowers.some(
         (enc) => enc.index === tower.towerIdx,
@@ -2119,17 +2202,13 @@ export async function createMcpGame(
       wallsBefore - (sc.state.players[targetSlot]?.walls.size ?? 0);
     const pointsGained =
       (sc.state.players[agentSlot]?.score ?? 0) - scoreBefore;
-    const inert = cannonsUnenclosedCount();
-    const inertNote =
-      inert > 0
-        ? `; ${inert}/${me?.cannons.length ?? 0} cannons inert (unenclosed — reseal to re-arm)`
-        : "";
     // enclosedTowers only recomputes at their next build, so de-enclosure shows
     // up THEN, not mid-battle — report the ring damage, which is what carries.
+    // battleSelfReport is the return fire I took while this volley ran.
     bridge.lastResult = {
       kind: "fire",
       success: fired > 0,
-      reason: `breached tower ${tower.towerIdx}: fired ${fired}, +${pointsGained} pts (ring lost ${wallsDestroyed} walls${stillEnclosed() ? "" : ", pocket OPEN"})${inertNote}`,
+      reason: `breached tower ${tower.towerIdx}: fired ${fired}, +${pointsGained} pts (ring lost ${wallsDestroyed} walls${stillEnclosed() ? "" : ", pocket OPEN"})${battleSelfReport(myWallsBefore, inertBefore)}`,
     };
     return observe();
   }
