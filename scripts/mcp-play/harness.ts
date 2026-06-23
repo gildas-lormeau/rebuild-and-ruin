@@ -225,6 +225,14 @@ export interface McpGame {
   /** Advance up to `count` action-quanta (default 1), stopping early on a phase
    *  change, battle going live, or game over. */
   pass(count?: number): Observation;
+  /** WALL_BUILD: drive the whole phase toward enclosing `towerIdx` (default your
+   *  home tower) — the harness places each arriving piece on the best min-cut
+   *  tile until it seals, time runs low, or it stalls. One call ≈ a whole build. */
+  build(towerIdx?: number): Observation;
+  /** BATTLE: fire every ready cannon at `slot`'s nearest walls, pacing reload,
+   *  for the rest of the battle (or `quanta` action-quanta). One call ≈ a whole
+   *  battle of fire/pass. */
+  bombard(slot: number, quanta?: number): Observation;
   /** Full min-cut plan (all tiles) to enclose one tower — the un-sampled form
    *  of an `enclosureCandidates` entry. Returns null if that tower isn't a
    *  candidate in your zone. */
@@ -256,6 +264,13 @@ const SOLO_MAX_GAPS = 30;
 const ENCLOSURE_TILE_SAMPLE = 8;
 /** How many of an opponent's wall tiles to surface as aim-assist in BATTLE. */
 const BATTLE_TARGET_SAMPLE = 10;
+/** `build_toward` stops with this much build time left, so the phase-end sweep
+ *  doesn't fire mid-placement and the agent isn't surprised by a phase flip. */
+const MIN_BUILD_LEFT_SEC = 1.5;
+/** Hard cap on placements per `build_toward` call — a runaway-loop backstop. */
+const MAX_BUILD_PIECES = 60;
+/** Consecutive non-progress placements before `build_toward` reports "stuck". */
+const BUILD_STALL_LIMIT = 4;
 
 export async function createMcpGame(
   opts: McpGameOptions = {},
@@ -493,6 +508,96 @@ export async function createMcpGame(
     return out;
   }
 
+  /** How many of the agent's cannons can fire this instant (no ball in flight). */
+  function cannonsReadyCount(): number {
+    const state = sc.state;
+    const me = state.players[agentSlot];
+    if (!me) return 0;
+    return me.cannons.reduce(
+      (ready, _cannon, idx) =>
+        ready +
+        (canFireOwnCannon(
+          state,
+          agentSlot,
+          idx as Parameters<typeof canFireOwnCannon>[2],
+        )
+          ? 1
+          : 0),
+      0,
+    );
+  }
+
+  /** The best legal placement of `piece` that covers the most `targets` (min-cut
+   *  tiles) with the least waste — the per-piece executor for `build_toward`. It
+   *  reacts to whatever piece arrived (never peeks the bag), so a plan is honest. */
+  function bestBuildPlacement(
+    piece: PieceShape,
+    targets: ReadonlySet<number>,
+  ): { row: number; col: number; rotation: number } | null {
+    const state = sc.state;
+    const player = state.players[agentSlot];
+    if (!player || targets.size === 0) return null;
+    let minRow = Infinity;
+    let maxRow = -Infinity;
+    let minCol = Infinity;
+    let maxCol = -Infinity;
+    for (const key of targets) {
+      const { row, col } = unpackTile(key as Parameters<typeof unpackTile>[0]);
+      if (row < minRow) minRow = row;
+      if (row > maxRow) maxRow = row;
+      if (col < minCol) minCol = col;
+      if (col > maxCol) maxCol = col;
+    }
+    let best: { row: number; col: number; rotation: number } | null = null;
+    let bestScore = [-1, -Infinity, -1];
+    for (let rotation = 0; rotation < 4; rotation++) {
+      const offsets = rotatedOffsets(piece, rotation);
+      for (let row = minRow - 2; row <= maxRow + 2; row++) {
+        for (let col = minCol - 2; col <= maxCol + 2; col++) {
+          if (!canPlacePiece(state, agentSlot, offsets, row, col)) continue;
+          const score = scorePlacement(
+            offsets,
+            row,
+            col,
+            targets,
+            player.walls,
+          );
+          if (score && lexGreater(score, bestScore)) {
+            best = { row, col, rotation };
+            bestScore = score;
+          }
+        }
+      }
+    }
+    return best;
+  }
+
+  /** Lexicographic [coverage, -waste, ringTouch] score for one placement, or
+   *  null if it covers no target tile (so it's never chosen for a goal). */
+  function scorePlacement(
+    offsets: readonly [number, number][],
+    row: number,
+    col: number,
+    targets: ReadonlySet<number>,
+    walls: ReadonlySet<number>,
+  ): [number, number, number] | null {
+    const isWall = (tileRow: number, tileCol: number): boolean =>
+      inBounds(tileRow, tileCol) && walls.has(packTile(tileRow, tileCol));
+    let coverage = 0;
+    let touching = 0;
+    for (const [dr, dc] of offsets) {
+      if (targets.has(packTile(row + dr, col + dc))) coverage++;
+      touching += [
+        isWall(row + dr - 1, col + dc),
+        isWall(row + dr + 1, col + dc),
+        isWall(row + dr, col + dc - 1),
+        isWall(row + dr, col + dc + 1),
+      ].filter(Boolean).length;
+    }
+    if (coverage === 0) return null;
+    return [coverage, -(offsets.length - coverage), touching];
+  }
+
   function observe(): Observation {
     const state = sc.state;
     const phase = state.phase;
@@ -548,18 +653,7 @@ export async function createMcpGame(
           col: cannon.col,
           mode: cannon.mode,
         })),
-        cannonsReady: me.cannons.reduce(
-          (ready, _cannon, idx) =>
-            ready +
-            (canFireOwnCannon(
-              state,
-              agentSlot,
-              idx as Parameters<typeof canFireOwnCannon>[2],
-            )
-              ? 1
-              : 0),
-          0,
-        ),
+        cannonsReady: cannonsReadyCount(),
         walls: me.walls.size,
         interior: me.interior.size,
         enclosedTowers: me.enclosedTowers.length,
@@ -609,18 +703,7 @@ export async function createMcpGame(
     if (phase === Phase.BATTLE) {
       // Origin for "nearest wall" = centroid of my cannons (they're clustered),
       // so the aim-assist favours the shortest flight path.
-      const myCannons = me.cannons;
-      const origin =
-        myCannons.length > 0
-          ? {
-              row:
-                myCannons.reduce((sum, cannon) => sum + cannon.row, 0) /
-                myCannons.length,
-              col:
-                myCannons.reduce((sum, cannon) => sum + cannon.col, 0) /
-                myCannons.length,
-            }
-          : { row: me.homeTower?.row ?? 0, col: me.homeTower?.col ?? 0 };
+      const origin = cannonCentroid();
       observation.targets = state.players
         .map((player, slot) => ({ player, slot }))
         .filter(
@@ -814,7 +897,196 @@ export async function createMcpGame(
     );
   }
 
-  return { observe, act, pass, enclosurePlan, check, agentSlot, scenario: sc };
+  /** Commit one build placement and burn one action quantum. Returns whether the
+   *  piece actually landed (so the executor can detect a dud/blocked attempt). */
+  function commitBuildPiece(
+    row: number,
+    col: number,
+    rotation: number,
+  ): boolean {
+    if (!checkDecision({ kind: "build", row, col, rotation }).valid)
+      return false;
+    // Success = the wall count grew (a piece adds tiles). Derived from state
+    // rather than bridge.lastResult so it survives the advance cleanly.
+    const before = sc.state.players[agentSlot]?.walls.size ?? 0;
+    bridge.pending = { kind: "build", row, col, rotation };
+    advance(actionTicks);
+    settleToDecision();
+    return (sc.state.players[agentSlot]?.walls.size ?? 0) > before;
+  }
+
+  /** Drive the WHOLE build phase toward a goal: enclose a tower (default home).
+   *  Each step it reads the current piece, places it on the min-cut tile it best
+   *  covers (or, for a piece that fits no gap, redirects it onto the ring to
+   *  advance the bag), and repeats until the tower seals, build time runs low, or
+   *  it stalls. The agent commits a strategy in one call; the harness executes it
+   *  against whatever pieces arrive — batch building with no bag-peeking. */
+  function buildToward(towerIdx?: number): Observation {
+    if (sc.state.phase !== Phase.WALL_BUILD) {
+      bridge.lastResult = {
+        kind: "build",
+        success: false,
+        reason: "not in WALL_BUILD",
+      };
+      return observe();
+    }
+    const goalIdx = towerIdx ?? sc.state.players[agentSlot]?.homeTower?.index;
+    let placed = 0;
+    let stall = 0;
+    let outcome = "done";
+    while (!gameOver() && sc.state.phase === Phase.WALL_BUILD) {
+      if (sc.state.timer < MIN_BUILD_LEFT_SEC) {
+        outcome = "time";
+        break;
+      }
+      if (placed >= MAX_BUILD_PIECES) {
+        outcome = "budget";
+        break;
+      }
+      const candidate = enclosureCandidatesFor().find(
+        (cand) => cand.towerIdx === goalIdx,
+      );
+      if (!candidate || candidate.status === "enclosed") break;
+      if (candidate.status === "unenclosable") {
+        outcome = "unenclosable";
+        break;
+      }
+      const piece = sc.state.players[agentSlot]?.currentPiece;
+      if (!piece) {
+        advance(actionTicks);
+        settleToDecision();
+        continue;
+      }
+      const targets = new Set(
+        candidate.tiles.map((tile) => packTile(tile.row, tile.col)),
+      );
+      const aim = bestBuildPlacement(piece, targets);
+      const fallback = aim ?? buildSuggestionsFor()[0] ?? null;
+      if (
+        fallback &&
+        commitBuildPiece(fallback.row, fallback.col, fallback.rotation)
+      ) {
+        placed++;
+        stall = aim ? 0 : stall + 1;
+      } else {
+        stall++;
+        advance(actionTicks);
+        settleToDecision();
+      }
+      if (stall >= BUILD_STALL_LIMIT) {
+        outcome = "stuck";
+        break;
+      }
+    }
+    const remaining =
+      enclosureCandidatesFor().find((cand) => cand.towerIdx === goalIdx)
+        ?.tilesNeeded ?? 0;
+    bridge.lastResult = {
+      kind: "build",
+      success: outcome === "done",
+      reason: `${outcome}: placed ${placed}, ${remaining} gaps left`,
+    };
+    return observe();
+  }
+
+  /** Bombard one opponent's walls for the rest of the battle (or `quanta` action
+   *  quanta): waits out the countdown, then fires every ready cannon at their
+   *  nearest walls, pacing to reload, until their walls clear, the battle ends,
+   *  or the budget runs out. Collapses a whole battle of fire/pass micro into one
+   *  call. Returns the walls destroyed + points scored. */
+  function bombardSlot(targetSlot: number, quanta?: number): Observation {
+    if (sc.state.phase !== Phase.BATTLE) {
+      bridge.lastResult = {
+        kind: "fire",
+        success: false,
+        reason: "not in BATTLE",
+      };
+      return observe();
+    }
+    const me = sc.state.players[agentSlot];
+    const wallsBefore = sc.state.players[targetSlot]?.walls.size ?? 0;
+    const scoreBefore = me?.score ?? 0;
+    const budget = quanta ?? Infinity;
+    let spent = 0;
+    let fired = 0;
+    while (!gameOver() && sc.state.phase === Phase.BATTLE && spent < budget) {
+      if (sc.state.battleCountdown > 0) {
+        advance(actionTicks);
+        settleToDecision();
+        spent++;
+        continue;
+      }
+      const target = sc.state.players[targetSlot];
+      if (!target || target.eliminated || target.walls.size === 0) break;
+      if (cannonsReadyCount() === 0) {
+        advance(actionTicks);
+        settleToDecision();
+        spent++;
+        continue;
+      }
+      const origin = cannonCentroid();
+      const tiles = sampleWallTiles(target.walls, target.walls.size, origin);
+      const ready = cannonsReadyCount();
+      for (let shot = 0; shot < ready && shot < tiles.length; shot++) {
+        if (sc.state.phase !== Phase.BATTLE || gameOver()) break;
+        const tile = tiles[shot]!;
+        bridge.pending = { kind: "fire", row: tile.row, col: tile.col };
+        advance(actionTicks);
+        settleToDecision();
+        fired++;
+        spent++;
+      }
+    }
+    const wallsDestroyed =
+      wallsBefore - (sc.state.players[targetSlot]?.walls.size ?? 0);
+    const pointsGained =
+      (sc.state.players[agentSlot]?.score ?? 0) - scoreBefore;
+    bridge.lastResult = {
+      kind: "fire",
+      success: fired > 0,
+      // pointsGained is MY attributed score; the wall delta is the target's
+      // total loss in the window (other players may have hit it too).
+      reason: `fired ${fired}, +${pointsGained} pts (target lost ${wallsDestroyed} walls)`,
+    };
+    return observe();
+  }
+
+  /** Centroid of the agent's cannons — the flight origin for nearest-wall aim. */
+  function cannonCentroid(): { row: number; col: number } {
+    const me = sc.state.players[agentSlot];
+    const cannons = me?.cannons ?? [];
+    if (cannons.length === 0) {
+      return { row: me?.homeTower?.row ?? 0, col: me?.homeTower?.col ?? 0 };
+    }
+    return {
+      row:
+        cannons.reduce((sum, cannon) => sum + cannon.row, 0) / cannons.length,
+      col:
+        cannons.reduce((sum, cannon) => sum + cannon.col, 0) / cannons.length,
+    };
+  }
+
+  return {
+    observe,
+    act,
+    pass,
+    build: buildToward,
+    bombard: bombardSlot,
+    enclosurePlan,
+    check,
+    agentSlot,
+    scenario: sc,
+  };
+}
+
+/** True iff tuple `a` is lexicographically greater than `b` (element by element). */
+function lexGreater(a: readonly number[], b: readonly number[]): boolean {
+  for (let i = 0; i < a.length; i++) {
+    const av = a[i] ?? 0;
+    const bv = b[i] ?? 0;
+    if (av !== bv) return av > bv;
+  }
+  return false;
 }
 
 function expectedFor(phase: Phase): string {
@@ -822,11 +1094,11 @@ function expectedFor(phase: Phase): string {
     case Phase.CASTLE_SELECT:
       return "Pick a home tower — act { kind: 'select', towerIdx }.";
     case Phase.WALL_BUILD:
-      return "Place the current piece — act { kind: 'build', row, col, rotation } — or pass.";
+      return "Re-seal/expand your castle. Fastest: build_toward({ towerIdx }) hands the WHOLE phase to the harness to enclose a tower (omit towerIdx = your home) — one call. Or place pieces by hand: act { kind: 'build', row, col, rotation }. Or pass.";
     case Phase.CANNON_PLACE:
       return "Place a cannon at its top-left — act { kind: 'cannon', row, col, mode }. Footprint: normal/balloon 2x2, super 3x3. Watch me.cannonSlots (used/max). End early with { kind: 'cannon-done' }, or pass.";
     case Phase.BATTLE:
-      return "Fire at a tile — act { kind: 'fire', row, col }. If battleCountdown > 0 the battle isn't live yet (shots are wasted) — pass until it reaches 0. Fire at enemy wall tiles (see targets, leader first) to score points AND tax their next build. Fire at most me.cannonsReady shots per burst, then pass a beat to reload.";
+      return "Tax an opponent's walls (scores points + slows their next build). Fastest: bombard({ slot }) fires every ready cannon at that opponent's nearest walls for the whole battle — one call (see targets, leader first). Or aim by hand: act { kind: 'fire', row, col } (wait out battleCountdown > 0; fire at most me.cannonsReady per burst, then pass to reload).";
     default:
       return "No agent action this phase; call pass to advance.";
   }

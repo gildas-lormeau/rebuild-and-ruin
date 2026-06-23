@@ -43,7 +43,12 @@ interface Journal {
     rounds?: number;
     actionTicks?: number;
   };
-  moves: ({ t: "act"; decision: AgentDecision } | { t: "pass"; n: number })[];
+  moves: (
+    | { t: "act"; decision: AgentDecision }
+    | { t: "pass"; n: number }
+    | { t: "build"; towerIdx?: number }
+    | { t: "bombard"; slot: number; quanta?: number }
+  )[];
 }
 
 const SERVER_INFO = { name: "rebuild-and-ruin-play", version: "0.1.0" };
@@ -218,6 +223,50 @@ const TOOLS: ToolDef[] = [
       recordPass(args.count === undefined ? 1 : num(args, "count")),
   },
   {
+    name: "build_toward",
+    description:
+      "WALL_BUILD: hand the whole build phase to the harness with one goal — enclose a tower (default: your home tower). It places each piece that arrives on the best min-cut tile (reacting to pieces, never peeking ahead), redirecting dud pieces onto the ring, until the tower seals, build time runs low, or it stalls. One call instead of dozens of place_piece calls. Read lastResult for the outcome (done/time/stuck + gaps left).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        towerIdx: {
+          type: "number",
+          description:
+            "Tower to enclose (see enclosureCandidates). Omit to repair/seal your home tower.",
+        },
+      },
+    },
+    handler: (args) =>
+      recordBuild(
+        args.towerIdx === undefined ? undefined : num(args, "towerIdx"),
+      ),
+  },
+  {
+    name: "bombard",
+    description:
+      "BATTLE: fire every ready cannon at one opponent's nearest walls, pacing reload, for the rest of the battle (or `quanta` action-quanta). Waits out the countdown first. One call instead of a whole battle of fire/pass. Read lastResult for walls destroyed + points scored.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        slot: {
+          type: "number",
+          description: "Opponent slot to bombard (see layout / targets).",
+        },
+        quanta: {
+          type: "number",
+          description:
+            "Cap on action-quanta to spend. Omit to run the battle out.",
+        },
+      },
+      required: ["slot"],
+    },
+    handler: (args) =>
+      recordBombard(
+        num(args, "slot"),
+        args.quanta === undefined ? undefined : num(args, "quanta"),
+      ),
+  },
+  {
     name: "enclose_plan",
     description:
       "WALL_BUILD: the FULL min-cut plan (all tiles) to enclose one tower in your zone — the un-sampled form of an enclosureCandidates entry. Call after picking a candidate to get the complete tile list to fill.",
@@ -275,7 +324,9 @@ const TOOLS: ToolDef[] = [
       game = await startGame(loaded.config);
       for (const move of loaded.moves) {
         if (move.t === "act") game.act(move.decision);
-        else game.pass(move.n);
+        else if (move.t === "pass") game.pass(move.n);
+        else if (move.t === "build") game.build(move.towerIdx);
+        else game.bombard(move.slot, move.quanta);
       }
       journal = loaded;
       return game.observe();
@@ -307,6 +358,20 @@ function recordAct(decision: AgentDecision): unknown {
 function recordPass(n: number): unknown {
   const observation = requireGame().pass(n);
   journal?.moves.push({ t: "pass", n });
+  return observation;
+}
+
+/** Run the build-toward executor AND journal the goal (replay re-derives placements). */
+function recordBuild(towerIdx?: number): unknown {
+  const observation = requireGame().build(towerIdx);
+  journal?.moves.push({ t: "build", towerIdx });
+  return observation;
+}
+
+/** Run the bombard executor AND journal the target (replay re-derives the volley). */
+function recordBombard(slot: number, quanta?: number): unknown {
+  const observation = requireGame().bombard(slot, quanta);
+  journal?.moves.push({ t: "bombard", slot, quanta });
   return observation;
 }
 
