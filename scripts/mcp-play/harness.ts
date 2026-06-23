@@ -24,7 +24,10 @@ import { findEnclosureCut } from "../../src/ai/ai-min-cut.ts";
 import { DefaultStrategy } from "../../src/ai/ai-strategy.ts";
 import { AiController } from "../../src/controllers/controller-ai.ts";
 import { createController } from "../../src/controllers/controller-factory.ts";
-import { canFireOwnCannon } from "../../src/game/battle-system.ts";
+import {
+  canFireOwnCannon,
+  nextReadyCannon,
+} from "../../src/game/battle-system.ts";
 import {
   canPlacePiece,
   projectedFinalizeDelta,
@@ -40,6 +43,7 @@ import {
   isBalloonCannon,
   isCannonAlive,
   isRampartCannon,
+  isSuperCannon,
 } from "../../src/shared/core/battle-types.ts";
 import { cannonModesForGame } from "../../src/shared/core/cannon-mode-defs.ts";
 import { SIM_TICK_DT } from "../../src/shared/core/game-constants.ts";
@@ -217,6 +221,23 @@ export interface OpponentTower {
   ringWalls: number;
   /** Bonus squares sitting in this pocket — denied to them if you de-enclose it. */
   bonusSquares: number;
+}
+
+/** A high-value pit target: one enemy wall tile where a super-cannon pit would
+ *  deny rebuilding for `BURNING_PIT_DURATION` rounds. Ranked by `choke` — how
+ *  many orthogonal sides are water/edge (impassable), i.e. how impossible it is
+ *  to reroute the wall around the pit. A choke-2 tile in a 1-wide neck between
+ *  rivers is a near-permanent breach; a choke-0 tile they just rebuild beside. */
+export interface PitTarget {
+  slot: number;
+  row: number;
+  col: number;
+  /** Orthogonal sides that are water or off-board (0–4). Higher = less
+   *  reroutable = better pit. */
+  choke: number;
+  /** This tile guards an enclosed tower (within BREACH_RADIUS) — a load-bearing
+   *  ring wall, so the pit also helps de-enclose the pocket. */
+  towerIdx: number | null;
 }
 
 /** A battle aim-assist entry: one opponent, a sample of their wall tiles, and
@@ -451,6 +472,10 @@ export interface Observation {
    *  ignore one near an unenclosed tower and you lose the tower (and a life).
    *  Omitted when nothing threatens you. */
   threats?: ThreatInfo[];
+  /** BATTLE: the best enemy wall tiles to plant a super-cannon PIT on, ranked by
+   *  denial value (un-reroutable chokepoints first). Feed these to
+   *  `pitStrike(slot, targets)`. Omitted outside BATTLE / when you have no super. */
+  pitTargets?: PitTarget[];
   /** Outcome of the previous committed decision (null at phase start). */
   lastResult: AgentResult | null;
 }
@@ -495,6 +520,18 @@ export interface McpGame {
    *  its pocket — denies that pocket's territory + bonus squares next build,
    *  where bombard just spreads damage they reseal. One call ≈ a whole battle. */
   breach(slot: number, towerIdx?: number): Observation;
+  /** BATTLE: drive the whole battle like bombard, but AIM your super cannon(s) at
+   *  `targets` (enemy wall tiles) to plant burning PITS there while normal cannons
+   *  spread-chip `slot`'s walls. A super ball only pits a tile it HITS AS A WALL,
+   *  and the pit blocks rebuilding for BURNING_PIT_DURATION rounds — so a pit on a
+   *  load-bearing / un-reroutable wall denies their reseal for rounds, unlike a
+   *  bombard hit they patch next build. Omit `targets` to use the ranked
+   *  `pitTargets` for that slot. Normals + supers still fire only while the battle
+   *  is live and paced to reload — same fairness as bombard. */
+  pitStrike(
+    slot: number,
+    targets?: { row: number; col: number }[],
+  ): Observation;
   /** Full min-cut plan (all tiles) to enclose one tower — the un-sampled form
    *  of an `enclosureCandidates` entry. Returns null if that tower isn't a
    *  candidate in your zone. */
@@ -523,6 +560,8 @@ const ENCLOSURE_MARGIN = 3;
 const ENCLOSURE_TILE_SAMPLE = 8;
 /** How many of an opponent's wall tiles to surface as aim-assist in BATTLE. */
 const BATTLE_TARGET_SAMPLE = 10;
+/** How many ranked pit targets to surface per opponent in BATTLE. */
+const PIT_TARGETS_PER_OPPONENT = 3;
 /** Chebyshev radius around an opponent tower that counts as its guarding ring —
  *  the band a `breach` concentrates fire on to de-enclose that pocket. */
 const BREACH_RADIUS = 6;
@@ -1650,6 +1689,14 @@ export async function createMcpGame(
           ),
           towers: opponentTowersFor(slot),
         }));
+      // Pit targets only matter if I have a super to plant them with.
+      const haveSuper = (state.players[agentSlot]?.cannons ?? []).some(
+        (cannon) => isSuperCannon(cannon) && isCannonAlive(cannon),
+      );
+      if (haveSuper) {
+        const pits = pitTargetsFor();
+        if (pits.length > 0) observation.pitTargets = pits;
+      }
     }
 
     return observation;
@@ -2234,10 +2281,61 @@ export async function createMcpGame(
       // is the return fire I took while this ran.
       reason:
         `fired ${fired}, +${pointsGained} pts (target lost ${wallsDestroyed} walls)${
-          battleSelfReport(myWallsBefore, inertBefore)
+          battleSelfReport(
+            myWallsBefore,
+            inertBefore,
+          )
         }`,
     };
     return observe();
+  }
+
+  /** Orthogonal sides of (row,col) that are water or off-board — the un-reroutable
+   *  score for a pit: a wall pinched against rivers/edge can't be rebuilt one tile
+   *  over, so a pit there is a near-permanent breach. */
+  function chokeScore(row: number, col: number): number {
+    let choke = 0;
+    for (const [dr, dc] of DIRS_4) {
+      const nr = row + dr;
+      const nc = col + dc;
+      if (!inBounds(nr, nc) || isWater(sc.state.map.tiles, nr, nc)) choke++;
+    }
+    return choke;
+  }
+
+  /** The best enemy wall tiles to plant a super-cannon pit on. Restricts to each
+   *  opponent's tower-guarding ring walls (load-bearing — a pit there denies the
+   *  reseal AND helps de-enclose the pocket), ranked by `choke` so the
+   *  least-reroutable necks come first. A few per opponent. */
+  function pitTargetsFor(): PitTarget[] {
+    const out: PitTarget[] = [];
+    const near = (row: number, col: number, tr: number, tc: number) =>
+      Math.max(Math.abs(row - tr), Math.abs(col - tc)) <= BREACH_RADIUS;
+    for (let slot = 0; slot < sc.state.players.length; slot++) {
+      if (slot === agentSlot) continue;
+      const opponent = sc.state.players[slot];
+      if (!opponent || opponent.eliminated || opponent.walls.size === 0) {
+        continue;
+      }
+      const ranked = [...boundaryWalls(opponent)]
+        .map((key) => unpackTile(key as Parameters<typeof unpackTile>[0]))
+        .map(({ row, col }) => {
+          const tower = opponent.enclosedTowers.find((entry) =>
+            near(row, col, entry.row, entry.col)
+          );
+          return {
+            slot,
+            row,
+            col,
+            choke: chokeScore(row, col),
+            towerIdx: tower ? (tower.index as number) : null,
+          };
+        })
+        .filter((target) => target.towerIdx !== null)
+        .sort((a, b) => b.choke - a.choke);
+      out.push(...ranked.slice(0, PIT_TARGETS_PER_OPPONENT));
+    }
+    return out.sort((a, b) => b.choke - a.choke);
   }
 
   /** An opponent's enclosed towers as breach targets, softest (thinnest guarding
@@ -2384,6 +2482,118 @@ export async function createMcpGame(
     return observe();
   }
 
+  /** Drive the whole battle like bombard, but AIM super cannons at `targets`
+   *  (enemy wall tiles) to plant burning pits while normals spread-chip `slot`.
+   *  Each shot peeks `nextReadyCannon` (own roster — fair) and, when the super is
+   *  next, redirects it onto the next still-walled, not-yet-pitted target;
+   *  everything else spreads like bombard. A pit only forms on a WALL hit and
+   *  blocks rebuilding for BURNING_PIT_DURATION rounds, so this denies a reseal a
+   *  bombard hit wouldn't. Same fairness as bombard (live-gated, reload-paced). */
+  function pitStrike(
+    targetSlot: number,
+    targets?: { row: number; col: number }[],
+  ): Observation {
+    if (sc.state.phase !== Phase.BATTLE) {
+      bridge.lastResult = {
+        kind: "fire",
+        success: false,
+        reason: "not in BATTLE",
+      };
+      return observe();
+    }
+    const me = sc.state.players[agentSlot];
+    const haveSuper = (me?.cannons ?? []).some(
+      (cannon) => isSuperCannon(cannon) && isCannonAlive(cannon),
+    );
+    // No super → this is just a bombard; say so by delegating rather than
+    // pretending to plant pits a normal ball can't make.
+    if (!haveSuper) return bombardSlot(targetSlot);
+    const pitTiles = (
+      targets && targets.length > 0
+        ? targets
+        : pitTargetsFor().filter((target) => target.slot === targetSlot)
+    ).map((target) => ({ row: target.row, col: target.col }));
+    // A pit forms only where a super ball hits a WALL — keep only target tiles
+    // that are still enemy walls and not already pitted.
+    const livePitTiles = (): { row: number; col: number }[] => {
+      const walls = sc.state.players[targetSlot]?.walls;
+      return pitTiles.filter(
+        (tile) =>
+          walls?.has(packTile(tile.row, tile.col)) &&
+          !hasPitAt(sc.state.burningPits, tile.row, tile.col),
+      );
+    };
+    const wallsBefore = sc.state.players[targetSlot]?.walls.size ?? 0;
+    const scoreBefore = me?.score ?? 0;
+    const myWallsBefore = me?.walls.size ?? 0;
+    const inertBefore = cannonsUnenclosedCount();
+    const pittedBefore = new Set(
+      pitTiles
+        .filter((tile) => hasPitAt(sc.state.burningPits, tile.row, tile.col))
+        .map((tile) => packTile(tile.row, tile.col)),
+    );
+    let fired = 0;
+    let superShots = 0;
+    let pitIdx = 0;
+    while (!gameOver() && sc.state.phase === Phase.BATTLE) {
+      const target = sc.state.players[targetSlot];
+      const live = sc.state.battleCountdown <= 0 && sc.state.timer > 0;
+      const canFire = live &&
+        target !== undefined &&
+        !target.eliminated &&
+        target.walls.size > 0 &&
+        cannonsReadyCount() > 0;
+      if (!canFire) {
+        advance(actionTicks);
+        settleToDecision();
+        continue;
+      }
+      const origin = cannonCentroid();
+      const spread = sampleWallTiles(target.walls, target.walls.size, origin);
+      const ready = cannonsReadyCount();
+      for (let shot = 0; shot < ready && shot < spread.length; shot++) {
+        if (sc.state.phase !== Phase.BATTLE || gameOver()) break;
+        const shooter = sc.state.players[agentSlot];
+        const next = shooter
+          ? nextReadyCannon(sc.state, agentSlot, shooter.cannonRotationIdx)
+          : null;
+        const superNext = next?.type === "own" &&
+          isSuperCannon(shooter!.cannons[next.ownIdx]!);
+        let aim = spread[shot]!;
+        if (superNext) {
+          const pits = livePitTiles();
+          if (pits.length > 0) {
+            aim = pits[pitIdx % pits.length]!;
+            pitIdx++;
+            superShots++;
+          }
+        }
+        bridge.pending = { kind: "fire", row: aim.row, col: aim.col };
+        advance(actionTicks);
+        settleToDecision();
+        fired++;
+      }
+    }
+    const wallsDestroyed = wallsBefore -
+      (sc.state.players[targetSlot]?.walls.size ?? 0);
+    const pointsGained = (sc.state.players[agentSlot]?.score ?? 0) -
+      scoreBefore;
+    const pitsPlanted = pitTiles.filter(
+      (tile) =>
+        hasPitAt(sc.state.burningPits, tile.row, tile.col) &&
+        !pittedBefore.has(packTile(tile.row, tile.col)),
+    ).length;
+    bridge.lastResult = {
+      kind: "fire",
+      success: fired > 0,
+      reason:
+        `pit-strike slot ${targetSlot}: fired ${fired} (${superShots} super→pit), +${pointsGained} pts, target lost ${wallsDestroyed} walls, ${pitsPlanted} pit(s) planted${
+          battleSelfReport(myWallsBefore, inertBefore)
+        }`,
+    };
+    return observe();
+  }
+
   /** Centroid of the agent's cannons — the flight origin for nearest-wall aim. */
   function cannonCentroid(): { row: number; col: number } {
     const me = sc.state.players[agentSlot];
@@ -2407,6 +2617,7 @@ export async function createMcpGame(
     path: buildPath,
     bombard: bombardSlot,
     breach: breachSlot,
+    pitStrike,
     enclosurePlan,
     check,
     agentSlot,
@@ -2467,7 +2678,7 @@ function expectedFor(phase: Phase): string {
     case Phase.CANNON_PLACE:
       return "Place a cannon at its top-left — act { kind: 'cannon', row, col, mode }. See cannonSuggestions for legal spots you can afford, grouped by mode (no 'super' line = no 3x3 fits). Footprint: normal/balloon 2x2, super 3x3. Watch me.cannonSlots (used/max). End early with { kind: 'cannon-done' }, or pass.";
     case Phase.BATTLE:
-      return "Attack an opponent for the whole battle (one call). Two strategies: bombard({ slot }) SPREADS fire over their nearest walls — maximises wall count destroyed (points + general tax). breach({ slot, towerIdx? }) CONCENTRATES fire on the outer ring guarding one tower to de-enclose its pocket (deny its territory + bonus squares; omit towerIdx for the softest). See targets (leader first; each lists its towers with ringWalls + bonusSquares). Or aim by hand: act { kind: 'fire', row, col } (wait out battleCountdown > 0; fire at most me.cannonsReady per burst, then pass to reload).";
+      return "Attack an opponent for the whole battle (one call). Strategies: bombard({ slot }) SPREADS fire over their nearest walls — maximises wall count destroyed (points + general tax). breach({ slot, towerIdx? }) CONCENTRATES fire on the outer ring guarding one tower to de-enclose its pocket (deny its territory + bonus squares; omit towerIdx for the softest). pit_strike({ slot, targets? }) aims your SUPER cannon(s) at enemy wall tiles to plant burning PITS (block their rebuild for rounds) while normals chip — see pitTargets for the best un-reroutable walls; omit targets to use them. See targets (leader first; each lists towers with ringWalls + bonusSquares). Or aim by hand: act { kind: 'fire', row, col } (wait out battleCountdown > 0; fire at most me.cannonsReady per burst, then pass to reload).";
     default:
       return "No agent action this phase; call pass to advance.";
   }

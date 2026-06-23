@@ -47,20 +47,25 @@ interface Journal {
     | { t: "act"; decision: AgentDecision }
     | { t: "pass"; n: number; seconds?: number }
     | {
-        t: "build";
-        towerIdx?: number;
-        maxSeconds?: number;
-        maxPieces?: number;
-      }
+      t: "build";
+      towerIdx?: number;
+      maxSeconds?: number;
+      maxPieces?: number;
+    }
     | {
-        t: "path";
-        from: { row: number; col: number };
-        to: { row: number; col: number };
-        maxSeconds?: number;
-        maxPieces?: number;
-      }
+      t: "path";
+      from: { row: number; col: number };
+      to: { row: number; col: number };
+      maxSeconds?: number;
+      maxPieces?: number;
+    }
     | { t: "bombard"; slot: number; quanta?: number }
     | { t: "breach"; slot: number; towerIdx?: number }
+    | {
+      t: "pit_strike";
+      slot: number;
+      targets?: { row: number; col: number }[];
+    }
   )[];
 }
 
@@ -91,11 +96,13 @@ const TOOLS: ToolDef[] = [
     handler: async (args) => {
       const config = {
         seed: args.seed === undefined ? undefined : num(args, "seed"),
-        agentSlot:
-          args.agentSlot === undefined ? undefined : num(args, "agentSlot"),
+        agentSlot: args.agentSlot === undefined
+          ? undefined
+          : num(args, "agentSlot"),
         rounds: args.rounds === undefined ? undefined : num(args, "rounds"),
-        actionTicks:
-          args.actionTicks === undefined ? undefined : num(args, "actionTicks"),
+        actionTicks: args.actionTicks === undefined
+          ? undefined
+          : num(args, "actionTicks"),
       };
       game = await startGame(config);
       journal = { config, moves: [] };
@@ -357,6 +364,36 @@ const TOOLS: ToolDef[] = [
       ),
   },
   {
+    name: "pit_strike",
+    description:
+      "BATTLE: drive the whole battle like bombard, but AIM your SUPER cannon(s) at enemy wall tiles to plant burning PITS while normal cannons chip. A super ball pits a tile it hits AS A WALL, and the pit blocks rebuilding for several rounds — so a pit on a load-bearing / un-reroutable wall denies their reseal, unlike a bombard hit they patch next build. See observation.pitTargets for the best walls (ranked by choke = un-reroutable sides); omit targets to use them automatically. No super cannon → behaves as a plain bombard. Read lastResult for pits planted + return fire.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        slot: {
+          type: "number",
+          description: "Opponent slot to strike (see layout / targets).",
+        },
+        targets: {
+          type: "array",
+          description:
+            "Enemy WALL tiles to plant pits on (super aims here). Omit to use observation.pitTargets for this slot.",
+          items: {
+            type: "object",
+            properties: {
+              row: { type: "number" },
+              col: { type: "number" },
+            },
+            required: ["row", "col"],
+          },
+        },
+      },
+      required: ["slot"],
+    },
+    handler: (args) =>
+      recordPitStrike(num(args, "slot"), points(args, "targets")),
+  },
+  {
     name: "enclose_plan",
     description:
       "WALL_BUILD: the FULL min-cut plan (all tiles) to enclose one tower in your zone — the un-sampled form of an enclosureCandidates entry. Call after picking a candidate to get the complete tile list to fill.",
@@ -416,10 +453,12 @@ const TOOLS: ToolDef[] = [
         if (move.t === "act") game.act(move.decision);
         else if (move.t === "pass") game.pass(move.n, move.seconds);
         else if (move.t === "build") game.build(move.towerIdx, budgetOf(move));
-        else if (move.t === "path")
+        else if (move.t === "path") {
           game.path(move.from, move.to, budgetOf(move));
-        else if (move.t === "breach") game.breach(move.slot, move.towerIdx);
-        else game.bombard(move.slot, move.quanta);
+        } else if (move.t === "breach") game.breach(move.slot, move.towerIdx);
+        else if (move.t === "pit_strike") {
+          game.pitStrike(move.slot, move.targets);
+        } else game.bombard(move.slot, move.quanta);
       }
       journal = loaded;
       return game.observe();
@@ -498,6 +537,16 @@ function recordBreach(slot: number, towerIdx?: number): unknown {
   return observation;
 }
 
+/** Run the pit-strike executor AND journal it (replay re-derives the volley). */
+function recordPitStrike(
+  slot: number,
+  targets?: { row: number; col: number }[],
+): unknown {
+  const observation = requireGame().pitStrike(slot, targets);
+  journal?.moves.push({ t: "pit_strike", slot, targets });
+  return observation;
+}
+
 function requireGame(): McpGame {
   if (!game) throw new Error("No active game — call new_game first.");
   return game;
@@ -520,12 +569,32 @@ function point(
   return { row: num(obj, "row"), col: num(obj, "col") };
 }
 
+/** Parse an OPTIONAL array of { row, col } — undefined when the key is absent. */
+function points(
+  args: Record<string, unknown>,
+  key: string,
+): { row: number; col: number }[] | undefined {
+  const value = args[key];
+  if (value === undefined) return undefined;
+  if (!Array.isArray(value)) {
+    throw new Error(`'${key}' must be an array of { row, col }`);
+  }
+  return value.map((entry) => {
+    if (typeof entry !== "object" || entry === null) {
+      throw new Error(`'${key}' entries must be { row, col }`);
+    }
+    const obj = entry as Record<string, unknown>;
+    return { row: num(obj, "row"), col: num(obj, "col") };
+  });
+}
+
 /** Collect the optional build budget (maxSeconds / maxPieces) from tool args, or
  *  undefined when neither is set (so the executor runs to completion). */
 function budgetArg(args: Record<string, unknown>): BuildBudget | undefined {
   const budget: BuildBudget = {};
-  if (args.maxSeconds !== undefined)
+  if (args.maxSeconds !== undefined) {
     budget.maxSeconds = num(args, "maxSeconds");
+  }
   if (args.maxPieces !== undefined) budget.maxPieces = num(args, "maxPieces");
   return budget.maxSeconds === undefined && budget.maxPieces === undefined
     ? undefined
@@ -583,8 +652,8 @@ async function handleRequest(req: JsonRpcRequest): Promise<void> {
   const isNotification = req.id === undefined;
   switch (req.method) {
     case "initialize": {
-      const requested =
-        (req.params?.protocolVersion as string) ?? DEFAULT_PROTOCOL_VERSION;
+      const requested = (req.params?.protocolVersion as string) ??
+        DEFAULT_PROTOCOL_VERSION;
       reply(req.id, {
         protocolVersion: requested,
         capabilities: { tools: {} },
@@ -625,7 +694,9 @@ async function handleRequest(req: JsonRpcRequest): Promise<void> {
           content: [
             {
               type: "text",
-              text: `Error: unknown argument(s) [${unknown.join(", ")}] for '${name}'. Accepted: [${accepted.join(", ") || "none"}].`,
+              text: `Error: unknown argument(s) [${
+                unknown.join(", ")
+              }] for '${name}'. Accepted: [${accepted.join(", ") || "none"}].`,
             },
           ],
         });
@@ -666,7 +737,7 @@ async function handleRequest(req: JsonRpcRequest): Promise<void> {
 function unknownArgs(tool: ToolDef, args: Record<string, unknown>): string[] {
   const props =
     (tool.inputSchema as { properties?: Record<string, unknown> }).properties ??
-    {};
+      {};
   return Object.keys(args).filter((key) => !(key in props));
 }
 
