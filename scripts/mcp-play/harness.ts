@@ -10,6 +10,9 @@
  * budget of sim-frames so phase timers still progress and timed phases end
  * naturally, then settles onto the next point where the agent owes a move
  * (auto-skipping banners, countdowns, score overlays, and opponent-only ticks).
+ * One exception: placing a build piece burns `BUILD_PIECE_TICKS` (the real
+ * per-piece cost), because build-piece COUNT is time-bounded — letting it run at
+ * the cheap quantum would out-build the AI opponents on clock speed alone.
  *
  * Dev/research tool: lives in `scripts/`, never wired into determinism or
  * parity suites (the agent slot is non-deterministic by design).
@@ -27,7 +30,13 @@ import {
   cannonSlotsUsed,
   canPlaceCannon,
 } from "../../src/game/cannon-system.ts";
-import type { CannonMode } from "../../src/shared/core/battle-types.ts";
+import {
+  type Cannon,
+  type CannonMode,
+  isBalloonCannon,
+  isCannonAlive,
+  isRampartCannon,
+} from "../../src/shared/core/battle-types.ts";
 import { cannonModesForGame } from "../../src/shared/core/cannon-mode-defs.ts";
 import { Phase } from "../../src/shared/core/game-phase.ts";
 import type { TileRect } from "../../src/shared/core/geometry-types.ts";
@@ -43,6 +52,7 @@ import {
 } from "../../src/shared/core/spatial.ts";
 import type { ControllerFactory } from "../../src/shared/core/system-interfaces.ts";
 import { cannonSlotsFor } from "../../src/shared/core/types.ts";
+import { isCannonEnclosed } from "../../src/shared/sim/board-occupancy.ts";
 import { PLAYER_NAMES } from "../../src/shared/ui/player-config.ts";
 import { Mode } from "../../src/shared/ui/ui-mode.ts";
 import { createScenario, type Scenario } from "../../test/scenario.ts";
@@ -213,13 +223,27 @@ export interface Observation {
     /** Cannon slots: how many you've used and your cap this round. Each cannon
      *  costs slots by footprint (normal/balloon 2×2, super 3×3). */
     cannonSlots: { used: number; max: number };
-    /** Top-left of each cannon you've placed (so you know your guns in battle). */
-    cannonPositions: { row: number; col: number; mode: CannonMode }[];
+    /** Each cannon you've placed: top-left + whether it can fire right now and,
+     *  if not, why. `canFire: false, reason: "unenclosed …"` means the cannon's
+     *  castle ring was breached — it's INERT and won't contribute to a bombard
+     *  until you reseal that territory. Watch this: a breached castle silently
+     *  disarms every cannon inside it. */
+    cannonPositions: {
+      row: number;
+      col: number;
+      mode: CannonMode;
+      canFire: boolean;
+      reason?: string;
+    }[];
     /** BATTLE: how many of your cannons can fire THIS INSTANT. A cannon reloads
      *  only when its previous ball lands (one ball in flight per cannon), so
      *  firing more than this many in a burst just wastes actions on reload —
      *  fire up to `cannonsReady`, then `pass` a beat to let balls land. */
     cannonsReady: number;
+    /** How many of your cannons are stranded OUTSIDE a sealed ring — inert dead
+     *  weight that can't fire until you reseal. `> 0` means your effective
+     *  battery is smaller than your cannon count; reseal or rebalance. */
+    cannonsUnenclosed: number;
     walls: number;
     interior: number;
     enclosedTowers: number;
@@ -325,6 +349,16 @@ const MIN_BUILD_LEFT_SEC = 1.5;
 const MAX_BUILD_PIECES = 60;
 /** Consecutive non-progress placements before `build_toward` reports "stuck". */
 const BUILD_STALL_LIMIT = 4;
+/** Game-time cost (ticks) of placing ONE build piece — deliberately NOT the
+ *  generic `actionTicks`. A build piece is the only action whose COUNT is
+ *  time-bounded (cannons are capped by slots, fires by reload), so its per-piece
+ *  cost is the fairness lever: the real AI/human spends ~1.3s on a piece (cursor
+ *  travel + rotation animation + pre/post-place delays). Measured median across
+ *  the three AI players = 78 ticks per piece (counting `wallPlaced` gaps in an
+ *  all-AI run); charge the agent the same, or it out-builds opponents on clock
+ *  speed alone — placing ~4× the pieces per build phase (the round-1 "3 towers
+ *  vs 1" gap). */
+const BUILD_PIECE_TICKS = 78;
 
 export async function createMcpGame(
   opts: McpGameOptions = {},
@@ -742,6 +776,54 @@ export async function createMcpGame(
     );
   }
 
+  /** Why a cannon can or can't fire right now. The load-bearing case is
+   *  `unenclosed`: a cannon whose castle ring was breached is INERT — it
+   *  silently drops out of every bombard until you reseal the territory. That
+   *  failure was invisible (you'd just see a weak bombard), so each cannon now
+   *  carries its own verdict + reason. `reloading` is transient (ball in
+   *  flight); the rest are edge cases (destroyed, modern arc cannons). */
+  function cannonFireStatus(
+    cannon: Cannon,
+    idx: number,
+  ): { canFire: boolean; reason?: string } {
+    const me = sc.state.players[agentSlot];
+    if (!me) return { canFire: false, reason: "no player" };
+    if (!isCannonAlive(cannon)) return { canFire: false, reason: "destroyed" };
+    if (isBalloonCannon(cannon) || isRampartCannon(cannon)) {
+      return {
+        canFire: false,
+        reason: "arc cannon — not on the direct-fire path",
+      };
+    }
+    if (!isCannonEnclosed(cannon, me)) {
+      return {
+        canFire: false,
+        reason: "unenclosed — castle breached, reseal to re-arm",
+      };
+    }
+    if (
+      !canFireOwnCannon(
+        sc.state,
+        agentSlot,
+        idx as Parameters<typeof canFireOwnCannon>[2],
+      )
+    ) {
+      return { canFire: false, reason: "reloading" };
+    }
+    return { canFire: true };
+  }
+
+  /** Cannons stranded outside a sealed ring — inert dead weight until you
+   *  reseal. The at-a-glance "your battery is crippled" signal. */
+  function cannonsUnenclosedCount(): number {
+    const me = sc.state.players[agentSlot];
+    if (!me) return 0;
+    return me.cannons.reduce(
+      (count, cannon) => count + (isCannonEnclosed(cannon, me) ? 0 : 1),
+      0,
+    );
+  }
+
   /** The best legal placement of `piece` that covers the most `targets` (min-cut
    *  tiles) with the least waste — the per-piece executor for `build_toward`. It
    *  reacts to whatever piece arrived (never peeks the bag), so a plan is honest. */
@@ -863,12 +945,18 @@ export async function createMcpGame(
           used: cannonSlotsUsed(me),
           max: cannonSlotsFor(state, agentSlot),
         },
-        cannonPositions: me.cannons.map((cannon) => ({
-          row: cannon.row,
-          col: cannon.col,
-          mode: cannon.mode,
-        })),
+        cannonPositions: me.cannons.map((cannon, idx) => {
+          const status = cannonFireStatus(cannon, idx);
+          return {
+            row: cannon.row,
+            col: cannon.col,
+            mode: cannon.mode,
+            canFire: status.canFire,
+            ...(status.reason ? { reason: status.reason } : {}),
+          };
+        }),
         cannonsReady: cannonsReadyCount(),
+        cannonsUnenclosed: cannonsUnenclosedCount(),
         walls: me.walls.size,
         interior: me.interior.size,
         enclosedTowers: me.enclosedTowers.length,
@@ -1045,10 +1133,30 @@ export async function createMcpGame(
         return phase === Phase.CANNON_PLACE
           ? { valid: true }
           : { valid: false, reason: "not in CANNON_PLACE" };
-      case "fire":
-        return phase === Phase.BATTLE
-          ? { valid: true }
-          : { valid: false, reason: "not in BATTLE" };
+      case "fire": {
+        // Firing is legal ONLY while the battle is live: countdown finished AND
+        // the round timer still running. The engine technically accepts fires
+        // during the post-timer ball-landing window, but the AI never does
+        // (ai-phase-battle gates on `battleCountdown <= 0 && timer > 0`), so the
+        // agent must match — otherwise it fires dozens of extra shots a battle.
+        if (phase !== Phase.BATTLE) {
+          return { valid: false, reason: "not in BATTLE" };
+        }
+        if (sc.state.battleCountdown > 0) {
+          return {
+            valid: false,
+            reason: "battle not live yet — wait out the countdown",
+          };
+        }
+        if (sc.state.timer <= 0) {
+          return {
+            valid: false,
+            reason:
+              "battle timer expired — firing is closed, only in-flight balls land now",
+          };
+        }
+        return { valid: true };
+      }
     }
   }
 
@@ -1085,7 +1193,11 @@ export async function createMcpGame(
     bridge.lastResult = null;
     const cannonsBefore = sc.state.players[agentSlot]!.cannons.length;
     bridge.pending = decision;
-    advance(actionTicks);
+    // A build piece costs its real placement time (cursor travel + rotation +
+    // place delays), not the generic per-action quantum — see BUILD_PIECE_TICKS.
+    // Cannons (slot-capped) and fires (reload-capped) can't be rushed for unfair
+    // gain, so they keep the cheap quantum.
+    advance(decision.kind === "build" ? BUILD_PIECE_TICKS : actionTicks);
     // The controller never reports cannon-commit success to the brain, so
     // derive it from the cannon-count delta.
     if (decision.kind === "cannon" && bridge.lastResult === null) {
@@ -1132,7 +1244,7 @@ export async function createMcpGame(
     // rather than bridge.lastResult so it survives the advance cleanly.
     const before = sc.state.players[agentSlot]?.walls.size ?? 0;
     bridge.pending = { kind: "build", row, col, rotation };
-    advance(actionTicks);
+    advance(BUILD_PIECE_TICKS);
     settleToDecision();
     return (sc.state.players[agentSlot]?.walls.size ?? 0) > before;
   }
@@ -1232,15 +1344,22 @@ export async function createMcpGame(
     let spent = 0;
     let fired = 0;
     while (!gameOver() && sc.state.phase === Phase.BATTLE && spent < budget) {
-      if (sc.state.battleCountdown > 0) {
-        advance(actionTicks);
-        settleToDecision();
-        spent++;
-        continue;
-      }
       const target = sc.state.players[targetSlot];
-      if (!target || target.eliminated || target.walls.size === 0) break;
-      if (cannonsReadyCount() === 0) {
+      // Fire ONLY while the battle is live: countdown finished AND timer still
+      // running. The phase lingers past timer 0 while in-flight balls land, but
+      // the AI never fires then (ai-phase-battle gates on the same condition), so
+      // firing on would rain dozens of free post-timer shots. In every non-firing
+      // case — counting down, winding down post-timer, target razed, or all
+      // cannons reloading — just let time pass so the battle ends on its own (this
+      // keeps "one bombard call = the whole battle" without the exploit).
+      const live = sc.state.battleCountdown <= 0 && sc.state.timer > 0;
+      const canFire =
+        live &&
+        target !== undefined &&
+        !target.eliminated &&
+        target.walls.size > 0 &&
+        cannonsReadyCount() > 0;
+      if (!canFire) {
         advance(actionTicks);
         settleToDecision();
         spent++;
@@ -1263,12 +1382,19 @@ export async function createMcpGame(
       wallsBefore - (sc.state.players[targetSlot]?.walls.size ?? 0);
     const pointsGained =
       (sc.state.players[agentSlot]?.score ?? 0) - scoreBefore;
+    // Surface inert cannons: a weak bombard is usually because some of your guns
+    // sit in breached (unenclosed) territory and never fired — easy to miss.
+    const inert = cannonsUnenclosedCount();
+    const inertNote =
+      inert > 0
+        ? `; ${inert}/${sc.state.players[agentSlot]?.cannons.length ?? 0} cannons inert (unenclosed — reseal to re-arm)`
+        : "";
     bridge.lastResult = {
       kind: "fire",
       success: fired > 0,
       // pointsGained is MY attributed score; the wall delta is the target's
       // total loss in the window (other players may have hit it too).
-      reason: `fired ${fired}, +${pointsGained} pts (target lost ${wallsDestroyed} walls)`,
+      reason: `fired ${fired}, +${pointsGained} pts (target lost ${wallsDestroyed} walls)${inertNote}`,
     };
     return observe();
   }
