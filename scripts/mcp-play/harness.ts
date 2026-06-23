@@ -28,11 +28,13 @@ import {
   canPlaceCannon,
 } from "../../src/game/cannon-system.ts";
 import type { CannonMode } from "../../src/shared/core/battle-types.ts";
+import { cannonModesForGame } from "../../src/shared/core/cannon-mode-defs.ts";
 import { Phase } from "../../src/shared/core/game-phase.ts";
 import type { TileRect } from "../../src/shared/core/geometry-types.ts";
 import { type PieceShape, rotateCW } from "../../src/shared/core/pieces.ts";
 import type { ValidPlayerId } from "../../src/shared/core/player-slot.ts";
 import {
+  cannonSize,
   distanceToTower,
   inBounds,
   packTile,
@@ -127,6 +129,24 @@ export interface BattleTarget {
   sampleTiles: { row: number; col: number }[];
 }
 
+/** A legal cannon placement in CANNON_PLACE — the green-phantom shortlist so the
+ *  agent need not probe the interior tile by tile (and so it can SEE whether a
+ *  super 3×3 fits at all). */
+export interface CannonSuggestion {
+  /** Mode string ("normal" | "super" | "balloon" | "rampart"). */
+  mode: CannonMode;
+  /** Top-left anchor of the footprint. */
+  row: number;
+  col: number;
+  /** Footprint side: 2 (normal/balloon/rampart) or 3 (super). */
+  size: number;
+  /** Cannon slots this placement consumes. */
+  slotCost: number;
+  /** Footprint edges abutting walls/tower/other cannons — higher = more compact
+   *  (tucked into a corner, leaving the interior less fragmented). */
+  hugs: number;
+}
+
 /** A grunt bearing down on one of my towers — the defensive signal that, when
  *  ignored, lets a grunt walk through a breach and kill the tower. */
 export interface ThreatInfo {
@@ -216,6 +236,11 @@ export interface Observation {
   }[];
   /** Selection-phase only: the towers in the agent's zone it may pick. */
   towers?: TowerHint[];
+  /** CANNON_PLACE only: legal placements you can afford this round, grouped by
+   *  mode (only modes whose slotCost fits your remaining slots appear), best
+   *  ("most compact") first. If no `super` entry appears, no 3×3 fits your
+   *  interior — place normals instead. */
+  cannonSuggestions?: CannonSuggestion[];
   /** WALL_BUILD only: every tower in your zone you could enclose (home first,
    *  then cheapest). The strategic layer — there can be several. `tiles` here is
    *  a sample (≤ ENCLOSURE_TILE_SAMPLE); `tilesNeeded` is the true count, and the
@@ -291,6 +316,8 @@ const SOLO_MAX_GAPS = 30;
 const ENCLOSURE_TILE_SAMPLE = 8;
 /** How many of an opponent's wall tiles to surface as aim-assist in BATTLE. */
 const BATTLE_TARGET_SAMPLE = 10;
+/** How many placements to surface per cannon mode in CANNON_PLACE. */
+const CANNON_SUGGESTION_PER_MODE = 3;
 /** `build_toward` stops with this much build time left, so the phase-end sweep
  *  doesn't fire mid-placement and the agent isn't surprised by a phase flip. */
 const MIN_BUILD_LEFT_SEC = 1.5;
@@ -601,6 +628,101 @@ export async function createMcpGame(
     return best;
   }
 
+  /** Legal cannon placements the agent can afford this round, grouped by mode and
+   *  ranked "most compact first" (footprint tucked against walls/tower/cannons,
+   *  leaving the interior least fragmented). Modes too expensive for the remaining
+   *  slots are dropped, so a missing `super` line means no 3×3 fits. */
+  function cannonSuggestionsFor(): CannonSuggestion[] {
+    const state = sc.state;
+    const me = state.players[agentSlot];
+    const bounds = me ? wallBounds(me.walls) : null;
+    if (!me || !bounds) return [];
+    const remaining = cannonSlotsFor(state, agentSlot) - cannonSlotsUsed(me);
+    const solid = solidTiles(me);
+    const out: CannonSuggestion[] = [];
+    for (const def of cannonModesForGame(state.modern !== null)) {
+      if (def.slotCost > remaining) continue;
+      const spots: { row: number; col: number; hugs: number }[] = [];
+      for (
+        let row = bounds.minRow;
+        row + def.size - 1 <= bounds.maxRow;
+        row++
+      ) {
+        for (
+          let col = bounds.minCol;
+          col + def.size - 1 <= bounds.maxCol;
+          col++
+        ) {
+          if (!canPlaceCannon(me, row, col, def.id, state)) continue;
+          spots.push({
+            row,
+            col,
+            hugs: footprintHug(row, col, def.size, solid),
+          });
+        }
+      }
+      spots.sort((a, b) => b.hugs - a.hugs);
+      for (const spot of spots.slice(0, CANNON_SUGGESTION_PER_MODE)) {
+        out.push({
+          mode: def.id,
+          row: spot.row,
+          col: spot.col,
+          size: def.size,
+          slotCost: def.slotCost,
+          hugs: spot.hugs,
+        });
+      }
+    }
+    return out;
+  }
+
+  /** Tiles that "anchor" a cannon footprint: my walls, every tower, my cannons. */
+  function solidTiles(me: (typeof sc.state.players)[number]): Set<number> {
+    const solid = new Set<number>();
+    for (const wall of me.walls) solid.add(wall);
+    for (const tower of sc.state.map.towers) {
+      for (let dr = 0; dr < 2; dr++) {
+        for (let dc = 0; dc < 2; dc++) {
+          solid.add(packTile(tower.row + dr, tower.col + dc));
+        }
+      }
+    }
+    for (const cannon of me.cannons) {
+      const size = cannonSize(cannon.mode);
+      for (let dr = 0; dr < size; dr++) {
+        for (let dc = 0; dc < size; dc++) {
+          solid.add(packTile(cannon.row + dr, cannon.col + dc));
+        }
+      }
+    }
+    return solid;
+  }
+
+  /** Count footprint-border tiles abutting a solid tile — the compactness score. */
+  function footprintHug(
+    row: number,
+    col: number,
+    size: number,
+    solid: ReadonlySet<number>,
+  ): number {
+    let hug = 0;
+    for (let dr = 0; dr < size; dr++) {
+      for (let dc = 0; dc < size; dc++) {
+        for (const [nr, nc] of [
+          [row + dr - 1, col + dc],
+          [row + dr + 1, col + dc],
+          [row + dr, col + dc - 1],
+          [row + dr, col + dc + 1],
+        ]) {
+          const inside =
+            nr >= row && nr < row + size && nc >= col && nc < col + size;
+          if (!inside && solid.has(packTile(nr, nc))) hug++;
+        }
+      }
+    }
+    return hug;
+  }
+
   /** How many of the agent's cannons can fire this instant (no ball in flight). */
   function cannonsReadyCount(): number {
     const state = sc.state;
@@ -782,6 +904,10 @@ export async function createMcpGame(
           col: tower.col,
           enclosed: me.enclosedTowers.some((enc) => enc.index === tower.index),
         }));
+    }
+
+    if (phase === Phase.CANNON_PLACE) {
+      observation.cannonSuggestions = cannonSuggestionsFor();
     }
 
     if (phase === Phase.WALL_BUILD) {
@@ -1192,7 +1318,7 @@ function expectedFor(phase: Phase): string {
     case Phase.WALL_BUILD:
       return "Re-seal/expand your castle. Fastest: build_toward({ towerIdx }) hands the WHOLE phase to the harness to enclose a tower (omit towerIdx = your home) — one call. Or place pieces by hand: act { kind: 'build', row, col, rotation }. Or pass.";
     case Phase.CANNON_PLACE:
-      return "Place a cannon at its top-left — act { kind: 'cannon', row, col, mode }. Footprint: normal/balloon 2x2, super 3x3. Watch me.cannonSlots (used/max). End early with { kind: 'cannon-done' }, or pass.";
+      return "Place a cannon at its top-left — act { kind: 'cannon', row, col, mode }. See cannonSuggestions for legal spots you can afford, grouped by mode (no 'super' line = no 3x3 fits). Footprint: normal/balloon 2x2, super 3x3. Watch me.cannonSlots (used/max). End early with { kind: 'cannon-done' }, or pass.";
     case Phase.BATTLE:
       return "Tax an opponent's walls (scores points + slows their next build). Fastest: bombard({ slot }) fires every ready cannon at that opponent's nearest walls for the whole battle — one call (see targets, leader first). Or aim by hand: act { kind: 'fire', row, col } (wait out battleCountdown > 0; fire at most me.cannonsReady per burst, then pass to reload).";
     default:
