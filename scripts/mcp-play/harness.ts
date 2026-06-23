@@ -33,6 +33,7 @@ import {
   cannonSlotsUsed,
   canPlaceCannon,
 } from "../../src/game/cannon-system.ts";
+import { isGruntPassableTile } from "../../src/game/grunt-movement.ts";
 import {
   type Cannon,
   type CannonMode,
@@ -50,7 +51,9 @@ import type { ValidPlayerId } from "../../src/shared/core/player-slot.ts";
 import {
   cannonSize,
   countWallNeighbors,
+  DIRS_4,
   distanceToTower,
+  hasPitAt,
   inBounds,
   isWater,
   packTile,
@@ -129,6 +132,21 @@ export interface BuildBudget {
   maxPieces?: number;
 }
 
+/** Why one min-cut tile can't be walled right now. `grunt-boxed`: a grunt sits
+ *  on it AND has no legal move (penned by walls/cannons/grunts) — it won't leave
+ *  this phase. `grunt-mobile`: a grunt sits on it but could step away, so it may
+ *  free up. `pit`: a burning pit occupies it (clears after its battle-round
+ *  timer, not this build). `unfillable`: the tile's buildable-ground island is
+ *  <4 cells, so no 4-cell piece can ever cover it (e.g. a 1×3 slot pinched
+ *  between cannons). All but `grunt-mobile` are `hard`. */
+export interface SealBlocker {
+  row: number;
+  col: number;
+  kind: "grunt-boxed" | "grunt-mobile" | "pit" | "unfillable";
+  /** Can't clear this build phase → kills `feasible` and triggers the early-out. */
+  hard: boolean;
+}
+
 /** An enclosure option in my zone: a tower I could wall in, with the exact
  *  min-cut tiles to do it. Computed via the engine's own `findEnclosureCut`, so
  *  `tiles` is a deterministic placement plan, not a heuristic. */
@@ -145,10 +163,19 @@ export interface EnclosureCandidate {
   /** Estimated build seconds to close the cut at the fair per-piece cadence
    *  (0 if already enclosed / unenclosable). Compare against the phase timer. */
   estSeconds: number;
-  /** TRUE if `estSeconds` fits the build time left — i.e. you can realistically
-   *  finish this enclosure THIS phase. NOT a planner cap: a 31-tile cut reads
-   *  feasible with 25s left and infeasible with 8s. */
+  /** TRUE if you can realistically finish this enclosure THIS phase — both
+   *  `estSeconds <= timer` AND no seal tile carries a HARD blocker (see
+   *  `blockers`). A grunt boxed on a min-cut tile, a burning pit, or an
+   *  unfillable slot all force this false even with hours on the clock — the
+   *  time-only read was a footgun that sent the executor thrashing into a jam. */
   feasible: boolean;
+  /** Per-tile placement blockers on the min-cut (empty = every seal tile is
+   *  free to build now). HARD blockers (`grunt-boxed`, `pit`, `unfillable`)
+   *  can't clear this phase, so they force `feasible` false and make
+   *  `build_toward` early-out instead of burning piece-time discovering the jam
+   *  at runtime; `grunt-mobile` is soft (the grunt may wander off). Absent for
+   *  non-enclosable statuses. */
+  blockers: SealBlocker[];
   /** Why `status` is "unenclosable" — a topology block ("leaks to the map edge")
    *  vs. a piece-fit block ("a 1-tile gap is pinched between solids, often a
    *  cannon on the ring — plug it by hand"). Absent for other statuses. */
@@ -511,6 +538,9 @@ const MIN_BUILD_LEFT_SEC = 1.5;
 const MAX_BUILD_PIECES = 60;
 /** Consecutive non-progress placements before `build_toward` reports "stuck". */
 const BUILD_STALL_LIMIT = 4;
+/** A one-cell "piece" — probes a single tile's buildability via `canPlacePiece`
+ *  for the `unfillable`-island walk. */
+const SINGLE_CELL: readonly [number, number][] = [[0, 0]];
 /** Game-time cost (ticks) of placing ONE build piece — deliberately NOT the
  *  generic `actionTicks`. A build piece is the only action whose COUNT is
  *  time-bounded (cannons are capped by slots, fires by reload), so its per-piece
@@ -756,6 +786,107 @@ export async function createMcpGame(
     );
   }
 
+  /** Can a wall cell legally sit on (row,col) right now? The engine's placement
+   *  rule (grass, my zone, no wall/cannon/tower/grunt/pit) probed one cell at a
+   *  time — the ground truth the `unfillable` island flood walks over. */
+  function isBuildableGround(row: number, col: number): boolean {
+    return canPlacePiece(sc.state, agentSlot, SINGLE_CELL, row, col);
+  }
+
+  /** Size of the 4-connected buildable-ground island containing (row,col),
+   *  capped at `cap`. A min-cut tile whose island is <4 cells can never be
+   *  covered by any 4-cell piece — that's the `unfillable` pinch (e.g. the 1×3
+   *  slot left between two cannon stacks). Capped so it stays O(cap), not O(map). */
+  function buildableIslandSize(row: number, col: number, cap: number): number {
+    if (!isBuildableGround(row, col)) return 0;
+    const seen = new Set<number>([packTile(row, col)]);
+    const stack: [number, number][] = [[row, col]];
+    while (stack.length > 0 && seen.size < cap) {
+      const [cr, cc] = stack.pop()!;
+      for (const [dr, dc] of DIRS_4) {
+        const nr = cr + dr;
+        const nc = cc + dc;
+        if (!inBounds(nr, nc)) continue;
+        const key = packTile(nr, nc);
+        if (seen.has(key) || !isBuildableGround(nr, nc)) continue;
+        seen.add(key);
+        stack.push([nr, nc]);
+      }
+    }
+    return seen.size;
+  }
+
+  /** A grunt is "boxed" when no orthogonal neighbour is a tile it could step to
+   *  (every side is a wall, water, another grunt, a living tower, or enclosed
+   *  interior). A boxed grunt on a min-cut tile won't leave this phase, so the
+   *  seal is permanently blocked — the exact jam that cost the seed-88421 final.
+   *  Skips the living-tower case (rare next to a gap) so the bias is toward
+   *  calling it `mobile`/feasible, never a false `boxed`. */
+  function isGruntBoxed(grunt: { row: number; col: number }): boolean {
+    const state = sc.state;
+    for (const [dr, dc] of DIRS_4) {
+      const nr = grunt.row + dr;
+      const nc = grunt.col + dc;
+      if (!inBounds(nr, nc)) continue;
+      if (!isGruntPassableTile(state, nr, nc)) continue;
+      const key = packTile(nr, nc);
+      if (state.grunts.some((other) => other.row === nr && other.col === nc)) {
+        continue;
+      }
+      if (state.players.some((other) => other?.interior.has(key))) continue;
+      return false;
+    }
+    return true;
+  }
+
+  /** Classify why each still-open min-cut tile can't be walled now (free tiles
+   *  omitted). The blocker-aware core: a tile already walled is skipped, a grunt
+   *  on it is boxed-or-mobile, a pit on it is `pit`, an island <4 cells is
+   *  `unfillable`. Order matters — grunt/pit are checked before the island walk
+   *  because an occupant makes the cell read as non-buildable-ground. */
+  function classifySealBlockers(
+    tiles: readonly { row: number; col: number }[],
+  ): SealBlocker[] {
+    const state = sc.state;
+    const walls = state.players[agentSlot]?.walls;
+    const out: SealBlocker[] = [];
+    for (const { row, col } of tiles) {
+      if (walls?.has(packTile(row, col))) continue;
+      const grunt = state.grunts.find(
+        (other) => other.row === row && other.col === col,
+      );
+      if (grunt) {
+        const boxed = isGruntBoxed(grunt);
+        out.push({
+          row,
+          col,
+          kind: boxed ? "grunt-boxed" : "grunt-mobile",
+          hard: boxed,
+        });
+        continue;
+      }
+      if (hasPitAt(state.burningPits, row, col)) {
+        out.push({ row, col, kind: "pit", hard: true });
+        continue;
+      }
+      if (buildableIslandSize(row, col, 4) < 4) {
+        out.push({ row, col, kind: "unfillable", hard: true });
+      }
+    }
+    return out;
+  }
+
+  /** One-line blocker summary for a `stuck`/`blocked` build reason. */
+  function describeBlockers(blockers: readonly SealBlocker[]): string {
+    if (blockers.length === 0) return "";
+    const shown = blockers
+      .slice(0, 4)
+      .map((blocker) => `(${blocker.row},${blocker.col}) ${blocker.kind}`)
+      .join(", ");
+    const extra = blockers.length > 4 ? ` +${blockers.length - 4} more` : "";
+    return ` — ${shown}${extra}`;
+  }
+
   /** For every tower in my zone, the engine min-cut to enclose it: the exact
    *  tiles to wall, the cost, and feasibility. Home first, then cheapest. This
    *  is the strategic layer — there can be several candidates (capture a
@@ -777,7 +908,7 @@ export async function createMcpGame(
       // tower isn't yet enclosed — once enclosed, whatever it holds is already
       // counted in the interior).
       const bonusSquares = bonuses.filter((bonus) =>
-        rectHas(pocket, bonus.row, bonus.col),
+        rectHas(pocket, bonus.row, bonus.col)
       ).length;
       const base = { towerIdx: tower.index as number, isHome, bonusSquares };
       // Ground truth first: if the tower is already enclosed, say so. The
@@ -793,6 +924,7 @@ export async function createMcpGame(
           tiles: [],
           estSeconds: 0,
           feasible: true,
+          blockers: [],
         });
         continue;
       }
@@ -805,6 +937,7 @@ export async function createMcpGame(
           tiles: [],
           estSeconds: 0,
           feasible: false,
+          blockers: [],
           reason: "no wallable ring — leaks to the map edge through water/pit",
         });
         continue;
@@ -827,6 +960,7 @@ export async function createMcpGame(
           tiles: [],
           estSeconds: 0,
           feasible: false,
+          blockers: [],
           reason:
             "no piece-fillable ring: a 1-tile gap is pinched between solids " +
             "(often a cannon on the ring line) — plug it by hand",
@@ -840,6 +974,7 @@ export async function createMcpGame(
           tiles: [],
           estSeconds: 0,
           feasible: true,
+          blockers: [],
         });
       } else {
         const tiles = [...cut].map((key) => {
@@ -847,13 +982,16 @@ export async function createMcpGame(
           return { row: pos.row, col: pos.col };
         });
         const estSeconds = enclosureSeconds(cut.size);
+        const blockers = classifySealBlockers(tiles);
         out.push({
           ...base,
           status: "enclosable",
           tilesNeeded: cut.size,
           tiles,
           estSeconds,
-          feasible: estSeconds <= state.timer,
+          feasible: estSeconds <= state.timer &&
+            !blockers.some((blocker) => blocker.hard),
+          blockers,
         });
       }
     }
@@ -890,7 +1028,7 @@ export async function createMcpGame(
               pocketRectFor(tower, tower.index === homeIdx, bounds),
               bonus.row,
               bonus.col,
-            ),
+            )
           )
           .sort(
             (a, b) => Number(b.index === homeIdx) - Number(a.index === homeIdx),
@@ -928,21 +1066,21 @@ export async function createMcpGame(
       if (zoneAt(state.map, grunt.row, grunt.col) !== myZone) continue;
       const target = threatTarget(grunt, myZone);
       if (!target) continue;
-      const enclosed =
-        player?.enclosedTowers.some((tower) => tower.index === target.index) ??
+      const enclosed = player?.enclosedTowers.some((tower) =>
+        tower.index === target.index
+      ) ??
         false;
-      const wall =
-        grunt.targetedWall === undefined
-          ? undefined
-          : unpackTile(grunt.targetedWall);
+      const wall = grunt.targetedWall === undefined
+        ? undefined
+        : unpackTile(grunt.targetedWall);
       out.push({
         grunt: { row: grunt.row, col: grunt.col },
         kind: grunt.kind === "catapult" ? "catapult" : "grunt",
         tower: { idx: target.index, row: target.row, col: target.col },
         distance: distanceToTower(target, grunt.row, grunt.col),
         towerEnclosed: enclosed,
-        attacking:
-          grunt.attackCountdown !== undefined && grunt.attackCountdown > 0,
+        attacking: grunt.attackCountdown !== undefined &&
+          grunt.attackCountdown > 0,
         targetedWall: wall ? { row: wall.row, col: wall.col } : undefined,
       });
     }
@@ -989,14 +1127,15 @@ export async function createMcpGame(
     const ring = new Set<number>();
     for (const key of me.walls) {
       const { row, col } = unpackTile(key as Parameters<typeof unpackTile>[0]);
-      for (const [nr, nc] of [
-        [row - 1, col],
-        [row + 1, col],
-        [row, col - 1],
-        [row, col + 1],
-      ]) {
-        const facesOut =
-          !inBounds(nr, nc) ||
+      for (
+        const [nr, nc] of [
+          [row - 1, col],
+          [row + 1, col],
+          [row, col - 1],
+          [row, col + 1],
+        ]
+      ) {
+        const facesOut = !inBounds(nr, nc) ||
           (!me.walls.has(packTile(nr, nc)) &&
             !me.interior.has(packTile(nr, nc)));
         if (facesOut) {
@@ -1102,14 +1241,16 @@ export async function createMcpGame(
     let hug = 0;
     for (let dr = 0; dr < size; dr++) {
       for (let dc = 0; dc < size; dc++) {
-        for (const [nr, nc] of [
-          [row + dr - 1, col + dc],
-          [row + dr + 1, col + dc],
-          [row + dr, col + dc - 1],
-          [row + dr, col + dc + 1],
-        ]) {
-          const inside =
-            nr >= row && nr < row + size && nc >= col && nc < col + size;
+        for (
+          const [nr, nc] of [
+            [row + dr - 1, col + dc],
+            [row + dr + 1, col + dc],
+            [row + dr, col + dc - 1],
+            [row + dr, col + dc + 1],
+          ]
+        ) {
+          const inside = nr >= row && nr < row + size && nc >= col &&
+            nc < col + size;
           if (!inside && solid.has(packTile(nr, nc))) hug++;
         }
       }
@@ -1126,10 +1267,10 @@ export async function createMcpGame(
       (ready, _cannon, idx) =>
         ready +
         (canFireOwnCannon(
-          state,
-          agentSlot,
-          idx as Parameters<typeof canFireOwnCannon>[2],
-        )
+            state,
+            agentSlot,
+            idx as Parameters<typeof canFireOwnCannon>[2],
+          )
           ? 1
           : 0),
       0,
@@ -1434,8 +1575,7 @@ export async function createMcpGame(
         walls: me.walls.size,
         interior: me.interior.size,
         enclosedTowers: me.enclosedTowers.length,
-        homeTowerEnclosed:
-          me.homeTower !== null &&
+        homeTowerEnclosed: me.homeTower !== null &&
           me.enclosedTowers.some((tower) => tower === me.homeTower),
       },
       opponents: state.players
@@ -1580,13 +1720,11 @@ export async function createMcpGame(
           decision.row,
           decision.col,
         );
-        return ok
-          ? { valid: true }
-          : {
-              valid: false,
-              reason:
-                "blocked — off-grid, occupied, not on your grass, or sealed by a grunt",
-            };
+        return ok ? { valid: true } : {
+          valid: false,
+          reason:
+            "blocked — off-grid, occupied, not on your grass, or sealed by a grunt",
+        };
       }
       case "cannon": {
         if (phase !== Phase.CANNON_PLACE) {
@@ -1599,13 +1737,11 @@ export async function createMcpGame(
           decision.mode,
           state,
         );
-        return ok
-          ? { valid: true }
-          : {
-              valid: false,
-              reason:
-                "blocked — off-grid, outside your interior, or on water/wall/tower/cannon/pit",
-            };
+        return ok ? { valid: true } : {
+          valid: false,
+          reason:
+            "blocked — off-grid, outside your interior, or on water/wall/tower/cannon/pit",
+        };
       }
       case "cannon-done":
         return phase === Phase.CANNON_PLACE
@@ -1697,10 +1833,9 @@ export async function createMcpGame(
     // `seconds` (the unit the agent reads as timerSec) wins when given; convert
     // to action-quanta via the game's per-action tick cost. Each iteration still
     // advances exactly one quantum and stops early on a phase change.
-    const iterations =
-      seconds !== undefined
-        ? Math.max(1, Math.round((seconds * SIM_TICKS_PER_SEC) / actionTicks))
-        : count;
+    const iterations = seconds !== undefined
+      ? Math.max(1, Math.round((seconds * SIM_TICKS_PER_SEC) / actionTicks))
+      : count;
     for (let i = 0; i < iterations && !gameOver(); i++) {
       advance(actionTicks);
       settleToDecision();
@@ -1723,8 +1858,9 @@ export async function createMcpGame(
     col: number,
     rotation: number,
   ): boolean {
-    if (!checkDecision({ kind: "build", row, col, rotation }).valid)
+    if (!checkDecision({ kind: "build", row, col, rotation }).valid) {
       return false;
+    }
     // Success = the wall count grew (a piece adds tiles). Derived from state
     // rather than bridge.lastResult so it survives the advance cleanly.
     const before = sc.state.players[agentSlot]?.walls.size ?? 0;
@@ -1825,6 +1961,16 @@ export async function createMcpGame(
         outcome = "unenclosable";
         break;
       }
+      // Every remaining seal tile is HARD-blocked (boxed grunt / pit /
+      // unfillable) → no piece will ever land. Stop now instead of thrashing
+      // redirect pieces into the stall limit and burning real build seconds.
+      if (
+        candidate.blockers.length === candidate.tiles.length &&
+        candidate.blockers.every((blocker) => blocker.hard)
+      ) {
+        outcome = "blocked";
+        break;
+      }
       const targets = new Set(
         candidate.tiles.map((tile) => packTile(tile.row, tile.col)),
       );
@@ -1841,14 +1987,19 @@ export async function createMcpGame(
         break;
       }
     }
-    const remaining =
-      enclosureCandidatesFor().find((cand) => cand.towerIdx === goalIdx)
-        ?.tilesNeeded ?? 0;
+    const finalCandidate = enclosureCandidatesFor().find(
+      (cand) => cand.towerIdx === goalIdx,
+    );
+    const remaining = finalCandidate?.tilesNeeded ?? 0;
     const elapsed = Math.round((startTimer - sc.state.timer) * 10) / 10;
+    const why = outcome === "stuck" || outcome === "blocked"
+      ? describeBlockers(finalCandidate?.blockers ?? [])
+      : "";
     bridge.lastResult = {
       kind: "build",
       success: outcome === "done",
-      reason: `${outcome}: placed ${placed}, ${remaining} gaps left, ~${elapsed}s`,
+      reason:
+        `${outcome}: placed ${placed}, ${remaining} gaps left, ~${elapsed}s${why}`,
     };
     return observe();
   }
@@ -1898,12 +2049,28 @@ export async function createMcpGame(
     let placed = 0;
     let stall = 0;
     let outcome = "done";
+    let lastBlockers: SealBlocker[] = [];
     while (!gameOver() && sc.state.phase === Phase.WALL_BUILD) {
       const targets = remainingTargets();
       if (targets.size === 0) break;
       const stop = buildStop(placed, startTimer, pieceCap, budget);
       if (stop) {
         outcome = stop;
+        break;
+      }
+      // Same early-out as build_toward: if every unlaid route tile is
+      // HARD-blocked (boxed grunt / pit / unfillable slot), no piece can land —
+      // stop before thrashing into the stall limit and burning build seconds.
+      lastBlockers = classifySealBlockers(
+        [...targets].map((key) =>
+          unpackTile(key as ReturnType<typeof packTile>)
+        ),
+      );
+      if (
+        lastBlockers.length === targets.size &&
+        lastBlockers.every((blocker) => blocker.hard)
+      ) {
+        outcome = "blocked";
         break;
       }
       const step = placeTowardTargets(targets);
@@ -1922,11 +2089,14 @@ export async function createMcpGame(
     const laid = plan.length - remainingTargets().size;
     const fragile = fragilePathTiles(plan);
     const elapsed = Math.round((startTimer - sc.state.timer) * 10) / 10;
+    const why = outcome === "stuck" || outcome === "blocked"
+      ? describeBlockers(lastBlockers)
+      : "";
     bridge.lastResult = {
       kind: "build",
       success: outcome === "done",
       reason:
-        `${outcome}: laid ${laid}/${plan.length} path tiles, ${placed} pieces, ~${elapsed}s` +
+        `${outcome}: laid ${laid}/${plan.length} path tiles, ${placed} pieces, ~${elapsed}s${why}` +
         (fragile > 0
           ? `; ⚠ ${fragile} path tile(s) sweep-fragile (≤1 wall-neighbor — anchor or they erode next round)`
           : ""),
@@ -1950,10 +2120,9 @@ export async function createMcpGame(
     const variants = [lPath(from, to, true), lPath(from, to, false)];
     const coverage = (tiles: readonly [number, number][]): number =>
       tiles.filter(([row, col]) => buildable(row, col)).length;
-    const chosen =
-      coverage(variants[0]!) >= coverage(variants[1]!)
-        ? variants[0]!
-        : variants[1]!;
+    const chosen = coverage(variants[0]!) >= coverage(variants[1]!)
+      ? variants[0]!
+      : variants[1]!;
     const seen = new Set<number>();
     const out: ReturnType<typeof packTile>[] = [];
     for (const [row, col] of chosen) {
@@ -2029,8 +2198,7 @@ export async function createMcpGame(
       // cannons reloading — just let time pass so the battle ends on its own (this
       // keeps "one bombard call = the whole battle" without the exploit).
       const live = sc.state.battleCountdown <= 0 && sc.state.timer > 0;
-      const canFire =
-        live &&
+      const canFire = live &&
         target !== undefined &&
         !target.eliminated &&
         target.walls.size > 0 &&
@@ -2054,17 +2222,20 @@ export async function createMcpGame(
         spent++;
       }
     }
-    const wallsDestroyed =
-      wallsBefore - (sc.state.players[targetSlot]?.walls.size ?? 0);
-    const pointsGained =
-      (sc.state.players[agentSlot]?.score ?? 0) - scoreBefore;
+    const wallsDestroyed = wallsBefore -
+      (sc.state.players[targetSlot]?.walls.size ?? 0);
+    const pointsGained = (sc.state.players[agentSlot]?.score ?? 0) -
+      scoreBefore;
     bridge.lastResult = {
       kind: "fire",
       success: fired > 0,
       // pointsGained is MY attributed score; the target wall delta is its total
       // loss in the window (other players may have hit it too); the self-report
       // is the return fire I took while this ran.
-      reason: `fired ${fired}, +${pointsGained} pts (target lost ${wallsDestroyed} walls)${battleSelfReport(myWallsBefore, inertBefore)}`,
+      reason:
+        `fired ${fired}, +${pointsGained} pts (target lost ${wallsDestroyed} walls)${
+          battleSelfReport(myWallsBefore, inertBefore)
+        }`,
     };
     return observe();
   }
@@ -2125,7 +2296,7 @@ export async function createMcpGame(
       .filter(
         ({ row, col }) =>
           Math.max(Math.abs(row - tower.row), Math.abs(col - tower.col)) <=
-          BREACH_RADIUS,
+            BREACH_RADIUS,
       )
       .sort((a, b) => dist2(a.row, a.col) - dist2(b.row, b.col));
   }
@@ -2148,18 +2319,16 @@ export async function createMcpGame(
       return observe();
     }
     const towers = opponentTowersFor(targetSlot);
-    const tower =
-      towerIdx !== undefined
-        ? towers.find((entry) => entry.towerIdx === towerIdx)
-        : towers[0];
+    const tower = towerIdx !== undefined
+      ? towers.find((entry) => entry.towerIdx === towerIdx)
+      : towers[0];
     if (!tower) {
       bridge.lastResult = {
         kind: "fire",
         success: false,
-        reason:
-          towers.length === 0
-            ? "target has no enclosed tower to breach (bombard instead)"
-            : `slot ${targetSlot} has no enclosed tower ${towerIdx}`,
+        reason: towers.length === 0
+          ? "target has no enclosed tower to breach (bombard instead)"
+          : `slot ${targetSlot} has no enclosed tower ${towerIdx}`,
       };
       return observe();
     }
@@ -2177,8 +2346,7 @@ export async function createMcpGame(
       const target = sc.state.players[targetSlot];
       const live = sc.state.battleCountdown <= 0 && sc.state.timer > 0;
       const tiles = breachTilesFor(targetSlot, tower);
-      const canFire =
-        live &&
+      const canFire = live &&
         target !== undefined &&
         !target.eliminated &&
         tiles.length > 0 &&
@@ -2198,17 +2366,20 @@ export async function createMcpGame(
         fired++;
       }
     }
-    const wallsDestroyed =
-      wallsBefore - (sc.state.players[targetSlot]?.walls.size ?? 0);
-    const pointsGained =
-      (sc.state.players[agentSlot]?.score ?? 0) - scoreBefore;
+    const wallsDestroyed = wallsBefore -
+      (sc.state.players[targetSlot]?.walls.size ?? 0);
+    const pointsGained = (sc.state.players[agentSlot]?.score ?? 0) -
+      scoreBefore;
     // enclosedTowers only recomputes at their next build, so de-enclosure shows
     // up THEN, not mid-battle — report the ring damage, which is what carries.
     // battleSelfReport is the return fire I took while this volley ran.
     bridge.lastResult = {
       kind: "fire",
       success: fired > 0,
-      reason: `breached tower ${tower.towerIdx}: fired ${fired}, +${pointsGained} pts (ring lost ${wallsDestroyed} walls${stillEnclosed() ? "" : ", pocket OPEN"})${battleSelfReport(myWallsBefore, inertBefore)}`,
+      reason:
+        `breached tower ${tower.towerIdx}: fired ${fired}, +${pointsGained} pts (ring lost ${wallsDestroyed} walls${
+          stillEnclosed() ? "" : ", pocket OPEN"
+        })${battleSelfReport(myWallsBefore, inertBefore)}`,
     };
     return observe();
   }
@@ -2221,10 +2392,10 @@ export async function createMcpGame(
       return { row: me?.homeTower?.row ?? 0, col: me?.homeTower?.col ?? 0 };
     }
     return {
-      row:
-        cannons.reduce((sum, cannon) => sum + cannon.row, 0) / cannons.length,
-      col:
-        cannons.reduce((sum, cannon) => sum + cannon.col, 0) / cannons.length,
+      row: cannons.reduce((sum, cannon) => sum + cannon.row, 0) /
+        cannons.length,
+      col: cannons.reduce((sum, cannon) => sum + cannon.col, 0) /
+        cannons.length,
     };
   }
 
@@ -2261,8 +2432,9 @@ function lPath(
   const range = (start: number, end: number): number[] => {
     const step = Math.sign(end - start) || 1;
     const out: number[] = [];
-    for (let value = start; value !== end + step; value += step)
+    for (let value = start; value !== end + step; value += step) {
       out.push(value);
+    }
     return out;
   };
   const tiles: [number, number][] = [];
