@@ -38,6 +38,7 @@ import {
   isRampartCannon,
 } from "../../src/shared/core/battle-types.ts";
 import { cannonModesForGame } from "../../src/shared/core/cannon-mode-defs.ts";
+import { SIM_TICK_DT } from "../../src/shared/core/game-constants.ts";
 import { Phase } from "../../src/shared/core/game-phase.ts";
 import type { TileRect } from "../../src/shared/core/geometry-types.ts";
 import { type PieceShape, rotateCW } from "../../src/shared/core/pieces.ts";
@@ -118,14 +119,23 @@ export interface EnclosureCandidate {
   towerIdx: number;
   isHome: boolean;
   /** "enclosed" = already sealed; "enclosable" = needs `tiles`; "unenclosable"
-   *  = no wallable ring (leaks to the map edge through water/pit/etc.). */
+   *  = no piece-fillable ring this build (see `reason`). */
   status: "enclosed" | "enclosable" | "unenclosable";
   /** Number of new wall tiles needed to close it (0 if already enclosed). */
   tilesNeeded: number;
   /** The exact tiles to wall — the min-cut. Fill these and the tower encloses. */
   tiles: { row: number; col: number }[];
-  /** Enclosable within one build phase (cut ≤ SOLO_MAX_GAPS). */
+  /** Estimated build seconds to close the cut at the fair per-piece cadence
+   *  (0 if already enclosed / unenclosable). Compare against the phase timer. */
+  estSeconds: number;
+  /** TRUE if `estSeconds` fits the build time left — i.e. you can realistically
+   *  finish this enclosure THIS phase. NOT a planner cap: a 31-tile cut reads
+   *  feasible with 25s left and infeasible with 8s. */
   feasible: boolean;
+  /** Why `status` is "unenclosable" — a topology block ("leaks to the map edge")
+   *  vs. a piece-fit block ("a 1-tile gap is pinched between solids, often a
+   *  cannon on the ring — plug it by hand"). Absent for other statuses. */
+  reason?: string;
 }
 
 /** A battle aim-assist entry: one opponent and a sample of their wall tiles. */
@@ -155,6 +165,13 @@ export interface CannonSuggestion {
   /** Footprint edges abutting walls/tower/other cannons — higher = more compact
    *  (tucked into a corner, leaving the interior less fragmented). */
   hugs: number;
+  /** Boundary-wall sides the footprint touches (a wall facing OUT of the
+   *  interior). A cannon flush against the outer ring becomes a wall-line
+   *  obstacle the moment that ring is breached: the re-seal must detour around
+   *  it and can orphan a 1-tile gap no piece fits (the silent "inert cannon"
+   *  trap). 0 = buffered interior spot (safe); ≥1 = on the ring (risk). Safe
+   *  spots sort first; this number is the tiebreak/penalty, NOT compactness. */
+  wallLineSides: number;
 }
 
 /** A grunt bearing down on one of my towers — the defensive signal that, when
@@ -261,9 +278,10 @@ export interface Observation {
   /** Selection-phase only: the towers in the agent's zone it may pick. */
   towers?: TowerHint[];
   /** CANNON_PLACE only: legal placements you can afford this round, grouped by
-   *  mode (only modes whose slotCost fits your remaining slots appear), best
-   *  ("most compact") first. If no `super` entry appears, no 3×3 fits your
-   *  interior — place normals instead. */
+   *  mode (only modes whose slotCost fits your remaining slots appear), SAFE
+   *  first — spots off the outer wall ring (`wallLineSides` 0) before ring-
+   *  huggers, which go inert if that wall is breached. If no `super` entry
+   *  appears, no 3×3 fits your interior — place normals instead. */
   cannonSuggestions?: CannonSuggestion[];
   /** WALL_BUILD only: every tower in your zone you could enclose (home first,
    *  then cheapest). The strategic layer — there can be several. `tiles` here is
@@ -331,9 +349,6 @@ const MAX_SETTLE_FRAMES = 60 * 60;
 /** Margin (tiles) for a fresh castle rect when proposing a secondary tower's
  *  enclosure — matches the AI's build-target margin band. */
 const ENCLOSURE_MARGIN = 3;
-/** A cut wider than this can't realistically close in one build phase — mirrors
- *  the planner's SOLO_MAX_GAPS closeability cap (ai-build-target.ts). */
-const SOLO_MAX_GAPS = 30;
 /** How many cut tiles each enclosure candidate carries IN THE OBSERVATION — a
  *  token-cheap preview. The full list (for big captures) comes from the
  *  `enclose_plan` tool / `enclosurePlan()` on demand. */
@@ -359,6 +374,14 @@ const BUILD_STALL_LIMIT = 4;
  *  speed alone — placing ~4× the pieces per build phase (the round-1 "3 towers
  *  vs 1" gap). */
 const BUILD_PIECE_TICKS = 78;
+/** Sim ticks per second (`advance(1)` = one `sc.tick(1)` = one SIM_TICK_DT). The
+ *  bridge between `BUILD_PIECE_TICKS` (ticks) and `state.timer` (seconds). */
+const SIM_TICKS_PER_SEC = Math.round(1 / SIM_TICK_DT);
+/** Cut tiles a single placed piece closes, on average — an evidence-based divisor
+ *  (a 31-tile cut took `build_toward` 11 pieces to get within 4, i.e. ~27 tiles /
+ *  11 ≈ 2.5). Lets `enclosureSeconds` turn a tile count into a real time cost so
+ *  `feasible` means "fits in the build time left", not "under a planner cap". */
+const CUT_TILES_PER_PIECE = 2.5;
 
 export async function createMcpGame(
   opts: McpGameOptions = {},
@@ -522,6 +545,7 @@ export async function createMcpGame(
           status: "enclosed",
           tilesNeeded: 0,
           tiles: [],
+          estSeconds: 0,
           feasible: true,
         });
         continue;
@@ -532,13 +556,23 @@ export async function createMcpGame(
           status: "unenclosable",
           tilesNeeded: 0,
           tiles: [],
+          estSeconds: 0,
           feasible: false,
+          reason: "no wallable ring — leaks to the map edge through water/pit",
         });
         continue;
       }
       // Home reuses its existing ring's interior so the cut is just the gaps;
       // other towers get a fresh proposed castle rect.
-      const interior: TileRect =
+      const freshRect = (): TileRect =>
+        castleRect(
+          tower,
+          state.map.tiles,
+          state.map.towers,
+          ENCLOSURE_MARGIN,
+          true,
+        );
+      const bboxRect: TileRect | null =
         isHome && bounds
           ? {
               top: bounds.minRow + 1,
@@ -546,26 +580,26 @@ export async function createMcpGame(
               left: bounds.minCol + 1,
               right: bounds.maxCol - 1,
             }
-          : castleRect(
-              tower,
-              state.map.tiles,
-              state.map.towers,
-              ENCLOSURE_MARGIN,
-              true,
-            );
-      const cut = findEnclosureCut(
-        [{ tower, interior }],
-        state,
-        player.walls,
-        false,
-      );
+          : null;
+      const cutFor = (interior: TileRect) =>
+        findEnclosureCut([{ tower, interior }], state, player.walls, false);
+      // Home tries its existing-ring bbox first; if that sprawled into an
+      // unfillable rect (outward nubs, multi-tower extension), retry a fresh
+      // tight rect before calling home unenclosable — the bbox, not the
+      // geometry, is usually what failed.
+      let cut = cutFor(bboxRect ?? freshRect());
+      if (cut === null && bboxRect) cut = cutFor(freshRect());
       if (cut === null) {
         out.push({
           ...base,
           status: "unenclosable",
           tilesNeeded: 0,
           tiles: [],
+          estSeconds: 0,
           feasible: false,
+          reason:
+            "no piece-fillable ring: a 1-tile gap is pinched between solids " +
+            "(often a cannon on the ring line) — plug it by hand",
         });
       } else if (cut.size === 0) {
         out.push({
@@ -573,6 +607,7 @@ export async function createMcpGame(
           status: "enclosed",
           tilesNeeded: 0,
           tiles: [],
+          estSeconds: 0,
           feasible: true,
         });
       } else {
@@ -580,12 +615,14 @@ export async function createMcpGame(
           const pos = unpackTile(key);
           return { row: pos.row, col: pos.col };
         });
+        const estSeconds = enclosureSeconds(cut.size);
         out.push({
           ...base,
           status: "enclosable",
           tilesNeeded: cut.size,
           tiles,
-          feasible: cut.size <= SOLO_MAX_GAPS,
+          estSeconds,
+          feasible: estSeconds <= state.timer,
         });
       }
     }
@@ -662,10 +699,42 @@ export async function createMcpGame(
     return best;
   }
 
-  /** Legal cannon placements the agent can afford this round, grouped by mode and
-   *  ranked "most compact first" (footprint tucked against walls/tower/cannons,
-   *  leaving the interior least fragmented). Modes too expensive for the remaining
-   *  slots are dropped, so a missing `super` line means no 3×3 fits. */
+  /** Walls on the OUTER ring — a wall with a cardinal neighbour that is neither
+   *  wall nor interior (it faces grass / the map edge). A cannon flush against
+   *  one of these is the wall-line trap: breach that wall and the cannon becomes
+   *  an obstacle the re-seal must detour around. Walls between interior and a
+   *  tower (both non-outside) are NOT boundary. */
+  function boundaryWalls(me: (typeof sc.state.players)[number]): Set<number> {
+    const ring = new Set<number>();
+    for (const key of me.walls) {
+      const { row, col } = unpackTile(key as Parameters<typeof unpackTile>[0]);
+      for (const [nr, nc] of [
+        [row - 1, col],
+        [row + 1, col],
+        [row, col - 1],
+        [row, col + 1],
+      ]) {
+        const facesOut =
+          !inBounds(nr, nc) ||
+          (!me.walls.has(packTile(nr, nc)) &&
+            !me.interior.has(packTile(nr, nc)));
+        if (facesOut) {
+          ring.add(key);
+          break;
+        }
+      }
+    }
+    return ring;
+  }
+
+  /** Legal cannon placements the agent can afford this round, grouped by mode.
+   *  Ranked SAFE-first: spots that don't sit on the outer wall ring come before
+   *  ring-huggers (`wallLineSides` > 0), and compactness (`hugs`) is only the
+   *  tiebreak. A cannon on the ring goes inert the moment that wall is breached
+   *  (the re-seal can't route around it without orphaning a 1-tile gap), so the
+   *  old "most compact first" sort was steering placements straight into the
+   *  trap. Modes too expensive for the remaining slots are dropped, so a missing
+   *  `super` line means no 3×3 fits. */
   function cannonSuggestionsFor(): CannonSuggestion[] {
     const state = sc.state;
     const me = state.players[agentSlot];
@@ -673,10 +742,16 @@ export async function createMcpGame(
     if (!me || !bounds) return [];
     const remaining = cannonSlotsFor(state, agentSlot) - cannonSlotsUsed(me);
     const solid = solidTiles(me);
+    const ring = boundaryWalls(me);
     const out: CannonSuggestion[] = [];
     for (const def of cannonModesForGame(state.modern !== null)) {
       if (def.slotCost > remaining) continue;
-      const spots: { row: number; col: number; hugs: number }[] = [];
+      const spots: {
+        row: number;
+        col: number;
+        hugs: number;
+        wallLineSides: number;
+      }[] = [];
       for (
         let row = bounds.minRow;
         row + def.size - 1 <= bounds.maxRow;
@@ -692,10 +767,13 @@ export async function createMcpGame(
             row,
             col,
             hugs: footprintHug(row, col, def.size, solid),
+            wallLineSides: footprintHug(row, col, def.size, ring),
           });
         }
       }
-      spots.sort((a, b) => b.hugs - a.hugs);
+      spots.sort(
+        (a, b) => a.wallLineSides - b.wallLineSides || b.hugs - a.hugs,
+      );
       for (const spot of spots.slice(0, CANNON_SUGGESTION_PER_MODE)) {
         out.push({
           mode: def.id,
@@ -704,6 +782,7 @@ export async function createMcpGame(
           size: def.size,
           slotCost: def.slotCost,
           hugs: spot.hugs,
+          wallLineSides: spot.wallLineSides,
         });
       }
     }
@@ -1425,6 +1504,13 @@ export async function createMcpGame(
     agentSlot,
     scenario: sc,
   };
+}
+
+/** Estimated build seconds to close a `cut`-tile enclosure at the fair per-piece
+ *  cadence — `feasible` compares this against `state.timer`. */
+function enclosureSeconds(cutTiles: number): number {
+  const pieces = Math.ceil(cutTiles / CUT_TILES_PER_PIECE);
+  return (pieces * BUILD_PIECE_TICKS) / SIM_TICKS_PER_SEC;
 }
 
 /** True iff tuple `a` is lexicographically greater than `b` (element by element). */
