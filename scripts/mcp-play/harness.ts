@@ -21,6 +21,7 @@ import { findEnclosureCut } from "../../src/ai/ai-min-cut.ts";
 import { DefaultStrategy } from "../../src/ai/ai-strategy.ts";
 import { AiController } from "../../src/controllers/controller-ai.ts";
 import { createController } from "../../src/controllers/controller-factory.ts";
+import { canFireOwnCannon } from "../../src/game/battle-system.ts";
 import { canPlacePiece } from "../../src/game/build-system.ts";
 import {
   cannonSlotsUsed,
@@ -113,6 +114,17 @@ export interface EnclosureCandidate {
   feasible: boolean;
 }
 
+/** A battle aim-assist entry: one opponent and a sample of their wall tiles. */
+export interface BattleTarget {
+  slot: number;
+  name: string;
+  score: number;
+  /** Intact wall tiles remaining (watch it drop as your shots land). */
+  walls: number;
+  /** A contiguous sample of their wall tiles (top-to-bottom) to fire at. */
+  sampleTiles: { row: number; col: number }[];
+}
+
 /** One row of the at-a-glance roster: who is where, how big, how armed. */
 export interface PlayerLayout {
   slot: number;
@@ -155,13 +167,17 @@ export interface Observation {
     /** Home tower top-left (the centre of your castle), or null pre-selection. */
     homeTower: { row: number; col: number } | null;
     currentPiece: string | null;
-    bag: string[];
     cannons: number;
     /** Cannon slots: how many you've used and your cap this round. Each cannon
      *  costs slots by footprint (normal/balloon 2×2, super 3×3). */
     cannonSlots: { used: number; max: number };
     /** Top-left of each cannon you've placed (so you know your guns in battle). */
     cannonPositions: { row: number; col: number; mode: CannonMode }[];
+    /** BATTLE: how many of your cannons can fire THIS INSTANT. A cannon reloads
+     *  only when its previous ball lands (one ball in flight per cannon), so
+     *  firing more than this many in a burst just wastes actions on reload —
+     *  fire up to `cannonsReady`, then `pass` a beat to let balls land. */
+    cannonsReady: number;
     walls: number;
     interior: number;
     enclosedTowers: number;
@@ -187,6 +203,11 @@ export interface Observation {
    *  by how many of its tiles touch your existing ring (so ring repairs sort
    *  above isolated drops). A ready-made shortlist so you needn't hunt the grid. */
   suggestions?: BuildSuggestion[];
+  /** BATTLE only: each living opponent with intact walls, leader first, plus a
+   *  contiguous sample of their wall tiles to aim at — so you can point-and-shoot
+   *  without decoding the ASCII grid. Hitting any wall both scores you points and
+   *  taxes that player's next build (they must repair it). */
+  targets?: BattleTarget[];
   /** Outcome of the previous committed decision (null at phase start). */
   lastResult: AgentResult | null;
 }
@@ -233,6 +254,8 @@ const SOLO_MAX_GAPS = 30;
  *  token-cheap preview. The full list (for big captures) comes from the
  *  `enclose_plan` tool / `enclosurePlan()` on demand. */
 const ENCLOSURE_TILE_SAMPLE = 8;
+/** How many of an opponent's wall tiles to surface as aim-assist in BATTLE. */
+const BATTLE_TARGET_SAMPLE = 10;
 
 export async function createMcpGame(
   opts: McpGameOptions = {},
@@ -386,6 +409,20 @@ export async function createMcpGame(
       if (tower.zone !== zone) continue;
       const isHome = tower.index === homeIdx;
       const base = { towerIdx: tower.index as number, isHome };
+      // Ground truth first: if the tower is already enclosed, say so. The
+      // min-cut below derives the home interior from the wall bounding box,
+      // which outward wall nubs distort into a bogus non-zero cut — so an
+      // already-sealed home would otherwise read as "needs N more tiles".
+      if (player.enclosedTowers.some((enc) => enc.index === tower.index)) {
+        out.push({
+          ...base,
+          status: "enclosed",
+          tilesNeeded: 0,
+          tiles: [],
+          feasible: true,
+        });
+        continue;
+      }
       if (!isTowerEnclosable(tower, state, false)) {
         out.push({
           ...base,
@@ -501,7 +538,6 @@ export async function createMcpGame(
           ? { row: me.homeTower.row, col: me.homeTower.col }
           : null,
         currentPiece: me.currentPiece?.name ?? null,
-        bag: me.bag?.queue.map((piece) => piece.name) ?? [],
         cannons: me.cannons.length,
         cannonSlots: {
           used: cannonSlotsUsed(me),
@@ -512,6 +548,18 @@ export async function createMcpGame(
           col: cannon.col,
           mode: cannon.mode,
         })),
+        cannonsReady: me.cannons.reduce(
+          (ready, _cannon, idx) =>
+            ready +
+            (canFireOwnCannon(
+              state,
+              agentSlot,
+              idx as Parameters<typeof canFireOwnCannon>[2],
+            )
+              ? 1
+              : 0),
+          0,
+        ),
         walls: me.walls.size,
         interior: me.interior.size,
         enclosedTowers: me.enclosedTowers.length,
@@ -558,7 +606,65 @@ export async function createMcpGame(
       observation.suggestions = buildSuggestionsFor();
     }
 
+    if (phase === Phase.BATTLE) {
+      // Origin for "nearest wall" = centroid of my cannons (they're clustered),
+      // so the aim-assist favours the shortest flight path.
+      const myCannons = me.cannons;
+      const origin =
+        myCannons.length > 0
+          ? {
+              row:
+                myCannons.reduce((sum, cannon) => sum + cannon.row, 0) /
+                myCannons.length,
+              col:
+                myCannons.reduce((sum, cannon) => sum + cannon.col, 0) /
+                myCannons.length,
+            }
+          : { row: me.homeTower?.row ?? 0, col: me.homeTower?.col ?? 0 };
+      observation.targets = state.players
+        .map((player, slot) => ({ player, slot }))
+        .filter(
+          ({ player, slot }) =>
+            slot !== agentSlot && !player.eliminated && player.walls.size > 0,
+        )
+        .sort((a, b) => b.player.score - a.player.score)
+        .map(({ player, slot }) => ({
+          slot,
+          name: PLAYER_NAMES[slot] ?? `P${slot}`,
+          score: player.score,
+          walls: player.walls.size,
+          sampleTiles: sampleWallTiles(
+            player.walls,
+            BATTLE_TARGET_SAMPLE,
+            origin,
+          ),
+        }));
+    }
+
     return observation;
+  }
+
+  /** A readable sample of a wall set, CLOSEST to `origin` first. Shots from my
+   *  cannons to a distant wall spend the whole battle in flight, so surfacing the
+   *  nearest wall tiles (shortest flight = most shots actually land) makes the
+   *  aim-assist flight-efficient, not just a topmost dump. */
+  function sampleWallTiles(
+    walls: ReadonlySet<number>,
+    limit: number,
+    origin: { row: number; col: number },
+  ): { row: number; col: number }[] {
+    const dist2 = (row: number, col: number): number =>
+      (row - origin.row) ** 2 + (col - origin.col) ** 2;
+    return [...walls]
+      .map((key) => unpackTile(key as Parameters<typeof unpackTile>[0]))
+      .sort(
+        (a, b) =>
+          dist2(a.row, a.col) - dist2(b.row, b.col) ||
+          a.row - b.row ||
+          a.col - b.col,
+      )
+      .slice(0, limit)
+      .map(({ row, col }) => ({ row, col }));
   }
 
   function rotatedOffsets(
@@ -720,7 +826,7 @@ function expectedFor(phase: Phase): string {
     case Phase.CANNON_PLACE:
       return "Place a cannon at its top-left — act { kind: 'cannon', row, col, mode }. Footprint: normal/balloon 2x2, super 3x3. Watch me.cannonSlots (used/max). End early with { kind: 'cannon-done' }, or pass.";
     case Phase.BATTLE:
-      return "Fire at a tile — act { kind: 'fire', row, col }. If battleCountdown > 0 the battle isn't live yet (shots are wasted) — pass until it reaches 0, then fire at enemy walls (see layout) to tax their next build.";
+      return "Fire at a tile — act { kind: 'fire', row, col }. If battleCountdown > 0 the battle isn't live yet (shots are wasted) — pass until it reaches 0. Fire at enemy wall tiles (see targets, leader first) to score points AND tax their next build. Fire at most me.cannonsReady shots per burst, then pass a beat to reload.";
     default:
       return "No agent action this phase; call pass to advance.";
   }
