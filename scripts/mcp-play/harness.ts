@@ -1968,6 +1968,23 @@ export async function createMcpGame(
         if (phase !== Phase.CANNON_PLACE) {
           return { valid: false, reason: "not in CANNON_PLACE" };
         }
+        // Slot affordability — `canPlaceCannon` only checks the footprint, so a
+        // super (slotCost 4) on 3 free slots reads as a valid phantom yet the
+        // real commit rejects it with no explanation. Gate the budget here so
+        // check_placement is honest AND the rejection routes through the
+        // reason-carrying branch in `act` instead of the silent count-delta one.
+        const def = cannonModesForGame(state.modern !== null).find(
+          (mode) => mode.id === decision.mode,
+        );
+        if (def) {
+          const free = cannonSlotsFor(state, agentSlot) - cannonSlotsUsed(me);
+          if (def.slotCost > free) {
+            return {
+              valid: false,
+              reason: `can't afford ${def.label} — costs ${def.slotCost} slots, ${free} free`,
+            };
+          }
+        }
         const ok = canPlaceCannon(
           me,
           decision.row,

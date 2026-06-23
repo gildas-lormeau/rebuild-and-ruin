@@ -35,34 +35,10 @@ export function renderObservation(obs: Observation): string {
     `${hdr}   [board r${bb.minRow}-${bb.maxRow} c${bb.minCol}-${bb.maxCol}]`,
   );
 
-  // ── standings: sort by projected score, mark me ─────────────────────────────
-  const layout = obs.layout ?? [];
-  // Mid-reseal, my projection EXCLUDES my breached territory (it's worth 0 "if
-  // finalized now") while rivals' intact enclosures count in full — so the
-  // headline can read like I'm losing when a single reseal restores the lead.
-  // Flag it instead of letting the number mislead an autonomous agent. The tell
-  // is stranded cannons (a sealed ring went open); this is 0 at game start /
-  // pre-build, so it doesn't false-fire before there's anything to reseal.
-  const breached = obs.me.cannonsUnenclosed > 0;
-  if (layout.length > 0) {
-    const ranked = [...layout].sort((a, b) => b.projected - a.projected);
-    const parts = ranked.map(
-      (player) =>
-        `${player.name} ${player.projected}` +
-        (player.projected === player.score ? "" : `(now ${player.score})`) +
-        (player.isMe ? (breached ? "*⚠" : "*") : ""),
-    );
-    lines.push(
-      `STANDINGS (projected if round finalized now): ${parts.join(" > ")}`,
-    );
-    if (breached) {
-      lines.push(
-        "   ⚠ your projection EXCLUDES your breached/unsealed territory (worth 0 'if finalized now') — RESEAL to restore it; the lead may flip back",
-      );
-    }
-  }
+  // ── standings (or final results, once the match is over) ────────────────────
+  for (const line of standingsLines(obs)) lines.push(line);
 
-  lines.push(`EXPECTED: ${obs.expected}`);
+  if (!obs.gameOver) lines.push(`EXPECTED: ${obs.expected}`);
 
   const last = obs.lastResult;
   if (last) {
@@ -345,6 +321,71 @@ export function renderObservation(obs: Observation): string {
 
   lines.push(obs.board);
   return lines.join("\n");
+}
+
+/** Standings block: a final-placement table once the match is over, otherwise
+ *  the live "projected if finalized now" line plus the two legibility caveats
+ *  (breached-territory excluded; build-phase leads aren't final). Returns the
+ *  lines to push — empty when there's no roster yet. */
+function standingsLines(obs: Observation): string[] {
+  const layout = obs.layout ?? [];
+  if (layout.length === 0) return [];
+  const out: string[] = [];
+
+  if (obs.gameOver) {
+    // The match is over: the closing round has already finalized, so `score` IS
+    // the final result. The `projected` column assumes another round and is
+    // meaningless now — show a clear placement table instead of build-phase
+    // standings (and the caller skips the "re-seal your castle" EXPECTED line).
+    const byScore = [...layout].sort((a, b) => b.score - a.score);
+    // Winner rule: highest score among ALIVE players — an eliminated player
+    // can't win while any opponent survives (fall back to all if everyone's
+    // out). Mirrors peekGameOverOutcome's last-player / score-tiebreak logic.
+    const alive = byScore.filter((player) => !player.eliminated);
+    const winner = (alive.length > 0 ? alive : byScore)[0]!;
+    const ordered = [winner, ...byScore.filter((player) => player !== winner)];
+    out.push(
+      `*** GAME OVER — WINNER: ${winner.name}${winner.isMe ? " (you)" : ""} — ${winner.score} ***`,
+    );
+    ordered.forEach((player, place) => {
+      out.push(
+        `   ${place + 1}. ${player.name}${player.isMe ? " (you)" : ""} — ${player.score}${player.eliminated ? " ☠ eliminated" : ""}`,
+      );
+    });
+    return out;
+  }
+
+  // Mid-reseal, my projection EXCLUDES my breached territory (it's worth 0 "if
+  // finalized now") while rivals' intact enclosures count in full — so the
+  // headline can read like I'm losing when a single reseal restores the lead.
+  // Flag it instead of letting the number mislead an autonomous agent. The tell
+  // is stranded cannons (a sealed ring went open); this is 0 at game start /
+  // pre-build, so it doesn't false-fire before there's anything to reseal.
+  const breached = obs.me.cannonsUnenclosed > 0;
+  const ranked = [...layout].sort((a, b) => b.projected - a.projected);
+  const parts = ranked.map(
+    (player) =>
+      `${player.name} ${player.projected}` +
+      (player.projected === player.score ? "" : `(now ${player.score})`) +
+      (player.isMe ? (breached ? "*⚠" : "*") : ""),
+  );
+  out.push(
+    `STANDINGS (projected if round finalized now): ${parts.join(" > ")}`,
+  );
+  if (breached) {
+    out.push(
+      "   ⚠ your projection EXCLUDES your breached/unsealed territory (worth 0 'if finalized now') — RESEAL to restore it; the lead may flip back",
+    );
+  }
+  // The projection freezes opponents at their CURRENT enclosure, but during
+  // WALL_BUILD they're sealing too — a battle-time denial they reseal won't
+  // hold, and a build-phase lead can flip by finalize. Don't coast on it.
+  if (obs.phase === "WALL_BUILD") {
+    out.push(
+      "   ℹ projection assumes rivals DON'T keep building — but they are; a build-phase lead isn't final (capture bonus squares / keep denying, don't just pass).",
+    );
+  }
+  return out;
 }
 
 /** Render a bounding box (`CastleBounds`) or a home position, or an em-dash when
