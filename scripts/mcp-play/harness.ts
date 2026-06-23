@@ -577,6 +577,13 @@ const MIN_BUILD_LEFT_SEC = 1.5;
 const MAX_BUILD_PIECES = 60;
 /** Consecutive non-progress placements before `build_toward` reports "stuck". */
 const BUILD_STALL_LIMIT = 4;
+/** Consecutive LANDED placements with no new low in tiles-to-seal before
+ *  `build_toward` reports "diverging": pieces are landing on-target yet the goal
+ *  isn't getting closer, so the min-cut ring is routing outward (around a
+ *  grunt/obstacle) faster than the agent closes it — bail rather than burn the
+ *  whole phase on a ring that never seals. Looser than BUILD_STALL_LIMIT because
+ *  a healthy build still dips to a new low every piece or two. */
+const BUILD_DIVERGE_LIMIT = 8;
 /** A one-cell "piece" — probes a single tile's buildability via `canPlacePiece`
  *  for the `unfillable`-island walk. */
 const SINGLE_CELL: readonly [number, number][] = [[0, 0]];
@@ -1464,8 +1471,9 @@ export async function createMcpGame(
       if (col < minCol) minCol = col;
       if (col > maxCol) maxCol = col;
     }
+    const box = { minRow, maxRow, minCol, maxCol };
     let best: { row: number; col: number; rotation: number } | null = null;
-    let bestScore = [-1, -Infinity, -1];
+    let bestScore = [-1, -Infinity, -Infinity, -1];
     for (let rotation = 0; rotation < 4; rotation++) {
       const offsets = rotatedOffsets(piece, rotation);
       for (let row = minRow - 2; row <= maxRow + 2; row++) {
@@ -1477,6 +1485,7 @@ export async function createMcpGame(
             col,
             targets,
             player.walls,
+            box,
           );
           if (score && lexGreater(score, bestScore)) {
             best = { row, col, rotation };
@@ -1488,30 +1497,49 @@ export async function createMcpGame(
     return best;
   }
 
-  /** Lexicographic [coverage, -waste, ringTouch] score for one placement, or
-   *  null if it covers no target tile (so it's never chosen for a goal). */
+  /** Lexicographic [coverage, -waste, -overshoot, ringTouch] score for one
+   *  placement, or null if it covers no target tile (so it's never chosen for a
+   *  goal). `overshoot` = piece tiles beyond `box` (the target tiles' bounding
+   *  box): a tile outside it grows the castle's wall bbox outward, which inflates
+   *  the home pocket on the NEXT plan, so the min-cut chases an ever-larger ring
+   *  that never closes (the seed-42 R5 reseal that burned the whole phase). Rank
+   *  it above ringTouch so a tight on-the-gap placement beats one that overshoots
+   *  into open space — for an expansion the targets already sit at the far tower,
+   *  so its in-box placements stay zero-overshoot and this never fights it. */
   function scorePlacement(
     offsets: readonly [number, number][],
     row: number,
     col: number,
     targets: ReadonlySet<number>,
     walls: ReadonlySet<number>,
-  ): [number, number, number] | null {
+    box: { minRow: number; maxRow: number; minCol: number; maxCol: number },
+  ): [number, number, number, number] | null {
     const isWall = (tileRow: number, tileCol: number): boolean =>
       inBounds(tileRow, tileCol) && walls.has(packTile(tileRow, tileCol));
     let coverage = 0;
     let touching = 0;
+    let overshoot = 0;
     for (const [dr, dc] of offsets) {
-      if (targets.has(packTile(row + dr, col + dc))) coverage++;
+      const tileRow = row + dr;
+      const tileCol = col + dc;
+      if (targets.has(packTile(tileRow, tileCol))) coverage++;
+      if (
+        tileRow < box.minRow ||
+        tileRow > box.maxRow ||
+        tileCol < box.minCol ||
+        tileCol > box.maxCol
+      ) {
+        overshoot++;
+      }
       touching += [
-        isWall(row + dr - 1, col + dc),
-        isWall(row + dr + 1, col + dc),
-        isWall(row + dr, col + dc - 1),
-        isWall(row + dr, col + dc + 1),
+        isWall(tileRow - 1, tileCol),
+        isWall(tileRow + 1, tileCol),
+        isWall(tileRow, tileCol - 1),
+        isWall(tileRow, tileCol + 1),
       ].filter(Boolean).length;
     }
     if (coverage === 0) return null;
-    return [coverage, -(offsets.length - coverage), touching];
+    return [coverage, -(offsets.length - coverage), -overshoot, touching];
   }
 
   /** The absolute tile window the `board` covers — mirrors asciiSnapshot's crop
@@ -1997,6 +2025,8 @@ export async function createMcpGame(
     );
     let placed = 0;
     let stall = 0;
+    let bestNeeded = Number.POSITIVE_INFINITY;
+    let sinceImprove = 0;
     let outcome = "done";
     while (!gameOver() && sc.state.phase === Phase.WALL_BUILD) {
       const stop = buildStop(placed, startTimer, pieceCap, budget);
@@ -2022,6 +2052,18 @@ export async function createMcpGame(
         outcome = "blocked";
         break;
       }
+      // Divergence guard: pieces are landing but the goal isn't getting closer
+      // — the min-cut ring is expanding outward (typically routing around a
+      // grunt on the cheap seal tile) faster than we close it. Bail with a
+      // clear reason instead of burning the whole phase on a ring that never
+      // seals (the seed-42 R5 reseal that grew r12→r6 and timed out).
+      if (candidate.tilesNeeded < bestNeeded) {
+        bestNeeded = candidate.tilesNeeded;
+        sinceImprove = 0;
+      } else if (sinceImprove >= BUILD_DIVERGE_LIMIT) {
+        outcome = "diverging";
+        break;
+      }
       const targets = new Set(
         candidate.tiles.map((tile) => packTile(tile.row, tile.col)),
       );
@@ -2030,6 +2072,7 @@ export async function createMcpGame(
       if (step.landed) {
         placed++;
         stall = step.onTarget ? 0 : stall + 1;
+        sinceImprove++;
       } else {
         stall++;
       }
@@ -2044,9 +2087,11 @@ export async function createMcpGame(
     const remaining = finalCandidate?.tilesNeeded ?? 0;
     const elapsed = Math.round((startTimer - sc.state.timer) * 10) / 10;
     const why =
-      outcome === "stuck" || outcome === "blocked"
-        ? describeBlockers(finalCandidate?.blockers ?? [])
-        : "";
+      outcome === "diverging"
+        ? " — ring keeps expanding instead of closing (an obstacle, usually a grunt on the cheap seal tile, is forcing a longer detour); clear it, target a tighter tower, or place by hand"
+        : outcome === "stuck" || outcome === "blocked"
+          ? describeBlockers(finalCandidate?.blockers ?? [])
+          : "";
     bridge.lastResult = {
       // Placing pieces IS progress — only a no-op (placed 0 and not already
       // sealed) is a real REJECT. A budget/time stop mid-plan is an OK partial:
