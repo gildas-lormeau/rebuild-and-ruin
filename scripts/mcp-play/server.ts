@@ -269,7 +269,7 @@ const TOOLS: ToolDef[] = [
   {
     name: "build_toward",
     description:
-      "WALL_BUILD: hand the whole build phase to the harness with one goal — enclose a tower (default: your home tower). It places each piece that arrives on the best min-cut tile (reacting to pieces, never peeking ahead), redirecting dud pieces onto the ring, until the tower seals, build time runs low, or it stalls. One call instead of dozens of place_piece calls. Pass maxSeconds / maxPieces to STOP EARLY and reserve the rest of the phase for a second build instead of gambling the whole timer on one enclosure. Read lastResult for the outcome (done/time/sec-budget/piece-budget/stuck + gaps left + seconds spent).",
+      "WALL_BUILD: hand the whole build phase to the harness with one goal — enclose a tower (default: your home tower). It places each piece that arrives on the best min-cut tile (reacting to pieces, never peeking ahead), redirecting dud pieces onto the ring, until the tower seals, build time runs low, or it stalls. When the last gap is a sub-piece island that needs a smaller piece (or a mobile grunt that may wander off), it keeps cycling the bag toward a fitting draw instead of giving up. One call instead of dozens of place_piece calls. With NO maxSeconds it self-caps (≈ the seal estimate + buffer) so one big enclosure can't gamble the whole phase — it pauses with progress banked (outcome 'auto-paused'); just call it again to continue. Pass maxSeconds / maxPieces to STOP EARLY and reserve the rest of the phase for a second build. Read lastResult for the outcome (done/time/auto-paused/sec-budget/piece-budget/stuck/blocked/diverging + gaps left + seconds spent).",
     inputSchema: {
       type: "object",
       properties: {

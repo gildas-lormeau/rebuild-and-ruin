@@ -140,14 +140,25 @@ export interface BuildBudget {
  *  on it AND has no legal move (penned by walls/cannons/grunts) — it won't leave
  *  this phase. `grunt-mobile`: a grunt sits on it but could step away, so it may
  *  free up. `pit`: a burning pit occupies it (clears after its battle-round
- *  timer, not this build). `unfillable`: the tile's buildable-ground island is
- *  <4 cells, so no 4-cell piece can ever cover it (e.g. a 1×3 slot pinched
- *  between cannons). All but `grunt-mobile` are `hard`. */
+ *  timer, not this build). `needs-small-piece`: the tile's buildable-ground
+ *  island is 1–3 cells, so the 4-cell pieces can't cover it — but a smaller
+ *  piece (1×1/1×2/1×3) still can, so `build_toward` cycles the bag until one
+ *  arrives rather than giving up. `unfillable`: the tile has no buildable ground
+ *  at all (a cannon/tower/water on the ring line), so NO piece can ever cover
+ *  it. The hard kinds (`grunt-boxed`, `pit`, `unfillable`) can't clear this
+ *  phase; the soft kinds (`grunt-mobile`, `needs-small-piece`) may resolve with
+ *  time or the right draw. */
 export interface SealBlocker {
   row: number;
   col: number;
-  kind: "grunt-boxed" | "grunt-mobile" | "pit" | "unfillable";
-  /** Can't clear this build phase → kills `feasible` and triggers the early-out. */
+  kind:
+    | "grunt-boxed"
+    | "grunt-mobile"
+    | "pit"
+    | "needs-small-piece"
+    | "unfillable";
+  /** Can't clear this build phase → kills `feasible` and triggers the early-out.
+   *  True for `grunt-boxed` / `pit` / `unfillable`; false for the soft kinds. */
   hard: boolean;
 }
 
@@ -584,8 +595,18 @@ const BUILD_STALL_LIMIT = 4;
  *  whole phase on a ring that never seals. Looser than BUILD_STALL_LIMIT because
  *  a healthy build still dips to a new low every piece or two. */
 const BUILD_DIVERGE_LIMIT = 8;
+/** When `build_toward` is called with no explicit `maxSeconds`, it still caps
+ *  itself so a big enclosure can't silently gamble the whole phase: the cap is
+ *  the fair-cadence estimate to seal the cut (`estSeconds`) times this factor,
+ *  plus a fixed buffer, clamped to the time left. A clean seal finishes well
+ *  inside it; a thrash (small cut burning many seconds, or a long bag-cycle for
+ *  a small piece) is paused so the agent regains control and banks the partial
+ *  progress instead of losing the phase. The buffer covers dud-redirects and
+ *  bag-cycling so Fix-1's small-piece wait isn't cut short. */
+const BUILD_AUTOCAP_FACTOR = 1.5;
+const BUILD_AUTOCAP_BUFFER_SEC = 8;
 /** A one-cell "piece" — probes a single tile's buildability via `canPlacePiece`
- *  for the `unfillable`-island walk. */
+ *  for the buildable-island walk behind `needs-small-piece`/`unfillable`. */
 const SINGLE_CELL: readonly [number, number][] = [[0, 0]];
 /** Game-time cost (ticks) of placing ONE build piece — deliberately NOT the
  *  generic `actionTicks`. A build piece is the only action whose COUNT is
@@ -840,9 +861,11 @@ export async function createMcpGame(
   }
 
   /** Size of the 4-connected buildable-ground island containing (row,col),
-   *  capped at `cap`. A min-cut tile whose island is <4 cells can never be
-   *  covered by any 4-cell piece — that's the `unfillable` pinch (e.g. the 1×3
-   *  slot left between two cannon stacks). Capped so it stays O(cap), not O(map). */
+   *  capped at `cap`. A min-cut tile whose island is <4 cells can't be covered
+   *  by the 4-cell pieces; size 0 means no buildable ground at all (a hard
+   *  `unfillable` — cannon/tower/water on the ring line), while 1–3 means a
+   *  smaller piece still fits (a soft `needs-small-piece`). Capped so it stays
+   *  O(cap), not O(map). */
   function buildableIslandSize(row: number, col: number, cap: number): number {
     if (!isBuildableGround(row, col)) return 0;
     const seen = new Set<number>([packTile(row, col)]);
@@ -915,8 +938,19 @@ export async function createMcpGame(
         out.push({ row, col, kind: "pit", hard: true });
         continue;
       }
-      if (buildableIslandSize(row, col, 4) < 4) {
-        out.push({ row, col, kind: "unfillable", hard: true });
+      // Island size splits the piece-fit block: 0 cells = no buildable ground
+      // here at all (a cannon/tower/water sits on the ring tile) → truly
+      // `unfillable`, hard. 1–3 cells = too small for the 4-cell pieces, but a
+      // 1×1/1×2/1×3 still fits, so it's a soft `needs-small-piece` and
+      // `build_toward` cycles the bag for a fitting draw instead of bailing.
+      const island = buildableIslandSize(row, col, 4);
+      if (island < 4) {
+        out.push({
+          row,
+          col,
+          kind: island === 0 ? "unfillable" : "needs-small-piece",
+          hard: island === 0,
+        });
       }
     }
     return out;
@@ -2001,28 +2035,44 @@ export async function createMcpGame(
     return null;
   }
 
-  /** Drive the WHOLE build phase toward a goal: enclose a tower (default home).
-   *  Each step it reads the current piece, places it on the min-cut tile it best
-   *  covers (or, for a piece that fits no gap, redirects it onto the ring to
-   *  advance the bag), and repeats until the tower seals, build time runs low, or
-   *  it stalls. The agent commits a strategy in one call; the harness executes it
-   *  against whatever pieces arrive — batch building with no bag-peeking. A
-   *  `budget` stops it early (banking partial progress, reserving the rest). */
-  function buildToward(towerIdx?: number, budget?: BuildBudget): Observation {
-    if (sc.state.phase !== Phase.WALL_BUILD) {
-      bridge.lastResult = {
-        kind: "build",
-        success: false,
-        reason: "not in WALL_BUILD",
-      };
-      return observe();
-    }
-    const goalIdx = towerIdx ?? sc.state.players[agentSlot]?.homeTower?.index;
-    const startTimer = sc.state.timer;
-    const pieceCap = Math.min(
-      budget?.maxPieces ?? MAX_BUILD_PIECES,
-      MAX_BUILD_PIECES,
+  /** Default `build_toward` time cap (seconds) when the caller named no
+   *  `maxSeconds`: the goal's fair-cadence seal estimate × `BUILD_AUTOCAP_FACTOR`
+   *  + a fixed buffer, clamped to the time left. A clean seal finishes inside it;
+   *  a thrash is paused with partial progress banked. `undefined` = no cap (goal
+   *  already enclosed/unenclosable, or no estimate yet). */
+  function autoBuildCapSec(
+    goalIdx: number | undefined,
+    startTimer: number,
+  ): number | undefined {
+    const initial = enclosureCandidatesFor().find(
+      (cand) => cand.towerIdx === goalIdx,
     );
+    if (!initial || initial.estSeconds <= 0) return undefined;
+    return Math.min(
+      startTimer,
+      initial.estSeconds * BUILD_AUTOCAP_FACTOR + BUILD_AUTOCAP_BUFFER_SEC,
+    );
+  }
+
+  /** The placement loop behind `buildToward`: keep placing the arriving piece on
+   *  the goal's min-cut until it seals, the budget/time stops it, or it jams.
+   *  Returns the piece count placed and the stop `outcome`. Pulled out of
+   *  `buildToward` so each stays within the per-function complexity budget.
+   *
+   *  Cycling: when EVERY still-open seal tile is soft-blocked (a `grunt-mobile`
+   *  that may wander off, or a `needs-small-piece` sub-piece island awaiting a
+   *  smaller draw), there is no on-target placement this step — so redirecting
+   *  the current piece onto the ring to advance the bag/clock is deliberate
+   *  cycling toward a resolvable state, NOT a stall or divergence. That's the fix
+   *  for `build_toward` bailing the instant the last gap needed a 1×1 it didn't
+   *  hold. The auto-cap (or any caller budget) bounds the cycle so an unlucky bag
+   *  still terminates with partial progress banked. */
+  function driveBuildLoop(
+    goalIdx: number | undefined,
+    startTimer: number,
+    pieceCap: number,
+    budget: BuildBudget | undefined,
+  ): { placed: number; outcome: string } {
     let placed = 0;
     let stall = 0;
     let bestNeeded = Number.POSITIVE_INFINITY;
@@ -2052,17 +2102,24 @@ export async function createMcpGame(
         outcome = "blocked";
         break;
       }
-      // Divergence guard: pieces are landing but the goal isn't getting closer
-      // — the min-cut ring is expanding outward (typically routing around a
-      // grunt on the cheap seal tile) faster than we close it. Bail with a
-      // clear reason instead of burning the whole phase on a ring that never
-      // seals (the seed-42 R5 reseal that grew r12→r6 and timed out).
-      if (candidate.tilesNeeded < bestNeeded) {
-        bestNeeded = candidate.tilesNeeded;
-        sinceImprove = 0;
-      } else if (sinceImprove >= BUILD_DIVERGE_LIMIT) {
-        outcome = "diverging";
-        break;
+      // Every still-open seal tile is SOFT-blocked → no on-target placement this
+      // step; redirecting to advance the bag/clock is productive cycling, not a
+      // stall or divergence (see the function doc).
+      const cyclingForPiece =
+        candidate.blockers.length === candidate.tiles.length &&
+        candidate.blockers.every((blocker) => !blocker.hard);
+      // Divergence guard (skipped while cycling — tilesNeeded can't fall until a
+      // blocker clears): pieces land but the ring routes outward faster than we
+      // close it, so bail rather than burn the phase on a ring that never seals
+      // (the seed-42 R5 reseal that grew r12→r6 and timed out).
+      if (!cyclingForPiece) {
+        if (candidate.tilesNeeded < bestNeeded) {
+          bestNeeded = candidate.tilesNeeded;
+          sinceImprove = 0;
+        } else if (sinceImprove >= BUILD_DIVERGE_LIMIT) {
+          outcome = "diverging";
+          break;
+        }
       }
       const targets = new Set(
         candidate.tiles.map((tile) => packTile(tile.row, tile.col)),
@@ -2071,8 +2128,12 @@ export async function createMcpGame(
       if (step.noPiece) continue;
       if (step.landed) {
         placed++;
-        stall = step.onTarget ? 0 : stall + 1;
-        sinceImprove++;
+        // On-target resets the stall; an off-target redirect counts as a stall
+        // (and toward divergence) ONLY when not deliberately cycling for a soft
+        // blocker — otherwise a long, legitimate bag-cycle would trip "stuck".
+        if (step.onTarget) stall = 0;
+        else if (!cyclingForPiece) stall++;
+        if (!cyclingForPiece) sinceImprove++;
       } else {
         stall++;
       }
@@ -2081,24 +2142,75 @@ export async function createMcpGame(
         break;
       }
     }
+    return { placed, outcome };
+  }
+
+  /** Drive the WHOLE build phase toward a goal: enclose a tower (default home).
+   *  Each step it reads the current piece, places it on the min-cut tile it best
+   *  covers (or, for a piece that fits no gap, redirects it onto the ring to
+   *  advance the bag), and repeats until the tower seals, build time runs low, or
+   *  it stalls. When the only open seal tiles are sub-piece islands
+   *  (`needs-small-piece`) or mobile grunts, redirecting the current piece onto
+   *  the ring is deliberate bag-cycling toward a fitting/cleared draw — not a
+   *  stall (see `driveBuildLoop`). The agent commits a strategy in one call; the
+   *  harness executes it against whatever pieces arrive — batch building with no
+   *  bag-peeking. A `budget` stops it early (banking partial progress, reserving
+   *  the rest); with no explicit `maxSeconds` it self-caps (see `autoBuildCapSec`)
+   *  so a big enclosure can't silently gamble the whole phase. */
+  function buildToward(towerIdx?: number, budget?: BuildBudget): Observation {
+    if (sc.state.phase !== Phase.WALL_BUILD) {
+      bridge.lastResult = {
+        kind: "build",
+        success: false,
+        reason: "not in WALL_BUILD",
+      };
+      return observe();
+    }
+    const goalIdx = towerIdx ?? sc.state.players[agentSlot]?.homeTower?.index;
+    const startTimer = sc.state.timer;
+    const pieceCap = Math.min(
+      budget?.maxPieces ?? MAX_BUILD_PIECES,
+      MAX_BUILD_PIECES,
+    );
+    // Default self-cap when the caller named no maxSeconds (banks partial
+    // progress on a thrash instead of losing the phase — see autoBuildCapSec).
+    const autoCapSec =
+      budget?.maxSeconds === undefined
+        ? autoBuildCapSec(goalIdx, startTimer)
+        : undefined;
+    const effectiveBudget =
+      autoCapSec !== undefined ? { ...budget, maxSeconds: autoCapSec } : budget;
+    const { placed, outcome } = driveBuildLoop(
+      goalIdx,
+      startTimer,
+      pieceCap,
+      effectiveBudget,
+    );
     const finalCandidate = enclosureCandidatesFor().find(
       (cand) => cand.towerIdx === goalIdx,
     );
     const remaining = finalCandidate?.tilesNeeded ?? 0;
     const elapsed = Math.round((startTimer - sc.state.timer) * 10) / 10;
+    // A "sec-budget" stop is the DEFAULT self-cap (not a caller budget) whenever
+    // we injected autoCapSec — relabel it so the agent reads it as a pause, not
+    // a jam, and knows to call again to continue.
+    const autoPaused = outcome === "sec-budget" && autoCapSec !== undefined;
+    const label = autoPaused ? "auto-paused" : outcome;
     const why =
       outcome === "diverging"
         ? " — ring keeps expanding instead of closing (an obstacle, usually a grunt on the cheap seal tile, is forcing a longer detour); clear it, target a tighter tower, or place by hand"
         : outcome === "stuck" || outcome === "blocked"
           ? describeBlockers(finalCandidate?.blockers ?? [])
-          : "";
+          : autoPaused
+            ? " — hit the default time cap so one enclosure doesn't eat the whole phase; call build_toward again to continue (it cycles the bag for any small-piece gap), or pass maxSeconds to override"
+            : "";
     bridge.lastResult = {
       // Placing pieces IS progress — only a no-op (placed 0 and not already
       // sealed) is a real REJECT. A budget/time stop mid-plan is an OK partial:
       // the `outcome:` prefix carries whether the goal was reached.
       kind: "build",
       success: placed > 0 || outcome === "done",
-      reason: `${outcome}: placed ${placed}, ${remaining} gaps left, ~${elapsed}s${why}`,
+      reason: `${label}: placed ${placed}, ${remaining} gaps left, ~${elapsed}s${why}`,
     };
     return observe();
   }
