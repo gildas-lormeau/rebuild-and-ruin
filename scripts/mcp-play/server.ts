@@ -16,7 +16,7 @@
 
 import { toCannonMode } from "../../src/shared/core/cannon-mode-defs.ts";
 import type { ValidPlayerId } from "../../src/shared/core/player-slot.ts";
-import { createMcpGame, type McpGame } from "./harness.ts";
+import { type BuildBudget, createMcpGame, type McpGame } from "./harness.ts";
 import type { AgentDecision } from "./mcp-brain.ts";
 
 interface JsonRpcRequest {
@@ -46,7 +46,19 @@ interface Journal {
   moves: (
     | { t: "act"; decision: AgentDecision }
     | { t: "pass"; n: number }
-    | { t: "build"; towerIdx?: number }
+    | {
+        t: "build";
+        towerIdx?: number;
+        maxSeconds?: number;
+        maxPieces?: number;
+      }
+    | {
+        t: "path";
+        from: { row: number; col: number };
+        to: { row: number; col: number };
+        maxSeconds?: number;
+        maxPieces?: number;
+      }
     | { t: "bombard"; slot: number; quanta?: number }
     | { t: "breach"; slot: number; towerIdx?: number }
   )[];
@@ -226,7 +238,7 @@ const TOOLS: ToolDef[] = [
   {
     name: "build_toward",
     description:
-      "WALL_BUILD: hand the whole build phase to the harness with one goal — enclose a tower (default: your home tower). It places each piece that arrives on the best min-cut tile (reacting to pieces, never peeking ahead), redirecting dud pieces onto the ring, until the tower seals, build time runs low, or it stalls. One call instead of dozens of place_piece calls. Read lastResult for the outcome (done/time/stuck + gaps left).",
+      "WALL_BUILD: hand the whole build phase to the harness with one goal — enclose a tower (default: your home tower). It places each piece that arrives on the best min-cut tile (reacting to pieces, never peeking ahead), redirecting dud pieces onto the ring, until the tower seals, build time runs low, or it stalls. One call instead of dozens of place_piece calls. Pass maxSeconds / maxPieces to STOP EARLY and reserve the rest of the phase for a second build instead of gambling the whole timer on one enclosure. Read lastResult for the outcome (done/time/sec-budget/piece-budget/stuck + gaps left + seconds spent).",
     inputSchema: {
       type: "object",
       properties: {
@@ -235,12 +247,55 @@ const TOOLS: ToolDef[] = [
           description:
             "Tower to enclose (see enclosureCandidates). Omit to repair/seal your home tower.",
         },
+        maxSeconds: {
+          type: "number",
+          description:
+            "Cap build-seconds spent THIS call (then it stops, reserving the rest). Omit to run to completion.",
+        },
+        maxPieces: {
+          type: "number",
+          description: "Cap pieces placed THIS call. Omit for no piece cap.",
+        },
       },
     },
     handler: (args) =>
       recordBuild(
         args.towerIdx === undefined ? undefined : num(args, "towerIdx"),
+        budgetArg(args),
       ),
+  },
+  {
+    name: "build_path",
+    description:
+      "WALL_BUILD: lay a straight wall LINE (or an L, when the endpoints aren't row/col-aligned) from `from` to `to`, placing whatever pieces arrive over the route — the geometric counterpart to build_toward. Use it to pre-claim a flank, bridge two towers, or start a region you'll close next round. CRITICAL: partial walls survive the round-end sweep ONLY where each tile keeps ≥2 orthogonal wall-neighbours, so ANCHOR both ends on existing wall — a floating segment's open ends erode ~1 tile per sweep. lastResult reports tiles laid + any sweep-fragile ends; cross-check observation.fragileWalls. Optional maxSeconds / maxPieces to reserve time.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        from: {
+          type: "object",
+          properties: { row: { type: "number" }, col: { type: "number" } },
+          required: ["row", "col"],
+          description: "Line start — anchor it on (or next to) existing wall.",
+        },
+        to: {
+          type: "object",
+          properties: { row: { type: "number" }, col: { type: "number" } },
+          required: ["row", "col"],
+          description: "Line end — anchor it on (or next to) existing wall.",
+        },
+        maxSeconds: {
+          type: "number",
+          description: "Cap build-seconds spent THIS call (reserve the rest).",
+        },
+        maxPieces: {
+          type: "number",
+          description: "Cap pieces placed THIS call.",
+        },
+      },
+      required: ["from", "to"],
+    },
+    handler: (args) =>
+      recordPath(point(args, "from"), point(args, "to"), budgetArg(args)),
   },
   {
     name: "bombard",
@@ -351,7 +406,9 @@ const TOOLS: ToolDef[] = [
       for (const move of loaded.moves) {
         if (move.t === "act") game.act(move.decision);
         else if (move.t === "pass") game.pass(move.n);
-        else if (move.t === "build") game.build(move.towerIdx);
+        else if (move.t === "build") game.build(move.towerIdx, budgetOf(move));
+        else if (move.t === "path")
+          game.path(move.from, move.to, budgetOf(move));
         else if (move.t === "breach") game.breach(move.slot, move.towerIdx);
         else game.bombard(move.slot, move.quanta);
       }
@@ -389,9 +446,31 @@ function recordPass(n: number): unknown {
 }
 
 /** Run the build-toward executor AND journal the goal (replay re-derives placements). */
-function recordBuild(towerIdx?: number): unknown {
-  const observation = requireGame().build(towerIdx);
-  journal?.moves.push({ t: "build", towerIdx });
+function recordBuild(towerIdx?: number, budget?: BuildBudget): unknown {
+  const observation = requireGame().build(towerIdx, budget);
+  journal?.moves.push({
+    t: "build",
+    towerIdx,
+    maxSeconds: budget?.maxSeconds,
+    maxPieces: budget?.maxPieces,
+  });
+  return observation;
+}
+
+/** Run the build-path executor AND journal the route (replay re-derives placements). */
+function recordPath(
+  from: { row: number; col: number },
+  to: { row: number; col: number },
+  budget?: BuildBudget,
+): unknown {
+  const observation = requireGame().path(from, to, budget);
+  journal?.moves.push({
+    t: "path",
+    from,
+    to,
+    maxSeconds: budget?.maxSeconds,
+    maxPieces: budget?.maxPieces,
+  });
   return observation;
 }
 
@@ -418,12 +497,47 @@ function pathArg(args: Record<string, unknown>): string {
   return typeof args.path === "string" ? args.path : DEFAULT_SAVE_PATH;
 }
 
+/** Parse a `{ row, col }` argument (build_path endpoints). */
+function point(
+  args: Record<string, unknown>,
+  key: string,
+): { row: number; col: number } {
+  const value = args[key];
+  if (typeof value !== "object" || value === null) {
+    throw new Error(`'${key}' must be { row, col }`);
+  }
+  const obj = value as Record<string, unknown>;
+  return { row: num(obj, "row"), col: num(obj, "col") };
+}
+
+/** Collect the optional build budget (maxSeconds / maxPieces) from tool args, or
+ *  undefined when neither is set (so the executor runs to completion). */
+function budgetArg(args: Record<string, unknown>): BuildBudget | undefined {
+  const budget: BuildBudget = {};
+  if (args.maxSeconds !== undefined)
+    budget.maxSeconds = num(args, "maxSeconds");
+  if (args.maxPieces !== undefined) budget.maxPieces = num(args, "maxPieces");
+  return budget.maxSeconds === undefined && budget.maxPieces === undefined
+    ? undefined
+    : budget;
+}
+
 function num(args: Record<string, unknown>, key: string): number {
   const value = args[key];
   if (typeof value !== "number" || !Number.isFinite(value)) {
     throw new Error(`'${key}' must be a number`);
   }
   return value;
+}
+
+/** Reconstruct a build budget from a journaled move during replay. */
+function budgetOf(move: {
+  maxSeconds?: number;
+  maxPieces?: number;
+}): BuildBudget | undefined {
+  return move.maxSeconds === undefined && move.maxPieces === undefined
+    ? undefined
+    : { maxSeconds: move.maxSeconds, maxPieces: move.maxPieces };
 }
 
 await main();

@@ -46,6 +46,7 @@ import { type PieceShape, rotateCW } from "../../src/shared/core/pieces.ts";
 import type { ValidPlayerId } from "../../src/shared/core/player-slot.ts";
 import {
   cannonSize,
+  countWallNeighbors,
   distanceToTower,
   inBounds,
   isWater,
@@ -112,6 +113,17 @@ export interface BuildSuggestion {
   /** Total adjacencies between the piece's tiles and existing walls — the
    *  tiebreak (higher = hugs the ring more rather than floating loose). */
   touchingWalls: number;
+}
+
+/** Optional stop conditions for a build executor (`build_toward` / `build_path`):
+ *  bank partial progress and RESERVE the rest of the phase for a follow-up build
+ *  instead of gambling the whole timer on one enclosure (the round-2 over-commit
+ *  this exists to prevent). Omit both = run to completion (the old behaviour).
+ *  `maxSeconds` caps wall-build seconds spent in THIS call; `maxPieces` caps
+ *  pieces placed in THIS call — both still under the hard runaway backstop. */
+export interface BuildBudget {
+  maxSeconds?: number;
+  maxPieces?: number;
 }
 
 /** An enclosure option in my zone: a tower I could wall in, with the exact
@@ -217,6 +229,30 @@ export interface CannonSuggestion {
   wallLineSides: number;
 }
 
+/** My cannons grouped by the nearest of my zone's towers — the per-castle
+ *  battery rollup for a rebuild decision. `dead` cannons are debris (hp 0; only a
+ *  zone reset clears them, so they're permanent dead weight blocking the pocket);
+ *  `inert` are alive but stranded outside a sealed ring (can't fire until you
+ *  reseal); `byMode` counts the ALIVE cannons by type. A pocket that's mostly
+ *  dead/inert is a weak rebuild — the walls would reseal few working guns. */
+export interface TowerCannons {
+  towerIdx: number;
+  row: number;
+  col: number;
+  /** Is this tower currently enclosed (its pocket sealed)? */
+  enclosed: boolean;
+  /** All cannons nearest this tower (alive + dead). */
+  total: number;
+  /** hp > 0 — can fire once its pocket is sealed. */
+  alive: number;
+  /** hp 0 — debris that blocks space and won't fire again until a zone reset. */
+  dead: number;
+  /** Alive but outside a sealed ring — fires again only once you reseal. */
+  inert: number;
+  /** Alive cannons by type (normal / super / balloon / rampart). */
+  byMode: Partial<Record<CannonMode, number>>;
+}
+
 /** A grunt bearing down on one of my towers — the defensive signal that, when
  *  ignored, lets a grunt walk through a breach and kill the tower. */
 export interface ThreatInfo {
@@ -292,9 +328,16 @@ export interface Observation {
       row: number;
       col: number;
       mode: CannonMode;
+      /** hp > 0. A dead cannon (false) is debris until a zone reset — distinct
+       *  from a live cannon that merely `canFire: false` (reloading/inert). */
+      alive: boolean;
       canFire: boolean;
       reason?: string;
     }[];
+    /** My cannons grouped by nearest tower: total / alive / dead / inert + types
+     *  per castle pocket — the battery health a rebuild decision turns on. Empty
+     *  until you place cannons. */
+    cannonsByTower: TowerCannons[];
     /** BATTLE: how many of your cannons can fire THIS INSTANT. A cannon reloads
      *  only when its previous ball lands (one ball in flight per cannon), so
      *  firing more than this many in a burst just wastes actions on reload —
@@ -341,6 +384,12 @@ export interface Observation {
    *  by how many of its tiles touch your existing ring (so ring repairs sort
    *  above isolated drops). A ready-made shortlist so you needn't hunt the grid. */
   suggestions?: BuildSuggestion[];
+  /** WALL_BUILD only: MY wall tiles with ≤1 orthogonal wall-neighbour — exactly
+   *  what the round-end sweep (`sweepIsolatedWalls`) deletes. A lone segment's
+   *  open ends sit here; give each a 2nd wall neighbour (extend or anchor it) or
+   *  it erodes next round. The durability lens for cross-round building — empty
+   *  means nothing of yours is sweep-fragile. Omitted when there's nothing. */
+  fragileWalls?: { row: number; col: number }[];
   /** BATTLE only: each living opponent with intact walls, leader first, plus a
    *  contiguous sample of their wall tiles to aim at — so you can point-and-shoot
    *  without decoding the ASCII grid. Hitting any wall both scores you points and
@@ -370,8 +419,21 @@ export interface McpGame {
   pass(count?: number): Observation;
   /** WALL_BUILD: drive the whole phase toward enclosing `towerIdx` (default your
    *  home tower) — the harness places each arriving piece on the best min-cut
-   *  tile until it seals, time runs low, or it stalls. One call ≈ a whole build. */
-  build(towerIdx?: number): Observation;
+   *  tile until it seals, time runs low, or it stalls. One call ≈ a whole build.
+   *  Pass a `budget` (maxSeconds / maxPieces) to stop early and reserve the rest
+   *  of the phase for a second build instead of gambling the whole timer. */
+  build(towerIdx?: number, budget?: BuildBudget): Observation;
+  /** WALL_BUILD: lay a wall LINE from `from` to `to` (straight when aligned, else
+   *  an L) using whatever pieces arrive — the geometric counterpart to `build`'s
+   *  enclose. For pre-claiming a flank, bridging two towers, or splitting a
+   *  captured region across rounds. Partial progress survives the round-end sweep
+   *  only where each tile keeps ≥2 wall neighbours, so the result flags any
+   *  sweep-fragile path tiles (anchor both ends or they erode). Honours `budget`. */
+  path(
+    from: { row: number; col: number },
+    to: { row: number; col: number },
+    budget?: BuildBudget,
+  ): Observation;
   /** BATTLE: SPREAD fire over `slot`'s nearest walls, pacing reload, for the rest
    *  of the battle (or `quanta` action-quanta) — maximises wall count destroyed
    *  (points + general tax). One call ≈ a whole battle of fire/pass. */
@@ -1083,6 +1145,60 @@ export async function createMcpGame(
     return { canFire: true };
   }
 
+  /** My cannons rolled up by the nearest of my zone's towers — total / alive /
+   *  dead / inert + alive-by-type per castle pocket. The battery-health view a
+   *  rebuild decision turns on (a pocket that's mostly dead debris + inert guns
+   *  isn't worth resealing). Nearest-tower grouping is a proxy for "which castle
+   *  this cannon belongs to" — exact for single-tower pockets, best-effort for
+   *  merged ones. */
+  function cannonsByTowerFor(): TowerCannons[] {
+    const me = sc.state.players[agentSlot];
+    const myZone = sc.state.playerZones[agentSlot];
+    if (!me || me.cannons.length === 0) return [];
+    const myTowers = sc.state.map.towers.filter(
+      (tower) => tower.zone === myZone,
+    );
+    if (myTowers.length === 0) return [];
+    const rollup = new Map<number, TowerCannons>();
+    for (const cannon of me.cannons) {
+      let nearest = myTowers[0]!;
+      let bestDist = Infinity;
+      for (const tower of myTowers) {
+        const dist = distanceToTower(tower, cannon.row, cannon.col);
+        if (dist < bestDist) {
+          bestDist = dist;
+          nearest = tower;
+        }
+      }
+      let entry = rollup.get(nearest.index);
+      if (!entry) {
+        entry = {
+          towerIdx: nearest.index,
+          row: nearest.row,
+          col: nearest.col,
+          enclosed: me.enclosedTowers.some(
+            (tower) => tower.index === nearest.index,
+          ),
+          total: 0,
+          alive: 0,
+          dead: 0,
+          inert: 0,
+          byMode: {},
+        };
+        rollup.set(nearest.index, entry);
+      }
+      entry.total++;
+      if (isCannonAlive(cannon)) {
+        entry.alive++;
+        entry.byMode[cannon.mode] = (entry.byMode[cannon.mode] ?? 0) + 1;
+        if (!isCannonEnclosed(cannon, me)) entry.inert++;
+      } else {
+        entry.dead++;
+      }
+    }
+    return [...rollup.values()].sort((a, b) => a.towerIdx - b.towerIdx);
+  }
+
   /** Cannons stranded outside a sealed ring — inert dead weight until you
    *  reseal. The at-a-glance "your battery is crippled" signal. */
   function cannonsUnenclosedCount(): number {
@@ -1221,10 +1337,12 @@ export async function createMcpGame(
             row: cannon.row,
             col: cannon.col,
             mode: cannon.mode,
+            alive: isCannonAlive(cannon),
             canFire: status.canFire,
             ...(status.reason ? { reason: status.reason } : {}),
           };
         }),
+        cannonsByTower: cannonsByTowerFor(),
         cannonsReady: cannonsReadyCount(),
         cannonsUnenclosed: cannonsUnenclosedCount(),
         walls: me.walls.size,
@@ -1279,6 +1397,8 @@ export async function createMcpGame(
       );
       observation.bonusTargets = bonusTargetsFor();
       observation.suggestions = buildSuggestionsFor();
+      const fragile = fragileWallsFor();
+      if (fragile.length > 0) observation.fragileWalls = fragile;
     }
 
     if (phase === Phase.BATTLE) {
@@ -1521,13 +1641,66 @@ export async function createMcpGame(
     return (sc.state.players[agentSlot]?.walls.size ?? 0) > before;
   }
 
+  /** Place the current piece to best cover `targets` (a min-cut tile or a path
+   *  tile). A dud that covers no target is redirected onto the ring to advance
+   *  the bag without waste. Returns whether a piece landed, whether it was
+   *  on-target, and whether there was no piece to place (a transient gap that
+   *  should NOT count as a stall) — the shared inner step of the build drivers. */
+  function placeTowardTargets(targets: ReadonlySet<number>): {
+    landed: boolean;
+    onTarget: boolean;
+    noPiece: boolean;
+  } {
+    const piece = sc.state.players[agentSlot]?.currentPiece;
+    if (!piece) {
+      advance(actionTicks);
+      settleToDecision();
+      return { landed: false, onTarget: false, noPiece: true };
+    }
+    const aim = targets.size > 0 ? bestBuildPlacement(piece, targets) : null;
+    const fallback = aim ?? buildSuggestionsFor()[0] ?? null;
+    if (
+      fallback &&
+      commitBuildPiece(fallback.row, fallback.col, fallback.rotation)
+    ) {
+      return { landed: true, onTarget: aim !== null, noPiece: false };
+    }
+    advance(actionTicks);
+    settleToDecision();
+    return { landed: false, onTarget: false, noPiece: false };
+  }
+
+  /** Hit the budget/time/cap stop? Returns the outcome label, or null to keep
+   *  going. Shared by both build drivers so their stop semantics stay identical. */
+  function buildStop(
+    placed: number,
+    startTimer: number,
+    pieceCap: number,
+    budget: BuildBudget | undefined,
+  ): string | null {
+    if (sc.state.timer < MIN_BUILD_LEFT_SEC) return "time";
+    if (placed >= pieceCap) {
+      return budget?.maxPieces !== undefined && pieceCap === budget.maxPieces
+        ? "piece-budget"
+        : "cap";
+    }
+    if (
+      budget?.maxSeconds !== undefined &&
+      startTimer - sc.state.timer >= budget.maxSeconds
+    ) {
+      return "sec-budget";
+    }
+    return null;
+  }
+
   /** Drive the WHOLE build phase toward a goal: enclose a tower (default home).
    *  Each step it reads the current piece, places it on the min-cut tile it best
    *  covers (or, for a piece that fits no gap, redirects it onto the ring to
    *  advance the bag), and repeats until the tower seals, build time runs low, or
    *  it stalls. The agent commits a strategy in one call; the harness executes it
-   *  against whatever pieces arrive — batch building with no bag-peeking. */
-  function buildToward(towerIdx?: number): Observation {
+   *  against whatever pieces arrive — batch building with no bag-peeking. A
+   *  `budget` stops it early (banking partial progress, reserving the rest). */
+  function buildToward(towerIdx?: number, budget?: BuildBudget): Observation {
     if (sc.state.phase !== Phase.WALL_BUILD) {
       bridge.lastResult = {
         kind: "build",
@@ -1537,16 +1710,18 @@ export async function createMcpGame(
       return observe();
     }
     const goalIdx = towerIdx ?? sc.state.players[agentSlot]?.homeTower?.index;
+    const startTimer = sc.state.timer;
+    const pieceCap = Math.min(
+      budget?.maxPieces ?? MAX_BUILD_PIECES,
+      MAX_BUILD_PIECES,
+    );
     let placed = 0;
     let stall = 0;
     let outcome = "done";
     while (!gameOver() && sc.state.phase === Phase.WALL_BUILD) {
-      if (sc.state.timer < MIN_BUILD_LEFT_SEC) {
-        outcome = "time";
-        break;
-      }
-      if (placed >= MAX_BUILD_PIECES) {
-        outcome = "budget";
+      const stop = buildStop(placed, startTimer, pieceCap, budget);
+      if (stop) {
+        outcome = stop;
         break;
       }
       const candidate = enclosureCandidatesFor().find(
@@ -1557,27 +1732,16 @@ export async function createMcpGame(
         outcome = "unenclosable";
         break;
       }
-      const piece = sc.state.players[agentSlot]?.currentPiece;
-      if (!piece) {
-        advance(actionTicks);
-        settleToDecision();
-        continue;
-      }
       const targets = new Set(
         candidate.tiles.map((tile) => packTile(tile.row, tile.col)),
       );
-      const aim = bestBuildPlacement(piece, targets);
-      const fallback = aim ?? buildSuggestionsFor()[0] ?? null;
-      if (
-        fallback &&
-        commitBuildPiece(fallback.row, fallback.col, fallback.rotation)
-      ) {
+      const step = placeTowardTargets(targets);
+      if (step.noPiece) continue;
+      if (step.landed) {
         placed++;
-        stall = aim ? 0 : stall + 1;
+        stall = step.onTarget ? 0 : stall + 1;
       } else {
         stall++;
-        advance(actionTicks);
-        settleToDecision();
       }
       if (stall >= BUILD_STALL_LIMIT) {
         outcome = "stuck";
@@ -1587,12 +1751,157 @@ export async function createMcpGame(
     const remaining =
       enclosureCandidatesFor().find((cand) => cand.towerIdx === goalIdx)
         ?.tilesNeeded ?? 0;
+    const elapsed = Math.round((startTimer - sc.state.timer) * 10) / 10;
     bridge.lastResult = {
       kind: "build",
       success: outcome === "done",
-      reason: `${outcome}: placed ${placed}, ${remaining} gaps left`,
+      reason: `${outcome}: placed ${placed}, ${remaining} gaps left, ~${elapsed}s`,
     };
     return observe();
+  }
+
+  /** Lay a wall LINE from `from` to `to` (straight when aligned, else an L),
+   *  placing whatever pieces arrive over the route — the geometric counterpart to
+   *  `buildToward`. For pre-claiming a flank or splitting a captured region across
+   *  rounds. Tiles already walled / off your grass / on water are dropped from the
+   *  route up front, so the executor never stalls on an unbuildable target. The
+   *  result reports how many route tiles ended up sweep-fragile (≤1 wall-neighbour
+   *  → the round-end sweep deletes them): anchor both ends on existing wall or the
+   *  segment erodes. Honours the same `budget` as `buildToward`. */
+  function buildPath(
+    from: { row: number; col: number },
+    to: { row: number; col: number },
+    budget?: BuildBudget,
+  ): Observation {
+    if (sc.state.phase !== Phase.WALL_BUILD) {
+      bridge.lastResult = {
+        kind: "build",
+        success: false,
+        reason: "not in WALL_BUILD",
+      };
+      return observe();
+    }
+    const plan = pathTiles(from, to);
+    if (plan.length === 0) {
+      bridge.lastResult = {
+        kind: "build",
+        success: false,
+        reason:
+          "no buildable path tiles (route is off your grass / on water, or already walled)",
+      };
+      return observe();
+    }
+    const remainingTargets = (): Set<number> => {
+      const walls = sc.state.players[agentSlot]?.walls;
+      const out = new Set<number>();
+      for (const key of plan) if (!walls?.has(key)) out.add(key);
+      return out;
+    };
+    const startTimer = sc.state.timer;
+    const pieceCap = Math.min(
+      budget?.maxPieces ?? MAX_BUILD_PIECES,
+      MAX_BUILD_PIECES,
+    );
+    let placed = 0;
+    let stall = 0;
+    let outcome = "done";
+    while (!gameOver() && sc.state.phase === Phase.WALL_BUILD) {
+      const targets = remainingTargets();
+      if (targets.size === 0) break;
+      const stop = buildStop(placed, startTimer, pieceCap, budget);
+      if (stop) {
+        outcome = stop;
+        break;
+      }
+      const step = placeTowardTargets(targets);
+      if (step.noPiece) continue;
+      if (step.landed) {
+        placed++;
+        stall = step.onTarget ? 0 : stall + 1;
+      } else {
+        stall++;
+      }
+      if (stall >= BUILD_STALL_LIMIT) {
+        outcome = "stuck";
+        break;
+      }
+    }
+    const laid = plan.length - remainingTargets().size;
+    const fragile = fragilePathTiles(plan);
+    const elapsed = Math.round((startTimer - sc.state.timer) * 10) / 10;
+    bridge.lastResult = {
+      kind: "build",
+      success: outcome === "done",
+      reason:
+        `${outcome}: laid ${laid}/${plan.length} path tiles, ${placed} pieces, ~${elapsed}s` +
+        (fragile > 0
+          ? `; ⚠ ${fragile} path tile(s) sweep-fragile (≤1 wall-neighbor — anchor or they erode next round)`
+          : ""),
+    };
+    return observe();
+  }
+
+  /** The route tiles for `build_path`: the L-path (straight when aligned) whose
+   *  elbow keeps the most tiles on the agent's own grass, with off-zone / water /
+   *  already-walled tiles dropped. Packed keys, in build order. */
+  function pathTiles(
+    from: { row: number; col: number },
+    to: { row: number; col: number },
+  ): ReturnType<typeof packTile>[] {
+    const myZone = sc.state.playerZones[agentSlot];
+    const walls = sc.state.players[agentSlot]?.walls;
+    const buildable = (row: number, col: number): boolean =>
+      inBounds(row, col) &&
+      !isWater(sc.state.map.tiles, row, col) &&
+      zoneAt(sc.state.map, row, col) === myZone;
+    const variants = [lPath(from, to, true), lPath(from, to, false)];
+    const coverage = (tiles: readonly [number, number][]): number =>
+      tiles.filter(([row, col]) => buildable(row, col)).length;
+    const chosen =
+      coverage(variants[0]!) >= coverage(variants[1]!)
+        ? variants[0]!
+        : variants[1]!;
+    const seen = new Set<number>();
+    const out: ReturnType<typeof packTile>[] = [];
+    for (const [row, col] of chosen) {
+      if (!buildable(row, col)) continue;
+      const key = packTile(row, col);
+      if (walls?.has(key) || seen.has(key)) continue;
+      seen.add(key);
+      out.push(key);
+    }
+    return out;
+  }
+
+  /** Of `plan`'s tiles already laid as wall, how many are sweep-fragile (≤1
+   *  orthogonal wall-neighbour) — the open ends the round-end sweep will delete. */
+  function fragilePathTiles(
+    plan: readonly ReturnType<typeof packTile>[],
+  ): number {
+    const walls = sc.state.players[agentSlot]?.walls;
+    if (!walls) return 0;
+    let count = 0;
+    for (const key of plan) {
+      if (!walls.has(key)) continue;
+      const { row, col } = unpackTile(key);
+      if (countWallNeighbors(walls, row, col) <= 1) count++;
+    }
+    return count;
+  }
+
+  /** My wall tiles with ≤1 orthogonal wall-neighbour — exactly what the round-end
+   *  `sweepIsolatedWalls` deletes (mirrors its `countWallNeighbors(...) <= 1`
+   *  rule). A lone segment's open ends live here; give each a 2nd wall neighbour
+   *  (extend or anchor it) or it erodes. */
+  function fragileWallsFor(): { row: number; col: number }[] {
+    const me = sc.state.players[agentSlot];
+    if (!me) return [];
+    const out: { row: number; col: number }[] = [];
+    for (const key of me.walls) {
+      const { row, col } = unpackTile(key as Parameters<typeof unpackTile>[0]);
+      if (countWallNeighbors(me.walls, row, col) <= 1) out.push({ row, col });
+    }
+    return out;
   }
 
   /** Bombard one opponent's walls for the rest of the battle (or `quanta` action
@@ -1837,6 +2146,7 @@ export async function createMcpGame(
     act,
     pass,
     build: buildToward,
+    path: buildPath,
     bombard: bombardSlot,
     breach: breachSlot,
     enclosurePlan,
@@ -1851,6 +2161,32 @@ export async function createMcpGame(
 function enclosureSeconds(cutTiles: number): number {
   const pieces = Math.ceil(cutTiles / CUT_TILES_PER_PIECE);
   return (pieces * BUILD_PIECE_TICKS) / SIM_TICKS_PER_SEC;
+}
+
+/** An L-shaped tile route from `from` to `to` — straight when the endpoints share
+ *  a row or column. `horizFirst` picks which leg comes first (so the caller can
+ *  choose the elbow that stays on its own grass). Both endpoints are inclusive. */
+function lPath(
+  from: { row: number; col: number },
+  to: { row: number; col: number },
+  horizFirst: boolean,
+): [number, number][] {
+  const range = (start: number, end: number): number[] => {
+    const step = Math.sign(end - start) || 1;
+    const out: number[] = [];
+    for (let value = start; value !== end + step; value += step)
+      out.push(value);
+    return out;
+  };
+  const tiles: [number, number][] = [];
+  if (horizFirst) {
+    for (const col of range(from.col, to.col)) tiles.push([from.row, col]);
+    for (const row of range(from.row, to.row)) tiles.push([row, to.col]);
+  } else {
+    for (const row of range(from.row, to.row)) tiles.push([row, from.col]);
+    for (const col of range(from.col, to.col)) tiles.push([to.row, col]);
+  }
+  return tiles;
 }
 
 /** True iff tuple `a` is lexicographically greater than `b` (element by element). */
@@ -1868,7 +2204,7 @@ function expectedFor(phase: Phase): string {
     case Phase.CASTLE_SELECT:
       return "Pick a home tower — act { kind: 'select', towerIdx }.";
     case Phase.WALL_BUILD:
-      return "Re-seal/expand your castle. Fastest: build_toward({ towerIdx }) hands the WHOLE phase to the harness to enclose a tower (omit towerIdx = your home) — one call. Or place pieces by hand: act { kind: 'build', row, col, rotation }. Or pass.";
+      return "Re-seal/expand your castle. Fastest: build_toward({ towerIdx }) hands the WHOLE phase to the harness to enclose a tower (omit towerIdx = your home) — one call; add { maxSeconds | maxPieces } to stop early and reserve time for a second build. build_path({ from, to }) lays a straight/L wall line to pre-claim or compartmentalise across rounds — anchor both ends on existing wall or it erodes (watch fragileWalls: your ≤1-neighbor tiles the round-end sweep deletes). Or place pieces by hand: act { kind: 'build', row, col, rotation }. Or pass.";
     case Phase.CANNON_PLACE:
       return "Place a cannon at its top-left — act { kind: 'cannon', row, col, mode }. See cannonSuggestions for legal spots you can afford, grouped by mode (no 'super' line = no 3x3 fits). Footprint: normal/balloon 2x2, super 3x3. Watch me.cannonSlots (used/max). End early with { kind: 'cannon-done' }, or pass.";
     case Phase.BATTLE:
