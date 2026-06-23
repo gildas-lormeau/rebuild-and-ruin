@@ -33,9 +33,11 @@ import type { TileRect } from "../../src/shared/core/geometry-types.ts";
 import { type PieceShape, rotateCW } from "../../src/shared/core/pieces.ts";
 import type { ValidPlayerId } from "../../src/shared/core/player-slot.ts";
 import {
+  distanceToTower,
   inBounds,
   packTile,
   unpackTile,
+  zoneAt,
 } from "../../src/shared/core/spatial.ts";
 import type { ControllerFactory } from "../../src/shared/core/system-interfaces.ts";
 import { cannonSlotsFor } from "../../src/shared/core/types.ts";
@@ -125,6 +127,26 @@ export interface BattleTarget {
   sampleTiles: { row: number; col: number }[];
 }
 
+/** A grunt bearing down on one of my towers — the defensive signal that, when
+ *  ignored, lets a grunt walk through a breach and kill the tower. */
+export interface ThreatInfo {
+  grunt: { row: number; col: number };
+  /** "catapult" reaches a tower from up to 3 tiles (bypasses shielding cannons). */
+  kind: "grunt" | "catapult";
+  /** My tower it's heading for (it kills towers, not walls, ultimately). */
+  tower: { idx: number; row: number; col: number };
+  /** Manhattan distance to the nearest tile of that 2×2 tower. */
+  distance: number;
+  /** Is the tower walled in right now? If false, the grunt has a clear path —
+   *  the urgent case. If true, it must breach a wall first. */
+  towerEnclosed: boolean;
+  /** Grunt is adjacent and counting down to a kill/break. */
+  attacking: boolean;
+  /** The specific wall tile it will strike (engine's end-of-build pick), if set —
+   *  the tile to defend. */
+  targetedWall?: { row: number; col: number };
+}
+
 /** One row of the at-a-glance roster: who is where, how big, how armed. */
 export interface PlayerLayout {
   slot: number;
@@ -208,6 +230,11 @@ export interface Observation {
    *  without decoding the ASCII grid. Hitting any wall both scores you points and
    *  taxes that player's next build (they must repair it). */
   targets?: BattleTarget[];
+  /** Grunts in your zone bearing down on your towers, most urgent first
+   *  (exposed tower, then nearest). Grunts move in WALL_BUILD and KILL towers —
+   *  ignore one near an unenclosed tower and you lose the tower (and a life).
+   *  Omitted when nothing threatens you. */
+  threats?: ThreatInfo[];
   /** Outcome of the previous committed decision (null at phase start). */
   lastResult: AgentResult | null;
 }
@@ -508,6 +535,72 @@ export async function createMcpGame(
     return out;
   }
 
+  /** Grunts in my zone bearing down on my towers — the defensive read. For each
+   *  grunt in my zone, the tower it targets (the engine's sticky pathing target
+   *  if set, else the nearest alive one), the distance, and whether that tower is
+   *  walled in. Most urgent first: exposed tower, then closest grunt. */
+  function threatsFor(): ThreatInfo[] {
+    const state = sc.state;
+    const myZone = state.playerZones[agentSlot];
+    if (myZone === undefined) return [];
+    const player = state.players[agentSlot];
+    const out: ThreatInfo[] = [];
+    for (const grunt of state.grunts) {
+      if (zoneAt(state.map, grunt.row, grunt.col) !== myZone) continue;
+      const target = threatTarget(grunt, myZone);
+      if (!target) continue;
+      const enclosed =
+        player?.enclosedTowers.some((tower) => tower.index === target.index) ??
+        false;
+      const wall =
+        grunt.targetedWall === undefined
+          ? undefined
+          : unpackTile(grunt.targetedWall);
+      out.push({
+        grunt: { row: grunt.row, col: grunt.col },
+        kind: grunt.kind === "catapult" ? "catapult" : "grunt",
+        tower: { idx: target.index, row: target.row, col: target.col },
+        distance: distanceToTower(target, grunt.row, grunt.col),
+        towerEnclosed: enclosed,
+        attacking:
+          grunt.attackCountdown !== undefined && grunt.attackCountdown > 0,
+        targetedWall: wall ? { row: wall.row, col: wall.col } : undefined,
+      });
+    }
+    out.sort(
+      (a, b) =>
+        Number(a.towerEnclosed) - Number(b.towerEnclosed) ||
+        a.distance - b.distance,
+    );
+    return out;
+  }
+
+  /** The tower a grunt threatens: its sticky pathing target if alive & in `zone`,
+   *  else the nearest alive tower in `zone`. */
+  function threatTarget(
+    grunt: { row: number; col: number; targetTowerIdx?: number },
+    zone: number,
+  ) {
+    const towers = sc.state.map.towers;
+    const locked = grunt.targetTowerIdx;
+    if (locked !== undefined && sc.state.towerAlive[locked]) {
+      const tower = towers[locked];
+      if (tower && tower.zone === zone) return tower;
+    }
+    let best: (typeof towers)[number] | undefined;
+    let bestDist = Infinity;
+    for (let i = 0; i < towers.length; i++) {
+      const tower = towers[i]!;
+      if (tower.zone !== zone || !sc.state.towerAlive[i]) continue;
+      const dist = distanceToTower(tower, grunt.row, grunt.col);
+      if (dist < bestDist) {
+        bestDist = dist;
+        best = tower;
+      }
+    }
+    return best;
+  }
+
   /** How many of the agent's cannons can fire this instant (no ball in flight). */
   function cannonsReadyCount(): number {
     const state = sc.state;
@@ -676,6 +769,9 @@ export async function createMcpGame(
         })),
       lastResult: bridge.lastResult,
     };
+
+    const threats = threatsFor();
+    if (threats.length > 0) observation.threats = threats;
 
     if (phase === Phase.CASTLE_SELECT && zone !== undefined) {
       observation.towers = state.map.towers
