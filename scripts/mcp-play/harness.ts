@@ -41,12 +41,14 @@ import { cannonModesForGame } from "../../src/shared/core/cannon-mode-defs.ts";
 import { SIM_TICK_DT } from "../../src/shared/core/game-constants.ts";
 import { Phase } from "../../src/shared/core/game-phase.ts";
 import type { TileRect } from "../../src/shared/core/geometry-types.ts";
+import { GRID_COLS, GRID_ROWS } from "../../src/shared/core/grid.ts";
 import { type PieceShape, rotateCW } from "../../src/shared/core/pieces.ts";
 import type { ValidPlayerId } from "../../src/shared/core/player-slot.ts";
 import {
   cannonSize,
   distanceToTower,
   inBounds,
+  isWater,
   packTile,
   unpackTile,
   zoneAt,
@@ -136,6 +138,29 @@ export interface EnclosureCandidate {
    *  vs. a piece-fit block ("a 1-tile gap is pinched between solids, often a
    *  cannon on the ring — plug it by hand"). Absent for other statuses. */
   reason?: string;
+  /** Uncaptured bonus squares that fall inside this tower's pocket — enclosing
+   *  it banks them too. Each bonus square scores 10×√territory (100–1000 by
+   *  territory size — far more per tile than plain grass), so a pocket with
+   *  bonuses is worth prioritising even over a cheaper empty one. */
+  bonusSquares: number;
+}
+
+/** A bonus square in my zone — the highest points-per-tile build target. Each
+ *  scores `territoryBonusSquarePoints` (10×√territory, quantised to 100, clamped
+ *  [100,1000]) the instant it falls inside my enclosed interior, then it's
+ *  consumed and the zone replenishes to 3 next round. Invisible on the raw board
+ *  ('+'), so surfaced here with its value and how to capture it. */
+export interface BonusTarget {
+  row: number;
+  col: number;
+  /** Points if captured at the CURRENT territory size (grows as you enclose
+   *  more — re-observe after a build to see it rise). */
+  value: number;
+  /** Already inside my interior → it banks at build end, no action needed. */
+  enclosed: boolean;
+  /** Zone tower whose pocket contains this square (enclose it to capture the
+   *  bonus for free), or null if it sits in open grass needing dedicated walls. */
+  capturedByTower: number | null;
 }
 
 /** A battle aim-assist entry: one opponent and a sample of their wall tiles. */
@@ -288,6 +313,12 @@ export interface Observation {
    *  a sample (≤ ENCLOSURE_TILE_SAMPLE); `tilesNeeded` is the true count, and the
    *  full min-cut plan comes from the `enclose_plan` tool. */
   enclosureCandidates?: EnclosureCandidate[];
+  /** WALL_BUILD only: bonus squares in your zone — the highest points-per-tile
+   *  target (10×√territory each, 3 per zone, replenished each round) and invisible on
+   *  the raw board. Capture one by enclosing the tower whose pocket holds it
+   *  (`capturedByTower`); enclosureCandidates carry a matching `bonusSquares`
+   *  count so you can prioritise a pocket that banks one. */
+  bonusTargets?: BonusTarget[];
   /** WALL_BUILD only: legal placements for the CURRENT piece, ranked best-first
    *  by how many of its tiles touch your existing ring (so ring repairs sort
    *  above isolated drops). A ready-made shortlist so you needn't hunt the grid. */
@@ -436,6 +467,10 @@ export async function createMcpGame(
 
   const gameOver = (): boolean => sc.mode() === Mode.STOPPED;
 
+  /** Memoised count of my zone's land tiles — static for the match (zones +
+   *  water never change). -1 = not yet computed. */
+  let zoneLandCache = -1;
+
   /** Tick until the agent owes a move (brain parked) or the game ends. */
   function settleToDecision(): void {
     bridge.waiting = false;
@@ -519,6 +554,92 @@ export async function createMcpGame(
     return out.slice(0, 6);
   }
 
+  /** The interior rect a tower's enclosure fills: home reuses its existing wall
+   *  bbox (so its bonuses/cut track the real ring); other towers get a fresh
+   *  proposed castle rect. Null only when home has no walls yet. */
+  function pocketRectFor(
+    tower: (typeof sc.state.map.towers)[number],
+    isHome: boolean,
+    bounds: CastleBounds | null,
+  ): TileRect {
+    if (isHome && bounds) {
+      return {
+        top: bounds.minRow + 1,
+        bottom: bounds.maxRow - 1,
+        left: bounds.minCol + 1,
+        right: bounds.maxCol - 1,
+      };
+    }
+    return castleRect(
+      tower,
+      sc.state.map.tiles,
+      sc.state.map.towers,
+      ENCLOSURE_MARGIN,
+      true,
+    );
+  }
+
+  /** My zone's enclosable land tile count — static for the match, so computed
+   *  once. The ceiling on my per-build territory; projects bonus value. */
+  function myZoneLand(): number {
+    if (zoneLandCache >= 0) return zoneLandCache;
+    const state = sc.state;
+    const zone = state.playerZones[agentSlot];
+    let land = 0;
+    if (zone !== undefined) {
+      for (let row = 0; row < GRID_ROWS; row++) {
+        for (let col = 0; col < GRID_COLS; col++) {
+          if (
+            zoneAt(state.map, row, col) === zone &&
+            !isWater(state.map.tiles, row, col)
+          ) {
+            land++;
+          }
+        }
+      }
+    }
+    zoneLandCache = land;
+    return land;
+  }
+
+  /** Points one bonus square scores when captured — the engine's
+   *  `territoryBonusSquarePoints` (10×√territory, quantised to 100, clamped
+   *  [100,1000]; build-system.ts). A bonus banks at END of build with the FINAL
+   *  interior, so value off the current (often breached / pre-enclosure)
+   *  interior understates it. Project from the larger of the current interior
+   *  and my zone's enclosable land — the territory I'm building toward. (On a
+   *  small zone the √ formula floors at 100; bigger zones/modes scale up.) */
+  function bonusValueNow(): number {
+    const interior = sc.state.players[agentSlot]?.interior.size ?? 0;
+    const size = Math.max(interior, myZoneLand());
+    const raw = Math.floor((10 * Math.sqrt(size)) / 100) * 100;
+    return Math.max(100, Math.min(1000, raw));
+  }
+
+  /** Bonus squares in my zone that are NOT yet inside my interior — the ones
+   *  still worth chasing this build. */
+  function uncapturedZoneBonuses(): (typeof sc.state.bonusSquares)[number][] {
+    const state = sc.state;
+    const player = state.players[agentSlot];
+    const zone = state.playerZones[agentSlot];
+    if (!player || zone === undefined) return [];
+    return state.bonusSquares.filter(
+      (bonus) =>
+        bonus.zone === zone &&
+        !player.interior.has(packTile(bonus.row, bonus.col)),
+    );
+  }
+
+  /** True if (row,col) sits inside the rect (inclusive). */
+  function rectHas(rect: TileRect, row: number, col: number): boolean {
+    return (
+      row >= rect.top &&
+      row <= rect.bottom &&
+      col >= rect.left &&
+      col <= rect.right
+    );
+  }
+
   /** For every tower in my zone, the engine min-cut to enclose it: the exact
    *  tiles to wall, the cost, and feasibility. Home first, then cheapest. This
    *  is the strategic layer — there can be several candidates (capture a
@@ -530,11 +651,19 @@ export async function createMcpGame(
     if (zone === undefined) return [];
     const homeIdx = player.homeTower?.index;
     const bounds = wallBounds(player.walls);
+    const bonuses = uncapturedZoneBonuses();
     const out: EnclosureCandidate[] = [];
     for (const tower of state.map.towers) {
       if (tower.zone !== zone) continue;
       const isHome = tower.index === homeIdx;
-      const base = { towerIdx: tower.index as number, isHome };
+      const pocket = pocketRectFor(tower, isHome, bounds);
+      // Bonus squares this tower's pocket would bank (only meaningful while the
+      // tower isn't yet enclosed — once enclosed, whatever it holds is already
+      // counted in the interior).
+      const bonusSquares = bonuses.filter((bonus) =>
+        rectHas(pocket, bonus.row, bonus.col),
+      ).length;
+      const base = { towerIdx: tower.index as number, isHome, bonusSquares };
       // Ground truth first: if the tower is already enclosed, say so. The
       // min-cut below derives the home interior from the wall bounding box,
       // which outward wall nubs distort into a bogus non-zero cut — so an
@@ -542,6 +671,7 @@ export async function createMcpGame(
       if (player.enclosedTowers.some((enc) => enc.index === tower.index)) {
         out.push({
           ...base,
+          bonusSquares: 0,
           status: "enclosed",
           tilesNeeded: 0,
           tiles: [],
@@ -553,6 +683,7 @@ export async function createMcpGame(
       if (!isTowerEnclosable(tower, state, false)) {
         out.push({
           ...base,
+          bonusSquares: 0,
           status: "unenclosable",
           tilesNeeded: 0,
           tiles: [],
@@ -562,36 +693,19 @@ export async function createMcpGame(
         });
         continue;
       }
-      // Home reuses its existing ring's interior so the cut is just the gaps;
-      // other towers get a fresh proposed castle rect.
-      const freshRect = (): TileRect =>
-        castleRect(
-          tower,
-          state.map.tiles,
-          state.map.towers,
-          ENCLOSURE_MARGIN,
-          true,
-        );
-      const bboxRect: TileRect | null =
-        isHome && bounds
-          ? {
-              top: bounds.minRow + 1,
-              bottom: bounds.maxRow - 1,
-              left: bounds.minCol + 1,
-              right: bounds.maxCol - 1,
-            }
-          : null;
       const cutFor = (interior: TileRect) =>
         findEnclosureCut([{ tower, interior }], state, player.walls, false);
       // Home tries its existing-ring bbox first; if that sprawled into an
       // unfillable rect (outward nubs, multi-tower extension), retry a fresh
       // tight rect before calling home unenclosable — the bbox, not the
       // geometry, is usually what failed.
-      let cut = cutFor(bboxRect ?? freshRect());
-      if (cut === null && bboxRect) cut = cutFor(freshRect());
+      const freshPocket = pocketRectFor(tower, false, null);
+      let cut = cutFor(pocket);
+      if (cut === null && isHome && bounds) cut = cutFor(freshPocket);
       if (cut === null) {
         out.push({
           ...base,
+          bonusSquares: 0,
           status: "unenclosable",
           tilesNeeded: 0,
           tiles: [],
@@ -604,6 +718,7 @@ export async function createMcpGame(
       } else if (cut.size === 0) {
         out.push({
           ...base,
+          bonusSquares: 0,
           status: "enclosed",
           tilesNeeded: 0,
           tiles: [],
@@ -629,6 +744,56 @@ export async function createMcpGame(
     out.sort(
       (a, b) =>
         Number(b.isHome) - Number(a.isHome) || a.tilesNeeded - b.tilesNeeded,
+    );
+    return out;
+  }
+
+  /** Bonus squares in my zone — the highest points-per-tile build target, and
+   *  invisible on the raw board. For each: its value at the current territory,
+   *  whether it's already banked (inside my interior), and which tower's pocket
+   *  would capture it. Uncaptured + capturable first. */
+  function bonusTargetsFor(): BonusTarget[] {
+    const state = sc.state;
+    const player = state.players[agentSlot];
+    const zone = state.playerZones[agentSlot];
+    if (!player || zone === undefined) return [];
+    const homeIdx = player.homeTower?.index;
+    const bounds = wallBounds(player.walls);
+    const zoneTowers = state.map.towers.filter((tower) => tower.zone === zone);
+    const value = bonusValueNow();
+    const out: BonusTarget[] = [];
+    for (const bonus of state.bonusSquares) {
+      if (bonus.zone !== zone) continue;
+      const enclosed = player.interior.has(packTile(bonus.row, bonus.col));
+      let capturedByTower: number | null = null;
+      if (!enclosed) {
+        // Prefer home, then any tower whose pocket contains it.
+        const containing = zoneTowers
+          .filter((tower) =>
+            rectHas(
+              pocketRectFor(tower, tower.index === homeIdx, bounds),
+              bonus.row,
+              bonus.col,
+            ),
+          )
+          .sort(
+            (a, b) => Number(b.index === homeIdx) - Number(a.index === homeIdx),
+          );
+        capturedByTower = containing[0]?.index ?? null;
+      }
+      out.push({
+        row: bonus.row,
+        col: bonus.col,
+        value,
+        enclosed,
+        capturedByTower,
+      });
+    }
+    // Uncaptured first, then ones a tower pocket can grab, then by position.
+    out.sort(
+      (a, b) =>
+        Number(a.enclosed) - Number(b.enclosed) ||
+        Number(b.capturedByTower !== null) - Number(a.capturedByTower !== null),
     );
     return out;
   }
@@ -1086,6 +1251,7 @@ export async function createMcpGame(
           tiles: candidate.tiles.slice(0, ENCLOSURE_TILE_SAMPLE),
         }),
       );
+      observation.bonusTargets = bonusTargetsFor();
       observation.suggestions = buildSuggestionsFor();
     }
 
