@@ -414,9 +414,10 @@ export interface CheckResult {
 export interface McpGame {
   observe(): Observation;
   act(decision: AgentDecision): Observation;
-  /** Advance up to `count` action-quanta (default 1), stopping early on a phase
-   *  change, battle going live, or game over. */
-  pass(count?: number): Observation;
+  /** Advance time, stopping early on a phase change, battle going live, or game
+   *  over. Pass `seconds` (the unit you read as timerSec) to advance ~that long;
+   *  `count` is the legacy action-quanta form. Omit both = one decision step. */
+  pass(count?: number, seconds?: number): Observation;
   /** WALL_BUILD: drive the whole phase toward enclosing `towerIdx` (default your
    *  home tower) — the harness places each arriving piece on the best min-cut
    *  tile until it seals, time runs low, or it stalls. One call ≈ a whole build.
@@ -1600,15 +1601,22 @@ export async function createMcpGame(
     return observe();
   }
 
-  /** Advance up to `count` action-quanta, stopping early when something
-   *  actionable changes — the phase flips, a pre-battle countdown finishes (so
-   *  you can fire the moment battle goes live), or the game ends. Lets the agent
-   *  skip dead time (a whole countdown, a quiet build) in ONE call instead of N,
-   *  which keeps long matches token-cheap. */
-  function pass(count = 1): Observation {
+  /** Advance time, stopping early when something actionable changes — the phase
+   *  flips, a pre-battle countdown finishes (so you can fire the moment battle
+   *  goes live), or the game ends. Lets the agent skip dead time (a whole
+   *  countdown, a quiet build) in ONE call. `seconds` is the agent-facing unit
+   *  (matches timerSec); `count` is the legacy action-quanta form it converts to. */
+  function pass(count = 1, seconds?: number): Observation {
     const startPhase = sc.state.phase;
     const wasCountdown = sc.state.battleCountdown > 0;
-    for (let i = 0; i < count && !gameOver(); i++) {
+    // `seconds` (the unit the agent reads as timerSec) wins when given; convert
+    // to action-quanta via the game's per-action tick cost. Each iteration still
+    // advances exactly one quantum and stops early on a phase change.
+    const iterations =
+      seconds !== undefined
+        ? Math.max(1, Math.round((seconds * SIM_TICKS_PER_SEC) / actionTicks))
+        : count;
+    for (let i = 0; i < iterations && !gameOver(); i++) {
       advance(actionTicks);
       settleToDecision();
       if (sc.state.phase !== startPhase) break;

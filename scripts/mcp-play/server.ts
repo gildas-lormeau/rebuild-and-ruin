@@ -45,7 +45,7 @@ interface Journal {
   };
   moves: (
     | { t: "act"; decision: AgentDecision }
-    | { t: "pass"; n: number }
+    | { t: "pass"; n: number; seconds?: number }
     | {
         t: "build";
         towerIdx?: number;
@@ -222,18 +222,27 @@ const TOOLS: ToolDef[] = [
   {
     name: "pass",
     description:
-      "Advance game time WITHOUT committing anything ('nothing to commit, let time run'). `count` advances up to that many action-quanta in one call, stopping early on a phase change, battle going live, or game over — use it to skip a whole countdown or a quiet stretch cheaply (default 1). In BATTLE you re-decide fire/pass each quantum. To finish cannon placement before the timer, use end_cannon.",
+      "Advance game time WITHOUT committing anything ('nothing to do, let time run'). Units are SECONDS — the SAME number you read as timerSec: pass({ seconds: 5 }) advances ~5s. It STOPS EARLY the moment something actionable changes — the phase flips, the pre-battle countdown ends, or the game ends — so a big value cheaply skips to the next decision (e.g. run out a quiet build, wait out a countdown). Omit args to step one beat. In BATTLE you re-decide fire/pass each step. To end cannon placement early use end_cannon. (`count` = raw action-quanta is a legacy form; prefer seconds.)",
     inputSchema: {
       type: "object",
       properties: {
+        seconds: {
+          type: "number",
+          description:
+            "Game seconds to advance (matches timerSec). Stops early on a phase change. The intuitive unit.",
+        },
         count: {
           type: "number",
-          description: "Quanta to advance, default 1. Stops early on change.",
+          description:
+            "Legacy: action-quanta to advance (one decision step each, default 1). Prefer `seconds`.",
         },
       },
     },
     handler: (args) =>
-      recordPass(args.count === undefined ? 1 : num(args, "count")),
+      recordPass(
+        args.count === undefined ? 1 : num(args, "count"),
+        args.seconds === undefined ? undefined : num(args, "seconds"),
+      ),
   },
   {
     name: "build_toward",
@@ -405,7 +414,7 @@ const TOOLS: ToolDef[] = [
       game = await startGame(loaded.config);
       for (const move of loaded.moves) {
         if (move.t === "act") game.act(move.decision);
-        else if (move.t === "pass") game.pass(move.n);
+        else if (move.t === "pass") game.pass(move.n, move.seconds);
         else if (move.t === "build") game.build(move.towerIdx, budgetOf(move));
         else if (move.t === "path")
           game.path(move.from, move.to, budgetOf(move));
@@ -438,10 +447,11 @@ function recordAct(decision: AgentDecision): unknown {
   return observation;
 }
 
-/** Advance time AND journal it. */
-function recordPass(n: number): unknown {
-  const observation = requireGame().pass(n);
-  journal?.moves.push({ t: "pass", n });
+/** Advance time AND journal it (seconds is the agent-facing unit; n is the
+ *  legacy quantum count the harness falls back to when seconds is absent). */
+function recordPass(n: number, seconds?: number): unknown {
+  const observation = requireGame().pass(n, seconds);
+  journal?.moves.push({ t: "pass", n, seconds });
   return observation;
 }
 
@@ -604,6 +614,23 @@ async function handleRequest(req: JsonRpcRequest): Promise<void> {
         return;
       }
       const args = (req.params?.arguments as Record<string, unknown>) ?? {};
+      const unknown = unknownArgs(tool, args);
+      if (unknown.length > 0) {
+        const accepted = Object.keys(
+          (tool.inputSchema as { properties?: Record<string, unknown> })
+            .properties ?? {},
+        );
+        reply(req.id, {
+          isError: true,
+          content: [
+            {
+              type: "text",
+              text: `Error: unknown argument(s) [${unknown.join(", ")}] for '${name}'. Accepted: [${accepted.join(", ") || "none"}].`,
+            },
+          ],
+        });
+        return;
+      }
       try {
         const result = await tool.handler(args);
         reply(req.id, {
@@ -630,6 +657,17 @@ async function handleRequest(req: JsonRpcRequest): Promise<void> {
         replyError(req.id, -32601, `Method not found: ${req.method}`);
       }
   }
+}
+
+/** Keys in `args` the tool's schema doesn't declare. A misspelled optional arg
+ *  (e.g. pass `ticks` instead of `count`/`seconds`) otherwise silently defaults
+ *  to "absent", so the call no-ops in a confusing way — reject it loudly with
+ *  the accepted list instead. */
+function unknownArgs(tool: ToolDef, args: Record<string, unknown>): string[] {
+  const props =
+    (tool.inputSchema as { properties?: Record<string, unknown> }).properties ??
+    {};
+  return Object.keys(args).filter((key) => !(key in props));
 }
 
 function reply(id: JsonRpcRequest["id"], result: unknown): void {
