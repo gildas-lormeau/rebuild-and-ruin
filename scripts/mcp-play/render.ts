@@ -279,6 +279,23 @@ export function renderObservation(obs: Observation): string {
             `\n        ⏳ DRIFT: grunts reach ${shown}${rest} before this seals` +
             ` — wall these FIRST, reroute the cut, or clear them in battle`;
         }
+        const seals = candidate.sealTiles ?? [];
+        if (seals.length > 0) {
+          const shown = seals
+            .slice(0, 4)
+            .map(
+              (tile) =>
+                `(${tile.row},${tile.col})${tile.kind === "inner-corner" ? "◆" : ""}`,
+            )
+            .join(" ");
+          const rest = seals.length > 4 ? ` +${seals.length - 4}` : "";
+          const hasCorner = seals.some((tile) => tile.kind === "inner-corner");
+          line +=
+            `\n        🔑 SEAL NOW: place 1 wall at ${shown}${rest} to close it` +
+            (hasCorner
+              ? " (◆ = inner-corner: seals the 8-dir diagonal leak the min-cut misses)"
+              : "");
+        }
       } else if (candidate.status === "unenclosable" && candidate.reason) {
         line += `  (${candidate.reason})`;
       }

@@ -49,14 +49,23 @@ import {
   isSuperCannon,
 } from "../../src/shared/core/battle-types.ts";
 import { cannonModesForGame } from "../../src/shared/core/cannon-mode-defs.ts";
-import { SIM_TICK_DT } from "../../src/shared/core/game-constants.ts";
+import {
+  SIM_TICK_DT,
+  TOWER_SIZE,
+} from "../../src/shared/core/game-constants.ts";
 import { Phase } from "../../src/shared/core/game-phase.ts";
 import type { TileRect } from "../../src/shared/core/geometry-types.ts";
-import { GRID_COLS, GRID_ROWS } from "../../src/shared/core/grid.ts";
+import {
+  GRID_COLS,
+  GRID_ROWS,
+  type TileKey,
+} from "../../src/shared/core/grid.ts";
 import { type PieceShape, rotateCW } from "../../src/shared/core/pieces.ts";
 import type { ValidPlayerId } from "../../src/shared/core/player-slot.ts";
 import {
   cannonSize,
+  computeOutside,
+  computeOutsideAfterAdd,
   countWallNeighbors,
   DIRS_4,
   DIRS_8,
@@ -215,6 +224,18 @@ export interface EnclosureCandidate {
    *  collision course. Advisory only — does NOT change `feasible`/`blockers`; it
    *  says "seal these FIRST, reroute the cut, or clear them in battle." */
   driftTiles: { row: number; col: number; etaSeconds: number }[];
+  /** BUILDABLE tiles where placing ONE wall right now would enclose this tower —
+   *  the structural answer to "how do I close this?", computed by test-placing a
+   *  wall and re-running the ENGINE's own 8-connected outside-flood
+   *  (`computeOutside`), never a reimplementation. `kind: "gap"` is a tile on the
+   *  min-cut (an orthogonal boundary opening); `kind: "inner-corner"` is a tile
+   *  the min-cut MISSES — an interior/grass tile whose wall blocks an 8-dir
+   *  DIAGONAL leak through a corner (the (12,25)-seals-around-boxed-(13,26) trick).
+   *  Only the placeable ones are listed, so when the min-cut gap is grunt-boxed
+   *  this surfaces the open alternate that still seals. Non-empty only when the
+   *  pocket is ~1 tile from closing; empty when many gaps remain (no single-tile
+   *  seal) or every seal tile is currently blocked. */
+  sealTiles: { row: number; col: number; kind: "gap" | "inner-corner" }[];
 }
 
 /** A productive extension for a loose wall end: place at `next` to grow the stub
@@ -657,6 +678,10 @@ const BOARD_CROP_PAD = 2;
  *  build phase is ~25s, so 30 covers it; the cap just bounds the worst-case
  *  `moveGrunts` replay cost (depth × grunt-count). */
 const GRUNT_DRIFT_MAX_HORIZON = 30;
+/** The seal-finder only runs on a pocket within this many min-cut tiles of
+ *  closing — a single placed wall can only seal a near-complete ring, so beyond
+ *  this there's no single-tile seal to find and the scan would be wasted. */
+const SEAL_FINDER_MAX_GAPS = 3;
 /** `build_toward` stops with this much build time left, so the phase-end sweep
  *  doesn't fire mid-placement and the agent isn't surprised by a phase flip. */
 const MIN_BUILD_LEFT_SEC = 1.5;
@@ -1095,6 +1120,64 @@ export async function createMcpGame(
     return out.sort((a, b) => a.etaSeconds - b.etaSeconds);
   }
 
+  /** True if adding `extraWall` to my walls would enclose `tower` — i.e. none of
+   *  its 2×2 footprint tiles stay "outside". Uses the ENGINE's own
+   *  `computeOutsideAfterAdd` against a precomputed `baselineOutside`, so the
+   *  8-connected flood and the enclosure rule match the real `updateEnclosedTowers`
+   *  exactly (owned ⟺ not outside; a tower is in ⟺ all footprint tiles owned). */
+  function wouldEncloseWith(
+    tower: { row: number; col: number },
+    baselineOutside: ReadonlySet<TileKey>,
+    extraWall: TileKey,
+  ): boolean {
+    const after = computeOutsideAfterAdd(baselineOutside, [extraWall]);
+    for (let dr = 0; dr < TOWER_SIZE; dr++) {
+      for (let dc = 0; dc < TOWER_SIZE; dc++) {
+        if (after.has(packTile(tower.row + dr, tower.col + dc))) return false;
+      }
+    }
+    return true;
+  }
+
+  /** BUILDABLE single-tile seals for a near-complete pocket — the `sealTiles`
+   *  advisory. Candidates are the min-cut gaps plus their 8-neighbours (an
+   *  inner-corner that kills a diagonal leak is always diagonally adjacent to the
+   *  gap it covers); each buildable candidate is test-walled and kept only if the
+   *  engine flood then encloses the tower. `kind` distinguishes a min-cut `gap`
+   *  from an off-cut `inner-corner` the min-cut never surfaces. Skipped when the
+   *  pocket is more than `SEAL_FINDER_MAX_GAPS` from closing (no single-tile seal
+   *  exists, and the scan would be wasted). */
+  function sealTilesFor(
+    tower: { row: number; col: number },
+    cut: ReadonlySet<TileKey>,
+    baselineOutside: ReadonlySet<TileKey>,
+  ): { row: number; col: number; kind: "gap" | "inner-corner" }[] {
+    if (cut.size === 0 || cut.size > SEAL_FINDER_MAX_GAPS) return [];
+    const candidates = new Set<TileKey>();
+    for (const gapKey of cut) {
+      candidates.add(gapKey);
+      const { row, col } = unpackTile(gapKey);
+      for (const [dr, dc] of DIRS_8) {
+        const nr = row + dr;
+        const nc = col + dc;
+        if (inBounds(nr, nc)) candidates.add(packTile(nr, nc));
+      }
+    }
+    const out: { row: number; col: number; kind: "gap" | "inner-corner" }[] =
+      [];
+    for (const key of candidates) {
+      const { row, col } = unpackTile(key);
+      if (!isBuildableGround(row, col)) continue;
+      if (!wouldEncloseWith(tower, baselineOutside, key)) continue;
+      out.push({ row, col, kind: cut.has(key) ? "gap" : "inner-corner" });
+    }
+    // Inner-corners first — they're the ones the min-cut/blockers don't already
+    // surface, so they carry the new information.
+    return out.sort(
+      (a, b) => Number(a.kind === "gap") - Number(b.kind === "gap"),
+    );
+  }
+
   /** One-line blocker summary for a `stuck`/`blocked` build reason. */
   function describeBlockers(blockers: readonly SealBlocker[]): string {
     if (blockers.length === 0) return "";
@@ -1126,6 +1209,9 @@ export async function createMcpGame(
       GRUNT_DRIFT_MAX_HORIZON,
     );
     const gruntForecast = forecastGruntArrival(forecastHorizon);
+    // Baseline 8-connected outside flood, computed ONCE; the seal-finder tests
+    // each candidate wall against it via the engine's computeOutsideAfterAdd.
+    const baselineOutside = computeOutside(player.walls);
     for (const tower of state.map.towers) {
       if (tower.zone !== zone) continue;
       const isHome = tower.index === homeIdx;
@@ -1141,6 +1227,7 @@ export async function createMcpGame(
         isHome,
         bonusSquares,
         driftTiles: [] as EnclosureCandidate["driftTiles"],
+        sealTiles: [] as EnclosureCandidate["sealTiles"],
       };
       // Ground truth first: if the tower is already enclosed, say so. The
       // min-cut below derives the home interior from the wall bounding box,
@@ -1231,6 +1318,7 @@ export async function createMcpGame(
             gruntForecast,
             forecastHorizon,
           ),
+          sealTiles: sealTilesFor(tower, cut, baselineOutside),
         });
       }
     }
