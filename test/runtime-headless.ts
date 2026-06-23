@@ -171,6 +171,13 @@ interface HeadlessRuntimeOptions {
    *  controller from the first `selectTower` call onward — no
    *  mid-game swap, no asymmetric RNG advance. */
   assistedSlots?: readonly ValidPlayerId[];
+  /** Explicit per-slot controller factory override. When provided, takes
+   *  precedence over the `assistedSlots`-derived factory and rides the same
+   *  bootstrap `RuntimeConfig.controllerFactory` seam. Lets a dev tool install
+   *  a custom controller (e.g. an external-agent brain) on a slot without the
+   *  assisted-human path. Omitted on every real test + production, so the
+   *  default `createController` is used. */
+  controllerFactory?: ControllerFactory;
 }
 
 export interface RunOpts {
@@ -285,6 +292,7 @@ export async function createHeadlessRuntime(
     onlinePhaseTicks: onlinePhaseTicksOverride,
     onlineDialogDrains,
     assistedSlots,
+    controllerFactory: controllerFactoryOverride,
   } = opts;
 
   // Forward-declared so the lobby callbacks (defined below the
@@ -294,17 +302,18 @@ export async function createHeadlessRuntime(
   // populated by the time they're invoked.
   const runtimeHolder: { current?: GameRuntime } = {};
 
-  const controllerFactory = assistedSlots && assistedSlots.length > 0
-    ? buildAssistedControllerFactory(
-      assistedSlots,
-      (msg) => networkObserver?.sent?.(msg),
-      () => (action) =>
-        runtimeHolder.current!.runtimeState.actionSchedule.schedule(action),
-      DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS,
-      () => runtimeHolder.current!.runtimeState.state.round,
-      () => lockstepDebtTicks(runtimeHolder.current!.runtimeState),
-    )
-    : undefined;
+  const controllerFactory = controllerFactoryOverride ??
+    (assistedSlots && assistedSlots.length > 0
+      ? buildAssistedControllerFactory(
+        assistedSlots,
+        (msg) => networkObserver?.sent?.(msg),
+        () => (action) =>
+          runtimeHolder.current!.runtimeState.actionSchedule.schedule(action),
+        DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS,
+        () => runtimeHolder.current!.runtimeState.state.round,
+        () => lockstepDebtTicks(runtimeHolder.current!.runtimeState),
+      )
+      : undefined);
 
   // ── Mock clock + deterministic timer scheduling ───────────────────
   // All timing flows through this closure. `mainLoop` is driven manually

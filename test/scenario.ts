@@ -45,6 +45,7 @@ import type { ArchetypeId } from "../src/shared/core/ai-personality.ts";
 import { SCALE, TILE_SIZE } from "../src/shared/core/grid.ts";
 import type { RenderOverlay } from "../src/shared/ui/overlay-types.ts";
 import type {
+  ControllerFactory,
   HapticsObserver,
 } from "../src/shared/core/system-interfaces.ts";
 import {
@@ -166,6 +167,11 @@ export interface ScenarioOptions {
    *  `TestHooks` in shared/core/types.ts. Threaded onto `state.testHooks`
    *  after bootstrap, mirroring the `debugTag` pattern. */
   testHooks?: TestHooks;
+  /** Explicit per-slot controller factory override, forwarded to the headless
+   *  runtime's `RuntimeConfig.controllerFactory` seam. Lets a dev tool install
+   *  a custom controller (e.g. an external-agent brain) on a slot. Omitted on
+   *  every real test, so the default `createController` is used. */
+  controllerFactory?: ControllerFactory;
 }
 
 export interface Scenario extends Disposable {
@@ -470,6 +476,7 @@ export function buildHeadlessOptions(
     hapticsObserver: opts.hapticsObserver,
     assistedSlots: opts.assistedSlots,
     mobileZoomEnabled: opts.mobileZoomEnabled,
+    controllerFactory: opts.controllerFactory,
   };
 }
 
