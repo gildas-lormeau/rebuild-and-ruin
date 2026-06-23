@@ -22,6 +22,7 @@ import {
   createMcpGame,
   type McpGame,
   type Observation,
+  type ViewOptions,
 } from "./harness.ts";
 import type { AgentDecision } from "./mcp-brain.ts";
 import { renderObservation } from "./render.ts";
@@ -126,7 +127,7 @@ const TOOLS: ToolDef[] = [
   {
     name: "observe",
     description:
-      "Return the current board observation without taking an action (phase, timer, ASCII board, your pieces/cannons, opponents). Renders the annotated board as text by default; pass format:'json' for the raw structured observation.",
+      "Return the current board observation without taking an action (phase, timer, ASCII board, your pieces/cannons, opponents). Renders the annotated board as text by default; pass format:'json' for the raw structured observation. DRIVE YOUR OWN VIEW (cheap, no clock): zoom with aroundRow/aroundCol(+radius) or a rect (minRow/maxRow/minCol/maxCol, missing edges = board bounds) for reliable tile reading without counting wide rows; pick a cumulative layer ('walls'|'terrain'|'all'); or isolate an entity subset with show (e.g. ['walls'] = just the ring, ['grunts'] = just the swarm, ['walls','grunts'] = both) to read one system without the others' clutter.",
     inputSchema: {
       type: "object",
       properties: {
@@ -136,9 +137,78 @@ const TOOLS: ToolDef[] = [
           description:
             "Output format. 'text' (default) = the annotated ASCII board; 'json' = the raw structured observation object.",
         },
+        aroundRow: {
+          type: "number",
+          description: "Center a square crop here (with aroundCol + radius).",
+        },
+        aroundCol: { type: "number" },
+        radius: {
+          type: "number",
+          description: "Half-size of the aroundRow/aroundCol crop (default 4).",
+        },
+        minRow: { type: "number" },
+        maxRow: { type: "number" },
+        minCol: { type: "number" },
+        maxCol: { type: "number" },
+        layer: {
+          type: "string",
+          enum: ["all", "walls", "terrain"],
+          description:
+            "Cumulative layer depth: 'terrain' (base), 'walls' (+ ring/interior), 'all' (default, everything).",
+        },
+        show: {
+          type: "array",
+          items: {
+            type: "string",
+            enum: [
+              "walls",
+              "bonuses",
+              "pits",
+              "houses",
+              "towers",
+              "cannons",
+              "grunts",
+              "cannonballs",
+            ],
+          },
+          description:
+            "Paint ONLY these entity layers over terrain (arbitrary subset; wins over layer).",
+        },
       },
     },
-    handler: () => requireGame().observe(),
+    handler: (args) => {
+      const view: ViewOptions = {};
+      if (args.aroundRow !== undefined && args.aroundCol !== undefined) {
+        const centerRow = num(args, "aroundRow");
+        const centerCol = num(args, "aroundCol");
+        const radius = args.radius === undefined ? 4 : num(args, "radius");
+        view.crop = {
+          minRow: centerRow - radius,
+          maxRow: centerRow + radius,
+          minCol: centerCol - radius,
+          maxCol: centerCol + radius,
+        };
+      } else if (
+        ["minRow", "maxRow", "minCol", "maxCol"].some(
+          (key) => args[key] !== undefined,
+        )
+      ) {
+        view.crop = {
+          minRow: args.minRow === undefined ? undefined : num(args, "minRow"),
+          maxRow: args.maxRow === undefined ? undefined : num(args, "maxRow"),
+          minCol: args.minCol === undefined ? undefined : num(args, "minCol"),
+          maxCol: args.maxCol === undefined ? undefined : num(args, "maxCol"),
+        };
+      }
+      if (typeof args.layer === "string") {
+        view.layer = args.layer as ViewOptions["layer"];
+      }
+      if (Array.isArray(args.show)) {
+        view.show = args.show as ViewOptions["show"];
+      }
+      const hasView = view.crop || view.layer || view.show;
+      return requireGame().observe(hasView ? view : undefined);
+    },
   },
   {
     name: "check_placement",

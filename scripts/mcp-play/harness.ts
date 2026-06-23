@@ -18,7 +18,13 @@
  * parity suites (the agent slot is non-deterministic by design).
  */
 
-import { asciiSnapshot, zoneBounds } from "../../dev/dev-console-grid.ts";
+import {
+  type AsciiSnapshotOptions,
+  asciiSnapshot,
+  type EntityLayer,
+  type MapLayer,
+  zoneBounds,
+} from "../../dev/dev-console-grid.ts";
 import { castleRect, isTowerEnclosable } from "../../src/ai/ai-castle-rect.ts";
 import { findEnclosureCut } from "../../src/ai/ai-min-cut.ts";
 import { DefaultStrategy } from "../../src/ai/ai-strategy.ts";
@@ -163,6 +169,19 @@ export interface ZonePlacements {
   total: number;
   shown: number;
   placements: ZonePlacement[];
+}
+
+/** Render overrides for an on-demand `observe` — let the agent drive its OWN
+ *  view instead of the fixed full board: `crop` a tight window (reliable tile
+ *  reading without counting 35-wide rows), pick a cumulative `layer`, or
+ *  isolate an arbitrary entity subset with `show` (`["walls"]` = just the ring,
+ *  `["grunts"]` = just the swarm). Omitted = the default zone-cropped board. */
+export interface ViewOptions {
+  /** Partial — missing edges default to the board bounds, so a half-rect reads
+   *  as a band (e.g. only minRow/maxRow = full-width strip). */
+  crop?: { minRow?: number; maxRow?: number; minCol?: number; maxCol?: number };
+  layer?: MapLayer;
+  show?: readonly EntityLayer[];
 }
 
 /** Optional stop conditions for a build executor (`build_toward` / `build_path`):
@@ -605,7 +624,7 @@ export interface CheckResult {
 }
 
 export interface McpGame {
-  observe(): Observation;
+  observe(view?: ViewOptions): Observation;
   act(decision: AgentDecision): Observation;
   /** Advance time, stopping early on a phase change, battle going live, or game
    *  over. Pass `seconds` (the unit you read as timerSec) to advance ~that long;
@@ -2156,23 +2175,29 @@ export async function createMcpGame(
     };
   }
 
-  function observe(): Observation {
+  function observe(view?: ViewOptions): Observation {
     const state = sc.state;
     const phase = state.phase;
     const me = state.players[agentSlot]!;
     const zone = state.playerZones[agentSlot];
     const battle = phase === Phase.BATTLE;
-    const board = asciiSnapshot(
-      state,
-      battle
-        ? { coords: true, gruntFacing: true }
-        : {
-            cropTo: agentSlot,
-            cropPad: BOARD_CROP_PAD,
-            coords: true,
-            gruntFacing: true,
-          },
-    );
+    // Default: zone-cropped board (battle = whole board). `view` lets the agent
+    // override the crop / pick a layer / isolate an entity subset.
+    const boardOpts: AsciiSnapshotOptions = { coords: true, gruntFacing: true };
+    if (view?.crop) {
+      boardOpts.cropTo = {
+        minRow: view.crop.minRow ?? 0,
+        maxRow: view.crop.maxRow ?? GRID_ROWS - 1,
+        minCol: view.crop.minCol ?? 0,
+        maxCol: view.crop.maxCol ?? GRID_COLS - 1,
+      };
+    } else if (!battle) {
+      boardOpts.cropTo = agentSlot;
+      boardOpts.cropPad = BOARD_CROP_PAD;
+    }
+    if (view?.layer) boardOpts.layer = view.layer;
+    if (view?.show && view.show.length > 0) boardOpts.show = view.show;
+    const board = asciiSnapshot(state, boardOpts);
 
     const observation: Observation = {
       phase,

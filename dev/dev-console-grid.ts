@@ -64,7 +64,26 @@ export interface AsciiSnapshotOptions {
    *  one walking away. A grunt with no heading yet (just spawned, never
    *  moved) still shows `!`. Default off so E2E/dev snapshots stay `!`. */
   gruntFacing?: boolean;
+  /** Paint ONLY these entity layers over the base terrain — an arbitrary
+   *  subset, unlike the cumulative `layer`. `["walls"]` isolates the ring,
+   *  `["grunts"]` the swarm, `["walls","grunts"]` both — so a single system can
+   *  be read without the others' clutter. Terrain (+ frozen) is always the
+   *  base for spatial context. Takes precedence over `layer` when present. */
+  show?: readonly EntityLayer[];
 }
+
+/** Entity layers selectable via `AsciiSnapshotOptions.show`. "walls" bundles
+ *  territory + walls (the ring + its interior); the rest are single entity
+ *  passes. Terrain/frozen are the always-painted base, so they're not listed. */
+export type EntityLayer =
+  | "walls"
+  | "bonuses"
+  | "pits"
+  | "houses"
+  | "towers"
+  | "cannons"
+  | "grunts"
+  | "cannonballs";
 
 export const enum CellKind {
   Grass,
@@ -231,6 +250,7 @@ export function asciiSnapshot(
     layer,
     opts.playerFilter,
     opts.gruntFacing ?? false,
+    opts.show,
   );
   const baseCrop = resolveCropRect(state, opts.cropTo);
   const pad = opts.cropPad ?? 0;
@@ -254,9 +274,24 @@ export function buildGrid(
   layer: MapLayer,
   playerFilter: number | undefined,
   gruntFacing = false,
+  show?: readonly EntityLayer[],
 ): Cell[][] {
   const grid = paintBase(state);
   paintFrozenTiles(grid, state);
+  // `show` selects an arbitrary entity subset over the terrain base; it wins
+  // over the cumulative `layer` short-circuit.
+  if (show) {
+    const want = new Set(show);
+    if (want.has("walls")) paintTerritoryAndWalls(grid, state, playerFilter);
+    if (want.has("bonuses")) paintBonusSquares(grid, state);
+    if (want.has("pits")) paintBurningPits(grid, state);
+    if (want.has("houses")) paintHouses(grid, state);
+    if (want.has("towers")) paintTowers(grid, state);
+    if (want.has("cannons")) paintCannons(grid, state, playerFilter);
+    if (want.has("grunts")) paintGrunts(grid, state, gruntFacing);
+    if (want.has("cannonballs")) paintCannonballs(grid, state);
+    return grid;
+  }
   if (layer === "terrain") return grid;
   paintTerritoryAndWalls(grid, state, playerFilter);
   if (layer === "walls") return grid;
