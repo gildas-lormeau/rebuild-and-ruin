@@ -36,7 +36,10 @@ import {
   cannonSlotsUsed,
   canPlaceCannon,
 } from "../../src/game/cannon-system.ts";
-import { isGruntPassableTile } from "../../src/game/grunt-movement.ts";
+import {
+  isGruntPassableTile,
+  moveGrunts,
+} from "../../src/game/grunt-movement.ts";
 import {
   type Cannon,
   type CannonMode,
@@ -201,6 +204,17 @@ export interface EnclosureCandidate {
    *  territory size — far more per tile than plain grass), so a pocket with
    *  bonuses is worth prioritising even over a cheaper empty one. */
   bonusSquares: number;
+  /** Min-cut tiles a grunt is FORECAST to sit on by the time this seal would
+   *  complete — the pre-emption signal the snapshot `blockers` miss. Computed by
+   *  rolling the REAL `moveGrunts` model forward `estSeconds` ticks (grunts move
+   *  1 tile/sec) with walls held fixed, then keeping the tiles a grunt occupies
+   *  at the seal-completion tick. Catches BOTH facets that bit seed 37: a free
+   *  tile a grunt is converging on, AND a `grunt-mobile` tile that won't actually
+   *  clear (the optimistic soft-block that became a permanent box). `etaSeconds`
+   *  is the first second a grunt lands on it. Empty when no grunt is on a
+   *  collision course. Advisory only — does NOT change `feasible`/`blockers`; it
+   *  says "seal these FIRST, reroute the cut, or clear them in battle." */
+  driftTiles: { row: number; col: number; etaSeconds: number }[];
 }
 
 /** A productive extension for a loose wall end: place at `next` to grow the stub
@@ -639,6 +653,10 @@ const MAX_WALL_EXTENSIONS = 6;
 /** Tile margin around the agent's zone in the cropped board — kept in one place
  *  so the rendered crop and the reported `boardBounds` can't drift apart. */
 const BOARD_CROP_PAD = 2;
+/** Cap on the grunt-drift forecast depth (build-seconds = grunt-ticks). The
+ *  build phase is ~25s, so 30 covers it; the cap just bounds the worst-case
+ *  `moveGrunts` replay cost (depth × grunt-count). */
+const GRUNT_DRIFT_MAX_HORIZON = 30;
 /** `build_toward` stops with this much build time left, so the phase-end sweep
  *  doesn't fire mid-placement and the agent isn't surprised by a phase flip. */
 const MIN_BUILD_LEFT_SEC = 1.5;
@@ -1014,6 +1032,69 @@ export async function createMcpGame(
     return out;
   }
 
+  /** Roll the REAL `moveGrunts` model forward `maxTicks` build-seconds (grunts
+   *  step once per second — GRUNT_TICK_INTERVAL=1.0) and report, per tile any
+   *  grunt occupies during that window, the FIRST and LAST tick it's there.
+   *  Reuses the engine's own movement so the forecast can't drift from reality;
+   *  the throwaway clone deep-copies only `grunts` (the sole field `moveGrunts`
+   *  mutates) and shares the read-only map/walls/towers. Walls are held fixed —
+   *  the conservative "if you DON'T seal, the grunts arrive/stay" read, exactly
+   *  the pre-emption signal a drift warning wants. `last` is what separates a
+   *  mobile grunt that wanders off (last < seal time) from one that stays and
+   *  boxes the ring (last ≥ seal time). */
+  function forecastGruntArrival(
+    maxTicks: number,
+  ): Map<number, { first: number; last: number }> {
+    const arrival = new Map<number, { first: number; last: number }>();
+    const state = sc.state;
+    if (maxTicks <= 0 || state.grunts.length === 0) return arrival;
+    const clone = {
+      ...state,
+      grunts: state.grunts.map((grunt) => ({ ...grunt })),
+    } as typeof state;
+    for (let tick = 1; tick <= maxTicks; tick++) {
+      moveGrunts(clone);
+      for (const grunt of clone.grunts) {
+        const key = packTile(grunt.row, grunt.col);
+        const rec = arrival.get(key);
+        if (rec) rec.last = tick;
+        else arrival.set(key, { first: tick, last: tick });
+      }
+    }
+    return arrival;
+  }
+
+  /** Min-cut tiles a grunt is forecast to sit on when the seal would complete —
+   *  the `driftTiles` advisory. A tile drifts if a grunt is on it both at/after
+   *  the seal-completion tick (`last ≥ cutoff` → it doesn't clear in time) and by
+   *  then (`first ≤ cutoff`). Tiles already HARD-blocked (boxed/pit/unfillable)
+   *  are dropped — the ⛔ already says it; soft `grunt-mobile` tiles stay eligible
+   *  so the forecast can correct that snapshot's optimism. */
+  function driftTilesFor(
+    tiles: readonly { row: number; col: number }[],
+    blockers: readonly SealBlocker[],
+    estSeconds: number,
+    forecast: Map<number, { first: number; last: number }>,
+    horizon: number,
+  ): { row: number; col: number; etaSeconds: number }[] {
+    const cutoff = Math.min(Math.max(1, Math.ceil(estSeconds)), horizon);
+    const hardBlocked = new Set(
+      blockers
+        .filter((blocker) => blocker.hard)
+        .map((blocker) => packTile(blocker.row, blocker.col)),
+    );
+    const out: { row: number; col: number; etaSeconds: number }[] = [];
+    for (const tile of tiles) {
+      const key = packTile(tile.row, tile.col);
+      if (hardBlocked.has(key)) continue;
+      const rec = forecast.get(key);
+      if (rec && rec.first <= cutoff && rec.last >= cutoff) {
+        out.push({ row: tile.row, col: tile.col, etaSeconds: rec.first });
+      }
+    }
+    return out.sort((a, b) => a.etaSeconds - b.etaSeconds);
+  }
+
   /** One-line blocker summary for a `stuck`/`blocked` build reason. */
   function describeBlockers(blockers: readonly SealBlocker[]): string {
     if (blockers.length === 0) return "";
@@ -1038,6 +1119,13 @@ export async function createMcpGame(
     const bounds = wallBounds(player.walls);
     const bonuses = uncapturedZoneBonuses();
     const out: EnclosureCandidate[] = [];
+    // Forecast grunt traffic ONCE for the whole remaining build; each candidate
+    // reads it up to its own seal-completion cutoff (driftTilesFor).
+    const forecastHorizon = Math.min(
+      Math.max(1, Math.ceil(state.timer)),
+      GRUNT_DRIFT_MAX_HORIZON,
+    );
+    const gruntForecast = forecastGruntArrival(forecastHorizon);
     for (const tower of state.map.towers) {
       if (tower.zone !== zone) continue;
       const isHome = tower.index === homeIdx;
@@ -1048,7 +1136,12 @@ export async function createMcpGame(
       const bonusSquares = bonuses.filter((bonus) =>
         rectHas(pocket, bonus.row, bonus.col),
       ).length;
-      const base = { towerIdx: tower.index as number, isHome, bonusSquares };
+      const base = {
+        towerIdx: tower.index as number,
+        isHome,
+        bonusSquares,
+        driftTiles: [] as EnclosureCandidate["driftTiles"],
+      };
       // Ground truth first: if the tower is already enclosed, say so. The
       // min-cut below derives the home interior from the wall bounding box,
       // which outward wall nubs distort into a bogus non-zero cut — so an
@@ -1131,6 +1224,13 @@ export async function createMcpGame(
             estSeconds <= state.timer &&
             !blockers.some((blocker) => blocker.hard),
           blockers,
+          driftTiles: driftTilesFor(
+            tiles,
+            blockers,
+            estSeconds,
+            gruntForecast,
+            forecastHorizon,
+          ),
         });
       }
     }
@@ -1780,8 +1880,13 @@ export async function createMcpGame(
     const board = asciiSnapshot(
       state,
       battle
-        ? { coords: true }
-        : { cropTo: agentSlot, cropPad: BOARD_CROP_PAD, coords: true },
+        ? { coords: true, gruntFacing: true }
+        : {
+            cropTo: agentSlot,
+            cropPad: BOARD_CROP_PAD,
+            coords: true,
+            gruntFacing: true,
+          },
     );
 
     const observation: Observation = {

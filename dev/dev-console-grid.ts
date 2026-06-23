@@ -58,6 +58,12 @@ export interface AsciiSnapshotOptions {
    *  footprint or widen a point-target window. Default 0; no effect when
    *  `cropTo` is undefined. */
   cropPad?: number;
+  /** Render each grunt as a heading ARROW (↑↗→↘↓↙←↖) from its `facing`
+   *  instead of the flat `!`, so the board shows which way grunts are
+   *  marching — the difference between a grunt about to box a ring tile and
+   *  one walking away. A grunt with no heading yet (just spawned, never
+   *  moved) still shows `!`. Default off so E2E/dev snapshots stay `!`. */
+  gruntFacing?: boolean;
 }
 
 export const enum CellKind {
@@ -134,6 +140,9 @@ const DIFF_LINE_LIMIT = 100;
  *  bonus square, pit, house, tower, grunt, cannonball). */
 const NO_OWNER = -1 as PlayerId;
 const BOTTOM_HEADER_THRESHOLD_ROWS = 15;
+/** Heading glyphs clockwise from north, indexed by the `facing` radian bucket
+ *  (`facingFromVector` convention: 0 = north, +π/2 = east). */
+const GRUNT_HEADING_ARROWS = ["↑", "↗", "→", "↘", "↓", "↙", "←", "↖"] as const;
 /** Default layer for map-rendering helpers — shows every layer stacked. */
 export const DEFAULT_MAP_LAYER: MapLayer = "all";
 
@@ -217,7 +226,12 @@ export function asciiSnapshot(
   opts: AsciiSnapshotOptions = {},
 ): string {
   const layer = opts.layer ?? DEFAULT_MAP_LAYER;
-  const grid = buildGrid(state, layer, opts.playerFilter);
+  const grid = buildGrid(
+    state,
+    layer,
+    opts.playerFilter,
+    opts.gruntFacing ?? false,
+  );
   const baseCrop = resolveCropRect(state, opts.cropTo);
   const pad = opts.cropPad ?? 0;
   const crop =
@@ -229,7 +243,7 @@ export function asciiSnapshot(
           minCol: Math.max(0, baseCrop.minCol - pad),
           maxCol: Math.min(GRID_COLS - 1, baseCrop.maxCol + pad),
         };
-  return formatGrid(grid, buildLegend(state), {
+  return formatGrid(grid, buildLegend(state, opts.gruntFacing ?? false), {
     coords: opts.coords ?? false,
     crop,
   });
@@ -239,6 +253,7 @@ export function buildGrid(
   state: GameState,
   layer: MapLayer,
   playerFilter: number | undefined,
+  gruntFacing = false,
 ): Cell[][] {
   const grid = paintBase(state);
   paintFrozenTiles(grid, state);
@@ -250,7 +265,7 @@ export function buildGrid(
   paintHouses(grid, state);
   paintTowers(grid, state);
   paintCannons(grid, state, playerFilter);
-  paintGrunts(grid, state);
+  paintGrunts(grid, state, gruntFacing);
   paintCannonballs(grid, state);
   return grid;
 }
@@ -354,7 +369,7 @@ export function diffAsciiSnapshots(before: string, after: string): string {
   return `${diffs.slice(0, DIFF_LINE_LIMIT).join("\n")}\n... +${extra} more`;
 }
 
-export function buildLegend(state: GameState): string {
+export function buildLegend(state: GameState, gruntFacing = false): string {
   const playerInfo = state.players
     .map(
       (player) =>
@@ -362,10 +377,13 @@ export function buildLegend(state: GameState): string {
     )
     .join("  |  ");
 
+  const gruntLegend = gruntFacing
+    ? "↑→↓← grunt(heading)  ! grunt(idle)"
+    : "! grunt";
   return [
     `Round ${state.round}  |  ${playerInfo}`,
     ". grass  ~ water  f frozen  ░ territory  # wall  T home tower  t dead home  Y tower  y dead tower",
-    "C cannon  x debris  ! grunt  * burning pit  + bonus  o cannonball  H house  h dead house",
+    `C cannon  x debris  ${gruntLegend}  * burning pit  + bonus  o cannonball  H house  h dead house`,
   ].join("\n");
 }
 
@@ -486,10 +504,24 @@ function paintCannons(
   }
 }
 
-function paintGrunts(grid: Cell[][], state: GameState): void {
+function paintGrunts(
+  grid: Cell[][],
+  state: GameState,
+  gruntFacing: boolean,
+): void {
   for (const grunt of state.grunts) {
-    setCell(grid, grunt.row, grunt.col, CellKind.Grunt, "!", NO_OWNER);
+    const char = gruntGlyph(grunt.facing, gruntFacing);
+    setCell(grid, grunt.row, grunt.col, CellKind.Grunt, char, NO_OWNER);
   }
+}
+
+/** A grunt's board glyph: a heading arrow from `facing` (8-way bucketed) when
+ *  `gruntFacing` is on, falling back to the flat `!` for grunts with no heading
+ *  yet (freshly spawned, never moved) or when the option is off. */
+function gruntGlyph(facing: number | undefined, gruntFacing: boolean): string {
+  if (!gruntFacing || facing === undefined) return "!";
+  const bucket = ((Math.round(facing / (Math.PI / 4)) % 8) + 8) % 8;
+  return GRUNT_HEADING_ARROWS[bucket]!;
 }
 
 /** Cannonballs snap to the nearest tile by pixel-center rounding. */

@@ -268,6 +268,17 @@ export function renderObservation(obs: Observation): string {
         line += `  ${candidate.tilesNeeded} tiles ~${candidate.estSeconds.toFixed(
           0,
         )}s [${fit}] -> ${tiles}${more}`;
+        const drift = candidate.driftTiles ?? [];
+        if (drift.length > 0) {
+          const shown = drift
+            .slice(0, 3)
+            .map((tile) => `(${tile.row},${tile.col}) ~${tile.etaSeconds}s`)
+            .join(" ");
+          const rest = drift.length > 3 ? ` +${drift.length - 3}` : "";
+          line +=
+            `\n        ⏳ DRIFT: grunts reach ${shown}${rest} before this seals` +
+            ` — wall these FIRST, reroute the cut, or clear them in battle`;
+        }
       } else if (candidate.status === "unenclosable" && candidate.reason) {
         line += `  (${candidate.reason})`;
       }
