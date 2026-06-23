@@ -24,9 +24,10 @@ export function renderObservation(obs: Observation): string {
   // ── header: round / phase / timer, battle liveness, board coverage ──────────
   let hdr = `ROUND ${obs.round}  ${obs.phase}  t=${obs.timerSec}s`;
   if (obs.phase === "BATTLE") {
-    hdr += obs.battleCountdown > 0
-      ? `  | COUNTDOWN ${obs.battleCountdown}s (not live - shots wasted)`
-      : `  | LIVE  shots in flight: ${obs.cannonballsInFlight}`;
+    hdr +=
+      obs.battleCountdown > 0
+        ? `  | COUNTDOWN ${obs.battleCountdown}s (not live - shots wasted)`
+        : `  | LIVE  shots in flight: ${obs.cannonballsInFlight}`;
   }
   if (obs.gameOver) hdr += "  *** GAME OVER ***";
   const bb = obs.boardBounds;
@@ -67,11 +68,9 @@ export function renderObservation(obs: Observation): string {
     const status = player.eliminated ? "ELIM" : `L${player.lives}`;
     lines.push(
       `  ${mark} ${who.padEnd(11)} ${status.padEnd(5)} ` +
-        `home${box(player.home).padEnd(9)} castle ${
-          box(player.castle).padEnd(
-            16,
-          )
-        } walls${String(player.walls).padEnd(3)} cannons${player.cannons} ` +
+        `home${box(player.home).padEnd(9)} castle ${box(player.castle).padEnd(
+          16,
+        )} walls${String(player.walls).padEnd(3)} cannons${player.cannons} ` +
         `encl${player.enclosedTowers}`,
     );
   }
@@ -79,14 +78,12 @@ export function renderObservation(obs: Observation): string {
   // ── my battery + status line (battery prints before the YOU line, as in show.py) ─
   const me = obs.me;
   const slots = me.cannonSlots;
-  let mine =
-    `  YOU: piece=${me.currentPiece}  cannonSlots ${slots.used}/${slots.max}`;
+  let mine = `  YOU: piece=${me.currentPiece}  cannonSlots ${slots.used}/${slots.max}`;
   if (obs.phase === "BATTLE") {
     mine += `  cannonsReady ${me.cannonsReady}/${me.cannonPositions.length}`;
   }
   if (me.cannonsUnenclosed) {
-    mine +=
-      `  ⚠ ${me.cannonsUnenclosed} INERT (unenclosed — can't fire, reseal to re-arm)`;
+    mine += `  ⚠ ${me.cannonsUnenclosed} INERT (unenclosed — can't fire, reseal to re-arm)`;
   }
   const battery = me.cannonsByTower ?? [];
   if (battery.length > 0) {
@@ -124,9 +121,9 @@ export function renderObservation(obs: Observation): string {
         .map((tile) => `(${tile.row},${tile.col})`)
         .join(",");
       lines.push(
-        `     ${
-          target.name.padEnd(5)
-        } ${target.score}pts ${target.walls}w  -> ${tiles}`,
+        `     ${target.name.padEnd(
+          5,
+        )} ${target.score}pts ${target.walls}w  -> ${tiles}`,
       );
       for (const tower of target.towers ?? []) {
         const star = tower.bonusSquares ? `  ★${tower.bonusSquares}bonus` : "";
@@ -180,7 +177,7 @@ export function renderObservation(obs: Observation): string {
     const suggestions = obs.cannonSuggestions;
     if (suggestions.length > 0) {
       lines.push(
-        "  CANNON SPOTS (safe interior first; ✗ = on wall-line, goes INERT if breached):",
+        "  CANNON SPOTS (deepest-interior first; ✗ = footprint touches your outer wall — prefer interior when available):",
       );
       const byMode = new Map<string, typeof suggestions>();
       for (const spot of suggestions) {
@@ -202,6 +199,11 @@ export function renderObservation(obs: Observation): string {
           } slot) -> ${spots}`,
         );
       }
+      if (suggestions.every((spot) => (spot.wallLineSides ?? 0) > 0)) {
+        lines.push(
+          "     (none are fully interior — castle too tight; the ✗ spots are the safest that fit)",
+        );
+      }
     } else {
       lines.push(
         "  CANNON SPOTS: none (no affordable footprint fits — end_cannon or pass)",
@@ -220,9 +222,10 @@ export function renderObservation(obs: Observation): string {
           .slice(0, 10)
           .map((tile) => `(${tile.row},${tile.col})`)
           .join(",");
-        const more = candidate.tiles.length <= 10
-          ? ""
-          : ` +${candidate.tiles.length - 10}`;
+        const more =
+          candidate.tiles.length <= 10
+            ? ""
+            : ` +${candidate.tiles.length - 10}`;
         const blockers = candidate.blockers ?? [];
         let fit: string;
         if (blockers.length > 0) {
@@ -241,11 +244,9 @@ export function renderObservation(obs: Observation): string {
             ? "fits in time"
             : "WON'T FINISH in time left";
         }
-        line += `  ${candidate.tilesNeeded} tiles ~${
-          candidate.estSeconds.toFixed(
-            0,
-          )
-        }s [${fit}] -> ${tiles}${more}`;
+        line += `  ${candidate.tilesNeeded} tiles ~${candidate.estSeconds.toFixed(
+          0,
+        )}s [${fit}] -> ${tiles}${more}`;
       } else if (candidate.status === "unenclosable" && candidate.reason) {
         line += `  (${candidate.reason})`;
       }
@@ -277,8 +278,8 @@ export function renderObservation(obs: Observation): string {
       const tag = bonus.enclosed
         ? "BANKED (inside interior)"
         : bonus.capturedByTower != null
-        ? `capture via tower ${bonus.capturedByTower}`
-        : "open grass — needs dedicated walls";
+          ? `capture via tower ${bonus.capturedByTower}`
+          : "open grass — needs dedicated walls";
       lines.push(
         `     (${bonus.row},${bonus.col}) ~${bonus.value}pts  [${tag}]`,
       );

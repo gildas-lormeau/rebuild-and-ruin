@@ -1,0 +1,10 @@
+# Seed-42 round-1 smoke / template for `deno task replay`.
+# One bare tool call per line: {"name": "<tool>", "arguments": {...}}.
+# new_game is auto-synthesized (seed 42, rounds 3) since the file doesn't open
+# with one. Cannon coords are specific to seed 42's round-1 castle.
+{"name": "select_castle", "arguments": {"towerIdx": 0}}
+{"name": "place_cannon", "arguments": {"row": 17, "col": 34, "mode": "normal"}}
+{"name": "end_cannon", "arguments": {}}
+{"name": "bombard", "arguments": {"slot": 1}}
+{"name": "build_toward", "arguments": {}}
+{"name": "pass", "arguments": {"seconds": 30}}

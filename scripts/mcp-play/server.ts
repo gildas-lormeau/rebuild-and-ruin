@@ -54,25 +54,25 @@ interface Journal {
     | { t: "act"; decision: AgentDecision }
     | { t: "pass"; n: number; seconds?: number }
     | {
-      t: "build";
-      towerIdx?: number;
-      maxSeconds?: number;
-      maxPieces?: number;
-    }
+        t: "build";
+        towerIdx?: number;
+        maxSeconds?: number;
+        maxPieces?: number;
+      }
     | {
-      t: "path";
-      from: { row: number; col: number };
-      to: { row: number; col: number };
-      maxSeconds?: number;
-      maxPieces?: number;
-    }
+        t: "path";
+        from: { row: number; col: number };
+        to: { row: number; col: number };
+        maxSeconds?: number;
+        maxPieces?: number;
+      }
     | { t: "bombard"; slot: number; quanta?: number }
     | { t: "breach"; slot: number; towerIdx?: number }
     | {
-      t: "pit_strike";
-      slot: number;
-      targets?: { row: number; col: number }[];
-    }
+        t: "pit_strike";
+        slot: number;
+        targets?: { row: number; col: number }[];
+      }
   )[];
 }
 
@@ -103,13 +103,11 @@ const TOOLS: ToolDef[] = [
     handler: async (args) => {
       const config = {
         seed: args.seed === undefined ? undefined : num(args, "seed"),
-        agentSlot: args.agentSlot === undefined
-          ? undefined
-          : num(args, "agentSlot"),
+        agentSlot:
+          args.agentSlot === undefined ? undefined : num(args, "agentSlot"),
         rounds: args.rounds === undefined ? undefined : num(args, "rounds"),
-        actionTicks: args.actionTicks === undefined
-          ? undefined
-          : num(args, "actionTicks"),
+        actionTicks:
+          args.actionTicks === undefined ? undefined : num(args, "actionTicks"),
       };
       game = await startGame(config);
       journal = { config, moves: [] };
@@ -636,7 +634,10 @@ function budgetOf(move: {
     : { maxSeconds: move.maxSeconds, maxPieces: move.maxPieces };
 }
 
-await main();
+// Only start the stdin JSON-RPC reader when run as the entry point — importing
+// this module (e.g. from replay.ts) reuses the tool registry + callTool without
+// blocking on stdin.
+if (import.meta.main) await main();
 
 async function main(): Promise<void> {
   log("server up — waiting for JSON-RPC on stdin");
@@ -669,8 +670,8 @@ async function handleRequest(req: JsonRpcRequest): Promise<void> {
   const isNotification = req.id === undefined;
   switch (req.method) {
     case "initialize": {
-      const requested = (req.params?.protocolVersion as string) ??
-        DEFAULT_PROTOCOL_VERSION;
+      const requested =
+        (req.params?.protocolVersion as string) ?? DEFAULT_PROTOCOL_VERSION;
       reply(req.id, {
         protocolVersion: requested,
         capabilities: { tools: {} },
@@ -694,65 +695,68 @@ async function handleRequest(req: JsonRpcRequest): Promise<void> {
       return;
     case "tools/call": {
       const name = req.params?.name as string;
-      const tool = TOOL_BY_NAME.get(name);
-      if (!tool) {
+      if (!TOOL_BY_NAME.has(name)) {
         replyError(req.id, -32602, `Unknown tool: ${name}`);
         return;
       }
       const args = (req.params?.arguments as Record<string, unknown>) ?? {};
-      const unknown = unknownArgs(tool, args);
-      if (unknown.length > 0) {
-        const accepted = Object.keys(
-          (tool.inputSchema as { properties?: Record<string, unknown> })
-            .properties ?? {},
-        );
-        reply(req.id, {
-          isError: true,
-          content: [
-            {
-              type: "text",
-              text: `Error: unknown argument(s) [${
-                unknown.join(
-                  ", ",
-                )
-              }] for '${name}'. Accepted: [${accepted.join(", ") || "none"}].`,
-            },
-          ],
-        });
-        return;
-      }
-      try {
-        const result = await tool.handler(args);
-        // Observation-shaped results render to the annotated ASCII board so the
-        // agent reads the new state directly; observe({format:'json'}) opts back
-        // into raw JSON, and non-observation payloads (check/plan/save) stay JSON.
-        const wantJson = name === "observe" && args.format === "json";
-        const text = !wantJson && isObservation(result)
-          ? renderObservation(result)
-          : JSON.stringify(result, null, 2);
-        reply(req.id, {
-          content: [{ type: "text", text }],
-        });
-      } catch (error) {
-        // Tool-level failure: report as an error result so the agent sees it.
-        reply(req.id, {
-          isError: true,
-          content: [
-            {
-              type: "text",
-              text: `Error: ${
-                error instanceof Error ? error.message : String(error)
-              }`,
-            },
-          ],
-        });
-      }
+      const { text, isError } = await callTool(name, args);
+      reply(
+        req.id,
+        isError
+          ? { isError: true, content: [{ type: "text", text }] }
+          : { content: [{ type: "text", text }] },
+      );
       return;
     }
     default:
       if (!isNotification) {
         replyError(req.id, -32601, `Method not found: ${req.method}`);
       }
+  }
+}
+
+/** Run a tool by name and render its result exactly as the stdio server does:
+ *  observation-shaped results become the annotated ASCII board (observe's
+ *  format:'json' opts back to raw JSON), everything else is pretty JSON; unknown
+ *  args and tool throws come back as { isError:true } with a message. The single
+ *  dispatch shared by the JSON-RPC `tools/call` path AND the `replay.ts` harness,
+ *  so both drive identical behaviour. */
+export async function callTool(
+  name: string,
+  args: Record<string, unknown> = {},
+): Promise<{ text: string; isError: boolean }> {
+  const tool = TOOL_BY_NAME.get(name);
+  if (!tool) return { text: `Unknown tool: ${name}`, isError: true };
+  const unknown = unknownArgs(tool, args);
+  if (unknown.length > 0) {
+    const accepted = Object.keys(
+      (tool.inputSchema as { properties?: Record<string, unknown> })
+        .properties ?? {},
+    );
+    return {
+      text: `Error: unknown argument(s) [${unknown.join(
+        ", ",
+      )}] for '${name}'. Accepted: [${accepted.join(", ") || "none"}].`,
+      isError: true,
+    };
+  }
+  try {
+    const result = await tool.handler(args);
+    // Observation-shaped results render to the annotated ASCII board so the agent
+    // reads the new state directly; observe({format:'json'}) opts back into raw
+    // JSON, and non-observation payloads (check/plan/save) stay JSON.
+    const wantJson = name === "observe" && args.format === "json";
+    const text =
+      !wantJson && isObservation(result)
+        ? renderObservation(result)
+        : JSON.stringify(result, null, 2);
+    return { text, isError: false };
+  } catch (error) {
+    return {
+      text: `Error: ${error instanceof Error ? error.message : String(error)}`,
+      isError: true,
+    };
   }
 }
 
@@ -776,7 +780,7 @@ function isObservation(value: unknown): value is Observation {
 function unknownArgs(tool: ToolDef, args: Record<string, unknown>): string[] {
   const props =
     (tool.inputSchema as { properties?: Record<string, unknown> }).properties ??
-      {};
+    {};
   return Object.keys(args).filter((key) => !(key in props));
 }
 
