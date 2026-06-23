@@ -203,6 +203,18 @@ export interface EnclosureCandidate {
   bonusSquares: number;
 }
 
+/** A productive extension for a loose wall end: place at `next` to grow the stub
+ *  at `from` toward `toward` — the nearest un-closed enclosure gap. The actionable
+ *  flip-side of a fragile stub: rather than erode, extend it into the cut. */
+export interface WallExtension {
+  /** The loose wall end (a fragile, ≤1-neighbour tile) this hint extends. */
+  from: { row: number; col: number };
+  /** The buildable tile to place next — one step from `from` toward `toward`. */
+  next: { row: number; col: number };
+  /** The nearest un-closed enclosure gap (min-cut tile) the stub heads for. */
+  toward: { row: number; col: number };
+}
+
 /** A bonus square in my zone — the highest points-per-tile build target. Each
  *  scores `territoryBonusSquarePoints` (10×√territory, quantised to 100, clamped
  *  [100,1000]) the instant it falls inside my enclosed interior, then it's
@@ -498,6 +510,13 @@ export interface Observation {
    *  spent your build budget on walls doing nothing. Prefer a one-tile-thick ring +
    *  spend the saved pieces expanding or repairing. Omitted when there's none. */
   fatWalls?: { row: number; col: number }[];
+  /** WALL_BUILD: for each loose wall end that sits near an un-closed enclosure gap,
+   *  the next tile to place to EXTEND it toward closing — `from` the stub, `next`
+   *  the buildable step, `toward` the gap it heads for. The constructive read of a
+   *  fragile stub: don't anchor it in place, grow it into the cut. EMPTY on a sealed
+   *  castle (no open gaps), so a finished castle's stubs are left alone. Omitted
+   *  when there's nothing to extend toward. */
+  wallExtensions?: WallExtension[];
   /** BATTLE only: each living opponent with intact walls, leader first, plus a
    *  contiguous sample of their wall tiles to aim at — so you can point-and-shoot
    *  without decoding the ASCII grid. Hitting any wall both scores you points and
@@ -611,6 +630,12 @@ const PIT_TARGETS_PER_OPPONENT = 3;
 const BREACH_RADIUS = 6;
 /** How many placements to surface per cannon mode in CANNON_PLACE. */
 const CANNON_SUGGESTION_PER_MODE = 3;
+/** A loose wall end gets an extension hint only when an un-closed enclosure gap
+ *  lies within this Manhattan radius — past it the stub isn't really heading
+ *  toward closing anything, so silence beats a misleading arrow. */
+const WALL_EXTEND_RADIUS = 8;
+/** Cap on extension hints surfaced, so a ragged frontier can't bloat the line. */
+const MAX_WALL_EXTENSIONS = 6;
 /** Tile margin around the agent's zone in the cropped board — kept in one place
  *  so the rendered crop and the reported `boardBounds` can't drift apart. */
 const BOARD_CROP_PAD = 2;
@@ -1870,6 +1895,8 @@ export async function createMcpGame(
       if (fragile.length > 0) observation.fragileWalls = fragile;
       const fat = fatWallsFor();
       if (fat.length > 0) observation.fatWalls = fat;
+      const extensions = wallExtensionsFor();
+      if (extensions.length > 0) observation.wallExtensions = extensions;
     }
 
     if (phase === Phase.BATTLE) {
@@ -2688,6 +2715,72 @@ export async function createMcpGame(
       if (!loadBearing) out.push({ row, col });
     }
     return out;
+  }
+
+  /** Loose wall ends that can be productively extended toward closing a tower:
+   *  for each fragile stub within `WALL_EXTEND_RADIUS` of an un-closed enclosure
+   *  gap, the next buildable step toward the nearest gap. A sealed castle has no
+   *  open gaps, so its stubs yield nothing here — the constructive counterpart to
+   *  "leave a finished castle's stubs alone". Reuses the planner's min-cut tiles,
+   *  so an extension hint agrees with where `build_toward` would seal. */
+  function wallExtensionsFor(): WallExtension[] {
+    const me = sc.state.players[agentSlot];
+    if (!me) return [];
+    const fragile = fragileWallsFor();
+    if (fragile.length === 0) return [];
+    const gaps: { row: number; col: number }[] = [];
+    for (const cand of enclosureCandidatesFor()) {
+      if (cand.status === "enclosable") gaps.push(...cand.tiles);
+    }
+    if (gaps.length === 0) return [];
+    const solid = solidTiles(me);
+    const out: WallExtension[] = [];
+    for (const stub of fragile) {
+      let nearest: { row: number; col: number } | null = null;
+      let nearestDist = Infinity;
+      for (const gap of gaps) {
+        const dist =
+          Math.abs(gap.row - stub.row) + Math.abs(gap.col - stub.col);
+        if (dist < nearestDist) {
+          nearestDist = dist;
+          nearest = gap;
+        }
+      }
+      if (!nearest || nearestDist > WALL_EXTEND_RADIUS) continue;
+      const next = stepToward(stub, nearest, solid);
+      if (next) out.push({ from: stub, next, toward: nearest });
+      if (out.length >= MAX_WALL_EXTENSIONS) break;
+    }
+    return out;
+  }
+
+  /** The buildable orthogonal neighbour of `from` that most reduces Manhattan
+   *  distance to `target` — the first step of extending a stub toward a gap.
+   *  Must STRICTLY improve on `from`'s own distance (init bestDist to it), so a
+   *  stub boxed away from the gap yields null instead of a backward step. Skips
+   *  off-board / water / solid (wall, tower, cannon) cells; the placer still
+   *  enforces full legality. */
+  function stepToward(
+    from: { row: number; col: number },
+    target: { row: number; col: number },
+    solid: Set<number>,
+  ): { row: number; col: number } | null {
+    let best: { row: number; col: number } | null = null;
+    let bestDist =
+      Math.abs(target.row - from.row) + Math.abs(target.col - from.col);
+    for (const [dr, dc] of DIRS_4) {
+      const row = from.row + dr;
+      const col = from.col + dc;
+      if (!inBounds(row, col)) continue;
+      if (isWater(sc.state.map.tiles, row, col)) continue;
+      if (solid.has(packTile(row, col))) continue;
+      const dist = Math.abs(target.row - row) + Math.abs(target.col - col);
+      if (dist < bestDist) {
+        bestDist = dist;
+        best = { row, col };
+      }
+    }
+    return best;
   }
 
   /** Bombard one opponent's walls for the rest of the battle (or `quanta` action

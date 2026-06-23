@@ -295,6 +295,19 @@ export function renderObservation(obs: Observation): string {
     );
   }
 
+  // ── wall extensions: the constructive read of a loose end — grow it into a gap ─
+  if (obs.wallExtensions && obs.wallExtensions.length > 0) {
+    const hints = obs.wallExtensions
+      .map(
+        (ext) =>
+          `(${ext.from.row},${ext.from.col})→(${ext.next.row},${ext.next.col})`,
+      )
+      .join(" ");
+    lines.push(
+      `  ↗ EXTEND toward closing (loose end → next tile, heads for an open min-cut gap): ${hints}`,
+    );
+  }
+
   // ── bonus squares: highest points-per-tile build targets in my zone ─────────
   if (obs.bonusTargets && obs.bonusTargets.length > 0) {
     lines.push(
