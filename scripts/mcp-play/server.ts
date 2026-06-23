@@ -48,6 +48,7 @@ interface Journal {
     | { t: "pass"; n: number }
     | { t: "build"; towerIdx?: number }
     | { t: "bombard"; slot: number; quanta?: number }
+    | { t: "breach"; slot: number; towerIdx?: number }
   )[];
 }
 
@@ -267,6 +268,31 @@ const TOOLS: ToolDef[] = [
       ),
   },
   {
+    name: "breach",
+    description:
+      "BATTLE: CONCENTRATE fire on the outer ring guarding ONE of an opponent's enclosed towers to de-enclose its pocket — denying that pocket's territory + bonus squares next build, where bombard just spreads damage they reseal. Omit towerIdx to auto-target their softest tower (fewest ringWalls / most bonus). See targets[].towers. Read lastResult for ring walls destroyed + whether the pocket opened.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        slot: {
+          type: "number",
+          description: "Opponent slot to breach (see layout / targets).",
+        },
+        towerIdx: {
+          type: "number",
+          description:
+            "Which of their enclosed towers to open (see targets[].towers). Omit for the softest.",
+        },
+      },
+      required: ["slot"],
+    },
+    handler: (args) =>
+      recordBreach(
+        num(args, "slot"),
+        args.towerIdx === undefined ? undefined : num(args, "towerIdx"),
+      ),
+  },
+  {
     name: "enclose_plan",
     description:
       "WALL_BUILD: the FULL min-cut plan (all tiles) to enclose one tower in your zone — the un-sampled form of an enclosureCandidates entry. Call after picking a candidate to get the complete tile list to fill.",
@@ -326,6 +352,7 @@ const TOOLS: ToolDef[] = [
         if (move.t === "act") game.act(move.decision);
         else if (move.t === "pass") game.pass(move.n);
         else if (move.t === "build") game.build(move.towerIdx);
+        else if (move.t === "breach") game.breach(move.slot, move.towerIdx);
         else game.bombard(move.slot, move.quanta);
       }
       journal = loaded;
@@ -372,6 +399,13 @@ function recordBuild(towerIdx?: number): unknown {
 function recordBombard(slot: number, quanta?: number): unknown {
   const observation = requireGame().bombard(slot, quanta);
   journal?.moves.push({ t: "bombard", slot, quanta });
+  return observation;
+}
+
+/** Run the breach executor AND journal the target (replay re-derives the volley). */
+function recordBreach(slot: number, towerIdx?: number): unknown {
+  const observation = requireGame().breach(slot, towerIdx);
+  journal?.moves.push({ t: "breach", slot, towerIdx });
   return observation;
 }
 

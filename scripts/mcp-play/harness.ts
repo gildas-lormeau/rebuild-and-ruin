@@ -163,7 +163,22 @@ export interface BonusTarget {
   capturedByTower: number | null;
 }
 
-/** A battle aim-assist entry: one opponent and a sample of their wall tiles. */
+/** One enclosed tower of an opponent — a `breach` target. De-enclosing its
+ *  pocket (open its outer ring) makes that pocket score zero next build unless
+ *  they reseal it, and ejects any bonus squares it holds from their interior. */
+export interface OpponentTower {
+  towerIdx: number;
+  row: number;
+  col: number;
+  /** Outer-ring (boundary) wall tiles guarding it within `BREACH_RADIUS` —
+   *  the load-bearing barrier a `breach` chews through. Fewer = softer target. */
+  ringWalls: number;
+  /** Bonus squares sitting in this pocket — denied to them if you de-enclose it. */
+  bonusSquares: number;
+}
+
+/** A battle aim-assist entry: one opponent, a sample of their wall tiles, and
+ *  their enclosed towers as breach targets. */
 export interface BattleTarget {
   slot: number;
   name: string;
@@ -172,6 +187,9 @@ export interface BattleTarget {
   walls: number;
   /** A contiguous sample of their wall tiles (top-to-bottom) to fire at. */
   sampleTiles: { row: number; col: number }[];
+  /** Their enclosed towers, softest (thinnest ring) first — pick one to
+   *  `breach({ slot, towerIdx })`, or omit towerIdx to auto-target the softest. */
+  towers: OpponentTower[];
 }
 
 /** A legal cannon placement in CANNON_PLACE — the green-phantom shortlist so the
@@ -354,10 +372,15 @@ export interface McpGame {
    *  home tower) — the harness places each arriving piece on the best min-cut
    *  tile until it seals, time runs low, or it stalls. One call ≈ a whole build. */
   build(towerIdx?: number): Observation;
-  /** BATTLE: fire every ready cannon at `slot`'s nearest walls, pacing reload,
-   *  for the rest of the battle (or `quanta` action-quanta). One call ≈ a whole
-   *  battle of fire/pass. */
+  /** BATTLE: SPREAD fire over `slot`'s nearest walls, pacing reload, for the rest
+   *  of the battle (or `quanta` action-quanta) — maximises wall count destroyed
+   *  (points + general tax). One call ≈ a whole battle of fire/pass. */
   bombard(slot: number, quanta?: number): Observation;
+  /** BATTLE: CONCENTRATE fire on the outer ring guarding one of `slot`'s enclosed
+   *  towers (the softest by ringWalls/bonus if `towerIdx` omitted) to de-enclose
+   *  its pocket — denies that pocket's territory + bonus squares next build,
+   *  where bombard just spreads damage they reseal. One call ≈ a whole battle. */
+  breach(slot: number, towerIdx?: number): Observation;
   /** Full min-cut plan (all tiles) to enclose one tower — the un-sampled form
    *  of an `enclosureCandidates` entry. Returns null if that tower isn't a
    *  candidate in your zone. */
@@ -386,6 +409,9 @@ const ENCLOSURE_MARGIN = 3;
 const ENCLOSURE_TILE_SAMPLE = 8;
 /** How many of an opponent's wall tiles to surface as aim-assist in BATTLE. */
 const BATTLE_TARGET_SAMPLE = 10;
+/** Chebyshev radius around an opponent tower that counts as its guarding ring —
+ *  the band a `breach` concentrates fire on to de-enclose that pocket. */
+const BREACH_RADIUS = 6;
 /** How many placements to surface per cannon mode in CANNON_PLACE. */
 const CANNON_SUGGESTION_PER_MODE = 3;
 /** `build_toward` stops with this much build time left, so the phase-end sweep
@@ -1276,6 +1302,7 @@ export async function createMcpGame(
             BATTLE_TARGET_SAMPLE,
             origin,
           ),
+          towers: opponentTowersFor(slot),
         }));
     }
 
@@ -1644,6 +1671,152 @@ export async function createMcpGame(
     return observe();
   }
 
+  /** An opponent's enclosed towers as breach targets, softest (thinnest guarding
+   *  ring) first. `ringWalls` = their outer-ring walls within BREACH_RADIUS of
+   *  the tower; `bonusSquares` = bonus squares in that pocket (denied on
+   *  de-enclosure). */
+  function opponentTowersFor(slot: number): OpponentTower[] {
+    const opponent = sc.state.players[slot];
+    if (!opponent) return [];
+    const ring = boundaryWalls(opponent);
+    const oppZone = sc.state.playerZones[slot];
+    const near = (row: number, col: number, tr: number, tc: number) =>
+      Math.max(Math.abs(row - tr), Math.abs(col - tc)) <= BREACH_RADIUS;
+    return opponent.enclosedTowers
+      .map((tower) => {
+        let ringWalls = 0;
+        for (const key of ring) {
+          const { row, col } = unpackTile(
+            key as Parameters<typeof unpackTile>[0],
+          );
+          if (near(row, col, tower.row, tower.col)) ringWalls++;
+        }
+        const bonusSquares = sc.state.bonusSquares.filter(
+          (bonus) =>
+            bonus.zone === oppZone &&
+            opponent.interior.has(packTile(bonus.row, bonus.col)) &&
+            near(bonus.row, bonus.col, tower.row, tower.col),
+        ).length;
+        return {
+          towerIdx: tower.index as number,
+          row: tower.row,
+          col: tower.col,
+          ringWalls,
+          bonusSquares,
+        };
+      })
+      .sort(
+        (a, b) => b.bonusSquares - a.bonusSquares || a.ringWalls - b.ringWalls,
+      );
+  }
+
+  /** The outer-ring wall tiles guarding one opponent tower — what a `breach`
+   *  hammers. Boundary walls within BREACH_RADIUS of the tower, nearest the
+   *  tower first (so fire concentrates on one arc and punches a contiguous hole
+   *  rather than nibbling all round). */
+  function breachTilesFor(
+    slot: number,
+    tower: { row: number; col: number },
+  ): { row: number; col: number }[] {
+    const opponent = sc.state.players[slot];
+    if (!opponent) return [];
+    const dist2 = (row: number, col: number) =>
+      (row - tower.row) ** 2 + (col - tower.col) ** 2;
+    return [...boundaryWalls(opponent)]
+      .map((key) => unpackTile(key as Parameters<typeof unpackTile>[0]))
+      .filter(
+        ({ row, col }) =>
+          Math.max(Math.abs(row - tower.row), Math.abs(col - tower.col)) <=
+          BREACH_RADIUS,
+      )
+      .sort((a, b) => dist2(a.row, a.col) - dist2(b.row, b.col));
+  }
+
+  /** Concentrate fire to DE-ENCLOSE one opponent tower's pocket — the targeted
+   *  counterpart to `bombard`'s spread. Where bombard maximises raw wall count
+   *  destroyed (points + general tax), breach hammers the outer ring guarding
+   *  ONE tower so the pocket opens: that pocket scores zero next build unless
+   *  they reseal it, and its bonus squares fall out of their interior. Picks the
+   *  softest / most-bonus enclosed tower if `towerIdx` is omitted. Same fairness
+   *  as bombard — fires only while the battle is live, one ready cannon per
+   *  shot, paced to reload. */
+  function breachSlot(targetSlot: number, towerIdx?: number): Observation {
+    if (sc.state.phase !== Phase.BATTLE) {
+      bridge.lastResult = {
+        kind: "fire",
+        success: false,
+        reason: "not in BATTLE",
+      };
+      return observe();
+    }
+    const towers = opponentTowersFor(targetSlot);
+    const tower =
+      towerIdx !== undefined
+        ? towers.find((entry) => entry.towerIdx === towerIdx)
+        : towers[0];
+    if (!tower) {
+      bridge.lastResult = {
+        kind: "fire",
+        success: false,
+        reason:
+          towers.length === 0
+            ? "target has no enclosed tower to breach (bombard instead)"
+            : `slot ${targetSlot} has no enclosed tower ${towerIdx}`,
+      };
+      return observe();
+    }
+    const me = sc.state.players[agentSlot];
+    const wallsBefore = sc.state.players[targetSlot]?.walls.size ?? 0;
+    const scoreBefore = me?.score ?? 0;
+    const stillEnclosed = () =>
+      sc.state.players[targetSlot]?.enclosedTowers.some(
+        (enc) => enc.index === tower.towerIdx,
+      ) ?? false;
+    let fired = 0;
+    while (!gameOver() && sc.state.phase === Phase.BATTLE) {
+      const target = sc.state.players[targetSlot];
+      const live = sc.state.battleCountdown <= 0 && sc.state.timer > 0;
+      const tiles = breachTilesFor(targetSlot, tower);
+      const canFire =
+        live &&
+        target !== undefined &&
+        !target.eliminated &&
+        tiles.length > 0 &&
+        cannonsReadyCount() > 0;
+      if (!canFire) {
+        advance(actionTicks);
+        settleToDecision();
+        continue;
+      }
+      const ready = cannonsReadyCount();
+      for (let shot = 0; shot < ready && shot < tiles.length; shot++) {
+        if (sc.state.phase !== Phase.BATTLE || gameOver()) break;
+        const tile = tiles[shot]!;
+        bridge.pending = { kind: "fire", row: tile.row, col: tile.col };
+        advance(actionTicks);
+        settleToDecision();
+        fired++;
+      }
+    }
+    const wallsDestroyed =
+      wallsBefore - (sc.state.players[targetSlot]?.walls.size ?? 0);
+    const pointsGained =
+      (sc.state.players[agentSlot]?.score ?? 0) - scoreBefore;
+    const inert = cannonsUnenclosedCount();
+    const inertNote =
+      inert > 0
+        ? `; ${inert}/${me?.cannons.length ?? 0} cannons inert (unenclosed — reseal to re-arm)`
+        : "";
+    // enclosedTowers only recomputes at their next build, so de-enclosure shows
+    // up THEN, not mid-battle — report the ring damage, which is what carries.
+    bridge.lastResult = {
+      kind: "fire",
+      success: fired > 0,
+      reason: `breached tower ${tower.towerIdx}: fired ${fired}, +${pointsGained} pts (ring lost ${wallsDestroyed} walls${stillEnclosed() ? "" : ", pocket OPEN"})${inertNote}`,
+    };
+    return observe();
+  }
+
   /** Centroid of the agent's cannons — the flight origin for nearest-wall aim. */
   function cannonCentroid(): { row: number; col: number } {
     const me = sc.state.players[agentSlot];
@@ -1665,6 +1838,7 @@ export async function createMcpGame(
     pass,
     build: buildToward,
     bombard: bombardSlot,
+    breach: breachSlot,
     enclosurePlan,
     check,
     agentSlot,
@@ -1698,7 +1872,7 @@ function expectedFor(phase: Phase): string {
     case Phase.CANNON_PLACE:
       return "Place a cannon at its top-left — act { kind: 'cannon', row, col, mode }. See cannonSuggestions for legal spots you can afford, grouped by mode (no 'super' line = no 3x3 fits). Footprint: normal/balloon 2x2, super 3x3. Watch me.cannonSlots (used/max). End early with { kind: 'cannon-done' }, or pass.";
     case Phase.BATTLE:
-      return "Tax an opponent's walls (scores points + slows their next build). Fastest: bombard({ slot }) fires every ready cannon at that opponent's nearest walls for the whole battle — one call (see targets, leader first). Or aim by hand: act { kind: 'fire', row, col } (wait out battleCountdown > 0; fire at most me.cannonsReady per burst, then pass to reload).";
+      return "Attack an opponent for the whole battle (one call). Two strategies: bombard({ slot }) SPREADS fire over their nearest walls — maximises wall count destroyed (points + general tax). breach({ slot, towerIdx? }) CONCENTRATES fire on the outer ring guarding one tower to de-enclose its pocket (deny its territory + bonus squares; omit towerIdx for the softest). See targets (leader first; each lists its towers with ringWalls + bonusSquares). Or aim by hand: act { kind: 'fire', row, col } (wait out battleCountdown > 0; fire at most me.cannonsReady per burst, then pass to reload).";
     default:
       return "No agent action this phase; call pass to advance.";
   }
