@@ -584,6 +584,21 @@ export interface Observation {
       /** Name of the opponent now firing this cannon. */
       by: string;
     }[];
+    /** Enemy cannons YOUR balloon has CAPTURED this battle — they now fire for
+     *  YOU (the mirror of `capturedCannons`). Capture resolves at the
+     *  cannon→battle transition, so it's settled before any battle action; the
+     *  seized gun fires inside your bombard/cull automatically. Empty in the
+     *  normal case; non-empty means your effective battery is BIGGER than your
+     *  placed count — and a captured enemy super is a free pit_strike gun.
+     *  Surfaced so a successful balloon is visible (placing one and seeing this
+     *  still empty next battle means it found no enclosed enemy gun to take). */
+    capturedByMe: {
+      row: number;
+      col: number;
+      mode: CannonMode;
+      /** Name of the opponent you took this cannon from. */
+      from: string;
+    }[];
     /** BATTLE: how many of your cannons can fire THIS INSTANT. A cannon reloads
      *  only when its previous ball lands (one ball in flight per cannon), so
      *  firing more than this many in a burst just wastes actions on reload —
@@ -2286,17 +2301,54 @@ export async function createMcpGame(
       }));
   }
 
-  /** My super cannons that can actually plant pits this battle: alive, enclosed,
-   *  and NOT captured. `pit_strike` needs one of these — an alive-but-captured
-   *  super looks armed but fires for the enemy, so checking `isSuperCannon &&
-   *  isCannonAlive` alone (what the pit-target gate used to do) promised a pit
+  /** Enemy cannons MY balloon CAPTURED this battle — they now fire for ME, not
+   *  their original owner (the mirror of `capturedFromMe`). A balloon launched in
+   *  the cannon→battle gap seizes a normal gun with one hit, a super with two;
+   *  the capture resolves at the CANNON_PLACE→BATTLE transition (`prepareBattle`),
+   *  so it's already settled before any battle action and the seized gun fires
+   *  inside my bombard/cull automatically. Surfaced so a successful balloon is
+   *  visible — without it the agent gets no signal that its balloon worked. */
+  function capturedByMe(): {
+    row: number;
+    col: number;
+    mode: CannonMode;
+    from: string;
+  }[] {
+    return sc.state.capturedCannons
+      .filter((entry) => entry.capturerId === agentSlot)
+      .map((entry) => ({
+        row: entry.cannon.row,
+        col: entry.cannon.col,
+        mode: entry.cannon.mode,
+        from: PLAYER_NAMES[entry.victimId] ?? `P${entry.victimId}`,
+      }));
+  }
+
+  /** A cannon that plants a burning PIT when it fires at an enemy wall: a SUPER
+   *  (always 3×3 splash + pit), or a NORMAL gun the Mortar upgrade elected this
+   *  battle (`cannon.mortar`, set at the cannon→battle transition). `pit_strike`
+   *  treats both as pit sources — Mortar's elected gun pits on every wall hit,
+   *  so a Mortar owner can plant pits with no super placed at all. */
+  function isPitCapable(cannon: Cannon): boolean {
+    return isSuperCannon(cannon) || cannon.mortar === true;
+  }
+
+  /** Short label for a pit-capable gun in result/fallback text. */
+  function pitGunLabel(cannon: Cannon): string {
+    return isSuperCannon(cannon) ? "super" : "mortar gun";
+  }
+
+  /** My cannons that can actually plant pits this battle: pit-capable (super or
+   *  Mortar-elected normal), alive, enclosed, and NOT captured. `pit_strike`
+   *  needs one of these — an alive-but-captured gun looks armed but fires for the
+   *  enemy, so checking `isPitCapable && isCannonAlive` alone would promise a pit
    *  capability that never materialised. */
-  function usableSuperCannons(): Cannon[] {
+  function usablePitCannons(): Cannon[] {
     const me = sc.state.players[agentSlot];
     if (!me) return [];
     return me.cannons.filter(
       (cannon) =>
-        isSuperCannon(cannon) &&
+        isPitCapable(cannon) &&
         isCannonAlive(cannon) &&
         isCannonEnclosed(cannon, me) &&
         captorOf(cannon) === null,
@@ -2304,31 +2356,29 @@ export async function createMcpGame(
   }
 
   /** Why `pit_strike` fell back to a plain bombard, or null when there was simply
-   *  no super to begin with (bombard IS the right call then — no note needed).
-   *  Names the cause (captured / destroyed / unenclosed) so a no-pit fallback is
-   *  never the old silent surprise. */
-  function superUnusableReason(): string | null {
+   *  no pit-capable gun to begin with (bombard IS the right call then — no note
+   *  needed). Names the cause (captured / destroyed / unenclosed) for the super
+   *  OR Mortar-elected gun, so a no-pit fallback is never the old silent surprise. */
+  function pitGunUnusableReason(): string | null {
     const me = sc.state.players[agentSlot];
-    const supers = (me?.cannons ?? []).filter((cannon) =>
-      isSuperCannon(cannon),
-    );
-    if (supers.length === 0) return null;
-    const captured = supers.find((cannon) => captorOf(cannon) !== null);
+    const guns = (me?.cannons ?? []).filter((cannon) => isPitCapable(cannon));
+    if (guns.length === 0) return null;
+    const captured = guns.find((cannon) => captorOf(cannon) !== null);
     if (captured) {
-      return `your super at (${captured.row},${captured.col}) was CAPTURED by ${captorOf(
+      return `your ${pitGunLabel(captured)} at (${captured.row},${captured.col}) was CAPTURED by ${captorOf(
         captured,
       )} — it fires for them, not you`;
     }
-    if (supers.every((cannon) => !isCannonAlive(cannon))) {
-      return "your super was destroyed";
+    if (guns.every((cannon) => !isCannonAlive(cannon))) {
+      return `your ${pitGunLabel(guns[0]!)} was destroyed`;
     }
-    const unenclosed = supers.find(
+    const unenclosed = guns.find(
       (cannon) => me && !isCannonEnclosed(cannon, me),
     );
     if (unenclosed) {
-      return `your super at (${unenclosed.row},${unenclosed.col}) is unenclosed (ring breached) — reseal to re-arm`;
+      return `your ${pitGunLabel(unenclosed)} at (${unenclosed.row},${unenclosed.col}) is unenclosed (ring breached) — reseal to re-arm`;
     }
-    return "your super can't fire this battle";
+    return "your pit gun can't fire this battle";
   }
 
   /** What happened to ME this battle — the return-fire I take while a one-call
@@ -2608,6 +2658,7 @@ export async function createMcpGame(
         }),
         cannonsByTower: cannonsByTowerFor(),
         capturedCannons: capturedFromMe(),
+        capturedByMe: capturedByMe(),
         cannonsReady: cannonsReadyCount(),
         cannonsUnenclosed: cannonsUnenclosedCount(),
         walls: me.walls.size,
@@ -2700,10 +2751,11 @@ export async function createMcpGame(
           ),
           towers: opponentTowersFor(slot),
         }));
-      // Pit targets only matter if I have a super that can actually fire for me
-      // — an alive-but-captured super can't plant pits, so it shouldn't dangle
-      // pit targets I can't act on.
-      if (usableSuperCannons().length > 0) {
+      // Pit targets only matter if I have a pit-capable gun (super or a
+      // Mortar-elected normal) that can actually fire for me — an alive-but-
+      // captured gun can't plant pits, so it shouldn't dangle pit targets I
+      // can't act on.
+      if (usablePitCannons().length > 0) {
         const pits = pitTargetsFor();
         if (pits.length > 0) observation.pitTargets = pits;
       }
@@ -4318,15 +4370,16 @@ export async function createMcpGame(
       return observe();
     }
     const me = sc.state.players[agentSlot];
-    // A pit needs a super that can actually fire for ME. A captured (or
-    // destroyed/unenclosed) super looks armed but plants nothing — fall back to
-    // a plain bombard and SAY why, instead of running a doomed strike that
-    // reports 0 pits with a misleading "reloading / battle ended" note.
-    if (usableSuperCannons().length === 0) {
+    // A pit needs a pit-capable gun (a super, or a Mortar-elected normal) that
+    // can actually fire for ME. A captured (or destroyed/unenclosed) gun looks
+    // armed but plants nothing — fall back to a plain bombard and SAY why,
+    // instead of running a doomed strike that reports 0 pits with a misleading
+    // "reloading / battle ended" note.
+    if (usablePitCannons().length === 0) {
       // Snapshot WHY before bombarding — bombardSlot runs the whole battle, and
       // a capture is released at battle end, so reading the reason afterwards
       // would lose the "captured by X" detail.
-      const why = superUnusableReason();
+      const why = pitGunUnusableReason();
       bombardSlot(targetSlot);
       if (why && bridge.lastResult?.reason) {
         bridge.lastResult.reason = `pit-strike → bombard (${why}); ${bridge.lastResult.reason}`;
@@ -4363,13 +4416,13 @@ export async function createMcpGame(
     const scoreBefore = me?.score ?? 0;
     const myWallsBefore = new Set(me?.walls);
     const inertBefore = cannonsUnenclosedCount();
-    // Every tile a super shot actually aimed at (bound or re-aimed) — counting
+    // Every tile a pit-gun shot actually aimed at (bound or re-aimed) — counting
     // pits over THIS set credits re-aimed fresh tiles too, which a fixed
     // pitTiles snapshot would miss.
-    const superAims = new Set<number>();
+    const pitAims = new Set<number>();
     let fired = 0;
-    let superShots = 0;
-    let superDry = 0;
+    let pitShots = 0;
+    let pitDry = 0;
     let pitIdx = 0;
     while (!gameOver() && sc.state.phase === Phase.BATTLE) {
       const target = sc.state.players[targetSlot];
@@ -4394,18 +4447,18 @@ export async function createMcpGame(
         const next = shooter
           ? nextReadyCannon(sc.state, agentSlot, shooter.cannonRotationIdx)
           : null;
-        const superNext =
-          next?.type === "own" && isSuperCannon(shooter!.cannons[next.ownIdx]!);
+        const pitNext =
+          next?.type === "own" && isPitCapable(shooter!.cannons[next.ownIdx]!);
         let aim = spread[shot]!;
-        if (superNext) {
+        if (pitNext) {
           const pit = nextPitAim(pitIdx);
           if (pit) {
             aim = pit;
             pitIdx++;
-            superShots++;
-            superAims.add(packTile(pit.row, pit.col));
+            pitShots++;
+            pitAims.add(packTile(pit.row, pit.col));
           } else {
-            superDry++;
+            pitDry++;
           }
         }
         bridge.pending = { kind: "fire", row: aim.row, col: aim.col };
@@ -4418,15 +4471,15 @@ export async function createMcpGame(
       wallsBefore - (sc.state.players[targetSlot]?.walls.size ?? 0);
     const pointsGained =
       (sc.state.players[agentSlot]?.score ?? 0) - scoreBefore;
-    const pitsPlanted = [...superAims].filter((key) => {
+    const pitsPlanted = [...pitAims].filter((key) => {
       const { row, col } = unpackTile(key as Parameters<typeof unpackTile>[0]);
       return hasPitAt(sc.state.burningPits, row, col);
     }).length;
-    const superNote = pitDryNote(superShots, superDry, autoTargets);
+    const pitNote = pitDryNote(pitShots, pitDry, autoTargets);
     bridge.lastResult = {
       kind: "fire",
       success: fired > 0,
-      reason: `pit-strike slot ${targetSlot}: fired ${fired} (${superShots} super→pit), +${pointsGained} pts, target lost ${wallsDestroyed} walls, ${pitsPlanted} pit(s) planted${superNote}${battleSelfReport(
+      reason: `pit-strike slot ${targetSlot}: fired ${fired} (${pitShots} pit-gun→pit), +${pointsGained} pts, target lost ${wallsDestroyed} walls, ${pitsPlanted} pit(s) planted${pitNote}${battleSelfReport(
         myWallsBefore,
         inertBefore,
       )}`,
@@ -4471,21 +4524,22 @@ export async function createMcpGame(
 }
 
 /** Why a pit-strike planted 0 pits — appended to the result line ONLY when the
- *  super truly planted nothing, so a working strike stays terse. A 0-pit super
- *  was previously indistinguishable from a successful one; this names the cause
- *  (razed targets vs stale explicit aim vs the super never getting a live shot). */
+ *  pit gun (super or Mortar-elected normal) truly planted nothing, so a working
+ *  strike stays terse. A 0-pit strike was previously indistinguishable from a
+ *  successful one; this names the cause (razed targets vs stale explicit aim vs
+ *  the gun never getting a live shot). */
 function pitDryNote(
-  superShots: number,
-  superDry: number,
+  pitShots: number,
+  pitDry: number,
   autoTargets: boolean,
 ): string {
-  if (superShots > 0) return "";
-  if (superDry > 0) {
+  if (pitShots > 0) return "";
+  if (pitDry > 0) {
     return autoTargets
-      ? "; ⚠ super planted no pits — no standing tower-ring wall left to pit (the choke walls were already razed)"
-      : "; ⚠ super planted no pits — your target tiles weren't standing enemy walls when it fired (omit targets to auto-aim live ring walls)";
+      ? "; ⚠ pit gun planted no pits — no standing tower-ring wall left to pit (the choke walls were already razed)"
+      : "; ⚠ pit gun planted no pits — your target tiles weren't standing enemy walls when it fired (omit targets to auto-aim live ring walls)";
   }
-  return "; ⚠ super never fired a pit shot (reloading, inert/unenclosed, or the battle ended first)";
+  return "; ⚠ pit gun never fired a pit shot (reloading, inert/unenclosed, or the battle ended first)";
 }
 
 /** Estimated build seconds to close a `cut`-tile enclosure at the fair per-piece
@@ -4543,7 +4597,7 @@ function expectedFor(phase: Phase): string {
     case Phase.UPGRADE_PICK:
       return "Pick ONE of your three upgrade offers — act { kind: 'pick-upgrade', cardIdx } where cardIdx is 0, 1, or 2 (the index into observation.upgradeOffers; each lists id + label + description). The pick applies for the next round only. There's no skip — choose the offer that best fits your board (e.g. second_wind if you have dead towers, clear_the_field if grunts crowd your zone).";
     case Phase.BATTLE:
-      return "Attack an opponent for the whole battle (one call). Strategies: bombard({ slot }) SPREADS fire over their nearest walls — maximises wall count destroyed (points + general tax). breach({ slot, towerIdx? }) CONCENTRATES fire on the outer ring guarding one tower to de-enclose its pocket (deny its territory + bonus squares; omit towerIdx for the softest). pit_strike({ slot, targets? }) aims your SUPER cannon(s) at enemy wall tiles to plant burning PITS (block their rebuild for rounds) while normals chip — see pitTargets for the best un-reroutable walls; omit targets to use them. cull() is DEFENSIVE — fire at the GRUNTS menacing your OWN towers (observation.threats) instead of an opponent; grunts are frozen this phase, so the swarm that would box your reseal next build is killable now (one shot each). Reach for it when 'grunts behind your walls' is climbing or a reseal is grunt-locked. See targets (leader first; each lists towers with ringWalls + bonusSquares). Or aim by hand: act { kind: 'fire', row, col } (wait out battleCountdown > 0; fire at most me.cannonsReady per burst, then pass to reload).";
+      return "Attack an opponent for the whole battle (one call). Strategies: bombard({ slot }) SPREADS fire over their nearest walls — maximises wall count destroyed (points + general tax). breach({ slot, towerIdx? }) CONCENTRATES fire on the outer ring guarding one tower to de-enclose its pocket (deny its territory + bonus squares; omit towerIdx for the softest). pit_strike({ slot, targets? }) aims your pit gun(s) — a SUPER, or a normal the MORTAR upgrade elected this battle — at enemy wall tiles to plant burning PITS (block their rebuild for rounds) while normals chip — see pitTargets for the best un-reroutable walls; omit targets to use them. cull() is DEFENSIVE — fire at the GRUNTS menacing your OWN towers (observation.threats) instead of an opponent; grunts are frozen this phase, so the swarm that would box your reseal next build is killable now (one shot each). Reach for it when 'grunts behind your walls' is climbing or a reseal is grunt-locked. See targets (leader first; each lists towers with ringWalls + bonusSquares). Or aim by hand: act { kind: 'fire', row, col } (wait out battleCountdown > 0; fire at most me.cannonsReady per burst, then pass to reload).";
     default:
       return "No agent action this phase; call pass to advance.";
   }

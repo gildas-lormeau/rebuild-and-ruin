@@ -627,7 +627,7 @@ const TOOLS: ToolDef[] = [
   {
     name: "pit_strike",
     description:
-      "BATTLE: drive the whole battle like bombard, but AIM your SUPER cannon(s) at enemy wall tiles to plant burning PITS while normal cannons chip. A super ball pits a tile it hits AS A WALL, and the pit blocks rebuilding for several rounds — so a pit on a load-bearing / un-reroutable wall denies their reseal, unlike a bombard hit they patch next build. See observation.pitTargets for the best walls (ranked by choke = un-reroutable sides); omit targets to use them automatically. No super that can fire FOR you (none placed, or it was destroyed / unenclosed / CAPTURED by an enemy balloon — see observation.me.capturedCannons) → behaves as a plain bombard and lastResult says why. Read lastResult for pits planted + return fire.",
+      "BATTLE: drive the whole battle like bombard, but AIM your pit-capable gun(s) at enemy wall tiles to plant burning PITS while normal cannons chip. A pit gun is a SUPER (3×3 splash) OR a normal cannon the MORTAR upgrade elected this battle — either pits a tile it hits AS A WALL, and the pit blocks rebuilding for several rounds, so a pit on a load-bearing / un-reroutable wall denies their reseal, unlike a bombard hit they patch next build. See observation.pitTargets for the best walls (ranked by choke = un-reroutable sides); omit targets to use them automatically. No pit gun that can fire FOR you (no super placed AND no Mortar gun elected, or it was destroyed / unenclosed / CAPTURED by an enemy balloon — see observation.me.capturedCannons) → behaves as a plain bombard and lastResult says why. Read lastResult for pits planted + return fire.",
     inputSchema: {
       type: "object",
       properties: {
@@ -638,7 +638,7 @@ const TOOLS: ToolDef[] = [
         targets: {
           type: "array",
           description:
-            "Enemy WALL tiles to plant pits on (super aims here). Omit to use observation.pitTargets for this slot.",
+            "Enemy WALL tiles to plant pits on (your pit gun — super or Mortar-elected normal — aims here). Omit to use observation.pitTargets for this slot.",
           items: {
             type: "object",
             properties: {

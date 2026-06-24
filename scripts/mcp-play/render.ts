@@ -243,6 +243,22 @@ function batteryStatusLines(obs: Observation): string[] {
       }: ${list}`,
     );
   }
+  const seized = me.capturedByMe ?? [];
+  if (seized.length > 0) {
+    const list = seized
+      .map(
+        (cannon) =>
+          `${cannon.mode}(${cannon.row},${cannon.col})←${cannon.from}`,
+      )
+      .join("  ");
+    lines.push(
+      `  ✓ CAPTURED by YOUR balloon — these fire for YOU this battle${
+        seized.some((cannon) => cannon.mode === "super")
+          ? " (a seized super = a free pit_strike gun)"
+          : ""
+      }: ${list}`,
+    );
+  }
   if (me.cannonPositions.length > 0) {
     const guns = me.cannonPositions.map(
       (cannon) =>
