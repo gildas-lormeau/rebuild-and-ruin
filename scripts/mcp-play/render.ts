@@ -306,10 +306,37 @@ export function renderObservation(obs: Observation): string {
     }
   }
 
-  // ── fat walls: redundant inner walls (the real wall liability) ──────────────
+  // ── opportunity cost of passing: prices idle build time at the decision point ─
+  // Lists every enclosure still sealable in the time left (`feasible`). Present ⇒
+  // there's a tower to bank (a castle unit) and maybe bonus squares with it, so
+  // build_toward instead of passing; ABSENT ⇒ nothing's reachable and passing is
+  // correct. Disappears the instant the last feasible tower seals — so the line's
+  // presence IS the answer to "should I pass yet?".
+  const stillSealable = (obs.enclosureCandidates ?? []).filter(
+    (candidate) => candidate.status === "enclosable" && candidate.feasible,
+  );
+  if (stillSealable.length > 0) {
+    const parts = stillSealable.map((candidate) => {
+      const who = candidate.isHome ? "home" : `tower ${candidate.towerIdx}`;
+      const bonus =
+        (candidate.bonusSquares ?? 0) > 0
+          ? `, ★+${candidate.bonusSquares}`
+          : "";
+      return `${who} (~${candidate.estSeconds.toFixed(0)}s${bonus})`;
+    });
+    lines.push(
+      `  ⏳ ${obs.timerSec}s left — still enclosable: ${parts.join(
+        ", ",
+      )}. Idle build time scores nothing; castle units + bonus squares only bank if enclosed — build_toward/build before you pass.`,
+    );
+  }
+
+  // ── fat walls: SUNK history, not a to-do — in classic no placed wall is removable ─
+  // Count-only (the coords are non-actionable: you can't un-place a wall, and a
+  // sealed ring is sweep-proof regardless). The lever is purely forward.
   if (obs.fatWalls && obs.fatWalls.length > 0) {
     lines.push(
-      `  ⚠ FAT WALLS (${obs.fatWalls.length}) — redundant inner walls (every 8-dir neighbor is yours, so they guard nothing a single shell wouldn't): wasted pieces and a scattered-fire liability. Build a one-tile-thick ring; spend the saved pieces expanding or repairing: ${tileList(obs.fatWalls)}`,
+      `  ℹ fat walls: ${obs.fatWalls.length} interior tiles fully boxed by your own territory (former perimeters you expanded past + piece-overflow). SUNK — in classic a placed wall can't be removed, so this isn't a to-do and isn't a defensive hole. The only avoidable fat is fat you haven't placed yet: send new pieces to the frontier (build_toward / ↗ EXTEND), not into interior.`,
     );
   }
 

@@ -585,13 +585,17 @@ export interface Observation {
    *  until anchored. On a finished pocket they're free real estate — a fine place to
    *  dump a dud piece. Omitted when there's nothing. */
   fragileWalls?: { row: number; col: number }[];
-  /** WALL_BUILD only: MY redundant inner wall tiles — every 8-dir neighbour is my
-   *  own wall or interior, so NONE faces outside (the same test `demolition` uses to
-   *  strip walls). These are "fat": thickness past a single shell that buys no
-   *  enclosure, wastes the pieces that built it, and is a liability — scattered enemy
-   *  fire that chips a fat blob can still breach the live shell behind it while you've
-   *  spent your build budget on walls doing nothing. Prefer a one-tile-thick ring +
-   *  spend the saved pieces expanding or repairing. Omitted when there's none. */
+  /** WALL_BUILD only: MY interior wall tiles — every 8-dir neighbour is my own wall
+   *  or interior, so NONE faces outside. These are "fat" (thickness past a single
+   *  shell), but in CLASSIC a placed wall can NEVER be removed (fat walls keep ≥2
+   *  neighbours, so even the round-end sweep skips them; `demolition`/`erosion` are
+   *  modern-only) — so every entry here is SUNK, not a to-do, and not a real
+   *  defensive liability (a sealed ring is sweep-proof regardless). They're the
+   *  former perimeters of rings you expanded past, plus piece-overflow — the price
+   *  of accumulation. The only AVOIDABLE fat is the fat not yet placed: send new
+   *  pieces to the frontier (build_toward / wallExtensions), never into interior.
+   *  Surfaced as a count-only signal that you've been over-building, not a fix
+   *  list. Omitted when there's none. */
   fatWalls?: { row: number; col: number }[];
   /** WALL_BUILD: for each loose wall end that sits near an un-closed enclosure gap,
    *  the next tile to place to EXTEND it toward closing — `from` the stub, `next`
@@ -908,7 +912,10 @@ export async function createMcpGame(
     const bounds = wallBounds(player.walls);
     if (!piece || !bounds) return [];
     const seen = new Set<string>();
-    const out: BuildSuggestion[] = [];
+    // Track `fat` (piece tiles that would land redundant — every 8-neighbour
+    // already owned) so the dud-redirect fallback that consumes [0] stops dumping
+    // pieces into fat walls; stripped before returning the public shape.
+    const out: (BuildSuggestion & { fat: number })[] = [];
     for (let rotation = 0; rotation < 4; rotation++) {
       const offsets = rotatedOffsets(piece, rotation);
       for (let row = bounds.minRow - 1; row <= bounds.maxRow + 1; row++) {
@@ -923,11 +930,22 @@ export async function createMcpGame(
             .join("|");
           if (seen.has(key)) continue;
           seen.add(key);
+          const pieceKeys = new Set(tiles.map(([r, c]) => packTile(r, c)));
           const isWall = (tileRow: number, tileCol: number): boolean =>
             inBounds(tileRow, tileCol) &&
             player.walls.has(packTile(tileRow, tileCol));
+          const isOwned = (tileRow: number, tileCol: number): boolean => {
+            if (!inBounds(tileRow, tileCol)) return false;
+            const okey = packTile(tileRow, tileCol);
+            return (
+              player.walls.has(okey) ||
+              player.interior.has(okey) ||
+              pieceKeys.has(okey)
+            );
+          };
           let touching = 0;
           let fillsGap = 0;
+          let fat = 0;
           for (const [tileRow, tileCol] of tiles) {
             const up = isWall(tileRow - 1, tileCol);
             const down = isWall(tileRow + 1, tileCol);
@@ -935,15 +953,32 @@ export async function createMcpGame(
             const right = isWall(tileRow, tileCol + 1);
             touching += [up, down, left, right].filter(Boolean).length;
             if ((up && down) || (left && right)) fillsGap++;
+            if (
+              DIRS_8.every(([er, ec]) => isOwned(tileRow + er, tileCol + ec))
+            ) {
+              fat++;
+            }
           }
-          out.push({ row, col, rotation, fillsGap, touchingWalls: touching });
+          out.push({
+            row,
+            col,
+            rotation,
+            fillsGap,
+            touchingWalls: touching,
+            fat,
+          });
         }
       }
     }
+    // Plug holes first, then prefer the LEAST-fat placement, then ring-adjacency —
+    // so a dud redirected here lands on the frontier, not packed into a fat wall.
     out.sort(
-      (a, b) => b.fillsGap - a.fillsGap || b.touchingWalls - a.touchingWalls,
+      (a, b) =>
+        b.fillsGap - a.fillsGap ||
+        a.fat - b.fat ||
+        b.touchingWalls - a.touchingWalls,
     );
-    return out.slice(0, 6);
+    return out.slice(0, 6).map(({ fat: _fat, ...rest }) => rest);
   }
 
   /** Score one placement's footprint: wall-adjacency (`touchingWalls`),
@@ -1405,7 +1440,11 @@ export async function createMcpGame(
     );
   }
 
-  /** One-line blocker summary for a `stuck`/`blocked` build reason. */
+  /** One-line blocker summary for a `stuck`/`blocked` build reason. When every
+   *  remaining blocker is a boxed grunt sitting on the only seal tile (no
+   *  inner-corner alternate, or `build_toward` would have taken it), the only
+   *  remedy is a future battle — so append the actionable cull hint instead of
+   *  leaving the agent staring at a dead-end. */
   function describeBlockers(blockers: readonly SealBlocker[]): string {
     if (blockers.length === 0) return "";
     const shown = blockers
@@ -1413,7 +1452,13 @@ export async function createMcpGame(
       .map((blocker) => `(${blocker.row},${blocker.col}) ${blocker.kind}`)
       .join(", ");
     const extra = blockers.length > 4 ? ` +${blockers.length - 4} more` : "";
-    return ` — ${shown}${extra}`;
+    const allBoxed = blockers.every(
+      (blocker) => blocker.kind === "grunt-boxed",
+    );
+    const remedy = allBoxed
+      ? " — these grunts box the only seal tile and won't move; cull() them next battle to free it, then build_toward again (an enclosed-kill also clears them)"
+      : "";
+    return ` — ${shown}${extra}${remedy}`;
   }
 
   /** For every tower in my zone, the engine min-cut to enclose it: the exact
@@ -2089,7 +2134,7 @@ export async function createMcpGame(
     }
     const box = { minRow, maxRow, minCol, maxCol };
     let best: { row: number; col: number; rotation: number } | null = null;
-    let bestScore = [-1, -Infinity, -Infinity, -1];
+    let bestScore = [-1, -Infinity, -Infinity, -Infinity, -1];
     for (let rotation = 0; rotation < 4; rotation++) {
       const offsets = rotatedOffsets(piece, rotation);
       for (let row = minRow - 2; row <= maxRow + 2; row++) {
@@ -2113,15 +2158,20 @@ export async function createMcpGame(
     return best;
   }
 
-  /** Lexicographic [coverage, -waste, -overshoot, ringTouch] score for one
-   *  placement, or null if it covers no target tile (so it's never chosen for a
-   *  goal). `overshoot` = piece tiles beyond `box` (the target tiles' bounding
+  /** Lexicographic [coverage, -waste, -overshoot, -fatTiles, ringTouch] score for
+   *  one placement, or null if it covers no target tile (so it's never chosen for
+   *  a goal). `overshoot` = piece tiles beyond `box` (the target tiles' bounding
    *  box): a tile outside it grows the castle's wall bbox outward, which inflates
    *  the home pocket on the NEXT plan, so the min-cut chases an ever-larger ring
-   *  that never closes (the seed-42 R5 reseal that burned the whole phase). Rank
-   *  it above ringTouch so a tight on-the-gap placement beats one that overshoots
-   *  into open space — for an expansion the targets already sit at the far tower,
-   *  so its in-box placements stay zero-overshoot and this never fights it. */
+   *  that never closes (the seed-42 R5 reseal that burned the whole phase).
+   *  `fatTiles` = piece tiles that would be FAT — every 8-neighbour already owned
+   *  (wall / interior / a sibling tile of this piece), so the tile guards no
+   *  boundary (the `fatWallsFor` predicate, applied to the prospective board).
+   *  Ranked above ringTouch so the executor never packs a redundant inner wall
+   *  just to gain ring-adjacency — the fix for `build_toward` finishing with dozens
+   *  of fat walls. A frontier seal touches `outside`, so it's never fat and this
+   *  never penalises a real ring placement. Rank overshoot above fat so a tight
+   *  on-the-gap placement still beats one that overshoots into open space. */
   function scorePlacement(
     offsets: readonly [number, number][],
     row: number,
@@ -2129,12 +2179,27 @@ export async function createMcpGame(
     targets: ReadonlySet<number>,
     walls: ReadonlySet<number>,
     box: { minRow: number; maxRow: number; minCol: number; maxCol: number },
-  ): [number, number, number, number] | null {
+  ): [number, number, number, number, number] | null {
+    const interior = sc.state.players[agentSlot]?.interior;
+    const pieceTiles = new Set(
+      offsets.map(([dr, dc]) => packTile(row + dr, col + dc)),
+    );
     const isWall = (tileRow: number, tileCol: number): boolean =>
       inBounds(tileRow, tileCol) && walls.has(packTile(tileRow, tileCol));
+    // Owned = wall / interior / a sibling tile of THIS piece. Off-board is NOT
+    // owned (a board-edge neighbour makes the tile load-bearing, never fat) —
+    // mirrors `fatWallsFor`.
+    const isOwned = (tileRow: number, tileCol: number): boolean => {
+      if (!inBounds(tileRow, tileCol)) return false;
+      const key = packTile(tileRow, tileCol);
+      return (
+        walls.has(key) || (interior?.has(key) ?? false) || pieceTiles.has(key)
+      );
+    };
     let coverage = 0;
     let touching = 0;
     let overshoot = 0;
+    let fatTiles = 0;
     for (const [dr, dc] of offsets) {
       const tileRow = row + dr;
       const tileCol = col + dc;
@@ -2153,9 +2218,18 @@ export async function createMcpGame(
         isWall(tileRow, tileCol - 1),
         isWall(tileRow, tileCol + 1),
       ].filter(Boolean).length;
+      if (DIRS_8.every(([er, ec]) => isOwned(tileRow + er, tileCol + ec))) {
+        fatTiles++;
+      }
     }
     if (coverage === 0) return null;
-    return [coverage, -(offsets.length - coverage), -overshoot, touching];
+    return [
+      coverage,
+      -(offsets.length - coverage),
+      -overshoot,
+      -fatTiles,
+      touching,
+    ];
   }
 
   /** The absolute tile window the `board` covers — mirrors asciiSnapshot's crop
@@ -2668,6 +2742,41 @@ export async function createMcpGame(
     );
   }
 
+  /** Per-step seal plan for `driveBuildLoop`: the target tile set, whether the
+   *  step is bag-cycling (no on-target placement is possible right now, so a
+   *  redirect mustn't count as a stall/divergence), and whether the pocket is
+   *  hard-jammed with no way forward (terminal `blocked`). `targets` is the
+   *  min-cut gaps PLUS any off-cut inner-corner alternates (the 8-dir
+   *  diagonal-leak seals) — so when a min-cut gap is grunt-boxed we wall AROUND
+   *  the grunt via the alternate instead of dead-ending (the seed-42 R4 jam).
+   *  Pulled out to keep `driveBuildLoop` within the complexity budget. */
+  function sealStepPlan(candidate: EnclosureCandidate): {
+    blocked: boolean;
+    cyclingForPiece: boolean;
+    targets: Set<number>;
+  } {
+    const altSeals = candidate.sealTiles.filter(
+      (seal) => seal.kind === "inner-corner",
+    );
+    const allBlocked = candidate.blockers.length === candidate.tiles.length;
+    const allHardBlocked =
+      allBlocked && candidate.blockers.every((blocker) => blocker.hard);
+    const allSoftBlocked =
+      allBlocked && candidate.blockers.every((blocker) => !blocker.hard);
+    const targets = new Set(
+      candidate.tiles.map((tile) => packTile(tile.row, tile.col)),
+    );
+    for (const seal of altSeals) targets.add(packTile(seal.row, seal.col));
+    return {
+      blocked: allHardBlocked && altSeals.length === 0,
+      // Soft-blocked (mobile grunt / awaiting small piece), OR hard-blocked but
+      // cycling the bag toward a piece that fits an inner-corner alternate.
+      cyclingForPiece:
+        allSoftBlocked || (allHardBlocked && altSeals.length > 0),
+      targets,
+    };
+  }
+
   /** The placement loop behind `buildToward`: keep placing the arriving piece on
    *  the goal's min-cut until it seals, the budget/time stops it, or it jams.
    *  Returns the piece count placed and the stop `outcome`. Pulled out of
@@ -2706,22 +2815,14 @@ export async function createMcpGame(
         outcome = "unenclosable";
         break;
       }
-      // Every remaining seal tile is HARD-blocked (boxed grunt / pit /
-      // unfillable) → no piece will ever land. Stop now instead of thrashing
-      // redirect pieces into the stall limit and burning real build seconds.
-      if (
-        candidate.blockers.length === candidate.tiles.length &&
-        candidate.blockers.every((blocker) => blocker.hard)
-      ) {
+      const plan = sealStepPlan(candidate);
+      // Min-cut fully hard-blocked AND no inner-corner alternate → no piece will
+      // ever land. Stop instead of thrashing redirects into the stall limit.
+      if (plan.blocked) {
         outcome = "blocked";
         break;
       }
-      // Every still-open seal tile is SOFT-blocked → no on-target placement this
-      // step; redirecting to advance the bag/clock is productive cycling, not a
-      // stall or divergence (see the function doc).
-      const cyclingForPiece =
-        candidate.blockers.length === candidate.tiles.length &&
-        candidate.blockers.every((blocker) => !blocker.hard);
+      const cyclingForPiece = plan.cyclingForPiece;
       // Divergence guard (skipped while cycling — tilesNeeded can't fall until a
       // blocker clears): pieces land but the ring routes outward faster than we
       // close it, so bail rather than burn the phase on a ring that never seals
@@ -2735,10 +2836,7 @@ export async function createMcpGame(
           break;
         }
       }
-      const targets = new Set(
-        candidate.tiles.map((tile) => packTile(tile.row, tile.col)),
-      );
-      const step = placeTowardTargets(targets);
+      const step = placeTowardTargets(plan.targets);
       if (step.noPiece) continue;
       if (step.landed) {
         placed++;
