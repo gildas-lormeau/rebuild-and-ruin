@@ -1734,8 +1734,11 @@ export async function createMcpGame(
         for (const [dr, dc] of DIRS_4) {
           const nr = row + dr;
           const nc = col + dc;
+          // isGrunt bounds-checks first — must precede packTile, which throws
+          // on an off-board tile (a grunt on the bottom/edge row probes row 28).
+          if (!isGrunt(nr, nc)) continue;
           const nkey = packTile(nr, nc);
-          if (isGrunt(nr, nc) && !visited.has(nkey)) {
+          if (!visited.has(nkey)) {
             visited.add(nkey);
             stack.push(nkey);
           }
