@@ -15,6 +15,8 @@
 
 import type { Observation } from "./harness.ts";
 
+type CannonSpots = NonNullable<Observation["cannonSuggestions"]>;
+
 /** Render an observation as the annotated ASCII board (header, standings,
  *  roster, battery, aim-assist sections, then the raw board the harness baked).
  *  Faithful to the curated `tmp/show.py` layout. */
@@ -198,44 +200,8 @@ export function renderObservation(obs: Observation): string {
 
   // ── cannon spots: legal placements grouped by mode, safe-interior first ──────
   if (obs.cannonSuggestions !== undefined) {
-    const suggestions = obs.cannonSuggestions;
-    if (suggestions.length > 0) {
-      lines.push(
-        "  CANNON SPOTS (deepest-interior first; ✗ = footprint touches your outer wall — prefer interior when available):",
-      );
-      const byMode = new Map<string, typeof suggestions>();
-      for (const spot of suggestions) {
-        const list = byMode.get(spot.mode) ?? [];
-        list.push(spot);
-        byMode.set(spot.mode, list);
-      }
-      for (const [mode, list] of byMode) {
-        const spots = list
-          .map(
-            (spot) =>
-              `(${spot.row},${spot.col})` +
-              ((spot.wallLineSides ?? 0) > 0 ? "✗" : ""),
-          )
-          .join(" ");
-        lines.push(
-          `     ${mode} ${list[0]!.size}x${list[0]!.size} (${
-            list[0]!.slotCost
-          } slot) -> ${spots}`,
-        );
-      }
-      if (suggestions.every((spot) => (spot.wallLineSides ?? 0) > 0)) {
-        lines.push(
-          "     ⚠ NO safe spot — every ✗ sits on the outer ring: a ring-cannon goes INERT the moment that wall is breached, and the re-seal can't route around it without orphaning a 1-tile gap (→ the castle can become UNSEALABLE).",
-        );
-        lines.push(
-          "       Mitigate: place FEWER cannons this round, or expand your interior first so a buffered (non-✗) spot opens up — don't reflexively fill every slot on the ring.",
-        );
-      }
-    } else {
-      lines.push(
-        "  CANNON SPOTS: none (no affordable footprint fits — end_cannon or pass)",
-      );
-    }
+    for (const line of renderCannonSpots(obs.cannonSuggestions))
+      lines.push(line);
   }
 
   // ── enclosure candidates: min-cut plans, blocker-aware feasibility ──────────
@@ -402,6 +368,54 @@ export function renderObservation(obs: Observation): string {
 
   lines.push(obs.board);
   return lines.join("\n");
+}
+
+/** Render the CANNON_PLACE shortlist: spots grouped by mode, safest first.
+ *  `✗` = the routability min-cut says a re-seal can't wall around the footprint
+ *  (UNSEALABLE risk — tight space only); `°` = ring-adjacent but routable (goes
+ *  inert on a breach, re-arms at reseal). The warning fires only when EVERY
+ *  affordable spot is unroutable — never just because spots hug a clean ring. */
+function renderCannonSpots(suggestions: CannonSpots): string[] {
+  if (suggestions.length === 0) {
+    return [
+      "  CANNON SPOTS: none (no affordable footprint fits — end_cannon or pass)",
+    ];
+  }
+  const lines: string[] = [
+    "  CANNON SPOTS (safest first; ✗ = tight spot, a re-seal can't wall around it after a breach → UNSEALABLE risk; ° = ring-adjacent: goes inert on a breach but re-arms at reseal):",
+  ];
+  const byMode = new Map<string, CannonSpots>();
+  for (const spot of suggestions) {
+    const list = byMode.get(spot.mode) ?? [];
+    list.push(spot);
+    byMode.set(spot.mode, list);
+  }
+  for (const [mode, list] of byMode) {
+    const spots = list
+      .map((spot) => {
+        const mark =
+          spot.routable === false
+            ? "✗"
+            : (spot.wallLineSides ?? 0) > 0
+              ? "°"
+              : "";
+        return `(${spot.row},${spot.col})${mark}`;
+      })
+      .join(" ");
+    lines.push(
+      `     ${mode} ${list[0]!.size}x${list[0]!.size} (${list[0]!.slotCost} slot) -> ${spots}`,
+    );
+  }
+  if (suggestions.every((spot) => spot.routable === false)) {
+    lines.push(
+      "     ⚠ NO routable spot — every affordable footprint is tight enough that a re-seal can't wall around it (→ the castle can become UNSEALABLE). Place FEWER cannons, or expand your interior first so a routable spot opens up.",
+    );
+  } else if (suggestions.every((spot) => (spot.wallLineSides ?? 0) > 0)) {
+    lines.push(
+      "     ℹ no deep-interior spot yet (expected on a fresh castle) — the ° spots are routable but go inert when their ring wall is breached, re-arming at reseal. Recoverable, so place a normal complement if you want offense.",
+    );
+  }
+  return lines;
 }
 
 /** Grunt-cluster block: dense packs (≥2×2) the harness surfaces. Yours read as

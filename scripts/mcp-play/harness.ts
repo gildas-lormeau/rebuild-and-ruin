@@ -379,12 +379,20 @@ export interface CannonSuggestion {
    *  (tucked into a corner, leaving the interior less fragmented). */
   hugs: number;
   /** Boundary-wall sides the footprint touches (a wall facing OUT of the
-   *  interior). A cannon flush against the outer ring becomes a wall-line
-   *  obstacle the moment that ring is breached: the re-seal must detour around
-   *  it and can orphan a 1-tile gap no piece fits (the silent "inert cannon"
-   *  trap). 0 = buffered interior spot (safe); ≥1 = on the ring (risk). Safe
-   *  spots sort first; this number is the tiebreak/penalty, NOT compactness. */
+   *  interior). A ring-adjacent cannon goes INERT the moment that wall is
+   *  breached and re-arms only at reseal — recoverable, but a deep-interior
+   *  cannon (0) stays armed THROUGH a breach. 0 = buffered interior (best); ≥1
+   *  = ring-adjacent (fine, just inert-on-breach). This is the arm-through-breach
+   *  preference, NOT a hazard — see `routable` for the real risk. */
   wallLineSides: number;
+  /** Whether the castle can still be walled AROUND this footprint after a
+   *  breach. Computed by the engine's own min-cut (`findEnclosureCut`) on bare
+   *  terrain with the cannon injected as an obstacle: `true` = a re-seal ring
+   *  exists that routes around it (safe — the centred-tower rectangle case is
+   *  always true); `false` = the footprint pinches the wall route so a re-seal
+   *  would orphan a gap → the castle can become UNSEALABLE (the genuine hazard,
+   *  only in tight spaces / against the edge). Routable spots sort first. */
+  routable: boolean;
 }
 
 /** My cannons grouped by the nearest of my zone's towers — the per-castle
@@ -1903,6 +1911,59 @@ export async function createMcpGame(
     const remaining = cannonSlotsFor(state, agentSlot) - cannonSlotsUsed(me);
     const solid = solidTiles(me);
     const ring = boundaryWalls(me);
+
+    // Routability: a cannon is only RISKY if it pinches the wall route so a
+    // future re-seal can't go around it. We measure that directly with the
+    // engine's own min-cut on BARE terrain (empty walls) — "can a ring be built
+    // around the home tower at all" — once as a baseline, then again with the
+    // candidate cannon injected as an obstacle. A spot is unsafe only when it
+    // flips that yes→no. Ring-adjacency alone is NOT risk: a 2×2 a tile inside a
+    // clean rectangle leaves the boundary route untouched (the centred-tower
+    // opener), so it stays routable. Footprints that don't even touch the ring
+    // can never pinch the route, so they skip the min-cut entirely.
+    const homeIdx = me.homeTower?.index;
+    const homeTower =
+      homeIdx === undefined
+        ? undefined
+        : state.map.towers.find((tower) => tower.index === homeIdx);
+    const homePocket =
+      homeTower !== undefined ? pocketRectFor(homeTower, true, bounds) : null;
+    const BARE_WALLS = new Set() as unknown as Parameters<
+      typeof findEnclosureCut
+    >[2];
+    const homeRoutable = (): boolean =>
+      homeTower !== undefined &&
+      homePocket !== null &&
+      findEnclosureCut(
+        [{ tower: homeTower, interior: homePocket }],
+        state,
+        BARE_WALLS,
+        false,
+      ) !== null;
+    const baseRoutable = homeRoutable();
+    const spotRoutable = (
+      row: number,
+      col: number,
+      size: number,
+      mode: CannonMode,
+    ): boolean => {
+      // No baseline ring (degenerate castle) → don't pin the blame on a cannon.
+      if (!baseRoutable || homeTower === undefined || homePocket === null)
+        return true;
+      // Deep-interior footprint can't sit on the boundary route → always safe.
+      if (footprintHug(row, col, size, ring) === 0) return true;
+      const hypothetical = {
+        row,
+        col,
+        mode,
+        hp: 1,
+      } as (typeof me.cannons)[number];
+      me.cannons.push(hypothetical);
+      const stillRoutable = homeRoutable();
+      me.cannons.pop();
+      return stillRoutable;
+    };
+
     const out: CannonSuggestion[] = [];
     for (const def of cannonModesForGame(state.modern !== null)) {
       if (def.slotCost > remaining) continue;
@@ -1911,6 +1972,7 @@ export async function createMcpGame(
         col: number;
         hugs: number;
         wallLineSides: number;
+        routable: boolean;
       }[] = [];
       for (
         let row = bounds.minRow;
@@ -1928,11 +1990,17 @@ export async function createMcpGame(
             col,
             hugs: footprintHug(row, col, def.size, solid),
             wallLineSides: footprintHug(row, col, def.size, ring),
+            routable: spotRoutable(row, col, def.size, def.id),
           });
         }
       }
+      // Routable spots first (safe to re-wall around), then deep-interior spots
+      // (wallLineSides 0 — stay armed through a ring breach), compactness last.
       spots.sort(
-        (a, b) => a.wallLineSides - b.wallLineSides || b.hugs - a.hugs,
+        (a, b) =>
+          Number(!a.routable) - Number(!b.routable) ||
+          a.wallLineSides - b.wallLineSides ||
+          b.hugs - a.hugs,
       );
       for (const spot of spots.slice(0, CANNON_SUGGESTION_PER_MODE)) {
         out.push({
@@ -1943,6 +2011,7 @@ export async function createMcpGame(
           slotCost: def.slotCost,
           hugs: spot.hugs,
           wallLineSides: spot.wallLineSides,
+          routable: spot.routable,
         });
       }
     }
