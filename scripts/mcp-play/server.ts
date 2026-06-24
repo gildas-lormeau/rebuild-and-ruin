@@ -47,6 +47,7 @@ interface ToolDef {
 interface Journal {
   config: {
     seed?: number;
+    mode?: "classic" | "modern";
     agentSlot?: number;
     rounds?: number;
     actionTicks?: number;
@@ -101,11 +102,17 @@ const TOOLS: ToolDef[] = [
   {
     name: "new_game",
     description:
-      "Start a new classic match. The agent drives one slot; the other slots are the built-in AI. Returns the first observation (castle selection).",
+      "Start a new match. The agent drives one slot; the other slots are the built-in AI. Returns the first observation (castle selection). mode 'modern' adds the UPGRADE_PICK decision (rounds ≥ 3, and only when a later round exists to spend it — so set rounds ≥ 4 to reach it) plus passive modifiers/combos/catapults; default 'classic'.",
     inputSchema: {
       type: "object",
       properties: {
         seed: { type: "number", description: "Map seed (default 42)." },
+        mode: {
+          type: "string",
+          enum: ["classic", "modern"],
+          description:
+            "Game mode (default 'classic'). 'modern' enables the upgrade draft + modifiers.",
+        },
         agentSlot: {
           type: "number",
           description: "Slot the agent drives, 0-based (default 0).",
@@ -121,6 +128,7 @@ const TOOLS: ToolDef[] = [
     handler: async (args) => {
       const config = {
         seed: args.seed === undefined ? undefined : num(args, "seed"),
+        mode: args.mode === "modern" ? ("modern" as const) : undefined,
         agentSlot:
           args.agentSlot === undefined ? undefined : num(args, "agentSlot"),
         rounds: args.rounds === undefined ? undefined : num(args, "rounds"),
@@ -382,6 +390,23 @@ const TOOLS: ToolDef[] = [
         row: num(args, "row"),
         col: num(args, "col"),
       }),
+  },
+  {
+    name: "pick_upgrade",
+    description:
+      "MODERN, UPGRADE_PICK only: choose one of your three upgrade offers. cardIdx is the index into observation.upgradeOffers (0, 1, or 2). The pick applies for the next round only. Check observation.lastResult.success.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        cardIdx: {
+          type: "number",
+          description: "Offer to pick: 0, 1, or 2 (index into upgradeOffers).",
+        },
+      },
+      required: ["cardIdx"],
+    },
+    handler: (args) =>
+      recordAct({ kind: "pick-upgrade", cardIdx: num(args, "cardIdx") }),
   },
   {
     name: "pass",
@@ -736,6 +761,7 @@ let watchPath: string | null | undefined;
 function startGame(config: Journal["config"]): Promise<McpGame> {
   return createMcpGame({
     seed: config.seed,
+    mode: config.mode,
     agentSlot: config.agentSlot as ValidPlayerId | undefined,
     rounds: config.rounds,
     actionTicks: config.actionTicks,

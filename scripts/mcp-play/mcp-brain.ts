@@ -29,7 +29,8 @@ export type AgentDecision =
   | { kind: "build"; row: number; col: number; rotation: number }
   | { kind: "cannon"; row: number; col: number; mode: CannonMode }
   | { kind: "cannon-done" }
-  | { kind: "fire"; row: number; col: number };
+  | { kind: "fire"; row: number; col: number }
+  | { kind: "pick-upgrade"; cardIdx: number };
 
 /** Result of the last committed (or rejected) decision, surfaced back to the
  *  agent so it can see whether its placement/shot landed and why not. Same
@@ -212,8 +213,34 @@ export function createMcpBrain(bridge: AgentBridge): AiBrain {
     // as an agent decision is a future extension.
     chooseLifeLost: () => LifeLostChoice.CONTINUE,
 
-    // Classic mode never enters UPGRADE_PICK, so this is never called in v1.
-    // Left as a no-op; wiring modern's upgrade draft to the agent is future work.
-    tickUpgradePick: () => {},
+    // Modern UPGRADE_PICK: the agent's entry auto-resolves through this brain
+    // (its controller is an AiController), so the dialog calls us every frame for
+    // the agent's pending entry. Commit a submitted `pick-upgrade` decision by
+    // writing the entry exactly as the AI auto-pick does (choice + focusedCard +
+    // pickedAtTimer drives the reveal pulse); otherwise park so the frozen-clock
+    // driver stops and asks the agent to choose. No force-resolve backstop fires:
+    // an auto-resolving entry is never touched by the dialog's max-timer loop, so
+    // parking holds the phase indefinitely until the agent acts (turn-based).
+    tickUpgradePick: (entry, _entryIdx, _autoDelayTicks, dialogTimer) => {
+      // Already resolved (agent picked on an earlier tick) — don't re-park.
+      if (entry.choice !== null) return;
+      const decision = bridge.pending;
+      if (decision?.kind === "pick-upgrade") {
+        const idx = decision.cardIdx;
+        if (idx >= 0 && idx < entry.offers.length) {
+          entry.choice = entry.offers[idx]!;
+          entry.focusedCard = idx;
+          entry.pickedAtTimer = dialogTimer;
+          bridge.pending = null;
+          bridge.waiting = false;
+          bridge.lastResult = { kind: "pick-upgrade", success: true };
+          return;
+        }
+        // Out-of-range card — reject and re-ask (pre-flight should catch this).
+        bridge.pending = null;
+        bridge.lastResult = { kind: "pick-upgrade", success: false };
+      }
+      bridge.waiting = true;
+    },
   };
 }

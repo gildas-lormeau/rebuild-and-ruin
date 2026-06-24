@@ -20,6 +20,7 @@
  *
  * Options:
  *   --seed N      map seed for the synthesized new_game (default 42)
+ *   --mode M      game mode for the synthesized new_game: classic|modern (default classic)
  *   --rounds N    rounds for the synthesized new_game (default 3)
  *   --ticks N     actionTicks for the synthesized new_game (default 30)
  *   --only-last   print only the final board (skip intermediate steps)
@@ -40,7 +41,7 @@ interface Call {
   arguments?: Record<string, unknown>;
 }
 
-const VALUE_FLAGS = new Set(["seed", "rounds", "ticks"]);
+const VALUE_FLAGS = new Set(["seed", "mode", "rounds", "ticks"]);
 
 await main();
 
@@ -49,7 +50,7 @@ async function main(): Promise<void> {
   if (opts.help || positionals.length === 0) {
     console.error(
       "usage: deno run -A scripts/mcp-play/replay.ts <moves.jsonl|-> " +
-        "[--seed N] [--rounds N] [--ticks N] [--only-last] [--quiet]",
+        "[--seed N] [--mode classic|modern] [--rounds N] [--ticks N] [--only-last] [--quiet]",
     );
     Deno.exit(opts.help ? 0 : 2);
   }
@@ -66,6 +67,7 @@ async function main(): Promise<void> {
       name: "new_game",
       arguments: {
         seed: numOpt(opts.seed, 42),
+        ...(opts.mode === "modern" ? { mode: "modern" } : {}),
         rounds: numOpt(opts.rounds, 3),
         actionTicks: numOpt(opts.ticks, 30),
       },

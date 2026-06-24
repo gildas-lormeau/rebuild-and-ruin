@@ -36,6 +36,11 @@ export function renderObservation(obs: Observation): string {
   lines.push(
     `${hdr}   [board r${bb.minRow}-${bb.maxRow} c${bb.minCol}-${bb.maxCol}]`,
   );
+  if (obs.activeModifier) {
+    lines.push(
+      `MODIFIER: ${obs.activeModifier.label} (${obs.activeModifier.id}) — active this round`,
+    );
+  }
 
   // ── standings (or final results, once the match is over) ────────────────────
   for (const line of standingsLines(obs)) lines.push(line);
@@ -138,8 +143,22 @@ export function renderObservation(obs: Observation): string {
   // ── placement suggestions for the current piece (ring repairs first) ─────────
   lines.push(...suggestionLines(obs));
 
+  // ── modern UPGRADE_PICK: the three offers, pick one by cardIdx ───────────────
+  lines.push(...upgradeOfferLines(obs));
+
   lines.push(obs.board);
   return lines.join("\n");
+}
+
+/** MODERN UPGRADE_PICK: the agent's three offers as a pick list. Empty outside
+ *  the phase (the field is omitted unless offers are live). */
+function upgradeOfferLines(obs: Observation): string[] {
+  if (!obs.upgradeOffers || obs.upgradeOffers.length === 0) return [];
+  const lines = ["UPGRADE OFFERS (pick_upgrade { cardIdx }):"];
+  for (const offer of obs.upgradeOffers) {
+    lines.push(`  [${offer.cardIdx}] ${offer.label} — ${offer.description}`);
+  }
+  return lines;
 }
 
 /** My battery rollup + the YOU status line. BATTERY and CAPTURED print before

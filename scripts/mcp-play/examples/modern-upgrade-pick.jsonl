@@ -1,0 +1,13 @@
+# Modern match: drive to the round-2 UPGRADE_PICK and pick an upgrade.
+# Doubles as a replay smoke test for modern mode (deno task replay <file>).
+{"name":"new_game","arguments":{"mode":"modern","rounds":4,"seed":42}}
+{"name":"select_castle","arguments":{"towerIdx":0}}
+{"name":"end_cannon","arguments":{}}
+{"name":"pass","arguments":{"seconds":30}}
+{"name":"pass","arguments":{"seconds":30}}
+{"name":"build_out","arguments":{}}
+{"name":"pass","arguments":{"seconds":30}}
+{"name":"end_cannon","arguments":{}}
+{"name":"pass","arguments":{"seconds":30}}
+{"name":"pass","arguments":{"seconds":30}}
+{"name":"pick_upgrade","arguments":{"cardIdx":1}}

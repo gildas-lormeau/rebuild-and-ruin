@@ -66,6 +66,7 @@ import {
   GRID_ROWS,
   type TileKey,
 } from "../../src/shared/core/grid.ts";
+import { modifierDef } from "../../src/shared/core/modifier-defs.ts";
 import { type PieceShape, rotateCW } from "../../src/shared/core/pieces.ts";
 import type { ValidPlayerId } from "../../src/shared/core/player-slot.ts";
 import {
@@ -85,6 +86,7 @@ import {
 } from "../../src/shared/core/spatial.ts";
 import type { ControllerFactory } from "../../src/shared/core/system-interfaces.ts";
 import { cannonSlotsFor } from "../../src/shared/core/types.ts";
+import { UPGRADE_POOL } from "../../src/shared/core/upgrade-defs.ts";
 import { isCannonEnclosed } from "../../src/shared/sim/board-occupancy.ts";
 import { PLAYER_NAMES } from "../../src/shared/ui/player-config.ts";
 import { Mode } from "../../src/shared/ui/ui-mode.ts";
@@ -101,6 +103,12 @@ import {
 export interface McpGameOptions {
   /** Map seed. Controls terrain + the opponent AIs' rolls. Default 42. */
   seed?: number;
+  /** Game mode. "modern" turns on modifiers + upgrade draft + combos +
+   *  catapults; the only EXTRA agent decision it adds is the UPGRADE_PICK phase
+   *  (rounds ≥ 3, and only when the match has a later round to spend the upgrade
+   *  in — so a 3-round match never reaches it; use `rounds` ≥ 4 to exercise it).
+   *  Modifiers / combos / catapults are passive — observe-only. Default "classic". */
+  mode?: "classic" | "modern";
   /** Which slot the agent drives. Default 0. */
   agentSlot?: ValidPlayerId;
   /** Rounds before the match ends. Default 3. */
@@ -658,6 +666,21 @@ export interface Observation {
    *  denial value (un-reroutable chokepoints first). Feed these to
    *  `pitStrike(slot, targets)`. Omitted outside BATTLE / when you have no super. */
   pitTargets?: PitTarget[];
+  /** MODERN only: the environmental modifier in force this round (wildfire,
+   *  frozen river, …), or null/omitted in classic and when none rolled. Passive
+   *  — you make no decision about it, but it changes the board (e.g. frozen river
+   *  freezes water you can build over; wildfire scars grass). Surfaced from
+   *  MODIFIER_REVEAL through the round so battle/build plans can account for it. */
+  activeModifier?: { id: string; label: string } | null;
+  /** MODERN, UPGRADE_PICK only: your three upgrade offers, in card order. Pick
+   *  one with act { kind: 'pick-upgrade', cardIdx } where cardIdx is 0, 1, or 2
+   *  (the index into THIS list — don't reorder it). Omitted outside the phase. */
+  upgradeOffers?: {
+    cardIdx: number;
+    id: string;
+    label: string;
+    description: string;
+  }[];
   /** Outcome of the previous committed decision (null at phase start). */
   lastResult: AgentResult | null;
 }
@@ -922,7 +945,7 @@ export async function createMcpGame(
 
   const sc = await createScenario({
     seed: opts.seed ?? 42,
-    mode: "classic",
+    mode: opts.mode ?? "classic",
     rounds: opts.rounds ?? 3,
     renderer: "ascii",
     controllerFactory,
@@ -2647,7 +2670,38 @@ export async function createMcpGame(
       }
     }
 
+    applyModernSurfaces(observation, phase);
+
     return observation;
+  }
+
+  /** Attach the modern-only observation fields (absent in classic, where
+   *  `state.modern === null`): the round's environmental modifier (passive, but
+   *  it reshapes the board) and — during UPGRADE_PICK — the agent's three
+   *  upgrade offers in card order. Kept out of `observe` to hold that function
+   *  under the complexity cap. */
+  function applyModernSurfaces(observation: Observation, phase: Phase): void {
+    const modern = sc.state.modern;
+    if (!modern) return;
+    const modId = modern.activeModifier;
+    if (modId) {
+      observation.activeModifier = {
+        id: modId,
+        label: modifierDef(modId).label,
+      };
+    }
+    if (phase !== Phase.UPGRADE_PICK) return;
+    const offers = modern.pendingUpgradeOffers?.get(agentSlot);
+    if (!offers) return;
+    observation.upgradeOffers = offers.map((id, cardIdx) => {
+      const def = UPGRADE_POOL.find((entry) => entry.id === id);
+      return {
+        cardIdx,
+        id,
+        label: def?.label ?? id,
+        description: def?.description ?? "",
+      };
+    });
   }
 
   /** A readable sample of a wall set, CLOSEST to `origin` first. Shots from my
@@ -2787,7 +2841,29 @@ export async function createMcpGame(
         }
         return { valid: true };
       }
+      case "pick-upgrade":
+        return checkPickUpgrade(decision.cardIdx);
     }
+  }
+
+  /** Legality of a `pick-upgrade` decision: must be in UPGRADE_PICK with offers
+   *  for the agent, and `cardIdx` in range. Split out of `checkDecision` to keep
+   *  that switch under the complexity cap. */
+  function checkPickUpgrade(cardIdx: number): CheckResult {
+    if (sc.state.phase !== Phase.UPGRADE_PICK) {
+      return { valid: false, reason: "not in UPGRADE_PICK" };
+    }
+    const offers = sc.state.modern?.pendingUpgradeOffers?.get(agentSlot);
+    if (!offers) {
+      return { valid: false, reason: "no upgrade offers for you this round" };
+    }
+    if (cardIdx < 0 || cardIdx >= offers.length) {
+      return {
+        valid: false,
+        reason: `cardIdx must be 0..${offers.length - 1} (see upgradeOffers)`,
+      };
+    }
+    return { valid: true };
   }
 
   function check(
@@ -4388,6 +4464,8 @@ function expectedFor(phase: Phase): string {
       return "Re-seal/expand your castle. Fastest for the WHOLE phase: build_out() encloses home then every tower that fits the time left, then pre-claims the next tower's ring — one call, spare time never idled (use this by default unless you want a specific tower or to reserve time). build_toward({ towerIdx }) encloses ONE tower (omit towerIdx = home); add { maxSeconds | maxPieces } to stop early and reserve time for a defensive build. build_path({ from, to }) lays a straight/L wall line to pre-claim or bridge towers across rounds — anchor both ends on existing wall or it erodes (watch fragileWalls). Or place pieces by hand: act { kind: 'build', row, col, rotation }. Or pass.";
     case Phase.CANNON_PLACE:
       return "Place a cannon at its top-left — act { kind: 'cannon', row, col, mode }. See cannonSuggestions for legal spots you can afford, grouped by mode (no 'super' line = no 3x3 fits). Footprint: normal/balloon 2x2, super 3x3. Watch me.cannonSlots (used/max). End early with { kind: 'cannon-done' }, or pass.";
+    case Phase.UPGRADE_PICK:
+      return "Pick ONE of your three upgrade offers — act { kind: 'pick-upgrade', cardIdx } where cardIdx is 0, 1, or 2 (the index into observation.upgradeOffers; each lists id + label + description). The pick applies for the next round only. There's no skip — choose the offer that best fits your board (e.g. second_wind if you have dead towers, clear_the_field if grunts crowd your zone).";
     case Phase.BATTLE:
       return "Attack an opponent for the whole battle (one call). Strategies: bombard({ slot }) SPREADS fire over their nearest walls — maximises wall count destroyed (points + general tax). breach({ slot, towerIdx? }) CONCENTRATES fire on the outer ring guarding one tower to de-enclose its pocket (deny its territory + bonus squares; omit towerIdx for the softest). pit_strike({ slot, targets? }) aims your SUPER cannon(s) at enemy wall tiles to plant burning PITS (block their rebuild for rounds) while normals chip — see pitTargets for the best un-reroutable walls; omit targets to use them. cull() is DEFENSIVE — fire at the GRUNTS menacing your OWN towers (observation.threats) instead of an opponent; grunts are frozen this phase, so the swarm that would box your reseal next build is killable now (one shot each). Reach for it when 'grunts behind your walls' is climbing or a reseal is grunt-locked. See targets (leader first; each lists towers with ringWalls + bonusSquares). Or aim by hand: act { kind: 'fire', row, col } (wait out battleCountdown > 0; fire at most me.cannonsReady per burst, then pass to reload).";
     default:
