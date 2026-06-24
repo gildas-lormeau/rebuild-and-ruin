@@ -963,14 +963,29 @@ export async function callTool(
     // along (no-op unless MCP_PLAY_WATCH is set). Only boards, not check/save
     // JSON, so the watch view always holds the latest game state. The board
     // grid alone goes to the watch file (fits a screen without scrolling); the
-    // analysis sections go to the `.info` sibling.
-    if (isObservation(result)) writeWatchSnapshot(result.board, text);
+    // analysis sections go to the `.info` sibling. The agent's own board stays
+    // zone-cropped (token economy); the watch view re-renders the FULL map so a
+    // human watching sees the whole battlefield, not just the agent's zone.
+    if (isObservation(result)) writeWatchSnapshot(fullWatchBoard(result), text);
     return { text, isError: false };
   } catch (error) {
     return {
       text: `Error: ${error instanceof Error ? error.message : String(error)}`,
       isError: true,
     };
+  }
+}
+
+/** The full-map board for the watch view. The agent's tool result carries a
+ *  zone-cropped board (cheaper tokens), but a human watching wants the whole
+ *  battlefield — so re-render at full crop via the read-only `observe` (no clock
+ *  advance). Falls back to the cropped board if anything goes wrong. */
+function fullWatchBoard(cropped: Observation): string {
+  if (!watchTarget()) return cropped.board; // not watching — skip the re-render
+  try {
+    return game?.observe({ crop: {} }).board ?? cropped.board;
+  } catch {
+    return cropped.board;
   }
 }
 
