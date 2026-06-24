@@ -46,6 +46,7 @@ import {
   isGruntPassableTile,
   moveGrunts,
 } from "../../src/game/grunt-movement.ts";
+import { shouldSkipBattle } from "../../src/game/upgrade-system.ts";
 import {
   type Cannon,
   type CannonMode,
@@ -695,6 +696,11 @@ export interface Observation {
    *  freezes water you can build over; wildfire scars grass). Surfaced from
    *  MODIFIER_REVEAL through the round so battle/build plans can account for it. */
   activeModifier?: { id: string; label: string } | null;
+  /** MODERN only: true when a player owns Ceasefire, which skips the WHOLE
+   *  battle phase this round for EVERYONE (it's global). Surfaced in CANNON_PLACE
+   *  as a heads-up — end_cannon goes straight to the next phase, so there is no
+   *  attack/cull/fire turn this round. Omitted when no battle skip is in force. */
+  battleSkipped?: boolean;
   /** MODERN, UPGRADE_PICK only: your three upgrade offers, in card order. Pick
    *  one with act { kind: 'pick-upgrade', cardIdx } where cardIdx is 0, 1, or 2
    *  (the index into THIS list — don't reorder it). Omitted outside the phase. */
@@ -2741,12 +2747,24 @@ export async function createMcpGame(
   function applyModernSurfaces(observation: Observation, phase: Phase): void {
     const modern = sc.state.modern;
     if (!modern) return;
+    // This round's modifier isn't rolled until prepareBattleState
+    // (cannon-place-done), so during CASTLE_SELECT/CANNON_PLACE
+    // `activeModifier` still holds the PREVIOUS round's value. Surfacing it
+    // then is both stale and a peek at info not yet rolled — only expose it
+    // once it's genuinely live (MODIFIER_REVEAL onward).
     const modId = modern.activeModifier;
-    if (modId) {
+    const modifierRolled =
+      phase !== Phase.CASTLE_SELECT && phase !== Phase.CANNON_PLACE;
+    if (modId && modifierRolled) {
       observation.activeModifier = {
         id: modId,
         label: modifierDef(modId).label,
       };
+    }
+    // Ceasefire is global: any owner skips the whole battle this round. Warn in
+    // CANNON_PLACE so the agent knows end_cannon won't yield a battle turn.
+    if (phase === Phase.CANNON_PLACE && shouldSkipBattle(sc.state)) {
+      observation.battleSkipped = true;
     }
     if (phase !== Phase.UPGRADE_PICK) return;
     const offers = modern.pendingUpgradeOffers?.get(agentSlot);

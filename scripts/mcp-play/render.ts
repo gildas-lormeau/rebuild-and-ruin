@@ -41,6 +41,11 @@ export function renderObservation(obs: Observation): string {
       `MODIFIER: ${obs.activeModifier.label} (${obs.activeModifier.id}) — active this round`,
     );
   }
+  if (obs.battleSkipped) {
+    lines.push(
+      "⚠ BATTLE SKIPPED this round (a player owns Ceasefire) — end_cannon goes straight to the next phase; no attack/cull/fire turn.",
+    );
+  }
 
   // ── standings (or final results, once the match is over) ────────────────────
   for (const line of standingsLines(obs)) lines.push(line);
