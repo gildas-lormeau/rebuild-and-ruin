@@ -658,12 +658,14 @@ const TOOL_BY_NAME = new Map(TOOLS.map((tool) => [tool.name, tool]));
 let game: McpGame | null = null;
 let journal: Journal | null = null;
 /** Live-watch sink: when `MCP_PLAY_WATCH=<path>` is set, every board snapshot is
- *  mirrored to that file (plain text) and an auto-refreshing HTML twin at
- *  `<path>.html`, so a human can watch the agent play three ways:
- *    - open `<path>` in VSCode and leave it (VSCode auto-reverts on disk change —
- *      don't edit the buffer, a dirty buffer suppresses the reload);
- *    - open `<path>.html` in a browser / VSCode Simple Browser (it self-refreshes);
- *    - `watch -n0.3 cat <path>` in a terminal.
+ *  mirrored to three sibling files so a human can watch the agent play:
+ *    - `<path>` — the BOARD GRID ONLY (fits a screen without scrolling). Open it
+ *      in VSCode and leave it (it auto-reverts on disk change — don't edit the
+ *      buffer, a dirty buffer suppresses the reload), or `watch -n0.3 cat <path>`.
+ *    - `<path>.html` — the board in an auto-refreshing page (browser / VSCode
+ *      Simple Browser; self-refreshes, no dirty-buffer caveat).
+ *    - `<path>.info.txt` — the analysis sections (standings, roster, battery,
+ *      aim-assist) split off so they don't push the grid off-screen.
  *  Resolved once and cached. No-op when the env var is unset, so tests / CI /
  *  normal play are unaffected, and it never throws into the tool flow. */
 let watchPath: string | null | undefined;
@@ -959,8 +961,10 @@ export async function callTool(
       name === "new_game" ? `${serverBanner()}\n${rendered}` : rendered;
     // Mirror board snapshots to the live-watch file(s) so a human can follow
     // along (no-op unless MCP_PLAY_WATCH is set). Only boards, not check/save
-    // JSON, so the watch view always holds the latest game state.
-    if (isObservation(result)) writeWatchSnapshot(text);
+    // JSON, so the watch view always holds the latest game state. The board
+    // grid alone goes to the watch file (fits a screen without scrolling); the
+    // analysis sections go to the `.info` sibling.
+    if (isObservation(result)) writeWatchSnapshot(result.board, text);
     return { text, isError: false };
   } catch (error) {
     return {
@@ -970,13 +974,18 @@ export async function callTool(
   }
 }
 
-function writeWatchSnapshot(board: string): void {
+function writeWatchSnapshot(board: string, full: string): void {
   const path = watchTarget();
   if (!path) return;
-  const htmlPath = `${path.replace(/\.(txt|log|board)$/, "")}.html`;
+  const stem = path.replace(/\.(txt|log|board)$/, "");
+  // The "additional data" = the full render minus the trailing board grid.
+  const info = full.endsWith(board)
+    ? full.slice(0, full.length - board.length).trimEnd()
+    : full;
   try {
-    Deno.writeTextFileSync(path, board);
-    Deno.writeTextFileSync(htmlPath, watchHtml(board));
+    Deno.writeTextFileSync(path, board); // board only — fits a screen
+    Deno.writeTextFileSync(`${stem}.html`, watchHtml(board));
+    Deno.writeTextFileSync(`${stem}.info.txt`, info); // standings/roster/aim-assist
   } catch {
     // A bad path / transient FS error must never break the agent's call — drop it.
   }
