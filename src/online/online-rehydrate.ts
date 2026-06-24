@@ -69,21 +69,10 @@ export async function applyMidGameCheckpoint(
   const result = restoreFullStateSnapshot(state, msg);
   if (!result) return null;
 
-  // UPGRADE_PICK has no self-driving exit — its dialog/banner is the only
-  // thing that advances the phase, and a snapshot carries neither. In
-  // production a host never serializes here (promotion force-resolves the
-  // picks to WALL_BUILD first — see promote.ts), so a checkpoint can only
-  // land on UPGRADE_PICK via a hand-authored phase-test fixture. The mode
-  // resolves to Mode.GAME, whose tickGame no-ops the phase, hanging the
-  // runtime forever — fail loudly instead of silently.
-  if (state.phase === Phase.UPGRADE_PICK) {
-    throw new Error(
-      "applyMidGameCheckpoint: UPGRADE_PICK fixtures are unsupported (the " +
-        "dialog has no self-driving exit; the runtime would hang). Author " +
-        "the fixture at BATTLE or WALL_BUILD instead.",
-    );
-  }
-
+  // UPGRADE_PICK is now self-driving (resolveModeAfterFullState maps it to
+  // Mode.UPGRADE_PICK; tickUpgradePickPhase rebuilds the dialog from
+  // pendingUpgradeOffers and drives it to exit), so a snapshot landing here
+  // ticks forward on its own — no special-casing needed.
   runtime.runtimeState.controllers = await rebuildControllersForPhase(
     state,
     runtime.runtimeState.controllers,
@@ -231,13 +220,14 @@ export function applyFullStateToRunningRuntime(
   // routing from a phase the snapshot already advanced (source-phase
   // guard throw).
   runtime.scoreDelta.reset();
-  // Same teardown as the life-lost dialog: a pick dialog mid-flight when
-  // the new host's snapshot lands is superseded — promotion force-resolves
-  // the picks into the snapshot before broadcasting (promote.ts), so the
-  // local dialog and its armed resolution callback must not survive the
-  // apply. Leaving it would hand a stale, already-resolved dialog to the
-  // NEXT round's `prepare()` (ensureDialog short-circuits on non-null) and
-  // apply last round's picks there.
+  // Same teardown as the life-lost dialog: a pick dialog mid-flight when a
+  // snapshot lands is superseded. Dialogs are always rebuilt locally from
+  // the snapshot, never adopted over the wire — so the stale local dialog
+  // must not survive the apply. Leaving it would hand a stale, possibly
+  // wrong-round dialog to `prepare()` (ensureDialog short-circuits on
+  // non-null): for a snapshot past the pick it would re-apply last round's
+  // picks; for a UPGRADE_PICK snapshot it would block the self-driving
+  // tick from rebuilding this round's dialog from `pendingUpgradeOffers`.
   runtime.upgradePick.set(null);
   // The banner is the third armed display continuation (with the score
   // overlay and the dialogs above). It renders unconditionally while
@@ -383,6 +373,7 @@ function snapPitchToPhase(runtime: GameRuntime, phase: Phase): void {
  *  Shared by the fresh-boot and running-runtime apply paths above. */
 function resolveModeAfterFullState(phase: Phase, hasBalloons: boolean): Mode {
   if (phase === Phase.CASTLE_SELECT) return Mode.SELECTION;
+  if (phase === Phase.UPGRADE_PICK) return Mode.UPGRADE_PICK;
   if (phase === Phase.BATTLE && hasBalloons) return Mode.BALLOON_ANIM;
   return Mode.GAME;
 }

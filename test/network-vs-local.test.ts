@@ -644,7 +644,7 @@ Deno.test(
 );
 
 Deno.test(
-  "watcher promoted while the pick modal is open force-resolves picks and continues",
+  "watcher promoted while the pick modal is open keeps the phase self-driving and continues",
   async () => {
     await promoteWatcherMidUpgradePick(
       (watcher) => watcher.mode() === Mode.UPGRADE_PICK,
@@ -654,7 +654,7 @@ Deno.test(
 );
 
 Deno.test(
-  "watcher promoted during the upgrade-pick entry banner force-resolves picks and continues",
+  "watcher promoted during the upgrade-pick entry banner restores the self-driving phase and continues",
   async () => {
     await promoteWatcherMidUpgradePick(
       (watcher) =>
@@ -689,19 +689,25 @@ async function promoteWatcherMidUpgradePick(
     disconnectedPlayerId: null,
   } as ServerMessage);
 
-  // Promotion must land past the pick phase, in a self-ticking state...
+  // UPGRADE_PICK is self-driving (B1): promotion no longer force-resolves
+  // into WALL_BUILD. The modal window keeps Mode.UPGRADE_PICK; the banner
+  // window has its mode restored to UPGRADE_PICK (`restoreUpgradePickPhase`).
+  // Either way the promoted peer stays IN the pick phase and ticks it
+  // forward on its own.
   assertEquals(
     Phase[watcher.state.phase],
-    Phase[Phase.WALL_BUILD],
-    `${label}: promotion must force-resolve the pick phase into WALL_BUILD`,
+    Phase[Phase.UPGRADE_PICK],
+    `${label}: promotion must keep the self-driving pick phase`,
   );
   assertEquals(
     watcher.mode(),
-    Mode.GAME,
-    `${label}: promotion must land in Mode.GAME`,
+    Mode.UPGRADE_PICK,
+    `${label}: promotion must land in Mode.UPGRADE_PICK`,
   );
-  // ...and the FULL_STATE broadcast must carry the repaired phase — a
-  // snapshot parked in UPGRADE_PICK would stall every watcher applying it.
+  // The FULL_STATE broadcast carries UPGRADE_PICK — and that is now safe:
+  // applying peers map it to Mode.UPGRADE_PICK and rebuild the dialog from
+  // pendingUpgradeOffers, so the snapshot ticks forward on its own instead
+  // of stalling (the old force-resolve existed only because it could not).
   const fullState = watcher.sentMessages
     .slice(sentBefore)
     .find((msg) => msg.type === MESSAGE.FULL_STATE) as
@@ -710,12 +716,13 @@ async function promoteWatcherMidUpgradePick(
   assert(fullState, `${label}: promotion must broadcast FULL_STATE`);
   assertEquals(
     fullState.phase,
-    Phase[Phase.WALL_BUILD],
-    `${label}: FULL_STATE must carry the repaired phase`,
+    Phase[Phase.UPGRADE_PICK],
+    `${label}: FULL_STATE must carry the self-driving pick phase`,
   );
 
   // The promoted peer now runs the match alone — the round must close
-  // (round-end increments state.round), proving WALL_BUILD ticks forward.
+  // (round-end increments state.round), proving the self-driving pick
+  // phase resolves and ticks through WALL_BUILD without external input.
   let ticks = 0;
   while (
     watcher.state.round === pickRound &&
@@ -731,15 +738,14 @@ async function promoteWatcherMidUpgradePick(
   }
 }
 
-// ── FULL_STATE adoption mid-pick must clear the local dialog ─────────
-// A watcher sitting in its own pick modal when the new host's
-// (post-repair, WALL_BUILD) snapshot lands must drop the dialog at apply
-// time: the promotion force-resolved the picks into the snapshot, so the
-// local dialog is superseded. Left in place, the dead modal paints over
-// the adopted build phase (resolution callback armed but untickable —
-// Mode.GAME never ticks it) until the NEXT checkpoint's stale-dialog
-// dismissal in online-server-lifecycle.ts, which doesn't run for
-// FULL_STATE itself. Same teardown contract as `lifeLost.set(null)` in
+// ── FULL_STATE adoption past the pick must clear the local dialog ────
+// A watcher sitting in its own pick modal when a WALL_BUILD snapshot lands
+// (the host already advanced past the pick phase) must drop the dialog at
+// apply time: the adopted phase has moved on, so the local dialog is
+// superseded. Left in place, the dead modal paints over the adopted build
+// phase until the NEXT checkpoint's stale-dialog dismissal in
+// online-server-lifecycle.ts, which doesn't run for FULL_STATE itself.
+// Same teardown contract as `lifeLost.set(null)` in
 // `applyFullStateToRunningRuntime`.
 Deno.test(
   "running watcher adopting FULL_STATE mid-upgrade-pick drops the stale dialog",
@@ -759,9 +765,9 @@ Deno.test(
       "both peers mid-pick",
     );
 
-    // The host alone resolves its picks and lands in the build phase —
-    // its state is now the snapshot a freshly promoted host would
-    // broadcast (promotion force-resolves the pick phase before sending).
+    // The host alone resolves its picks and lands in the build phase — the
+    // snapshot a watcher lagging a few ticks behind would adopt after the
+    // host has already advanced past the pick phase on its own.
     let ticks = 0;
     while (
       !(host.state.phase === Phase.WALL_BUILD && host.mode() === Mode.GAME)
@@ -806,6 +812,81 @@ Deno.test(
       if (++ticks > 60_000) {
         throw new Error(
           `watcher stalled after adoption ` +
+            `(phase=${Phase[watcher.state.phase]} mode=${watcher.mode()})`,
+        );
+      }
+    }
+  },
+);
+
+// ── FULL_STATE adoption IN the pick phase rebuilds + self-drives ─────
+// The capability B1 unlocks: a UPGRADE_PICK snapshot now ticks forward on
+// its own, so a running watcher can adopt one. The apply maps it to
+// Mode.UPGRADE_PICK (resolveModeAfterFullState) and drops any stale local
+// dialog; the self-driving tick (`tickUpgradePickPhase`) rebuilds this
+// round's dialog from the snapshot's `pendingUpgradeOffers` and resolves
+// it. Before B1 this was impossible — a UPGRADE_PICK snapshot resolved to
+// Mode.GAME and hung, which is exactly why promotion force-resolved the
+// phase away before broadcasting. A regression in either the mode mapping
+// or the rebuild re-hangs the adopting peer here.
+Deno.test(
+  "running watcher adopting a UPGRADE_PICK FULL_STATE rebuilds the dialog and self-drives",
+  async () => {
+    const pair = await createNetworkedPair({
+      seed: 42,
+      mode: "modern",
+      rounds: 6,
+    });
+    const { host, watcher } = pair;
+
+    await runPairUntil(
+      pair,
+      () => host.mode() === Mode.UPGRADE_PICK,
+      "host mid-pick",
+    );
+
+    // Adopt the host's UPGRADE_PICK snapshot on the watcher.
+    await watcher.deliverMessage(
+      createFullStateMessage(host.state, 1) as ServerMessage,
+    );
+
+    // The apply lands the adopting peer IN the self-driving pick phase
+    // (not force-resolved away) and drops any stale local dialog.
+    assertEquals(
+      Phase[watcher.state.phase],
+      Phase[Phase.UPGRADE_PICK],
+      "watcher must adopt the pick phase",
+    );
+    assertEquals(
+      watcher.mode(),
+      Mode.UPGRADE_PICK,
+      "the pick snapshot must map to Mode.UPGRADE_PICK, not Mode.GAME",
+    );
+    assertEquals(
+      pair.watcherUpgradePickDialog(),
+      null,
+      "the apply must drop the stale local dialog before the rebuild",
+    );
+
+    // First tick rebuilds the dialog from the snapshot's pending offers...
+    watcher.tick(1);
+    assert(
+      pair.watcherUpgradePickDialog() !== null,
+      "the self-driving tick must rebuild the dialog from pendingUpgradeOffers",
+    );
+
+    // ...and the phase then resolves and the round closes without any
+    // further host input — proving the adopted snapshot ticks forward.
+    const adoptedRound = watcher.state.round;
+    let ticks = 0;
+    while (
+      watcher.state.round === adoptedRound &&
+      watcher.mode() !== Mode.STOPPED
+    ) {
+      watcher.tick(1);
+      if (++ticks > 60_000) {
+        throw new Error(
+          `watcher stalled after pick-phase adoption ` +
             `(phase=${Phase[watcher.state.phase]} mode=${watcher.mode()})`,
         );
       }

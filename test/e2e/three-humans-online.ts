@@ -99,7 +99,7 @@ const QUIT_POLL_MS = 150;
 
 // HOST (slot 0) quits — the host-migration cases. Each phase lands in a
 // different promotion-repair branch of promote.ts (battle-intro skip,
-// round-end fast-forward, cannon-entry prime, upgrade-pick force-resolve).
+// round-end fast-forward, cannon-entry prime, upgrade-pick mode restore).
 Deno.test("e2e online: host quits mid-BATTLE, two survivors finish in sync (migration)", () =>
   runThreeHumansGame("modern", { quitterSlot: 0, round: 2, phase: "BATTLE" }));
 
@@ -110,8 +110,9 @@ Deno.test("e2e online: host quits mid-CANNON_PLACE, two survivors finish in sync
   runThreeHumansGame("modern", { quitterSlot: 0, round: 2, phase: "CANNON_PLACE" }));
 
 // Modern only: UPGRADE_PICK exists from round 3. Exercises promote.ts's
-// resolveUpgradePickNow repair (the phase has no self-driving timer, so a
-// botched promotion there hangs the match forever).
+// upgrade-pick mode restore: the phase is self-driving (tickUpgradePickPhase
+// re-derives the exit each frame), so a promotion that lands here must keep
+// ticking it forward rather than hang the match.
 Deno.test("e2e online: host quits mid-UPGRADE_PICK, two survivors finish in sync (migration)", () =>
   runThreeHumansGame("modern", { quitterSlot: 0, round: 3, phase: "UPGRADE_PICK", rounds: 5 }));
 

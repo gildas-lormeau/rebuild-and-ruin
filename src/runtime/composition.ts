@@ -300,7 +300,9 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
         lifeLost.tick(dt);
         return;
       case Mode.UPGRADE_PICK:
-        upgradePick.tick(dt);
+        // Self-driving like the timed phases: phase-ticks ticks the dialog
+        // and dispatches the exit when it resolves (see tickUpgradePickPhase).
+        phaseTicks.tickUpgradePickPhase(dt);
         return;
       case Mode.GAME:
         phaseTicks.tickGame(dt);
@@ -719,9 +721,12 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       : undefined,
     onBeginBattle: IS_TOUCH_DEVICE ? applyBattleTarget : undefined,
     upgradePick: {
-      tryShow: upgradePick.tryShow,
       prepare: upgradePick.prepare,
-      forceResolveAll: upgradePick.forceResolveAll,
+      show: upgradePick.show,
+      tick: upgradePick.tick,
+      isReadyToExit: upgradePick.isReadyToExit,
+      get: upgradePick.get,
+      set: upgradePick.set,
     },
     endGame: lifecycle.endGame,
     beginUntilt: camera.beginUntilt,
@@ -935,7 +940,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       finalizeGameOver: lifecycle.finalizeGameOver,
     },
     phaseTicks: {
-      resolveUpgradePickNow: phaseTicks.resolveUpgradePickNow,
+      restoreUpgradePickPhase: phaseTicks.restoreUpgradePickPhase,
       skipBattleIntro: phaseTicks.skipBattleIntro,
       resolveRoundEndNow: phaseTicks.resolveRoundEndNow,
     },

@@ -83,26 +83,25 @@ interface UpgradePickSystemDeps {
   ) => void;
 }
 
-/** Callback signature for the resolved upgrade-pick dialog. Receives the
- *  finalized dialog snapshot — the caller (phase machine) reads each
- *  entry's chosen `UpgradeId` and applies it via `applyUpgradePicks`.
- *  Mirrors `OnLifeLostResolved` in `subsystems/life-lost.ts`: the
- *  subsystem hands resolutions back via callback, the caller owns the
- *  state mutation. */
-type OnUpgradePickResolved = (resolved: UpgradePickDialogState) => void;
-
 /** Extended return type: RuntimeUpgradePick + extras for game-runtime wiring. */
 export type UpgradePickSystem = RuntimeUpgradePick & {
-  /** Try to show the upgrade pick dialog. Returns true if shown, false if skipped.
-   *  When the dialog resolves, `onResolved(dialog)` fires exactly once with
-   *  the finalized snapshot; the subsystem clears its own dialog state
-   *  before invoking the callback, so the caller can apply picks without
-   *  worrying about dialog teardown. */
-  tryShow: (onResolved: OnUpgradePickResolved) => boolean;
-  /** Tick the dialog (AI auto-pick, timer). */
+  /** Activate the dialog: flip to Mode.UPGRADE_PICK and drain any
+   *  wire-arrived picks queued during the banner window. Returns false
+   *  when no dialog could be created (no offers) — the caller exits the
+   *  phase. Does NOT arm a resolution callback: UPGRADE_PICK is a
+   *  self-driving phase, so `tickUpgradePickPhase` polls `isReadyToExit()`
+   *  and dispatches `enter-wall-build` itself (mirrors how the timed
+   *  phases dispatch their own exit). */
+  show: () => boolean;
+  /** Tick the dialog (AI auto-pick, timer, reveal-pulse dwell). */
   tick: (dt: number) => void;
+  /** True once every entry is resolved AND the final reveal pulse has
+   *  dwelled long enough to close. Polled each frame by the self-driving
+   *  phase tick; the exit dispatch (apply picks → `enter-wall-build`) is
+   *  owned by the phase machine, not this subsystem. */
+  isReadyToExit: () => boolean;
   /** Pre-create the dialog so it can render during the banner sweep (upgrade-pick only).
-   *  Does NOT set Mode.UPGRADE_PICK — call tryShow after the banner ends. */
+   *  Does NOT set Mode.UPGRADE_PICK — call show after the banner ends. */
   prepare: () => boolean;
   /** Navigate focus left/right. */
   moveFocus: (playerId: ValidPlayerId, dir: number) => void;
@@ -112,15 +111,6 @@ export type UpgradePickSystem = RuntimeUpgradePick & {
   /** Slots whose entries accept input from this machine (one slot online,
    *  every local human in shared-screen mode). Empty if none. */
   interactiveSlots: () => ReadonlySet<ValidPlayerId>;
-  /** Resolve the whole dialog NOW — host-promotion repair. Every pending
-   *  entry gets the same state-derived pick the max-timer backstop would
-   *  write (`forceUpgradePick`); already-picked entries keep their choice.
-   *  Tears down dialog state and returns the finalized snapshot WITHOUT
-   *  invoking the armed `onResolved` callback — the phase machine applies
-   *  the picks and dispatches `enter-wall-build` itself
-   *  (`forceResolveUpgradePickPhase`), which also covers the banner-window
-   *  case where no callback was armed yet. Null when no dialog exists. */
-  forceResolveAll: () => UpgradePickDialogState | null;
   /** Adopt this seat's open entry to AI-resolved at a seat takeover —
    *  see `adoptDialogEntryToAi`. */
   adoptSeat: (playerId: ValidPlayerId) => void;
@@ -132,11 +122,6 @@ export function createUpgradePickSystem(
   deps: UpgradePickSystemDeps,
 ): UpgradePickSystem {
   const { runtimeState } = deps;
-
-  /** Set when a dialog is shown; cleared once resolution fires. The tick
-   *  loop reads it to invoke the caller's onResolved callback with the
-   *  finalized dialog. Tick is gated on Mode.UPGRADE_PICK. */
-  let onResolvedCb: OnUpgradePickResolved | undefined;
 
   /** Slots with a pick sent but not yet applied (online lockstep window
    *  between send and `applyAt`). Blocks duplicate sends while the entry
@@ -202,13 +187,12 @@ export function createUpgradePickSystem(
     return true;
   }
 
-  function tryShow(onResolved: OnUpgradePickResolved): boolean {
+  function show(): boolean {
     assertStateInstalled(runtimeState);
     const dialog = ensureDialog();
     if (!dialog) return false;
 
     setMode(runtimeState, Mode.UPGRADE_PICK);
-    onResolvedCb = onResolved;
     deps.log(
       `upgrade pick: ${dialog.entries.length} players, round=${runtimeState.state.round}`,
     );
@@ -254,39 +238,36 @@ export function createUpgradePickSystem(
 
     if (!allResolved) return;
 
-    // Let the final reveal pulse finish before closing the dialog — the last
-    // entry resolves on the same frame as allResolved, so without this the
-    // expanding ring animation for that entry never gets any draw frames.
-    // The dwell counts sim ticks from the resolve, NOT dialog.timer vs
-    // pickedAtTimer (dialog-open-relative, cross-peer skewed). See
-    // `resolvedAtSimTick` for why the resolve tick itself can still skew
-    // across peers (AI picks) and why that's safe.
+    // Anchor the reveal-pulse dwell on the sim-tick timeline the first frame
+    // every entry is resolved — the last entry resolves on the same frame as
+    // allResolved, so the expanding-ring animation needs draw frames before
+    // the phase exits. Counts sim ticks from the resolve, NOT dialog.timer vs
+    // pickedAtTimer (dialog-open-relative, cross-peer skewed). The exit gate
+    // (`isReadyToExit`) reads this; the phase machine owns the actual exit
+    // dispatch. See the field comment for why the resolve tick itself can
+    // skew across peers (AI picks) and why that's safe.
     resolvedAtSimTick ??= state.simTick;
-    const pulseElapsed = (state.simTick - resolvedAtSimTick) * SIM_TICK_DT;
-    if (pulseElapsed < UPGRADE_PICK_PULSE_DURATION) return;
-
-    deps.log(
-      `upgrade picks resolved: ${dialog.entries.map((entry) => `P${entry.playerId}=${entry.choice}`).join(", ")}`,
-    );
-    // Hand off to the phase machine. Clear dialog state before invoking
-    // the callback so the caller can apply picks against the frozen
-    // snapshot without runtime dialog state surviving past resolution.
-    // The build banner's A-snapshot freezes the last-painted picker-modal
-    // frame, so the visual cross-fade to the build scene doesn't depend
-    // on dialog state. Mode stays on UPGRADE_PICK; the chain's
-    // postDisplay flips to the terminal mode.
-    const callback = onResolvedCb;
-    teardownDialog();
-    callback?.(dialog);
   }
 
-  /** Drop the dialog plus everything armed around it (resolution
-   *  callback, in-flight pick guards, pulse anchor). Shared by the
-   *  tick-resolution handoff, `set(null)` force-clears, and
-   *  `forceResolveAll`. */
+  /** See `UpgradePickSystem.isReadyToExit`. Re-derived from state every
+   *  frame (not stored on resolve) so a host-promoted peer that adopts
+   *  mid-UPGRADE_PICK can poll the exit condition without a re-armed
+   *  callback — the asymmetry that forced the old `forceResolveAll`
+   *  repair hatch. */
+  function isReadyToExit(): boolean {
+    if (!runtimeState.dialogs.upgradePick) return false;
+    if (resolvedAtSimTick === undefined) return false;
+    const pulseElapsed =
+      (runtimeState.state.simTick - resolvedAtSimTick) * SIM_TICK_DT;
+    return pulseElapsed >= UPGRADE_PICK_PULSE_DURATION;
+  }
+
+  /** Drop the dialog plus everything around it (in-flight pick guards,
+   *  pulse anchor). Shared by the phase machine's exit funnel
+   *  (`finishUpgradePick` via `set(null)`) and force-clears (rematch,
+   *  host-promote). */
   function teardownDialog(): void {
     runtimeState.dialogs.upgradePick = null;
-    onResolvedCb = undefined;
     inFlightPicks.clear();
     resolvedAtSimTick = undefined;
   }
@@ -320,27 +301,6 @@ export function createUpgradePickSystem(
         dialog.timer,
       );
     }
-  }
-
-  /** See `UpgradePickSystem.forceResolveAll`. The teardown mirrors the
-   *  resolution path in `tick()` minus the callback invocation. */
-  function forceResolveAll(): UpgradePickDialogState | null {
-    const dialog = runtimeState.dialogs.upgradePick;
-    if (!dialog) return null;
-    for (const entry of dialog.entries) {
-      if (entry.choice !== null) continue;
-      const forced = runtimeState.controllers[entry.playerId]!.forceUpgradePick(
-        entry,
-        runtimeState.state,
-      );
-      resolveUpgradePickEntry(
-        entry,
-        entry.offers.indexOf(forced),
-        dialog.timer,
-      );
-    }
-    teardownDialog();
-    return dialog;
   }
 
   function moveFocus(playerId: ValidPlayerId, dir: number): void {
@@ -447,14 +407,14 @@ export function createUpgradePickSystem(
       }
       runtimeState.dialogs.upgradePick = dialog;
     },
-    tryShow,
+    show,
     tick,
+    isReadyToExit,
     prepare,
     moveFocus,
     confirmChoice,
     pickDirect,
     interactiveSlots,
-    forceResolveAll,
     adoptSeat,
   };
 }

@@ -269,23 +269,20 @@ function skipPendingAnimations(): void {
       _client.devLog("Primed own cannon controller (banner window skip)");
     }
   }
-  // Phase repair, after the mode teardown: UPGRADE_PICK is the only phase
-  // with no self-driving timer — its exit is dispatched by the pick
-  // dialog's resolution callback (modal window) or by the entry banner's
-  // postDisplay arming that dialog (banner window), and the teardown above
-  // just dropped whichever was pending. Left as-is, Mode.GAME's tickGame
-  // no-ops the phase and every peer hangs forever. Force-resolve the picks
-  // (same state-derived choice the max-timer backstop writes) and advance
-  // to WALL_BUILD now, BEFORE the FULL_STATE broadcast — watchers must
-  // receive a snapshot that ticks forward on its own.
-  if (_runtime.runtimeState.state.phase === Phase.UPGRADE_PICK) {
-    _runtime.phaseTicks.resolveUpgradePickNow();
-    // The enter-wall-build dispatch armed its build banner and set
-    // Mode.TRANSITION; the promoted peer skips transition cosmetics like
-    // every teardown branch above.
-    _runtime.hideBanner();
-    setMode(_runtime.runtimeState, Mode.GAME);
-    _client.devLog("Force-resolved upgrade picks → wall build");
+  // UPGRADE_PICK is a self-driving phase (like MODIFIER_REVEAL): its tick
+  // re-derives the exit from dialog state every frame, so promotion needs
+  // no force-resolve. The modal window keeps Mode.UPGRADE_PICK
+  // (clearAnimationState no-ops it) and resumes on its own; only the entry
+  // banner window — where the teardown above forced Mode.GAME — needs the
+  // mode restored so `tickUpgradePickPhase` runs (it rebuilds the dialog
+  // from `pendingUpgradeOffers` and drives it to exit). The FULL_STATE
+  // broadcast then ships a UPGRADE_PICK snapshot every peer ticks forward.
+  if (
+    _runtime.runtimeState.state.phase === Phase.UPGRADE_PICK &&
+    _runtime.runtimeState.mode !== Mode.UPGRADE_PICK
+  ) {
+    _runtime.phaseTicks.restoreUpgradePickPhase();
+    _client.devLog("Restored upgrade-pick phase → self-driving exit");
   }
 }
 

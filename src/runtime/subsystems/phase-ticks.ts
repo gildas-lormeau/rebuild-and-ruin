@@ -56,8 +56,8 @@ import {
   tickBalloonFlights,
 } from "../battle-anim.ts";
 import {
+  finishUpgradePick,
   forceResolveRoundEndPhase,
-  forceResolveUpgradePickPhase,
   type PhaseTransitionCtx,
   runTransition,
 } from "../phase-machine.ts";
@@ -156,24 +156,20 @@ interface PhaseTicksDeps extends Pick<RuntimeConfig, "log"> {
   saveBattleCrosshair?: () => void;
   /** Called after beginBattle completes (crosshair override, etc.). */
   onBeginBattle?: () => void;
-  /** Upgrade-pick hook bag — both functions are wired together or not
-   *  at all. Grouping them into a single optional field encodes that
+  /** Upgrade-pick hook bag — wired together or not at all (classic mode
+   *  omits it). Grouping into a single optional field encodes that
    *  invariant at the type level, so the `upgradePick` ctx object can be
-   *  assembled without non-null assertions.
-   *  - `prepare`: pre-create the dialog for progressive reveal during banner.
-   *  - `tryShow`: show upgrade pick overlay. Returns true if shown (caller
-   *    should defer Mode.GAME). `onResolved(resolved)` fires when all
-   *    picks are resolved, carrying the finalized dialog snapshot. The
-   *    subsystem clears its own dialog state before invoking the
-   *    callback; the phase machine applies the picks against the
-   *    snapshot. Mirrors `lifeLost.show`'s callback-driven resolution. */
+   *  assembled without non-null assertions. UPGRADE_PICK is self-driving
+   *  (like MODIFIER_REVEAL): `prepare`+`show` activate the dialog, then
+   *  `tickUpgradePickPhase` polls `isReadyToExit` and the phase machine
+   *  dispatches the exit via `get`/`set`. No resolution callback. */
   upgradePick?: {
     prepare: () => boolean;
-    tryShow: (
-      onResolved: (resolved: UpgradePickDialogState) => void,
-    ) => boolean;
-    /** Host-promotion repair — see `UpgradePickSystem.forceResolveAll`. */
-    forceResolveAll: () => UpgradePickDialogState | null;
+    show: () => boolean;
+    tick: (dt: number) => void;
+    isReadyToExit: () => boolean;
+    get: () => UpgradePickDialogState | null;
+    set: (dialog: UpgradePickDialogState | null) => void;
   };
   /** End-game side effects (set game-over frame, stop sound, switch to
    *  Mode.STOPPED, arm demo timer). Wired to `lifecycle.endGame` from
@@ -221,10 +217,10 @@ interface PhaseTicksDeps extends Pick<RuntimeConfig, "log"> {
  *  most callers go through the orchestrator, not the handle. Sole
  *  consumer: host promotion (`promote.ts`). */
 export interface RuntimePhaseTicks {
-  /** Force the UPGRADE_PICK phase to its conclusion (state-derived picks
-   *  applied, `enter-wall-build` dispatched). Host-promotion repair —
-   *  see `forceResolveUpgradePickPhase` in phase-machine.ts. */
-  resolveUpgradePickNow: () => void;
+  /** Restore the self-driving UPGRADE_PICK tick after a host-promotion
+   *  teardown forced Mode.GAME (entry-banner window). Replaces the old
+   *  force-resolve repair — see `restoreUpgradePickPhase`. */
+  restoreUpgradePickPhase: () => void;
   /** Skip the battle intro (balloon flyover) and run `beginBattle`.
    *  Host-promotion repair — promotion landing in the battle-entry
    *  display windows (banner sweep, post-banner tilt wait, balloon
@@ -244,8 +240,10 @@ export interface PhaseTicksSystem {
    *  continue path). The mutate runs `finalizeRoundCleanup` only — the
    *  phase entry is owned by the routed `enter-cannon-place`. */
   dispatchAdvanceToCannon: () => void;
-  /** Host-promotion repair — see `RuntimePhaseTicks.resolveUpgradePickNow`. */
-  resolveUpgradePickNow: () => void;
+  /** Host-promotion repair — see `RuntimePhaseTicks.restoreUpgradePickPhase`. */
+  restoreUpgradePickPhase: () => void;
+  /** Self-driving UPGRADE_PICK phase tick (Mode.UPGRADE_PICK). */
+  tickUpgradePickPhase: (dt: number) => void;
   /** Host-promotion repair — see `RuntimePhaseTicks.skipBattleIntro`. */
   skipBattleIntro: () => void;
   /** Host-promotion repair — see `RuntimePhaseTicks.resolveRoundEndNow`. */
@@ -403,8 +401,11 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       upgradePick: deps.upgradePick
         ? {
             prepare: deps.upgradePick.prepare,
-            tryShow: deps.upgradePick.tryShow,
-            forceResolveAll: deps.upgradePick.forceResolveAll,
+            show: deps.upgradePick.show,
+            tick: deps.upgradePick.tick,
+            isReadyToExit: deps.upgradePick.isReadyToExit,
+            get: deps.upgradePick.get,
+            set: deps.upgradePick.set,
           }
         : undefined,
       ceasefireSkipBattle: () => enterBuildSkippingBattle(runtimeState.state),
@@ -652,6 +653,44 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     return true;
   }
 
+  /** UPGRADE_PICK phase tick (Mode.UPGRADE_PICK). Self-driving like
+   *  `tickModifierRevealPhase`: tick the pick dialog, and when every entry
+   *  has resolved (and the reveal pulse has dwelled) dispatch the exit
+   *  through the phase machine. The exit is re-derived from dialog state
+   *  every frame — no armed callback — so a host-promoted peer that adopts
+   *  mid-phase resumes the exit on its own, replacing the old
+   *  `forceResolveUpgradePickPhase` repair hatch.
+   *
+   *  Self-recovers the dialog when missing: a promotion that landed in the
+   *  entry-banner window (the dropped banner postDisplay never ran `show`)
+   *  or a watcher adopting a UPGRADE_PICK snapshot (dialogs are rebuilt
+   *  locally, never serialized) arrives here with no dialog — `prepare` +
+   *  `show` rebuild it from `pendingUpgradeOffers`. No offers ⟹ exit. */
+  function tickUpgradePickPhase(dt: number): void {
+    const picker = deps.upgradePick;
+    if (!picker) return;
+    if (!picker.get()) {
+      if (!picker.prepare() || !picker.show()) {
+        finishUpgradePick(buildPhaseCtx());
+        return;
+      }
+    }
+    picker.tick(dt);
+    if (picker.isReadyToExit()) finishUpgradePick(buildPhaseCtx());
+  }
+
+  /** Host-promotion repair: restore the self-driving UPGRADE_PICK tick
+   *  after the generic teardown forced Mode.GAME (promotion in the entry
+   *  banner window). The modal window keeps Mode.UPGRADE_PICK
+   *  (clearAnimationState no-ops it), so this only fires in the banner
+   *  window; `tickUpgradePickPhase` then rebuilds + drives the dialog. No
+   *  force-resolve, no pre-broadcast dispatch — the snapshot ships in
+   *  UPGRADE_PICK and every peer ticks it forward on its own. */
+  function restoreUpgradePickPhase(): void {
+    if (!deps.upgradePick) return;
+    setMode(runtimeState, Mode.UPGRADE_PICK);
+  }
+
   function tickBattleCountdown(dt: number): void {
     const remotePlayerSlots = runtimeState.frameMeta.remotePlayerSlots;
     runtimeState.frame.announcement = advanceBattleCountdown(
@@ -893,7 +932,8 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
 
   return {
     dispatchAdvanceToCannon,
-    resolveUpgradePickNow: () => forceResolveUpgradePickPhase(buildPhaseCtx()),
+    restoreUpgradePickPhase,
+    tickUpgradePickPhase,
     resolveRoundEndNow: () => forceResolveRoundEndPhase(buildPhaseCtx()),
     skipBattleIntro: () => {
       clearBalloonFlights(runtimeState.battleAnim);
