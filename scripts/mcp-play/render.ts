@@ -222,7 +222,10 @@ export function renderObservation(obs: Observation): string {
       }
       if (suggestions.every((spot) => (spot.wallLineSides ?? 0) > 0)) {
         lines.push(
-          "     (none are fully interior — castle too tight; the ✗ spots are the safest that fit)",
+          "     ⚠ NO safe spot — every ✗ sits on the outer ring: a ring-cannon goes INERT the moment that wall is breached, and the re-seal can't route around it without orphaning a 1-tile gap (→ the castle can become UNSEALABLE).",
+        );
+        lines.push(
+          "       Mitigate: place FEWER cannons this round, or expand your interior first so a buffered (non-✗) spot opens up — don't reflexively fill every slot on the ring.",
         );
       }
     } else {
