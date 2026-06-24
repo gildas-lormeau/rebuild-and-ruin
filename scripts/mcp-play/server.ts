@@ -242,7 +242,7 @@ const TOOLS: ToolDef[] = [
   {
     name: "placements",
     description:
-      "WALL_BUILD: EVERY legal placement of the current piece whose footprint touches a zone (default = your wall frontier), best-first, each annotated with sealsTower (lands on a tile that closes that pocket — including inner-corner diagonal-leak seals), coversDrift (pre-empts a converging grunt), fillsGap, touchingWalls. The exhaustive answer to 'which placement closes/fills this here?' — retires guess-and-check check_placement loops. Focus a spot with aroundRow/aroundCol (+radius, default 3) or a rect (minRow/maxRow/minCol/maxCol); omit all for the whole frontier. Read-only, no clock.",
+      "WALL_BUILD: EVERY legal placement of the current piece whose footprint touches a zone (default = your wall frontier), best-first, each annotated with sealsTower ('HOME' or 'tower N' — set when the placement lands on a tile that closes that pocket outright, including inner-corner diagonal-leak seals; absent otherwise), coversDrift (pre-empts a converging grunt), fillsGap, touchingWalls. The exhaustive answer to 'which placement closes/fills this here?' — retires guess-and-check check_placement loops. Focus a spot with aroundRow/aroundCol (+radius, default 3) or a rect (minRow/maxRow/minCol/maxCol); omit all for the whole frontier. Read-only, no clock.",
     inputSchema: {
       type: "object",
       properties: {

@@ -150,11 +150,13 @@ export interface BuildSuggestion {
  *  loops: ask once, get every option in the window scored against the live
  *  seal/drift signals. */
 export interface ZonePlacement extends BuildSuggestion {
-  /** Tower index this placement single-tile-SEALS — set when any of the piece's
-   *  tiles lands on a `sealTiles` entry (a tile that, walled, encloses that
-   *  tower, INCLUDING inner-corner diagonal-leak seals). The headline: a
-   *  placement with `sealsTower` set closes a pocket outright. Absent otherwise. */
-  sealsTower?: number;
+  /** Human-readable label of the tower this placement single-tile-SEALS —
+   *  `"HOME"` or `"tower N"` — set when any of the piece's tiles lands on a
+   *  `sealTiles` entry (a tile that, walled, encloses that tower, INCLUDING
+   *  inner-corner diagonal-leak seals). A string (never a bare index) so the
+   *  home tower reads `"HOME"` instead of a falsy-looking `0`. The headline:
+   *  a placement with `sealsTower` set closes a pocket outright. Absent otherwise. */
+  sealsTower?: string;
   /** True if any tile lands on a grunt-DRIFT tile — placing it pre-empts a
    *  converging grunt (the "wall these FIRST" move). */
   coversDrift: boolean;
@@ -942,17 +944,17 @@ export async function createMcpGame(
   function annotateBuildPlacement(
     tiles: readonly (readonly [number, number])[],
     isWall: (row: number, col: number) => boolean,
-    sealOf: ReadonlyMap<number, number>,
+    sealOf: ReadonlyMap<number, string>,
     driftSet: ReadonlySet<number>,
   ): {
     fillsGap: number;
     touchingWalls: number;
-    sealsTower?: number;
+    sealsTower?: string;
     coversDrift: boolean;
   } {
     let touching = 0;
     let fillsGap = 0;
-    let sealsTower: number | undefined;
+    let sealsTower: string | undefined;
     let coversDrift = false;
     for (const [tileRow, tileCol] of tiles) {
       const up = isWall(tileRow - 1, tileCol);
@@ -1022,11 +1024,12 @@ export async function createMcpGame(
       return { piece: null, zone: rect, total: 0, shown: 0, placements: [] };
     }
     // Gather the live seal/drift tiles to annotate against (one candidate pass).
-    const sealOf = new Map<number, number>();
+    const sealOf = new Map<number, string>();
     const driftSet = new Set<number>();
     for (const candidate of enclosureCandidatesFor()) {
+      const label = candidate.isHome ? "HOME" : `tower ${candidate.towerIdx}`;
       for (const seal of candidate.sealTiles) {
-        sealOf.set(packTile(seal.row, seal.col), candidate.towerIdx);
+        sealOf.set(packTile(seal.row, seal.col), label);
       }
       for (const drift of candidate.driftTiles) {
         driftSet.add(packTile(drift.row, drift.col));
