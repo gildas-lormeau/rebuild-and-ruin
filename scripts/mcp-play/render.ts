@@ -185,6 +185,9 @@ export function renderObservation(obs: Observation): string {
     }
   }
 
+  // ── grunt clusters: dense packs (≥2×2) worth enclosing / opponent weak spots ─
+  lines.push(...gruntClusterLines(obs));
+
   // ── selection: pickable towers in my zone ───────────────────────────────────
   if (obs.towers) {
     const picks = obs.towers
@@ -399,6 +402,40 @@ export function renderObservation(obs: Observation): string {
 
   lines.push(obs.board);
   return lines.join("\n");
+}
+
+/** Grunt-cluster block: dense packs (≥2×2) the harness surfaces. Yours read as
+ *  enclose-kill candidates (wall a ring round them → the block dies + the seal
+ *  banks); an opponent's read as a grunt-pressure weak spot to breach/deny. Empty
+ *  when there are no clusters. Pulled out to keep `renderObservation` simpler. */
+function gruntClusterLines(obs: Observation): string[] {
+  if (!obs.gruntClusters || obs.gruntClusters.length === 0) return [];
+  const lines: string[] = [];
+  const box = (cluster: NonNullable<Observation["gruntClusters"]>[number]) =>
+    `(${cluster.minRow},${cluster.minCol})–(${cluster.maxRow},${cluster.maxCol})`;
+  const mine = obs.gruntClusters.filter((cluster) => cluster.mine);
+  const theirs = obs.gruntClusters.filter((cluster) => !cluster.mine);
+  if (mine.length > 0) {
+    lines.push(
+      "  ⚔ GRUNT CLUSTERS in your zone (≥2×2 packed — ENCLOSE-KILL candidates):",
+    );
+    for (const cluster of mine) {
+      lines.push(
+        `     ${cluster.count} grunts packed in ${box(cluster)} — wall a ring AROUND them to kill the whole block + bank the seal in one move (do it BEFORE they reach your chokepoint; once they plug it, only cull() frees you)`,
+      );
+    }
+  }
+  if (theirs.length > 0) {
+    lines.push(
+      "  ☼ OPPONENT grunt clusters (grunt-pressure weak spots — breach/deny there compounds with the grunts):",
+    );
+    for (const cluster of theirs) {
+      lines.push(
+        `     ${cluster.ownerName ?? "neutral zone"}: ${cluster.count} grunts packed in ${box(cluster)}`,
+      );
+    }
+  }
+  return lines;
 }
 
 /** Standings block: a final-placement table once the match is over, otherwise

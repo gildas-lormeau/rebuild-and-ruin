@@ -411,6 +411,33 @@ export interface TowerCannons {
   byMode: Partial<Record<CannonMode, number>>;
 }
 
+/** A dense pack of grunts — a connected blob that contains at least one full 2×2
+ *  block of grunts. Two reads of the same signal:
+ *  - In YOUR zone (`mine`): an enclose-kill candidate. Walling a ring AROUND the
+ *    blob traps it inside your territory; the enclosed-kill clears every grunt in
+ *    it AND banks the seal in one move — do it BEFORE they reach a chokepoint, not
+ *    after they're plugging it (then only `cull` frees you).
+ *  - In an OPPONENT's zone: a weakness read. Their reseal / towers there are under
+ *    grunt pressure, so a `breach`/deny on that side compounds with the grunts. */
+export interface GruntCluster {
+  /** Bounding box of the connected grunt blob (the 2×2 block plus anything
+   *  4-connected to it). */
+  minRow: number;
+  maxRow: number;
+  minCol: number;
+  maxCol: number;
+  /** Grunts in the blob. */
+  count: number;
+  /** River zone the blob sits in. */
+  zone: number;
+  /** Slot whose castle owns that zone, or null for a neutral zone. */
+  owner: number | null;
+  /** Display name of the owner (null for a neutral zone). */
+  ownerName: string | null;
+  /** True when this is YOUR zone — the defensive enclose-kill framing. */
+  mine: boolean;
+}
+
 /** A grunt bearing down on one of my towers — the defensive signal that, when
  *  ignored, lets a grunt walk through a breach and kill the tower. */
 export interface ThreatInfo {
@@ -614,6 +641,11 @@ export interface Observation {
    *  ignore one near an unenclosed tower and you lose the tower (and a life).
    *  Omitted when nothing threatens you. */
   threats?: ThreatInfo[];
+  /** Dense grunt clusters (each contains ≥ a full 2×2 block), densest first.
+   *  In YOUR zone they're enclose-kill candidates; in an opponent's they flag a
+   *  grunt-pressure weakness to exploit. WALL_BUILD + BATTLE only; omitted when
+   *  none. */
+  gruntClusters?: GruntCluster[];
   /** BATTLE: the best enemy wall tiles to plant a super-cannon PIT on, ranked by
    *  denial value (un-reroutable chokepoints first). Feed these to
    *  `pitStrike(slot, targets)`. Omitted outside BATTLE / when you have no super. */
@@ -732,6 +764,13 @@ const ENCLOSURE_TILE_SAMPLE = 8;
 const BATTLE_TARGET_SAMPLE = 10;
 /** How many ranked pit targets to surface per opponent in BATTLE. */
 const PIT_TARGETS_PER_OPPONENT = 3;
+/** A grunt cluster (`gruntClustersFor`) must pack at least this many grunts in one
+ *  4-connected blob to be worth flagging as enclose-killable / a weakness. */
+const CLUSTER_MIN_GRUNTS = 4;
+/** ...AND its bounding box may span at most this many tiles on each axis, so only
+ *  COMPACT knots (one ring traps them) qualify — a swarm strung down a corridor is
+ *  one component but fails this and isn't mis-flagged as enclosable. */
+const CLUSTER_MAX_SPAN = 3;
 /** Chebyshev radius around an opponent tower that counts as its guarding ring —
  *  the band a `breach` concentrates fire on to de-enclose that pocket. */
 const BREACH_RADIUS = 6;
@@ -1655,6 +1694,80 @@ export async function createMcpGame(
    *  grunt in my zone, the tower it targets (the engine's sticky pathing target
    *  if set, else the nearest alive one), the distance, and whether that tower is
    *  walled in. Most urgent first: exposed tower, then closest grunt. */
+  /** Dense grunt clusters on the board: each connected (4-dir) grunt blob of
+   *  CLUSTER_MIN_GRUNTS+ that fits in a compact CLUSTER_MAX_SPAN bounding box — the
+   *  "group packed tightly enough that one wall ring traps the lot" signal (the
+   *  ≥2×2-footprint idea, loosened so an L / knot counts, not just a perfect
+   *  square). A sprawling swarm strung along a corridor is one component but fails
+   *  the span test, so it's not mis-flagged as enclosable. Attributed to its zone
+   *  (and owning castle) so the render frames yours as enclose-kill candidates and
+   *  an opponent's as a grunt-pressure weakness. Densest blob first. */
+  function gruntClustersFor(): GruntCluster[] {
+    const state = sc.state;
+    if (state.grunts.length < CLUSTER_MIN_GRUNTS) return [];
+    const gruntKeys = new Set(
+      state.grunts.map((grunt) => packTile(grunt.row, grunt.col)),
+    );
+    const isGrunt = (row: number, col: number) =>
+      inBounds(row, col) && gruntKeys.has(packTile(row, col));
+    const myZone = state.playerZones[agentSlot];
+    const visited = new Set<number>();
+    const clusters: GruntCluster[] = [];
+    for (const start of state.grunts) {
+      const startKey = packTile(start.row, start.col);
+      if (visited.has(startKey)) continue;
+      // Flood the whole 4-connected blob this grunt belongs to.
+      let minRow = start.row;
+      let maxRow = start.row;
+      let minCol = start.col;
+      let maxCol = start.col;
+      let count = 0;
+      const stack = [startKey];
+      visited.add(startKey);
+      while (stack.length > 0) {
+        const { row, col } = unpackTile(stack.pop()!);
+        count++;
+        minRow = Math.min(minRow, row);
+        maxRow = Math.max(maxRow, row);
+        minCol = Math.min(minCol, col);
+        maxCol = Math.max(maxCol, col);
+        for (const [dr, dc] of DIRS_4) {
+          const nr = row + dr;
+          const nc = col + dc;
+          const nkey = packTile(nr, nc);
+          if (isGrunt(nr, nc) && !visited.has(nkey)) {
+            visited.add(nkey);
+            stack.push(nkey);
+          }
+        }
+      }
+      // Keep only blobs that are both big enough AND compact enough to enclose.
+      if (count < CLUSTER_MIN_GRUNTS) continue;
+      if (
+        maxRow - minRow > CLUSTER_MAX_SPAN ||
+        maxCol - minCol > CLUSTER_MAX_SPAN
+      ) {
+        continue;
+      }
+      const zone = zoneAt(state.map, start.row, start.col);
+      if (zone === undefined) continue;
+      const owner = state.playerZones.findIndex((zoneId) => zoneId === zone);
+      clusters.push({
+        minRow,
+        maxRow,
+        minCol,
+        maxCol,
+        count,
+        zone,
+        owner: owner >= 0 ? owner : null,
+        ownerName: owner >= 0 ? (PLAYER_NAMES[owner] ?? `P${owner}`) : null,
+        mine: zone === myZone,
+      });
+    }
+    clusters.sort((a, b) => b.count - a.count);
+    return clusters;
+  }
+
   function threatsFor(): ThreatInfo[] {
     const state = sc.state;
     const myZone = state.playerZones[agentSlot];
@@ -2364,6 +2477,11 @@ export async function createMcpGame(
 
     const threats = threatsFor();
     if (threats.length > 0) observation.threats = threats;
+
+    if (phase === Phase.WALL_BUILD || phase === Phase.BATTLE) {
+      const clusters = gruntClustersFor();
+      if (clusters.length > 0) observation.gruntClusters = clusters;
+    }
 
     if (phase === Phase.CASTLE_SELECT && zone !== undefined) {
       observation.towers = state.map.towers
