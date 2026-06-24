@@ -683,6 +683,17 @@ export interface McpGame {
    *  scores 0). One call instead of chaining build({towerIdx}) per tower and
    *  budgeting time by hand. Honours `budget` (maxSeconds / maxPieces). */
   buildOut(budget?: BuildBudget): Observation;
+  /** WALL_BUILD: enclose an arbitrary FOOTPRINT by position — the generalisation
+   *  of `build` past towers. Walls the min-cut ring around `rect` (inclusive
+   *  top/bottom/left/right), so any grunts inside get enclosed-killed and the
+   *  ground is claimed. Use it to ring a grunt cluster (see gruntClusters), grab
+   *  a bonus square, or pre-claim open ground. Caveats: grunts MOVE during build
+   *  (a cluster footprint goes stale — commit promptly), and the rect must have a
+   *  finite cut (no leak to the map edge through water). Honours `budget`. */
+  buildRegion(
+    rect: { top: number; bottom: number; left: number; right: number },
+    budget?: BuildBudget,
+  ): Observation;
   /** WALL_BUILD: anchor the loose ends (fragile, ≤1-neighbour tiles) of an
    *  UN-CLOSED wall so they survive the round-end sweep into next round. NARROW
    *  USE: a closed pocket's ring is already sweep-proof (ring walls always keep ≥2
@@ -3216,6 +3227,107 @@ export async function createMcpGame(
     return observe();
   }
 
+  /** Grunts standing inside `rect` right now — the count that an enclose-kill of
+   *  this footprint would clear, for the buildRegion report. */
+  function gruntsInRect(rect: TileRect): number {
+    return sc.state.grunts.filter(
+      (grunt) =>
+        grunt.row >= rect.top &&
+        grunt.row <= rect.bottom &&
+        grunt.col >= rect.left &&
+        grunt.col <= rect.right,
+    ).length;
+  }
+
+  /** Enclose an arbitrary footprint by position (no tower needed) — walls the
+   *  min-cut ring around `rect`, recomputing the cut each step as walls land,
+   *  until it seals, stalls, or the budget/clock stops it. Grunts inside the
+   *  sealed region are enclosed-killed by the engine's territory pass. See
+   *  `buildRegion` in McpGame for the contract. */
+  function buildRegion(
+    rect: { top: number; bottom: number; left: number; right: number },
+    budget?: BuildBudget,
+  ): Observation {
+    if (sc.state.phase !== Phase.WALL_BUILD) {
+      bridge.lastResult = {
+        kind: "build",
+        success: false,
+        reason: "not in WALL_BUILD",
+      };
+      return observe();
+    }
+    const interior: TileRect = rect;
+    const cutNow = (): Set<number> | null =>
+      findEnclosureCut(
+        [{ interior }],
+        sc.state,
+        sc.state.players[agentSlot]?.walls ?? new Set(),
+        false,
+      );
+    if (cutNow() === null) {
+      bridge.lastResult = {
+        kind: "build",
+        success: false,
+        reason:
+          "region unenclosable — its ring leaks to the map edge through water/pit; pick a footprint with a wallable perimeter",
+      };
+      return observe();
+    }
+    const startTimer = sc.state.timer;
+    const gruntsBefore = gruntsInRect(interior);
+    const pieceCap = Math.min(
+      budget?.maxPieces ?? MAX_BUILD_PIECES,
+      MAX_BUILD_PIECES,
+    );
+    let placed = 0;
+    let stall = 0;
+    let outcome = "done";
+    while (placed < pieceCap) {
+      const stop = buildStop(placed, startTimer, pieceCap, budget);
+      if (stop) {
+        outcome = stop;
+        break;
+      }
+      const cut = cutNow();
+      if (cut === null) {
+        outcome = "blocked";
+        break;
+      }
+      if (cut.size === 0) {
+        outcome = "done";
+        break;
+      }
+      const step = placeTowardTargets(cut);
+      if (step.noPiece) continue;
+      if (step.landed) {
+        placed++;
+        if (step.onTarget) stall = 0;
+        else stall++;
+      } else {
+        stall++;
+      }
+      if (stall >= BUILD_STALL_LIMIT) {
+        outcome = "stuck";
+        break;
+      }
+    }
+    const gaps = cutNow()?.size ?? 0;
+    const killed = gruntsBefore - gruntsInRect(interior);
+    const elapsed = Math.round((startTimer - sc.state.timer) * 10) / 10;
+    const killNote =
+      outcome === "done" && killed > 0
+        ? ` — enclosed-killed ${killed} grunt(s) inside`
+        : gruntsBefore > 0 && gaps > 0
+          ? ` — ${gaps} ring gap(s) left; ${gruntsInRect(interior)} grunt(s) still inside (not yet sealed)`
+          : "";
+    bridge.lastResult = {
+      kind: "build",
+      success: placed > 0 || outcome === "done",
+      reason: `region: ${outcome}, placed ${placed}, ${gaps} gaps left, ~${elapsed}s${killNote}`,
+    };
+    return observe();
+  }
+
   /** Empty cells orthogonally adjacent to a fragile wall — a wall placed on one
    *  gives that fragile tile a second wall-neighbour, so the round-end sweep
    *  keeps it. Skips water / off-board / already-walled cells; the placer
@@ -4122,6 +4234,7 @@ export async function createMcpGame(
     pass,
     build: buildToward,
     buildOut,
+    buildRegion,
     reinforce,
     path: buildPath,
     bombard: bombardSlot,

@@ -19,15 +19,20 @@ import {
   inBounds,
   packTile,
   unpackTile,
+  zoneAt,
   zoneTileBounds,
 } from "../shared/core/spatial.ts";
 import type { GameViewState } from "../shared/core/system-interfaces.ts";
+import type { ZoneId } from "../shared/core/zone-id.ts";
 import { isRingWallable, isWallableGrass } from "./ai-castle-rect.ts";
 
-/** One region the cut must enclose: a tower and its castle rect (cannon
- *  space). Pass several to enclose multiple towers in one shared ring. */
+/** One region the cut must enclose. Normally a `tower` and its castle rect
+ *  (cannon space) — pass several to enclose multiple towers in one shared ring.
+ *  Omit `tower` to enclose an ARBITRARY footprint by position (a grunt cluster,
+ *  a bonus square, open ground): then `interior` is the only protected region
+ *  and the zone is derived from it. */
 export interface EnclosureSeed {
-  tower: Tower;
+  tower?: Tower;
   interior: TileRect;
 }
 
@@ -114,18 +119,21 @@ function computeEnclosureBox(
     minC: GRID_COLS,
     maxC: -1,
   };
-  const zoneBox = zoneTileBounds(state.map, seeds[0]!.tower.zone);
+  const zone = seedZone(seeds[0]!, state);
+  const zoneBox = zone === undefined ? null : zoneTileBounds(state.map, zone);
   if (zoneBox) {
     extendBounds(acc, zoneBox.minR, zoneBox.maxR, zoneBox.minC, zoneBox.maxC);
   }
   for (const { tower, interior } of seeds) {
-    extendBounds(
-      acc,
-      tower.row,
-      tower.row + TOWER_SIZE - 1,
-      tower.col,
-      tower.col + TOWER_SIZE - 1,
-    );
+    if (tower) {
+      extendBounds(
+        acc,
+        tower.row,
+        tower.row + TOWER_SIZE - 1,
+        tower.col,
+        tower.col + TOWER_SIZE - 1,
+      );
+    }
     extendBounds(
       acc,
       interior.top,
@@ -141,6 +149,20 @@ function computeEnclosureBox(
     minC: Math.max(0, acc.minC - MARGIN),
     maxC: Math.min(GRID_COLS - 1, acc.maxC + MARGIN),
   };
+}
+
+/** The river zone a seed belongs to: its tower's zone, or — for a tower-less
+ *  region seed — the zone under the interior's centre tile (undefined only if
+ *  that centre is off-zone, e.g. water, in which case the box falls back to the
+ *  seed rects alone). */
+function seedZone(
+  seed: EnclosureSeed,
+  state: GameViewState,
+): ZoneId | undefined {
+  if (seed.tower) return seed.tower.zone;
+  const row = (seed.interior.top + seed.interior.bottom) >> 1;
+  const col = (seed.interior.left + seed.interior.right) >> 1;
+  return zoneAt(state.map, row, col);
 }
 
 /** Grow a mutable bounds accumulator to include the `[r0,r1]×[c0,c1]` box. */
@@ -167,9 +189,11 @@ function collectProtectedTiles(
 ): Set<TileKey> {
   const protectedTiles = new Set<TileKey>();
   for (const { tower, interior } of seeds) {
-    for (let row = tower.row; row < tower.row + TOWER_SIZE; row++) {
-      for (let col = tower.col; col < tower.col + TOWER_SIZE; col++) {
-        if (inBounds(row, col)) protectedTiles.add(packTile(row, col));
+    if (tower) {
+      for (let row = tower.row; row < tower.row + TOWER_SIZE; row++) {
+        for (let col = tower.col; col < tower.col + TOWER_SIZE; col++) {
+          if (inBounds(row, col)) protectedTiles.add(packTile(row, col));
+        }
       }
     }
     for (let row = interior.top; row <= interior.bottom; row++) {

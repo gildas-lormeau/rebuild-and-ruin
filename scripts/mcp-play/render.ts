@@ -421,7 +421,7 @@ function gruntClusterLines(obs: Observation): string[] {
     );
     for (const cluster of mine) {
       lines.push(
-        `     ${cluster.count} grunts packed in ${box(cluster)} — wall a ring AROUND them to kill the whole block + bank the seal in one move (do it BEFORE they reach your chokepoint; once they plug it, only cull() frees you)`,
+        `     ${cluster.count} grunts packed in ${box(cluster)} — build_region({ rect: { top: ${cluster.minRow}, bottom: ${cluster.maxRow}, left: ${cluster.minCol}, right: ${cluster.maxCol} } }) walls a ring around them → enclosed-kills the block. Do it BEFORE they reach a chokepoint (they move during build); once they plug a tower's seal, only cull() frees you.`,
       );
     }
   }

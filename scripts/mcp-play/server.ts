@@ -61,6 +61,12 @@ interface Journal {
         maxPieces?: number;
       }
     | { t: "build_out"; maxSeconds?: number; maxPieces?: number }
+    | {
+        t: "build_region";
+        rect: { top: number; bottom: number; left: number; right: number };
+        maxSeconds?: number;
+        maxPieces?: number;
+      }
     | { t: "reinforce"; maxSeconds?: number; maxPieces?: number }
     | {
         t: "path";
@@ -452,6 +458,39 @@ const TOOLS: ToolDef[] = [
     handler: (args) => recordBuildOut(budgetArg(args)),
   },
   {
+    name: "build_region",
+    description:
+      "WALL_BUILD: enclose an arbitrary FOOTPRINT by position — build_toward generalised past towers. Walls the min-cut ring around `rect` (inclusive top/bottom/left/right tile coords), so any grunts inside get ENCLOSED-KILLED and the ground is claimed. Use it to ring a grunt cluster (see observation.gruntClusters — the ⚔ ENCLOSE-KILL candidates give you the box), grab a bonus square, or pre-claim open ground — the action the cluster hint always implied but had no tool for. CAVEATS: grunts MOVE during WALL_BUILD, so a cluster footprint goes stale — commit promptly and accept it can miss; the rect must have a finite cut (no leak to the map edge through water/pit) or it reports unenclosable. Read lastResult for gaps left + grunts killed. Optional maxSeconds / maxPieces.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        rect: {
+          type: "object",
+          properties: {
+            top: { type: "number" },
+            bottom: { type: "number" },
+            left: { type: "number" },
+            right: { type: "number" },
+          },
+          required: ["top", "bottom", "left", "right"],
+          description:
+            "Footprint to enclose, inclusive tile coords. For a grunt cluster use its bounding box (gruntClusters gives minRow/maxRow/minCol/maxCol).",
+        },
+        maxSeconds: {
+          type: "number",
+          description: "Cap build-seconds spent THIS call (reserve the rest).",
+        },
+        maxPieces: {
+          type: "number",
+          description: "Cap pieces placed THIS call.",
+        },
+      },
+      required: ["rect"],
+    },
+    handler: (args) =>
+      recordBuildRegion(rectArg(args, "rect"), budgetArg(args)),
+  },
+  {
     name: "reinforce",
     description:
       "WALL_BUILD: anchor the loose ends of an UN-CLOSED wall — it re-reads your fragile walls (≤1 wall-neighbour tiles the round-end sweep DELETES — see observation.fragileWalls) and places each arriving piece against them so every one gains a second neighbour. NARROW USE: a closed pocket is ALREADY sweep-proof — its ring walls always keep ≥2 neighbours, so the sweep can only ever shave dangling stubs, never open a sealed castle. Reinforcing a finished castle just spends pieces (and can bury a fat wall). Reach for this only to preserve a build_path PRE-CLAIM line you'll close a later round. Does NOT enclose a tower (build_toward) or lay a line (build_path). Read lastResult for fragile before→after. Optional maxSeconds / maxPieces.",
@@ -661,7 +700,9 @@ const TOOLS: ToolDef[] = [
         else if (move.t === "pass") game.pass(move.n, move.seconds);
         else if (move.t === "build") game.build(move.towerIdx, budgetOf(move));
         else if (move.t === "build_out") game.buildOut(budgetOf(move));
-        else if (move.t === "reinforce") game.reinforce(budgetOf(move));
+        else if (move.t === "build_region") {
+          game.buildRegion(move.rect, budgetOf(move));
+        } else if (move.t === "reinforce") game.reinforce(budgetOf(move));
         else if (move.t === "path") {
           game.path(move.from, move.to, budgetOf(move));
         } else if (move.t === "breach") game.breach(move.slot, move.towerIdx);
@@ -739,6 +780,21 @@ function recordBuildOut(budget?: BuildBudget): unknown {
   return observation;
 }
 
+/** Enclose an arbitrary footprint by position AND journal it. */
+function recordBuildRegion(
+  rect: { top: number; bottom: number; left: number; right: number },
+  budget?: BuildBudget,
+): unknown {
+  const observation = requireGame().buildRegion(rect, budget);
+  journal?.moves.push({
+    t: "build_region",
+    rect,
+    maxSeconds: budget?.maxSeconds,
+    maxPieces: budget?.maxPieces,
+  });
+  return observation;
+}
+
 /** Make the existing ring sweep-proof AND journal it. */
 function recordReinforce(budget?: BuildBudget): unknown {
   const observation = requireGame().reinforce(budget);
@@ -808,6 +864,23 @@ function pathArg(args: Record<string, unknown>): string {
 }
 
 /** Parse a `{ row, col }` argument (build_path endpoints). */
+function rectArg(
+  args: Record<string, unknown>,
+  key: string,
+): { top: number; bottom: number; left: number; right: number } {
+  const value = args[key];
+  if (typeof value !== "object" || value === null) {
+    throw new Error(`'${key}' must be { top, bottom, left, right }`);
+  }
+  const obj = value as Record<string, unknown>;
+  return {
+    top: num(obj, "top"),
+    bottom: num(obj, "bottom"),
+    left: num(obj, "left"),
+    right: num(obj, "right"),
+  };
+}
+
 function point(
   args: Record<string, unknown>,
   key: string,
