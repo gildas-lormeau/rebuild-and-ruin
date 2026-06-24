@@ -906,6 +906,12 @@ export async function createMcpGame(
    *  water never change). -1 = not yet computed. */
   let zoneLandCache = -1;
 
+  /** Idle-build pass guard: set once the agent has been warned that passing this
+   *  WALL_BUILD would abandon a still-enclosable tower (idle build scores 0). The
+   *  next pass then goes through, so the warning never traps a deliberate skip.
+   *  Cleared on any build placement and on leaving WALL_BUILD. */
+  let idleBuildPassWarned = false;
+
   /** Tick until the agent owes a move (brain parked) or the game ends. */
   function settleToDecision(): void {
     bridge.waiting = false;
@@ -2748,9 +2754,51 @@ export async function createMcpGame(
    *  goes live), or the game ends. Lets the agent skip dead time (a whole
    *  countdown, a quiet build) in ONE call. `seconds` is the agent-facing unit
    *  (matches timerSec); `count` is the legacy action-quanta form it converts to. */
+  /** The still-enclosable tower the agent could bank in the time left, cheapest
+   *  (and, tie-broken, most bonus) first — the build worth doing before passing.
+   *  Null when nothing's reachable, so passing is genuinely correct. */
+  function cheapestFeasibleEnclosure(): EnclosureCandidate | null {
+    const feasible = enclosureCandidatesFor().filter(
+      (candidate) => candidate.status === "enclosable" && candidate.feasible,
+    );
+    if (feasible.length === 0) return null;
+    return feasible.sort(
+      (a, b) =>
+        a.estSeconds - b.estSeconds ||
+        (b.bonusSquares ?? 0) - (a.bonusSquares ?? 0),
+    )[0]!;
+  }
+
   function pass(count = 1, seconds?: number): Observation {
     const startPhase = sc.state.phase;
     const wasCountdown = sc.state.battleCountdown > 0;
+    // Idle-build guard: skipping build time while a tower is still enclosable in
+    // the time left scores nothing — that territory + bonus bank ONLY if walled.
+    // Hold the FIRST such pass and shout the opportunity cost; a second pass goes
+    // through (so a deliberate skip isn't trapped). Only fires when the skip is
+    // big enough to have built the cheapest reachable tower.
+    if (startPhase === Phase.WALL_BUILD && !idleBuildPassWarned) {
+      const skipSec = seconds ?? (count * actionTicks) / SIM_TICKS_PER_SEC;
+      const target = cheapestFeasibleEnclosure();
+      if (target && skipSec >= target.estSeconds) {
+        idleBuildPassWarned = true;
+        const who = target.isHome ? "home" : `tower ${target.towerIdx}`;
+        const bonus =
+          (target.bonusSquares ?? 0) > 0
+            ? ` + ★${target.bonusSquares} bonus square(s)`
+            : "";
+        bridge.lastResult = {
+          kind: "build",
+          success: false,
+          reason:
+            `HELD — ${who} is still enclosable (~${target.estSeconds.toFixed(0)}s, ` +
+            `you have ${sc.state.timer.toFixed(0)}s) and idle build scores 0: ${who}'s ` +
+            `territory${bonus} banks THIS round only if you wall it. ` +
+            `build_toward({ towerIdx: ${target.towerIdx} }) to claim it, or pass again to skip it anyway.`,
+        };
+        return observe();
+      }
+    }
     // `seconds` (the unit the agent reads as timerSec) wins when given; convert
     // to action-quanta via the game's per-action tick cost. Each iteration still
     // advances exactly one quantum and stops early on a phase change.
@@ -2764,6 +2812,7 @@ export async function createMcpGame(
       if (sc.state.phase !== startPhase) break;
       if (wasCountdown && sc.state.battleCountdown <= 0) break;
     }
+    if (sc.state.phase !== Phase.WALL_BUILD) idleBuildPassWarned = false;
     return observe();
   }
 
@@ -2789,6 +2838,9 @@ export async function createMcpGame(
     bridge.pending = { kind: "build", row, col, rotation };
     advance(BUILD_PIECE_TICKS);
     settleToDecision();
+    // Building re-arms the idle-pass guard: any tower still reachable after this
+    // piece is worth a fresh warning if the agent then tries to pass it away.
+    idleBuildPassWarned = false;
     return (sc.state.players[agentSlot]?.walls.size ?? 0) > before;
   }
 
