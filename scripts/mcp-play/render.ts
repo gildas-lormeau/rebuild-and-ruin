@@ -66,6 +66,86 @@ export function renderObservation(obs: Observation): string {
   }
 
   // ── my battery + status line (battery prints before the YOU line, as in show.py) ─
+  lines.push(...batteryStatusLines(obs));
+
+  // ── BATTLE aim-assist: opponents + their towers as breach targets ───────────
+  lines.push(...targetLines(obs));
+
+  // ── BATTLE pit targets: best super-cannon pit walls, choke-ranked ───────────
+  lines.push(...pitTargetLines(obs));
+
+  // ── threats: grunts bearing down on my towers ───────────────────────────────
+  lines.push(...threatLines(obs));
+
+  // ── grunt clusters: dense packs (≥2×2) worth enclosing / opponent weak spots ─
+  lines.push(...gruntClusterLines(obs));
+
+  // ── selection: pickable towers in my zone ───────────────────────────────────
+  if (obs.towers) {
+    const picks = obs.towers
+      .map((tower) => `${tower.index}→(${tower.row},${tower.col})`)
+      .join("  ");
+    lines.push(`  PICKABLE TOWERS: ${picks}`);
+  }
+
+  // ── cannon spots: legal placements grouped by mode, safe-interior first ──────
+  if (obs.cannonSuggestions !== undefined) {
+    for (const line of renderCannonSpots(obs.cannonSuggestions))
+      lines.push(line);
+  }
+
+  // ── enclosure candidates: min-cut plans, blocker-aware feasibility ──────────
+  lines.push(...enclosureLines(obs));
+
+  // ── opportunity cost of passing: prices idle build time at the decision point ─
+  lines.push(...stillSealableLines(obs));
+
+  // ── fat walls: SUNK history, not a to-do — in classic no placed wall is removable ─
+  // Count-only (the coords are non-actionable: you can't un-place a wall, and a
+  // sealed ring is sweep-proof regardless). The lever is purely forward.
+  if (obs.fatWalls && obs.fatWalls.length > 0) {
+    lines.push(
+      `  ℹ fat walls: ${obs.fatWalls.length} interior tiles fully boxed by your own territory (former perimeters you expanded past + piece-overflow). SUNK — in classic a placed wall can't be removed, so this isn't a to-do and isn't a defensive hole. The only avoidable fat is fat you haven't placed yet: send new pieces to the frontier (build_toward / ↗ EXTEND), not into interior.`,
+    );
+  }
+
+  // ── loose wall ends: ≤1-neighbour stubs the round-end sweep deletes ─────────
+  // NOT an alarm — a closed ring's walls always keep ≥2 neighbours, so the sweep
+  // can only ever shave dangling stubs; it can never open a sealed pocket. They
+  // only cost you on an UN-closed cross-round pre-claim line (build_path).
+  if (obs.fragileWalls && obs.fragileWalls.length > 0) {
+    lines.push(
+      `  ◦ loose wall ends (${obs.fragileWalls.length}, ≤1 wall-neighbor — swept at round end): harmless to a sealed castle (you can even dump a dud piece here); only anchor one if it's part of a build_path pre-claim you'll close a later round: ${tileList(obs.fragileWalls)}`,
+    );
+  }
+
+  // ── wall extensions: the constructive read of a loose end — grow it into a gap ─
+  if (obs.wallExtensions && obs.wallExtensions.length > 0) {
+    const hints = obs.wallExtensions
+      .map(
+        (ext) =>
+          `(${ext.from.row},${ext.from.col})→(${ext.next.row},${ext.next.col})`,
+      )
+      .join(" ");
+    lines.push(
+      `  ↗ EXTEND toward closing (loose end → next tile, heads for an open min-cut gap): ${hints}`,
+    );
+  }
+
+  // ── bonus squares: highest points-per-tile build targets in my zone ─────────
+  lines.push(...bonusTargetLines(obs));
+
+  // ── placement suggestions for the current piece (ring repairs first) ─────────
+  lines.push(...suggestionLines(obs));
+
+  lines.push(obs.board);
+  return lines.join("\n");
+}
+
+/** My battery rollup + the YOU status line. BATTERY and CAPTURED print before
+ *  YOU (as in show.py), so they're pushed first and the YOU line last. */
+function batteryStatusLines(obs: Observation): string[] {
+  const lines: string[] = [];
   const me = obs.me;
   const slots = me.cannonSlots;
   let mine = `  YOU: piece=${me.currentPiece}  cannonSlots ${slots.used}/${slots.max}`;
@@ -114,260 +194,212 @@ export function renderObservation(obs: Observation): string {
     mine += `  guns=${guns.join(",")}`;
   }
   lines.push(mine);
+  return lines;
+}
 
-  // ── BATTLE aim-assist: opponents + their towers as breach targets ───────────
-  if (obs.targets) {
+/** BATTLE aim-assist: each opponent (leader first) + their towers as breach
+ *  targets. Empty when `obs.targets` is absent (non-BATTLE phases). */
+function targetLines(obs: Observation): string[] {
+  if (!obs.targets) return [];
+  const lines: string[] = [
+    "  TARGETS (leader first — bombard=spread walls / breach=open one tower's pocket):",
+  ];
+  for (const target of obs.targets) {
+    const tiles = target.sampleTiles
+      .slice(0, 6)
+      .map((tile) => `(${tile.row},${tile.col})`)
+      .join(",");
     lines.push(
-      "  TARGETS (leader first — bombard=spread walls / breach=open one tower's pocket):",
+      `     ${target.name.padEnd(5)} ${target.score}pts ${target.walls}w  -> ${tiles}`,
     );
-    for (const target of obs.targets) {
-      const tiles = target.sampleTiles
-        .slice(0, 6)
-        .map((tile) => `(${tile.row},${tile.col})`)
-        .join(",");
+    for (const tower of target.towers ?? []) {
+      const star = tower.bonusSquares ? `  ★${tower.bonusSquares}bonus` : "";
       lines.push(
-        `     ${target.name.padEnd(
-          5,
-        )} ${target.score}pts ${target.walls}w  -> ${tiles}`,
+        `        breach tower ${tower.towerIdx} (${tower.row},${tower.col})  ring ${tower.ringWalls}w${star}`,
       );
-      for (const tower of target.towers ?? []) {
-        const star = tower.bonusSquares ? `  ★${tower.bonusSquares}bonus` : "";
-        lines.push(
-          `        breach tower ${tower.towerIdx} (${tower.row},${tower.col})  ring ${tower.ringWalls}w${star}`,
-        );
-      }
     }
   }
+  return lines;
+}
 
-  // ── BATTLE pit targets: best super-cannon pit walls, choke-ranked ───────────
-  if (obs.pitTargets) {
+/** BATTLE pit targets: best super-cannon pit walls, choke-ranked. */
+function pitTargetLines(obs: Observation): string[] {
+  if (!obs.pitTargets) return [];
+  const lines: string[] = [
+    "  🔥 PIT TARGETS (super-cannon → burning pit; pit_strike(slot, targets) — choke=un-reroutable sides):",
+  ];
+  for (const pit of obs.pitTargets) {
+    const tower = pit.towerIdx != null ? ` tower${pit.towerIdx}` : "";
     lines.push(
-      "  🔥 PIT TARGETS (super-cannon → burning pit; pit_strike(slot, targets) — choke=un-reroutable sides):",
+      `     slot${pit.slot} (${pit.row},${pit.col})  choke ${pit.choke}/4${tower}`,
     );
-    for (const pit of obs.pitTargets) {
-      const tower = pit.towerIdx != null ? ` tower${pit.towerIdx}` : "";
-      lines.push(
-        `     slot${pit.slot} (${pit.row},${pit.col})  choke ${pit.choke}/4${tower}`,
-      );
-    }
   }
+  return lines;
+}
 
-  // ── threats: grunts bearing down on my towers ───────────────────────────────
-  // List in FULL only the ones that can actually reach a tower this build —
-  // EXPOSED (tower not walled) or actively ATTACKING. The many [walled] grunts
-  // can't touch a tower while the ring holds, so collapse them to one summary
-  // line instead of burying the urgent ones under a dozen harmless rows.
-  if (obs.threats && obs.threats.length > 0) {
-    const urgent = obs.threats.filter(
-      (threat) => !threat.towerEnclosed || threat.attacking,
-    );
-    const walled = obs.threats.filter(
-      (threat) => threat.towerEnclosed && !threat.attacking,
-    );
+/** Grunts bearing down on my towers. Lists in FULL only the ones that can reach
+ *  a tower this build (EXPOSED or ATTACKING); the many [walled] grunts can't
+ *  touch a tower while the ring holds, so they collapse to one summary line. */
+function threatLines(obs: Observation): string[] {
+  if (!obs.threats || obs.threats.length === 0) return [];
+  const urgent = obs.threats.filter(
+    (threat) => !threat.towerEnclosed || threat.attacking,
+  );
+  const walled = obs.threats.filter(
+    (threat) => threat.towerEnclosed && !threat.attacking,
+  );
+  const lines: string[] = [
+    "  ⚠ THREATS (grunts that can reach a tower — most urgent first):",
+  ];
+  for (const threat of urgent) {
+    const grunt = threat.grunt;
+    const tower = threat.tower;
+    const flag = threat.towerEnclosed ? "walled" : "EXPOSED";
+    const attacking = threat.attacking ? " ATTACKING!" : "";
+    const wall = threat.targetedWall
+      ? ` wall(${threat.targetedWall.row},${threat.targetedWall.col})`
+      : "";
     lines.push(
-      "  ⚠ THREATS (grunts that can reach a tower — most urgent first):",
+      `     ${threat.kind} (${grunt.row},${grunt.col}) -> tower ${tower.idx} (${tower.row},${tower.col}) dist ${threat.distance} [${flag}]${attacking}${wall}`,
     );
-    for (const threat of urgent) {
-      const grunt = threat.grunt;
-      const tower = threat.tower;
-      const flag = threat.towerEnclosed ? "walled" : "EXPOSED";
-      const attacking = threat.attacking ? " ATTACKING!" : "";
-      const wall = threat.targetedWall
-        ? ` wall(${threat.targetedWall.row},${threat.targetedWall.col})`
-        : "";
-      lines.push(
-        `     ${threat.kind} (${grunt.row},${grunt.col}) -> tower ${tower.idx} (${tower.row},${tower.col}) dist ${threat.distance} [${flag}]${attacking}${wall}`,
-      );
+  }
+  if (walled.length > 0) {
+    const nearest = walled[0]!;
+    lines.push(
+      `     + ${walled.length} grunt(s) behind your walls (nearest: ${nearest.kind} dist ${nearest.distance} → tower ${nearest.tower.idx}) — can't reach while that ring holds`,
+    );
+  }
+  return lines;
+}
+
+/** Min-cut enclosure plans per tower (blocker-aware feasibility, drift + seal
+ *  hints). One multi-line entry per candidate. */
+function enclosureLines(obs: Observation): string[] {
+  if (!obs.enclosureCandidates) return [];
+  const lines: string[] = [
+    "  ENCLOSURE CANDIDATES (home first, then cheapest):",
+  ];
+  for (const candidate of obs.enclosureCandidates) {
+    const who = candidate.isHome ? "home" : "tower";
+    let line = `     ${who} ${candidate.towerIdx}: ${candidate.status}`;
+    if (candidate.status === "enclosable") {
+      line += enclosableDetail(candidate);
+    } else if (candidate.status === "unenclosable" && candidate.reason) {
+      line += `  (${candidate.reason})`;
     }
-    if (walled.length > 0) {
-      const nearest = walled[0]!;
-      lines.push(
-        `     + ${walled.length} grunt(s) behind your walls (nearest: ${nearest.kind} dist ${nearest.distance} → tower ${nearest.tower.idx}) — can't reach while that ring holds`,
-      );
+    if ((candidate.bonusSquares ?? 0) > 0) {
+      line += `  ★+${candidate.bonusSquares} BONUS`;
     }
+    lines.push(line);
   }
+  return lines;
+}
 
-  // ── grunt clusters: dense packs (≥2×2) worth enclosing / opponent weak spots ─
-  lines.push(...gruntClusterLines(obs));
-
-  // ── selection: pickable towers in my zone ───────────────────────────────────
-  if (obs.towers) {
-    const picks = obs.towers
-      .map((tower) => `${tower.index}→(${tower.row},${tower.col})`)
-      .join("  ");
-    lines.push(`  PICKABLE TOWERS: ${picks}`);
+/** The `enclosable`-status tail of one ENCLOSURE CANDIDATES row: tile list, fit
+ *  / blocker verdict, then optional DRIFT and SEAL-NOW continuation lines. */
+function enclosableDetail(
+  candidate: NonNullable<Observation["enclosureCandidates"]>[number],
+): string {
+  const tiles = candidate.tiles
+    .slice(0, 10)
+    .map((tile) => `(${tile.row},${tile.col})`)
+    .join(",");
+  const more =
+    candidate.tiles.length <= 10 ? "" : ` +${candidate.tiles.length - 10}`;
+  const blockers = candidate.blockers ?? [];
+  let fit: string;
+  if (blockers.length > 0) {
+    let desc = blockers
+      .slice(0, 4)
+      .map((blocker) => `(${blocker.row},${blocker.col}) ${blocker.kind}`)
+      .join(", ");
+    if (blockers.length > 4) desc += ` +${blockers.length - 4}`;
+    fit = `${
+      blockers.some((blocker) => blocker.hard) ? "⛔ BLOCKED" : "soft-block"
+    }: ${desc}`;
+  } else {
+    fit = candidate.feasible ? "fits in time" : "WON'T FINISH in time left";
   }
-
-  // ── cannon spots: legal placements grouped by mode, safe-interior first ──────
-  if (obs.cannonSuggestions !== undefined) {
-    for (const line of renderCannonSpots(obs.cannonSuggestions))
-      lines.push(line);
+  let out = `  ${candidate.tilesNeeded} tiles ~${candidate.estSeconds.toFixed(0)}s [${fit}] -> ${tiles}${more}`;
+  const drift = candidate.driftTiles ?? [];
+  if (drift.length > 0) {
+    const shown = drift
+      .slice(0, 3)
+      .map((tile) => `(${tile.row},${tile.col}) ~${tile.etaSeconds}s`)
+      .join(" ");
+    const rest = drift.length > 3 ? ` +${drift.length - 3}` : "";
+    out +=
+      `\n        ⏳ DRIFT: grunts reach ${shown}${rest} before this seals` +
+      ` — wall these FIRST, reroute the cut, or clear them in battle`;
   }
-
-  // ── enclosure candidates: min-cut plans, blocker-aware feasibility ──────────
-  if (obs.enclosureCandidates) {
-    lines.push("  ENCLOSURE CANDIDATES (home first, then cheapest):");
-    for (const candidate of obs.enclosureCandidates) {
-      const who = candidate.isHome ? "home" : "tower";
-      let line = `     ${who} ${candidate.towerIdx}: ${candidate.status}`;
-      if (candidate.status === "enclosable") {
-        const tiles = candidate.tiles
-          .slice(0, 10)
-          .map((tile) => `(${tile.row},${tile.col})`)
-          .join(",");
-        const more =
-          candidate.tiles.length <= 10
-            ? ""
-            : ` +${candidate.tiles.length - 10}`;
-        const blockers = candidate.blockers ?? [];
-        let fit: string;
-        if (blockers.length > 0) {
-          let desc = blockers
-            .slice(0, 4)
-            .map((blocker) => `(${blocker.row},${blocker.col}) ${blocker.kind}`)
-            .join(", ");
-          if (blockers.length > 4) desc += ` +${blockers.length - 4}`;
-          fit = `${
-            blockers.some((blocker) => blocker.hard)
-              ? "⛔ BLOCKED"
-              : "soft-block"
-          }: ${desc}`;
-        } else {
-          fit = candidate.feasible
-            ? "fits in time"
-            : "WON'T FINISH in time left";
-        }
-        line += `  ${candidate.tilesNeeded} tiles ~${candidate.estSeconds.toFixed(
-          0,
-        )}s [${fit}] -> ${tiles}${more}`;
-        const drift = candidate.driftTiles ?? [];
-        if (drift.length > 0) {
-          const shown = drift
-            .slice(0, 3)
-            .map((tile) => `(${tile.row},${tile.col}) ~${tile.etaSeconds}s`)
-            .join(" ");
-          const rest = drift.length > 3 ? ` +${drift.length - 3}` : "";
-          line +=
-            `\n        ⏳ DRIFT: grunts reach ${shown}${rest} before this seals` +
-            ` — wall these FIRST, reroute the cut, or clear them in battle`;
-        }
-        const seals = candidate.sealTiles ?? [];
-        if (seals.length > 0) {
-          const shown = seals
-            .slice(0, 4)
-            .map(
-              (tile) =>
-                `(${tile.row},${tile.col})${tile.kind === "inner-corner" ? "◆" : ""}`,
-            )
-            .join(" ");
-          const rest = seals.length > 4 ? ` +${seals.length - 4}` : "";
-          const hasCorner = seals.some((tile) => tile.kind === "inner-corner");
-          line +=
-            `\n        🔑 SEAL NOW: place 1 wall at ${shown}${rest} to close it` +
-            (hasCorner
-              ? " (◆ = inner-corner: seals the 8-dir diagonal leak the min-cut misses)"
-              : "");
-        }
-      } else if (candidate.status === "unenclosable" && candidate.reason) {
-        line += `  (${candidate.reason})`;
-      }
-      if ((candidate.bonusSquares ?? 0) > 0) {
-        line += `  ★+${candidate.bonusSquares} BONUS`;
-      }
-      lines.push(line);
-    }
+  const seals = candidate.sealTiles ?? [];
+  if (seals.length > 0) {
+    const shown = seals
+      .slice(0, 4)
+      .map(
+        (tile) =>
+          `(${tile.row},${tile.col})${tile.kind === "inner-corner" ? "◆" : ""}`,
+      )
+      .join(" ");
+    const rest = seals.length > 4 ? ` +${seals.length - 4}` : "";
+    const hasCorner = seals.some((tile) => tile.kind === "inner-corner");
+    out +=
+      `\n        🔑 SEAL NOW: place 1 wall at ${shown}${rest} to close it` +
+      (hasCorner
+        ? " (◆ = inner-corner: seals the 8-dir diagonal leak the min-cut misses)"
+        : "");
   }
+  return out;
+}
 
-  // ── opportunity cost of passing: prices idle build time at the decision point ─
-  // Lists every enclosure still sealable in the time left (`feasible`). Present ⇒
-  // there's a tower to bank (a castle unit) and maybe bonus squares with it, so
-  // build_toward instead of passing; ABSENT ⇒ nothing's reachable and passing is
-  // correct. Disappears the instant the last feasible tower seals — so the line's
-  // presence IS the answer to "should I pass yet?".
+/** Prices idle build time: lists every enclosure still sealable in the time
+ *  left (`feasible`). Present ⇒ a tower (+ maybe bonus squares) to bank, so
+ *  build_toward instead of passing; absent ⇒ passing is correct. */
+function stillSealableLines(obs: Observation): string[] {
   const stillSealable = (obs.enclosureCandidates ?? []).filter(
     (candidate) => candidate.status === "enclosable" && candidate.feasible,
   );
-  if (stillSealable.length > 0) {
-    const parts = stillSealable.map((candidate) => {
-      const who = candidate.isHome ? "home" : `tower ${candidate.towerIdx}`;
-      const bonus =
-        (candidate.bonusSquares ?? 0) > 0
-          ? `, ★+${candidate.bonusSquares}`
-          : "";
-      return `${who} (~${candidate.estSeconds.toFixed(0)}s${bonus})`;
-    });
+  if (stillSealable.length === 0) return [];
+  const parts = stillSealable.map((candidate) => {
+    const who = candidate.isHome ? "home" : `tower ${candidate.towerIdx}`;
+    const bonus =
+      (candidate.bonusSquares ?? 0) > 0 ? `, ★+${candidate.bonusSquares}` : "";
+    return `${who} (~${candidate.estSeconds.toFixed(0)}s${bonus})`;
+  });
+  return [
+    `  ⏳ ${obs.timerSec}s left — still enclosable: ${parts.join(", ")}. Idle build time scores nothing; castle units + bonus squares only bank if enclosed — build_out() to claim all of them (then pre-claim the rest) before you pass.`,
+  ];
+}
+
+/** Highest points-per-tile build targets (bonus squares) in my zone. */
+function bonusTargetLines(obs: Observation): string[] {
+  if (!obs.bonusTargets || obs.bonusTargets.length === 0) return [];
+  const lines: string[] = [
+    `  ★ BONUS SQUARES in your zone (~${obs.bonusTargets[0]!.value}pts each — capture = enclose its tower):`,
+  ];
+  for (const bonus of obs.bonusTargets) {
+    const tag = bonus.enclosed
+      ? "BANKED (inside interior)"
+      : bonus.capturedByTower != null
+        ? `capture via tower ${bonus.capturedByTower}`
+        : "open grass — needs dedicated walls";
+    lines.push(`     (${bonus.row},${bonus.col}) ~${bonus.value}pts  [${tag}]`);
+  }
+  return lines;
+}
+
+/** Placement suggestions for the current piece (best ring-repairs first). */
+function suggestionLines(obs: Observation): string[] {
+  if (!obs.suggestions || obs.suggestions.length === 0) return [];
+  const lines: string[] = [
+    `  SUGGESTIONS for piece ${obs.me.currentPiece} (best ring-repairs first):`,
+  ];
+  for (const suggestion of obs.suggestions) {
     lines.push(
-      `  ⏳ ${obs.timerSec}s left — still enclosable: ${parts.join(
-        ", ",
-      )}. Idle build time scores nothing; castle units + bonus squares only bank if enclosed — build_out() to claim all of them (then pre-claim the rest) before you pass.`,
+      `     place (${suggestion.row},${suggestion.col}) rot${suggestion.rotation}  -> fillsGap ${suggestion.fillsGap}, touchesWalls ${suggestion.touchingWalls}`,
     );
   }
-
-  // ── fat walls: SUNK history, not a to-do — in classic no placed wall is removable ─
-  // Count-only (the coords are non-actionable: you can't un-place a wall, and a
-  // sealed ring is sweep-proof regardless). The lever is purely forward.
-  if (obs.fatWalls && obs.fatWalls.length > 0) {
-    lines.push(
-      `  ℹ fat walls: ${obs.fatWalls.length} interior tiles fully boxed by your own territory (former perimeters you expanded past + piece-overflow). SUNK — in classic a placed wall can't be removed, so this isn't a to-do and isn't a defensive hole. The only avoidable fat is fat you haven't placed yet: send new pieces to the frontier (build_toward / ↗ EXTEND), not into interior.`,
-    );
-  }
-
-  // ── loose wall ends: ≤1-neighbour stubs the round-end sweep deletes ─────────
-  // NOT an alarm — a closed ring's walls always keep ≥2 neighbours, so the sweep
-  // can only ever shave dangling stubs; it can never open a sealed pocket. They
-  // only cost you on an UN-closed cross-round pre-claim line (build_path).
-  if (obs.fragileWalls && obs.fragileWalls.length > 0) {
-    lines.push(
-      `  ◦ loose wall ends (${obs.fragileWalls.length}, ≤1 wall-neighbor — swept at round end): harmless to a sealed castle (you can even dump a dud piece here); only anchor one if it's part of a build_path pre-claim you'll close a later round: ${tileList(obs.fragileWalls)}`,
-    );
-  }
-
-  // ── wall extensions: the constructive read of a loose end — grow it into a gap ─
-  if (obs.wallExtensions && obs.wallExtensions.length > 0) {
-    const hints = obs.wallExtensions
-      .map(
-        (ext) =>
-          `(${ext.from.row},${ext.from.col})→(${ext.next.row},${ext.next.col})`,
-      )
-      .join(" ");
-    lines.push(
-      `  ↗ EXTEND toward closing (loose end → next tile, heads for an open min-cut gap): ${hints}`,
-    );
-  }
-
-  // ── bonus squares: highest points-per-tile build targets in my zone ─────────
-  if (obs.bonusTargets && obs.bonusTargets.length > 0) {
-    lines.push(
-      `  ★ BONUS SQUARES in your zone (~${
-        obs.bonusTargets[0]!.value
-      }pts each — capture = enclose its tower):`,
-    );
-    for (const bonus of obs.bonusTargets) {
-      const tag = bonus.enclosed
-        ? "BANKED (inside interior)"
-        : bonus.capturedByTower != null
-          ? `capture via tower ${bonus.capturedByTower}`
-          : "open grass — needs dedicated walls";
-      lines.push(
-        `     (${bonus.row},${bonus.col}) ~${bonus.value}pts  [${tag}]`,
-      );
-    }
-  }
-
-  // ── placement suggestions for the current piece (ring repairs first) ─────────
-  if (obs.suggestions && obs.suggestions.length > 0) {
-    lines.push(
-      `  SUGGESTIONS for piece ${me.currentPiece} (best ring-repairs first):`,
-    );
-    for (const suggestion of obs.suggestions) {
-      lines.push(
-        `     place (${suggestion.row},${suggestion.col}) rot${suggestion.rotation}  -> fillsGap ${suggestion.fillsGap}, touchesWalls ${suggestion.touchingWalls}`,
-      );
-    }
-  }
-
-  lines.push(obs.board);
-  return lines.join("\n");
+  return lines;
 }
 
 /** Render the CANNON_PLACE shortlist: spots grouped by mode, safest first.
