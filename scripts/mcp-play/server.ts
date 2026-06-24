@@ -60,6 +60,7 @@ interface Journal {
         maxSeconds?: number;
         maxPieces?: number;
       }
+    | { t: "build_out"; maxSeconds?: number; maxPieces?: number }
     | { t: "reinforce"; maxSeconds?: number; maxPieces?: number }
     | {
         t: "path";
@@ -431,6 +432,26 @@ const TOOLS: ToolDef[] = [
       ),
   },
   {
+    name: "build_out",
+    description:
+      "WALL_BUILD: enclose your WHOLE castle in one call — the greedy form of build_toward. It seals your home, then keeps enclosing the next best tower that fits the time left (home first, then cheapest / most-bonus), so you never leave a tower unbuilt while the clock runs. When no full enclosure fits the remaining time, it PRE-CLAIMS — banks partial ring progress on the cheapest not-yet-reachable tower so next round's enclosure is cheaper — so spare build time is never idled away (idle build scores 0). Reach for this instead of chaining build_toward({towerIdx}) per tower and budgeting time by hand: one call expands as far as the clock allows. Pass maxSeconds / maxPieces to cap total spend and reserve the rest (e.g. for a defensive build). Read lastResult for which towers sealed + any pre-claim.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        maxSeconds: {
+          type: "number",
+          description:
+            "Cap TOTAL build-seconds spent across all the towers this call seals (then it stops, reserving the rest). Omit to expand until the phase nearly ends.",
+        },
+        maxPieces: {
+          type: "number",
+          description: "Cap TOTAL pieces placed this call. Omit for no cap.",
+        },
+      },
+    },
+    handler: (args) => recordBuildOut(budgetArg(args)),
+  },
+  {
     name: "reinforce",
     description:
       "WALL_BUILD: anchor the loose ends of an UN-CLOSED wall — it re-reads your fragile walls (≤1 wall-neighbour tiles the round-end sweep DELETES — see observation.fragileWalls) and places each arriving piece against them so every one gains a second neighbour. NARROW USE: a closed pocket is ALREADY sweep-proof — its ring walls always keep ≥2 neighbours, so the sweep can only ever shave dangling stubs, never open a sealed castle. Reinforcing a finished castle just spends pieces (and can bury a fat wall). Reach for this only to preserve a build_path PRE-CLAIM line you'll close a later round. Does NOT enclose a tower (build_toward) or lay a line (build_path). Read lastResult for fragile before→after. Optional maxSeconds / maxPieces.",
@@ -639,6 +660,7 @@ const TOOLS: ToolDef[] = [
         if (move.t === "act") game.act(move.decision);
         else if (move.t === "pass") game.pass(move.n, move.seconds);
         else if (move.t === "build") game.build(move.towerIdx, budgetOf(move));
+        else if (move.t === "build_out") game.buildOut(budgetOf(move));
         else if (move.t === "reinforce") game.reinforce(budgetOf(move));
         else if (move.t === "path") {
           game.path(move.from, move.to, budgetOf(move));
@@ -700,6 +722,17 @@ function recordBuild(towerIdx?: number, budget?: BuildBudget): unknown {
   journal?.moves.push({
     t: "build",
     towerIdx,
+    maxSeconds: budget?.maxSeconds,
+    maxPieces: budget?.maxPieces,
+  });
+  return observation;
+}
+
+/** Run the greedy whole-castle build AND journal it. */
+function recordBuildOut(budget?: BuildBudget): unknown {
+  const observation = requireGame().buildOut(budget);
+  journal?.moves.push({
+    t: "build_out",
     maxSeconds: budget?.maxSeconds,
     maxPieces: budget?.maxPieces,
   });

@@ -333,7 +333,7 @@ export function renderObservation(obs: Observation): string {
     lines.push(
       `  ⏳ ${obs.timerSec}s left — still enclosable: ${parts.join(
         ", ",
-      )}. Idle build time scores nothing; castle units + bonus squares only bank if enclosed — build_toward/build before you pass.`,
+      )}. Idle build time scores nothing; castle units + bonus squares only bank if enclosed — build_out() to claim all of them (then pre-claim the rest) before you pass.`,
     );
   }
 

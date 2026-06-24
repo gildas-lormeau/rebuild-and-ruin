@@ -674,6 +674,15 @@ export interface McpGame {
    *  Pass a `budget` (maxSeconds / maxPieces) to stop early and reserve the rest
    *  of the phase for a second build instead of gambling the whole timer. */
   build(towerIdx?: number, budget?: BuildBudget): Observation;
+  /** WALL_BUILD: enclose EVERYTHING reachable in one call — the greedy form of
+   *  `build`. Seals your home, then keeps enclosing the next best feasible tower
+   *  (home-first, then cheapest / most-bonus) until no full enclosure fits the
+   *  time left. With time still to spare it then PRE-CLAIMS: it banks partial
+   *  ring progress on the cheapest not-yet-reachable tower so next round's
+   *  enclosure is cheaper — so spare build time is never idled away (idle build
+   *  scores 0). One call instead of chaining build({towerIdx}) per tower and
+   *  budgeting time by hand. Honours `budget` (maxSeconds / maxPieces). */
+  buildOut(budget?: BuildBudget): Observation;
   /** WALL_BUILD: anchor the loose ends (fragile, ≤1-neighbour tiles) of an
    *  UN-CLOSED wall so they survive the round-end sweep into next round. NARROW
    *  USE: a closed pocket's ring is already sweep-proof (ring walls always keep ≥2
@@ -2769,6 +2778,35 @@ export async function createMcpGame(
     )[0]!;
   }
 
+  /** buildOut's greedy pick: the next tower worth FULLY enclosing in the time
+   *  left — home first (biggest territory, always priority), then cheapest /
+   *  most-bonus. Null when nothing fully fits (→ pre-claim instead). */
+  function nextExpandTarget(): EnclosureCandidate | null {
+    const feasible = enclosureCandidatesFor().filter(
+      (candidate) => candidate.status === "enclosable" && candidate.feasible,
+    );
+    if (feasible.length === 0) return null;
+    return (
+      feasible.find((candidate) => candidate.isHome) ??
+      feasible.sort(
+        (a, b) =>
+          a.estSeconds - b.estSeconds ||
+          (b.bonusSquares ?? 0) - (a.bonusSquares ?? 0),
+      )[0]!
+    );
+  }
+
+  /** buildOut's pre-claim pick: the cheapest tower that's enclosable but WON'T
+   *  finish in the time left — the ring worth part-building now so next round's
+   *  enclosure is cheaper. Null when none. */
+  function cheapestPreclaimTarget(): EnclosureCandidate | null {
+    const partial = enclosureCandidatesFor().filter(
+      (candidate) => candidate.status === "enclosable" && !candidate.feasible,
+    );
+    if (partial.length === 0) return null;
+    return partial.sort((a, b) => a.tilesNeeded - b.tilesNeeded)[0]!;
+  }
+
   function pass(count = 1, seconds?: number): Observation {
     const startPhase = sc.state.phase;
     const wasCountdown = sc.state.battleCountdown > 0;
@@ -2794,7 +2832,8 @@ export async function createMcpGame(
             `HELD — ${who} is still enclosable (~${target.estSeconds.toFixed(0)}s, ` +
             `you have ${sc.state.timer.toFixed(0)}s) and idle build scores 0: ${who}'s ` +
             `territory${bonus} banks THIS round only if you wall it. ` +
-            `build_toward({ towerIdx: ${target.towerIdx} }) to claim it, or pass again to skip it anyway.`,
+            `build_out() to enclose it (and everything else that fits), ` +
+            `build_toward({ towerIdx: ${target.towerIdx} }) for just this one, or pass again to skip it anyway.`,
         };
         return observe();
       }
@@ -3096,6 +3135,83 @@ export async function createMcpGame(
       kind: "build",
       success: placed > 0 || outcome === "done",
       reason: `${label}: placed ${placed}, ${remaining} gaps left, ~${elapsed}s${why}`,
+    };
+    return observe();
+  }
+
+  /** Greedy whole-castle build: enclose home, then every other tower that fits
+   *  the time left (home-first, then cheapest/most-bonus), then PRE-CLAIM the
+   *  cheapest unreachable tower's ring with whatever time/pieces remain — so
+   *  spare build time is never idled. One call replaces chaining build({towerIdx})
+   *  per tower and hand-budgeting time. See `buildOut` in McpGame for the contract. */
+  function buildOut(budget?: BuildBudget): Observation {
+    if (sc.state.phase !== Phase.WALL_BUILD) {
+      bridge.lastResult = {
+        kind: "build",
+        success: false,
+        reason: "not in WALL_BUILD",
+      };
+      return observe();
+    }
+    const startTimer = sc.state.timer;
+    // Stop building once the timer drops to this floor (reserve a beat; honour a
+    // caller maxSeconds as a total-time cap across all the towers this call seals).
+    const floorTimer =
+      budget?.maxSeconds !== undefined
+        ? Math.max(MIN_BUILD_LEFT_SEC, startTimer - budget.maxSeconds)
+        : MIN_BUILD_LEFT_SEC;
+    let piecesLeft = Math.min(
+      budget?.maxPieces ?? MAX_BUILD_PIECES,
+      MAX_BUILD_PIECES,
+    );
+    let totalPlaced = 0;
+    const sealed: number[] = [];
+    // Run one enclosure pass on `towerIdx`, bounded by the time/pieces still
+    // budgeted across the whole call. Returns pieces placed this pass.
+    const runOne = (towerIdx: number): number => {
+      const { placed } = driveBuildLoop(towerIdx, sc.state.timer, piecesLeft, {
+        maxSeconds: sc.state.timer - floorTimer,
+        maxPieces: piecesLeft,
+      });
+      totalPlaced += placed;
+      piecesLeft -= placed;
+      return placed;
+    };
+
+    // Phase A — fully enclose every tower that fits, home first.
+    while (sc.state.timer > floorTimer && piecesLeft > 0) {
+      const target = nextExpandTarget();
+      if (target?.towerIdx === undefined) break;
+      const placed = runOne(target.towerIdx);
+      const enclosed = sc.state.players[agentSlot]?.enclosedTowers.some(
+        (tower) => tower.index === target.towerIdx,
+      );
+      if (enclosed) sealed.push(target.towerIdx);
+      // Stop spinning if a "feasible" tower couldn't actually be sealed (a late
+      // grunt-lock) or no piece landed — otherwise we'd loop on the same target.
+      if (!enclosed || placed === 0) break;
+    }
+
+    // Phase B — pre-claim: bank partial ring progress on the cheapest tower that
+    // doesn't fit, so next round's enclosure is cheaper. Spare time isn't idled.
+    let preclaim = "";
+    if (sc.state.timer > floorTimer && piecesLeft > 0) {
+      const partial = cheapestPreclaimTarget();
+      if (partial) {
+        const placed = runOne(partial.towerIdx);
+        if (placed > 0) {
+          preclaim = `; pre-claimed ${placed} tile(s) of tower ${partial.towerIdx}'s ring for next round`;
+        }
+      }
+    }
+
+    const elapsed = Math.round((startTimer - sc.state.timer) * 10) / 10;
+    bridge.lastResult = {
+      kind: "build",
+      success: totalPlaced > 0,
+      reason:
+        `expand: ${sealed.length > 0 ? `sealed [${sealed.join(",")}]` : "nothing new sealed"}, ` +
+        `placed ${totalPlaced}, ~${elapsed}s${preclaim}`,
     };
     return observe();
   }
@@ -4005,6 +4121,7 @@ export async function createMcpGame(
     act,
     pass,
     build: buildToward,
+    buildOut,
     reinforce,
     path: buildPath,
     bombard: bombardSlot,
@@ -4086,7 +4203,7 @@ function expectedFor(phase: Phase): string {
     case Phase.CASTLE_SELECT:
       return "Pick a home tower — act { kind: 'select', towerIdx }.";
     case Phase.WALL_BUILD:
-      return "Re-seal/expand your castle. Fastest: build_toward({ towerIdx }) hands the WHOLE phase to the harness to enclose a tower (omit towerIdx = your home) — one call; add { maxSeconds | maxPieces } to stop early and reserve time for a second build. build_path({ from, to }) lays a straight/L wall line to pre-claim or compartmentalise across rounds — anchor both ends on existing wall or it erodes (watch fragileWalls: your ≤1-neighbor tiles the round-end sweep deletes). Or place pieces by hand: act { kind: 'build', row, col, rotation }. Or pass.";
+      return "Re-seal/expand your castle. Fastest for the WHOLE phase: build_out() encloses home then every tower that fits the time left, then pre-claims the next tower's ring — one call, spare time never idled (use this by default unless you want a specific tower or to reserve time). build_toward({ towerIdx }) encloses ONE tower (omit towerIdx = home); add { maxSeconds | maxPieces } to stop early and reserve time for a defensive build. build_path({ from, to }) lays a straight/L wall line to pre-claim or bridge towers across rounds — anchor both ends on existing wall or it erodes (watch fragileWalls). Or place pieces by hand: act { kind: 'build', row, col, rotation }. Or pass.";
     case Phase.CANNON_PLACE:
       return "Place a cannon at its top-left — act { kind: 'cannon', row, col, mode }. See cannonSuggestions for legal spots you can afford, grouped by mode (no 'super' line = no 3x3 fits). Footprint: normal/balloon 2x2, super 3x3. Watch me.cannonSlots (used/max). End early with { kind: 'cannon-done' }, or pass.";
     case Phase.BATTLE:
