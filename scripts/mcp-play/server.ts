@@ -126,8 +126,15 @@ const TOOLS: ToolDef[] = [
       },
     },
     handler: async (args) => {
+      // Omitting `seed` rolls a fresh random one so each session differs — but
+      // we resolve it to a concrete value HERE and bake it into the journal, so
+      // a random game stays fully reproducible via save/replay.
+      const explicitSeed =
+        args.seed === undefined ? undefined : num(args, "seed");
+      const seed = explicitSeed ?? randomSeed();
+      if (explicitSeed === undefined) log(`new_game: random seed ${seed}`);
       const config = {
-        seed: args.seed === undefined ? undefined : num(args, "seed"),
+        seed,
         mode: args.mode === "modern" ? ("modern" as const) : undefined,
         agentSlot:
           args.agentSlot === undefined ? undefined : num(args, "agentSlot"),
@@ -999,6 +1006,14 @@ async function main(): Promise<void> {
 function log(message: string): void {
   // stdout is the protocol channel — diagnostics must go to stderr.
   console.error(`[mcp-play] ${message}`);
+}
+
+/** A fresh map seed for a no-seed new_game. Non-determinism is the point here
+ *  (variety across sessions); the chosen value is recorded in the journal so
+ *  the game stays reproducible. Out of the entropy lint's scope (src/game,
+ *  src/ai only) — this is dev tooling, not simulation. */
+function randomSeed(): number {
+  return Math.floor(Math.random() * 1_000_000);
 }
 
 async function handleRequest(req: JsonRpcRequest): Promise<void> {

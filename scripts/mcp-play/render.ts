@@ -70,6 +70,9 @@ export function renderObservation(obs: Observation): string {
     );
   }
 
+  // ── active upgrades in force this round (modern; shared screen = all visible) ─
+  lines.push(...activeUpgradeLines(obs));
+
   // ── my battery + status line (battery prints before the YOU line, as in show.py) ─
   lines.push(...batteryStatusLines(obs));
 
@@ -148,6 +151,37 @@ export function renderObservation(obs: Observation): string {
 
   lines.push(obs.board);
   return lines.join("\n");
+}
+
+/** MODERN: the upgrades each player holds in force this round. The upgrade
+ *  screen is shared, so a rival's picks are fair game to read. Empty in classic
+ *  / when nobody holds an upgrade. */
+function activeUpgradeLines(obs: Observation): string[] {
+  const lines: string[] = [];
+  const mine = obs.me.activeUpgrades ?? [];
+  if (mine.length > 0) {
+    lines.push(
+      `  ✦ YOUR upgrades this round: ${mine.map(upgradeTag).join(", ")}`,
+    );
+  }
+  for (const opp of obs.opponents) {
+    const ups = opp.activeUpgrades ?? [];
+    if (ups.length > 0) {
+      const name = obs.layout[opp.slot]?.name ?? `P${opp.slot}`;
+      lines.push(`  ✦ ${name} upgrades: ${ups.map(upgradeTag).join(", ")}`);
+    }
+  }
+  return lines;
+}
+
+/** One active upgrade as `Label (description)` with a ×N suffix when stacked. */
+function upgradeTag(upgrade: {
+  label: string;
+  description: string;
+  stacks: number;
+}): string {
+  const stack = upgrade.stacks > 1 ? ` ×${upgrade.stacks}` : "";
+  return `${upgrade.label}${stack} (${upgrade.description})`;
 }
 
 /** MODERN UPGRADE_PICK: the agent's three offers as a pick list. Empty outside

@@ -69,6 +69,7 @@ import {
 import { modifierDef } from "../../src/shared/core/modifier-defs.ts";
 import { type PieceShape, rotateCW } from "../../src/shared/core/pieces.ts";
 import type { ValidPlayerId } from "../../src/shared/core/player-slot.ts";
+import type { Player } from "../../src/shared/core/player-types.ts";
 import {
   cannonSize,
   computeOutside,
@@ -497,6 +498,15 @@ export interface PlayerLayout {
   projected: number;
 }
 
+/** One upgrade a player holds in force this round (modern mode). `stacks` > 1
+ *  when the same upgrade was drafted more than once. */
+export interface ActiveUpgrade {
+  id: string;
+  label: string;
+  description: string;
+  stacks: number;
+}
+
 export interface Observation {
   phase: string;
   round: number;
@@ -586,6 +596,13 @@ export interface Observation {
     interior: number;
     enclosedTowers: number;
     homeTowerEnclosed: boolean;
+    /** MODERN only: the upgrades you have in force THIS round (the picks you
+     *  drafted in earlier UPGRADE_PICK phases, reset each round in
+     *  prepareNextRound). Each lists what it does so you can plan around it —
+     *  e.g. master_builder = +5s exclusive build (opponents locked out),
+     *  reinforced_walls = your walls take 2 hits this battle. Omitted in classic
+     *  / when you hold none. */
+    activeUpgrades?: ActiveUpgrade[];
   };
   opponents: {
     slot: number;
@@ -595,6 +612,12 @@ export interface Observation {
     walls: number;
     /** Opponent home tower top-left — a visible target to aim at in battle. */
     homeTower: { row: number; col: number } | null;
+    /** MODERN only: the upgrades this opponent has in force this round (the
+     *  upgrade screen is shared, so their picks are visible to you). Lets you
+     *  read e.g. a rival's rapid_fire (2× ball speed) or reinforced_walls
+     *  (their walls need 2 hits — bombard/breach will score slower). Omitted in
+     *  classic / when they hold none. */
+    activeUpgrades?: ActiveUpgrade[];
   }[];
   /** Selection-phase only: the towers in the agent's zone it may pick. */
   towers?: TowerHint[];
@@ -2120,10 +2143,18 @@ export async function createMcpGame(
     const me = sc.state.players[agentSlot];
     if (!me) return { canFire: false, reason: "no player" };
     if (!isCannonAlive(cannon)) return { canFire: false, reason: "destroyed" };
-    if (isBalloonCannon(cannon) || isRampartCannon(cannon)) {
+    if (isRampartCannon(cannon)) {
       return {
         canFire: false,
-        reason: "arc cannon — not on the direct-fire path",
+        reason:
+          "defensive structure — absorbs cannonball hits on nearby walls, never fires",
+      };
+    }
+    if (isBalloonCannon(cannon)) {
+      return {
+        canFire: false,
+        reason:
+          "balloon launcher — captures enemy cannons, not on the direct-fire path",
       };
     }
     const captor = captorOf(cannon);
@@ -2579,6 +2610,7 @@ export async function createMcpGame(
         homeTowerEnclosed:
           me.homeTower !== null &&
           me.enclosedTowers.some((tower) => tower === me.homeTower),
+        ...upgradesField(me),
       },
       opponents: state.players
         .map((player, slot) => ({ player, slot }))
@@ -2592,6 +2624,7 @@ export async function createMcpGame(
           homeTower: player.homeTower
             ? { row: player.homeTower.row, col: player.homeTower.col }
             : null,
+          ...upgradesField(player),
         })),
       lastResult: bridge.lastResult,
     };
@@ -2680,6 +2713,31 @@ export async function createMcpGame(
    *  it reshapes the board) and — during UPGRADE_PICK — the agent's three
    *  upgrade offers in card order. Kept out of `observe` to hold that function
    *  under the complexity cap. */
+  /** The upgrades a player holds in force this round, as the public
+   *  `ActiveUpgrade` shape. Empty in classic (player.upgrades is empty) and when
+   *  the player drafted nothing — callers omit the field in that case. */
+  function activeUpgradesFor(player: Player): ActiveUpgrade[] {
+    const out: ActiveUpgrade[] = [];
+    for (const [id, stacks] of player.upgrades) {
+      const def = UPGRADE_POOL.find((entry) => entry.id === id);
+      out.push({
+        id,
+        label: def?.label ?? id,
+        description: def?.description ?? "",
+        stacks,
+      });
+    }
+    return out;
+  }
+
+  /** `{ activeUpgrades }` when the player holds any, else `{}` — spread into the
+   *  me / opponent observation objects so the field is omitted (not empty) in
+   *  classic and when the player drafted nothing. */
+  function upgradesField(player: Player): { activeUpgrades?: ActiveUpgrade[] } {
+    const upgrades = activeUpgradesFor(player);
+    return upgrades.length > 0 ? { activeUpgrades: upgrades } : {};
+  }
+
   function applyModernSurfaces(observation: Observation, phase: Phase): void {
     const modern = sc.state.modern;
     if (!modern) return;
