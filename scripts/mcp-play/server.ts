@@ -75,6 +75,7 @@ interface Journal {
         slot: number;
         targets?: { row: number; col: number }[];
       }
+    | { t: "cull"; quanta?: number }
   )[];
 }
 
@@ -562,6 +563,23 @@ const TOOLS: ToolDef[] = [
       recordPitStrike(num(args, "slot"), points(args, "targets")),
   },
   {
+    name: "cull",
+    description:
+      "BATTLE (defensive): aim every ready cannon at the GRUNTS menacing YOUR OWN towers instead of an opponent — the counterpart to bombard/breach. Grunts are FROZEN during BATTLE (they move only in WALL_BUILD), so the swarm that will box your reseal next build is sitting at known tiles you can kill NOW (one shot each; no self-wall damage — grunts stand on grass). Fires the closest threats first (see observation.threats), skips out-of-range survivors, and stops once your zone is clear — handing the rest of the battle back so you can bombard the leftover time (or pass `quanta` to cap it yourself). Same live-gated, reload-paced fairness as bombard. The answer when 'grunts behind your walls' keeps climbing or a reseal is grunt-locked. Read lastResult for grunts culled + return fire.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        quanta: {
+          type: "number",
+          description:
+            "Cap on action-quanta to spend. Omit to cull until the zone is clear, then hand the rest of the battle back.",
+        },
+      },
+    },
+    handler: (args) =>
+      recordCull(args.quanta === undefined ? undefined : num(args, "quanta")),
+  },
+  {
     name: "enclose_plan",
     description:
       "WALL_BUILD: the FULL min-cut plan (all tiles) to enclose one tower in your zone — the un-sampled form of an enclosureCandidates entry. Call after picking a candidate to get the complete tile list to fill.",
@@ -627,7 +645,8 @@ const TOOLS: ToolDef[] = [
         } else if (move.t === "breach") game.breach(move.slot, move.towerIdx);
         else if (move.t === "pit_strike") {
           game.pitStrike(move.slot, move.targets);
-        } else game.bombard(move.slot, move.quanta);
+        } else if (move.t === "cull") game.cull(move.quanta);
+        else game.bombard(move.slot, move.quanta);
       }
       journal = loaded;
       return game.observe();
@@ -724,6 +743,13 @@ function recordPitStrike(
 ): unknown {
   const observation = requireGame().pitStrike(slot, targets);
   journal?.moves.push({ t: "pit_strike", slot, targets });
+  return observation;
+}
+
+/** Run the cull executor AND journal it (replay re-derives the volley). */
+function recordCull(quanta?: number): unknown {
+  const observation = requireGame().cull(quanta);
+  journal?.moves.push({ t: "cull", quanta });
   return observation;
 }
 

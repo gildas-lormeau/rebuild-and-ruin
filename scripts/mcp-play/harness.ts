@@ -678,6 +678,14 @@ export interface McpGame {
     slot: number,
     targets?: { row: number; col: number }[],
   ): Observation;
+  /** BATTLE: the DEFENSIVE counterpart to bombard/breach — aim every ready
+   *  cannon at the GRUNTS menacing your own towers (see `observation.threats`)
+   *  instead of an opponent. Grunts are frozen during BATTLE, so the swarm that
+   *  would box your reseal next build is killable RIGHT NOW (one shot each, no
+   *  self-wall damage — they stand on grass). Fires closest-threat first, stops
+   *  when the zone is clear (bombard the leftover battle) or at `quanta`. Same
+   *  live-gated, reload-paced fairness as bombard. The answer to a grunt-lock. */
+  cull(quanta?: number): Observation;
   /** Full min-cut plan (all tiles) to enclose one tower — the un-sampled form
    *  of an `enclosureCandidates` entry. Returns null if that tower isn't a
    *  candidate in your zone. */
@@ -3276,6 +3284,106 @@ export async function createMcpGame(
     return observe();
   }
 
+  /** BATTLE: aim every ready cannon at the GRUNTS menacing YOUR towers — the
+   *  defensive counterpart to bombard/breach. During BATTLE grunts are frozen
+   *  (they move only in WALL_BUILD), so the swarm that will box your reseal next
+   *  build sits at known tiles RIGHT NOW; a cannonball on a grunt's tile kills it
+   *  (one shot, and since the grunt stands on grass the ball clears it without
+   *  touching your wall). Fires the in-zone `threatsFor()` grunts closest-first,
+   *  re-reading each volley so killed grunts drop and the next-nearest takes
+   *  over; a grunt that survives a shot is out of cannon range and is skipped so
+   *  the volley never hammers an unreachable tile. Stops early once the zone is
+   *  clear — handing the rest of the battle back (bombard to use it) — or at the
+   *  `quanta` cap. Live-gated and reload-paced exactly like bombard (no clock
+   *  exploit). Trades this battle's offence for an un-boxable reseal: the move
+   *  when "+N grunts behind your walls" or a DRIFT lock is what's killing you. */
+  function cullGrunts(quanta?: number): Observation {
+    if (sc.state.phase !== Phase.BATTLE) {
+      bridge.lastResult = {
+        kind: "fire",
+        success: false,
+        reason: "not in BATTLE",
+      };
+      return observe();
+    }
+    if (threatsFor().length === 0) {
+      bridge.lastResult = {
+        kind: "fire",
+        success: false,
+        reason:
+          "no grunts threatening your towers — nothing to cull (bombard/breach an opponent instead)",
+      };
+      return observe();
+    }
+    const me = sc.state.players[agentSlot];
+    const myZone = sc.state.playerZones[agentSlot];
+    const inZoneGrunts = (): number =>
+      myZone === undefined
+        ? 0
+        : sc.state.grunts.filter(
+            (grunt) => zoneAt(sc.state.map, grunt.row, grunt.col) === myZone,
+          ).length;
+    const gruntsBefore = inZoneGrunts();
+    const scoreBefore = me?.score ?? 0;
+    const myWallsBefore = new Set(me?.walls);
+    const inertBefore = cannonsUnenclosedCount();
+    const budget = quanta ?? Infinity;
+    // Tiles already shot at whose grunt survived — out of cannon range, so don't
+    // re-aim there (else one unreachable grunt eats the whole battle).
+    const spentOn = new Set<number>();
+    // Aim nearest-my-cannons first: a far grunt menacing a corner tower is the
+    // top THREAT but out of range — firing there whiffs while a reachable grunt
+    // waits. Cannon-proximity lands the shot AND tracks the home tower (guns sit
+    // by it), so cull spends its volleys on grunts it can actually kill.
+    const origin = cannonCentroid();
+    const reach = (threat: ThreatInfo): number =>
+      (threat.grunt.row - origin.row) ** 2 +
+      (threat.grunt.col - origin.col) ** 2;
+    let spent = 0;
+    let fired = 0;
+    while (!gameOver() && sc.state.phase === Phase.BATTLE && spent < budget) {
+      const threats = threatsFor()
+        .filter(
+          (threat) =>
+            !spentOn.has(packTile(threat.grunt.row, threat.grunt.col)),
+        )
+        .sort((a, b) => reach(a) - reach(b));
+      // Zone clear (or only unreachable grunts left) — hand the rest of the
+      // battle back so the agent can bombard the time that remains.
+      if (threats.length === 0) break;
+      const live = sc.state.battleCountdown <= 0 && sc.state.timer > 0;
+      const canFire = live && cannonsReadyCount() > 0;
+      if (!canFire) {
+        advance(actionTicks);
+        settleToDecision();
+        spent++;
+        continue;
+      }
+      const ready = cannonsReadyCount();
+      for (let shot = 0; shot < ready && shot < threats.length; shot++) {
+        if (sc.state.phase !== Phase.BATTLE || gameOver()) break;
+        const grunt = threats[shot]!.grunt;
+        spentOn.add(packTile(grunt.row, grunt.col));
+        bridge.pending = { kind: "fire", row: grunt.row, col: grunt.col };
+        advance(actionTicks);
+        settleToDecision();
+        fired++;
+        spent++;
+      }
+    }
+    const culled = gruntsBefore - inZoneGrunts();
+    const pointsGained =
+      (sc.state.players[agentSlot]?.score ?? 0) - scoreBefore;
+    bridge.lastResult = {
+      kind: "fire",
+      success: fired > 0,
+      reason: `fired ${fired}, culled ${culled} grunt(s) threatening your towers${
+        pointsGained > 0 ? ` (+${pointsGained} pts)` : ""
+      }${battleSelfReport(myWallsBefore, inertBefore)}`,
+    };
+    return observe();
+  }
+
   /** Orthogonal sides of (row,col) that are water or off-board — the un-reroutable
    *  score for a pit: a wall pinched against rivers/edge can't be rebuilt one tile
    *  over, so a pit there is a near-permanent breach. */
@@ -3631,6 +3739,7 @@ export async function createMcpGame(
     bombard: bombardSlot,
     breach: breachSlot,
     pitStrike,
+    cull: cullGrunts,
     enclosurePlan,
     check,
     placements: placementsInZone,
@@ -3710,7 +3819,7 @@ function expectedFor(phase: Phase): string {
     case Phase.CANNON_PLACE:
       return "Place a cannon at its top-left — act { kind: 'cannon', row, col, mode }. See cannonSuggestions for legal spots you can afford, grouped by mode (no 'super' line = no 3x3 fits). Footprint: normal/balloon 2x2, super 3x3. Watch me.cannonSlots (used/max). End early with { kind: 'cannon-done' }, or pass.";
     case Phase.BATTLE:
-      return "Attack an opponent for the whole battle (one call). Strategies: bombard({ slot }) SPREADS fire over their nearest walls — maximises wall count destroyed (points + general tax). breach({ slot, towerIdx? }) CONCENTRATES fire on the outer ring guarding one tower to de-enclose its pocket (deny its territory + bonus squares; omit towerIdx for the softest). pit_strike({ slot, targets? }) aims your SUPER cannon(s) at enemy wall tiles to plant burning PITS (block their rebuild for rounds) while normals chip — see pitTargets for the best un-reroutable walls; omit targets to use them. See targets (leader first; each lists towers with ringWalls + bonusSquares). Or aim by hand: act { kind: 'fire', row, col } (wait out battleCountdown > 0; fire at most me.cannonsReady per burst, then pass to reload).";
+      return "Attack an opponent for the whole battle (one call). Strategies: bombard({ slot }) SPREADS fire over their nearest walls — maximises wall count destroyed (points + general tax). breach({ slot, towerIdx? }) CONCENTRATES fire on the outer ring guarding one tower to de-enclose its pocket (deny its territory + bonus squares; omit towerIdx for the softest). pit_strike({ slot, targets? }) aims your SUPER cannon(s) at enemy wall tiles to plant burning PITS (block their rebuild for rounds) while normals chip — see pitTargets for the best un-reroutable walls; omit targets to use them. cull() is DEFENSIVE — fire at the GRUNTS menacing your OWN towers (observation.threats) instead of an opponent; grunts are frozen this phase, so the swarm that would box your reseal next build is killable now (one shot each). Reach for it when 'grunts behind your walls' is climbing or a reseal is grunt-locked. See targets (leader first; each lists towers with ringWalls + bonusSquares). Or aim by hand: act { kind: 'fire', row, col } (wait out battleCountdown > 0; fire at most me.cannonsReady per burst, then pass to reload).";
     default:
       return "No agent action this phase; call pass to advance.";
   }
