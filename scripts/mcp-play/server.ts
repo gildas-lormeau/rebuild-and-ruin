@@ -657,6 +657,16 @@ const TOOL_BY_NAME = new Map(TOOLS.map((tool) => [tool.name, tool]));
 
 let game: McpGame | null = null;
 let journal: Journal | null = null;
+/** Live-watch sink: when `MCP_PLAY_WATCH=<path>` is set, every board snapshot is
+ *  mirrored to that file (plain text) and an auto-refreshing HTML twin at
+ *  `<path>.html`, so a human can watch the agent play three ways:
+ *    - open `<path>` in VSCode and leave it (VSCode auto-reverts on disk change —
+ *      don't edit the buffer, a dirty buffer suppresses the reload);
+ *    - open `<path>.html` in a browser / VSCode Simple Browser (it self-refreshes);
+ *    - `watch -n0.3 cat <path>` in a terminal.
+ *  Resolved once and cached. No-op when the env var is unset, so tests / CI /
+ *  normal play are unaffected, and it never throws into the tool flow. */
+let watchPath: string | null | undefined;
 
 function startGame(config: Journal["config"]): Promise<McpGame> {
   return createMcpGame({
@@ -947,6 +957,10 @@ export async function callTool(
     // now-edited source is caught the moment a game starts, not via ps/git.
     const text =
       name === "new_game" ? `${serverBanner()}\n${rendered}` : rendered;
+    // Mirror board snapshots to the live-watch file(s) so a human can follow
+    // along (no-op unless MCP_PLAY_WATCH is set). Only boards, not check/save
+    // JSON, so the watch view always holds the latest game state.
+    if (isObservation(result)) writeWatchSnapshot(text);
     return { text, isError: false };
   } catch (error) {
     return {
@@ -954,6 +968,44 @@ export async function callTool(
       isError: true,
     };
   }
+}
+
+function writeWatchSnapshot(board: string): void {
+  const path = watchTarget();
+  if (!path) return;
+  const htmlPath = `${path.replace(/\.(txt|log|board)$/, "")}.html`;
+  try {
+    Deno.writeTextFileSync(path, board);
+    Deno.writeTextFileSync(htmlPath, watchHtml(board));
+  } catch {
+    // A bad path / transient FS error must never break the agent's call — drop it.
+  }
+}
+
+function watchTarget(): string | null {
+  if (watchPath === undefined) {
+    try {
+      watchPath = Deno.env.get("MCP_PLAY_WATCH") ?? null;
+    } catch {
+      watchPath = null; // env read not permitted — silently disable.
+    }
+  }
+  return watchPath;
+}
+
+/** Wrap the board in a minimal dark-mode page that re-reads itself every 0.5s. */
+function watchHtml(board: string): string {
+  const escaped = board
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
+  return (
+    `<!doctype html><html><head><meta charset="utf-8">` +
+    `<meta http-equiv="refresh" content="0.5"><title>mcp-play live</title>` +
+    `<style>body{margin:0;background:#0d0d10;color:#d8d8d8}` +
+    `pre{font:13px/1.25 ui-monospace,SFMono-Regular,Menlo,monospace;padding:12px;white-space:pre}</style>` +
+    `</head><body><pre>${escaped}</pre></body></html>`
+  );
 }
 
 /** Does a tool result look like a board observation (vs a check/plan/save
