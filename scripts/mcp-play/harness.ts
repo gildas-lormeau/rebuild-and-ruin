@@ -55,7 +55,10 @@ import {
   isRampartCannon,
   isSuperCannon,
 } from "../../src/shared/core/battle-types.ts";
-import { cannonModesForGame } from "../../src/shared/core/cannon-mode-defs.ts";
+import {
+  cannonModeDef,
+  cannonModesForGame,
+} from "../../src/shared/core/cannon-mode-defs.ts";
 import {
   SIM_TICK_DT,
   TOWER_SIZE,
@@ -550,8 +553,15 @@ export interface Observation {
     currentPiece: string | null;
     cannons: number;
     /** Cannon slots: how many you've used and your cap this round. Each cannon
-     *  costs slots by footprint (normal/balloon 2×2, super 3×3). */
-    cannonSlots: { used: number; max: number };
+     *  costs slots by footprint (normal 1, balloon/rampart 3, super 4), so a
+     *  cannon COUNT rarely equals slots USED — `byMode` reconciles the two
+     *  (its `slots` sum to `used`), so "can I afford another super?" is readable
+     *  without knowing the per-mode costs. Counts alive cannons only. */
+    cannonSlots: {
+      used: number;
+      max: number;
+      byMode: { mode: CannonMode; count: number; slots: number }[];
+    };
     /** Each cannon you've placed: top-left + whether it can fire right now and,
      *  if not, why. `canFire: false, reason: "unenclosed …"` means the cannon's
      *  castle ring was breached — it's INERT and won't contribute to a bombard
@@ -2213,6 +2223,28 @@ export async function createMcpGame(
     return { canFire: true };
   }
 
+  /** Per-mode cannon tally with slot cost — reconciles cannon COUNT → slots USED
+   *  (`slots` sum to `cannonSlotsUsed`). Mirrors that helper: alive cannons only,
+   *  `cannonModeDef(mode).slotCost` per unit. */
+  function cannonSlotsByMode(): {
+    mode: CannonMode;
+    count: number;
+    slots: number;
+  }[] {
+    const me = sc.state.players[agentSlot];
+    if (!me) return [];
+    const counts = new Map<CannonMode, number>();
+    for (const cannon of me.cannons) {
+      if (!isCannonAlive(cannon)) continue;
+      counts.set(cannon.mode, (counts.get(cannon.mode) ?? 0) + 1);
+    }
+    return [...counts].map(([mode, count]) => ({
+      mode,
+      count,
+      slots: count * cannonModeDef(mode).slotCost,
+    }));
+  }
+
   /** My cannons rolled up by the nearest of my zone's towers — total / alive /
    *  dead / inert + alive-by-type per castle pocket. The battery-health view a
    *  rebuild decision turns on (a pocket that's mostly dead debris + inert guns
@@ -2673,6 +2705,7 @@ export async function createMcpGame(
         cannonSlots: {
           used: cannonSlotsUsed(me),
           max: cannonSlotsFor(state, agentSlot),
+          byMode: cannonSlotsByMode(),
         },
         cannonPositions: me.cannons.map((cannon, idx) => {
           const status = cannonFireStatus(cannon, idx);

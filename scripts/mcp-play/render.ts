@@ -219,8 +219,32 @@ function batteryStatusLines(obs: Observation): string[] {
   const me = obs.me;
   const slots = me.cannonSlots;
   let mine = `  YOU: piece=${me.currentPiece}  cannonSlots ${slots.used}/${slots.max}`;
+  const byMode = slots.byMode ?? [];
+  if (byMode.length > 0) {
+    mine += ` (${byMode
+      .map((entry) => `${entry.mode}×${entry.count}=${entry.slots}sl`)
+      .join(" + ")})`;
+  }
   if (obs.phase === "BATTLE") {
-    mine += `  cannonsReady ${me.cannonsReady}/${me.cannonPositions.length}`;
+    // cannonsReady's denominator is your raw cannon COUNT — it includes
+    // balloons/ramparts (never direct-fire) and guns captured away, so it
+    // overstates offense. `firing-for-you` is the NET battery actually shooting
+    // for you this battle: own enclosed normals/supers (reloading still count)
+    // + enemy guns YOUR balloon seized − your guns an enemy seized.
+    const ownFiring = me.cannonPositions.filter(
+      (cannon) =>
+        cannon.alive &&
+        (cannon.mode === "normal" || cannon.mode === "super") &&
+        !(cannon.reason ?? "").includes("captured") &&
+        !(cannon.reason ?? "").includes("unenclosed"),
+    ).length;
+    const seizedFiring = (me.capturedByMe ?? []).filter(
+      (cannon) => cannon.mode === "normal" || cannon.mode === "super",
+    ).length;
+    let firing = `firing-for-you ${ownFiring + seizedFiring}`;
+    if (seizedFiring > 0)
+      firing += ` (own ${ownFiring} + ${seizedFiring} seized)`;
+    mine += `  cannonsReady ${me.cannonsReady}/${me.cannonPositions.length}  ${firing}`;
   }
   if (me.cannonsUnenclosed) {
     mine += `  ⚠ ${me.cannonsUnenclosed} INERT (unenclosed — can't fire, reseal to re-arm)`;
@@ -272,12 +296,24 @@ function batteryStatusLines(obs: Observation): string[] {
     );
   }
   if (me.cannonPositions.length > 0) {
-    const guns = me.cannonPositions.map(
-      (cannon) =>
-        `(${cannon.row},${cannon.col})` +
-        ((cannon.reason ?? "").includes("unenclosed") ? "✗" : ""),
-    );
-    mine += `  guns=${guns.join(",")}`;
+    let anyMark = false;
+    const guns = me.cannonPositions.map((cannon) => {
+      const reason = cannon.reason ?? "";
+      const mark = !cannon.alive
+        ? "†"
+        : reason.includes("captured")
+          ? "⊗"
+          : reason.includes("unenclosed")
+            ? "✗"
+            : "";
+      if (mark) anyMark = true;
+      return `${cannon.mode}(${cannon.row},${cannon.col})${mark}`;
+    });
+    // Mode-tagged so you can locate your super/balloon; marks flag guns that
+    // can't fire FOR you (✗ inert, ⊗ captured away, † dead) — balloon/rampart
+    // self-identify by their mode label (never on the direct-fire path).
+    const legend = anyMark ? " (✗inert ⊗captured-away †dead)" : "";
+    mine += `  guns${legend}=${guns.join(",")}`;
   }
   lines.push(mine);
   return lines;
