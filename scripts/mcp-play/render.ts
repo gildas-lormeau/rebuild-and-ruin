@@ -87,6 +87,9 @@ export function renderObservation(obs: Observation): string {
   // ── BATTLE pit targets: best super-cannon pit walls, choke-ranked ───────────
   lines.push(...pitTargetLines(obs));
 
+  // ── BATTLE cannon-snipe: conditional nudge to kill enemy guns over bombard ──
+  lines.push(...cannonSnipeLines(obs));
+
   // ── supply ships: live river hulls to hunt for a hidden bonus ───────────────
   lines.push(...supplyShipLines(obs));
 
@@ -110,11 +113,10 @@ export function renderObservation(obs: Observation): string {
       lines.push(line);
   }
 
-  // ── survival warning: zero alive enclosed towers = a life lost at round end ──
-  if (
-    obs.enclosureCandidates !== undefined &&
-    obs.me.aliveEnclosedTowers === 0
-  ) {
+  // ── survival warning: no alive/revivable enclosed tower = a life lost at round
+  //    end. Gate on `survivesRoundEnd` (credits pending / Restoration-Crew
+  //    revives), NOT the raw alive count, which false-alarmed while RC was held. ──
+  if (obs.enclosureCandidates !== undefined && !obs.me.survivesRoundEnd) {
     // Point at a tower whose seal actually CLEARS the loss — alive, or dead-but-
     // revivable via Restoration Crew (`satisfiesSurvival`). Enclosing a plain dead
     // tower banks territory but still costs the life, so "reseal the cheapest
@@ -138,6 +140,20 @@ export function renderObservation(obs: Observation): string {
     lines.push(
       "  ☠ SURVIVAL: NO alive tower enclosed — finalize the round like this and you LOSE A LIFE and your whole zone resets to bare ground." +
         hint,
+    );
+  }
+
+  // ── bag-lock: current piece has zero legal placements anywhere ──────────────
+  // The bag only advances by PLACING (pass does NOT cycle the piece), so this is
+  // a hard deadlock — nothing can be built this phase. Surfaced so the agent
+  // stops thrashing build_* calls and reads the real cause.
+  if (obs.me.bagLocked) {
+    lines.push(
+      `  ⚠ BAG-LOCKED: piece ${obs.me.currentPiece ?? "?"} has NO legal placement anywhere in your zone — and the bag advances ONLY by placing (pass won't cycle it), so you can build NOTHING this phase.` +
+        (obs.me.survivesRoundEnd
+          ? " Survival is safe (a tower is enclosed), so you just forfeit this build."
+          : " ☠ No alive/revivable tower is enclosed, so finalizing costs a LIFE + zone reset — unavoidable now.") +
+        " Cause: a near-sealed castle whose only gaps need a different piece shape/size (e.g. an S-gap can't take an SR). Prevent next time: keep a multi-tile cut and don't pack every interior tile.",
     );
   }
 
@@ -393,6 +409,20 @@ function pitTargetLines(obs: Observation): string[] {
   return lines;
 }
 
+/** Conditional cannon-snipe nudge: surfaced only when sniping enemy guns with
+ *  fire(row,col) beats the default bombard (Salvage held / their super gun). */
+function cannonSnipeLines(obs: Observation): string[] {
+  const snipe = obs.cannonSnipe;
+  if (!snipe) return [];
+  const tiles = snipe.tiles
+    .map((tile) => `(${tile.row},${tile.col})${tile.heavy ? "★" : ""}`)
+    .join(" ");
+  return [
+    `  ⌖ SNIPE CANNONS (situational — bombard usually out-scores this): fire(row,col) on ${snipe.name}'s gun tiles to DESTROY them — ${snipe.reason}.`,
+    `     ~${snipe.hitsToKill} normal hits kill a gun (a super ball does 2/hit); the wreck leaves debris that blocks their rebuild. No one-call aimer — fire a tile, pass to reload, repeat. Tiles (★=super/Mortar): ${tiles}`,
+  ];
+}
+
 /** Supply Ship modifier: the live river hulls to hunt. 2 hits sinks one for a
  *  hidden 1-round bonus; lead the moving hull and fire AHEAD of it. */
 function supplyShipLines(obs: Observation): string[] {
@@ -429,11 +459,14 @@ function threatLines(obs: Observation): string[] {
     const tower = threat.tower;
     const flag = threat.towerEnclosed ? "walled" : "EXPOSED";
     const attacking = threat.attacking ? " ATTACKING!" : "";
+    const occluded = threat.hittable
+      ? ""
+      : " OCCLUDED (no shot lands — cover in front)";
     const wall = threat.targetedWall
       ? ` wall(${threat.targetedWall.row},${threat.targetedWall.col})`
       : "";
     lines.push(
-      `     ${threat.kind} (${grunt.row},${grunt.col}) -> tower ${tower.idx} (${tower.row},${tower.col}) dist ${threat.distance} [${flag}]${attacking}${wall}`,
+      `     ${threat.kind} (${grunt.row},${grunt.col}) -> tower ${tower.idx} (${tower.row},${tower.col}) dist ${threat.distance} [${flag}]${attacking}${occluded}${wall}`,
     );
   }
   if (walled.length > 0) {

@@ -20,6 +20,7 @@ import type { AiBrain } from "../../src/ai/ai-brain-types.ts";
 import { CannonMode } from "../../src/shared/core/battle-types.ts";
 import { LifeLostChoice } from "../../src/shared/core/dialog-state.ts";
 import { rotateCW } from "../../src/shared/core/pieces.ts";
+import { pxToTile, tileCenterPx } from "../../src/shared/core/spatial.ts";
 import { selectPlayerTower } from "../../src/shared/sim/player-rules.ts";
 
 /** A single decision the external agent submits for the current phase. The
@@ -185,16 +186,24 @@ export function createMcpBrain(bridge: AgentBridge): AiBrain {
 
     battle: {
       init: () => {},
-      tick: (host) => {
+      tick: (host, state) => {
         const decision = bridge.pending;
         if (decision?.kind === "fire") {
           bridge.pending = null;
           bridge.waiting = false;
+          // Snap the agent's tile aim through the SAME occlusion seam the
+          // default AI uses (controller.aim → occludedAimWorld). Under the
+          // battle tilt a taller camera-near obstacle hides the target, so a
+          // shot at an occluded grunt lands on the wall/tower in front instead
+          // — the agent can't hit a tile a human couldn't see. A clear shot
+          // returns verbatim, so this is a no-op for unobstructed targets.
+          const center = tileCenterPx(decision.row, decision.col);
+          const aimed = host.aim(state, center.x, center.y);
           return {
             commit: {
               playerId: host.playerId,
-              targetRow: decision.row,
-              targetCol: decision.col,
+              targetRow: pxToTile(aimed.wy),
+              targetCol: pxToTile(aimed.wx),
             },
           };
         }

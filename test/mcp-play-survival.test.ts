@@ -13,6 +13,12 @@
  * towers get killed by grunts and show up as DEAD candidates, then asserts the
  * accounting stays internally consistent — the check that would have caught the
  * original gap and guards against it returning.
+ *
+ * Also guards the converse footgun (fixed later): the ☠ SURVIVAL banner must NOT
+ * false-alarm when Restoration Crew / pending-revive will revive an enclosed dead
+ * tower before the life check. The honest gate is `me.survivesRoundEnd` (credits
+ * those revives), not the raw `aliveEnclosedTowers === 0` count — INV4 pins the
+ * banner to `survivesRoundEnd`.
  */
 
 import { assert } from "@std/assert";
@@ -135,24 +141,29 @@ function assertCandidateAccounting(
       `me.aliveEnclosedTowers ${obs.me.aliveEnclosedTowers}`,
   );
 
+  const board = renderObservation(obs);
+
   // The rendered board must visibly flag dead candidates, so a "SEAL NOW ★+BONUS"
   // row can't be misread as survival-safe.
   if (sawDead) {
     assert(
-      renderObservation(obs).includes("⚑DEAD"),
+      board.includes("⚑DEAD"),
       "expected a ⚑DEAD marker in the rendered board when a dead candidate exists",
     );
   }
 
-  // INV4 (the render footgun): when no alive tower is enclosed, the survival
-  // warning must render, and any tower it names as the saver must actually clear
-  // the loss (never a plain dead tower).
-  if (obs.me.aliveEnclosedTowers === 0) {
-    const board = renderObservation(obs);
-    assert(
-      board.includes("☠ SURVIVAL"),
-      "expected ☠ SURVIVAL warning when no alive tower is enclosed",
-    );
+  // INV4 (the render footgun): the ☠ SURVIVAL warning must render EXACTLY when you
+  // are actually at risk — `me.survivesRoundEnd` false — not merely when the raw
+  // alive-enclosed count is 0 (Restoration-Crew / pending-revive can save a
+  // 0-count board, and the old gate false-alarmed there). Any tower it names as
+  // the saver must actually clear the loss (never a plain dead tower).
+  const survivalBannerShown = board.includes("☠ SURVIVAL");
+  assert(
+    survivalBannerShown === !obs.me.survivesRoundEnd,
+    `survival banner ${survivalBannerShown ? "shown" : "absent"} but ` +
+      `survivesRoundEnd=${obs.me.survivesRoundEnd} — banner must render iff at risk`,
+  );
+  if (!obs.me.survivesRoundEnd) {
     const sealMatch = board.match(/Seal (home|tower (\d+))/);
     if (sealMatch) {
       const named = sealMatch[2] === undefined
@@ -166,6 +177,15 @@ function assertCandidateAccounting(
       );
     }
   }
+
+  // INV5 (the false-alarm fix): an ALIVE enclosed tower always survives the
+  // round, so `survivesRoundEnd` must never read "at risk" while the alive count
+  // is positive. (The converse — a 0-count board still surviving via RC/pending —
+  // is exercised by INV4's banner gate above.)
+  assert(
+    obs.me.aliveEnclosedTowers === 0 || obs.me.survivesRoundEnd,
+    `aliveEnclosedTowers=${obs.me.aliveEnclosedTowers} but survivesRoundEnd=false`,
+  );
 
   return { sawDead, sawEnclosedDead };
 }

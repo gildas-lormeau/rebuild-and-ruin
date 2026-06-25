@@ -30,6 +30,7 @@ import { findEnclosureCut } from "../../src/ai/ai-min-cut.ts";
 import { DefaultStrategy } from "../../src/ai/ai-strategy.ts";
 import { AiController } from "../../src/controllers/controller-ai.ts";
 import { createController } from "../../src/controllers/controller-factory.ts";
+import { aimReachesTile } from "../../src/game/aim-occlusion.ts";
 import {
   canFireOwnCannon,
   nextReadyCannon,
@@ -266,11 +267,12 @@ export interface EnclosureCandidate {
    *  but the player holds Restoration Crew (which revives one enclosed dead tower
    *  immediately, before the life check). A freshly-dead tower WITHOUT that
    *  upgrade only revives at the end of the NEXT build, so sealing it this round
-   *  still costs a life — the exact footgun this flag exists to surface.
-   *  Conservative by design: it does NOT credit the delayed pending-revive (a
-   *  dead tower already enclosed the PREVIOUS build, which would revive now) —
-   *  that mirrors `me.aliveEnclosedTowers`, the counter the survival warning keys
-   *  on, so the flag never reads "safe" while that counter reads "at risk". */
+   *  still costs a life — the footgun this flag surfaces. Conservative on purpose:
+   *  it does NOT credit the delayed pending-revive (a dead tower enclosed the
+   *  PREVIOUS build), so it never reads "safe" off a not-yet-revived tower. The
+   *  honest, finalize-accurate survival gate (which DOES credit pending) is the
+   *  per-player `me.survivesRoundEnd`; this per-candidate flag is the conservative
+   *  "which tower should I seal to be sure" companion. */
   satisfiesSurvival: boolean;
   /** "enclosed" = already sealed; "enclosable" = needs `tiles`; "unenclosable"
    *  = no piece-fillable ring this build (see `reason`). */
@@ -504,6 +506,13 @@ export interface ThreatInfo {
   towerEnclosed: boolean;
   /** Grunt is adjacent and counting down to a kill/break. */
   attacking: boolean;
+  /** Can a cannon actually LAND a shot on this grunt right now? False when a
+   *  taller camera-near obstacle (a wall or alive tower on the tile one row
+   *  toward the camera) visually occludes it under the battle tilt — the same
+   *  aim-occlusion rule a human/the default AI obeys, so `cull` skips it rather
+   *  than whiffing a volley on the cover in front. The grunt still appears on
+   *  the board; it just isn't a valid target until the occluder clears. */
+  hittable: boolean;
   /** The specific wall tile it will strike (engine's end-of-build pick), if set —
    *  the tile to defend. */
   targetedWall?: { row: number; col: number };
@@ -578,12 +587,26 @@ export interface Observation {
     lives: number;
     score: number;
     eliminated: boolean;
-    /** How many of your towers are BOTH alive AND currently enclosed — the exact
-     *  predicate the round-end life-penalty uses (`filterAliveEnclosedTowers`).
-     *  `0` during WALL_BUILD means: finalize the round like this and you LOSE A
-     *  LIFE and your whole zone resets. ANY one alive enclosed tower (not just
-     *  home) avoids that — so reseal the cheapest reachable one before passing. */
+    /** How many of your towers are BOTH alive AND currently enclosed. A factual
+     *  count — but it is NOT the survival gate on its own: finalize revives
+     *  pending / Restoration-Crew dead towers first, so a `0` here can still
+     *  survive. Use `survivesRoundEnd` to decide whether passing costs a life. */
     aliveEnclosedTowers: number;
+    /** WOULD you keep your life if the round finalized right now? Mirrors the
+     *  engine (revive-then-check): true when an alive enclosed tower exists, OR a
+     *  dead enclosed tower would revive at finalize (pending-revive, or you hold
+     *  Restoration Crew). `false` during WALL_BUILD = finalize like this and you
+     *  LOSE A LIFE + your whole zone resets; seal a survival-clearing tower
+     *  first. This is the honest survival signal (the old `aliveEnclosedTowers ===
+     *  0` gate false-alarmed while Restoration Crew was held). */
+    survivesRoundEnd: boolean;
+    /** WALL_BUILD only: your CURRENT piece has ZERO legal placements anywhere in
+     *  your zone. The bag advances ONLY by placing (pass does NOT cycle it), so
+     *  this is a hard deadlock — you can build nothing this phase. If
+     *  `survivesRoundEnd` is also false you'll lose a life when the clock runs
+     *  out. Caused by a near-sealed castle whose only gaps need a different piece
+     *  shape/size than the one dealt. `false` outside WALL_BUILD. */
+    bagLocked: boolean;
     /** Home tower top-left (the centre of your castle), or null pre-selection. */
     homeTower: { row: number; col: number } | null;
     currentPiece: string | null;
@@ -761,6 +784,28 @@ export interface Observation {
    *  denial value (un-reroutable chokepoints first). Feed these to
    *  `pitStrike(slot, targets)`. Omitted outside BATTLE / when you have no super. */
   pitTargets?: PitTarget[];
+  /** BATTLE: a CONDITIONAL nudge to SNIPE enemy cannons with `fire(row,col)`
+   *  instead of the default bombard — surfaced ONLY when it actually beats
+   *  spreading fire over walls: you hold Salvage (each enemy cannon you destroy
+   *  banks you +1 slot, max +2), OR an opponent fields a targetable SUPER / Mortar
+   *  gun (a disproportionate threat — it 3×3-splashes + pit-strikes you). A
+   *  cannonball on a cannon's tile damages it (1 HP, 2 for a super ball); kill it
+   *  and the wreck leaves DEBRIS that blocks their rebuild. There is NO one-call
+   *  aimer — `fire` each tile, ~`hitsToKill` normal hits per gun, reload-paced.
+   *  Omitted otherwise, because plain bombard out-scores it (don't snipe by
+   *  default). */
+  cannonSnipe?: {
+    slot: number;
+    name: string;
+    /** Why it's worth a shot right now (Salvage held / their super gun). */
+    reason: string;
+    /** Normal-ball hits to destroy a fresh gun (= cannonMaxHp; a super ball
+     *  deals 2/hit, so halve it when firing supers). */
+    hitsToKill: number;
+    /** Targetable enemy cannon top-lefts (alive, not balloon, not shielded this
+     *  battle), high-value guns (`heavy`: super/Mortar) first. */
+    tiles: { row: number; col: number; heavy: boolean }[];
+  };
   /** MODERN only: the environmental modifier in force this round (wildfire,
    *  frozen river, …), or null/omitted in classic and when none rolled. Passive
    *  — you make no decision about it, but it changes the board (e.g. frozen river
@@ -931,6 +976,8 @@ const ENCLOSURE_TILE_SAMPLE = 8;
 const BATTLE_TARGET_SAMPLE = 10;
 /** How many ranked pit targets to surface per opponent in BATTLE. */
 const PIT_TARGETS_PER_OPPONENT = 3;
+/** How many enemy cannon tiles to surface in the conditional snipe nudge. */
+const CANNON_SNIPE_TILES = 4;
 /** A grunt cluster (`gruntClustersFor`) must pack at least this many grunts in one
  *  4-connected blob to be worth flagging as enclose-killable / a weakness. */
 const CLUSTER_MIN_GRUNTS = 4;
@@ -1243,6 +1290,52 @@ export async function createMcpGame(
       b.fillsGap - a.fillsGap ||
       b.touchingWalls - a.touchingWalls
     );
+  }
+
+  /** Mirror of the engine's round-end survival check (phase-setup.ts
+   *  `applyLifePenalties`, which runs AFTER build-system `reviveEnclosedTowers`):
+   *  if the round finalized on the CURRENT board, would `player` keep its life?
+   *  An ALIVE enclosed tower clears it — but so does a DEAD enclosed tower that
+   *  finalize revives FIRST: one that's pending-revive (enclosed the previous
+   *  build) or, while the player holds Restoration Crew, the one RC revives. The
+   *  raw `aliveEnclosedTowers` count misses both revives, which is why the
+   *  survival warning used to false-alarm "LOSE A LIFE" while Restoration Crew was
+   *  active with a dead tower sealed (it finalized fine). */
+  function survivesRoundEndLifeCheck(player: Player): boolean {
+    const state = sc.state;
+    const hasRestorationCrew = player.upgrades.has(UID.RESTORATION_CREW);
+    for (const tower of player.enclosedTowers) {
+      if (state.towerAlive[tower.index]) return true;
+      // Dead enclosed tower: finalize revives it BEFORE the life check when it's
+      // pending, or when Restoration Crew is held (revives one) — either clears
+      // survival this round.
+      if (hasRestorationCrew || state.towerPendingRevive.has(tower.index))
+        return true;
+    }
+    return false;
+  }
+
+  /** WALL_BUILD bag-lock guard: does `player`'s CURRENT piece have ANY legal
+   *  placement anywhere in its zone (all 4 rotations)? The bag advances ONLY by
+   *  PLACING — `pass` never cycles the piece — so a piece with zero legal
+   *  placements is a hard deadlock: nothing can be built this phase, and if no
+   *  survival-clearing tower is already sealed the clock runs out into a life
+   *  loss. Happens to a near-sealed fortress whose only gaps are 1-tile holes or
+   *  the wrong chirality/size for the held piece (an `S` gap can't take an `SR`).
+   *  Early-exits on the first legal spot, so it's cheap unless genuinely locked. */
+  function currentPieceHasAnyPlacement(player: Player): boolean {
+    const piece = player.currentPiece;
+    if (!piece) return true;
+    const state = sc.state;
+    for (let rotation = 0; rotation < 4; rotation++) {
+      const offsets = rotatedOffsets(piece, rotation);
+      for (let row = -MAX_PIECE_EXTENT; row < GRID_ROWS; row++) {
+        for (let col = -MAX_PIECE_EXTENT; col < GRID_COLS; col++) {
+          if (canPlacePiece(state, agentSlot, offsets, row, col)) return true;
+        }
+      }
+    }
+    return false;
   }
 
   /** Every legal placement of the current piece whose footprint touches `zone`
@@ -1980,6 +2073,7 @@ export async function createMcpGame(
         towerEnclosed: enclosed,
         attacking:
           grunt.attackCountdown !== undefined && grunt.attackCountdown > 0,
+        hittable: aimReachesTile(state, grunt.row, grunt.col),
         targetedWall: wall ? { row: wall.row, col: wall.col } : undefined,
       });
     }
@@ -2438,6 +2532,67 @@ export async function createMcpGame(
     return isSuperCannon(cannon) || cannon.mortar === true;
   }
 
+  /** Conditional cannon-snipe nudge (see `observation.cannonSnipe`). Returns the
+   *  suggestion ONLY when sniping an enemy cannon beats the default bombard:
+   *  Salvage held (every kill banks me a slot) or an opponent fields a targetable
+   *  super/Mortar gun (a disproportionate threat). Otherwise null — plain bombard
+   *  spreads more wall damage, so we don't bias the agent toward sniping every
+   *  battle. A cannon is targetable when it's alive, not a balloon, and not
+   *  shielded this battle (those absorb the hit). */
+  function cannonSnipeSuggestion(): NonNullable<
+    Observation["cannonSnipe"]
+  > | null {
+    const state = sc.state;
+    // No gun of my own can fire this battle → nothing to snipe with.
+    if (cannonsReadyCount() === 0) return null;
+    const me = state.players[agentSlot]!;
+    const targetable = (cannon: Cannon): boolean =>
+      isCannonAlive(cannon) && !isBalloonCannon(cannon) && !cannon.shielded;
+    const opps = state.players
+      .map((player, slot) => ({ player, slot }))
+      .filter(
+        ({ player, slot }) =>
+          slot !== agentSlot &&
+          !player.eliminated &&
+          player.cannons.some(targetable),
+      )
+      .sort((a, b) => b.player.score - a.player.score);
+    if (opps.length === 0) return null;
+    const holdsSalvage = me.upgrades.has(UID.SALVAGE);
+    const heavyOpp = opps.find(({ player }) =>
+      player.cannons.some(
+        (cannon) => targetable(cannon) && isPitCapable(cannon),
+      ),
+    );
+    let pick: { player: Player; slot: number };
+    let reason: string;
+    if (holdsSalvage) {
+      pick = opps[0]!; // thin the leader's battery — most slots banked
+      reason =
+        "you hold Salvage — each enemy cannon you destroy banks you +1 slot (max +2)";
+    } else if (heavyOpp) {
+      pick = heavyOpp;
+      reason =
+        "they field a SUPER/Mortar gun — it 3×3-splashes + pit-strikes you; killing it removes a disproportionate threat and the wreck-debris denies the slot";
+    } else {
+      return null; // a plain battery isn't worth biasing off bombard
+    }
+    const guns = pick.player.cannons
+      .filter(targetable)
+      .sort((a, b) => Number(isPitCapable(b)) - Number(isPitCapable(a)));
+    return {
+      slot: pick.slot,
+      name: PLAYER_NAMES[pick.slot] ?? `P${pick.slot}`,
+      reason,
+      hitsToKill: state.cannonMaxHp,
+      tiles: guns.slice(0, CANNON_SNIPE_TILES).map((cannon) => ({
+        row: cannon.row,
+        col: cannon.col,
+        heavy: isPitCapable(cannon),
+      })),
+    };
+  }
+
   /** Short label for a pit-capable gun in result/fallback text. */
   function pitGunLabel(cannon: Cannon): string {
     return isSuperCannon(cannon) ? "super" : "mortar gun";
@@ -2761,6 +2916,11 @@ export async function createMcpGame(
         score: me.score,
         eliminated: me.eliminated,
         aliveEnclosedTowers: filterAliveEnclosedTowers(me, state).length,
+        survivesRoundEnd: survivesRoundEndLifeCheck(me),
+        bagLocked:
+          state.phase === Phase.WALL_BUILD && me.currentPiece != null
+            ? !currentPieceHasAnyPlacement(me)
+            : false,
         homeTower: me.homeTower
           ? { row: me.homeTower.row, col: me.homeTower.col }
           : null,
@@ -2868,6 +3028,8 @@ export async function createMcpGame(
         const pits = pitTargetsFor();
         if (pits.length > 0) observation.pitTargets = pits;
       }
+      const snipe = cannonSnipeSuggestion();
+      if (snipe) observation.cannonSnipe = snipe;
     }
 
     applyModernSurfaces(observation, phase);
@@ -3257,9 +3419,7 @@ export async function createMcpGame(
       // that's the case, steer the agent to a tower whose seal actually CLEARS
       // the loss (alive / Restoration-Crew), not merely the cheapest reachable
       // one — sealing a dead tower banks territory but still costs the life.
-      const atRisk =
-        filterAliveEnclosedTowers(sc.state.players[agentSlot]!, sc.state)
-          .length === 0;
+      const atRisk = !survivesRoundEndLifeCheck(sc.state.players[agentSlot]!);
       const target =
         (atRisk ? cheapestFeasibleSurvivalEnclosure() : null) ??
         cheapestFeasibleEnclosure();
@@ -4196,12 +4356,22 @@ export async function createMcpGame(
       };
       return observe();
     }
-    if (threatsFor().length === 0) {
+    const allThreats = threatsFor();
+    if (allThreats.length === 0) {
       bridge.lastResult = {
         kind: "fire",
         success: false,
         reason:
           "no grunts threatening your towers — nothing to cull (bombard/breach an opponent instead)",
+      };
+      return observe();
+    }
+    if (!allThreats.some((threat) => threat.hittable)) {
+      bridge.lastResult = {
+        kind: "fire",
+        success: false,
+        reason:
+          "every threatening grunt is occluded behind a wall/tower — no shot can land on them under the battle tilt (bombard/breach an opponent, or wait for the cover to clear)",
       };
       return observe();
     }
@@ -4235,6 +4405,7 @@ export async function createMcpGame(
       const threats = threatsFor()
         .filter(
           (threat) =>
+            threat.hittable &&
             !spentOn.has(packTile(threat.grunt.row, threat.grunt.col)),
         )
         .sort((a, b) => reach(a) - reach(b));
@@ -4717,7 +4888,7 @@ function expectedFor(phase: Phase): string {
     case Phase.UPGRADE_PICK:
       return "Pick ONE of your three upgrade offers — act { kind: 'pick-upgrade', cardIdx } where cardIdx is 0, 1, or 2 (the index into observation.upgradeOffers; each lists id + label + description). The pick applies for the next round only. There's no skip — choose the offer that best fits your board (e.g. second_wind if you have dead towers, clear_the_field if grunts crowd your zone).";
     case Phase.BATTLE:
-      return "Attack an opponent for the whole battle (one call). Strategies: bombard({ slot }) SPREADS fire over their nearest walls — maximises wall count destroyed (points + general tax). breach({ slot, towerIdx? }) CONCENTRATES fire on the outer ring guarding one tower to de-enclose its pocket (deny its territory + bonus squares; omit towerIdx for the softest). pit_strike({ slot, targets? }) aims your pit gun(s) — a SUPER, or a normal the MORTAR upgrade elected this battle — at enemy wall tiles to plant burning PITS (block their rebuild for rounds) while normals chip — see pitTargets for the best un-reroutable walls; omit targets to use them. cull() is DEFENSIVE — fire at the GRUNTS menacing your OWN towers (observation.threats) instead of an opponent; grunts are frozen this phase, so the swarm that would box your reseal next build is killable now (one shot each). Reach for it when 'grunts behind your walls' is climbing or a reseal is grunt-locked. See targets (leader first; each lists towers with ringWalls + bonusSquares). Or aim by hand: act { kind: 'fire', row, col } (wait out battleCountdown > 0; fire at most me.cannonsReady per burst, then pass to reload).";
+      return "Attack an opponent for the whole battle (one call). Strategies: bombard({ slot }) SPREADS fire over their nearest walls — maximises wall count destroyed (points + general tax). breach({ slot, towerIdx? }) CONCENTRATES fire on the outer ring guarding one tower to de-enclose its pocket (deny its territory + bonus squares; omit towerIdx for the softest). pit_strike({ slot, targets? }) aims your pit gun(s) — a SUPER, or a normal the MORTAR upgrade elected this battle — at enemy wall tiles to plant burning PITS (block their rebuild for rounds) while normals chip — see pitTargets for the best un-reroutable walls; omit targets to use them. cull() is DEFENSIVE — fire at the GRUNTS menacing your OWN towers (observation.threats) instead of an opponent; grunts are frozen this phase, so the swarm that would box your reseal next build is killable now (one shot each). Reach for it when 'grunts behind your walls' is climbing or a reseal is grunt-locked. See targets (leader first; each lists towers with ringWalls + bonusSquares). Or aim by hand: act { kind: 'fire', row, col } (wait out battleCountdown > 0; fire at most me.cannonsReady per burst, then pass to reload) — this is also how you SNIPE an enemy cannon: a ball on its tile damages it and ~cannonMaxHp hits DESTROY it (fewer enemy guns + wreck-debris blocks their rebuild). Worth it over bombard only sometimes (you hold Salvage, or they field a super/Mortar gun) — see observation.cannonSnipe, surfaced just then.";
     default:
       return "No agent action this phase; call pass to advance.";
   }
