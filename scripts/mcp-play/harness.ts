@@ -94,7 +94,10 @@ import {
 import type { ControllerFactory } from "../../src/shared/core/system-interfaces.ts";
 import { cannonSlotsFor } from "../../src/shared/core/types.ts";
 import { UPGRADE_POOL } from "../../src/shared/core/upgrade-defs.ts";
-import { isCannonEnclosed } from "../../src/shared/sim/board-occupancy.ts";
+import {
+  filterAliveEnclosedTowers,
+  isCannonEnclosed,
+} from "../../src/shared/sim/board-occupancy.ts";
 import { PLAYER_NAMES } from "../../src/shared/ui/player-config.ts";
 import { Mode } from "../../src/shared/ui/ui-mode.ts";
 import { createScenario, type Scenario } from "../../test/scenario.ts";
@@ -557,6 +560,12 @@ export interface Observation {
     lives: number;
     score: number;
     eliminated: boolean;
+    /** How many of your towers are BOTH alive AND currently enclosed — the exact
+     *  predicate the round-end life-penalty uses (`filterAliveEnclosedTowers`).
+     *  `0` during WALL_BUILD means: finalize the round like this and you LOSE A
+     *  LIFE and your whole zone resets. ANY one alive enclosed tower (not just
+     *  home) avoids that — so reseal the cheapest reachable one before passing. */
+    aliveEnclosedTowers: number;
     /** Home tower top-left (the centre of your castle), or null pre-selection. */
     homeTower: { row: number; col: number } | null;
     currentPiece: string | null;
@@ -2725,6 +2734,7 @@ export async function createMcpGame(
         lives: me.lives,
         score: me.score,
         eliminated: me.eliminated,
+        aliveEnclosedTowers: filterAliveEnclosedTowers(me, state).length,
         homeTower: me.homeTower
           ? { row: me.homeTower.row, col: me.homeTower.col }
           : null,
@@ -3204,11 +3214,20 @@ export async function createMcpGame(
           (target.bonusSquares ?? 0) > 0
             ? ` + ★${target.bonusSquares} bonus square(s)`
             : "";
+        // If NO alive tower is enclosed right now, passing doesn't just forfeit
+        // territory — it costs a LIFE and resets the whole zone at round end. Lead
+        // with that, since it dwarfs the idle-build opportunity cost.
+        const atRisk =
+          filterAliveEnclosedTowers(sc.state.players[agentSlot]!, sc.state)
+            .length === 0;
+        const stakes = atRisk
+          ? `☠ NO alive tower enclosed — finalize like this and you LOSE A LIFE and your zone resets. `
+          : "";
         bridge.lastResult = {
           kind: "build",
           success: false,
           reason:
-            `HELD — ${who} is still enclosable (~${target.estSeconds.toFixed(0)}s, ` +
+            `HELD — ${stakes}${who} is still enclosable (~${target.estSeconds.toFixed(0)}s, ` +
             `you have ${sc.state.timer.toFixed(0)}s) and idle build scores 0: ${who}'s ` +
             `territory${bonus} banks THIS round only if you wall it. ` +
             `build_out() to enclose it (and everything else that fits), ` +

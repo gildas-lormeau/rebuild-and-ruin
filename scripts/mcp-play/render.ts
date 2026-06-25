@@ -110,6 +110,16 @@ export function renderObservation(obs: Observation): string {
       lines.push(line);
   }
 
+  // ── survival warning: zero alive enclosed towers = a life lost at round end ──
+  if (
+    obs.enclosureCandidates !== undefined &&
+    obs.me.aliveEnclosedTowers === 0
+  ) {
+    lines.push(
+      "  ☠ SURVIVAL: NO alive tower enclosed — finalize the round like this and you LOSE A LIFE and your whole zone resets to bare ground. Sealing ANY one alive tower (not just home) avoids it — reseal the cheapest reachable candidate before you pass.",
+    );
+  }
+
   // ── enclosure candidates: min-cut plans, blocker-aware feasibility ──────────
   lines.push(...enclosureLines(obs));
 
