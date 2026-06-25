@@ -460,13 +460,14 @@ export class DefaultStrategy implements AiStrategy {
       }
     }
 
-    // Fat-wall breach — drill a diagonal channel through a ≥3-thick enemy wall
-    // body. Tried after the surgical structural hit (which handles cheap 1–2
-    // tile breaches) as an opportunistic tactic for thick walls a single hit
-    // can't cut through. Shares CHAIN.STRUCTURAL behavior; distinct only via
-    // the fat_breach origin tag for metrics. The maxAttempts guard (0 at the
-    // weak tier) skips the rng roll entirely so the RNG stream is unperturbed
-    // for weak AI, mirroring structuralMaxHits.
+    // Fat-wall breach — the minimum-cut breach: drill the fewest walls (a
+    // diagonal staircase, since the flood is 8-connected) that open a large
+    // enclosure, through a fat ring of ANY thickness. Tried after the surgical
+    // structural hit (which handles cheap 1–2 tile breaches) for thick walls a
+    // single hit can't cut through. Shares CHAIN.STRUCTURAL behavior; distinct
+    // only via the fat_breach origin tag for metrics. The maxAttempts guard
+    // (0 at the weak tier) skips the rng roll entirely so the RNG stream is
+    // unperturbed for weak AI, mirroring structuralMaxHits.
     const fatBreachProb = traitLookup(this.battleTactics, [
       0,
       FAT_BREACH_PROBABILITY,

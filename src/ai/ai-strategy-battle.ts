@@ -11,6 +11,7 @@ import {
   canFireOwnCannon,
   getGruntTargetTower,
   pickSupplyShipTarget,
+  shouldAbsorbWallHit,
 } from "../game/index.ts";
 import {
   type Cannon,
@@ -22,6 +23,7 @@ import {
 import type {
   CannonIdx,
   PixelPos,
+  TileBounds,
   TilePos,
 } from "../shared/core/geometry-types.ts";
 import {
@@ -39,6 +41,8 @@ import {
   cannonSize,
   computeOutside,
   DIRS_4,
+  DIRS_8,
+  filterOffTiles,
   forEachTowerTile,
   inBounds,
   isCannonTile,
@@ -47,12 +51,14 @@ import {
   pxToTile,
   unpackTile,
   zoneAt,
+  zoneTileBounds,
 } from "../shared/core/spatial.ts";
 import type { BattleViewState } from "../shared/core/system-interfaces.ts";
 import type { Rng } from "../shared/platform/rng.ts";
 import {
   computeCardinalObstacleMask,
   filterActiveEnemies,
+  getBattleInterior,
 } from "../shared/sim/board-occupancy.ts";
 import { isCannonCapturedBy } from "../shared/sim/occupancy-queries.ts";
 import type { PickPath } from "./ai-battle-diag.ts";
@@ -147,6 +153,12 @@ const liveEnclosureCache = new WeakMap<
     depth: ReadonlyMap<TileKey, number>;
   }
 >();
+/** Margin around an enclosure's bounding box for the breach search when a zone
+ *  box can't be derived — must exceed any plausible wall-ring thickness so the
+ *  box reaches the outside flood beyond the ring. */
+const BREACH_FALLBACK_BOX_MARGIN = 8;
+/** Sentinel "unreached" distance for the breach-cut 0-1 BFS. */
+const BREACH_UNREACHED = 1 << 20;
 /** Pockets smaller than this are worth destroying — can't fit a 2×2 cannon.
  *  Distinct from DESTROY_POCKET_MAX_SIZE (build scoring) which is higher (9)
  *  because build prevention is stricter than battle destruction. Exported
@@ -490,6 +502,74 @@ export function countBrokenEnclosures(
   return broken;
 }
 
+/** The minimum breach cut against `enemy`'s LIVE walls: the fewest wall tiles
+ *  to destroy that open its intact large enclosures, ordered shell-first for
+ *  chain execution. Because the enclosure flood is 8-connected, the cheapest
+ *  crossing of a thick wall body is a diagonal staircase, so this breaches a fat
+ *  (2+ thick) ring of ANY shape — the dual of the build-side `findEnclosureCut`.
+ *
+ *  When a defender splits its towers across several rings, it loses a life only
+ *  when EVERY enclosed tower is opened in one build, so this greedily packs as
+ *  many ring breaches as the `cap` shot budget allows into one chain —
+ *  tower-bearing rings first (the actual life-loss lever), cheapest-first, then
+ *  tower-less large pockets as a repair tax. One affordable chain can open every
+ *  tower ring (a same-round kill); a tighter budget opens what it can each round.
+ *  Returns null when no intact large enclosure is breachable within `cap`.
+ *  Shared by the deny-enclosure and fat-breach tactics. */
+export function findMinBreach(
+  state: BattleViewState,
+  enemy: Player,
+  cap: number,
+): TilePos[] | null {
+  if (cap < 1) return null;
+  const outside = computeOutside(enemy.walls);
+  // Validate only against STILL-INTACT enclosures: an already-breached one is
+  // reached by the live flood whatever the plan, so it must not seed a search.
+  const large = findEnclosureComponents(getBattleInterior(enemy))
+    .filter((comp) => comp.length > DESTROY_POCKET_MAX_SIZE)
+    .filter((comp) => !isEnclosureBroken(comp, outside));
+  if (large.length === 0) return null;
+
+  // The cheapest independent breach of each ring (each a min-cut on the same
+  // live walls), tagged with whether the ring holds an enclosed tower.
+  const breaches: { path: TilePos[]; holdsTower: boolean; firstKey: number }[] =
+    [];
+  for (const comp of large) {
+    const path = findBreachPath(state, enemy, comp, outside, cap);
+    if (!path || path.length === 0) continue;
+    breaches.push({
+      path,
+      holdsTower: componentHoldsTower(comp, enemy),
+      firstKey: packTile(path[0]!.row, path[0]!.col),
+    });
+  }
+  if (breaches.length === 0) return null;
+
+  // Tower rings first (opening them is what forces the life loss), then
+  // cheapest-first, with a stable key tiebreak so the chain is deterministic.
+  breaches.sort(
+    (a, b) =>
+      Number(b.holdsTower) - Number(a.holdsTower) ||
+      a.path.length - b.path.length ||
+      a.firstKey - b.firstKey,
+  );
+
+  // Greedily accumulate rings while the shared budget lasts. A ring that doesn't
+  // fit is skipped (a cheaper later one may still fit). Dedupe tiles so a wall
+  // shared between adjacent rings isn't double-charged against the budget.
+  const shots: TilePos[] = [];
+  const queued = new Set<TileKey>();
+  for (const { path } of breaches) {
+    const fresh = filterOffTiles(path, queued);
+    if (shots.length + fresh.length > cap) continue;
+    for (const tile of fresh) {
+      shots.push(tile);
+      queued.add(packTile(tile.row, tile.col));
+    }
+  }
+  return shots.length > 0 ? shots : null;
+}
+
 /** True when any tile of the enclosure component is reached by the outside
  *  flood. Exposed so plan modules can filter ALREADY-breached enclosures out
  *  of their validation set against a precomputed live `computeOutside` —
@@ -511,6 +591,22 @@ export function isEnclosureBroken(
  *  is interior), but reads the CURRENT walls so breaches are reflected live. */
 export function computeLiveInterior(walls: ReadonlySet<TileKey>): Set<TileKey> {
   return interiorFromOutside(walls, computeOutside(walls));
+}
+
+/** Whether an enclosure component contains any of the enemy's enclosed-tower
+ *  footprints — i.e. breaching it un-encloses a tower (a life-loss lever),
+ *  versus a tower-less pocket whose breach is only a repair tax. */
+function componentHoldsTower(comp: readonly TileKey[], enemy: Player): boolean {
+  if (enemy.enclosedTowers.length === 0) return false;
+  const interiorSet = new Set(comp);
+  for (const tower of enemy.enclosedTowers) {
+    let hit = false;
+    forEachTowerTile(tower, (_r, _c, key) => {
+      if (interiorSet.has(key)) hit = true;
+    });
+    if (hit) return true;
+  }
+  return false;
 }
 
 /** True when the player owns a fire-capable super gun (alive, enclosed, no ball
@@ -1149,5 +1245,131 @@ function jitterWithinTile(
   return {
     x: centerX + (rand() - 0.5) * jitterRange,
     y: centerY + (rand() - 0.5) * jitterRange,
+  };
+}
+
+/** The fewest destroyable wall tiles connecting `interior` to the `outside`
+ *  flood, ordered shell-first (outside end first). A 0-1 BFS over the enemy's
+ *  zone box: stepping onto a non-wall tile is free, onto a single-hit wall
+ *  costs one shot, and a reinforced wall (absorbs the first hit, so one chain
+ *  shot can't clear it) is impassable — the breach routes around it. Returns
+ *  null when the cheapest breach exceeds `cap` shots or none exists in-box. */
+function findBreachPath(
+  state: BattleViewState,
+  enemy: Player,
+  interior: readonly TileKey[],
+  outside: ReadonlySet<TileKey>,
+  cap: number,
+): TilePos[] | null {
+  const walls = enemy.walls;
+  const box = breachBox(state, interior);
+  const boxW = box.maxC - box.minC + 1;
+  const size = boxW * (box.maxR - box.minR + 1);
+  const localId = (row: number, col: number): number =>
+    (row - box.minR) * boxW + (col - box.minC);
+  const inBox = (row: number, col: number): boolean =>
+    row >= box.minR && row <= box.maxR && col >= box.minC && col <= box.maxC;
+
+  const dist = new Int32Array(size).fill(BREACH_UNREACHED);
+  const parent = new Int32Array(size).fill(-1);
+  // Dial's algorithm: one bucket per distance 0..cap. Distances never exceed
+  // `cap` (paths costing more are pruned), so a fixed bucket array suffices and
+  // processing buckets in order settles each tile at its minimum cost.
+  const buckets: number[][] = Array.from({ length: cap + 1 }, () => []);
+
+  for (const key of interior) {
+    const { row, col } = unpackTile(key);
+    if (!inBox(row, col)) continue;
+    const id = localId(row, col);
+    dist[id] = 0;
+    buckets[0]!.push(id);
+  }
+
+  for (let cost = 0; cost <= cap; cost++) {
+    const bucket = buckets[cost]!;
+    while (bucket.length > 0) {
+      const id = bucket.pop()!;
+      if (dist[id] !== cost) continue; // stale (settled cheaper already)
+      const row = box.minR + Math.floor(id / boxW);
+      const col = box.minC + (id % boxW);
+      // Reaching an outside tile means the path's walls, if destroyed, let the
+      // flood in — `cost` is the breach cost. Sources are intact interior, so
+      // the first outside tile settled is the global minimum (cost >= 1).
+      if (outside.has(packTile(row, col))) {
+        return reconstructBreachWalls(parent, id, box, boxW, walls);
+      }
+      for (const [dr, dc] of DIRS_8) {
+        const nr = row + dr;
+        const nc = col + dc;
+        if (!inBox(nr, nc)) continue;
+        const nKey = packTile(nr, nc);
+        let step = 0;
+        if (walls.has(nKey)) {
+          // A reinforced wall can't be cleared by the chain's single shot.
+          if (shouldAbsorbWallHit(enemy, nKey)) continue;
+          step = 1;
+        }
+        const nextCost = cost + step;
+        if (nextCost > cap) continue;
+        const nId = localId(nr, nc);
+        if (nextCost < dist[nId]!) {
+          dist[nId] = nextCost;
+          parent[nId] = id;
+          buckets[nextCost]!.push(nId);
+        }
+      }
+    }
+  }
+  return null;
+}
+
+/** Walk the BFS parent chain from the settled outside tile back to its interior
+ *  source, collecting only the wall tiles crossed — the breach shots, in
+ *  shell-first (outside→interior) order. */
+function reconstructBreachWalls(
+  parent: Int32Array,
+  endId: number,
+  box: TileBounds,
+  boxW: number,
+  walls: ReadonlySet<TileKey>,
+): TilePos[] {
+  const shots: TilePos[] = [];
+  for (let id = endId; id !== -1; id = parent[id]!) {
+    const row = box.minR + Math.floor(id / boxW);
+    const col = box.minC + (id % boxW);
+    if (walls.has(packTile(row, col))) shots.push({ row, col });
+  }
+  return shots;
+}
+
+/** The grid box the breach search spans: the enclosure's river zone (which
+ *  always contains the whole ring plus the outside-flood tiles beside it), or —
+ *  when the zone can't be derived — the interior's bounding box grown by a
+ *  margin wider than any wall ring. */
+function breachBox(
+  state: BattleViewState,
+  interior: readonly TileKey[],
+): TileBounds {
+  const first = unpackTile(interior[0]!);
+  const zone = zoneAt(state.map, first.row, first.col);
+  const zoneBox = zone === undefined ? null : zoneTileBounds(state.map, zone);
+  if (zoneBox) return zoneBox;
+
+  let minR = first.row;
+  let maxR = first.row;
+  let minC = first.col;
+  let maxC = first.col;
+  for (const key of interior) {
+    const { row, col } = unpackTile(key);
+    if (row < minR) minR = row;
+    if (row > maxR) maxR = row;
+    if (col < minC) minC = col;
+    if (col > maxC) maxC = col;
+  }
+  return {
+    minR: Math.max(0, minR - BREACH_FALLBACK_BOX_MARGIN),
+    maxR: Math.min(GRID_ROWS - 1, maxR + BREACH_FALLBACK_BOX_MARGIN),
+    minC: Math.max(0, minC - BREACH_FALLBACK_BOX_MARGIN),
+    maxC: Math.min(GRID_COLS - 1, maxC + BREACH_FALLBACK_BOX_MARGIN),
   };
 }

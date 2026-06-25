@@ -1,10 +1,9 @@
 /**
- * AI tactic — enclosure denial. Defensive players lose lives by failing to
- * re-enclose ANY tower at end of build, so this concentrates fire on the
- * walls at the structural min-cut of the enemy's cheapest re-enclosure ring
- * (reuses the build planner's `findEnclosureCut`). Plans are validated on
- * the LIVE board: a siege that cannot breach an intact fat ring is widened
- * to the backing wall layer or dropped — see the validation step below.
+ * AI tactic — enclosure denial. Defenders lose a life by failing to re-enclose
+ * a tower. Against an intact ring this leads with the minimum breach cut on the
+ * LIVE walls (`findMinBreach`) — fewest shots to open it, a diagonal staircase
+ * through any fat layering. Against an already-open defender it craters the
+ * GEOGRAPHIC bottleneck of its cheapest ring (`findEnclosureCut` on NO_WALLS).
  */
 
 import { TOWER_SIZE } from "../shared/core/game-constants.ts";
@@ -13,8 +12,6 @@ import type { TileKey } from "../shared/core/grid.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import type { Player } from "../shared/core/player-types.ts";
 import {
-  computeOutside,
-  DIRS_4,
   DIRS_8,
   inBounds,
   orderByNearest,
@@ -23,18 +20,10 @@ import {
 } from "../shared/core/spatial.ts";
 import type { BattleViewState } from "../shared/core/system-interfaces.ts";
 import type { Rng } from "../shared/platform/rng.ts";
-import {
-  filterActiveEnemies,
-  getBattleInterior,
-} from "../shared/sim/board-occupancy.ts";
+import { filterActiveEnemies } from "../shared/sim/board-occupancy.ts";
 import { isRingWallable } from "./ai-castle-rect.ts";
 import { type EnclosureSeed, findEnclosureCut } from "./ai-min-cut.ts";
-import {
-  countBrokenEnclosures,
-  DESTROY_POCKET_MAX_SIZE,
-  findEnclosureComponents,
-  isEnclosureBroken,
-} from "./ai-strategy-battle.ts";
+import { findMinBreach } from "./ai-strategy-battle.ts";
 
 /** Empty wall set: passed to `findEnclosureCut` so the cut is the GEOGRAPHIC
  *  ring bottleneck (independent of current battle damage). */
@@ -63,58 +52,32 @@ export function planDenyEnclosure(
   const enemy = pickTargetEnemy(state, playerId, focusEnemyId, rng);
   if (!enemy) return null;
 
+  const limit = Math.min(usableCannonCount * 2, MAX_CHAIN_TILES);
+
+  // Intact ring → minimum breach cut against the defender's LIVE walls: the
+  // fewest shots that open one of its large enclosures, a diagonal staircase
+  // through any fat layering (the flood is 8-connected). This is both the most
+  // efficient breach and free of the wasted hits the geographic-bottleneck
+  // siege below lands on redundant backing layers — the old approach left a
+  // 2-thick ring standing because it only sieged the shorter on-cut layer.
+  const breach = findMinBreach(state, enemy, limit);
+  if (breach) return breach;
+
+  // No full breach fits the cannon budget (already-open defender, or an intact
+  // ring too thick to open this round). Either way, crater the structural
+  // bottleneck of their cheapest ring (computed on NO_WALLS, so it's the
+  // geographic chokepoint any rebuilt ring must pass) — those on-cut walls are
+  // load-bearing, so destroying them taxes the defender's NEXT build whether or
+  // not the ring opens now. This keeps the tactic firing (a repair tax) rather
+  // than wasting the chain against thick walls.
   const bottleneck = cheapestRingBottleneck(state, enemy, rng);
   if (!bottleneck) return null;
-
-  // Walls the defender's cheapest ring runs through: the live walls sitting ON
-  // the min-cut bottleneck. Earlier this also swept in walls cardinally BESIDE
-  // the cut, which pulled in a redundant parallel layer — a doubled corner cap
-  // one tile off the chokepoint, sitting behind the wall that actually seals
-  // the ring. Destroying that inner/outer shell breaches nothing (the on-cut
-  // wall still encloses, so the defender need not even repair it) and worse
-  // hands them free interior tiles to re-place cannons on. Only walls on the
-  // bottleneck itself force a rebuild at the unroutable chokepoint.
   const targetKeys: TileKey[] = [];
   for (const wallKey of enemy.walls) {
-    if (bottleneck.has(wallKey)) {
-      targetKeys.push(wallKey);
-    }
+    if (bottleneck.has(wallKey)) targetKeys.push(wallKey);
   }
   if (targetKeys.length === 0) return null;
-
-  const limit = Math.min(usableCannonCount * 2, MAX_CHAIN_TILES);
-  const ordered = orderSiegeTiles(state, targetKeys, limit, rng);
-  if (!ordered) return null;
-
-  // Live-board validation. When the defender currently holds an intact large
-  // enclosure, the siege must be able to open it: simulate destroying every
-  // planned tile and require a breach. A defender that is already open keeps
-  // the unvalidated geographic siege — there the purpose is to crater the
-  // bottleneck before the ring is rebuilt, not to breach an enclosure.
-  const largeEnclosures = intactLargeEnclosures(enemy);
-  if (largeEnclosures.length === 0) return ordered;
-  if (planBreaches(enemy.walls, ordered, largeEnclosures)) return ordered;
-
-  // Fat ring: the on-cut layer is backed by a parallel off-cut layer. Widen
-  // the siege to the live walls cardinally beside the cut (the backing layer)
-  // and re-validate the chain-budget-limited plan.
-  const expandedKeys = new Set(targetKeys);
-  for (const key of targetKeys) {
-    const { row, col } = unpackTile(key);
-    for (const [dr, dc] of DIRS_4) {
-      const nr = row + dr;
-      const nc = col + dc;
-      // Cut tiles can sit on the map edge (a ring can lean on the border).
-      if (!inBounds(nr, nc)) continue;
-      const neighborKey = packTile(nr, nc);
-      if (enemy.walls.has(neighborKey)) expandedKeys.add(neighborKey);
-    }
-  }
-  const expanded = orderSiegeTiles(state, [...expandedKeys], limit, rng);
-  if (expanded && planBreaches(enemy.walls, expanded, largeEnclosures)) {
-    return expanded;
-  }
-  return null;
+  return orderSiegeTiles(state, targetKeys, limit, rng);
 }
 
 /** The enemy to deny: the focus-fire target when it's still active, else an
@@ -180,28 +143,6 @@ function orderSiegeTiles(
   if (startIdx > 0) tiles.unshift(tiles.splice(startIdx, 1)[0]!);
   const ordered = orderByNearest(tiles, limit);
   return ordered.length > 0 ? ordered : null;
-}
-
-/** The defender's intact large enclosures (same derivation as
- *  `planWallDemolition`): live-interior components above the pocket
- *  threshold that the outside flood has not already reached. */
-function intactLargeEnclosures(enemy: Player): TileKey[][] {
-  const liveOutside = computeOutside(enemy.walls);
-  return findEnclosureComponents(getBattleInterior(enemy))
-    .filter((comp) => comp.length > DESTROY_POCKET_MAX_SIZE)
-    .filter((comp) => !isEnclosureBroken(comp, liveOutside));
-}
-
-/** Whether destroying every tile of `plan` breaches at least one of the
- *  defender's enclosures — the minimum bar for a siege to be worth firing. */
-function planBreaches(
-  walls: ReadonlySet<TileKey>,
-  plan: readonly TilePos[],
-  enclosures: readonly (readonly TileKey[])[],
-): boolean {
-  const modWalls = new Set(walls);
-  for (const tile of plan) modWalls.delete(packTile(tile.row, tile.col));
-  return countBrokenEnclosures(modWalls, enclosures) > 0;
 }
 
 /** Min-cut tiles of the enemy tower the defender can most cheaply re-enclose.
