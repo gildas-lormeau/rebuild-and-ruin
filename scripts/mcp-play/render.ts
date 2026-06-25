@@ -115,8 +115,29 @@ export function renderObservation(obs: Observation): string {
     obs.enclosureCandidates !== undefined &&
     obs.me.aliveEnclosedTowers === 0
   ) {
+    // Point at a tower whose seal actually CLEARS the loss — alive, or dead-but-
+    // revivable via Restoration Crew (`satisfiesSurvival`). Enclosing a plain dead
+    // tower banks territory but still costs the life, so "reseal the cheapest
+    // candidate" was a footgun when the cheapest one was dead.
+    const savers = obs.enclosureCandidates
+      .filter(
+        (candidate) =>
+          candidate.status === "enclosable" &&
+          candidate.feasible &&
+          candidate.satisfiesSurvival,
+      )
+      .sort(
+        (a, b) =>
+          a.estSeconds - b.estSeconds ||
+          (b.bonusSquares ?? 0) - (a.bonusSquares ?? 0),
+      );
+    const saver = savers[0];
+    const hint = saver
+      ? ` Seal ${saver.isHome ? "home" : `tower ${saver.towerIdx}`} (~${saver.estSeconds.toFixed(0)}s)${saver.alive ? "" : " — dead but Restoration Crew revives it on enclose"} to avoid it; enclosing a DEAD tower does NOT count.`
+      : " ⚠ No survival-clearing tower is reachable this build — enclosing a dead tower will NOT prevent the life loss.";
     lines.push(
-      "  ☠ SURVIVAL: NO alive tower enclosed — finalize the round like this and you LOSE A LIFE and your whole zone resets to bare ground. Sealing ANY one alive tower (not just home) avoids it — reseal the cheapest reachable candidate before you pass.",
+      "  ☠ SURVIVAL: NO alive tower enclosed — finalize the round like this and you LOSE A LIFE and your whole zone resets to bare ground." +
+        hint,
     );
   }
 
@@ -434,6 +455,14 @@ function enclosureLines(obs: Observation): string[] {
   for (const candidate of obs.enclosureCandidates) {
     const who = candidate.isHome ? "home" : "tower";
     let line = `     ${who} ${candidate.towerIdx}: ${candidate.status}`;
+    // A DEAD tower's enclosure banks its pocket but does NOT clear the survival
+    // life-loss on its own (unless Restoration Crew makes it revive on enclose).
+    // Flag it inline so a "SEAL NOW ★+BONUS" row can't be misread as survival-safe.
+    if (candidate.alive === false) {
+      line += candidate.satisfiesSurvival
+        ? "  ⚑DEAD (revives on enclose — Restoration Crew)"
+        : "  ⚑DEAD (enclosing does NOT satisfy survival this round)";
+    }
     if (candidate.status === "enclosable") {
       line += enclosableDetail(candidate);
     } else if (candidate.status === "unenclosable" && candidate.reason) {

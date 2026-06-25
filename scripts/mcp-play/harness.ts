@@ -93,7 +93,7 @@ import {
 } from "../../src/shared/core/spatial.ts";
 import type { ControllerFactory } from "../../src/shared/core/system-interfaces.ts";
 import { cannonSlotsFor } from "../../src/shared/core/types.ts";
-import { UPGRADE_POOL } from "../../src/shared/core/upgrade-defs.ts";
+import { UID, UPGRADE_POOL } from "../../src/shared/core/upgrade-defs.ts";
 import {
   filterAliveEnclosedTowers,
   isCannonEnclosed,
@@ -254,6 +254,24 @@ export interface SealBlocker {
 export interface EnclosureCandidate {
   towerIdx: number;
   isHome: boolean;
+  /** Ground truth from `state.towerAlive`: is this tower alive right now? The
+   *  round-end life penalty only clears when an ALIVE tower is enclosed at
+   *  finalize (`filterAliveEnclosedTowers`), so enclosing a DEAD tower — bonus
+   *  stars and all — does NOT by itself avoid the life loss. A dead tower still
+   *  banks its pocket's territory/bonus, so it stays a valid candidate; this flag
+   *  just keeps the survival accounting honest. */
+  alive: boolean;
+  /** Does enclosing this tower clear the "no alive tower enclosed → lose a life"
+   *  check at THIS round's finalize? True when the tower is alive, OR it's dead
+   *  but the player holds Restoration Crew (which revives one enclosed dead tower
+   *  immediately, before the life check). A freshly-dead tower WITHOUT that
+   *  upgrade only revives at the end of the NEXT build, so sealing it this round
+   *  still costs a life — the exact footgun this flag exists to surface.
+   *  Conservative by design: it does NOT credit the delayed pending-revive (a
+   *  dead tower already enclosed the PREVIOUS build, which would revive now) —
+   *  that mirrors `me.aliveEnclosedTowers`, the counter the survival warning keys
+   *  on, so the flag never reads "safe" while that counter reads "at risk". */
+  satisfiesSurvival: boolean;
   /** "enclosed" = already sealed; "enclosable" = needs `tiles`; "unenclosable"
    *  = no piece-fillable ring this build (see `reason`). */
   status: "enclosed" | "enclosable" | "unenclosable";
@@ -1681,9 +1699,15 @@ export async function createMcpGame(
     // Baseline 8-connected outside flood, computed ONCE; the seal-finder tests
     // each candidate wall against it via the engine's computeOutsideAfterAdd.
     const baselineOutside = computeOutside(player.walls);
+    // Restoration Crew revives ONE enclosed dead tower immediately (before the
+    // round-end life check), so while the player holds it a dead-tower seal DOES
+    // satisfy survival this round. Read once — it's player-wide, not per-tower.
+    const restorationRevive = player.upgrades.has(UID.RESTORATION_CREW);
     for (const tower of state.map.towers) {
       if (tower.zone !== zone) continue;
       const isHome = tower.index === homeIdx;
+      const alive = state.towerAlive[tower.index] ?? false;
+      const satisfiesSurvival = alive || restorationRevive;
       const pocket = pocketRectFor(tower, isHome, bounds);
       // Bonus squares this tower's pocket would bank (only meaningful while the
       // tower isn't yet enclosed — once enclosed, whatever it holds is already
@@ -1694,6 +1718,8 @@ export async function createMcpGame(
       const base = {
         towerIdx: tower.index as number,
         isHome,
+        alive,
+        satisfiesSurvival,
         bonusSquares,
         driftTiles: [] as EnclosureCandidate["driftTiles"],
         sealTiles: [] as EnclosureCandidate["sealTiles"],
@@ -3167,6 +3193,26 @@ export async function createMcpGame(
     )[0]!;
   }
 
+  /** Like `cheapestFeasibleEnclosure`, but only towers whose seal actually CLEARS
+   *  the "no alive tower enclosed → lose a life" check (alive, or dead-but-
+   *  Restoration-Crew). The right target when survival is on the line: a dead
+   *  tower is cheaper but its seal still costs the life. Null when no
+   *  survival-satisfying tower is reachable this build. */
+  function cheapestFeasibleSurvivalEnclosure(): EnclosureCandidate | null {
+    const feasible = enclosureCandidatesFor().filter(
+      (candidate) =>
+        candidate.status === "enclosable" &&
+        candidate.feasible &&
+        candidate.satisfiesSurvival,
+    );
+    if (feasible.length === 0) return null;
+    return feasible.sort(
+      (a, b) =>
+        a.estSeconds - b.estSeconds ||
+        (b.bonusSquares ?? 0) - (a.bonusSquares ?? 0),
+    )[0]!;
+  }
+
   /** buildOut's greedy pick: the next tower worth FULLY enclosing in the time
    *  left — home first (biggest territory, always priority), then cheapest /
    *  most-bonus. Null when nothing fully fits (→ pre-claim instead). */
@@ -3206,7 +3252,17 @@ export async function createMcpGame(
     // big enough to have built the cheapest reachable tower.
     if (startPhase === Phase.WALL_BUILD && !idleBuildPassWarned) {
       const skipSec = seconds ?? (count * actionTicks) / SIM_TICKS_PER_SEC;
-      const target = cheapestFeasibleEnclosure();
+      // If NO alive tower is enclosed right now, passing doesn't just forfeit
+      // territory — it costs a LIFE and resets the whole zone at round end. When
+      // that's the case, steer the agent to a tower whose seal actually CLEARS
+      // the loss (alive / Restoration-Crew), not merely the cheapest reachable
+      // one — sealing a dead tower banks territory but still costs the life.
+      const atRisk =
+        filterAliveEnclosedTowers(sc.state.players[agentSlot]!, sc.state)
+          .length === 0;
+      const target =
+        (atRisk ? cheapestFeasibleSurvivalEnclosure() : null) ??
+        cheapestFeasibleEnclosure();
       if (target && skipSec >= target.estSeconds) {
         idleBuildPassWarned = true;
         const who = target.isHome ? "home" : `tower ${target.towerIdx}`;
@@ -3214,12 +3270,6 @@ export async function createMcpGame(
           (target.bonusSquares ?? 0) > 0
             ? ` + ★${target.bonusSquares} bonus square(s)`
             : "";
-        // If NO alive tower is enclosed right now, passing doesn't just forfeit
-        // territory — it costs a LIFE and resets the whole zone at round end. Lead
-        // with that, since it dwarfs the idle-build opportunity cost.
-        const atRisk =
-          filterAliveEnclosedTowers(sc.state.players[agentSlot]!, sc.state)
-            .length === 0;
         const stakes = atRisk
           ? `☠ NO alive tower enclosed — finalize like this and you LOSE A LIFE and your zone resets. `
           : "";
