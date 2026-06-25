@@ -679,6 +679,16 @@ export interface Observation {
    *  Surfaced as a count-only signal that you've been over-building, not a fix
    *  list. Omitted when there's none. */
   fatWalls?: { row: number; col: number }[];
+  /** WALL_BUILD only: the standing compactness read — `interior` enclosed
+   *  scoring tiles, `fat` sunk interior walls, `fatPer100` = fat per 100 interior
+   *  (the trend number). This is the PRE-COMMIT lever: in classic placed fat can't
+   *  be removed, so the only avoidable fat is fat not yet placed. Check this BEFORE
+   *  reaching for `build_out` — a climbing `fatPer100` round-over-round means you're
+   *  expanding past old shells; prefer a compact `build_toward(<nearest>)` instead.
+   *  The expanding builders (`build_out`/`build_region`) report the per-call delta
+   *  they cause, so the cost of each expansion is visible at the moment you pay it.
+   *  Omitted outside WALL_BUILD or before any interior exists. */
+  compactness?: { interior: number; fat: number; fatPer100: number };
   /** WALL_BUILD: for each loose wall end that sits near an un-closed enclosure gap,
    *  the next tile to place to EXTEND it toward closing — `from` the stub, `next`
    *  the buildable step, `toward` the gap it heads for. The constructive read of a
@@ -2338,21 +2348,40 @@ export async function createMcpGame(
     return isSuperCannon(cannon) ? "super" : "mortar gun";
   }
 
-  /** My cannons that can actually plant pits this battle: pit-capable (super or
-   *  Mortar-elected normal), alive, enclosed, and NOT captured. `pit_strike`
-   *  needs one of these — an alive-but-captured gun looks armed but fires for the
-   *  enemy, so checking `isPitCapable && isCannonAlive` alone would promise a pit
-   *  capability that never materialised. */
+  /** Enemy cannons MY balloon seized that can plant pits this battle: pit-capable
+   *  (a captured super) and alive. A seized gun fires for ME via `nextReadyCannon`
+   *  (it rotates own + captured for the captor) and, being a super ball, pits any
+   *  wall it hits — so it's a real pit_strike gun even when ALL my own guns are
+   *  dead/captured. No enclosure test: a captured cannon sits in enemy territory
+   *  and its readiness is governed by `canFireCapturedCannon`, not my ring. */
+  function capturedPitGuns(): Cannon[] {
+    return sc.state.capturedCannons
+      .filter(
+        (entry) =>
+          entry.capturerId === agentSlot &&
+          isPitCapable(entry.cannon) &&
+          isCannonAlive(entry.cannon),
+      )
+      .map((entry) => entry.cannon);
+  }
+
+  /** Guns that can actually plant pits FOR me this battle: my own pit-capable
+   *  (super or Mortar-elected normal) cannons that are alive, enclosed, and NOT
+   *  captured — PLUS any enemy super my balloon seized (it fires for me and pits
+   *  on hit). `pit_strike` needs one of these; an alive-but-captured OWN gun looks
+   *  armed yet fires for the enemy, while a seized ENEMY super is the mirror — it
+   *  fires for me, so the render's "a seized super = a free pit_strike gun" holds. */
   function usablePitCannons(): Cannon[] {
     const me = sc.state.players[agentSlot];
     if (!me) return [];
-    return me.cannons.filter(
+    const own = me.cannons.filter(
       (cannon) =>
         isPitCapable(cannon) &&
         isCannonAlive(cannon) &&
         isCannonEnclosed(cannon, me) &&
         captorOf(cannon) === null,
     );
+    return [...own, ...capturedPitGuns()];
   }
 
   /** Why `pit_strike` fell back to a plain bombard, or null when there was simply
@@ -2709,24 +2738,7 @@ export async function createMcpGame(
       observation.cannonSuggestions = cannonSuggestionsFor();
     }
 
-    if (phase === Phase.WALL_BUILD) {
-      // Sample the cut tiles in the observation to keep build turns token-cheap;
-      // `tilesNeeded` stays the true count, full list via enclosurePlan().
-      observation.enclosureCandidates = enclosureCandidatesFor().map(
-        (candidate) => ({
-          ...candidate,
-          tiles: candidate.tiles.slice(0, ENCLOSURE_TILE_SAMPLE),
-        }),
-      );
-      observation.bonusTargets = bonusTargetsFor();
-      observation.suggestions = buildSuggestionsFor();
-      const fragile = fragileWallsFor();
-      if (fragile.length > 0) observation.fragileWalls = fragile;
-      const fat = fatWallsFor();
-      if (fat.length > 0) observation.fatWalls = fat;
-      const extensions = wallExtensionsFor();
-      if (extensions.length > 0) observation.wallExtensions = extensions;
-    }
+    if (phase === Phase.WALL_BUILD) attachBuildSurfaces(observation);
 
     if (phase === Phase.BATTLE) {
       // Origin for "nearest wall" = centroid of my cannons (they're clustered),
@@ -3438,6 +3450,7 @@ export async function createMcpGame(
       return observe();
     }
     const startTimer = sc.state.timer;
+    const compactBefore = compactnessSnapshot();
     // Stop building once the timer drops to this floor (reserve a beat; honour a
     // caller maxSeconds as a total-time cap across all the towers this call seals).
     const floorTimer =
@@ -3495,7 +3508,7 @@ export async function createMcpGame(
       success: totalPlaced > 0,
       reason:
         `expand: ${sealed.length > 0 ? `sealed [${sealed.join(",")}]` : "nothing new sealed"}, ` +
-        `placed ${totalPlaced}, ~${elapsed}s${preclaim}`,
+        `placed ${totalPlaced}, ~${elapsed}s${preclaim}${expansionDeltaNote(compactBefore)}`,
     };
     return observe();
   }
@@ -3547,6 +3560,7 @@ export async function createMcpGame(
       return observe();
     }
     const startTimer = sc.state.timer;
+    const compactBefore = compactnessSnapshot();
     const gruntsBefore = gruntsInRect(interior);
     const pieceCap = Math.min(
       budget?.maxPieces ?? MAX_BUILD_PIECES,
@@ -3596,7 +3610,7 @@ export async function createMcpGame(
     bridge.lastResult = {
       kind: "build",
       success: placed > 0 || outcome === "done",
-      reason: `region: ${outcome}, placed ${placed}, ${gaps} gaps left, ~${elapsed}s${killNote}`,
+      reason: `region: ${outcome}, placed ${placed}, ${gaps} gaps left, ~${elapsed}s${killNote}${expansionDeltaNote(compactBefore)}`,
     };
     return observe();
   }
@@ -3890,6 +3904,74 @@ export async function createMcpGame(
    *  wall counts as load-bearing the moment any diagonal or orthogonal neighbour is
    *  off-board or outside. Before a pocket seals interior is empty, so nothing reads
    *  as fat — fat only exists once there's enclosed space behind the wall. */
+  /** Attach the WALL_BUILD-only build surfaces (enclosure plan, suggestions,
+   *  fragile/fat walls, compactness, extension hints). Split out of `observe` to
+   *  keep that dispatcher under the complexity cap. */
+  function attachBuildSurfaces(observation: Observation): void {
+    // Sample the cut tiles in the observation to keep build turns token-cheap;
+    // `tilesNeeded` stays the true count, full list via enclosurePlan().
+    observation.enclosureCandidates = enclosureCandidatesFor().map(
+      (candidate) => ({
+        ...candidate,
+        tiles: candidate.tiles.slice(0, ENCLOSURE_TILE_SAMPLE),
+      }),
+    );
+    observation.bonusTargets = bonusTargetsFor();
+    observation.suggestions = buildSuggestionsFor();
+    const fragile = fragileWallsFor();
+    if (fragile.length > 0) observation.fragileWalls = fragile;
+    const fat = fatWallsFor();
+    if (fat.length > 0) observation.fatWalls = fat;
+    const compactness = compactnessFor(fat.length);
+    if (compactness) observation.compactness = compactness;
+    const extensions = wallExtensionsFor();
+    if (extensions.length > 0) observation.wallExtensions = extensions;
+  }
+
+  /** Live {interior, fat} reading — snapshot it before an expanding build and
+   *  diff afterwards to report what the call cost (see `expansionDeltaNote`). */
+  function compactnessSnapshot(): { interior: number; fat: number } {
+    return {
+      interior: sc.state.players[agentSlot]?.interior.size ?? 0,
+      fat: fatWallsFor().length,
+    };
+  }
+
+  /** The interior GAINED vs sunk fat BURIED since `before` — the honest cost/
+   *  benefit of an expansion. A big interior gain for little fat is good; lots of
+   *  fat for little gain is over-expansion (in classic that fat is unremovable),
+   *  so the note nudges toward a compact `build_toward` next time. "" when nothing
+   *  changed (the builder placed only frontier walls or did nothing). */
+  function expansionDeltaNote(before: {
+    interior: number;
+    fat: number;
+  }): string {
+    const now = compactnessSnapshot();
+    const dInterior = now.interior - before.interior;
+    const dFat = now.fat - before.fat;
+    if (dInterior === 0 && dFat === 0) return "";
+    const heavy =
+      dFat > 0 && dInterior < dFat * 4
+        ? " — expansion-heavy: that fat is sunk (unremovable in classic); prefer a compact build_toward(<nearest>) next round"
+        : "";
+    return `; +${dInterior} interior, +${dFat} fat (now ${now.fat}/${now.interior})${heavy}`;
+  }
+
+  /** The standing compactness read for the given fat-wall count, or null when
+   *  there's nothing enclosed yet. `interior` = my enclosed scoring tiles,
+   *  `fatPer100` = sunk fat per 100 interior (the over-expansion trend number). */
+  function compactnessFor(
+    fatCount: number,
+  ): { interior: number; fat: number; fatPer100: number } | null {
+    const interior = sc.state.players[agentSlot]?.interior.size ?? 0;
+    if (interior === 0 && fatCount === 0) return null;
+    return {
+      interior,
+      fat: fatCount,
+      fatPer100: Math.round((fatCount / Math.max(1, interior)) * 100),
+    };
+  }
+
   function fatWallsFor(): { row: number; col: number }[] {
     const me = sc.state.players[agentSlot];
     if (!me) return [];
@@ -4352,8 +4434,9 @@ export async function createMcpGame(
 
   /** Drive the whole battle like bombard, but AIM super cannons at `targets`
    *  (enemy wall tiles) to plant burning pits while normals spread-chip `slot`.
-   *  Each shot peeks `nextReadyCannon` (own roster — fair) and, when the super is
-   *  next, redirects it onto the next still-walled, not-yet-pitted target;
+   *  Each shot peeks `nextReadyCannon` (own + balloon-seized roster — fair) and,
+   *  when a pit gun (own super/Mortar OR a seized enemy super) is next, redirects
+   *  it onto the next still-walled, not-yet-pitted target;
    *  everything else spreads like bombard. A pit only forms on a WALL hit and
    *  blocks rebuilding for BURNING_PIT_DURATION rounds, so this denies a reseal a
    *  bombard hit wouldn't. Same fairness as bombard (live-gated, reload-paced). */
@@ -4448,7 +4531,9 @@ export async function createMcpGame(
           ? nextReadyCannon(sc.state, agentSlot, shooter.cannonRotationIdx)
           : null;
         const pitNext =
-          next?.type === "own" && isPitCapable(shooter!.cannons[next.ownIdx]!);
+          (next?.type === "own" &&
+            isPitCapable(shooter!.cannons[next.ownIdx]!)) ||
+          (next?.type === "captured" && isPitCapable(next.captured.cannon));
         let aim = spread[shot]!;
         if (pitNext) {
           const pit = nextPitAim(pitIdx);

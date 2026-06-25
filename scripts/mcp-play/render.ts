@@ -113,6 +113,18 @@ export function renderObservation(obs: Observation): string {
   // ── opportunity cost of passing: prices idle build time at the decision point ─
   lines.push(...stillSealableLines(obs));
 
+  // ── compactness: the standing over-expansion trend, the PRE-COMMIT fat lever ─
+  // Visible before every build choice so a climbing fat/100 steers you off a
+  // greedy build_out and onto a compact build_toward (the only avoidable fat is
+  // fat not yet placed).
+  if (obs.compactness && obs.compactness.interior > 0) {
+    const { interior, fat, fatPer100 } = obs.compactness;
+    lines.push(
+      `  ▣ compactness: ${interior} interior (scoring) tiles, ${fat} sunk fat = ${fatPer100} fat/100. ` +
+        `${fatPer100 >= 20 ? "HIGH — you're expanding past old shells; prefer build_toward(<nearest>) over build_out" : "lean — keep sending pieces to the frontier"}.`,
+    );
+  }
+
   // ── fat walls: SUNK history, not a to-do — in classic no placed wall is removable ─
   // Count-only (the coords are non-actionable: you can't un-place a wall, and a
   // sealed ring is sweep-proof regardless). The lever is purely forward.
