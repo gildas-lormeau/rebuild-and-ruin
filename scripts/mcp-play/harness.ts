@@ -665,7 +665,7 @@ export interface Observation {
   /** WALL_BUILD only: every tower in your zone you could enclose (home first,
    *  then cheapest). The strategic layer — there can be several. `tiles` here is
    *  a sample (≤ ENCLOSURE_TILE_SAMPLE); `tilesNeeded` is the true count, and the
-   *  full min-cut plan comes from the `enclose_plan` tool. */
+   *  full min-cut plan comes from the `enclosure_plan` tool. */
   enclosureCandidates?: EnclosureCandidate[];
   /** WALL_BUILD only: bonus squares in your zone — the highest points-per-tile
    *  target (10×√territory each, 3 per zone, replenished each round) and invisible on
@@ -898,7 +898,7 @@ const MAX_SETTLE_FRAMES = 60 * 60;
 const ENCLOSURE_MARGIN = 3;
 /** How many cut tiles each enclosure candidate carries IN THE OBSERVATION — a
  *  token-cheap preview. The full list (for big captures) comes from the
- *  `enclose_plan` tool / `enclosurePlan()` on demand. */
+ *  `enclosure_plan` tool / `enclosurePlan()` on demand. */
 const ENCLOSURE_TILE_SAMPLE = 8;
 /** How many of an opponent's wall tiles to surface as aim-assist in BATTLE. */
 const BATTLE_TARGET_SAMPLE = 10;
@@ -933,10 +933,10 @@ const GRUNT_DRIFT_MAX_HORIZON = 30;
  *  closing — a single placed wall can only seal a near-complete ring, so beyond
  *  this there's no single-tile seal to find and the scan would be wasted. */
 const SEAL_FINDER_MAX_GAPS = 3;
-/** Default zone for a no-arg `placements` query: the wall bounding box grown by
- *  this many tiles (the buildable frontier). */
+/** Default zone for a no-arg `list_placements` query: the wall bounding box grown
+ *  by this many tiles (the buildable frontier). */
 const PLACEMENT_ZONE_PAD = 2;
-/** Max placements returned by a `placements` query (best-first); `total` still
+/** Max placements returned by a `list_placements` query (best-first); `total` still
  *  reports the full count so truncation is visible. */
 const MAX_ZONE_PLACEMENTS = 24;
 /** Largest piece extent in tiles — the anchor-scan margin so a placement whose
