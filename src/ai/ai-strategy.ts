@@ -72,8 +72,17 @@ import { secondsToTicks, traitLookup } from "./ai-utils.ts";
 const EMPTY_TACTICS: ReadonlySet<TacticId> = new Set();
 /** Chance to focus all fire on the weakest enemy for the entire battle. */
 const FOCUS_FIRE_PROBABILITY = 0.5;
-/** Minimum usable cannons required to attempt any chain attack. */
+/** Default minimum usable cannons to attempt a chain attack. Individual
+ *  tactics override this with their own gate (see `FAT_BREACH_MIN_CANNONS`,
+ *  `ICE_TRENCH_MIN_CANNONS`) when their cost/value profile differs. */
 const CHAIN_ATTACK_MIN_CANNONS = 6;
+/** Minimum usable cannons to attempt a fat-wall min-cut breach — lower than
+ *  the general chain threshold. The breach (`findMinBreach`) caps its own cost
+ *  at the cannon budget, so 4–5 cannons can still open a thin or partly-damaged
+ *  ring; and at 4–5 cannons `deny_enclosure` (gated at 6) is OFF, so this is the
+ *  ONLY breach tactic firing there — making the any-player fat-breach the
+ *  low-cannon enclosure-denial lever instead of leaving those battles passive. */
+const FAT_BREACH_MIN_CANNONS = 4;
 /** Chance to help an overwhelmed enemy by sweeping grunts on their territory. */
 const CHARITY_SWEEP_PROBABILITY = 1 / 10;
 /** Chance to launch a connected-wall demolition chain attack. */
@@ -477,7 +486,7 @@ export class DefaultStrategy implements AiStrategy {
     if (
       !chainTargets &&
       fatBreachMaxAttempts > 0 &&
-      usableCannonCount >= CHAIN_ATTACK_MIN_CANNONS &&
+      usableCannonCount >= FAT_BREACH_MIN_CANNONS &&
       !excludedTactics.has(TACTIC.FAT_BREACH) &&
       this.rng.bool(fatBreachProb)
     ) {

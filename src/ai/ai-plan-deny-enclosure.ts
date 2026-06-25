@@ -37,10 +37,10 @@ const MAX_CHAIN_TILES = 12;
 const BREACH_START_CANDIDATES = 3;
 
 /**
- * Plan an enclosure-denial chain against `focusEnemyId` (or, when unset, the
- * weakest active enemy). Returns the ordered wall tiles to siege, or null when
- * no eligible enemy / bottleneck wall exists (caller falls through to the next
- * tactic).
+ * Plan an enclosure-denial chain against `focusEnemyId` (or, when unset, a
+ * uniformly-chosen active enemy). Returns the ordered wall tiles to siege, or
+ * null when no eligible enemy / bottleneck wall exists (caller falls through to
+ * the next tactic).
  */
 export function planDenyEnclosure(
   state: BattleViewState,
@@ -80,10 +80,13 @@ export function planDenyEnclosure(
   return orderSiegeTiles(state, targetKeys, limit, rng);
 }
 
-/** The enemy to deny: the focus-fire target when it's still active, else an
- *  RNG-weighted pick over the weakest-first ranking (the same "weakest" order
- *  `planBattle` uses) — favouring the weakest defender but not always picking
- *  it, so independent attackers spread across defenders instead of ganging up. */
+/** The enemy to deny: the focus-fire target when it's still active, else a
+ *  UNIFORM random pick among all active enemies — NOT weakest-biased.
+ *  Enclosure-denial (deny_enclosure + max_repair_cost) should be applied to ANY
+ *  defender, including a runaway leader, so the breach isn't perpetually
+ *  deflected onto the weakest player while the leader's fortress grows
+ *  unchecked. (Focus-fire keeps its own weakest weighting — that's a separate
+ *  battle-wide commitment via `pickWeightedTargetEnemy`.) */
 export function pickTargetEnemy(
   state: BattleViewState,
   playerId: ValidPlayerId,
@@ -96,15 +99,18 @@ export function pickTargetEnemy(
     const focus = enemies.find((enemy) => enemy.id === focusEnemyId);
     if (focus) return focus;
   }
-  return pickWeightedTargetEnemy(enemies, rng);
+  if (enemies.length === 1) return enemies[0];
+  return enemies[rng.int(0, enemies.length - 1)];
 }
 
 /**
  * Pick a target enemy with RNG weighting toward weaker defenders (fewest
  * enclosed alive towers, then lowest score). The weakest is favoured but not
  * guaranteed, so multiple independent attackers don't all converge on the
- * single weakest player. Exported for `planBattle`'s focus-fire selection so
- * both paths share one ranking + weighting rule.
+ * single weakest player. Now used ONLY by `planBattle`'s focus-fire selection
+ * (a whole-battle commitment to one defender) — the per-chain enclosure-denial
+ * tactics pick uniformly via `pickTargetEnemy`, so this weakest-bias no longer
+ * governs which ring gets breached, only which player draws sustained focus.
  */
 export function pickWeightedTargetEnemy(
   enemies: readonly Player[],

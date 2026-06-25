@@ -75,11 +75,12 @@ export function planMaxRepairCost(
   return null;
 }
 
-/** Pick the defender to deny and the specific enclosure to attack: the weakest
- *  enemy (shared `pickTargetEnemy`) and their SMALLEST intact enclosure — the
- *  cheapest one for them to re-close, hence the lifeline whose repair cost
- *  actually gates their survival. Raising ITS floor is what denies a life.
- *  Returns undefined when no eligible enemy / intact enclosure exists. */
+/** Pick the defender to deny and the specific enclosure to attack: a uniformly-
+ *  chosen enemy (shared `pickTargetEnemy` — any defender, not just the weakest)
+ *  and their SMALLEST intact enclosure — the cheapest one for them to re-close,
+ *  hence the lifeline whose repair cost actually gates their survival. Raising
+ *  ITS floor is what denies a life. Returns undefined when no eligible enemy /
+ *  intact enclosure exists. */
 function pickEnemyLifeline(
   state: BattleViewState,
   playerId: ValidPlayerId,

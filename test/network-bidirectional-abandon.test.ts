@@ -35,19 +35,21 @@ const WIRE_DELAY_FRAMES = 5;
 // forced ABANDON actually fires (verified empirically via tmp probing against
 // THIS bidirectional harness — an all-AI probe diverges and gives false hits).
 // These are dynamics-tuned fixtures: any change to battle/grunt dynamics shifts
-// which towers die and drifts the seeds. Last re-probed after the house-spawn
-// change (initial 8→12/zone + ~+2/zone/round accumulating growth instead of a
-// refill-to-8 cap) — more houses shift enclosure/grunt dynamics and elimination
-// timing; prior seeds (classic-r8 3, modern-r8 14) stopped firing. Re-probed via
-// tmp/probe-abandon-strict.ts (full-parity: fires AND stays in lockstep).
+// which towers die and drifts the seeds. Last re-probed after the enclosure-
+// denial targeting changes: (1) FAT_BREACH_MIN_CANNONS 6→4 (the AI fires the
+// any-player min-cut breach at 4–5 cannons) and (2) deny_enclosure /
+// max_repair_cost picking a UNIFORM enemy instead of weakest-biased. Both shift
+// which towers de-enclose and elimination timing; the prior seeds (classic
+// 34-r5/5-r8, modern 10-r8) stopped firing. Re-probed via
+// scripts/probe-abandon-seeds.ts (full-parity: fires AND stays in lockstep).
 const TRIALS: {
   readonly seed: number;
   readonly mode: "classic" | "modern";
   readonly rounds: number;
 }[] = [
-  { seed: 34, mode: "classic", rounds: 5 },
-  { seed: 5, mode: "classic", rounds: 8 },
-  { seed: 10, mode: "modern", rounds: 8 },
+  { seed: 1, mode: "classic", rounds: 8 },
+  { seed: 7, mode: "classic", rounds: 8 },
+  { seed: 0, mode: "modern", rounds: 8 },
 ];
 
 void _forceScenarioFirst;
