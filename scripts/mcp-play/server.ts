@@ -728,6 +728,20 @@ const TOOLS: ToolDef[] = [
   },
 ];
 const TOOL_BY_NAME = new Map(TOOLS.map((tool) => [tool.name, tool]));
+const AUTO_JOURNAL_DIR = "tmp/mcp-play/journal";
+const AUTO_JOURNAL_LAST = "tmp/mcp-play/last.jsonl";
+/** Read-only / session-meta tools excluded from the auto-journal — they don't
+ *  mutate game state or advance the clock, so a clean reproduction script omits
+ *  them. Everything NOT listed here is journaled (safe default: a new gameplay
+ *  tool is recorded automatically). new_game/load are handled explicitly. */
+const NON_JOURNALED_TOOLS = new Set([
+  "observe",
+  "check_placement",
+  "list_placements",
+  "enclosure_plan",
+  "save",
+]);
+const AUTO_JOURNAL_LAST_EXPECTED = "tmp/mcp-play/last.expected.jsonl";
 
 let game: McpGame | null = null;
 let journal: Journal | null = null;
@@ -743,6 +757,29 @@ let journal: Journal | null = null;
  *  Resolved once and cached. No-op when the env var is unset, so tests / CI /
  *  normal play are unaffected, and it never throws into the tool flow. */
 let watchPath: string | null | undefined;
+/** Auto-journal sink: every new_game opens a fresh replay-compatible `.jsonl`
+ *  (the bare `{name, arguments}` tool-call shape `replay.ts` consumes) under
+ *  `tmp/mcp-play/journal/`, mirrored to a stable `tmp/mcp-play/last.jsonl`. So
+ *  the moment a live session ends you can replay/debug it with zero ceremony:
+ *    deno task replay tmp/mcp-play/last.jsonl --quiet
+ *  Holds the active session's rotated path; null between new_game and after a
+ *  `load` (a restored session is reconstructed from its structured save, not
+ *  this stream, so we stop appending rather than corrupt the file). tmp/ is
+ *  gitignored, so this is always-on and free — no env gate to forget. */
+let autoJournalPath: string | null = null;
+let autoJournalSession = 0;
+/** Sidecar that pairs with the active journal: one state DIGEST per journaled
+ *  call (round/phase/per-player score/lives/...), keyed by call index `i`. This
+ *  is the BASELINE `replay.ts --diff` compares a re-run against, so a code change
+ *  is reported as "first divergence at call N, round R, phase P". Derived from
+ *  `autoJournalPath` (.jsonl → .expected.jsonl). */
+let autoJournalExpectedPath: string | null = null;
+/** Next journaled-call index — keeps journal lines and digest lines aligned. */
+let autoJournalIndex = 0;
+/** Cached `MCP_PLAY_NO_JOURNAL` gate. replay.ts sets it so replaying a journal
+ *  doesn't clobber `last.jsonl` (the live game you're debugging) with its own
+ *  re-run. undefined = unread; resolved lazily on first call. */
+let autoJournalOff: boolean | undefined;
 
 function startGame(config: Journal["config"]): Promise<McpGame> {
   return createMcpGame({
@@ -971,11 +1008,6 @@ async function main(): Promise<void> {
   }
 }
 
-function log(message: string): void {
-  // stdout is the protocol channel — diagnostics must go to stderr.
-  console.error(`[mcp-play] ${message}`);
-}
-
 /** A fresh map seed for a no-seed new_game. Non-determinism is the point here
  *  (variety across sessions); the chosen value is recorded in the journal so
  *  the game stays reproducible. Out of the entropy lint's scope (src/game,
@@ -1061,6 +1093,10 @@ export async function callTool(
   }
   try {
     const result = await tool.handler(args);
+    // Mirror the call into the replay-compatible auto-journal + its digest
+    // sidecar (after the handler runs, so new_game's resolved seed is available).
+    // Read-only/meta calls are skipped inside; failures never reach here.
+    recordAutoJournal(name, args, result);
     // Observation-shaped results render to the annotated ASCII board so the agent
     // reads the new state directly; observe({format:'json'}) opts back into raw
     // JSON, and non-observation payloads (check/plan/save) stay JSON.
@@ -1102,6 +1138,160 @@ function fullWatchBoard(cropped: Observation): string {
   } catch {
     return cropped.board;
   }
+}
+
+/** Route a successful tool call into the auto-journal. new_game rotates a fresh
+ *  file; load stops journaling (the restored session lives in its save); every
+ *  other gameplay tool is appended verbatim. Never throws into the call flow. */
+function recordAutoJournal(
+  name: string,
+  args: Record<string, unknown>,
+  result: unknown,
+): void {
+  if (autoJournalDisabled()) return;
+  if (name === "new_game") {
+    if (journal) startAutoJournal(journal.config, result);
+    return;
+  }
+  if (name === "load") {
+    autoJournalPath = null;
+    return;
+  }
+  if (NON_JOURNALED_TOOLS.has(name)) return;
+  autoJournalAppend(name, args, result);
+}
+
+/** Whether auto-journaling is disabled for this process (replay context). Read
+ *  once and cached; a disallowed env read falls back to enabled. */
+function autoJournalDisabled(): boolean {
+  if (autoJournalOff === undefined) {
+    try {
+      autoJournalOff = Deno.env.get("MCP_PLAY_NO_JOURNAL") != null;
+    } catch {
+      autoJournalOff = false;
+    }
+  }
+  return autoJournalOff;
+}
+
+/** Open a fresh auto-journal for a new_game, seeding it with the RESOLVED opener
+ *  (concrete seed baked in, so a no-seed random game stays reproducible). Writes
+ *  both the rotated per-session file and the stable last.jsonl mirror. */
+function startAutoJournal(config: Journal["config"], result: unknown): void {
+  try {
+    Deno.mkdirSync(AUTO_JOURNAL_DIR, { recursive: true });
+    const path = `${AUTO_JOURNAL_DIR}/seed-${config.seed}-${autoJournalSession++}.jsonl`;
+    const opener = `${JSON.stringify({
+      name: "new_game",
+      arguments: {
+        seed: config.seed,
+        ...(config.mode ? { mode: config.mode } : {}),
+        ...(config.agentSlot !== undefined
+          ? { agentSlot: config.agentSlot }
+          : {}),
+        ...(config.rounds !== undefined ? { rounds: config.rounds } : {}),
+        ...(config.actionTicks !== undefined
+          ? { actionTicks: config.actionTicks }
+          : {}),
+      },
+    })}\n`;
+    Deno.writeTextFileSync(path, opener); // truncate + write the opener
+    Deno.writeTextFileSync(AUTO_JOURNAL_LAST, opener);
+    autoJournalPath = path;
+    autoJournalExpectedPath = path.replace(/\.jsonl$/, ".expected.jsonl");
+    autoJournalIndex = 0;
+    // Truncate the digest sidecars, then record the opener's digest as index 0.
+    Deno.writeTextFileSync(autoJournalExpectedPath, "");
+    Deno.writeTextFileSync(AUTO_JOURNAL_LAST_EXPECTED, "");
+    appendDigest(result);
+    log(`auto-journal: ${path} (mirror ${AUTO_JOURNAL_LAST})`);
+  } catch {
+    autoJournalPath = null; // FS not writable — disable silently.
+    autoJournalExpectedPath = null;
+  }
+}
+
+function log(message: string): void {
+  // stdout is the protocol channel — diagnostics must go to stderr.
+  console.error(`[mcp-play] ${message}`);
+}
+
+/** Append one bare tool-call line to the active auto-journal and its mirror,
+ *  then record the resulting state digest at the matching index. No-op unless a
+ *  new_game-started session is active. */
+function autoJournalAppend(
+  name: string,
+  args: Record<string, unknown>,
+  result: unknown,
+): void {
+  if (!autoJournalPath) return;
+  const line = `${JSON.stringify({ name, arguments: args })}\n`;
+  try {
+    Deno.writeTextFileSync(autoJournalPath, line, { append: true });
+    Deno.writeTextFileSync(AUTO_JOURNAL_LAST, line, { append: true });
+  } catch {
+    autoJournalPath = null; // a write failed — stop rather than retry-spam.
+    return;
+  }
+  appendDigest(result);
+}
+
+/** Append the state digest for the just-journaled call, keyed by its index so a
+ *  later `--diff` matches it to the replayed call positionally. Always advances
+ *  the index (even for a non-observation result) so it stays aligned with the
+ *  journal line count; a non-observation call simply has no baseline digest. */
+function appendDigest(result: unknown): void {
+  if (!autoJournalExpectedPath) return;
+  const index = autoJournalIndex++;
+  if (!isObservation(result)) return;
+  const line = `${JSON.stringify({ i: index, ...observationDigest(result) })}\n`;
+  try {
+    Deno.writeTextFileSync(autoJournalExpectedPath, line, { append: true });
+    Deno.writeTextFileSync(AUTO_JOURNAL_LAST_EXPECTED, line, { append: true });
+  } catch {
+    autoJournalPath = null;
+    autoJournalExpectedPath = null;
+  }
+}
+
+/** A deterministic state projection used as the replay-diff baseline: round /
+ *  phase / game-over plus each player's lives, score, projected score, walls,
+ *  cannons and enclosed towers. Cosmetic fields (board crop, cursor, timers)
+ *  are deliberately excluded — a diff should flag GAME divergence, not render
+ *  jitter. Exported so replay.ts computes the comparison digest the same way. */
+export function observationDigest(obs: Observation): {
+  round: number;
+  phase: string;
+  gameOver: boolean;
+  players: {
+    slot: number;
+    lives: number;
+    eliminated: boolean;
+    score: number;
+    projected: number;
+    walls: number;
+    cannons: number;
+    enclosedTowers: number;
+  }[];
+} {
+  return {
+    round: obs.round,
+    phase: obs.phase,
+    gameOver: obs.gameOver,
+    players: obs.layout
+      .slice()
+      .sort((a, b) => a.slot - b.slot)
+      .map((player) => ({
+        slot: player.slot,
+        lives: player.lives,
+        eliminated: player.eliminated,
+        score: player.score,
+        projected: player.projected,
+        walls: player.walls,
+        cannons: player.cannons,
+        enclosedTowers: player.enclosedTowers,
+      })),
+  };
 }
 
 function writeWatchSnapshot(board: string, full: string): void {
