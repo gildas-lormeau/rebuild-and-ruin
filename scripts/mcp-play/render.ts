@@ -87,6 +87,9 @@ export function renderObservation(obs: Observation): string {
   // ── BATTLE pit targets: best super-cannon pit walls, choke-ranked ───────────
   lines.push(...pitTargetLines(obs));
 
+  // ── supply ships: live river hulls to hunt for a hidden bonus ───────────────
+  lines.push(...supplyShipLines(obs));
+
   // ── threats: grunts bearing down on my towers ───────────────────────────────
   lines.push(...threatLines(obs));
 
@@ -354,6 +357,23 @@ function pitTargetLines(obs: Observation): string[] {
     const tower = pit.towerIdx != null ? ` tower${pit.towerIdx}` : "";
     lines.push(
       `     slot${pit.slot} (${pit.row},${pit.col})  choke ${pit.choke}/4${tower}`,
+    );
+  }
+  return lines;
+}
+
+/** Supply Ship modifier: the live river hulls to hunt. 2 hits sinks one for a
+ *  hidden 1-round bonus; lead the moving hull and fire AHEAD of it. */
+function supplyShipLines(obs: Observation): string[] {
+  if (!obs.supplyShips || obs.supplyShips.length === 0) return [];
+  const lines: string[] = [
+    "  ⛴ SUPPLY SHIPS (2 hits sinks one → hidden 1-round bonus; lead the hull — fire AHEAD by flight-time × vel):",
+  ];
+  for (const ship of obs.supplyShips) {
+    const state = ship.sinking ? " SINKING" : "";
+    lines.push(
+      `     ship ${ship.id} at (${ship.row},${ship.col}) hp${ship.hp}` +
+        ` vel(${ship.velTilesPerSec.dCol},${ship.velTilesPerSec.dRow})/s${state}`,
     );
   }
   return lines;

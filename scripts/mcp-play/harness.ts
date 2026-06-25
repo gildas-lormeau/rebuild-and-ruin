@@ -46,6 +46,7 @@ import {
   isGruntPassableTile,
   moveGrunts,
 } from "../../src/game/grunt-movement.ts";
+import { SUPPLY_SHIP_SPEED } from "../../src/game/modifiers/supply-ship.ts";
 import { shouldSkipBattle } from "../../src/game/upgrade-system.ts";
 import {
   type Cannon,
@@ -60,6 +61,7 @@ import {
   cannonModesForGame,
 } from "../../src/shared/core/cannon-mode-defs.ts";
 import {
+  type ModifierId,
   SIM_TICK_DT,
   TOWER_SIZE,
 } from "../../src/shared/core/game-constants.ts";
@@ -126,6 +128,13 @@ export interface McpGameOptions {
    *  cannonballs/grunts, larger = faster but coarser. (A separate battle quantum
    *  is a clean future split if build and battle want different granularity.) */
   actionTicks?: number;
+  /** DEV/DEBUG only (modern): force a specific environmental modifier every round
+   *  instead of the RNG roll — short-circuits `rollModifier` via the scenario's
+   *  `testHooks.forceModifier`. Lets a session reproduce a modifier on demand
+   *  (e.g. `"supply_ship"` to exercise the river-ship hunt, `"dust_storm"` to test
+   *  aim jitter) without re-rolling for it. Test-only, never serialized. Ignored
+   *  in classic. */
+  forceModifier?: ModifierId;
 }
 
 export interface TowerHint {
@@ -731,6 +740,30 @@ export interface Observation {
    *  freezes water you can build over; wildfire scars grass). Surfaced from
    *  MODIFIER_REVEAL through the round so battle/build plans can account for it. */
   activeModifier?: { id: string; label: string } | null;
+  /** MODERN, BATTLE only (Supply Ship modifier active): the neutral cargo ships
+   *  sailing the river RIGHT NOW — the same hulls a human sees on the water, so
+   *  fair game to surface (the bonus each carries stays HIDDEN until you sink it).
+   *  Each has 2 HP; land a cannonball within ~1 tile of a hull and SINK it (2
+   *  hits) to win the SHOOTER a hidden one-round bonus (an extra cannon, +5s
+   *  build, a free mortar shot, or a small-pieces bias). Ships move ~0.9 tiles/s
+   *  along the river, so lead them: aim a `fire(row,col)` AHEAD of the hull by
+   *  roughly (ball-flight-time × `velTilesPerSec`). Any ship still afloat
+   *  auto-sinks with ~1.5s left on the battle clock, awarding nobody — the AI
+   *  opponents actively hunt them, so an unclaimed ship is a bonus handed to a
+   *  rival or wasted. `sinking: true` = already going down, no longer targetable.
+   *  Omitted outside BATTLE / when the Supply Ship modifier isn't active. */
+  supplyShips?: {
+    id: number;
+    /** Sub-tile hull centre (floats, may sit on a river tile between zones). */
+    row: number;
+    col: number;
+    /** Remaining hit points: 2 = fresh, 1 = damaged (one more hit sinks it). */
+    hp: number;
+    /** True once sunk/sinking — ignore it, the bonus (if any) is already settled. */
+    sinking: boolean;
+    /** River velocity in tiles/sec — multiply by your shot's flight time to lead. */
+    velTilesPerSec: { dCol: number; dRow: number };
+  }[];
   /** MODERN only: true when a player owns Ceasefire, which skips the WHOLE
    *  battle phase this round for EVERYONE (it's global). Surfaced in CANNON_PLACE
    *  as a heads-up — end_cannon goes straight to the next phase, so there is no
@@ -1013,6 +1046,9 @@ export async function createMcpGame(
     rounds: opts.rounds ?? 3,
     renderer: "ascii",
     controllerFactory,
+    ...(opts.forceModifier
+      ? { testHooks: { forceModifier: opts.forceModifier } }
+      : {}),
   });
 
   const gameOver = (): boolean => sc.mode() === Mode.STOPPED;
@@ -2862,6 +2898,28 @@ export async function createMcpGame(
     // CANNON_PLACE so the agent knows end_cannon won't yield a battle turn.
     if (phase === Phase.CANNON_PLACE && shouldSkipBattle(sc.state)) {
       observation.battleSkipped = true;
+    }
+    // Supply Ship: surface the live hulls (battle only — spawned at battle start,
+    // cleared at battle end) so the agent can lead-fire at them like a human can.
+    // The per-ship `bonus` is deliberately NOT exposed: it's hidden until sunk,
+    // so reading it would be info no human has.
+    const ships = modern.supplyShips;
+    if (phase === Phase.BATTLE && ships && ships.length > 0) {
+      observation.supplyShips = ships.map((ship) => ({
+        id: ship.id,
+        row: Math.round(ship.position.row * 10) / 10,
+        col: Math.round(ship.position.col * 10) / 10,
+        hp: ship.hp,
+        sinking: ship.sinking !== undefined,
+        velTilesPerSec: {
+          dCol:
+            Math.round(Math.cos(ship.headingRad) * SUPPLY_SHIP_SPEED * 100) /
+            100,
+          dRow:
+            Math.round(Math.sin(ship.headingRad) * SUPPLY_SHIP_SPEED * 100) /
+            100,
+        },
+      }));
     }
     if (phase !== Phase.UPGRADE_PICK) return;
     const offers = modern.pendingUpgradeOffers?.get(agentSlot);

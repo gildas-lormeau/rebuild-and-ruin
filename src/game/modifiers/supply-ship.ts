@@ -31,12 +31,6 @@ import type { Rng } from "../../shared/platform/rng.ts";
 const SUPPLY_SHIP_COUNT = 3;
 /** HP at spawn. First hit reveals damage; second hit triggers sink. */
 const SUPPLY_SHIP_HP = 2;
-/** Speed in tiles per second. A ship covers ~9 tiles per 10s battle.
- *  Ships that aren't hit start sinking when the battle timer falls
- *  below AUTO_SINK_AT_TIMER (well before they could reach the
- *  junction on any arm), so the sink animation completes inside the
- *  battle window and the post-battle banner snapshot is clean. */
-const SUPPLY_SHIP_SPEED = 0.9;
 /** Distance (tiles) along the river Bezier to inset the spawn from
  *  the `exit` point. Exits sit 1 tile outside the grid; inset ~3 tiles
  *  along the curve so the entire 1×2 hull is fully on-screen when the
@@ -92,6 +86,14 @@ const BONUS_POOL: readonly SupplyBonusId[] = [
   "mortar_shot",
   "small_pieces_bias",
 ];
+/** Speed in tiles per second. A ship covers ~9 tiles per 10s battle.
+ *  Ships that aren't hit start sinking when the battle timer falls
+ *  below AUTO_SINK_AT_TIMER (well before they could reach the
+ *  junction on any arm), so the sink animation completes inside the
+ *  battle window and the post-battle banner snapshot is clean.
+ *  Exported so observers (e.g. the mcp-play harness) can surface a
+ *  lead-able velocity vector without re-deriving the magnitude. */
+export const SUPPLY_SHIP_SPEED = 0.9;
 export const supplyShipImpl: ModifierImpl = {
   lifecycle: "instant",
   apply: (state: GameState) => ({
