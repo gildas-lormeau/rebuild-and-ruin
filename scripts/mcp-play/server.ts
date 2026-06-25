@@ -68,7 +68,6 @@ interface Journal {
         maxSeconds?: number;
         maxPieces?: number;
       }
-    | { t: "reinforce"; maxSeconds?: number; maxPieces?: number }
     | {
         t: "path";
         from: { row: number; col: number };
@@ -523,25 +522,6 @@ const TOOLS: ToolDef[] = [
       recordBuildRegion(rectArg(args, "rect"), budgetArg(args)),
   },
   {
-    name: "reinforce",
-    description:
-      "WALL_BUILD: anchor the loose ends of an UN-CLOSED wall — it re-reads your fragile walls (≤1 wall-neighbour tiles the round-end sweep DELETES — see observation.fragileWalls) and places each arriving piece against them so every one gains a second neighbour. NARROW USE: a closed pocket is ALREADY sweep-proof — its ring walls always keep ≥2 neighbours, so the sweep can only ever shave dangling stubs, never open a sealed castle. Reinforcing a finished castle just spends pieces (and can bury a fat wall). Reach for this only to preserve a build_path PRE-CLAIM line you'll close a later round. Does NOT enclose a tower (build_toward) or lay a line (build_path). Read lastResult for fragile before→after. Optional maxSeconds / maxPieces.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        maxSeconds: {
-          type: "number",
-          description: "Cap build-seconds spent THIS call (reserve the rest).",
-        },
-        maxPieces: {
-          type: "number",
-          description: "Cap pieces placed THIS call.",
-        },
-      },
-    },
-    handler: (args) => recordReinforce(budgetArg(args)),
-  },
-  {
     name: "build_path",
     description:
       "WALL_BUILD: lay a straight wall LINE (or an L, when the endpoints aren't row/col-aligned) from `from` to `to`, placing whatever pieces arrive over the route — the geometric counterpart to build_toward. Use it to pre-claim a flank, bridge two towers, or start a region you'll close next round. CRITICAL: partial walls survive the round-end sweep ONLY where each tile keeps ≥2 orthogonal wall-neighbours, so ANCHOR both ends on existing wall — a floating segment's open ends erode ~1 tile per sweep. lastResult reports tiles laid + any sweep-fragile ends; cross-check observation.fragileWalls. Optional maxSeconds / maxPieces to reserve time.",
@@ -734,8 +714,7 @@ const TOOLS: ToolDef[] = [
         else if (move.t === "build_out") game.buildOut(budgetOf(move));
         else if (move.t === "build_region") {
           game.buildRegion(move.rect, budgetOf(move));
-        } else if (move.t === "reinforce") game.reinforce(budgetOf(move));
-        else if (move.t === "path") {
+        } else if (move.t === "path") {
           game.path(move.from, move.to, budgetOf(move));
         } else if (move.t === "breach") game.breach(move.slot, move.towerIdx);
         else if (move.t === "pit_strike") {
@@ -822,17 +801,6 @@ function recordBuildRegion(
   journal?.moves.push({
     t: "build_region",
     rect,
-    maxSeconds: budget?.maxSeconds,
-    maxPieces: budget?.maxPieces,
-  });
-  return observation;
-}
-
-/** Make the existing ring sweep-proof AND journal it. */
-function recordReinforce(budget?: BuildBudget): unknown {
-  const observation = requireGame().reinforce(budget);
-  journal?.moves.push({
-    t: "reinforce",
     maxSeconds: budget?.maxSeconds,
     maxPieces: budget?.maxPieces,
   });

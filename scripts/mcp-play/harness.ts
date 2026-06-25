@@ -822,14 +822,6 @@ export interface McpGame {
     rect: { top: number; bottom: number; left: number; right: number },
     budget?: BuildBudget,
   ): Observation;
-  /** WALL_BUILD: anchor the loose ends (fragile, ≤1-neighbour tiles) of an
-   *  UN-CLOSED wall so they survive the round-end sweep into next round. NARROW
-   *  USE: a closed pocket's ring is already sweep-proof (ring walls always keep ≥2
-   *  neighbours), so reinforcing a finished castle is wasted pieces — and can even
-   *  bury a fat wall behind the shell. Reach for this only to preserve a `path`
-   *  pre-claim line you'll close later. Reports fragile before→after; honours
-   *  `budget`. */
-  reinforce(budget?: BuildBudget): Observation;
   /** WALL_BUILD: lay a wall LINE from `from` to `to` (straight when aligned, else
    *  an L) using whatever pieces arrive — the geometric counterpart to `build`'s
    *  enclose. For pre-claiming a flank, bridging two towers, or splitting a
@@ -3706,122 +3698,6 @@ export async function createMcpGame(
     return observe();
   }
 
-  /** Empty cells orthogonally adjacent to a fragile wall — a wall placed on one
-   *  gives that fragile tile a second wall-neighbour, so the round-end sweep
-   *  keeps it. Skips water / off-board / already-walled cells; the placer
-   *  enforces full legality (own grass, no overlap). */
-  function fragileAnchorTargets(
-    fragile: { row: number; col: number }[],
-  ): Set<number> {
-    const me = sc.state.players[agentSlot];
-    const out = new Set<number>();
-    if (!me) return out;
-    for (const tile of fragile) {
-      for (const [dr, dc] of DIRS_4) {
-        const row = tile.row + dr;
-        const col = tile.col + dc;
-        if (!inBounds(row, col)) continue;
-        if (isWater(sc.state.map.tiles, row, col)) continue;
-        const key = packTile(row, col);
-        if (me.walls.has(key)) continue;
-        // Only anchor where a wall would ITSELF be sweep-safe — ≥2 existing wall
-        // neighbours (the fragile tile + ≥1 more) — so reinforce never trades one
-        // stub for a fresh one. A floating segment far from the ring yields no
-        // such cell; reinforce then reports "extend a wall to them" rather than
-        // churning the count upward.
-        if (countWallNeighbors(me.walls, row, col) >= 2) out.add(key);
-      }
-    }
-    return out;
-  }
-
-  /** WALL_BUILD: anchor my fragile walls (≤1-neighbour tiles the round-end sweep
-   *  deletes) by placing pieces beside them so each gains a second neighbour. It
-   *  re-reads the fragile set each step and aims at the empty cells next to them
-   *  until none remain, time runs low, or it can't anchor the rest, reporting
-   *  fragile before→after.
-   *
-   *  NARROW USE: this only matters for an UN-CLOSED wall — a `build_path`
-   *  pre-claim line whose open ends would erode before you seal it. A closed
-   *  pocket is already sweep-proof (ring walls always keep ≥2 neighbours), so
-   *  reinforcing a finished castle spends pieces for nothing and risks burying a
-   *  fat wall behind the shell. Does NOT enclose a tower (build_toward) or lay a
-   *  line (build_path). Honours the same `budget` (maxSeconds/maxPieces). */
-  function reinforce(budget?: BuildBudget): Observation {
-    if (sc.state.phase !== Phase.WALL_BUILD) {
-      bridge.lastResult = {
-        kind: "build",
-        success: false,
-        reason: "not in WALL_BUILD",
-      };
-      return observe();
-    }
-    const fragileBefore = fragileWallsFor().length;
-    if (fragileBefore === 0) {
-      bridge.lastResult = {
-        kind: "build",
-        success: true,
-        reason: "done: no fragile walls — your ring is already sweep-proof",
-      };
-      return observe();
-    }
-    const startTimer = sc.state.timer;
-    const pieceCap = Math.min(
-      budget?.maxPieces ?? MAX_BUILD_PIECES,
-      MAX_BUILD_PIECES,
-    );
-    let placed = 0;
-    let stall = 0;
-    let outcome = "done";
-    let prevFragile = fragileBefore;
-    while (!gameOver() && sc.state.phase === Phase.WALL_BUILD) {
-      const stop = buildStop(placed, startTimer, pieceCap, budget);
-      if (stop) {
-        outcome = stop;
-        break;
-      }
-      const fragile = fragileWallsFor();
-      if (fragile.length === 0) break;
-      const targets = fragileAnchorTargets(fragile);
-      if (targets.size === 0) {
-        outcome = "stuck";
-        break;
-      }
-      const step = placeTowardTargets(targets);
-      if (step.noPiece) continue;
-      if (step.landed) placed++;
-      // Progress = the fragile COUNT actually fell. A placement that lands but
-      // doesn't shrink the set (or spawns a new stub) counts toward the stall
-      // limit, so reinforce stops churning on an un-anchorable island instead of
-      // eating the whole build (an on-target hit alone isn't progress here).
-      const nowFragile = step.landed ? fragileWallsFor().length : prevFragile;
-      if (nowFragile < prevFragile) {
-        stall = 0;
-        prevFragile = nowFragile;
-      } else {
-        stall++;
-      }
-      if (stall >= BUILD_STALL_LIMIT) {
-        outcome = "stuck";
-        break;
-      }
-    }
-    const fragileAfter = fragileWallsFor().length;
-    const elapsed = Math.round((startTimer - sc.state.timer) * 10) / 10;
-    const note =
-      fragileAfter === 0
-        ? " — ring is sweep-proof"
-        : fragileAfter < fragileBefore
-          ? " — fewer fragile tiles; call again or pass"
-          : " — couldn't anchor the rest (isolated stubs / no fitting piece); place by hand or extend a wall to them";
-    bridge.lastResult = {
-      kind: "build",
-      success: placed > 0 || fragileAfter < fragileBefore,
-      reason: `${outcome}: placed ${placed}, fragile ${fragileBefore}→${fragileAfter}, ~${elapsed}s${note}`,
-    };
-    return observe();
-  }
-
   /** Lay a wall LINE from `from` to `to` (straight when aligned, else an L),
    *  placing whatever pieces arrive over the route — the geometric counterpart to
    *  `buildToward`. For pre-claiming a flank or splitting a captured region across
@@ -4685,7 +4561,6 @@ export async function createMcpGame(
     build: buildToward,
     buildOut,
     buildRegion,
-    reinforce,
     path: buildPath,
     bombard: bombardSlot,
     breach: breachSlot,
