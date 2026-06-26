@@ -42,8 +42,8 @@ const BREACH_START_CANDIDATES = 3;
 const MIN_GAP_SEPARATION = 4;
 
 /**
- * Plan a re-enclosure-cost-maximising siege against `focusEnemyId` (or the
- * weakest active enemy). Returns the ordered wall tiles to breach, or null when
+ * Plan a re-enclosure-cost-maximising siege against `focusEnemyId` (or a
+ * uniformly-chosen active enemy). Returns the ordered wall tiles to breach, or null when
  * no eligible enemy / intact enclosure / breaching plan exists (caller falls
  * through to the next tactic).
  */

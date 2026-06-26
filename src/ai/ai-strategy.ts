@@ -26,13 +26,12 @@ import type {
 } from "../shared/core/system-interfaces.ts";
 import type { ZoneId } from "../shared/core/zone-id.ts";
 import { Rng } from "../shared/platform/rng.ts";
-import { filterActiveEnemies } from "../shared/sim/board-occupancy.ts";
 import type { FireOrigin } from "./ai-battle-diag.ts";
 import type { AiPlacement } from "./ai-build-types.ts";
 import { CHAIN, type ChainType, TACTIC, type TacticId } from "./ai-chain.ts";
 import { planCharitySweep } from "./ai-plan-charity-sweep.ts";
 import {
-  pickWeightedTargetEnemy,
+  pickTargetEnemy,
   planDenyEnclosure,
 } from "./ai-plan-deny-enclosure.ts";
 import { planFatBreach } from "./ai-plan-fat-breach.ts";
@@ -71,7 +70,7 @@ import { secondsToTicks, traitLookup } from "./ai-utils.ts";
  *  the param being omitted, NOT by set emptiness — a re-plan after a
  *  defensive-only chain legitimately passes an empty set. */
 const EMPTY_TACTICS: ReadonlySet<TacticId> = new Set();
-/** Chance to focus all fire on the weakest enemy for the entire battle. */
+/** Chance to focus all fire on one uniformly-chosen enemy for the whole battle. */
 const FOCUS_FIRE_PROBABILITY = 0.5;
 /** Default minimum usable cannons to attempt a chain attack. Individual
  *  tactics override this with their own gate (see `FAT_BREACH_MIN_CANNONS`,
@@ -312,8 +311,10 @@ export class DefaultStrategy implements AiStrategy {
         0.8,
       ]);
       if (this.rng.bool(focusProb)) {
-        this.focusFirePlayerId = pickWeightedTargetEnemy(
-          filterActiveEnemies(state, playerId),
+        this.focusFirePlayerId = pickTargetEnemy(
+          state,
+          playerId,
+          undefined,
           this.rng,
         )?.id;
       } else {
@@ -434,8 +435,8 @@ export class DefaultStrategy implements AiStrategy {
     }
 
     // Enclosure denial — top offensive priority. Concentrate fire on the
-    // wall tiles at the min-cut bottleneck of the weakest enemy's cheapest
-    // ring, maximising the cost for them to re-enclose any tower (the actual
+    // wall tiles at the min-cut bottleneck of a uniformly-chosen enemy's
+    // cheapest ring, maximising the cost for them to re-enclose any tower (the actual
     // life-loss condition). Re-selectable across re-plans (not excluded), so a
     // multi-attack battle keeps sieging the defender's best fallback ring.
     const denyProb = traitLookup(this.battleTactics, [

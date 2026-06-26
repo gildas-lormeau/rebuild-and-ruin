@@ -80,13 +80,12 @@ export function planDenyEnclosure(
   return orderSiegeTiles(state, targetKeys, limit, rng);
 }
 
-/** The enemy to deny: the focus-fire target when it's still active, else a
- *  UNIFORM random pick among all active enemies — NOT weakest-biased.
- *  Enclosure-denial (deny_enclosure + max_repair_cost) should be applied to ANY
- *  defender, including a runaway leader, so the breach isn't perpetually
- *  deflected onto the weakest player while the leader's fortress grows
- *  unchecked. (Focus-fire keeps its own weakest weighting — that's a separate
- *  battle-wide commitment via `pickWeightedTargetEnemy`.) */
+/** The enemy to attack: the focus-fire target when it's still active, else a
+ *  UNIFORM random pick among all active enemies — NEVER weakest-biased.
+ *  Every target selection (per-chain enclosure-denial AND the whole-battle
+ *  focus-fire commitment) routes through here, so attacks are applied to ANY
+ *  defender, including a runaway leader, instead of being perpetually deflected
+ *  onto the weakest player while the leader's fortress grows unchecked. */
 export function pickTargetEnemy(
   state: BattleViewState,
   playerId: ValidPlayerId,
@@ -101,26 +100,6 @@ export function pickTargetEnemy(
   }
   if (enemies.length === 1) return enemies[0];
   return enemies[rng.int(0, enemies.length - 1)];
-}
-
-/**
- * Pick a target enemy with RNG weighting toward weaker defenders (fewest
- * enclosed alive towers, then lowest score). The weakest is favoured but not
- * guaranteed, so multiple independent attackers don't all converge on the
- * single weakest player. Now used ONLY by `planBattle`'s focus-fire selection
- * (a whole-battle commitment to one defender) — the per-chain enclosure-denial
- * tactics pick uniformly via `pickTargetEnemy`, so this weakest-bias no longer
- * governs which ring gets breached, only which player draws sustained focus.
- */
-export function pickWeightedTargetEnemy(
-  enemies: readonly Player[],
-  rng: Rng,
-): Player | undefined {
-  const ranked = [...enemies].sort(
-    (a, b) =>
-      a.enclosedTowers.length - b.enclosedTowers.length || a.score - b.score,
-  );
-  return weightedPickByRank(ranked, rng);
 }
 
 /** Order siege targets for chain execution: most boxed-in (hardest to
