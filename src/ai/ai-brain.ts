@@ -87,6 +87,14 @@ export function createDefaultAiBrain(strategy: AiStrategy): AiBrain {
       },
     },
     chooseLifeLost: aiChooseLifeLost,
-    tickUpgradePick: tickAiUpgradePickEntry,
+    tickUpgradePick: (entry, entryIdx, autoDelayTicks, dialogTimer, state) =>
+      tickAiUpgradePickEntry(
+        entry,
+        entryIdx,
+        autoDelayTicks,
+        dialogTimer,
+        state,
+        strategy.archetype,
+      ),
   };
 }

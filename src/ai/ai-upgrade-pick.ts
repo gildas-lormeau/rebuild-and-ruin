@@ -7,6 +7,7 @@
  * of `chooseLifeLost`.
  */
 
+import type { ArchetypeId } from "../shared/core/ai-personality.ts";
 import { deriveAiStrategySeed } from "../shared/core/ai-seed.ts";
 import { isBalloonCannon, isCannonAlive } from "../shared/core/battle-types.ts";
 import type { UpgradePickEntry } from "../shared/core/dialog-state.ts";
@@ -46,6 +47,7 @@ export function tickAiUpgradePickEntry(
   autoDelayTicks: number,
   dialogTimer: number,
   state: UpgradePickViewState,
+  archetype: ArchetypeId,
 ): void {
   entry.autoTimer++;
   const effectiveDelay = autoDelayTicks + entryIdx * UPGRADE_PICK_STAGGER;
@@ -54,7 +56,7 @@ export function tickAiUpgradePickEntry(
   const lockInStart = Math.max(0, effectiveDelay - UPGRADE_PICK_LOCK_IN);
 
   if (entry.autoTimer >= effectiveDelay) {
-    const pick = aiPickUpgrade(entry.offers, state, entry.playerId);
+    const pick = aiPickUpgrade(entry.offers, state, entry.playerId, archetype);
     entry.choice = pick;
     entry.focusedCard = entry.offers.indexOf(pick);
     entry.pickedAtTimer = dialogTimer;
@@ -63,7 +65,7 @@ export function tickAiUpgradePickEntry(
 
   if (entry.autoTimer >= lockInStart) {
     entry.focusedCard = entry.offers.indexOf(
-      aiPickUpgrade(entry.offers, state, entry.playerId),
+      aiPickUpgrade(entry.offers, state, entry.playerId, archetype),
     );
     return;
   }
@@ -84,14 +86,25 @@ function aiPickUpgrade(
   offers: readonly [UpgradeId, UpgradeId, UpgradeId],
   state: UpgradePickViewState,
   playerId: ValidPlayerId,
+  archetype: ArchetypeId,
 ): UpgradeId {
   const hasDeadTowers = playerHasDeadTowers(state, playerId);
   if (hasDeadTowers && offers.includes(UID.SECOND_WIND)) {
     return UID.SECOND_WIND;
   }
+  // Restoration Crew revives one dead tower on enclosure — same trigger as
+  // Second Wind; grab it when Second Wind wasn't on the table.
+  if (hasDeadTowers && offers.includes(UID.RESTORATION_CREW)) {
+    return UID.RESTORATION_CREW;
+  }
   const hasGruntsInZone = anyEntityInPlayerZone(state, playerId, state.grunts);
   if (hasGruntsInZone && offers.includes(UID.CLEAR_THE_FIELD)) {
     return UID.CLEAR_THE_FIELD;
+  }
+  // Entomb buries in-zone grunts under placed walls — useful only when the
+  // player actually has grunts to bury (and Clear the Field wasn't offered).
+  if (hasGruntsInZone && offers.includes(UID.ENTOMB)) {
+    return UID.ENTOMB;
   }
   const hasPits = anyEntityInPlayerZone(state, playerId, state.burningPits);
   if (hasPits && offers.includes(UID.FOUNDATIONS)) {
@@ -105,6 +118,31 @@ function aiPickUpgrade(
   if (offers.includes(UID.MORTAR) && playerCannonCount(state, playerId) <= 3) {
     return UID.MORTAR;
   }
+  // Aggressive AIs grab offensive/score-press upgrades whenever offered, in
+  // priority order: score press (Territorial Ambition), firepower (Supply
+  // Drop, Rapid Fire, Ricochet), then grunt/cannon pressure (Conscription,
+  // Salvage). All four feature capabilities press an attacking advantage.
+  if (archetype === "aggressive") {
+    const aggressivePicks = [
+      UID.TERRITORIAL_AMBITION,
+      UID.SUPPLY_DROP,
+      UID.RAPID_FIRE,
+      UID.RICOCHET,
+      UID.CONSCRIPTION,
+      UID.SALVAGE,
+    ];
+    for (const id of aggressivePicks) {
+      if (offers.includes(id)) return id;
+    }
+  }
+  // Builder AIs favor build-tempo upgrades: extra exclusive time, wall
+  // overlap, and shared build time all stretch their structural edge.
+  if (archetype === "builder") {
+    const builderPicks = [UID.MASTER_BUILDER, UID.ARCHITECT, UID.DOUBLE_TIME];
+    for (const id of builderPicks) {
+      if (offers.includes(id)) return id;
+    }
+  }
   const largeTerritory =
     playerTerritoryRatio(state, playerId) >= SMALL_PIECES_TERRITORY_RATIO;
   if (largeTerritory && offers.includes(UID.SMALL_PIECES)) {
@@ -114,6 +152,7 @@ function aiPickUpgrade(
   const excluded = new Set<UpgradeId>();
   if (!hasDeadTowers) excluded.add(UID.SECOND_WIND);
   if (!hasGruntsInZone) excluded.add(UID.CLEAR_THE_FIELD);
+  if (!hasGruntsInZone) excluded.add(UID.ENTOMB);
   if (!hasPits) excluded.add(UID.FOUNDATIONS);
   if (!hasDeadCannons) excluded.add(UID.RECLAMATION);
   if (!largeTerritory) excluded.add(UID.SMALL_PIECES);
