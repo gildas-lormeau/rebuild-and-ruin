@@ -159,7 +159,7 @@ export const UPGRADE_POOL: readonly UpgradeDef[] = [
     label: "Small Pieces",
     description: "Only simple pieces (1×1, 1×2, 1×3, corner)",
     category: BUILD,
-    weight: WEIGHT_UNCOMMON,
+    weight: WEIGHT_RARE,
     oneUse: false,
     global: false,
     implemented: true,
