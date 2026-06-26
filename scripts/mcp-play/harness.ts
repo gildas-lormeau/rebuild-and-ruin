@@ -417,6 +417,11 @@ export interface BattleTarget {
 export interface CannonSuggestion {
   /** Mode string ("normal" | "super" | "balloon" | "rampart"). */
   mode: CannonMode;
+  /** What this mode DOES — the registry `description` (sourced from
+   *  CANNON_MODE_POOL so it can't drift). Surfaced at the placement decision
+   *  point so the agent weighs ROLE, not just slot COST: e.g. a balloon reads as
+   *  "captures enemy cannons", not just a pricier normal. */
+  role: string;
   /** Top-left anchor of the footprint. */
   row: number;
   col: number;
@@ -2309,6 +2314,7 @@ export async function createMcpGame(
       for (const spot of spots.slice(0, CANNON_SUGGESTION_PER_MODE)) {
         out.push({
           mode: def.id,
+          role: def.description,
           row: spot.row,
           col: spot.col,
           size: def.size,

@@ -675,7 +675,7 @@ function renderCannonSpots(suggestions: CannonSpots): string[] {
       })
       .join(" ");
     lines.push(
-      `     ${mode} ${list[0]!.size}x${list[0]!.size} (${list[0]!.slotCost} slot) -> ${spots}`,
+      `     ${mode} ${list[0]!.size}x${list[0]!.size} (${list[0]!.slotCost} slot — ${list[0]!.role}) -> ${spots}`,
     );
   }
   if (suggestions.every((spot) => spot.routable === false)) {
