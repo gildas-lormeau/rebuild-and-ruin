@@ -28,6 +28,7 @@ export const CHAIN = {
  *  utility tactics (ice_trench, grunt_sweep, charity, pocket) stay
  *  re-selectable as their live preconditions demand. */
 export const TACTIC = {
+  PINCH_KILL: "pinch_kill",
   DENY_ENCLOSURE: "deny_enclosure",
   MAX_REPAIR_COST: "max_repair_cost",
   ICE_TRENCH: "ice_trench",

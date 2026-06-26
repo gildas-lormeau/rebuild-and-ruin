@@ -39,6 +39,7 @@ import { planFatBreach } from "./ai-plan-fat-breach.ts";
 import { planGruntSweep } from "./ai-plan-grunt-sweep.ts";
 import { planIceTrench } from "./ai-plan-ice-trench.ts";
 import { planMaxRepairCost } from "./ai-plan-max-repair-cost.ts";
+import { planPinchKill } from "./ai-plan-pinch-kill.ts";
 import { planPocketDestruction } from "./ai-plan-pocket-destruction.ts";
 import { planStructuralHit } from "./ai-plan-structural-hit.ts";
 import { planSuperAttack } from "./ai-plan-super-attack.ts";
@@ -357,6 +358,24 @@ export class DefaultStrategy implements AiStrategy {
         chainTargets = gruntTargets;
         chainType = CHAIN.GRUNT;
         tacticId = TACTIC.GRUNT_SWEEP;
+      }
+    }
+
+    // Pinch kill — top offensive priority, fired DETERMINISTICALLY (no rng
+    // gate, no min-cannon gate): a min-cut breach whose reseal we've verified
+    // lands in a buildable island too small for a tetromino, so the defender can
+    // only re-enclose the opened tower with a rare small piece. A guaranteed
+    // kill is the highest-value action — it must not be left to the probabilistic
+    // deny / fat_breach roll, nor skipped on a thin cannon round. Re-selectable
+    // across re-plans (not excluded) so successive chains keep opening fresh
+    // kills; once a ring's walls are gone `findMinBreach` no longer returns them.
+    if (!chainTargets) {
+      const pinchTargets = planPinchKill(state, playerId, usableCannonCount);
+      if (pinchTargets) {
+        chainTargets = pinchTargets;
+        chainType = CHAIN.STRUCTURAL;
+        originTag = "pinch_kill";
+        tacticId = TACTIC.PINCH_KILL;
       }
     }
 

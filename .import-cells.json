@@ -923,6 +923,7 @@
       "src/ai/ai-plan-charity-sweep.ts",
       "src/ai/ai-plan-deny-enclosure.ts",
       "src/ai/ai-plan-fat-breach.ts",
+      "src/ai/ai-plan-pinch-kill.ts",
       "src/ai/ai-plan-pocket-destruction.ts",
       "src/ai/ai-plan-structural-hit.ts",
       "src/ai/ai-plan-wall-demolition.ts"

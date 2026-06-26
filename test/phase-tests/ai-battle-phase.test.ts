@@ -1,8 +1,8 @@
 import { assert, assertEquals } from "@std/assert";
-import seed33GoldPocket from "./fixtures/battle/seed33-gold-pocket-destruction.json" with {
+import seed977796DenyFatWall from "./fixtures/battle/seed977796-deny-enclosure-fat-wall.json" with {
   type: "json",
 };
-import seed977796DenyFatWall from "./fixtures/battle/seed977796-deny-enclosure-fat-wall.json" with {
+import mcpOverwalledPinch from "./fixtures/battle/mcp-overwalled-pinch.json" with {
   type: "json",
 };
 import { planDenyEnclosure } from "../../src/ai/ai-plan-deny-enclosure.ts";
@@ -16,102 +16,16 @@ import {
 import { getBattleInterior } from "../../src/shared/sim/board-occupancy.ts";
 import { GAME_EVENT } from "../../src/shared/core/game-event-bus.ts";
 import { Phase } from "../../src/shared/core/game-phase.ts";
-import { GRID_COLS, GRID_ROWS, type TileKey } from "../../src/shared/core/grid.ts";
+import type { TileKey } from "../../src/shared/core/grid.ts";
 import { isActivePlayer } from "../../src/shared/core/player-slot.ts";
-import { computeOutside, packTile } from "../../src/shared/core/spatial.ts";
+import {
+  computeOutside,
+  forEachTowerTile,
+  packTile,
+} from "../../src/shared/core/spatial.ts";
 import { Rng } from "../../src/shared/platform/rng.ts";
 import { createPhaseScenario } from "./loader.ts";
 import type { FixtureFile } from "./types.ts";
-
-Deno.test(
-  "phase-test: pocket destruction self-fire never breaches a large enclosure (seed 33 GOLD r4)",
-  async () => {
-    // When the AI opens its own small enclosures for the build sweep, it
-    // fires at its OWN pocket-border walls — observable as WALL_DESTROYED
-    // with shooterId === playerId (a self-fire). The invariant under test:
-    // such a self-fire must only ever open a *pocket* (≤ DESTROY_POCKET_MAX_SIZE
-    // tiles); it must never breach a large enclosure (drain more than a
-    // pocket's worth of a player's largest enclosed region to the outside).
-    //
-    // This drives the REAL round-4 battle from a recorded checkpoint and
-    // watches the REAL bus event. Enclosure sizes are read with the runtime's
-    // own spatial primitives (computeOutside + findEnclosureComponents) — no
-    // hand-rolled territory logic, no simulated wall removal. On this seed
-    // GOLD (player 2) reliably performs pocket destruction (4 self-fires);
-    // each opens a separate small pocket and reduces its largest enclosed
-    // region by zero tiles — the large enclosure stays fully intact.
-    const sc = await createPhaseScenario(
-      seed33GoldPocket as unknown as FixtureFile,
-    );
-    assertEquals(sc.state.round, 4);
-    assertEquals(sc.state.phase, Phase.BATTLE);
-    const state = sc.state;
-
-    let selfFires = 0;
-    const selfFiredThisTick = new Set<number>();
-    sc.bus.on(GAME_EVENT.WALL_DESTROYED, (ev) => {
-      // shooterId === playerId ⇒ the wall's owner destroyed its own wall.
-      if (ev.shooterId !== undefined && ev.shooterId === ev.playerId) {
-        selfFires++;
-        selfFiredThisTick.add(ev.playerId);
-      }
-    });
-
-    // Largest enclosed region per player, sampled before each tick.
-    const largestBefore = new Map<number, number>();
-    for (const player of state.players) {
-      largestBefore.set(player.id, largestEnclosure(player.walls));
-    }
-
-    let breach:
-      | { playerId: number; before: number; after: number }
-      | null = null;
-
-    // Step the battle one frame at a time so a self-fire on a given tick is
-    // attributed to that tick's enclosure change.
-    let frame = 0;
-    const MAX_FRAMES = 2000;
-    while (
-      state.round === 4 &&
-      state.phase === Phase.BATTLE &&
-      frame < MAX_FRAMES
-    ) {
-      selfFiredThisTick.clear();
-      sc.tick(1);
-      frame += 1;
-      for (const player of state.players) {
-        const after = largestEnclosure(player.walls);
-        const before = largestBefore.get(player.id)!;
-        if (
-          breach === null &&
-          selfFiredThisTick.has(player.id) &&
-          before - after > DESTROY_POCKET_MAX_SIZE
-        ) {
-          breach = { playerId: player.id, before, after };
-        }
-        largestBefore.set(player.id, after);
-      }
-    }
-
-    // Non-vacuous: the seed must actually exercise pocket destruction, or the
-    // invariant below would pass for the wrong reason.
-    assert(
-      selfFires > 0,
-      "no self-fire occurred — fixture no longer exercises pocket destruction, re-record",
-    );
-
-    assertEquals(
-      breach,
-      null,
-      breach
-        ? `player ${breach.playerId} self-fire dropped its largest enclosure ` +
-            `${breach.before} → ${breach.after} (lost ${breach.before - breach.after} ` +
-            `tiles, more than a pocket of ${DESTROY_POCKET_MAX_SIZE}) — pocket ` +
-            `destruction breached a large enclosure`
-        : "",
-    );
-  },
-);
 
 Deno.test(
   "phase-test: a deny-enclosure plan, fully executed, must breach a large enclosure (seed 977796 RED fat ring r43)",
@@ -184,23 +98,86 @@ Deno.test(
   },
 );
 
-/** Size of the player's largest enclosed region, computed from its current
- *  walls with the runtime's own spatial primitives. `computeOutside` is the
- *  8-dir flood the game uses for territory; interior = non-wall, non-outside
- *  (the same derivation as build-system's recomputeInterior); components via
- *  the AI's `findEnclosureComponents`. */
-function largestEnclosure(walls: ReadonlySet<TileKey>): number {
-  const outside = computeOutside(walls);
-  const interior = new Set<TileKey>();
-  for (let row = 0; row < GRID_ROWS; row++) {
-    for (let col = 0; col < GRID_COLS; col++) {
-      const key = packTile(row, col);
-      if (!outside.has(key) && !walls.has(key)) interior.add(key);
+Deno.test(
+  "phase-test: AI breaches an over-walled castle to un-enclose EVERY tower (MCP seed 381466 RED r50)",
+  async () => {
+    // The "easy kill" the user pointed at: a player who has buried its zone in
+    // walls (more wall than land) but whose enclosed towers are still held up
+    // only by wall PLUGS in the obstacle lines — destroy those plugs and the
+    // tower can only be re-enclosed with a small piece. The complaint was that
+    // the AI never even *tried* to breach this. The `pinch_kill` tactic
+    // (`planPinchKill`) detects it — the min-cut breach hugs the obstacle lines
+    // and pays only at the plugs — and fires it deterministically at top
+    // offensive priority instead of leaving it to the deny / fat_breach roll.
+    //
+    // Captured from the real MCP-play journal (seed 381466, modern) at round 50
+    // BATTLE entry: RED has 212 walls and 2 intact tower-holding enclosures.
+    // Driven forward through the REAL battle (all-AI), the invariant is that by
+    // battle end EVERY one of RED's intact tower enclosures has been breached by
+    // ENEMY fire — read with the runtime's own spatial primitives, no simulated
+    // wall removal. Baseline (no pinch_kill) breaks only one ring here; the
+    // tactic breaks both and leaves RED with zero enclosed towers.
+    const sc = await createPhaseScenario(
+      mcpOverwalledPinch as unknown as FixtureFile,
+    );
+    assertEquals(sc.state.round, 50);
+    assertEquals(sc.state.phase, Phase.BATTLE);
+    const state = sc.state;
+    const red = state.players[0]!;
+    assert(isActivePlayer(red.id));
+
+    // Non-vacuous: RED must be over-walled with at least two intact tower
+    // enclosures, or "breach every tower ring" would pass for the wrong reason.
+    const liveOutside = computeOutside(red.walls);
+    const towerFootprints = new Set<TileKey>();
+    for (const tower of red.enclosedTowers) {
+      if (state.towerAlive[tower.index]) {
+        forEachTowerTile(tower, (_r, _c, key) => towerFootprints.add(key));
+      }
     }
-  }
-  let max = 0;
-  for (const component of findEnclosureComponents(interior)) {
-    if (component.length > max) max = component.length;
-  }
-  return max;
-}
+    const towerEnclosures = findEnclosureComponents(getBattleInterior(red))
+      .filter((comp) => comp.length > DESTROY_POCKET_MAX_SIZE)
+      .filter((comp) => !isEnclosureBroken(comp, liveOutside))
+      .filter((comp) => comp.some((key) => towerFootprints.has(key)));
+    assert(
+      red.walls.size > 150 && towerEnclosures.length >= 2,
+      `RED is not the over-walled multi-tower defender this fixture targets ` +
+        `(walls=${red.walls.size}, tower-enclosures=${towerEnclosures.length}) ` +
+        `— re-record`,
+    );
+
+    // Attribute the breach to ENEMY fire (shooterId an opponent), not RED's own
+    // build-sweep self-fires, so the test can't pass on RED opening itself.
+    let enemyDestroyedRedWalls = 0;
+    sc.bus.on(GAME_EVENT.WALL_DESTROYED, (ev) => {
+      if (ev.playerId === red.id && ev.shooterId !== undefined && ev.shooterId !== red.id) {
+        enemyDestroyedRedWalls++;
+      }
+    });
+
+    let frame = 0;
+    const MAX_FRAMES = 4000;
+    while (
+      state.round === 50 &&
+      state.phase === Phase.BATTLE &&
+      frame < MAX_FRAMES
+    ) {
+      sc.tick(1);
+      frame += 1;
+    }
+
+    const brokenNow = countBrokenEnclosures(red.walls, towerEnclosures);
+    assert(
+      enemyDestroyedRedWalls > 0,
+      "no enemy destroyed a RED wall — the AI never attacked the over-walled castle",
+    );
+    assertEquals(
+      brokenNow,
+      towerEnclosures.length,
+      `AI breached only ${brokenNow}/${towerEnclosures.length} of RED's intact ` +
+        `tower enclosures (${enemyDestroyedRedWalls} RED walls destroyed by ` +
+        `enemies) — the pinch-kill tactic must un-enclose EVERY tower of an ` +
+        `over-walled defender it can breach`,
+    );
+  },
+);

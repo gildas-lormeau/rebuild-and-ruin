@@ -8,6 +8,11 @@
 import type { TilePos } from "../shared/core/geometry-types.ts";
 
 export type FireOrigin =
+  // pinch_kill shares CHAIN.STRUCTURAL's behaviour (surgical wall removal) — the
+  // min-cut breach (like fat_breach) but verified to force a small-piece-only
+  // reseal, so it's fired deterministically at top offensive priority. Distinct
+  // origin so metrics can isolate guaranteed kills. Set via BattlePlan.originTag.
+  | "pinch_kill"
   // deny_enclosure shares CHAIN.STRUCTURAL's behaviour (surgical wall removal);
   // distinct origin so metrics can isolate min-cut enclosure-denial sieges from
   // the broader structural-hit tactic. Set via BattlePlan.originTag.

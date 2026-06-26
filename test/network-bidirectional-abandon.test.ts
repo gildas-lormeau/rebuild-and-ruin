@@ -47,9 +47,9 @@ const TRIALS: {
   readonly mode: "classic" | "modern";
   readonly rounds: number;
 }[] = [
-  { seed: 1, mode: "classic", rounds: 8 },
-  { seed: 7, mode: "classic", rounds: 8 },
-  { seed: 0, mode: "modern", rounds: 8 },
+  { seed: 8, mode: "classic", rounds: 8 },
+  { seed: 9, mode: "classic", rounds: 8 },
+  { seed: 35, mode: "modern", rounds: 8 },
 ];
 
 void _forceScenarioFirst;
