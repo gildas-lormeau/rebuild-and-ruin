@@ -801,6 +801,14 @@ let autoJournalIndex = 0;
  *  re-run. undefined = unread; resolved lazily on first call. */
 let autoJournalOff: boolean | undefined;
 
+/** The live game after the most recent `callTool` (or null before any new_game).
+ *  Lets an importer (`load-game.ts`) replay a journal through `callTool` and then
+ *  take the resulting harness to inspect its full hidden state + keep playing —
+ *  without exposing the mutable module singleton itself. */
+export function peekCurrentGame(): McpGame | null {
+  return game;
+}
+
 function startGame(config: Journal["config"]): Promise<McpGame> {
   return createMcpGame({
     seed: config.seed,
