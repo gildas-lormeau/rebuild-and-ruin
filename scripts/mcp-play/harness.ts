@@ -74,7 +74,11 @@ import {
   type TileKey,
 } from "../../src/shared/core/grid.ts";
 import { modifierDef } from "../../src/shared/core/modifier-defs.ts";
-import { type PieceShape, rotateCW } from "../../src/shared/core/pieces.ts";
+import {
+  type PieceShape,
+  piecesInRoundPool,
+  rotateCW,
+} from "../../src/shared/core/pieces.ts";
 import type { ValidPlayerId } from "../../src/shared/core/player-slot.ts";
 import type { Player } from "../../src/shared/core/player-types.ts";
 import {
@@ -607,6 +611,24 @@ export interface Observation {
      *  out. Caused by a near-sealed castle whose only gaps need a different piece
      *  shape/size than the one dealt. `false` outside WALL_BUILD. */
     bagLocked: boolean;
+    /** WALL_BUILD only: bag-lock tightness. `bagLocked` reports the terminal
+     *  deadlock for the CURRENT piece; `dumpCapacity` quantifies how packed the
+     *  castle is by sweeping the WHOLE round draw pool — `placeable` of `pool`
+     *  distinct shapes (this round's draw set, derived from `bag.round` +
+     *  `bag.smallPieces`, scalar flags — NOT the queued shapes, so no asymmetric
+     *  bag peek) still have at least one legal placement; `largestBlocked` names
+     *  the biggest shape with none (null if all fit). The generic-dump pocket
+     *  that admits ANY piece is 3×3 (the `+` needs a 3×3 bbox). CAVEAT: with an
+     *  atomic build_out this is effectively BINARY — it reads full (placeable ==
+     *  pool) until the packing call locks it, with no tight-but-placeable window.
+     *  It pre-warns only between INCREMENTAL place_piece calls; otherwise it's a
+     *  diagnosis + next-build lesson, not a forecast. `null` outside WALL_BUILD
+     *  or before a bag exists. */
+    dumpCapacity: {
+      pool: number;
+      placeable: number;
+      largestBlocked: string | null;
+    } | null;
     /** Home tower top-left (the centre of your castle), or null pre-selection. */
     homeTower: { row: number; col: number } | null;
     currentPiece: string | null;
@@ -1323,12 +1345,10 @@ export async function createMcpGame(
    *  loss. Happens to a near-sealed fortress whose only gaps are 1-tile holes or
    *  the wrong chirality/size for the held piece (an `S` gap can't take an `SR`).
    *  Early-exits on the first legal spot, so it's cheap unless genuinely locked. */
-  function currentPieceHasAnyPlacement(player: Player): boolean {
-    const piece = player.currentPiece;
-    if (!piece) return true;
+  function shapeHasAnyPlacement(shape: PieceShape): boolean {
     const state = sc.state;
     for (let rotation = 0; rotation < 4; rotation++) {
-      const offsets = rotatedOffsets(piece, rotation);
+      const offsets = rotatedOffsets(shape, rotation);
       for (let row = -MAX_PIECE_EXTENT; row < GRID_ROWS; row++) {
         for (let col = -MAX_PIECE_EXTENT; col < GRID_COLS; col++) {
           if (canPlacePiece(state, agentSlot, offsets, row, col)) return true;
@@ -1336,6 +1356,46 @@ export async function createMcpGame(
       }
     }
     return false;
+  }
+
+  function currentPieceHasAnyPlacement(player: Player): boolean {
+    const piece = player.currentPiece;
+    if (!piece) return true;
+    return shapeHasAnyPlacement(piece);
+  }
+
+  /** Bag-lock tightness for WALL_BUILD. `currentPieceHasAnyPlacement` reports the
+   *  terminal deadlock for the piece already dealt; this sweeps the WHOLE round
+   *  draw pool (derived from `bag.round` + `bag.smallPieces` — scalar flags, never
+   *  the queued shapes, so no asymmetric bag peek) and counts how many distinct
+   *  shapes still have a legal home, with `largestBlocked` naming the biggest that
+   *  doesn't. CAVEAT (measured): under an atomic build_out this is effectively
+   *  binary — it stays full until the packing call locks it, so it diagnoses a
+   *  lock (and teaches the next-build lesson) rather than forecasting one; the
+   *  preview window exists only between incremental place_piece calls. */
+  function dumpCapacityFor(
+    player: Player,
+  ): { pool: number; placeable: number; largestBlocked: string | null } | null {
+    const bag = player.bag;
+    if (sc.state.phase !== Phase.WALL_BUILD || !bag) return null;
+    const pool = piecesInRoundPool(bag.round, bag.smallPieces);
+    let placeable = 0;
+    let largestBlocked: PieceShape | null = null;
+    for (const shape of pool) {
+      if (shapeHasAnyPlacement(shape)) {
+        placeable++;
+      } else if (
+        !largestBlocked ||
+        shape.offsets.length > largestBlocked.offsets.length
+      ) {
+        largestBlocked = shape;
+      }
+    }
+    return {
+      pool: pool.length,
+      placeable,
+      largestBlocked: largestBlocked?.name ?? null,
+    };
   }
 
   /** Every legal placement of the current piece whose footprint touches `zone`
@@ -2921,6 +2981,7 @@ export async function createMcpGame(
           state.phase === Phase.WALL_BUILD && me.currentPiece != null
             ? !currentPieceHasAnyPlacement(me)
             : false,
+        dumpCapacity: dumpCapacityFor(me),
         homeTower: me.homeTower
           ? { row: me.homeTower.row, col: me.homeTower.col }
           : null,

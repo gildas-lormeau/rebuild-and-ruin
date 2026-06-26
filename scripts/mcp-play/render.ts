@@ -157,6 +157,9 @@ export function renderObservation(obs: Observation): string {
     );
   }
 
+  // ── dump-capacity: bag-lock tightness diagnosis (binary under atomic build) ──
+  lines.push(...dumpCapacityLines(obs));
+
   // ── enclosure candidates: min-cut plans, blocker-aware feasibility ──────────
   lines.push(...enclosureLines(obs));
 
@@ -476,6 +479,29 @@ function threatLines(obs: Observation): string[] {
     );
   }
   return lines;
+}
+
+/** Bag-lock tightness diagnosis. Fires whenever the castle has packed tight
+ *  enough that some draw-pool shapes no longer have a legal placement — i.e. a
+ *  fat piece could (or already did) bag-lock you. NOTE: with an atomic build_out
+ *  this reading is effectively binary — it goes from "all shapes fit" straight to
+ *  locked in one call, so it reads as a diagnosis + next-build lesson, not a
+ *  pre-lock prediction (the structured `me.dumpCapacity` field IS pollable
+ *  between incremental place_piece calls, where a preview window exists).
+ *  The generic-dump pocket that admits ANY piece is 3×3 — the `+` needs a 3×3
+ *  bounding box; a 3×4 is a safe superset with placement slack. */
+function dumpCapacityLines(obs: Observation): string[] {
+  if (!obs.me.dumpCapacity) return [];
+  const { pool, placeable, largestBlocked } = obs.me.dumpCapacity;
+  if (placeable >= pool) return [];
+  const verb = obs.me.bagLocked
+    ? "is why you're bag-locked"
+    : "risks a bag-lock";
+  return [
+    `  ⚠ DUMP CAPACITY: only ${placeable}/${pool} draw-pool shapes have a legal placement` +
+      (largestBlocked ? ` (largest blocked: ${largestBlocked})` : "") +
+      `. Your castle is packed to a near-single-tile seam — that ${verb}: a fat piece has no home, and the bag only advances by placing. Keep an open 3×3 pocket next build (the + needs 3×3; 3×4 is safely generic) — dump duds onto loose ends (◦) instead of sealing every interior tile.`,
+  ];
 }
 
 /** Min-cut enclosure plans per tower (blocker-aware feasibility, drift + seal
