@@ -122,6 +122,11 @@ const TOOLS: ToolDef[] = [
           description:
             "Sim-frames of game time each action costs (default 30 ≈ 0.5s). Lower = more moves per phase.",
         },
+        verbose: {
+          type: "boolean",
+          description:
+            "Repeat the full static explainers (per-phase EXPECTED menus, board legend, how-to tails) on EVERY observation instead of showing each once then collapsing to a terse pointer. Default false — leave it off for a stateful session that remembers prior turns; set true for a stateless caller or a human reading a single board.",
+        },
       },
     },
     handler: async (args) => {
@@ -143,6 +148,10 @@ const TOOLS: ToolDef[] = [
       };
       game = await startGame(config);
       journal = { config, moves: [] };
+      // Fresh session → fresh show-once gate (each static explainer re-emits in
+      // full the first time it's seen this game). `verbose:true` defeats it.
+      seenBlocks = new Set<string>();
+      renderVerbose = args.verbose === true;
       return game.observe();
     },
   },
@@ -707,6 +716,8 @@ const TOOLS: ToolDef[] = [
       const path = pathArg(args);
       const loaded = JSON.parse(await Deno.readTextFile(path)) as Journal;
       game = await startGame(loaded.config);
+      // A restored session is a fresh render context — re-show each explainer once.
+      seenBlocks = new Set<string>();
       for (const move of loaded.moves) {
         if (move.t === "act") game.act(move.decision);
         else if (move.t === "pass") game.pass(move.n, move.seconds);
@@ -745,6 +756,15 @@ const AUTO_JOURNAL_LAST_EXPECTED = "tmp/mcp-play/last.expected.jsonl";
 
 let game: McpGame | null = null;
 let journal: Journal | null = null;
+/** Session-scoped show-once gate for the renderer: keys of static explainer
+ *  blocks already emitted this session. The MCP session is stateful (the agent
+ *  retains every prior turn), so a per-phase EXPECTED menu, the board legend, and
+ *  the constant how-to tails only need to be shown once — `renderObservation`
+ *  collapses them to a terse pointer on every later turn. Reset at new_game.
+ *  `verbose: true` on new_game keeps it empty-on-every-render (full text always),
+ *  for a genuinely stateless caller or a human reading a single board. */
+let seenBlocks = new Set<string>();
+let renderVerbose = false;
 /** Live-watch sink: when `MCP_PLAY_WATCH=<path>` is set, every board snapshot is
  *  mirrored to three sibling files so a human can watch the agent play:
  *    - `<path>` — the BOARD GRID ONLY (fits a screen without scrolling). Open it
@@ -1101,9 +1121,15 @@ export async function callTool(
     // reads the new state directly; observe({format:'json'}) opts back into raw
     // JSON, and non-observation payloads (check/plan/save) stay JSON.
     const wantJson = name === "observe" && args.format === "json";
+    // `verbose` mode passes a throwaway empty Set each render, so every block
+    // gets its full text every turn; otherwise the persistent session Set
+    // collapses already-seen static blocks to their terse pointers.
     const rendered =
       !wantJson && isObservation(result)
-        ? renderObservation(result)
+        ? renderObservation(
+            result,
+            renderVerbose ? new Set<string>() : seenBlocks,
+          )
         : JSON.stringify(result, null, 2);
     // new_game opens a session, so it's the right place to surface the build
     // stamp and (critically) a staleness warning — a subprocess spawned from

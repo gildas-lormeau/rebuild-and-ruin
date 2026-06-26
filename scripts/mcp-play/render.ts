@@ -13,15 +13,46 @@
  * dev/research tool — never wired into determinism or parity suites.
  */
 
+import { LEGEND_LINE_COUNT } from "../../dev/dev-console-grid.ts";
 import type { Observation } from "./harness.ts";
 
 type CannonSpots = NonNullable<Observation["cannonSuggestions"]>;
 
+/** Show-once gate threaded into the section helpers: returns `full` the first
+ *  time `key` is seen in a session, `terse` thereafter. See `renderObservation`. */
+type Once = (key: string, full: string, terse: string) => string;
+
+/** Terse one-line replacements for the per-phase EXPECTED menus, keyed by the
+ *  `Observation.phase` string. The full menu (from `expectedFor` in harness.ts)
+ *  is emitted the FIRST time a phase is seen in a session; thereafter a stateful
+ *  agent that already read it gets this pointer instead. */
+const TERSE_EXPECTED: Record<string, string> = {
+  CASTLE_SELECT: "CASTLE_SELECT — select { towerIdx } a home tower.",
+  WALL_BUILD:
+    "WALL_BUILD — build_out (default, seals everything that fits) / build_toward { towerIdx } / build_path { from, to } / hand place { row, col, rotation } / pass. (full menu: round 1)",
+  CANNON_PLACE:
+    "CANNON_PLACE — cannon { row, col, mode }; see CANNON SPOTS for affordable spots; cannon-done / pass. (full menu: round 1)",
+  UPGRADE_PICK:
+    "UPGRADE_PICK — pick-upgrade { cardIdx 0|1|2 } from UPGRADE OFFERS. (full menu: round 1)",
+  BATTLE:
+    "BATTLE — bombard { slot } (spread) / breach { slot, towerIdx? } (deny a pocket) / pit_strike { slot } / cull (defend vs your grunts) / fire { row, col } (snipe). See TARGETS. (full menu: round 1)",
+};
+
 /** Render an observation as the annotated ASCII board (header, standings,
  *  roster, battery, aim-assist sections, then the raw board the harness baked).
  *  Faithful to the curated `tmp/show.py` layout. */
-export function renderObservation(obs: Observation): string {
+export function renderObservation(
+  obs: Observation,
+  seen: Set<string> = new Set<string>(),
+): string {
   const lines: string[] = [];
+  // Show-once gate: the FIRST time a static explainer block is rendered in a
+  // session it gets the full text; thereafter a stateful agent (the MCP session
+  // retains every prior turn) gets the terse pointer. `seen` is owned by the
+  // server session and reset at new_game; an empty default means a one-off
+  // caller (or a test) still gets the full text every time.
+  const once = (key: string, full: string, terse: string) =>
+    seen.has(key) ? terse : (seen.add(key), full);
 
   // ── header: round / phase / timer, battle liveness, board coverage ──────────
   let hdr = `ROUND ${obs.round}  ${obs.phase}  t=${obs.timerSec}s`;
@@ -50,7 +81,11 @@ export function renderObservation(obs: Observation): string {
   // ── standings (or final results, once the match is over) ────────────────────
   for (const line of standingsLines(obs)) lines.push(line);
 
-  if (!obs.gameOver) lines.push(`EXPECTED: ${obs.expected}`);
+  if (!obs.gameOver) {
+    lines.push(
+      `EXPECTED: ${once(`expected:${obs.phase}`, obs.expected, TERSE_EXPECTED[obs.phase] ?? obs.expected)}`,
+    );
+  }
 
   const last = obs.lastResult;
   if (last) {
@@ -82,10 +117,10 @@ export function renderObservation(obs: Observation): string {
   lines.push(...batteryStatusLines(obs));
 
   // ── BATTLE aim-assist: opponents + their towers as breach targets ───────────
-  lines.push(...targetLines(obs));
+  lines.push(...targetLines(obs, once));
 
   // ── BATTLE pit targets: best super-cannon pit walls, choke-ranked ───────────
-  lines.push(...pitTargetLines(obs));
+  lines.push(...pitTargetLines(obs, once));
 
   // ── BATTLE cannon-snipe: conditional nudge to kill enemy guns over bombard ──
   lines.push(...cannonSnipeLines(obs));
@@ -97,7 +132,7 @@ export function renderObservation(obs: Observation): string {
   lines.push(...threatLines(obs));
 
   // ── grunt clusters: dense packs (≥2×2) worth enclosing / opponent weak spots ─
-  lines.push(...gruntClusterLines(obs));
+  lines.push(...gruntClusterLines(obs, once));
 
   // ── selection: pickable towers in my zone ───────────────────────────────────
   if (obs.towers) {
@@ -109,7 +144,7 @@ export function renderObservation(obs: Observation): string {
 
   // ── cannon spots: legal placements grouped by mode, safe-interior first ──────
   if (obs.cannonSuggestions !== undefined) {
-    for (const line of renderCannonSpots(obs.cannonSuggestions))
+    for (const line of renderCannonSpots(obs.cannonSuggestions, once))
       lines.push(line);
   }
 
@@ -153,18 +188,22 @@ export function renderObservation(obs: Observation): string {
         (obs.me.survivesRoundEnd
           ? " Survival is safe (a tower is enclosed), so you just forfeit this build."
           : " ☠ No alive/revivable tower is enclosed, so finalizing costs a LIFE + zone reset — unavoidable now.") +
-        " Cause: a near-sealed castle whose only gaps need a different piece shape/size (e.g. an S-gap can't take an SR). Prevent next time: keep a multi-tile cut and don't pack every interior tile.",
+        once(
+          "bagLockHowto",
+          " Cause: a near-sealed castle whose only gaps need a different piece shape/size (e.g. an S-gap can't take an SR). Prevent next time: keep a multi-tile cut and don't pack every interior tile.",
+          "",
+        ),
     );
   }
 
   // ── dump-capacity: bag-lock tightness diagnosis (binary under atomic build) ──
-  lines.push(...dumpCapacityLines(obs));
+  lines.push(...dumpCapacityLines(obs, once));
 
   // ── enclosure candidates: min-cut plans, blocker-aware feasibility ──────────
   lines.push(...enclosureLines(obs));
 
   // ── opportunity cost of passing: prices idle build time at the decision point ─
-  lines.push(...stillSealableLines(obs));
+  lines.push(...stillSealableLines(obs, once));
 
   // ── compactness: the standing over-expansion trend, the PRE-COMMIT fat lever ─
   // Visible before every build choice so a climbing fat/100 steers you off a
@@ -183,7 +222,11 @@ export function renderObservation(obs: Observation): string {
   // sealed ring is sweep-proof regardless). The lever is purely forward.
   if (obs.fatWalls && obs.fatWalls.length > 0) {
     lines.push(
-      `  ℹ fat walls: ${obs.fatWalls.length} interior tiles fully boxed by your own territory (former perimeters you expanded past + piece-overflow). SUNK — in classic a placed wall can't be removed, so this isn't a to-do and isn't a defensive hole. The only avoidable fat is fat you haven't placed yet: send new pieces to the frontier (build_toward / ↗ EXTEND), not into interior.`,
+      once(
+        "fatWalls",
+        `  ℹ fat walls: ${obs.fatWalls.length} interior tiles fully boxed by your own territory (former perimeters you expanded past + piece-overflow). SUNK — in classic a placed wall can't be removed, so this isn't a to-do and isn't a defensive hole. The only avoidable fat is fat you haven't placed yet: send new pieces to the frontier (build_toward / ↗ EXTEND), not into interior.`,
+        `  ℹ fat walls: ${obs.fatWalls.length} sunk interior tiles (not a to-do; only avoidable fat is unplaced — send pieces to the frontier).`,
+      ),
     );
   }
 
@@ -192,8 +235,13 @@ export function renderObservation(obs: Observation): string {
   // can only ever shave dangling stubs; it can never open a sealed pocket. They
   // only cost you on an UN-closed cross-round pre-claim line (build_path).
   if (obs.fragileWalls && obs.fragileWalls.length > 0) {
+    const tail = once(
+      "fragileWallsHowto",
+      " — harmless to a sealed castle (you can even dump a dud piece here); only anchor one if it's part of a build_path pre-claim you'll close a later round",
+      "",
+    );
     lines.push(
-      `  ◦ loose wall ends (${obs.fragileWalls.length}, ≤1 wall-neighbor — swept at round end): harmless to a sealed castle (you can even dump a dud piece here); only anchor one if it's part of a build_path pre-claim you'll close a later round: ${tileList(obs.fragileWalls)}`,
+      `  ◦ loose wall ends (${obs.fragileWalls.length}, ≤1 wall-neighbor — swept at round end)${tail}: ${tileList(obs.fragileWalls)}`,
     );
   }
 
@@ -219,7 +267,17 @@ export function renderObservation(obs: Observation): string {
   // ── modern UPGRADE_PICK: the three offers, pick one by cardIdx ───────────────
   lines.push(...upgradeOfferLines(obs));
 
-  lines.push(obs.board);
+  // The board carries a constant glyph legend (the first LEGEND_LINE_COUNT
+  // lines, incl. a round/score line that ROSTER + STANDINGS already cover).
+  // Show it once per session, then drop it — the coordinate headers below it
+  // stay, so the agent never loses tile-citing context.
+  lines.push(
+    once(
+      "board:legend",
+      obs.board,
+      obs.board.split("\n").slice(LEGEND_LINE_COUNT).join("\n"),
+    ),
+  );
   return lines.join("\n");
 }
 
@@ -374,10 +432,14 @@ function batteryStatusLines(obs: Observation): string[] {
 
 /** BATTLE aim-assist: each opponent (leader first) + their towers as breach
  *  targets. Empty when `obs.targets` is absent (non-BATTLE phases). */
-function targetLines(obs: Observation): string[] {
+function targetLines(obs: Observation, once: Once): string[] {
   if (!obs.targets) return [];
   const lines: string[] = [
-    "  TARGETS (leader first — bombard=spread walls / breach=open one tower's pocket):",
+    once(
+      "targetsHeader",
+      "  TARGETS (leader first — bombard=spread walls / breach=open one tower's pocket):",
+      "  TARGETS (leader first):",
+    ),
   ];
   for (const target of obs.targets) {
     const tiles = target.sampleTiles
@@ -398,10 +460,14 @@ function targetLines(obs: Observation): string[] {
 }
 
 /** BATTLE pit targets: best super-cannon pit walls, choke-ranked. */
-function pitTargetLines(obs: Observation): string[] {
+function pitTargetLines(obs: Observation, once: Once): string[] {
   if (!obs.pitTargets) return [];
   const lines: string[] = [
-    "  🔥 PIT TARGETS (super-cannon → burning pit; pit_strike(slot, targets) — choke=un-reroutable sides):",
+    once(
+      "pitTargetsHeader",
+      "  🔥 PIT TARGETS (super-cannon → burning pit; pit_strike(slot, targets) — choke=un-reroutable sides):",
+      "  🔥 PIT TARGETS (pit_strike(slot, targets); choke=un-reroutable sides):",
+    ),
   ];
   for (const pit of obs.pitTargets) {
     const tower = pit.towerIdx != null ? ` tower${pit.towerIdx}` : "";
@@ -457,7 +523,10 @@ function threatLines(obs: Observation): string[] {
   const lines: string[] = [
     "  ⚠ THREATS (grunts that can reach a tower — most urgent first):",
   ];
-  for (const threat of urgent) {
+  // Cap the enumeration: urgent threats are sorted most-urgent-first, so the top
+  // few are the actionable ones; a long tail of equally-exposed grunts is noise.
+  const URGENT_CAP = 6;
+  for (const threat of urgent.slice(0, URGENT_CAP)) {
     const grunt = threat.grunt;
     const tower = threat.tower;
     const flag = threat.towerEnclosed ? "walled" : "EXPOSED";
@@ -470,6 +539,11 @@ function threatLines(obs: Observation): string[] {
       : "";
     lines.push(
       `     ${threat.kind} (${grunt.row},${grunt.col}) -> tower ${tower.idx} (${tower.row},${tower.col}) dist ${threat.distance} [${flag}]${attacking}${occluded}${wall}`,
+    );
+  }
+  if (urgent.length > URGENT_CAP) {
+    lines.push(
+      `     + ${urgent.length - URGENT_CAP} more grunt(s) that can reach a tower (less urgent — closest shown above)`,
     );
   }
   if (walled.length > 0) {
@@ -490,17 +564,22 @@ function threatLines(obs: Observation): string[] {
  *  between incremental place_piece calls, where a preview window exists).
  *  The generic-dump pocket that admits ANY piece is 3×3 — the `+` needs a 3×3
  *  bounding box; a 3×4 is a safe superset with placement slack. */
-function dumpCapacityLines(obs: Observation): string[] {
+function dumpCapacityLines(obs: Observation, once: Once): string[] {
   if (!obs.me.dumpCapacity) return [];
   const { pool, placeable, largestBlocked } = obs.me.dumpCapacity;
   if (placeable >= pool) return [];
   const verb = obs.me.bagLocked
     ? "is why you're bag-locked"
     : "risks a bag-lock";
+  const tail = once(
+    "dumpCapacityHowto",
+    `Your castle is packed to a near-single-tile seam — that ${verb}: a fat piece has no home, and the bag only advances by placing. Keep an open 3×3 pocket next build (the + needs 3×3; 3×4 is safely generic) — dump duds onto loose ends (◦) instead of sealing every interior tile.`,
+    `(${verb}; keep an open 3×3 pocket next build).`,
+  );
   return [
     `  ⚠ DUMP CAPACITY: only ${placeable}/${pool} draw-pool shapes have a legal placement` +
       (largestBlocked ? ` (largest blocked: ${largestBlocked})` : "") +
-      `. Your castle is packed to a near-single-tile seam — that ${verb}: a fat piece has no home, and the bag only advances by placing. Keep an open 3×3 pocket next build (the + needs 3×3; 3×4 is safely generic) — dump duds onto loose ends (◦) instead of sealing every interior tile.`,
+      `. ${tail}`,
   ];
 }
 
@@ -595,7 +674,7 @@ function enclosableDetail(
 /** Prices idle build time: lists every enclosure still sealable in the time
  *  left (`feasible`). Present ⇒ a tower (+ maybe bonus squares) to bank, so
  *  build_toward instead of passing; absent ⇒ passing is correct. */
-function stillSealableLines(obs: Observation): string[] {
+function stillSealableLines(obs: Observation, once: Once): string[] {
   const stillSealable = (obs.enclosureCandidates ?? []).filter(
     (candidate) => candidate.status === "enclosable" && candidate.feasible,
   );
@@ -606,8 +685,13 @@ function stillSealableLines(obs: Observation): string[] {
       (candidate.bonusSquares ?? 0) > 0 ? `, ★+${candidate.bonusSquares}` : "";
     return `${who} (~${candidate.estSeconds.toFixed(0)}s${bonus})`;
   });
+  const tail = once(
+    "stillSealableHowto",
+    " Idle build time scores nothing; castle units + bonus squares only bank if enclosed — build_out() to claim all of them (then pre-claim the rest) before you pass.",
+    " build_out() before you pass.",
+  );
   return [
-    `  ⏳ ${obs.timerSec}s left — still enclosable: ${parts.join(", ")}. Idle build time scores nothing; castle units + bonus squares only bank if enclosed — build_out() to claim all of them (then pre-claim the rest) before you pass.`,
+    `  ⏳ ${obs.timerSec}s left — still enclosable: ${parts.join(", ")}.${tail}`,
   ];
 }
 
@@ -647,14 +731,18 @@ function suggestionLines(obs: Observation): string[] {
  *  (UNSEALABLE risk — tight space only); `°` = ring-adjacent but routable (goes
  *  inert on a breach, re-arms at reseal). The warning fires only when EVERY
  *  affordable spot is unroutable — never just because spots hug a clean ring. */
-function renderCannonSpots(suggestions: CannonSpots): string[] {
+function renderCannonSpots(suggestions: CannonSpots, once: Once): string[] {
   if (suggestions.length === 0) {
     return [
       "  CANNON SPOTS: none (no affordable footprint fits — end_cannon or pass)",
     ];
   }
   const lines: string[] = [
-    "  CANNON SPOTS (safest first; ✗ = tight spot, a re-seal can't wall around it after a breach → UNSEALABLE risk; ° = ring-adjacent: goes inert on a breach but re-arms at reseal):",
+    once(
+      "cannonSpotsHeader",
+      "  CANNON SPOTS (safest first; ✗ = tight spot, a re-seal can't wall around it after a breach → UNSEALABLE risk; ° = ring-adjacent: goes inert on a breach but re-arms at reseal):",
+      "  CANNON SPOTS (safest first; ✗ = UNSEALABLE risk; ° = ring-adjacent, inert on breach):",
+    ),
   ];
   const byMode = new Map<string, CannonSpots>();
   for (const spot of suggestions) {
@@ -694,7 +782,7 @@ function renderCannonSpots(suggestions: CannonSpots): string[] {
  *  enclose-kill candidates (wall a ring round them → the block dies + the seal
  *  banks); an opponent's read as a grunt-pressure weak spot to breach/deny. Empty
  *  when there are no clusters. Pulled out to keep `renderObservation` simpler. */
-function gruntClusterLines(obs: Observation): string[] {
+function gruntClusterLines(obs: Observation, once: Once): string[] {
   if (!obs.gruntClusters || obs.gruntClusters.length === 0) return [];
   const lines: string[] = [];
   const box = (cluster: NonNullable<Observation["gruntClusters"]>[number]) =>
@@ -705,9 +793,14 @@ function gruntClusterLines(obs: Observation): string[] {
     lines.push(
       "  ⚔ GRUNT CLUSTERS in your zone (≥2×2 packed — ENCLOSE-KILL candidates):",
     );
+    const howto = once(
+      "gruntClusterHowto",
+      " walls a ring around them → enclosed-kills the block. Do it BEFORE they reach a chokepoint (they move during build); once they plug a tower's seal, only cull() frees you.",
+      "",
+    );
     for (const cluster of mine) {
       lines.push(
-        `     ${cluster.count} grunts packed in ${box(cluster)} — build_region({ rect: { top: ${cluster.minRow}, bottom: ${cluster.maxRow}, left: ${cluster.minCol}, right: ${cluster.maxCol} } }) walls a ring around them → enclosed-kills the block. Do it BEFORE they reach a chokepoint (they move during build); once they plug a tower's seal, only cull() frees you.`,
+        `     ${cluster.count} grunts packed in ${box(cluster)} — build_region({ rect: { top: ${cluster.minRow}, bottom: ${cluster.maxRow}, left: ${cluster.minCol}, right: ${cluster.maxCol} } })${howto}`,
       );
     }
   }

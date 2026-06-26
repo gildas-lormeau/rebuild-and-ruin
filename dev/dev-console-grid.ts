@@ -150,9 +150,6 @@ const CELL_LAYER_PRIORITY: Record<CellKind, number> = {
   [CellKind.TowerAlive]: 11,
   [CellKind.Cannonball]: 12,
 };
-/** Number of lines the legend produced by `buildLegend` occupies. Used by
- *  `extractGridLines` to strip legend without pattern-matching it. */
-const LEGEND_LINE_COUNT = 3;
 /** Maximum diff lines emitted by `diffAsciiSnapshots` before truncating. */
 const DIFF_LINE_LIMIT = 100;
 /** Sentinel for Cell.playerId when the cell has no owner (terrain,
@@ -162,6 +159,11 @@ const BOTTOM_HEADER_THRESHOLD_ROWS = 15;
 /** Heading glyphs clockwise from north, indexed by the `facing` radian bucket
  *  (`facingFromVector` convention: 0 = north, +π/2 = east). */
 const GRUNT_HEADING_ARROWS = ["↑", "↗", "→", "↘", "↓", "↙", "←", "↖"] as const;
+/** Number of lines the legend produced by `buildLegend` occupies. Used by
+ *  `extractGridLines` to strip legend without pattern-matching it, and by
+ *  mcp-play's renderer to drop the (constant) legend block from a board after
+ *  it's been shown once in a session. */
+export const LEGEND_LINE_COUNT = 3;
 /** Default layer for map-rendering helpers — shows every layer stacked. */
 export const DEFAULT_MAP_LAYER: MapLayer = "all";
 
