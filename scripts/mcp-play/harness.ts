@@ -3658,6 +3658,28 @@ export async function createMcpGame(
     };
   }
 
+  /** Piece-aware widening of `sealStepPlan.cyclingForPiece` (Bug 1): even when only
+   *  SOME tiles are blocked, an arriving piece too big for an open sub-piece island
+   *  (and covering no other seal target this draw) gets redirected onto the ring —
+   *  legitimate bag-cycling toward a smaller draw, not a stall. Treat it as cycling
+   *  so the redirect doesn't trip BUILD_STALL_LIMIT and abandon the seal with time
+   *  to spare (the seed-42 R1 home reseal that bailed one tile short). Stays false
+   *  — leaving the stall guard fully active — when there's no `needs-small-piece`
+   *  island to wait on, so genuine geometric jams still terminate. */
+  function isCyclingForPiece(
+    candidate: EnclosureCandidate,
+    plan: { cyclingForPiece: boolean; targets: ReadonlySet<number> },
+  ): boolean {
+    if (plan.cyclingForPiece) return true;
+    const piece = sc.state.players[agentSlot]?.currentPiece;
+    const pieceFitsTarget =
+      !!piece && bestBuildPlacement(piece, plan.targets) !== null;
+    const awaitingSmallPiece = candidate.blockers.some(
+      (blocker) => blocker.kind === "needs-small-piece",
+    );
+    return !pieceFitsTarget && awaitingSmallPiece;
+  }
+
   /** The placement loop behind `buildToward`: keep placing the arriving piece on
    *  the goal's min-cut until it seals, the budget/time stops it, or it jams.
    *  Returns the piece count placed and the stop `outcome`. Pulled out of
@@ -3703,7 +3725,7 @@ export async function createMcpGame(
         outcome = "blocked";
         break;
       }
-      const cyclingForPiece = plan.cyclingForPiece;
+      const cyclingForPiece = isCyclingForPiece(candidate, plan);
       // Divergence guard (skipped while cycling — tilesNeeded can't fall until a
       // blocker clears): pieces land but the ring routes outward faster than we
       // close it, so bail rather than burn the phase on a ring that never seals
@@ -3864,8 +3886,14 @@ export async function createMcpGame(
 
     // Phase B — pre-claim: bank partial ring progress on the cheapest tower that
     // doesn't fit, so next round's enclosure is cheaper. Spare time isn't idled.
+    // BUT never trade leftover time away while no alive tower is enclosed: an
+    // unsealed survival tower costs a LIFE and resets the whole zone at round
+    // end, which a next-round-cheaper ring can't outweigh. Hold the spare time
+    // for the survival seal (the caller can keep cycling the bag) instead of
+    // pre-claiming a non-survival tower.
     let preclaim = "";
-    if (sc.state.timer > floorTimer && piecesLeft > 0) {
+    const survives = survivesRoundEndLifeCheck(sc.state.players[agentSlot]!);
+    if (survives && sc.state.timer > floorTimer && piecesLeft > 0) {
       const partial = cheapestPreclaimTarget();
       if (partial) {
         const placed = runOne(partial.towerIdx);
@@ -3873,6 +3901,9 @@ export async function createMcpGame(
           preclaim = `; pre-claimed ${placed} tile(s) of tower ${partial.towerIdx}'s ring for next round`;
         }
       }
+    } else if (!survives && sc.state.timer > floorTimer && piecesLeft > 0) {
+      preclaim =
+        "; held spare time — no alive tower enclosed (pre-claim skipped; seal a survival tower first)";
     }
 
     const elapsed = Math.round((startTimer - sc.state.timer) * 10) / 10;
