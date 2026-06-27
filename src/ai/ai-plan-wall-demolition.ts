@@ -21,6 +21,7 @@ import {
   getBattleInterior,
 } from "../shared/sim/board-occupancy.ts";
 import {
+  componentHoldsTower,
   countBrokenEnclosures,
   DESTROY_POCKET_MAX_SIZE,
   findEnclosureComponents,
@@ -63,10 +64,14 @@ export function planWallDemolition(
     if (enemy.walls.size < MIN_WALL_SEGMENT_LENGTH) continue;
     const interior = getBattleInterior(enemy);
     const liveOutside = computeOutside(enemy.walls);
-    const largeEnclosures = findEnclosureComponents(interior)
-      .filter((comp) => comp.length > DESTROY_POCKET_MAX_SIZE)
+    const targetEnclosures = findEnclosureComponents(interior)
+      .filter(
+        (comp) =>
+          comp.length > DESTROY_POCKET_MAX_SIZE ||
+          componentHoldsTower(comp, enemy),
+      )
       .filter((comp) => !isEnclosureBroken(comp, liveOutside));
-    if (largeEnclosures.length === 0) continue;
+    if (targetEnclosures.length === 0) continue;
     const wallKeys = [...enemy.walls];
     for (let attempt = 0; attempt < MAX_SEED_ATTEMPTS; attempt++) {
       const startKey = rng.pick(wallKeys);
@@ -88,7 +93,7 @@ export function planWallDemolition(
         .filter((_, i) => i % stride === 0);
       const modWalls = new Set(enemy.walls);
       for (const tile of fired) modWalls.delete(tile);
-      if (countBrokenEnclosures(modWalls, largeEnclosures) > 0) {
+      if (countBrokenEnclosures(modWalls, targetEnclosures) > 0) {
         return fired.map((k) => {
           const { row, col } = unpackTile(k);
           return { row: row, col: col };

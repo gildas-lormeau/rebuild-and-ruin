@@ -25,6 +25,7 @@ import { getBattleInterior } from "../shared/sim/board-occupancy.ts";
 import { isRingWallable } from "./ai-castle-rect.ts";
 import { pickTargetEnemy } from "./ai-plan-deny-enclosure.ts";
 import {
+  componentHoldsTower,
   countBrokenEnclosures,
   DESTROY_POCKET_MAX_SIZE,
   findEnclosureComponents,
@@ -100,7 +101,11 @@ function pickEnemyLifeline(
 function smallestIntactEnclosure(enemy: Player): TileKey[] | undefined {
   const liveOutside = computeOutside(enemy.walls);
   const intact = findEnclosureComponents(getBattleInterior(enemy))
-    .filter((comp) => comp.length > DESTROY_POCKET_MAX_SIZE)
+    .filter(
+      (comp) =>
+        comp.length > DESTROY_POCKET_MAX_SIZE ||
+        componentHoldsTower(comp, enemy),
+    )
     .filter((comp) => !isEnclosureBroken(comp, liveOutside));
   if (intact.length === 0) return undefined;
   return intact.reduce((best, comp) =>

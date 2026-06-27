@@ -4,15 +4,15 @@
  * analysis than the other tactics: simulates wall removal and re-floods.
  */
 
-import type { GameMap, TilePos } from "../shared/core/geometry-types.ts";
+import type { TilePos } from "../shared/core/geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, type TileKey } from "../shared/core/grid.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
+import type { Player } from "../shared/core/player-types.ts";
 import {
   computeOutside,
   DIRS_4,
   DIRS_8,
   inBounds,
-  isGrass,
   orderByNearest,
   packTile,
   unpackTile,
@@ -20,6 +20,7 @@ import {
 import type { BattleViewState } from "../shared/core/system-interfaces.ts";
 import { filterActiveEnemies } from "../shared/sim/board-occupancy.ts";
 import {
+  componentHoldsTower,
   countBrokenEnclosures,
   DESTROY_POCKET_MAX_SIZE,
   findEnclosureComponents,
@@ -56,7 +57,7 @@ export function planStructuralHit(
 
   for (const enemy of enemies) {
     if (enemy.walls.size === 0) continue;
-    const hits = findStructuralHits(enemy.walls, state.map.tiles);
+    const hits = findStructuralHits(enemy);
     for (const hit of hits) allHits.push(hit);
   }
 
@@ -88,10 +89,8 @@ export function planStructuralHit(
 /** Analyse a player's walls and find single- or double-tile removals that
  *  breach 2+ large enclosures at once.  Only enclosures larger than
  *  DESTROY_POCKET_MAX_SIZE are considered (smaller ones are pockets). */
-function findStructuralHits(
-  walls: ReadonlySet<TileKey>,
-  mapTiles: GameMap["tiles"],
-): StructuralHitCandidate[] {
+function findStructuralHits(enemy: Player): StructuralHitCandidate[] {
+  const walls = enemy.walls;
   // 1. Compute outside and interior. Deliberate departure from the sibling
   //    planners (deny-enclosure, fat-breach, wall-demolition), which take the
   //    frozen build-time interior (getBattleInterior) and then filter out
@@ -104,7 +103,12 @@ function findStructuralHits(
   for (let row = 0; row < GRID_ROWS; row++) {
     for (let col = 0; col < GRID_COLS; col++) {
       const key = packTile(row, col);
-      if (!outside.has(key) && !walls.has(key) && isGrass(mapTiles, row, col)) {
+      // Enclosed = any non-wall tile the outside flood can't reach. Includes
+      // tower / cannon / debris footprints (not just grass) so a tightly-walled
+      // tower in its bare 2×2 pocket still forms a component — otherwise
+      // `componentHoldsTower` below could never see it (grass-only interior
+      // would leave a tower-only pocket empty, silently dropping the ring).
+      if (!outside.has(key) && !walls.has(key)) {
         interior.add(key);
       }
     }
@@ -113,9 +117,12 @@ function findStructuralHits(
   // 2. Connected components of interior (4-dir) — each is an enclosure
   const components = findEnclosureComponents(interior);
 
-  // Only consider large enclosures (> DESTROY_POCKET_MAX_SIZE tiles)
+  // Consider enclosures worth breaking: large enough to hold real territory, OR
+  // wrapping an alive tower (a life-loss lever regardless of pocket size — the
+  // size term alone would discard a tightly-walled tower in its 2×2 footprint).
   const large = components.filter(
-    (comp) => comp.length > DESTROY_POCKET_MAX_SIZE,
+    (comp) =>
+      comp.length > DESTROY_POCKET_MAX_SIZE || componentHoldsTower(comp, enemy),
   );
   if (large.length < 2) return [];
 

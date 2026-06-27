@@ -525,16 +525,25 @@ export function findMinBreach(
   const outside = computeOutside(enemy.walls);
   // Validate only against STILL-INTACT enclosures: an already-breached one is
   // reached by the live flood whatever the plan, so it must not seed a search.
-  const large = findEnclosureComponents(getBattleInterior(enemy))
-    .filter((comp) => comp.length > DESTROY_POCKET_MAX_SIZE)
-    .filter((comp) => !isEnclosureBroken(comp, outside));
-  if (large.length === 0) return null;
+  // Breach candidates: still-intact enclosures that are EITHER large enough to
+  // hold real territory OR wrap an alive tower. The pocket-size threshold alone
+  // would discard a tightly-walled tower sitting in a ≤4-tile pocket (its 2×2
+  // footprint with no spare interior) — but that ring is a life-loss lever no
+  // matter how small, so `componentHoldsTower` keeps it in. The size term only
+  // filters tower-LESS interior crumbs (wall-gap noise not worth a breach).
+  const candidates = findEnclosureComponents(getBattleInterior(enemy)).filter(
+    (comp) =>
+      (comp.length > DESTROY_POCKET_MAX_SIZE ||
+        componentHoldsTower(comp, enemy)) &&
+      !isEnclosureBroken(comp, outside),
+  );
+  if (candidates.length === 0) return null;
 
   // The cheapest independent breach of each ring (each a min-cut on the same
   // live walls), tagged with whether the ring holds an enclosed tower.
   const breaches: { path: TilePos[]; holdsTower: boolean; firstKey: number }[] =
     [];
-  for (const comp of large) {
+  for (const comp of candidates) {
     const path = findBreachPath(state, enemy, comp, outside, cap);
     if (!path || path.length === 0) continue;
     breaches.push({
@@ -596,7 +605,10 @@ export function computeLiveInterior(walls: ReadonlySet<TileKey>): Set<TileKey> {
 /** Whether an enclosure component contains any of the enemy's enclosed-tower
  *  footprints — i.e. breaching it un-encloses a tower (a life-loss lever),
  *  versus a tower-less pocket whose breach is only a repair tax. */
-function componentHoldsTower(comp: readonly TileKey[], enemy: Player): boolean {
+export function componentHoldsTower(
+  comp: readonly TileKey[],
+  enemy: Player,
+): boolean {
   if (enemy.enclosedTowers.length === 0) return false;
   const interiorSet = new Set(comp);
   for (const tower of enemy.enclosedTowers) {
