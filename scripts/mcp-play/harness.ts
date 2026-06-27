@@ -942,10 +942,19 @@ export interface McpGame {
     to: { row: number; col: number },
     budget?: BuildBudget,
   ): Observation;
-  /** BATTLE: SPREAD fire over `slot`'s nearest walls, pacing reload, for the rest
-   *  of the battle (or `quanta` action-quanta) — maximises wall count destroyed
-   *  (points + general tax). One call ≈ a whole battle of fire/pass. */
-  bombard(slot: number, quanta?: number): Observation;
+  /** BATTLE: fire over `slot`'s walls, pacing reload, for the rest of the battle
+   *  (or `quanta` action-quanta). `mode` picks the aim (default `spread`):
+   *  `spread` hits the walls NEAREST my battery — maximises raw wall count
+   *  destroyed (points + general tax); `choke` concentrates normal fire on their
+   *  load-bearing outer-ring walls ranked by un-reroutability (the same choke
+   *  ranking `pit_strike` plants pits on) — fewer walls but costlier for them to
+   *  patch, chipping toward de-enclosure (no pit — that stays super-only). One
+   *  call ≈ a whole battle of fire/pass. */
+  bombard(
+    slot: number,
+    quanta?: number,
+    mode?: "spread" | "choke",
+  ): Observation;
   /** BATTLE: CONCENTRATE fire on the outer ring guarding one of `slot`'s enclosed
    *  towers (the softest by ringWalls/bonus if `towerIdx` omitted) to de-enclose
    *  its pocket — denies that pocket's territory + bonus squares next build,
@@ -3248,6 +3257,44 @@ export async function createMcpGame(
       .map(({ row, col }) => ({ row, col }));
   }
 
+  /** Shared attack target-selection over an opponent's walls — the strategy
+   *  layer `bombard` draws from. `spread` returns the walls nearest my battery
+   *  (max raw wall count destroyed — bombard's classic behaviour). `choke`
+   *  returns the opponent's load-bearing OUTER-RING walls ranked by
+   *  un-reroutability (`chokeScore` desc — walls pinched against water/edge that
+   *  they can't rebuild one tile over, exactly the ranking `pit_strike` uses),
+   *  distance-to-battery as the tie-break. Choke is pit_strike's aim made
+   *  available to ORDINARY cannon fire: a normal ball that razes an
+   *  un-reroutable ring wall costs them far more to patch than a random near
+   *  wall (and chips toward de-enclosing a pocket) even though it plants no pit
+   *  — the legitimate generalization, since the *pit effect* stays a super-only
+   *  property. Falls back to `spread` when the target has no boundary ring left
+   *  (e.g. only interior debris) so a choke attack never no-ops. */
+  function attackWallTiles(
+    slot: number,
+    origin: { row: number; col: number },
+    mode: "spread" | "choke",
+  ): { row: number; col: number }[] {
+    const target = sc.state.players[slot];
+    if (!target) return [];
+    if (mode === "spread") {
+      return sampleWallTiles(target.walls, target.walls.size, origin);
+    }
+    const dist2 = (row: number, col: number): number =>
+      (row - origin.row) ** 2 + (col - origin.col) ** 2;
+    const ranked = [...boundaryWalls(target)]
+      .map((key) => unpackTile(key as Parameters<typeof unpackTile>[0]))
+      .sort(
+        (a, b) =>
+          chokeScore(b.row, b.col) - chokeScore(a.row, a.col) ||
+          dist2(a.row, a.col) - dist2(b.row, b.col),
+      )
+      .map(({ row, col }) => ({ row, col }));
+    return ranked.length > 0
+      ? ranked
+      : sampleWallTiles(target.walls, target.walls.size, origin);
+  }
+
   function rotatedOffsets(
     piece: PieceShape,
     rotation: number,
@@ -4395,7 +4442,11 @@ export async function createMcpGame(
    *  nearest walls, pacing to reload, until their walls clear, the battle ends,
    *  or the budget runs out. Collapses a whole battle of fire/pass micro into one
    *  call. Returns the walls destroyed + points scored. */
-  function bombardSlot(targetSlot: number, quanta?: number): Observation {
+  function bombardSlot(
+    targetSlot: number,
+    quanta?: number,
+    mode: "spread" | "choke" = "spread",
+  ): Observation {
     if (sc.state.phase !== Phase.BATTLE) {
       bridge.lastResult = {
         kind: "fire",
@@ -4435,7 +4486,7 @@ export async function createMcpGame(
         continue;
       }
       const origin = cannonCentroid();
-      const tiles = sampleWallTiles(target.walls, target.walls.size, origin);
+      const tiles = attackWallTiles(targetSlot, origin, mode);
       const ready = cannonsReadyCount();
       for (let shot = 0; shot < ready && shot < tiles.length; shot++) {
         if (sc.state.phase !== Phase.BATTLE || gameOver()) break;
@@ -4457,7 +4508,9 @@ export async function createMcpGame(
       // pointsGained is MY attributed score; the target wall delta is its total
       // loss in the window (other players may have hit it too); the self-report
       // is the return fire I took while this ran.
-      reason: `fired ${fired}, +${pointsGained} pts (target lost ${wallsDestroyed} walls)${battleSelfReport(
+      reason: `${
+        mode === "choke" ? "choke-bombard" : "bombard"
+      }: fired ${fired}, +${pointsGained} pts (target lost ${wallsDestroyed} walls)${battleSelfReport(
         myWallsBefore,
         inertBefore,
       )}`,
@@ -5152,7 +5205,7 @@ function expectedFor(phase: Phase): string {
     case Phase.UPGRADE_PICK:
       return "Pick ONE of your three upgrade offers — act { kind: 'pick-upgrade', cardIdx } where cardIdx is 0, 1, or 2 (the index into observation.upgradeOffers; each lists id + label + description). The pick applies for the next round only. There's no skip — choose the offer that best fits your board (e.g. second_wind if you have dead towers, clear_the_field if grunts crowd your zone).";
     case Phase.BATTLE:
-      return "Attack an opponent for the whole battle (one call). Strategies: bombard({ slot }) SPREADS fire over their nearest walls — maximises wall count destroyed (points + general tax). breach({ slot, towerIdx? }) CONCENTRATES fire on the outer ring guarding one tower to de-enclose its pocket (deny its territory + bonus squares; omit towerIdx for the softest). pit_strike({ slot, targets? }) aims your pit gun(s) — a SUPER, or a normal the MORTAR upgrade elected this battle — at enemy wall tiles to plant burning PITS (block their rebuild for rounds) while normals chip — see pitTargets for the best un-reroutable walls; omit targets to use them. cull() is DEFENSIVE — fire at the GRUNTS menacing your OWN towers (observation.threats) instead of an opponent; grunts are frozen this phase, so the swarm that would box your reseal next build is killable now (one shot each). Reach for it when 'grunts behind your walls' is climbing or a reseal is grunt-locked. declutter() is SELF-MAINTENANCE — fire at your OWN redundant inner (fat) walls to shoot a build pocket back open (enclosure-safe, scores 0); the proactive escape from a bag-lock when your castle has packed toward single-tile seams (watch observation.fatClearable). See targets (leader first; each lists towers with ringWalls + bonusSquares). Or aim by hand: act { kind: 'fire', row, col } (wait out battleCountdown > 0; fire at most me.cannonsReady per burst, then pass to reload) — this is also how you SNIPE an enemy cannon: a ball on its tile damages it and ~cannonMaxHp hits DESTROY it (fewer enemy guns + wreck-debris blocks their rebuild). Worth it over bombard only sometimes (you hold Salvage, or they field a super/Mortar gun) — see observation.cannonSnipe, surfaced just then.";
+      return "Attack an opponent for the whole battle (one call). Strategies: bombard({ slot, mode? }) SPREADS fire over their nearest walls — maximises wall count destroyed (points + general tax); pass mode:'choke' to instead concentrate normal fire on their un-reroutable ring walls (pit_strike's aim without the pit — denies a reseal). breach({ slot, towerIdx? }) CONCENTRATES fire on the outer ring guarding one tower to de-enclose its pocket (deny its territory + bonus squares; omit towerIdx for the softest). pit_strike({ slot, targets? }) aims your pit gun(s) — a SUPER, or a normal the MORTAR upgrade elected this battle — at enemy wall tiles to plant burning PITS (block their rebuild for rounds) while normals chip — see pitTargets for the best un-reroutable walls; omit targets to use them. cull() is DEFENSIVE — fire at the GRUNTS menacing your OWN towers (observation.threats) instead of an opponent; grunts are frozen this phase, so the swarm that would box your reseal next build is killable now (one shot each). Reach for it when 'grunts behind your walls' is climbing or a reseal is grunt-locked. declutter() is SELF-MAINTENANCE — fire at your OWN redundant inner (fat) walls to shoot a build pocket back open (enclosure-safe, scores 0); the proactive escape from a bag-lock when your castle has packed toward single-tile seams (watch observation.fatClearable). See targets (leader first; each lists towers with ringWalls + bonusSquares). Or aim by hand: act { kind: 'fire', row, col } (wait out battleCountdown > 0; fire at most me.cannonsReady per burst, then pass to reload) — this is also how you SNIPE an enemy cannon: a ball on its tile damages it and ~cannonMaxHp hits DESTROY it (fewer enemy guns + wreck-debris blocks their rebuild). Worth it over bombard only sometimes (you hold Salvage, or they field a super/Mortar gun) — see observation.cannonSnipe, surfaced just then.";
     default:
       return "No agent action this phase; call pass to advance.";
   }

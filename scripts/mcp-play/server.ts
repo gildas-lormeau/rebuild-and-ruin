@@ -75,7 +75,7 @@ interface Journal {
         maxSeconds?: number;
         maxPieces?: number;
       }
-    | { t: "bombard"; slot: number; quanta?: number }
+    | { t: "bombard"; slot: number; quanta?: number; mode?: "spread" | "choke" }
     | { t: "breach"; slot: number; towerIdx?: number }
     | {
         t: "pit_strike";
@@ -567,7 +567,7 @@ const TOOLS: ToolDef[] = [
   {
     name: "bombard",
     description:
-      "BATTLE: fire every ready cannon at one opponent's nearest walls, pacing reload, for the rest of the battle (or `quanta` action-quanta). Waits out the countdown first. One call instead of a whole battle of fire/pass. Read lastResult for walls destroyed + points scored.",
+      "BATTLE: fire every ready cannon at one opponent's walls, pacing reload, for the rest of the battle (or `quanta` action-quanta). Waits out the countdown first. One call instead of a whole battle of fire/pass. `mode` (default 'spread') picks the aim: 'spread' hits their walls NEAREST your battery — maximises raw wall count destroyed (points + general tax); 'choke' concentrates fire on their load-bearing OUTER-RING walls ranked by un-reroutability (the same choke ranking pit_strike plants pits on — walls pinched against water/edge they can't rebuild one tile over) — fewer walls but each costlier for them to patch, chipping toward de-enclosing a pocket (no burning pit — that effect stays super-only). Use 'choke' to deny a reseal with normal cannons; 'spread' for raw points/tax. Read lastResult for walls destroyed + points scored.",
     inputSchema: {
       type: "object",
       properties: {
@@ -580,6 +580,12 @@ const TOOLS: ToolDef[] = [
           description:
             "Cap on action-quanta to spend. Omit to run the battle out.",
         },
+        mode: {
+          type: "string",
+          enum: ["spread", "choke"],
+          description:
+            "Aim strategy (default 'spread'). 'spread' = nearest walls, max raw count. 'choke' = un-reroutable ring walls (deny reseal, normal-cannon version of pit_strike's aim).",
+        },
       },
       required: ["slot"],
     },
@@ -587,6 +593,7 @@ const TOOLS: ToolDef[] = [
       recordBombard(
         num(args, "slot"),
         args.quanta === undefined ? undefined : num(args, "quanta"),
+        args.mode === "choke" ? "choke" : undefined,
       ),
   },
   {
@@ -752,7 +759,7 @@ const TOOLS: ToolDef[] = [
           game.pitStrike(move.slot, move.targets);
         } else if (move.t === "cull") game.cull(move.quanta);
         else if (move.t === "declutter") game.declutter(move.quanta);
-        else game.bombard(move.slot, move.quanta);
+        else game.bombard(move.slot, move.quanta, move.mode);
       }
       journal = loaded;
       return game.observe();
@@ -911,9 +918,13 @@ function recordPath(
 }
 
 /** Run the bombard executor AND journal the target (replay re-derives the volley). */
-function recordBombard(slot: number, quanta?: number): unknown {
-  const observation = requireGame().bombard(slot, quanta);
-  journal?.moves.push({ t: "bombard", slot, quanta });
+function recordBombard(
+  slot: number,
+  quanta?: number,
+  mode?: "spread" | "choke",
+): unknown {
+  const observation = requireGame().bombard(slot, quanta, mode);
+  journal?.moves.push({ t: "bombard", slot, quanta, mode });
   return observation;
 }
 
