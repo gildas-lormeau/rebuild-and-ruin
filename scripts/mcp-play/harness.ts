@@ -154,6 +154,13 @@ export interface TowerHint {
   row: number;
   col: number;
   enclosed: boolean;
+  /** CASTLE_SELECT headroom for picking THIS tower as home: the buildable pocket
+   *  the engine's own `castleRect` carves around it (height × width), clipped by
+   *  rivers / the map edge / neighbouring towers. The measured form of "a central
+   *  tower has plenty of room, an edge/river tower is hemmed in" — pick the roomy
+   *  one and you can afford cannons + a 3×3 dump pocket; a thin one bag-locks
+   *  sooner. `min(h, w) >= 3` ⇒ a generic 3×3 dump fits. */
+  pocket: { h: number; w: number };
 }
 
 /** Inclusive bounding box of a player's wall ring — lets the agent place each
@@ -574,6 +581,12 @@ export interface Observation {
   gameOver: boolean;
   /** One-line description of the decision the agent is expected to make. */
   expected: string;
+  /** Severity-ranked verdict digest, derived from the detailed sections below
+   *  (survival, bag-lock, cannon routability, exposed grunts, fat, headroom). The
+   *  detailed sections stay; this is the "read this FIRST" header so the one line
+   *  that matters isn't buried among always-on context. Omitted when nothing is
+   *  flagged. Rendered at the top, right after STANDINGS. */
+  alerts?: string[];
   /** Every player's castle at a glance: home + wall bounding box + armament.
    *  The fast way to read the battlefield without decoding the ASCII grid. */
   layout: PlayerLayout[];
@@ -710,6 +723,25 @@ export interface Observation {
     cannonsUnenclosed: number;
     walls: number;
     interior: number;
+    /** Build headroom for your castle: how much enclosable land remains
+     *  unconsumed, plus the largest empty buildable rectangle still open in your
+     *  zone (the dump-pocket gauge). The MEASURED form of "a center tower has
+     *  plenty of free land, an edge/river tower doesn't" — a per-castle quantity,
+     *  not a center-vs-edge rule. Drives the cannon-count call: a fat `openPocket`
+     *  (min side ≥ 3) means you can spend slots on cannons and still keep a
+     *  bag-lock-proof 3×3 dump; a thin one means place fewer and reserve the
+     *  pocket. `null` before a castle exists. */
+    headroom: {
+      /** Static enclosable land in your zone — the per-build territory ceiling. */
+      zoneLand: number;
+      /** Land already consumed by your interior + walls. */
+      used: number;
+      /** zoneLand − used — your remaining elbow room. */
+      free: number;
+      /** Largest all-open buildable rectangle (height × width) in your zone.
+       *  `min(h, w) >= 3` ⇒ a 3×3 dump pocket (admits any piece) still fits. */
+      openPocket: { h: number; w: number };
+    } | null;
     enclosedTowers: number;
     homeTowerEnclosed: boolean;
     /** MODERN only: the upgrades you have in force THIS round (the picks you
@@ -3067,6 +3099,7 @@ export async function createMcpGame(
         cannonsUnenclosed: cannonsUnenclosedCount(),
         walls: me.walls.size,
         interior: me.interior.size,
+        headroom: headroomFor(),
         enclosedTowers: me.enclosedTowers.length,
         homeTowerEnclosed:
           me.homeTower !== null &&
@@ -3101,12 +3134,27 @@ export async function createMcpGame(
     if (phase === Phase.CASTLE_SELECT && zone !== undefined) {
       observation.towers = state.map.towers
         .filter((tower) => tower.zone === zone)
-        .map((tower) => ({
-          index: tower.index,
-          row: tower.row,
-          col: tower.col,
-          enclosed: me.enclosedTowers.some((enc) => enc.index === tower.index),
-        }));
+        .map((tower) => {
+          const rect = castleRect(
+            tower,
+            state.map.tiles,
+            state.map.towers,
+            ENCLOSURE_MARGIN,
+            true,
+          );
+          return {
+            index: tower.index,
+            row: tower.row,
+            col: tower.col,
+            enclosed: me.enclosedTowers.some(
+              (enc) => enc.index === tower.index,
+            ),
+            pocket: {
+              h: rect.bottom - rect.top + 1,
+              w: rect.right - rect.left + 1,
+            },
+          };
+        });
     }
 
     if (phase === Phase.CANNON_PLACE) {
@@ -3115,44 +3163,13 @@ export async function createMcpGame(
 
     if (phase === Phase.WALL_BUILD) attachBuildSurfaces(observation);
 
-    if (phase === Phase.BATTLE) {
-      // Origin for "nearest wall" = centroid of my cannons (they're clustered),
-      // so the aim-assist favours the shortest flight path.
-      const origin = cannonCentroid();
-      observation.targets = state.players
-        .map((player, slot) => ({ player, slot }))
-        .filter(
-          ({ player, slot }) =>
-            slot !== agentSlot && !player.eliminated && player.walls.size > 0,
-        )
-        .sort((a, b) => b.player.score - a.player.score)
-        .map(({ player, slot }) => ({
-          slot,
-          name: PLAYER_NAMES[slot] ?? `P${slot}`,
-          score: player.score,
-          walls: player.walls.size,
-          sampleTiles: sampleWallTiles(
-            player.walls,
-            BATTLE_TARGET_SAMPLE,
-            origin,
-          ),
-          towers: opponentTowersFor(slot),
-        }));
-      // Pit targets only matter if I have a pit-capable gun (super or a
-      // Mortar-elected normal) that can actually fire for me — an alive-but-
-      // captured gun can't plant pits, so it shouldn't dangle pit targets I
-      // can't act on.
-      if (usablePitCannons().length > 0) {
-        const pits = pitTargetsFor();
-        if (pits.length > 0) observation.pitTargets = pits;
-      }
-      const snipe = cannonSnipeSuggestion();
-      if (snipe) observation.cannonSnipe = snipe;
-      const clearable = declutterFatTargets().length;
-      if (clearable > 0) observation.fatClearable = clearable;
-    }
+    if (phase === Phase.BATTLE) attachBattleSurfaces(observation);
 
     applyModernSurfaces(observation, phase);
+
+    // Derived LAST — reads the fully-populated sections it summarizes.
+    const alerts = alertsFor(observation);
+    if (alerts.length > 0) observation.alerts = alerts;
 
     return observation;
   }
@@ -4292,6 +4309,47 @@ export async function createMcpGame(
   /** Attach the WALL_BUILD-only build surfaces (enclosure plan, suggestions,
    *  fragile/fat walls, compactness, extension hints). Split out of `observe` to
    *  keep that dispatcher under the complexity cap. */
+  /** BATTLE aim-assist surfaces: opponent targets, pit targets, cannon-snipe
+   *  nudge, declutter count. Split out of `observe` to keep its complexity in
+   *  bounds (mirrors `attachBuildSurfaces`). */
+  function attachBattleSurfaces(observation: Observation): void {
+    const state = sc.state;
+    // Origin for "nearest wall" = centroid of my cannons (they're clustered),
+    // so the aim-assist favours the shortest flight path.
+    const origin = cannonCentroid();
+    observation.targets = state.players
+      .map((player, slot) => ({ player, slot }))
+      .filter(
+        ({ player, slot }) =>
+          slot !== agentSlot && !player.eliminated && player.walls.size > 0,
+      )
+      .sort((a, b) => b.player.score - a.player.score)
+      .map(({ player, slot }) => ({
+        slot,
+        name: PLAYER_NAMES[slot] ?? `P${slot}`,
+        score: player.score,
+        walls: player.walls.size,
+        sampleTiles: sampleWallTiles(
+          player.walls,
+          BATTLE_TARGET_SAMPLE,
+          origin,
+        ),
+        towers: opponentTowersFor(slot),
+      }));
+    // Pit targets only matter if I have a pit-capable gun (super or a
+    // Mortar-elected normal) that can actually fire for me — an alive-but-
+    // captured gun can't plant pits, so it shouldn't dangle pit targets I
+    // can't act on.
+    if (usablePitCannons().length > 0) {
+      const pits = pitTargetsFor();
+      if (pits.length > 0) observation.pitTargets = pits;
+    }
+    const snipe = cannonSnipeSuggestion();
+    if (snipe) observation.cannonSnipe = snipe;
+    const clearable = declutterFatTargets().length;
+    if (clearable > 0) observation.fatClearable = clearable;
+  }
+
   function attachBuildSurfaces(observation: Observation): void {
     // Sample the cut tiles in the observation to keep build turns token-cheap;
     // `tilesNeeded` stays the true count, full list via enclosurePlan().
@@ -4355,6 +4413,120 @@ export async function createMcpGame(
       fat: fatCount,
       fatPer100: Math.round((fatCount / Math.max(1, interior)) * 100),
     };
+  }
+
+  /** Build headroom: remaining enclosable land + the largest empty buildable
+   *  rectangle still open in my zone (the dump-pocket gauge). See the `headroom`
+   *  field doc on `Observation.me`. `null` before a castle/zone exists. */
+  function headroomFor(): NonNullable<Observation["me"]["headroom"]> | null {
+    const state = sc.state;
+    const me = state.players[agentSlot];
+    const zone = state.playerZones[agentSlot];
+    if (!me || zone === undefined) return null;
+    const zoneLand = myZoneLand();
+    const used = me.interior.size + me.walls.size;
+    let openPocket = { h: 0, w: 0 };
+    const bounds = zoneBounds(state, zone);
+    if (bounds) {
+      const solid = solidTiles(me);
+      const width = bounds.maxCol - bounds.minCol + 1;
+      // Largest all-open rectangle via the column-height histogram sweep: per row
+      // grow each column's run of open tiles, then take the biggest rectangle
+      // under that histogram. Open = in-zone grass not occupied by wall/cannon/tower.
+      const heights = new Array<number>(width).fill(0);
+      for (let row = bounds.minRow; row <= bounds.maxRow; row++) {
+        for (let ci = 0; ci < width; ci++) {
+          const col = bounds.minCol + ci;
+          const open =
+            zoneAt(state.map, row, col) === zone &&
+            !isWater(state.map.tiles, row, col) &&
+            !solid.has(packTile(row, col));
+          heights[ci] = open ? heights[ci]! + 1 : 0;
+        }
+        const best = largestRectInHistogram(heights);
+        if (best.h * best.w > openPocket.h * openPocket.w) openPocket = best;
+      }
+    }
+    return { zoneLand, used, free: Math.max(0, zoneLand - used), openPocket };
+  }
+
+  /** Largest-area rectangle (returned as height × width) under a histogram — the
+   *  classic monotonic-stack sweep. Backs `headroomFor`'s open-pocket search. */
+  function largestRectInHistogram(heights: readonly number[]): {
+    h: number;
+    w: number;
+  } {
+    const stack: number[] = [];
+    let best = { h: 0, w: 0 };
+    for (let i = 0; i <= heights.length; i++) {
+      const cur = i < heights.length ? heights[i]! : 0;
+      while (stack.length > 0 && heights[stack[stack.length - 1]!]! >= cur) {
+        const height = heights[stack.pop()!]!;
+        const left = stack.length === 0 ? 0 : stack[stack.length - 1]! + 1;
+        const widthSpan = i - left;
+        if (height * widthSpan > best.h * best.w) {
+          best = { h: height, w: widthSpan };
+        }
+      }
+      stack.push(i);
+    }
+    return best;
+  }
+
+  /** Severity-ranked verdict digest — see the `alerts` field doc. Reads the
+   *  already-built observation's own fields so it can't drift from the detailed
+   *  sections it summarizes. */
+  function alertsFor(obs: Observation): string[] {
+    const out: string[] = [];
+    const me = obs.me;
+    if (obs.phase === Phase.WALL_BUILD && !me.survivesRoundEnd) {
+      out.push(
+        "☠ SURVIVAL: no alive tower enclosed — finalizing loses a life + your zone resets. Seal a survival-clearing tower (see ENCLOSURE CANDIDATES).",
+      );
+    }
+    if (me.bagLocked) {
+      out.push(
+        `⚠ BAG-LOCK: piece ${me.currentPiece ?? "?"} has no legal placement anywhere — you can build nothing this phase (the bag only advances by placing).`,
+      );
+    } else if (
+      me.dumpCapacity &&
+      me.dumpCapacity.placeable < me.dumpCapacity.pool
+    ) {
+      out.push(
+        `⚠ BAG-LOCK RISK: only ${me.dumpCapacity.placeable}/${me.dumpCapacity.pool} draw-pool shapes fit — keep an open 3×3 dump pocket (declutter in battle / stop packing every seam).`,
+      );
+    }
+    if (
+      obs.cannonSuggestions &&
+      obs.cannonSuggestions.length > 0 &&
+      obs.cannonSuggestions.every((spot) => spot.routable === false)
+    ) {
+      out.push(
+        "⚠ CANNONS: no routable spot — every affordable footprint pinches the re-seal route (place FEWER cannons / expand your interior first).",
+      );
+    }
+    const exposed = (obs.threats ?? []).filter(
+      (threat) => !threat.towerEnclosed,
+    ).length;
+    if (exposed > 0) {
+      out.push(
+        `⚠ EXPOSED: ${exposed} grunt(s) can reach an unwalled tower — wall the tower this build or cull it in battle.`,
+      );
+    }
+    if (obs.compactness && obs.compactness.fatPer100 >= 20) {
+      out.push(
+        `▣ FAT: ${obs.compactness.fatPer100} fat/100 — you're expanding past old shells; prefer build_toward(<nearest>) over build_out.`,
+      );
+    }
+    if (me.headroom && me.headroom.openPocket.h > 0) {
+      const { h, w } = me.headroom.openPocket;
+      if (Math.min(h, w) < 3) {
+        out.push(
+          `⊞ TIGHT: largest open pocket ${h}×${w} (<3×3) — little dump room left; place cannons sparingly and reserve a pocket.`,
+        );
+      }
+    }
+    return out;
   }
 
   function fatWallsFor(): { row: number; col: number }[] {

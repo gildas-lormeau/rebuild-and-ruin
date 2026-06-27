@@ -81,6 +81,10 @@ export function renderObservation(
   // ── standings (or final results, once the match is over) ────────────────────
   for (const line of standingsLines(obs)) lines.push(line);
 
+  // ── alerts: the severity-ranked verdict, ABOVE the detailed sections so the
+  //    one line that matters isn't buried among always-on context ──────────────
+  lines.push(...alertLines(obs));
+
   if (!obs.gameOver) {
     lines.push(
       `EXPECTED: ${once(`expected:${obs.phase}`, obs.expected, TERSE_EXPECTED[obs.phase] ?? obs.expected)}`,
@@ -116,6 +120,9 @@ export function renderObservation(
   // ── my battery + status line (battery prints before the YOU line, as in show.py) ─
   lines.push(...batteryStatusLines(obs));
 
+  // ── build headroom: free land + open-pocket gauge (the cannon-count signal) ──
+  lines.push(...headroomLines(obs));
+
   // ── BATTLE aim-assist: opponents + their towers as breach targets ───────────
   lines.push(...targetLines(obs, once));
 
@@ -139,10 +146,26 @@ export function renderObservation(
 
   // ── selection: pickable towers in my zone ───────────────────────────────────
   if (obs.towers) {
+    // Flag the roomiest pickable home (largest buildable pocket area) — the
+    // central/open tower the agent should usually prefer over a hemmed-in one.
+    const roomiest = obs.towers.reduce(
+      (best, tower) =>
+        tower.pocket.h * tower.pocket.w > best.pocket.h * best.pocket.w
+          ? tower
+          : best,
+      obs.towers[0]!,
+    );
     const picks = obs.towers
-      .map((tower) => `${tower.index}→(${tower.row},${tower.col})`)
-      .join("  ");
-    lines.push(`  PICKABLE TOWERS: ${picks}`);
+      .map((tower) => {
+        const { h, w } = tower.pocket;
+        const star = tower === roomiest ? "★" : "";
+        const tight = Math.min(h, w) < 3 ? " TIGHT" : "";
+        return `${tower.index}→(${tower.row},${tower.col}) pocket ${h}×${w}${tight}${star}`;
+      })
+      .join("   ");
+    lines.push(
+      `  PICKABLE TOWERS (pocket = buildable room as home; ★ roomiest): ${picks}`,
+    );
   }
 
   // ── cannon spots: legal placements grouped by mode, safe-interior first ──────
@@ -282,6 +305,30 @@ export function renderObservation(
     ),
   );
   return lines.join("\n");
+}
+
+/** Severity-ranked verdict header — the agent's "read this FIRST" digest. The
+ *  harness derives the strings (`obs.alerts`); the renderer only frames them so
+ *  the ordering/wording stays in one place. Empty when nothing is flagged. */
+function alertLines(obs: Observation): string[] {
+  if (!obs.alerts || obs.alerts.length === 0) return [];
+  return ["⚑ NOW (most urgent first):", ...obs.alerts.map((a) => `  ${a}`)];
+}
+
+/** Build-headroom gauge: remaining enclosable land + the largest open buildable
+ *  rectangle (the dump-pocket / cannon-count signal). Gated out of BATTLE (the
+ *  decision it informs is select/cannon/build) and when there's no zone yet. */
+function headroomLines(obs: Observation): string[] {
+  const hr = obs.me.headroom;
+  if (!hr || hr.zoneLand === 0 || obs.phase === "BATTLE") return [];
+  const { h, w } = hr.openPocket;
+  const verdict =
+    Math.min(h, w) >= 3
+      ? "room for cannons + a 3×3 dump pocket"
+      : "TIGHT — keep cannons lean and reserve a dump pocket";
+  return [
+    `  ⊞ HEADROOM: ${hr.free}/${hr.zoneLand} land free, largest open pocket ${h}×${w} — ${verdict}.`,
+  ];
 }
 
 /** MODERN: the upgrades each player holds in force this round. The upgrade
