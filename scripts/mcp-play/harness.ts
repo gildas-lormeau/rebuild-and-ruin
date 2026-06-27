@@ -773,7 +773,10 @@ export interface Observation {
    *  of accumulation. The only AVOIDABLE fat is the fat not yet placed: send new
    *  pieces to the frontier (build_toward / wallExtensions), never into interior.
    *  Surfaced as a count-only signal that you've been over-building, not a fix
-   *  list. Omitted when there's none. */
+   *  list. Omitted when there's none. NOTE: a placed wall can't be removed during
+   *  WALL_BUILD, but it CAN be shot out by a cannonball in BATTLE — `declutter()`
+   *  fires your own battery at the non-load-bearing fat to reopen a build pocket
+   *  (see `fatClearable`). That's the proactive escape from a looming bag-lock. */
   fatWalls?: { row: number; col: number }[];
   /** WALL_BUILD only: the standing compactness read — `interior` enclosed
    *  scoring tiles, `fat` sunk interior walls, `fatPer100` = fat per 100 interior
@@ -785,6 +788,13 @@ export interface Observation {
    *  they cause, so the cost of each expansion is visible at the moment you pay it.
    *  Omitted outside WALL_BUILD or before any interior exists. */
   compactness?: { interior: number; fat: number; fatPer100: number };
+  /** BATTLE only: how many of my redundant inner ("fat") walls a cannonball can
+   *  actually reach right now (non-load-bearing AND not tower-occluded) — i.e. how
+   *  many interior tiles `declutter()` could free for the next build. Surfaced as
+   *  the BATTLE-phase mirror of `fatWalls`: when this is high it's the window to
+   *  pre-empt a bag-lock by shooting your own fat out before you pack into a
+   *  single-tile seam. Omitted outside BATTLE or when there's no reachable fat. */
+  fatClearable?: number;
   /** WALL_BUILD: for each loose wall end that sits near an un-closed enclosure gap,
    *  the next tile to place to EXTEND it toward closing — `from` the stub, `next`
    *  the buildable step, `toward` the gap it heads for. The constructive read of a
@@ -961,6 +971,20 @@ export interface McpGame {
    *  when the zone is clear (bombard the leftover battle) or at `quanta`. Same
    *  live-gated, reload-paced fairness as bombard. The answer to a grunt-lock. */
   cull(quanta?: number): Observation;
+  /** BATTLE: the STRUCTURAL counterpart to cull — fire my OWN battery at my
+   *  redundant inner ("fat") walls to clear a build pocket. Cull clears the
+   *  grunts that box a reseal; declutter clears the walls that box the piece bag.
+   *  Only non-load-bearing fat is targeted — every such wall has all 8 neighbours
+   *  wall/interior, so removing it can NEVER connect interior to outside (the
+   *  enclosure is preserved by construction). Aim-occluded fat (behind a tower) is
+   *  skipped, and the clearance is contiguous so it opens ONE usable 2×2+ dump
+   *  pocket rather than scattered 1-tile holes. Scores NOTHING (own walls) — it is
+   *  a tempo spend that trades battle offense for the build flexibility that
+   *  prevents a bag-lock life-loss. MUST be proactive: walls are only removable by
+   *  cannonball (battle), but the lock manifests next build, so clear the fat the
+   *  battle BEFORE you'd otherwise pack into a single-tile seam. Stops when the
+   *  reachable fat is gone (bombard the leftover battle) or at `quanta`. */
+  declutter(quanta?: number): Observation;
   /** Full min-cut plan (all tiles) to enclose one tower — the un-sampled form
    *  of an `enclosureCandidates` entry. Returns null if that tower isn't a
    *  candidate in your zone. */
@@ -2737,10 +2761,17 @@ export async function createMcpGame(
   function battleSelfReport(
     wallsBefore: ReadonlySet<number>,
     inertBefore: number,
+    selfCleared?: ReadonlySet<number>,
   ): string {
     const me = sc.state.players[agentSlot];
+    // `selfCleared` = walls I intentionally shot out myself (declutter) — exclude
+    // them so the report counts only INCIDENTAL return-fire, not my own work.
     const lost = [...wallsBefore]
-      .filter((key) => !me?.walls.has(key as Parameters<typeof unpackTile>[0]))
+      .filter(
+        (key) =>
+          !me?.walls.has(key as Parameters<typeof unpackTile>[0]) &&
+          !selfCleared?.has(key),
+      )
       .map((key) => unpackTile(key as Parameters<typeof unpackTile>[0]));
     const inertNow = cannonsUnenclosedCount();
     const total = me?.cannons.length ?? 0;
@@ -3097,6 +3128,8 @@ export async function createMcpGame(
       }
       const snipe = cannonSnipeSuggestion();
       if (snipe) observation.cannonSnipe = snipe;
+      const clearable = declutterFatTargets().length;
+      if (clearable > 0) observation.fatClearable = clearable;
     }
 
     applyModernSurfaces(observation, phase);
@@ -4543,6 +4576,138 @@ export async function createMcpGame(
     return observe();
   }
 
+  /** Aim-reachable fat walls, ordered as a CONTIGUOUS clearance front so the shots
+   *  open ONE usable dump-pocket rather than scattering single-tile holes (a 2×2+
+   *  opening defuses the bag-lock; isolated 1-tile holes only fit a 1×1). Seeds at
+   *  the fat tile nearest my cannons (the side a shot reaches first) and BFS-grows
+   *  over 4-connected fat. Fat walls are non-load-bearing by construction (every
+   *  8-neighbour is my own wall/interior — `fatWallsFor`), so removing any of them
+   *  can never connect interior to outside: enclosure is preserved without a
+   *  re-check. Tower-occluded fat is dropped (`aimReachesTile`) — a cannonball
+   *  can't land on a tile hidden behind a taller tower. */
+  function declutterFatTargets(): { row: number; col: number }[] {
+    const reachable = fatWallsFor().filter((tile) =>
+      aimReachesTile(sc.state, tile.row, tile.col),
+    );
+    if (reachable.length === 0) return [];
+    const fatSet = new Set(
+      reachable.map((tile) => packTile(tile.row, tile.col)),
+    );
+    const origin = cannonCentroid();
+    let seed = reachable[0]!;
+    let bestDist = Infinity;
+    for (const tile of reachable) {
+      const dist = (tile.row - origin.row) ** 2 + (tile.col - origin.col) ** 2;
+      if (dist < bestDist) {
+        bestDist = dist;
+        seed = tile;
+      }
+    }
+    const order: { row: number; col: number }[] = [];
+    const seen = new Set<number>([packTile(seed.row, seed.col)]);
+    const queue: { row: number; col: number }[] = [seed];
+    while (queue.length > 0) {
+      const cur = queue.shift()!;
+      order.push(cur);
+      for (const [dr, dc] of DIRS_4) {
+        const nr = cur.row + dr;
+        const nc = cur.col + dc;
+        const nkey = packTile(nr, nc);
+        if (fatSet.has(nkey) && !seen.has(nkey)) {
+          seen.add(nkey);
+          queue.push({ row: nr, col: nc });
+        }
+      }
+    }
+    return order;
+  }
+
+  /** BATTLE: fire MY battery at MY redundant inner ("fat") walls to reopen a build
+   *  pocket — the structural sibling of `cull` (cull clears the grunts that box a
+   *  reseal; declutter clears the walls that box the piece bag). Only enclosure-safe
+   *  fat is shot (see `declutterFatTargets`), the clearance is contiguous, and it
+   *  scores nothing (own walls) — a deliberate tempo spend that buys the build-phase
+   *  room which prevents a bag-lock life-loss. Same live-gated, reload-paced firing
+   *  as cull/bombard. */
+  function declutterWalls(quanta?: number): Observation {
+    if (sc.state.phase !== Phase.BATTLE) {
+      bridge.lastResult = {
+        kind: "fire",
+        success: false,
+        reason: "not in BATTLE (declutter shoots out fat walls during battle)",
+      };
+      return observe();
+    }
+    const targets = declutterFatTargets();
+    if (targets.length === 0) {
+      const anyFat = fatWallsFor().length > 0;
+      bridge.lastResult = {
+        kind: "fire",
+        success: false,
+        reason: anyFat
+          ? "your fat walls are all tower-occluded — no cannonball can land on them (bombard/cull instead)"
+          : "no fat walls to clear — your castle is already lean (bombard/cull/breach an opponent instead)",
+      };
+      return observe();
+    }
+    const me = sc.state.players[agentSlot];
+    const scoreBefore = me?.score ?? 0;
+    const myWallsBefore = new Set(me?.walls);
+    const inertBefore = cannonsUnenclosedCount();
+    const budget = quanta ?? Infinity;
+    const firedTiles = new Set<ReturnType<typeof packTile>>();
+    let spent = 0;
+    let fired = 0;
+    let idx = 0;
+    while (
+      !gameOver() &&
+      sc.state.phase === Phase.BATTLE &&
+      spent < budget &&
+      idx < targets.length
+    ) {
+      const live = sc.state.battleCountdown <= 0 && sc.state.timer > 0;
+      const canFire = live && cannonsReadyCount() > 0;
+      if (!canFire) {
+        advance(actionTicks);
+        settleToDecision();
+        spent++;
+        continue;
+      }
+      const ready = cannonsReadyCount();
+      for (let shot = 0; shot < ready && idx < targets.length; shot++) {
+        if (sc.state.phase !== Phase.BATTLE || gameOver()) break;
+        const tile = targets[idx]!;
+        idx++;
+        const tileKey = packTile(tile.row, tile.col);
+        // A fat tile already cleared by splash from a prior shot needs no volley.
+        if (!sc.state.players[agentSlot]?.walls.has(tileKey)) continue;
+        firedTiles.add(tileKey);
+        bridge.pending = { kind: "fire", row: tile.row, col: tile.col };
+        advance(actionTicks);
+        settleToDecision();
+        fired++;
+        spent++;
+      }
+    }
+    // "Freed interior" = the fat tiles I myself shot out, NOT the gross wall
+    // delta (which would fold in incidental return-fire on my outer ring — that
+    // opens the ring, it doesn't free a build pocket). Return-fire is reported
+    // separately by battleSelfReport.
+    const nowWalls = sc.state.players[agentSlot]?.walls;
+    let cleared = 0;
+    for (const key of firedTiles) if (!nowWalls?.has(key)) cleared++;
+    const pointsGained =
+      (sc.state.players[agentSlot]?.score ?? 0) - scoreBefore;
+    bridge.lastResult = {
+      kind: "fire",
+      success: cleared > 0,
+      reason: `fired ${fired}, cleared ${cleared} fat wall(s) — freed that many interior tiles for next build (declutter scores 0; it's a tempo spend to prevent a bag-lock)${
+        pointsGained > 0 ? `; +${pointsGained} incidental pts` : ""
+      }${battleSelfReport(myWallsBefore, inertBefore, firedTiles)}`,
+    };
+    return observe();
+  }
+
   /** Orthogonal sides of (row,col) that are water or off-board — the un-reroutable
    *  score for a pit: a wall pinched against rivers/edge can't be rebuilt one tile
    *  over, so a pit there is a near-permanent breach. */
@@ -4904,6 +5069,7 @@ export async function createMcpGame(
     breach: breachSlot,
     pitStrike,
     cull: cullGrunts,
+    declutter: declutterWalls,
     enclosurePlan,
     check,
     placements: placementsInZone,
@@ -4986,7 +5152,7 @@ function expectedFor(phase: Phase): string {
     case Phase.UPGRADE_PICK:
       return "Pick ONE of your three upgrade offers — act { kind: 'pick-upgrade', cardIdx } where cardIdx is 0, 1, or 2 (the index into observation.upgradeOffers; each lists id + label + description). The pick applies for the next round only. There's no skip — choose the offer that best fits your board (e.g. second_wind if you have dead towers, clear_the_field if grunts crowd your zone).";
     case Phase.BATTLE:
-      return "Attack an opponent for the whole battle (one call). Strategies: bombard({ slot }) SPREADS fire over their nearest walls — maximises wall count destroyed (points + general tax). breach({ slot, towerIdx? }) CONCENTRATES fire on the outer ring guarding one tower to de-enclose its pocket (deny its territory + bonus squares; omit towerIdx for the softest). pit_strike({ slot, targets? }) aims your pit gun(s) — a SUPER, or a normal the MORTAR upgrade elected this battle — at enemy wall tiles to plant burning PITS (block their rebuild for rounds) while normals chip — see pitTargets for the best un-reroutable walls; omit targets to use them. cull() is DEFENSIVE — fire at the GRUNTS menacing your OWN towers (observation.threats) instead of an opponent; grunts are frozen this phase, so the swarm that would box your reseal next build is killable now (one shot each). Reach for it when 'grunts behind your walls' is climbing or a reseal is grunt-locked. See targets (leader first; each lists towers with ringWalls + bonusSquares). Or aim by hand: act { kind: 'fire', row, col } (wait out battleCountdown > 0; fire at most me.cannonsReady per burst, then pass to reload) — this is also how you SNIPE an enemy cannon: a ball on its tile damages it and ~cannonMaxHp hits DESTROY it (fewer enemy guns + wreck-debris blocks their rebuild). Worth it over bombard only sometimes (you hold Salvage, or they field a super/Mortar gun) — see observation.cannonSnipe, surfaced just then.";
+      return "Attack an opponent for the whole battle (one call). Strategies: bombard({ slot }) SPREADS fire over their nearest walls — maximises wall count destroyed (points + general tax). breach({ slot, towerIdx? }) CONCENTRATES fire on the outer ring guarding one tower to de-enclose its pocket (deny its territory + bonus squares; omit towerIdx for the softest). pit_strike({ slot, targets? }) aims your pit gun(s) — a SUPER, or a normal the MORTAR upgrade elected this battle — at enemy wall tiles to plant burning PITS (block their rebuild for rounds) while normals chip — see pitTargets for the best un-reroutable walls; omit targets to use them. cull() is DEFENSIVE — fire at the GRUNTS menacing your OWN towers (observation.threats) instead of an opponent; grunts are frozen this phase, so the swarm that would box your reseal next build is killable now (one shot each). Reach for it when 'grunts behind your walls' is climbing or a reseal is grunt-locked. declutter() is SELF-MAINTENANCE — fire at your OWN redundant inner (fat) walls to shoot a build pocket back open (enclosure-safe, scores 0); the proactive escape from a bag-lock when your castle has packed toward single-tile seams (watch observation.fatClearable). See targets (leader first; each lists towers with ringWalls + bonusSquares). Or aim by hand: act { kind: 'fire', row, col } (wait out battleCountdown > 0; fire at most me.cannonsReady per burst, then pass to reload) — this is also how you SNIPE an enemy cannon: a ball on its tile damages it and ~cannonMaxHp hits DESTROY it (fewer enemy guns + wreck-debris blocks their rebuild). Worth it over bombard only sometimes (you hold Salvage, or they field a super/Mortar gun) — see observation.cannonSnipe, surfaced just then.";
     default:
       return "No agent action this phase; call pass to advance.";
   }

@@ -83,6 +83,7 @@ interface Journal {
         targets?: { row: number; col: number }[];
       }
     | { t: "cull"; quanta?: number }
+    | { t: "declutter"; quanta?: number }
   )[];
 }
 
@@ -661,6 +662,25 @@ const TOOLS: ToolDef[] = [
       recordCull(args.quanta === undefined ? undefined : num(args, "quanta")),
   },
   {
+    name: "declutter",
+    description:
+      "BATTLE (self-maintenance): fire YOUR OWN battery at YOUR redundant inner ('fat') walls to shoot a build pocket back open — the structural sibling of cull. Cull clears the GRUNTS that box a reseal; declutter clears the WALLS that box your piece bag. Over-building (repeated build_out) packs a castle into single-tile seams until a dealt S/Z/C/+ piece has ZERO legal placements — a BAG-LOCK that forfeits the build and, with no alive tower enclosed, costs a LIFE. Walls can't be removed in WALL_BUILD, but a cannonball CAN shoot one out in BATTLE, so declutter is the proactive escape: it targets only NON-LOAD-BEARING fat (every 8-neighbour is your own wall/interior, so removal never breaks an enclosure), skips tower-occluded tiles a ball can't reach, and clears a CONTIGUOUS block so you get one usable 2×2+ dump pocket. It scores NOTHING (own walls) — a deliberate tempo trade of battle offense for the build room that prevents the lock. Use it the battle BEFORE you'd otherwise pack tight (watch observation.fatClearable / a climbing compactness fat/100). Same live-gated, reload-paced fairness as bombard. Read lastResult for fat cleared + tiles freed.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        quanta: {
+          type: "number",
+          description:
+            "Cap on action-quanta to spend. Omit to clear the reachable fat front, then hand the rest of the battle back (bombard it).",
+        },
+      },
+    },
+    handler: (args) =>
+      recordDeclutter(
+        args.quanta === undefined ? undefined : num(args, "quanta"),
+      ),
+  },
+  {
     name: "enclosure_plan",
     description:
       "WALL_BUILD: the FULL min-cut plan (all tiles) to enclose one tower in your zone — the un-sampled form of an enclosureCandidates entry. Call after picking a candidate to get the complete tile list to fill.",
@@ -731,6 +751,7 @@ const TOOLS: ToolDef[] = [
         else if (move.t === "pit_strike") {
           game.pitStrike(move.slot, move.targets);
         } else if (move.t === "cull") game.cull(move.quanta);
+        else if (move.t === "declutter") game.declutter(move.quanta);
         else game.bombard(move.slot, move.quanta);
       }
       journal = loaded;
@@ -917,6 +938,13 @@ function recordPitStrike(
 function recordCull(quanta?: number): unknown {
   const observation = requireGame().cull(quanta);
   journal?.moves.push({ t: "cull", quanta });
+  return observation;
+}
+
+/** Run the declutter executor AND journal it (replay re-derives the volley). */
+function recordDeclutter(quanta?: number): unknown {
+  const observation = requireGame().declutter(quanta);
+  journal?.moves.push({ t: "declutter", quanta });
   return observation;
 }
 

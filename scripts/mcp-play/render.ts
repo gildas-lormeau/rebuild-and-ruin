@@ -35,7 +35,7 @@ const TERSE_EXPECTED: Record<string, string> = {
   UPGRADE_PICK:
     "UPGRADE_PICK — pick-upgrade { cardIdx 0|1|2 } from UPGRADE OFFERS. (full menu: round 1)",
   BATTLE:
-    "BATTLE — bombard { slot } (spread) / breach { slot, towerIdx? } (deny a pocket) / pit_strike { slot } / cull (defend vs your grunts) / fire { row, col } (snipe). See TARGETS. (full menu: round 1)",
+    "BATTLE — bombard { slot } (spread) / breach { slot, towerIdx? } (deny a pocket) / pit_strike { slot } / cull (defend vs your grunts) / declutter (shoot out your own fat to avoid a bag-lock) / fire { row, col } (snipe). See TARGETS. (full menu: round 1)",
 };
 
 /** Render an observation as the annotated ASCII board (header, standings,
@@ -124,6 +124,9 @@ export function renderObservation(
 
   // ── BATTLE cannon-snipe: conditional nudge to kill enemy guns over bombard ──
   lines.push(...cannonSnipeLines(obs));
+
+  // ── BATTLE declutter: nudge to shoot out your own fat before it bag-locks you ─
+  lines.push(...declutterLines(obs));
 
   // ── supply ships: live river hulls to hunt for a hidden bonus ───────────────
   lines.push(...supplyShipLines(obs));
@@ -489,6 +492,18 @@ function cannonSnipeLines(obs: Observation): string[] {
   return [
     `  ⌖ SNIPE CANNONS (situational — bombard usually out-scores this): fire(row,col) on ${snipe.name}'s gun tiles to DESTROY them — ${snipe.reason}.`,
     `     ~${snipe.hitsToKill} normal hits kill a gun (a super ball does 2/hit); the wreck leaves debris that blocks their rebuild. No one-call aimer — fire a tile, pass to reload, repeat. Tiles (★=super/Mortar): ${tiles}`,
+  ];
+}
+
+/** Conditional declutter nudge: surfaced in BATTLE when enough non-load-bearing,
+ *  aim-reachable fat exists to open a real dump pocket (≥4 = a 2×2). The proactive
+ *  escape from a looming bag-lock — you can only shoot walls out during BATTLE, but
+ *  the lock bites next build, so the prompt has to fire a round early. */
+function declutterLines(obs: Observation): string[] {
+  const clearable = obs.fatClearable ?? 0;
+  if (clearable < 4) return [];
+  return [
+    `  ♻ DECLUTTER AVAILABLE: ${clearable} of your redundant inner (fat) walls are cannonball-reachable — declutter() shoots them out (enclosure-safe, scores 0) to reopen a build pocket. Do it NOW if your castle is packing toward single-tile seams: walls are only removable in BATTLE, but a bag-lock bites next build. Otherwise bombard/cull.`,
   ];
 }
 
