@@ -35,7 +35,7 @@ const TERSE_EXPECTED: Record<string, string> = {
   UPGRADE_PICK:
     "UPGRADE_PICK — pick-upgrade { cardIdx 0|1|2 } from UPGRADE OFFERS. (full menu: round 1)",
   BATTLE:
-    "BATTLE — bombard { slot } (spread) / breach { slot, towerIdx? } (deny a pocket) / pit_strike { slot } / cull (defend vs your grunts) / declutter (shoot out your own fat to avoid a bag-lock) / fire { row, col } (snipe). See TARGETS. (full menu: round 1)",
+    "BATTLE — bombard { slot } (spread) / breach { slot, towerIdx? } (min-cut open a pocket) / pit_strike { slot } / cull (defend vs your grunts) / declutter (shoot out your own fat to avoid a bag-lock) / fire { row, col } (snipe). See TARGETS. (full menu: round 1)",
 };
 
 /** Render an observation as the annotated ASCII board (header, standings,
@@ -440,7 +440,7 @@ function targetLines(obs: Observation, once: Once): string[] {
   const lines: string[] = [
     once(
       "targetsHeader",
-      "  TARGETS (leader first — bombard=spread walls / breach=open one tower's pocket):",
+      "  TARGETS (leader first — bombard=spread walls / breach=min-cut open a pocket):",
       "  TARGETS (leader first):",
     ),
   ];

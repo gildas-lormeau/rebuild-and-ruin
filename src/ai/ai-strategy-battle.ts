@@ -579,6 +579,32 @@ export function findMinBreach(
   return shots.length > 0 ? shots : null;
 }
 
+/** Min-cut breach of the single INTACT ring holding `towerIdx` — the per-tower
+ *  counterpart to `findMinBreach` (which packs every ring of the castle). Finds
+ *  the live enclosure component containing that tower's footprint and runs the
+ *  same shell-first min-cut on it, so a targeted breach drills the FEWEST walls
+ *  to open exactly that pocket. Returns null when the tower isn't in an intact
+ *  enclosure breachable within `cap`. */
+export function findTowerBreach(
+  state: BattleViewState,
+  enemy: Player,
+  towerIdx: number,
+  cap: number,
+): TilePos[] | null {
+  if (cap < 1) return null;
+  const tower = enemy.enclosedTowers.find((entry) => entry.index === towerIdx);
+  if (!tower) return null;
+  const outside = computeOutside(enemy.walls);
+  const footprint = new Set<TileKey>();
+  forEachTowerTile(tower, (_row, _col, key) => footprint.add(key));
+  const comp = findEnclosureComponents(getBattleInterior(enemy)).find(
+    (component) =>
+      !isEnclosureBroken(component, outside) &&
+      component.some((key) => footprint.has(key)),
+  );
+  return comp ? findBreachPath(state, enemy, comp, outside, cap) : null;
+}
+
 /** True when any tile of the enclosure component is reached by the outside
  *  flood. Exposed so plan modules can filter ALREADY-breached enclosures out
  *  of their validation set against a precomputed live `computeOutside` —

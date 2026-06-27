@@ -28,6 +28,10 @@ import {
 import { castleRect, isTowerEnclosable } from "../../src/ai/ai-castle-rect.ts";
 import { findEnclosureCut } from "../../src/ai/ai-min-cut.ts";
 import { DefaultStrategy } from "../../src/ai/ai-strategy.ts";
+import {
+  findMinBreach,
+  findTowerBreach,
+} from "../../src/ai/ai-strategy-battle.ts";
 import { AiController } from "../../src/controllers/controller-ai.ts";
 import { createController } from "../../src/controllers/controller-factory.ts";
 import { aimReachesTile } from "../../src/game/aim-occlusion.ts";
@@ -955,10 +959,12 @@ export interface McpGame {
     quanta?: number,
     mode?: "spread" | "choke",
   ): Observation;
-  /** BATTLE: CONCENTRATE fire on the outer ring guarding one of `slot`'s enclosed
-   *  towers (the softest by ringWalls/bonus if `towerIdx` omitted) to de-enclose
-   *  its pocket — denies that pocket's territory + bonus squares next build,
-   *  where bombard just spreads damage they reseal. One call ≈ a whole battle. */
+  /** BATTLE: drill the engine's MIN-CUT to de-enclose `slot`'s territory — the
+   *  fewest walls whose removal lets the 8-dir flood reach a defended interior.
+   *  `towerIdx` cuts exactly that tower's ring; omitted, the whole-castle min-cut
+   *  opens every intact tower-ring it can afford (tower-rings first, cheapest
+   *  first). Denies that pocket's territory + bonus squares next build, where
+   *  bombard just spreads damage they reseal. One call ≈ a whole battle. */
   breach(slot: number, towerIdx?: number): Observation;
   /** BATTLE: drive the whole battle like bombard, but AIM your super cannon(s) at
    *  `targets` (enemy wall tiles) to plant burning PITS there while normal cannons
@@ -1048,6 +1054,11 @@ const CLUSTER_MAX_SPAN = 3;
 /** Chebyshev radius around an opponent tower that counts as its guarding ring —
  *  the band a `breach` concentrates fire on to de-enclose that pocket. */
 const BREACH_RADIUS = 6;
+/** Max wall tiles a single `breach` min-cut chain will plan — the `cap` handed
+ *  to `findMinBreach` / `findTowerBreach`. Generous (longer than the AI's 8) so
+ *  even a fat 2–3-thick ring's diagonal staircase fits; per-volley fire stays
+ *  reload-gated, so a high cap never lets the agent out-shoot its cannons. */
+const BREACH_MAX_TILES = 12;
 /** How many placements to surface per cannon mode in CANNON_PLACE. */
 const CANNON_SUGGESTION_PER_MODE = 3;
 /** A loose wall end gets an extension hint only when an un-closed enclosure gap
@@ -4870,14 +4881,19 @@ export async function createMcpGame(
       .sort((a, b) => dist2(a.row, a.col) - dist2(b.row, b.col));
   }
 
-  /** Concentrate fire to DE-ENCLOSE one opponent tower's pocket — the targeted
+  /** Concentrate fire to DE-ENCLOSE an opponent's territory — the targeted
    *  counterpart to `bombard`'s spread. Where bombard maximises raw wall count
-   *  destroyed (points + general tax), breach hammers the outer ring guarding
-   *  ONE tower so the pocket opens: that pocket scores zero next build unless
-   *  they reseal it, and its bonus squares fall out of their interior. Picks the
-   *  softest / most-bonus enclosed tower if `towerIdx` is omitted. Same fairness
-   *  as bombard — fires only while the battle is live, one ready cannon per
-   *  shot, paced to reload. */
+   *  destroyed (points + general tax), breach drills the engine's own MIN-CUT:
+   *  the FEWEST walls whose removal lets the 8-dir enclosure flood reach a
+   *  defended interior (a diagonal staircase through a ring of any thickness).
+   *  With `towerIdx` it cuts exactly that tower's ring (`findTowerBreach`);
+   *  omitted, it runs the whole-castle min-cut (`findMinBreach`) — opening every
+   *  intact tower-ring it can afford, tower-rings first, cheapest-first. Either
+   *  way the opened pocket scores zero next build unless they reseal it, and its
+   *  bonus squares fall out of their interior. Falls back to the nearest-arc
+   *  radius heuristic only when no min-cut is breachable (so the volley still
+   *  chips walls for points). Same fairness as bombard — fires only while the
+   *  battle is live, one ready cannon per shot, paced to reload. */
   function breachSlot(targetSlot: number, towerIdx?: number): Observation {
     if (sc.state.phase !== Phase.BATTLE) {
       bridge.lastResult = {
@@ -4913,10 +4929,26 @@ export async function createMcpGame(
         (enc) => enc.index === tower.towerIdx,
       ) ?? false;
     let fired = 0;
+    let usedMinCut = false;
     while (!gameOver() && sc.state.phase === Phase.BATTLE) {
       const target = sc.state.players[targetSlot];
       const live = sc.state.battleCountdown <= 0 && sc.state.timer > 0;
-      const tiles = breachTilesFor(targetSlot, tower);
+      // True min-cut first (per-tower or whole-castle), recomputed each volley so
+      // a ring that just opened drops out and the next-cheapest cut takes over.
+      // Radius nibbling is only the tail once nothing intact is breachable.
+      const minCut =
+        target === undefined
+          ? null
+          : towerIdx !== undefined
+            ? findTowerBreach(
+                sc.state,
+                target,
+                tower.towerIdx,
+                BREACH_MAX_TILES,
+              )
+            : findMinBreach(sc.state, target, BREACH_MAX_TILES);
+      if (minCut && minCut.length > 0) usedMinCut = true;
+      const tiles = minCut ?? breachTilesFor(targetSlot, tower);
       const canFire =
         live &&
         target !== undefined &&
@@ -4945,10 +4977,14 @@ export async function createMcpGame(
     // enclosedTowers only recomputes at their next build, so de-enclosure shows
     // up THEN, not mid-battle — report the ring damage, which is what carries.
     // battleSelfReport is the return fire I took while this volley ran.
+    const aim = usedMinCut
+      ? "min-cut"
+      : "radius fallback (no min-cut breachable)";
+    const scope = towerIdx !== undefined ? `tower ${tower.towerIdx}` : "castle";
     bridge.lastResult = {
       kind: "fire",
       success: fired > 0,
-      reason: `breached tower ${tower.towerIdx}: fired ${fired}, +${pointsGained} pts (ring lost ${wallsDestroyed} walls${
+      reason: `breached ${scope} (${aim}): fired ${fired}, +${pointsGained} pts (ring lost ${wallsDestroyed} walls${
         stillEnclosed() ? "" : ", pocket OPEN"
       })${battleSelfReport(myWallsBefore, inertBefore)}`,
     };
@@ -5205,7 +5241,7 @@ function expectedFor(phase: Phase): string {
     case Phase.UPGRADE_PICK:
       return "Pick ONE of your three upgrade offers — act { kind: 'pick-upgrade', cardIdx } where cardIdx is 0, 1, or 2 (the index into observation.upgradeOffers; each lists id + label + description). The pick applies for the next round only. There's no skip — choose the offer that best fits your board (e.g. second_wind if you have dead towers, clear_the_field if grunts crowd your zone).";
     case Phase.BATTLE:
-      return "Attack an opponent for the whole battle (one call). Strategies: bombard({ slot, mode? }) SPREADS fire over their nearest walls — maximises wall count destroyed (points + general tax); pass mode:'choke' to instead concentrate normal fire on their un-reroutable ring walls (pit_strike's aim without the pit — denies a reseal). breach({ slot, towerIdx? }) CONCENTRATES fire on the outer ring guarding one tower to de-enclose its pocket (deny its territory + bonus squares; omit towerIdx for the softest). pit_strike({ slot, targets? }) aims your pit gun(s) — a SUPER, or a normal the MORTAR upgrade elected this battle — at enemy wall tiles to plant burning PITS (block their rebuild for rounds) while normals chip — see pitTargets for the best un-reroutable walls; omit targets to use them. cull() is DEFENSIVE — fire at the GRUNTS menacing your OWN towers (observation.threats) instead of an opponent; grunts are frozen this phase, so the swarm that would box your reseal next build is killable now (one shot each). Reach for it when 'grunts behind your walls' is climbing or a reseal is grunt-locked. declutter() is SELF-MAINTENANCE — fire at your OWN redundant inner (fat) walls to shoot a build pocket back open (enclosure-safe, scores 0); the proactive escape from a bag-lock when your castle has packed toward single-tile seams (watch observation.fatClearable). See targets (leader first; each lists towers with ringWalls + bonusSquares). Or aim by hand: act { kind: 'fire', row, col } (wait out battleCountdown > 0; fire at most me.cannonsReady per burst, then pass to reload) — this is also how you SNIPE an enemy cannon: a ball on its tile damages it and ~cannonMaxHp hits DESTROY it (fewer enemy guns + wreck-debris blocks their rebuild). Worth it over bombard only sometimes (you hold Salvage, or they field a super/Mortar gun) — see observation.cannonSnipe, surfaced just then.";
+      return "Attack an opponent for the whole battle (one call). Strategies: bombard({ slot, mode? }) SPREADS fire over their nearest walls — maximises wall count destroyed (points + general tax); pass mode:'choke' to instead concentrate normal fire on their un-reroutable ring walls (pit_strike's aim without the pit — denies a reseal). breach({ slot, towerIdx? }) drills the engine's MIN-CUT to de-enclose a pocket — the fewest walls whose removal lets the 8-dir flood reach the interior (a diagonal staircase through a ring of any thickness): towerIdx cuts exactly that tower's ring, omitted runs the whole-castle min-cut (opens every intact tower-ring it can afford, cheapest first). Denies that territory + bonus squares next build. pit_strike({ slot, targets? }) aims your pit gun(s) — a SUPER, or a normal the MORTAR upgrade elected this battle — at enemy wall tiles to plant burning PITS (block their rebuild for rounds) while normals chip — see pitTargets for the best un-reroutable walls; omit targets to use them. cull() is DEFENSIVE — fire at the GRUNTS menacing your OWN towers (observation.threats) instead of an opponent; grunts are frozen this phase, so the swarm that would box your reseal next build is killable now (one shot each). Reach for it when 'grunts behind your walls' is climbing or a reseal is grunt-locked. declutter() is SELF-MAINTENANCE — fire at your OWN redundant inner (fat) walls to shoot a build pocket back open (enclosure-safe, scores 0); the proactive escape from a bag-lock when your castle has packed toward single-tile seams (watch observation.fatClearable). See targets (leader first; each lists towers with ringWalls + bonusSquares). Or aim by hand: act { kind: 'fire', row, col } (wait out battleCountdown > 0; fire at most me.cannonsReady per burst, then pass to reload) — this is also how you SNIPE an enemy cannon: a ball on its tile damages it and ~cannonMaxHp hits DESTROY it (fewer enemy guns + wreck-debris blocks their rebuild). Worth it over bombard only sometimes (you hold Salvage, or they field a super/Mortar gun) — see observation.cannonSnipe, surfaced just then.";
     default:
       return "No agent action this phase; call pass to advance.";
   }
