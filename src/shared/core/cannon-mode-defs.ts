@@ -42,7 +42,8 @@ const CANNON_MODE_POOL: readonly CannonModeDef[] = [
   {
     id: CannonMode.BALLOON,
     label: "Propaganda Balloon",
-    description: "2×2 launcher, fires balloons to capture enemy cannons",
+    description:
+      "2×2 single-use launcher — at battle start seizes the enemy's most dangerous cannon to fire for you that battle, then is spent (removed, its slots free next round)",
     size: 2,
     slotCost: 3,
     implemented: true,

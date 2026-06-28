@@ -362,7 +362,7 @@ const TOOLS: ToolDef[] = [
   {
     name: "place_cannon",
     description:
-      "CANNON_PLACE: place a cannon at row/col. mode is one of normal|super|balloon|rampart (default normal).",
+      "CANNON_PLACE: place a cannon at row/col. mode is one of normal|super|balloon|rampart (default normal). normal=direct fire; super=3×3 incendiary (plants pits); balloon=SINGLE-USE (3 slots) — at battle start it auto-seizes the enemy's most dangerous cannon to fire for you that battle, then is spent and removed (slots free next round), so it's a defensive 'steal their scariest gun' tool, NOT a persistent battery.",
     inputSchema: {
       type: "object",
       properties: {
