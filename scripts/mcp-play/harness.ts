@@ -55,7 +55,7 @@ import { SUPPLY_SHIP_SPEED } from "../../src/game/modifiers/supply-ship.ts";
 import { shouldSkipBattle } from "../../src/game/upgrade-system.ts";
 import {
   type Cannon,
-  type CannonMode,
+  CannonMode,
   isBalloonCannon,
   isCannonAlive,
   isRampartCannon,
@@ -66,8 +66,10 @@ import {
   cannonModesForGame,
 } from "../../src/shared/core/cannon-mode-defs.ts";
 import {
+  BALLOON_HITS_NEEDED,
   type ModifierId,
   SIM_TICK_DT,
+  SUPER_BALLOON_HITS_NEEDED,
   TOWER_SIZE,
 } from "../../src/shared/core/game-constants.ts";
 import { Phase } from "../../src/shared/core/game-phase.ts";
@@ -878,6 +880,37 @@ export interface Observation {
     /** Targetable enemy cannon top-lefts (alive, not balloon, not shielded this
      *  battle), high-value guns (`heavy`: super/Mortar) first. */
     tiles: { row: number; col: number; heavy: boolean }[];
+  };
+  /** CANNON_PLACE: a nudge to spend SPARE slots on a BALLOON — a near-free steal.
+   *  Surfaced whenever a balloon is affordable (≥1 legal 2×2 spot fits the slots
+   *  you have left) AND any enclosed enemy gun is still capturable. A balloon
+   *  auto-seizes the opponent's MOST DANGEROUS enclosed cannon at battle start
+   *  (`gun`), fires it FOR you that battle, denies it to them, then is spent
+   *  (removed, slots free next round). On slots you'd otherwise leave idle it's
+   *  pure upside — even seizing a plain gun is a +1/−1 swing — so this does NOT
+   *  gate on the enemy holding a super (unlike `cannonSnipe`). The one catch is in
+   *  the math: a SUPER needs `balloonsToSeize` = 2 balloon hits (a normal/Mortar
+   *  needs 1), and hits PERSIST across battles — so if you can only afford 1 vs a
+   *  super, that balloon banks 1/2 (captures nothing THIS battle; finish it next
+   *  round). Compare `balloonsToSeize` to `balloonsAffordable` to know whether you
+   *  can capture `gun` now. Omitted when no balloon is affordable or no enclosed
+   *  enemy gun is capturable. */
+  balloonOpportunity?: {
+    /** Opponent slot the balloon would target (most dangerous enclosed gun). */
+    slot: number;
+    name: string;
+    /** The gun the balloon will fly at — the engine's actual most-dangerous pick
+     *  (super preferred, then HP), so you know what one balloon does. */
+    gun: { row: number; col: number; mode: CannonMode };
+    /** Balloon HITS still needed to seize `gun` (super = 2, normal/Mortar = 1;
+     *  minus any hits already banked from prior rounds). 1 = one balloon captures
+     *  it this battle. */
+    balloonsToSeize: number;
+    /** How many balloons you can place right now (floor(freeSlots / 3-slot cost)).
+     *  ≥ `balloonsToSeize` means you can capture `gun` outright this round. */
+    balloonsAffordable: number;
+    /** A legal 2×2 balloon top-left you can place at right now. */
+    spot: { row: number; col: number };
   };
   /** MODERN only: the environmental modifier in force this round (wildfire,
    *  frozen river, …), or null/omitted in classic and when none rolled. Passive
@@ -2741,6 +2774,67 @@ export async function createMcpGame(
     };
   }
 
+  /** Balloon hits to capture a cannon (super = 2, normal/Mortar = 1) — mirrors the
+   *  engine's `balloonHitThreshold` (not exported). */
+  function balloonHitsNeeded(cannon: Cannon): number {
+    return isSuperCannon(cannon)
+      ? SUPER_BALLOON_HITS_NEEDED
+      : BALLOON_HITS_NEEDED;
+  }
+
+  /** Spare-slot balloon nudge (see `observation.balloonOpportunity`). Returns the
+   *  suggestion whenever a balloon is affordable AND any enclosed enemy gun is
+   *  still capturable — a near-free steal on idle slots, so unlike
+   *  `cannonSnipeSuggestion` it does NOT require an enemy super. Mirrors the
+   *  engine's `findBestBalloonTarget`: most dangerous ENCLOSED, under-threshold
+   *  enemy cannon (super preferred, then HP), so `gun` names the cannon the
+   *  balloon will actually fly at and `balloonsToSeize` is honest about a super's
+   *  2-hit cost. */
+  function balloonOpportunitySuggestion(
+    suggestions: CannonSuggestion[],
+  ): NonNullable<Observation["balloonOpportunity"]> | null {
+    const spot = suggestions.find((s) => s.mode === CannonMode.BALLOON);
+    if (!spot) return null; // no affordable / legal 2×2 balloon placement
+    const state = sc.state;
+    const me = state.players[agentSlot];
+    if (!me) return null;
+    const free = cannonSlotsFor(state, agentSlot) - cannonSlotsUsed(me);
+    const balloonsAffordable = Math.floor(
+      free / cannonModeDef(CannonMode.BALLOON).slotCost,
+    );
+    if (balloonsAffordable < 1) return null;
+    // Mirror findBestBalloonTarget: most dangerous ENCLOSED, still-capturable enemy
+    // gun (super preferred, then HP). A balloon can't take its own kind, a dead
+    // gun, or one already at its hit threshold.
+    let best: { cannon: Cannon; slot: number; key: number } | null = null;
+    state.players.forEach((player, slot) => {
+      if (slot === agentSlot || player.eliminated) return;
+      for (const cannon of player.cannons) {
+        if (!isCannonAlive(cannon) || isBalloonCannon(cannon)) continue;
+        if ((cannon.balloonHits ?? 0) >= balloonHitsNeeded(cannon)) continue;
+        if (!isCannonEnclosed(cannon, player)) continue;
+        // Same ordering the engine uses: super dominates, HP breaks ties.
+        const key = (isSuperCannon(cannon) ? 1_000 : 0) + cannon.hp;
+        if (!best || key > best.key) best = { cannon, slot, key };
+      }
+    });
+    if (!best) return null;
+    const pick: { cannon: Cannon; slot: number; key: number } = best;
+    return {
+      slot: pick.slot,
+      name: PLAYER_NAMES[pick.slot] ?? `P${pick.slot}`,
+      gun: {
+        row: pick.cannon.row,
+        col: pick.cannon.col,
+        mode: pick.cannon.mode,
+      },
+      balloonsToSeize:
+        balloonHitsNeeded(pick.cannon) - (pick.cannon.balloonHits ?? 0),
+      balloonsAffordable,
+      spot: { row: spot.row, col: spot.col },
+    };
+  }
+
   /** Short label for a pit-capable gun in result/fallback text. */
   function pitGunLabel(cannon: Cannon): string {
     return isSuperCannon(cannon) ? "super" : "mortar gun";
@@ -3165,6 +3259,10 @@ export async function createMcpGame(
 
     if (phase === Phase.CANNON_PLACE) {
       observation.cannonSuggestions = cannonSuggestionsFor();
+      const balloon = balloonOpportunitySuggestion(
+        observation.cannonSuggestions,
+      );
+      if (balloon) observation.balloonOpportunity = balloon;
     }
 
     if (phase === Phase.WALL_BUILD) attachBuildSurfaces(observation);

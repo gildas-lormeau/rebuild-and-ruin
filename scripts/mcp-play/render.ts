@@ -174,6 +174,9 @@ export function renderObservation(
       lines.push(line);
   }
 
+  // ── balloon opportunity: conditional cannon-phase nudge to steal an enemy super ─
+  lines.push(...balloonOpportunityLines(obs));
+
   // ── survival warning: no alive/revivable enclosed tower = a life lost at round
   //    end. Gate on `survivesRoundEnd` (credits pending / Restoration-Crew
   //    revives), NOT the raw alive count, which false-alarmed while RC was held. ──
@@ -539,6 +542,25 @@ function cannonSnipeLines(obs: Observation): string[] {
   return [
     `  ⌖ SNIPE CANNONS (situational — bombard usually out-scores this): fire(row,col) on ${snipe.name}'s gun tiles to DESTROY them — ${snipe.reason}.`,
     `     ~${snipe.hitsToKill} normal hits kill a gun (a super ball does 2/hit); the wreck leaves debris that blocks their rebuild. No one-call aimer — fire a tile, pass to reload, repeat. Tiles (★=super/Mortar): ${tiles}`,
+  ];
+}
+
+/** Conditional balloon nudge: surfaced in CANNON_PLACE when a balloon is
+ *  affordable AND an opponent fields a super/Mortar worth seizing for a battle.
+ *  The cannon-phase mirror of the SNIPE hint — makes the otherwise-passive
+ *  balloon menu line salient exactly when it pays for its 3 slots. */
+function balloonOpportunityLines(obs: Observation): string[] {
+  const balloon = obs.balloonOpportunity;
+  if (!balloon) return [];
+  const { row: gr, col: gc, mode } = balloon.gun;
+  const { row: sr, col: sc } = balloon.spot;
+  const canSeize = balloon.balloonsAffordable >= balloon.balloonsToSeize;
+  // Honest about a super's 2-hit cost: seize-now vs bank-partial-progress.
+  const action = canSeize
+    ? `place ${balloon.balloonsToSeize === 1 ? "a balloon" : `${balloon.balloonsToSeize} balloons`} (mode:'balloon', 3 slots each) starting at (${sr},${sc}) to SEIZE it THIS battle — it fires FOR you, denies it to them, then is spent (slots free next round)`
+    : `it needs ${balloon.balloonsToSeize} balloon hits (a super takes 2) but you can afford ${balloon.balloonsAffordable} now — one balloon at (${sr},${sc}) banks ${balloon.balloonsAffordable}/${balloon.balloonsToSeize} (progress persists; finish next round)`;
+  return [
+    `  🎈 BALLOON OPPORTUNITY: ${balloon.name}'s ${mode} at (${gr},${gc}) is capturable — ${action}. Near-free on slots you'd otherwise leave idle (a seized gun is a +1/−1 swing).`,
   ];
 }
 
