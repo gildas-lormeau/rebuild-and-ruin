@@ -567,7 +567,7 @@ const TOOLS: ToolDef[] = [
   {
     name: "bombard",
     description:
-      "BATTLE: fire every ready cannon at one opponent's walls, pacing reload, for the rest of the battle (or `quanta` action-quanta). Waits out the countdown first. One call instead of a whole battle of fire/pass. `mode` (default 'spread') picks the aim: 'spread' hits their walls NEAREST your battery — maximises raw wall count destroyed (points + general tax); 'choke' concentrates fire on their load-bearing OUTER-RING walls ranked by un-reroutability (the same choke ranking pit_strike plants pits on — walls pinched against water/edge they can't rebuild one tile over) — fewer walls but each costlier for them to patch, chipping toward de-enclosing a pocket (no burning pit — that effect stays super-only). Use 'choke' to deny a reseal with normal cannons; 'spread' for raw points/tax. Read lastResult for walls destroyed + points scored.",
+      "BATTLE: fire every ready cannon at one opponent's walls, pacing reload, for the rest of the battle (or `quanta` action-quanta). Waits out the countdown first. One call instead of a whole battle of fire/pass. `mode` (default 'spread') picks the aim: 'spread' hits their walls NEAREST your battery — maximises raw wall count destroyed (points + general tax); 'choke' concentrates fire on their load-bearing OUTER-RING walls ranked by un-reroutability (the same choke ranking pit_strike plants pits on — walls pinched against water/edge) — fewer walls but each costlier for them to patch (no burning pit — that effect stays super-only). 'choke' is a HEAVIER wall-tax, NOT a de-enclosure: the AI re-routes its ring and re-encloses next build either way (~90%), choke just makes the re-route pricier. Use 'choke' to tax their rebuild harder; 'spread' for raw points/wall count. Read lastResult for walls destroyed + points scored.",
     inputSchema: {
       type: "object",
       properties: {
@@ -584,7 +584,7 @@ const TOOLS: ToolDef[] = [
           type: "string",
           enum: ["spread", "choke"],
           description:
-            "Aim strategy (default 'spread'). 'spread' = nearest walls, max raw count. 'choke' = un-reroutable ring walls (deny reseal, normal-cannon version of pit_strike's aim).",
+            "Aim strategy (default 'spread'). 'spread' = nearest walls, max raw count. 'choke' = load-bearing ring walls (a heavier wall-tax, costlier to patch — NOT a de-enclosure; the normal-cannon version of pit_strike's aim).",
         },
       },
       required: ["slot"],
@@ -624,7 +624,7 @@ const TOOLS: ToolDef[] = [
   {
     name: "pit_strike",
     description:
-      "BATTLE: drive the whole battle like bombard, but AIM your pit-capable gun(s) at enemy wall tiles to plant burning PITS while normal cannons chip. A pit gun is a SUPER (3×3 splash) OR a normal cannon the MORTAR upgrade elected this battle — either pits a tile it hits AS A WALL, and the pit blocks rebuilding for several rounds, so a pit on a load-bearing / un-reroutable wall denies their reseal, unlike a bombard hit they patch next build. See observation.pitTargets for the best walls (ranked by choke = un-reroutable sides); omit targets to use them automatically. No pit gun that can fire FOR you (no super placed AND no Mortar gun elected, or it was destroyed / unenclosed / CAPTURED by an enemy balloon — see observation.me.capturedCannons) → behaves as a plain bombard and lastResult says why. Read lastResult for pits planted + return fire.",
+      "BATTLE: drive the whole battle like bombard, but AIM your pit-capable gun(s) at enemy wall tiles to plant burning PITS while normal cannons chip. A pit gun is a SUPER (3×3 splash) OR a normal cannon the MORTAR upgrade elected this battle — either pits a tile it hits AS A WALL, and the pit blocks rebuilding for several rounds. A pit on a load-bearing wall TAXES their reseal (forces a costlier re-route, denies a sliver of territory) more than a random bombard hit — but it does NOT reliably deny the reseal: the AI re-encloses ~90% of pit-targeted towers next build by routing the ring around the pit (only a true geographic pinch, a 1-wide neck walled by water/edge, actually blocks it — rare). See observation.pitTargets for the best walls — drawn from the engine MIN-CUT (the load-bearing seal breach drills), so a pit there costs them more than an outer-fringe wall they never needed; omit targets to use them automatically. No pit gun that can fire FOR you (no super placed AND no Mortar gun elected, or it was destroyed / unenclosed / CAPTURED by an enemy balloon — see observation.me.capturedCannons) → behaves as a plain bombard and lastResult says why. Read lastResult for pits planted + return fire.",
     inputSchema: {
       type: "object",
       properties: {

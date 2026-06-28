@@ -983,9 +983,11 @@ export interface McpGame {
    *  `spread` hits the walls NEAREST my battery — maximises raw wall count
    *  destroyed (points + general tax); `choke` concentrates normal fire on their
    *  load-bearing outer-ring walls ranked by un-reroutability (the same choke
-   *  ranking `pit_strike` plants pits on) — fewer walls but costlier for them to
-   *  patch, chipping toward de-enclosure (no pit — that stays super-only). One
-   *  call ≈ a whole battle of fire/pass. */
+   *  ranking `pit_strike` plants pits on) — fewer walls but each costlier to
+   *  patch, so a HEAVIER wall-tax than spread. It does NOT de-enclose: like
+   *  bombard, the AI re-routes its ring and re-encloses next build (~90%); choke
+   *  just makes the re-route pricier (no pit — that stays super-only). One call
+   *  ≈ a whole battle of fire/pass. */
   bombard(
     slot: number,
     quanta?: number,
@@ -1002,10 +1004,14 @@ export interface McpGame {
    *  `targets` (enemy wall tiles) to plant burning PITS there while normal cannons
    *  spread-chip `slot`'s walls. A super ball only pits a tile it HITS AS A WALL,
    *  and the pit blocks rebuilding for BURNING_PIT_DURATION rounds — so a pit on a
-   *  load-bearing / un-reroutable wall denies their reseal for rounds, unlike a
-   *  bombard hit they patch next build. Omit `targets` to use the ranked
-   *  `pitTargets` for that slot. Normals + supers still fire only while the battle
-   *  is live and paced to reload — same fairness as bombard. */
+   *  load-bearing wall TAXES their reseal (forces a costlier re-route, denies a
+   *  sliver of territory) more than a random bombard hit. It does NOT reliably
+   *  deny the reseal: the AI re-encloses ~90% of pit-targeted towers next build by
+   *  routing the ring around the pit (only a true geographic pinch — a 1-wide neck
+   *  walled by water/edge — actually blocks it, and those are rare). Omit
+   *  `targets` to use the ranked `pitTargets` for that slot. Normals + supers
+   *  still fire only while the battle is live and paced to reload — same fairness
+   *  as bombard. */
   pitStrike(
     slot: number,
     targets?: { row: number; col: number }[],
@@ -3292,11 +3298,11 @@ export async function createMcpGame(
    *  un-reroutability (`chokeScore` desc — walls pinched against water/edge that
    *  they can't rebuild one tile over, exactly the ranking `pit_strike` uses),
    *  distance-to-battery as the tie-break. Choke is pit_strike's aim made
-   *  available to ORDINARY cannon fire: a normal ball that razes an
-   *  un-reroutable ring wall costs them far more to patch than a random near
-   *  wall (and chips toward de-enclosing a pocket) even though it plants no pit
-   *  — the legitimate generalization, since the *pit effect* stays a super-only
-   *  property. Falls back to `spread` when the target has no boundary ring left
+   *  available to ORDINARY cannon fire: a normal ball that razes a load-bearing
+   *  ring wall costs them more to patch than a random near wall — a heavier
+   *  wall-TAX, not a de-enclosure (the AI re-routes its ring and re-encloses next
+   *  build either way; choke just makes the re-route pricier). Falls back to
+   *  `spread` when the target has no boundary ring left
    *  (e.g. only interior debris) so a choke attack never no-ops. */
   function attackWallTiles(
     slot: number,
@@ -4957,10 +4963,19 @@ export async function createMcpGame(
     return choke;
   }
 
-  /** The best enemy wall tiles to plant a super-cannon pit on. Restricts to each
-   *  opponent's tower-guarding ring walls (load-bearing — a pit there denies the
-   *  reseal AND helps de-enclose the pocket), ranked by `choke` so the
-   *  least-reroutable necks come first. A few per opponent. */
+  /** The best enemy wall tiles to plant a super-cannon pit on — sourced from the
+   *  engine's MIN-CUT (`findMinBreach`, the same finder `breach` drills): the
+   *  fewest walls whose removal de-encloses. A pit on a cut tile costs them a
+   *  load-bearing wall, so the reseal is a costlier re-route (lost tiles +
+   *  territory) — a TAX, not a denial: measurement shows the AI re-encloses ~90%
+   *  of pit-targeted towers next build regardless (it routes the ring around the
+   *  pit; spread/concentrate/bombard all ~85-90% reseal). A pit only DENIES a
+   *  reseal at a true geographic pinch (a 1-wide neck walled by water/edge), which
+   *  rarely lands on a cut tile. Still strictly better than the old `chokeScore`
+   *  aim, which wasted pits on outer-fringe walls that cost nothing to route
+   *  around. The cut is spread shell-first along the real neck. `choke` is
+   *  advisory display only (un-reroutability), NOT the ordering. A few per
+   *  opponent, tower-rings first (findMinBreach's order). */
   function pitTargetsFor(): PitTarget[] {
     const out: PitTarget[] = [];
     const near = (row: number, col: number, tr: number, tc: number) =>
@@ -4971,25 +4986,25 @@ export async function createMcpGame(
       if (!opponent || opponent.eliminated || opponent.walls.size === 0) {
         continue;
       }
-      const ranked = [...boundaryWalls(opponent)]
-        .map((key) => unpackTile(key as Parameters<typeof unpackTile>[0]))
-        .map(({ row, col }) => {
-          const tower = opponent.enclosedTowers.find((entry) =>
-            near(row, col, entry.row, entry.col),
-          );
-          return {
-            slot,
-            row,
-            col,
-            choke: chokeScore(row, col),
-            towerIdx: tower ? (tower.index as number) : null,
-          };
-        })
-        .filter((target) => target.towerIdx !== null)
-        .sort((a, b) => b.choke - a.choke);
-      out.push(...ranked.slice(0, PIT_TARGETS_PER_OPPONENT));
+      // The live min-cut against this opponent's CURRENT walls — only their
+      // still-intact enclosures seed it, so once a ring is breached its tiles
+      // drop out and re-aim moves to the next-cheapest cut (the shell beneath).
+      const cut = findMinBreach(sc.state, opponent, BREACH_MAX_TILES);
+      if (!cut || cut.length === 0) continue;
+      for (const { row, col } of cut.slice(0, PIT_TARGETS_PER_OPPONENT)) {
+        const tower = opponent.enclosedTowers.find((entry) =>
+          near(row, col, entry.row, entry.col),
+        );
+        out.push({
+          slot,
+          row,
+          col,
+          choke: chokeScore(row, col),
+          towerIdx: tower ? (tower.index as number) : null,
+        });
+      }
     }
-    return out.sort((a, b) => b.choke - a.choke);
+    return out;
   }
 
   /** An opponent's enclosed towers as breach targets, softest (thinnest guarding
@@ -5169,8 +5184,10 @@ export async function createMcpGame(
    *  when a pit gun (own super/Mortar OR a seized enemy super) is next, redirects
    *  it onto the next still-walled, not-yet-pitted target;
    *  everything else spreads like bombard. A pit only forms on a WALL hit and
-   *  blocks rebuilding for BURNING_PIT_DURATION rounds, so this denies a reseal a
-   *  bombard hit wouldn't. Same fairness as bombard (live-gated, reload-paced). */
+   *  blocks rebuilding for BURNING_PIT_DURATION rounds, so this TAXES a reseal
+   *  (costlier re-route) more than a bombard hit — but rarely denies it outright
+   *  (the AI routes around scattered pits; ~90% of pit-targeted towers re-enclose
+   *  next build). Same fairness as bombard (live-gated, reload-paced). */
   function pitStrike(
     targetSlot: number,
     targets?: { row: number; col: number }[],
@@ -5413,7 +5430,7 @@ function expectedFor(phase: Phase): string {
     case Phase.UPGRADE_PICK:
       return "Pick ONE of your three upgrade offers — act { kind: 'pick-upgrade', cardIdx } where cardIdx is 0, 1, or 2 (the index into observation.upgradeOffers; each lists id + label + description). The pick applies for the next round only. There's no skip — choose the offer that best fits your board (e.g. second_wind if you have dead towers, clear_the_field if grunts crowd your zone).";
     case Phase.BATTLE:
-      return "Attack an opponent for the whole battle (one call). Strategies: bombard({ slot, mode? }) SPREADS fire over their nearest walls — maximises wall count destroyed (points + general tax); pass mode:'choke' to instead concentrate normal fire on their un-reroutable ring walls (pit_strike's aim without the pit — denies a reseal). breach({ slot, towerIdx? }) drills the engine's MIN-CUT to de-enclose a pocket — the fewest walls whose removal lets the 8-dir flood reach the interior (a diagonal staircase through a ring of any thickness): towerIdx cuts exactly that tower's ring, omitted runs the whole-castle min-cut (opens every intact tower-ring it can afford, cheapest first). Denies that territory + bonus squares next build. pit_strike({ slot, targets? }) aims your pit gun(s) — a SUPER, or a normal the MORTAR upgrade elected this battle — at enemy wall tiles to plant burning PITS (block their rebuild for rounds) while normals chip — see pitTargets for the best un-reroutable walls; omit targets to use them. cull() is DEFENSIVE — fire at the GRUNTS menacing your OWN towers (observation.threats) instead of an opponent; grunts are frozen this phase, so the swarm that would box your reseal next build is killable now (one shot each). Reach for it when 'grunts behind your walls' is climbing or a reseal is grunt-locked. declutter() is SELF-MAINTENANCE — fire at your OWN redundant inner (fat) walls to shoot a build pocket back open (enclosure-safe, scores 0); the proactive escape from a bag-lock when your castle has packed toward single-tile seams (watch observation.fatClearable). See targets (leader first; each lists towers with ringWalls + bonusSquares). Or aim by hand: act { kind: 'fire', row, col } (wait out battleCountdown > 0; fire at most me.cannonsReady per burst, then pass to reload) — this is also how you SNIPE an enemy cannon: a ball on its tile damages it and ~cannonMaxHp hits DESTROY it (fewer enemy guns + wreck-debris blocks their rebuild). Worth it over bombard only sometimes (you hold Salvage, or they field a super/Mortar gun) — see observation.cannonSnipe, surfaced just then.";
+      return "Attack an opponent for the whole battle (one call). Strategies: bombard({ slot, mode? }) SPREADS fire over their nearest walls — maximises wall count destroyed (points + general tax); pass mode:'choke' to instead concentrate normal fire on their load-bearing ring walls (pit_strike's aim without the pit — a HEAVIER wall-tax, costlier for them to patch; it does NOT de-enclose — the AI re-routes and re-encloses next build either way). breach({ slot, towerIdx? }) drills the engine's MIN-CUT to de-enclose a pocket — the fewest walls whose removal lets the 8-dir flood reach the interior (a diagonal staircase through a ring of any thickness): towerIdx cuts exactly that tower's ring, omitted runs the whole-castle min-cut (opens every intact tower-ring it can afford, cheapest first). Denies that territory + bonus squares next build. pit_strike({ slot, targets? }) aims your pit gun(s) — a SUPER, or a normal the MORTAR upgrade elected this battle — at enemy wall tiles to plant burning PITS (a tempo/territory TAX — pits a load-bearing wall so their reseal is a costlier re-route, but rarely denies it: the AI re-encloses ~90% of pit-targeted towers anyway) while normals chip — see pitTargets for the best min-cut walls; omit targets to use them. cull() is DEFENSIVE — fire at the GRUNTS menacing your OWN towers (observation.threats) instead of an opponent; grunts are frozen this phase, so the swarm that would box your reseal next build is killable now (one shot each). Reach for it when 'grunts behind your walls' is climbing or a reseal is grunt-locked. declutter() is SELF-MAINTENANCE — fire at your OWN redundant inner (fat) walls to shoot a build pocket back open (enclosure-safe, scores 0); the proactive escape from a bag-lock when your castle has packed toward single-tile seams (watch observation.fatClearable). See targets (leader first; each lists towers with ringWalls + bonusSquares). Or aim by hand: act { kind: 'fire', row, col } (wait out battleCountdown > 0; fire at most me.cannonsReady per burst, then pass to reload) — this is also how you SNIPE an enemy cannon: a ball on its tile damages it and ~cannonMaxHp hits DESTROY it (fewer enemy guns + wreck-debris blocks their rebuild). Worth it over bombard only sometimes (you hold Salvage, or they field a super/Mortar gun) — see observation.cannonSnipe, surfaced just then.";
     default:
       return "No agent action this phase; call pass to advance.";
   }

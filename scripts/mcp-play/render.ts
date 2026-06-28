@@ -509,14 +509,14 @@ function targetLines(obs: Observation, once: Once): string[] {
   return lines;
 }
 
-/** BATTLE pit targets: best super-cannon pit walls, choke-ranked. */
+/** BATTLE pit targets: super-cannon pit walls drawn from the engine min-cut. */
 function pitTargetLines(obs: Observation, once: Once): string[] {
   if (!obs.pitTargets) return [];
   const lines: string[] = [
     once(
       "pitTargetsHeader",
-      "  🔥 PIT TARGETS (super-cannon → burning pit; pit_strike(slot, targets) — choke=un-reroutable sides):",
-      "  🔥 PIT TARGETS (pit_strike(slot, targets); choke=un-reroutable sides):",
+      "  🔥 PIT TARGETS (super-cannon → burning pit; pit_strike(slot, targets) — on the MIN-CUT load-bearing seal; TAXES the reseal, rarely denies it — AI re-routes ~90%; choke=un-reroutable sides):",
+      "  🔥 PIT TARGETS (pit_strike(slot, targets); min-cut seal tiles; taxes reseal, rarely denies; choke=un-reroutable sides):",
     ),
   ];
   for (const pit of obs.pitTargets) {
