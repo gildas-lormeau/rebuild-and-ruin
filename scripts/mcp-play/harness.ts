@@ -4707,6 +4707,51 @@ export async function createMcpGame(
     return observe();
   }
 
+  /** Is the next cannon to fire (strict round-robin `cannonRotationIdx`) a
+   *  pit-capable gun (a super, or a Mortar-elected normal / seized enemy super)?
+   *  The firing ORDER is fixed by the rules — a player can't skip or reorder
+   *  cannons — but they DO aim each shot. So during a SELF-targeted volley
+   *  (declutter at my own fat, cull at my own grunts) we peek this and, when a
+   *  pit gun is up, aim it at the ENEMY instead of my own tile. A pit only forms
+   *  where an incendiary ball razes a standing wall (`computeImpact`), and the
+   *  shooter-own-walls rule (`surface-elevation.ts`) makes my own walls
+   *  altitude-0 to my own ball at every non-aim tile — so a pit gun aimed at the
+   *  enemy either pits the enemy (bonus) or falls short into water, but can NEVER
+   *  plant a pit on my own walls. Aiming-only ⇒ fully rule-legal. */
+  function pitGunIsNext(): boolean {
+    const shooter = sc.state.players[agentSlot];
+    if (!shooter) return false;
+    const next = nextReadyCannon(
+      sc.state,
+      agentSlot,
+      shooter.cannonRotationIdx,
+    );
+    if (!next) return false;
+    return (
+      (next.type === "own" && isPitCapable(shooter.cannons[next.ownIdx]!)) ||
+      (next.type === "captured" && isPitCapable(next.captured.cannon))
+    );
+  }
+
+  /** The pit-safe redirect tile for a pit gun fired during a self-targeted
+   *  volley: the leading living opponent's wall nearest my battery. Aiming a
+   *  super/Mortar here can't pit my zone (shooter-own-walls rule, see
+   *  `pitGunIsNext`) — worst case the ball falls short into the river. Null when
+   *  no opponent has a standing wall to aim at (then the caller must NOT fire the
+   *  pit gun at my own tile). */
+  function pitGunRedirectAim(): { row: number; col: number } | null {
+    const origin = cannonCentroid();
+    const opp = sc.state.players
+      .map((player, slot) => ({ player, slot }))
+      .filter(
+        ({ player, slot }) =>
+          slot !== agentSlot && !player.eliminated && player.walls.size > 0,
+      )
+      .sort((a, b) => b.player.score - a.player.score)[0];
+    if (!opp) return null;
+    return sampleWallTiles(opp.player.walls, 1, origin)[0] ?? null;
+  }
+
   /** BATTLE: aim every ready cannon at the GRUNTS menacing YOUR towers — the
    *  defensive counterpart to bombard/breach. During BATTLE grunts are frozen
    *  (they move only in WALL_BUILD), so the swarm that will box your reseal next
@@ -4774,6 +4819,7 @@ export async function createMcpGame(
       (threat.grunt.col - origin.col) ** 2;
     let spent = 0;
     let fired = 0;
+    let redirected = 0;
     while (!gameOver() && sc.state.phase === Phase.BATTLE && spent < budget) {
       const threats = threatsFor()
         .filter(
@@ -4794,9 +4840,36 @@ export async function createMcpGame(
         continue;
       }
       const ready = cannonsReadyCount();
-      for (let shot = 0; shot < ready && shot < threats.length; shot++) {
+      let threatIdx = 0;
+      for (let shot = 0; shot < ready && threatIdx < threats.length; shot++) {
         if (sc.state.phase !== Phase.BATTLE || gameOver()) break;
-        const grunt = threats[shot]!.grunt;
+        // A pit gun aimed at a grunt could splash/miss onto a wall and plant a
+        // pit in MY zone — so when one is next in the firing rotation, redirect
+        // it at the enemy (pit-safe; see `pitGunIsNext`). It doesn't help cull,
+        // so it doesn't consume a threat slot — the normals keep clearing.
+        if (pitGunIsNext()) {
+          const enemyAim = pitGunRedirectAim();
+          if (!enemyAim) {
+            // No pit-safe target — don't fire the pit gun at my own grunt/wall.
+            advance(actionTicks);
+            settleToDecision();
+            spent++;
+            break;
+          }
+          bridge.pending = {
+            kind: "fire",
+            row: enemyAim.row,
+            col: enemyAim.col,
+          };
+          advance(actionTicks);
+          settleToDecision();
+          fired++;
+          spent++;
+          redirected++;
+          continue;
+        }
+        const grunt = threats[threatIdx]!.grunt;
+        threatIdx++;
         spentOn.add(packTile(grunt.row, grunt.col));
         bridge.pending = { kind: "fire", row: grunt.row, col: grunt.col };
         advance(actionTicks);
@@ -4813,6 +4886,10 @@ export async function createMcpGame(
       success: fired > 0,
       reason: `fired ${fired}, culled ${culled} grunt(s) threatening your towers${
         pointsGained > 0 ? ` (+${pointsGained} pts)` : ""
+      }${
+        redirected > 0
+          ? ` (${redirected} super/Mortar shot(s) redirected at the enemy to avoid self-pitting)`
+          : ""
       }${battleSelfReport(myWallsBefore, inertBefore)}`,
     };
     return observe();
@@ -4900,6 +4977,7 @@ export async function createMcpGame(
     const firedTiles = new Set<ReturnType<typeof packTile>>();
     let spent = 0;
     let fired = 0;
+    let redirected = 0;
     let idx = 0;
     while (
       !gameOver() &&
@@ -4918,6 +4996,32 @@ export async function createMcpGame(
       const ready = cannonsReadyCount();
       for (let shot = 0; shot < ready && idx < targets.length; shot++) {
         if (sc.state.phase !== Phase.BATTLE || gameOver()) break;
+        // A pit gun fired at my own fat wall plants a burning pit on the exact
+        // grass tile declutter just freed — defeating the call. Firing order is
+        // fixed by the rules, but aim isn't: when a pit gun is next, redirect it
+        // at the enemy (pit-safe; see `pitGunIsNext`). It clears no fat, so it
+        // doesn't consume a target — the normals keep opening the dump pocket.
+        if (pitGunIsNext()) {
+          const enemyAim = pitGunRedirectAim();
+          if (!enemyAim) {
+            // No pit-safe target — don't fire the pit gun at my own fat.
+            advance(actionTicks);
+            settleToDecision();
+            spent++;
+            break;
+          }
+          bridge.pending = {
+            kind: "fire",
+            row: enemyAim.row,
+            col: enemyAim.col,
+          };
+          advance(actionTicks);
+          settleToDecision();
+          fired++;
+          spent++;
+          redirected++;
+          continue;
+        }
         const tile = targets[idx]!;
         idx++;
         const tileKey = packTile(tile.row, tile.col);
@@ -4945,6 +5049,10 @@ export async function createMcpGame(
       success: cleared > 0,
       reason: `fired ${fired}, cleared ${cleared} fat wall(s) — freed that many interior tiles for next build (declutter scores 0; it's a tempo spend to prevent a bag-lock)${
         pointsGained > 0 ? `; +${pointsGained} incidental pts` : ""
+      }${
+        redirected > 0
+          ? `; ${redirected} super/Mortar shot(s) redirected at the enemy to avoid self-pitting`
+          : ""
       }${battleSelfReport(myWallsBefore, inertBefore, firedTiles)}`,
     };
     return observe();
