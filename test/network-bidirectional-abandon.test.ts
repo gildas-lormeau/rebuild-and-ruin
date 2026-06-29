@@ -43,14 +43,16 @@ const WIRE_DELAY_FRAMES = 5;
 // stopped firing. Re-probed via scripts/probe-abandon-seeds.ts (full-parity:
 // fires AND stays in lockstep). Re-probed again after the chain-attack
 // in-flight dedup (classic 5-r8 + modern 8-r8 stopped firing) → classic 3-r8,
-// modern 9-r8.
+// modern 9-r8. Re-probed again after gating pinch_kill behind a per-player
+// probability roll (so two attackers no longer fire the identical breach):
+// classic 3-r8 + 11-r8 stopped firing → classic 1-r8, 5-r8 (modern 9-r8 survived).
 const TRIALS: {
   readonly seed: number;
   readonly mode: "classic" | "modern";
   readonly rounds: number;
 }[] = [
-  { seed: 3, mode: "classic", rounds: 8 },
-  { seed: 11, mode: "classic", rounds: 8 },
+  { seed: 1, mode: "classic", rounds: 8 },
+  { seed: 5, mode: "classic", rounds: 8 },
   { seed: 9, mode: "modern", rounds: 8 },
 ];
 

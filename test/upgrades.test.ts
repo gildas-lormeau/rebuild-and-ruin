@@ -287,8 +287,10 @@ const EFFECT_PROBES: Partial<Record<UpgradeId, EffectProbe>> = {
  *  player rebuilds back past the strip reads as "not observed". Re-picked 0→1
  *  when the grunt-spawn-rate bump drifted seed-0 into that masking case.
  *  Re-picked 1→2 when the chain-attack in-flight dedup drifted seed-1 into
- *  the masking case (every player rebuilt back past the demolition strip). */
-const SEED = 2;
+ *  the masking case (every player rebuilt back past the demolition strip).
+ *  Re-picked 2→0 when gating pinch_kill behind a per-player probability roll
+ *  drifted seed-2 into the masking case (seed-0 now un-masks). */
+const SEED = 0;
 
 for (const upgradeId of UPGRADE_IDS) {
   Deno.test(`upgrades: ${upgradeId} is forced-picked + effect fires`, async () => {

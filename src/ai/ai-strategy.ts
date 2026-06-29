@@ -114,6 +114,21 @@ const MAX_REPAIR_COST_PROBABILITY = 0.4;
  *  enabling THOSE would shift every downstream draw). Naturally rate-limited by
  *  the ≥6-usable-cannon gate and planDenyEnclosure finding an affordable cut. */
 const WEAK_DENY_ENCLOSURE_PROBABILITY = 0.15;
+/** Chance to take a guaranteed pinch kill this chain. A pinch breach is a pure
+ *  function of the TARGET's geometry — the firing player's cannons/zone never
+ *  enter `findMinBreach` — so a deterministic, un-gated pinch made every
+ *  attacker of the same enemy compute the IDENTICAL cut and dogpile the same
+ *  walls (the AI may not read opponents' ball targets, so it can't dedup across
+ *  players). Gating it per-player desyncs the attackers: each independently rolls
+ *  whether to pinch this chain, and a miss falls through to its own varied
+ *  focus-fire / sweep / deny tactics. Kept high (a sure kill is the highest-value
+ *  action) but below 1 so two attackers no longer mirror. Scales with
+ *  battleTactics so stronger AI takes the kill more often. */
+const PINCH_KILL_PROBABILITY: readonly [number, number, number] = [
+  1 / 2,
+  2 / 3,
+  5 / 6,
+];
 /** Minimum usable cannons to attempt an ice trench (lower than general chain threshold). */
 const ICE_TRENCH_MIN_CANNONS = 4;
 /** Delay multiplier by thinkingSpeed (1=slow 1.4×, 2=normal 1×, 3=fast 0.65×). */
@@ -362,16 +377,24 @@ export class DefaultStrategy implements AiStrategy {
       }
     }
 
-    // Pinch kill — top offensive priority, fired DETERMINISTICALLY (no rng
-    // gate, no min-cannon gate): a min-cut breach whose reseal we've verified
-    // lands in a buildable island too small for a tetromino, so the defender can
-    // only re-enclose the opened tower with a rare small piece. A guaranteed
-    // kill is the highest-value action — it must not be left to the probabilistic
-    // deny / fat_breach roll, nor skipped on a thin cannon round. Re-selectable
-    // across re-plans (not excluded) so successive chains keep opening fresh
-    // kills; once a ring's walls are gone `findMinBreach` no longer returns them.
+    // Pinch kill — top offensive priority (no min-cannon gate): a min-cut breach
+    // whose reseal we've verified lands in a buildable island too small for a
+    // tetromino, so the defender can only re-enclose the opened tower with a rare
+    // small piece. A guaranteed kill is the highest-value action, so it sits above
+    // the deny / fat_breach cascade. But the breach is a pure function of the
+    // TARGET's geometry, so an un-gated pinch made every attacker of one enemy fire
+    // the IDENTICAL cut; the per-player `PINCH_KILL_PROBABILITY` roll desyncs them
+    // (a miss falls through to that player's own varied tactics). The rng.bool is
+    // drawn unconditionally here so the RNG stream stays aligned across mirrored
+    // sims. Re-selectable across re-plans (not excluded) so successive chains keep
+    // opening fresh kills; once a ring's walls are gone `findMinBreach` no longer
+    // returns them.
     if (!chainTargets) {
-      const pinchTargets = planPinchKill(state, playerId, usableCannonCount);
+      const pinchTargets = this.rollPinchKill(
+        state,
+        playerId,
+        usableCannonCount,
+      );
       if (pinchTargets) {
         chainTargets = pinchTargets;
         chainType = CHAIN.STRUCTURAL;
@@ -584,6 +607,22 @@ export class DefaultStrategy implements AiStrategy {
     }
 
     return { chainTargets, chainType, originTag, tacticId };
+  }
+
+  /** Per-player pinch-kill gate. Draws the `PINCH_KILL_PROBABILITY` roll
+   *  UNCONDITIONALLY (so the RNG stream stays aligned across mirrored sims) and
+   *  returns the breach only on a hit — see the call-site comment for why the
+   *  deterministic pinch had to be gated. */
+  private rollPinchKill(
+    state: BattleViewState,
+    playerId: ValidPlayerId,
+    usableCannonCount: number,
+  ): TilePos[] | null {
+    const take = this.rng.bool(
+      traitLookup(this.battleTactics, PINCH_KILL_PROBABILITY),
+    );
+    if (!take) return null;
+    return planPinchKill(state, playerId, usableCannonCount);
   }
 
   pickTarget(
