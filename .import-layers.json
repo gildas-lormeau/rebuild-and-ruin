@@ -89,6 +89,7 @@
   {
     "name": "L2",
     "files": [
+      "src/ai/ai-attacker-variation.ts",
       "src/ai/ai-battle-diag.ts",
       "src/ai/ai-build-diag.ts",
       "src/entry.ts",

@@ -21,6 +21,7 @@ import {
 import type { BattleViewState } from "../shared/core/system-interfaces.ts";
 import type { Rng } from "../shared/platform/rng.ts";
 import { filterActiveEnemies } from "../shared/sim/board-occupancy.ts";
+import { rotateBreachForAttacker } from "./ai-attacker-variation.ts";
 import { isRingWallable } from "./ai-castle-rect.ts";
 import { type EnclosureSeed, findEnclosureCut } from "./ai-min-cut.ts";
 import { findMinBreach } from "./ai-strategy-battle.ts";
@@ -61,7 +62,7 @@ export function planDenyEnclosure(
   // siege below lands on redundant backing layers — the old approach left a
   // 2-thick ring standing because it only sieged the shorter on-cut layer.
   const breach = findMinBreach(state, enemy, limit);
-  if (breach) return breach;
+  if (breach) return rotateBreachForAttacker(breach, playerId);
 
   // No full breach fits the cannon budget (already-open defender, or an intact
   // ring too thick to open this round). Either way, crater the structural

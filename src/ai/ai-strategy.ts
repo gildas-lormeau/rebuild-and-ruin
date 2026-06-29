@@ -26,6 +26,7 @@ import type {
 } from "../shared/core/system-interfaces.ts";
 import type { ZoneId } from "../shared/core/zone-id.ts";
 import { Rng } from "../shared/platform/rng.ts";
+import { rotateBreachForAttacker } from "./ai-attacker-variation.ts";
 import type { FireOrigin } from "./ai-battle-diag.ts";
 import type { AiPlacement } from "./ai-build-types.ts";
 import { CHAIN, type ChainType, TACTIC, type TacticId } from "./ai-chain.ts";
@@ -622,7 +623,8 @@ export class DefaultStrategy implements AiStrategy {
       traitLookup(this.battleTactics, PINCH_KILL_PROBABILITY),
     );
     if (!take) return null;
-    return planPinchKill(state, playerId, usableCannonCount);
+    const breach = planPinchKill(state, playerId, usableCannonCount);
+    return breach && rotateBreachForAttacker(breach, playerId);
   }
 
   pickTarget(

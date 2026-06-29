@@ -22,6 +22,7 @@ import {
 import type { BattleViewState } from "../shared/core/system-interfaces.ts";
 import type { Rng } from "../shared/platform/rng.ts";
 import { getBattleInterior } from "../shared/sim/board-occupancy.ts";
+import { rotateBreachForAttacker } from "./ai-attacker-variation.ts";
 import { isRingWallable } from "./ai-castle-rect.ts";
 import { pickTargetEnemy } from "./ai-plan-deny-enclosure.ts";
 import {
@@ -67,12 +68,14 @@ export function planMaxRepairCost(
   if (!breach) return null;
 
   // Validate on the live board: removing the breach must open the enclosure.
-  if (planBreaches(enemy.walls, breach, lifeline)) return breach;
+  if (planBreaches(enemy.walls, breach, lifeline))
+    return rotateBreachForAttacker(breach, playerId);
 
   // Fat ring: the inner ring is backed by an off-cut layer. Widen the breach to
   // the walls cardinally beside it (the backing layer) and re-validate.
   const widened = widenToBacking(state, enemy.walls, breach, limit, rng);
-  if (widened && planBreaches(enemy.walls, widened, lifeline)) return widened;
+  if (widened && planBreaches(enemy.walls, widened, lifeline))
+    return rotateBreachForAttacker(widened, playerId);
   return null;
 }
 
