@@ -41,15 +41,17 @@ const WIRE_DELAY_FRAMES = 5;
 // the per-chain deny/max_repair tactics. That shifts which towers de-enclose
 // and elimination timing; the prior seeds (classic 8-r8/9-r8, modern 35-r8)
 // stopped firing. Re-probed via scripts/probe-abandon-seeds.ts (full-parity:
-// fires AND stays in lockstep).
+// fires AND stays in lockstep). Re-probed again after the chain-attack
+// in-flight dedup (classic 5-r8 + modern 8-r8 stopped firing) → classic 3-r8,
+// modern 9-r8.
 const TRIALS: {
   readonly seed: number;
   readonly mode: "classic" | "modern";
   readonly rounds: number;
 }[] = [
-  { seed: 5, mode: "classic", rounds: 8 },
+  { seed: 3, mode: "classic", rounds: 8 },
   { seed: 11, mode: "classic", rounds: 8 },
-  { seed: 8, mode: "modern", rounds: 8 },
+  { seed: 9, mode: "modern", rounds: 8 },
 ];
 
 void _forceScenarioFirst;

@@ -152,6 +152,7 @@
     "name": "L6",
     "files": [
       "server/game-room.ts",
+      "src/ai/ai-in-flight-target.ts",
       "src/ai/ai-life-lost.ts",
       "src/ai/ai-plan-grunt-sweep.ts",
       "src/ai/ai-plan-ice-trench.ts",

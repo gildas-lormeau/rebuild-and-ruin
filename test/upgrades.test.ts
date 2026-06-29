@@ -285,8 +285,10 @@ const EFFECT_PROBES: Partial<Record<UpgradeId, EffectProbe>> = {
  *  demolition probe specifically — it observes a net wall-count drop across the
  *  pick→next-battle-end window (which spans a rebuild), so a seed where every
  *  player rebuilds back past the strip reads as "not observed". Re-picked 0→1
- *  when the grunt-spawn-rate bump drifted seed-0 into that masking case. */
-const SEED = 1;
+ *  when the grunt-spawn-rate bump drifted seed-0 into that masking case.
+ *  Re-picked 1→2 when the chain-attack in-flight dedup drifted seed-1 into
+ *  the masking case (every player rebuilt back past the demolition strip). */
+const SEED = 2;
 
 for (const upgradeId of UPGRADE_IDS) {
   Deno.test(`upgrades: ${upgradeId} is forced-picked + effect fires`, async () => {

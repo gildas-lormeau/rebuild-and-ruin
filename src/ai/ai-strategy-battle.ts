@@ -15,7 +15,6 @@ import {
 } from "../game/index.ts";
 import {
   type Cannon,
-  type Cannonball,
   isBalloonCannon,
   isCannonAlive,
   isSuperCannon,
@@ -62,6 +61,7 @@ import {
 } from "../shared/sim/board-occupancy.ts";
 import { isCannonCapturedBy } from "../shared/sim/occupancy-queries.ts";
 import type { PickPath } from "./ai-battle-diag.ts";
+import { isTileTargetedByInFlightBall } from "./ai-in-flight-target.ts";
 import type { StrategicPixelPos } from "./ai-strategy-types.ts";
 import { traitLookup } from "./ai-utils.ts";
 
@@ -1172,32 +1172,6 @@ function tileSpan(coord: number): readonly number[] {
   return Number.isInteger(coord)
     ? [coord]
     : [Math.floor(coord), Math.ceil(coord)];
-}
-
-/** True if one of `playerId`'s OWN cannonballs in flight is targeting
- *  (row, col). Scoped to the effective firer (`scoringPlayerId ?? playerId`,
- *  so captured-cannon shots count for the capturer) — see the fairness note at
- *  the call site: the AI must not read opponents' ball targets. */
-function isTileTargetedByInFlightBall(
-  state: BattleViewState,
-  row: number,
-  col: number,
-  playerId: ValidPlayerId,
-): boolean {
-  return state.cannonballs.some(
-    (b) =>
-      (b.scoringPlayerId ?? b.playerId) === playerId &&
-      ballTargeting(b, row, col),
-  );
-}
-
-/** True if a cannonball in flight is targeting (row, col). */
-function ballTargeting(
-  b: Pick<Cannonball, "targetY" | "targetX">,
-  row: number,
-  col: number,
-): boolean {
-  return pxToTile(b.targetY) === row && pxToTile(b.targetX) === col;
 }
 
 function isEnemyEligibleForFocus(

@@ -26,6 +26,7 @@ import {
   GRID_COLS,
   GRID_ROWS,
   type TileKey,
+  TILE_SIZE,
 } from "../src/shared/core/grid.ts";
 import { diffAsciiSnapshots } from "../dev/dev-console-grid.ts";
 import { MESSAGE } from "../src/protocol/protocol.ts";
@@ -762,5 +763,53 @@ Deno.test(
       if (storedBefore === null) localStorage.removeItem(SETTINGS_KEY);
       else localStorage.setItem(SETTINGS_KEY, storedBefore);
     }
+  },
+);
+
+Deno.test(
+  "scenario: AI never stacks two in-flight balls on one non-reinforced wall",
+  async () => {
+    // Regression: the chain-attack / replan path used to re-target a wall that
+    // already had one of our own cannonballs heading at it (the in-flight dedup
+    // lived only in the pickTarget paths). A short replan then stacked 2-3 balls
+    // onto a single wall before the first landed — the first destroys it, the
+    // rest hit bare ground. classic mode has no reinforced (multi-hit) walls, so
+    // any same-player pair of in-flight balls aimed at the same standing enemy
+    // wall is a wasted shot. (Cannon footprints are NOT in `player.walls`, so
+    // legitimate multi-hit cannon-shelling is excluded by construction.)
+    using sc = await createScenario({ seed: 12345, mode: "classic", rounds: 3 });
+    const ballTile = (b: { targetX: number; targetY: number }): TileKey =>
+      packTile(
+        Math.floor(b.targetY / TILE_SIZE),
+        Math.floor(b.targetX / TILE_SIZE),
+      );
+    let ended = false;
+    sc.bus.on(GAME_EVENT.GAME_END, () => {
+      ended = true;
+    });
+    let violations = 0;
+    for (let frame = 0; frame < 60_000 && !ended; frame++) {
+      sc.tick(1);
+      const enemyWalls = new Set<TileKey>();
+      for (const player of sc.state.players) {
+        for (const key of player.walls) enemyWalls.add(key);
+      }
+      const perFirer = new Map<number, Set<TileKey>>();
+      for (const ball of sc.state.cannonballs) {
+        const firer = ball.scoringPlayerId ?? ball.playerId;
+        const tile = ballTile(ball);
+        if (!enemyWalls.has(tile)) continue; // empty ground or a cannon tile
+        const seen = perFirer.get(firer) ?? new Set<TileKey>();
+        if (seen.has(tile)) violations++;
+        seen.add(tile);
+        perFirer.set(firer, seen);
+      }
+    }
+    assertEquals(
+      violations,
+      0,
+      "two same-player cannonballs were in flight toward the same standing " +
+        "wall — the chain-attack in-flight dedup regressed",
+    );
   },
 );

@@ -25,6 +25,7 @@ import {
   type TacticId,
 } from "./ai-chain.ts";
 import { STEP } from "./ai-constants.ts";
+import { isTileTargetedByInFlightBall } from "./ai-in-flight-target.ts";
 import type {
   AiStrategy,
   BattleHost,
@@ -365,6 +366,17 @@ function tickChainMoving(
     return;
   }
   const target = phase.chainTargets[phase.chainIdx]!;
+  // Skip a target one of our OWN balls is already heading at: a non-reinforced
+  // wall (or a frozen grunt) dies on that first hit, so a follow-up ball lands
+  // on bare ground — a wasted shot. The pickTarget paths dedup the same way via
+  // `isTileTargetedByInFlightBall`; the chain/replan path must too, or a fast
+  // replan stacks 2-3 balls on one tile before the first lands.
+  if (
+    isTileTargetedByInFlightBall(state, target.row, target.col, host.playerId)
+  ) {
+    advanceChainOrReplan(host, phase, state);
+    return;
+  }
   // For wall/pocket/structural/ice attacks, skip already-destroyed targets
   if (
     phase.chainType === CHAIN.WALL ||
@@ -388,15 +400,7 @@ function tickChainMoving(
       }
     }
     if (!targetExists) {
-      phase.chainIdx++;
-      if (
-        phase.chainIdx >= phase.chainTargets.length &&
-        !replanChain(host, phase, state)
-      ) {
-        phase.chainTargets = undefined;
-        phase.crosshairTarget = null;
-        phase.state = { step: STEP.PICKING };
-      }
+      advanceChainOrReplan(host, phase, state);
       return;
     }
   }
@@ -409,6 +413,26 @@ function tickChainMoving(
         CHAIN_DWELL_SPREAD_SEC,
       ),
     };
+  }
+}
+
+/** Advance past the current chain target (it's gone or already covered by an
+ *  in-flight ball). When the chain runs dry, re-plan against the live board;
+ *  if even the re-plan finds nothing, drop the chain and fall back to PICKING. */
+function advanceChainOrReplan(
+  host: BattleHost,
+  phase: BattlePhase,
+  state: BattleViewState,
+): void {
+  phase.chainIdx++;
+  if (
+    phase.chainTargets &&
+    phase.chainIdx >= phase.chainTargets.length &&
+    !replanChain(host, phase, state)
+  ) {
+    phase.chainTargets = undefined;
+    phase.crosshairTarget = null;
+    phase.state = { step: STEP.PICKING };
   }
 }
 
