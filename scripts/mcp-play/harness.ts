@@ -3686,6 +3686,12 @@ export async function createMcpGame(
   function pass(count = 1, seconds?: number): Observation {
     const startPhase = sc.state.phase;
     const wasCountdown = sc.state.battleCountdown > 0;
+    // True when a PRIOR pass already issued the idle-build HELD warning and this
+    // call is the deliberate "pass again to skip it anyway" follow-up. Captured
+    // before the guard below can re-arm it, so the advancing path knows to drop
+    // the stale HELD text (otherwise the same REJECT re-renders after time has
+    // moved and the skip reads as a no-op).
+    const releasingHold = idleBuildPassWarned;
     // Idle-build guard: skipping build time while a tower is still enclosable in
     // the time left scores nothing — that territory + bonus bank ONLY if walled.
     // Hold the FIRST such pass and shout the opportunity cost; a second pass goes
@@ -3732,6 +3738,10 @@ export async function createMcpGame(
       seconds !== undefined
         ? Math.max(1, Math.round((seconds * SIM_TICKS_PER_SEC) / actionTicks))
         : count;
+    // This pass is the follow-up that overrides a prior HELD: drop the stale
+    // warning so the observation reflects the time we are about to burn, not the
+    // reject that already did its job.
+    if (releasingHold) bridge.lastResult = null;
     for (let i = 0; i < iterations && !gameOver(); i++) {
       advance(actionTicks);
       settleToDecision();
