@@ -291,14 +291,21 @@ export interface PhaseTransitionCtx {
     readonly get: () => UpgradePickDialogState | null;
     readonly set: (dialog: UpgradePickDialogState | null) => void;
   };
-  /** Host-only phase markers. Each is a payload-less sync signal that
-   *  receivers IGNORE on the wire — `online-server-lifecycle.ts` acks
-   *  them but runs no engine work, because under the clone-everywhere
-   *  model every peer already dispatched the matching transition (and ran
-   *  its engine work) from its own local tick. The per-field comment names
-   *  the transition that did that work; the marker just lets the host
-   *  signal "I reached here" for tracing / liveness, NOT to drive state.
-   *  Absent on non-host wirings. */
+  /** Host-only phase markers, sent so the relay SERVER can track the
+   *  current phase. Two distinct receivers, not one:
+   *  - Non-host PEERS ignore them (`online-server-lifecycle.ts` acks but
+   *    runs no engine work) — under clone-everywhere every peer already
+   *    dispatched the matching transition from its own local tick. The
+   *    per-field comment names that work.
+   *  - The relay SERVER consumes `cannonStart` / `battleStart` /
+   *    `buildStart` to drive `this.phase` (`server/game-room.ts`
+   *    `updatePhaseFromMessage`), which gates per-message phase validation
+   *    (PHASE_GATES) + late-spectator boots. So those three are NOT
+   *    vestigial — dropping them would blind the relay's phase gate.
+   *  `buildEnd` alone drives nothing: the server tracks WALL_BUILD from
+   *  `buildStart` and stays there through ROUND_END until the next
+   *  `cannonStart` / `selectStart`, so it's a pure liveness marker (kept
+   *  for symmetry + cheap tracing). Absent on non-host wirings. */
   readonly broadcast?: {
     /** CANNON_PLACE-entry marker — receivers ran `enterCannonPhase` from
      *  their own `castle-done` / `advance-to-cannon` tick. */
