@@ -144,9 +144,16 @@ interface BattleLifecycle {
   readonly begin: () => void;
 }
 
-/** Context passed to every transition step. Same shape on every peer —
- *  role differences (host has wire `broadcast`, watcher doesn't) are
- *  encoded via optional fields populated only where they apply. */
+/** Context passed to every transition step.
+ *
+ *  Two-tier shape. The CORE block is wired UNCONDITIONALLY by the sole
+ *  constructor (`buildPhaseCtx`) on every peer — those fields are
+ *  non-optional and callers dereference them directly. The trailing
+ *  OPTIONAL block holds the genuinely-conditional capabilities (host role,
+ *  modern mode, touch, 3D renderer) plus the one per-dispatch datum
+ *  (`gameOverOutcome`); their `?` is honest — present only where the gate
+ *  applies. Keep that contract: a new always-wired hook goes in core as
+ *  required; only add an optional field when a real wiring can omit it. */
 export interface PhaseTransitionCtx {
   readonly state: GameState;
   readonly runtimeState: RuntimeState;
@@ -155,10 +162,8 @@ export interface PhaseTransitionCtx {
   /** Hide whatever banner is currently on screen. The display runner
    *  calls this once at the END of every display sequence — empty ones
    *  included — so postDisplay hooks run against a clean screen (a
-   *  `swept` banner sits on screen until explicitly hidden). The
-   *  host-promotion repairs also use it to skip a routed entry's banner
-   *  cosmetics (`forceResolveRoundEndPhase`). Banner steps never need
-   *  this — `showBanner` overwrites cleanly. */
+   *  `swept` banner sits on screen until explicitly hidden). Banner steps
+   *  never need this — `showBanner` overwrites cleanly. */
   readonly hideBanner: () => void;
   /** Render the current (pre-mutation) state offscreen at fullMapVp and
    *  hand it to the banner system as the next banner's prev-scene.
@@ -185,42 +190,37 @@ export interface PhaseTransitionCtx {
     readonly reset: () => void;
   };
 
+  readonly battle: BattleLifecycle;
+
   /** Finalize local controllers' build-phase bag state. Called from
    *  `enter-round-end`'s mutate on every peer, over the controllers this
    *  peer drives (remote humans are skipped — their controllers re-init via
    *  startBuildPhase at next round). */
-  readonly finalizeLocalControllersBuildPhase?: () => void;
+  readonly finalizeLocalControllersBuildPhase: () => void;
   /** End-of-battle loop: per local controller, clear fire targets and reset
    *  battle state. Called from `battle-done`'s mutate on every peer. */
-  readonly endBattleLocalControllers?: () => void;
-  /** Save the human player's crosshair position so it can be restored at
-   *  the start of the next battle (touch UX). Wired on every peer;
-   *  composition gates it on IS_TOUCH_DEVICE, so it's absent on
-   *  non-touch wirings. */
-  readonly saveBattleCrosshair?: () => void;
+  readonly endBattleLocalControllers: () => void;
   /** Run `cb` once the in-flight pitch animation completes (in either
    *  direction). `proceedToBattleFromCtx` uses it to hold balloon-anim start
    *  until the build→battle tilt completes. Fires synchronously when
    *  pitch is already settled, so callers don't need a separate gate. See
-   *  `RuntimeCamera.awaitPitchSettled`. Wired UNCONDITIONALLY by the
-   *  composition root — headless and 2D included: the pitch state machine
-   *  is renderer-independent, deterministic (SIM_TICK_DT), and GATES
-   *  battle-done dispatch, so a peer that skipped it would dispatch at
-   *  different sim ticks than the rest (camera-zoom-parity pins this).
-   *  The `?` is type-level slack only. */
-  readonly awaitPitchSettled?: (callback: () => void) => void;
+   *  `RuntimeCamera.awaitPitchSettled`. Wired UNCONDITIONALLY — headless and
+   *  2D included: the pitch state machine is renderer-independent,
+   *  deterministic (SIM_TICK_DT), and GATES battle-done dispatch, so a peer
+   *  that skipped it would dispatch at different sim ticks than the rest
+   *  (camera-zoom-parity pins this). */
+  readonly awaitPitchSettled: (callback: () => void) => void;
   /** Start the build→battle tilt at battle-banner end. Called inside
-   *  `proceedToBattleFromCtx`. Same wiring contract as
-   *  `awaitPitchSettled` above: always provided, renderer-independent —
-   *  a 2D renderer simply doesn't DISPLAY the pitch, but the deterministic
-   *  pitch sim must still run on every peer. */
-  readonly beginTilt?: () => void;
+   *  `proceedToBattleFromCtx`. Same wiring contract as `awaitPitchSettled`
+   *  above: renderer-independent — a 2D renderer simply doesn't DISPLAY the
+   *  pitch, but the deterministic pitch sim must still run on every peer. */
+  readonly beginTilt: () => void;
   /** Per-peer setup when WALL_BUILD begins: score-delta reset,
    *  per-LOCAL-controller startBuildPhase, clear impacts, accumulator
    *  resets. Called from `enter-wall-build`'s mutate (before the banner's
    *  B-snapshot — see that transition's doc) on every peer; "local" means
    *  the controllers this peer drives (AI + own human), not host role. */
-  readonly startBuildPhaseLocal?: () => void;
+  readonly startBuildPhaseLocal: () => void;
   /** Run `enterBuildSkippingBattle(state)` — the engine post-battle work
    *  the ceasefire path runs when no one can fight (no phase flip happens
    *  here; the following `enter-wall-build` / `enter-upgrade-pick` entry
@@ -228,10 +228,33 @@ export interface PhaseTransitionCtx {
    *  + `prepareNextRound` because it also decays burning pits, sweeps
    *  walls, rechecks territory, and clears active modifiers (things the
    *  real battle-end flow already handled). */
-  readonly ceasefireSkipBattle?: () => void;
-  /** Upgrade-pick dialog hooks. Only required for transitions whose
-   *  display chain runs the picker modal (`enter-upgrade-pick`) and for
-   *  the self-driving phase tick (`tickUpgradePickPhase`).
+  readonly ceasefireSkipBattle: () => void;
+  /** Per-local-controller cannon-phase init after `enterCannonPhase`:
+   *  `placeCannons(state, maxSlots)` + `cannonCursor` + `startCannonPhase`.
+   *  Wired on every peer — "local" means the controllers this peer drives
+   *  (AI + own human), not host role. The hook re-derives per-player prep
+   *  from state via `prepareControllerCannonPhase` — `enterCannonPhase`
+   *  has already populated `state.cannonLimits` / facings, so the work is
+   *  idempotent and the entry struct doesn't need to thread through ctx. */
+  readonly initLocalCannonControllers: () => void;
+  /** End-game side effects (set game-over frame, stop sound, switch to
+   *  Mode.STOPPED, arm demo timer). Used by the `game-over` transition.
+   *  Wired on every peer — watchers run it from their own local
+   *  dispatch. */
+  readonly endGame: (winner: { id: ValidPlayerId }) => void;
+
+  // ── Genuinely optional: role / mode / renderer-gated capabilities, plus
+  //    the one per-dispatch datum (`gameOverOutcome`). The `?` here is
+  //    honest — each is absent in the wirings that don't apply. ──
+
+  /** Save the human player's crosshair position so it can be restored at
+   *  the start of the next battle (touch UX). Composition gates it on
+   *  IS_TOUCH_DEVICE, so it's absent on non-touch wirings. */
+  readonly saveBattleCrosshair?: () => void;
+  /** Upgrade-pick dialog hooks. Present only in modern mode (classic
+   *  wirings omit it). Required by transitions whose display chain runs the
+   *  picker modal (`enter-upgrade-pick`) and by the self-driving phase tick
+   *  (`tickUpgradePickPhase`).
    *
    *  UPGRADE_PICK is a self-driving phase (like MODIFIER_REVEAL): the
    *  entry transition `prepare()`s + `show()`s the dialog, then the phase
@@ -250,18 +273,14 @@ export interface PhaseTransitionCtx {
     readonly get: () => UpgradePickDialogState | null;
     readonly set: (dialog: UpgradePickDialogState | null) => void;
   };
-
-  readonly battle: BattleLifecycle;
-
-  // ── Host-only hooks ──
-
   /** Host-only phase markers. Each is a payload-less sync signal that
    *  receivers IGNORE on the wire — `online-server-lifecycle.ts` acks
    *  them but runs no engine work, because under the clone-everywhere
    *  model every peer already dispatched the matching transition (and ran
    *  its engine work) from its own local tick. The per-field comment names
    *  the transition that did that work; the marker just lets the host
-   *  signal "I reached here" for tracing / liveness, NOT to drive state. */
+   *  signal "I reached here" for tracing / liveness, NOT to drive state.
+   *  Absent on non-host wirings. */
   readonly broadcast?: {
     /** CANNON_PLACE-entry marker — receivers ran `enterCannonPhase` from
      *  their own `castle-done` / `advance-to-cannon` tick. */
@@ -276,18 +295,6 @@ export interface PhaseTransitionCtx {
      *  `round-end` tick. */
     readonly buildEnd?: () => void;
   };
-
-  // ── Castle-select / reselect hooks ──
-
-  /** Per-local-controller cannon-phase init after `enterCannonPhase`:
-   *  `placeCannons(state, maxSlots)` + `cannonCursor` + `startCannonPhase`.
-   *  Wired on every peer — "local" means the controllers this peer drives
-   *  (AI + own human), not host role. The hook re-derives per-player prep
-   *  from state via `prepareControllerCannonPhase` — `enterCannonPhase`
-   *  has already populated `state.cannonLimits` / facings, so the work is
-   *  idempotent and the entry struct doesn't need to thread through ctx. */
-  readonly initLocalCannonControllers?: () => void;
-
   /** Fire-and-forget: pre-compile the shadow-pass permutation of every
    *  entity material on the renderer. Called from `enter-cannon-place`'s
    *  postDisplay so the GPU links shadow programs in the background during
@@ -297,17 +304,10 @@ export interface PhaseTransitionCtx {
    *  otherwise hit the critical frame. Idempotent across calls.
    *  Renderers without a 3D pipeline (2D, headless stub) omit it. */
   readonly warmShadowPermutations?: () => Promise<void>;
-
-  // ── Game-over hooks ──
-
-  /** End-game side effects (set game-over frame, stop sound, switch to
-   *  Mode.STOPPED, arm demo timer). Used by the `game-over` transition.
-   *  Wired on every peer — watchers run it from their own local
-   *  dispatch. */
-  readonly endGame?: (winner: { id: ValidPlayerId }) => void;
-  /** Outcome decided by the life-lost resolution. Threaded through via
-   *  ctx so the `game-over` mutate can log the reason and pass the
-   *  winner to `endGame`. */
+  /** Outcome decided by the life-lost resolution. A per-dispatch datum
+   *  spread onto the ctx by `dispatchGameOver` only — so the `game-over`
+   *  mutate can log the reason and pass the winner to `endGame`. Absent
+   *  for every other transition. */
   readonly gameOverOutcome?: GameOverOutcome;
 }
 
@@ -350,7 +350,7 @@ const ENTER_ROUND_END: Transition = {
   id: "enter-round-end",
   from: Phase.WALL_BUILD,
   mutate: (ctx) => {
-    ctx.finalizeLocalControllersBuildPhase?.();
+    ctx.finalizeLocalControllersBuildPhase();
     // Clear bags on every peer at the same logical sim tick. Per-LOCAL
     // controller bag clears (which `finalizeLocalControllersBuildPhase`
     // used to do) drifted `state.rng`: late-arriving piece-place actions
@@ -407,7 +407,7 @@ const BATTLE_DONE: Transition = {
   id: "battle-done",
   from: Phase.BATTLE,
   mutate: (ctx) => {
-    ctx.endBattleLocalControllers?.();
+    ctx.endBattleLocalControllers();
     ctx.saveBattleCrosshair?.();
     finalizeBattle(ctx.state);
     if (ctx.state.modern?.lastModifierId === MODIFIER_ID.SUPPLY_SHIP) {
@@ -449,7 +449,7 @@ const CEASEFIRE: Transition = {
   // BUILD_START as a sync marker.
   mutate: (ctx) => {
     ctx.log(`ceasefire: skipping battle (round=${ctx.state.round})`);
-    ctx.ceasefireSkipBattle?.();
+    ctx.ceasefireSkipBattle();
     ctx.broadcast?.buildStart?.();
     return EMPTY_TRANSITION_RESULT;
   },
@@ -512,7 +512,7 @@ const ENTER_WALL_BUILD: Transition = {
     enterWallBuildPhase(ctx.state);
     // Per-controller startBuildPhase + scoreDelta reset + clearImpacts
     // + accumulator resets. Same on every peer.
-    ctx.startBuildPhaseLocal?.();
+    ctx.startBuildPhaseLocal();
     return EMPTY_TRANSITION_RESULT;
   },
   display: [
@@ -552,7 +552,7 @@ const ENTER_CANNON_PLACE: Transition = {
     },
   ],
   postDisplay: (ctx) => {
-    ctx.initLocalCannonControllers?.();
+    ctx.initLocalCannonControllers();
     ctx.setMode(Mode.GAME);
     // Fire-and-forget: the renderer's program cache makes repeat calls
     // ~free, so we don't need an explicit once-per-session guard. By the
@@ -638,7 +638,7 @@ const GAME_OVER: Transition = {
       throw new Error("game-over dispatched without ctx.gameOverOutcome");
     }
     ctx.log(`game over: ${outcome.reason} (winner P${outcome.winner.id})`);
-    ctx.endGame?.(outcome.winner);
+    ctx.endGame(outcome.winner);
     return EMPTY_TRANSITION_RESULT;
   },
   display: [],
@@ -889,7 +889,7 @@ function proceedToBattleFromCtx(ctx: PhaseTransitionCtx): void {
   // engages the tilt / auto-zoom — auto-zoom re-engages when mode flips
   // back to GAME inside `battle.begin`, which also starts the "ready"
   // countdown, so the zoom lerp and "ready" cue start together.
-  ctx.beginTilt?.();
+  ctx.beginTilt();
 
   // Flights were stashed into runtimeState.battleAnim.flights by
   // `cannon-place-done`'s `syncBattleAnim` postMutate. We only read the
@@ -918,8 +918,7 @@ function proceedToBattleFromCtx(ctx: PhaseTransitionCtx): void {
   // mid-animation and already-done cases. Closure-stored callback (not
   // Promise) — runtime ticks synchronously this frame on settle and a
   // microtask hop would break mock-clock determinism.
-  if (ctx.awaitPitchSettled) ctx.awaitPitchSettled(proceed);
-  else proceed();
+  ctx.awaitPitchSettled(proceed);
 }
 
 /** `enter-upgrade-pick`'s postDisplay (both roles): prepare + show the
