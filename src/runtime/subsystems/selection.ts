@@ -69,7 +69,6 @@ export interface RuntimeSelection {
   allConfirmed: () => boolean;
   isReady: () => boolean;
   tick: (dt: number) => void;
-  finish: () => void;
   /** Full reset for game restart / rematch. */
   reset: () => void;
   /** Reconcile this subsystem's runtime-local bookkeeping with an adopted
@@ -370,17 +369,6 @@ export function createSelectionSystem(
     }
   }
 
-  /** Confirms tower selection and triggers castle build animation.
-   *  @sideeffect Starts castle build animation for the player (via startPlayerCastleBuild).
-   *  Idempotent: calling multiple times for the same player is safe — skips if already confirmed.
-   *
-   *  Two-step flow:
-   *  1. confirmSelectionAndStartBuild — marks the player as confirmed in selectionStates,
-   *     then kicks off startPlayerCastleBuild for the newly confirmed player.
-   *     Returns true when ALL players have confirmed.
-   *  2. finishSelection (called separately by tickSelection when allConfirmed) —
-   *     clears overlay state, finalizes castle construction, and advances to cannon phase.
-   */
   /** Internal: actually commit the tower-selection (selectionStates +
    *  state.rng-consuming castle-wall plan). Caller decides when this fires
    *  — locally driven human confirmations and network-received confirms
@@ -428,6 +416,18 @@ export function createSelectionSystem(
     startPlayerCastleBuild(pid);
   }
 
+  /** Confirm a player's tower selection and kick off their castle build.
+   *  @sideeffect Starts the castle build animation (via startPlayerCastleBuild).
+   *  Idempotent: a repeat call for an already-confirmed player is a no-op.
+   *
+   *  Two-step flow:
+   *  1. This function commits (or, for lockstep human/network confirms,
+   *     SCHEDULES) the selection. Deferred confirms return false; only an
+   *     immediate apply returns true once ALL players have confirmed.
+   *  2. finishSelection (called separately by tickSelection once allConfirmed
+   *     AND every castle build has finished) clears overlay state, finalizes
+   *     castle construction, and advances to the cannon phase.
+   */
   function confirmSelectionAndStartBuild(
     pid: ValidPlayerId,
     source: "local" | "network" = "local",
@@ -707,7 +707,6 @@ export function createSelectionSystem(
     allConfirmed,
     isReady,
     tick: tickSelection,
-    finish: finishSelection,
     reset,
     reconcileAfterAdoption,
     rearmCycleControllersAfterAdoption,
