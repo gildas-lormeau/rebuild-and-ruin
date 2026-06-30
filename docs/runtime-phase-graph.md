@@ -42,7 +42,7 @@ stateDiagram-v2
 
 - **guard (from):** `WALL_BUILD`
 - **enters phase:** — (prep; routes onward)
-- **engine ops:** `finalizeRound`, `peekGameOverOutcome`, `emitRoundStart`
+- **engine ops:** `finalizeRound`, `peekGameOverOutcome`
 - **broadcasts:** `buildEnd`
 - **display:** `score-overlay`, `life-lost-dialog`
 - **dispatches:** _ctx.lifeLostRoute → game-over / reselect / advance-to-cannon_

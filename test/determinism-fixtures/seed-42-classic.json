@@ -28047,15 +28047,9 @@
       }
     },
     {
-      "type": "roundStart",
-      "payload": {
-        "round": 2
-      }
-    },
-    {
       "type": "scoreOverlayStart",
       "payload": {
-        "round": 2
+        "round": 1
       }
     },
     {
@@ -28774,6 +28768,12 @@
     },
     {
       "type": "scoreOverlayEnd",
+      "payload": {
+        "round": 1
+      }
+    },
+    {
+      "type": "roundStart",
       "payload": {
         "round": 2
       }

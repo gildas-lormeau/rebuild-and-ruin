@@ -203,10 +203,11 @@ interface BuildStartMessage {
  *
  *  Payload-less phase marker; receivers ignore it on the wire, having run
  *  `finalizeRound` (score + life penalties + ROUND_END emit) from their own
- *  `round-end` mutate. That same mutate peeks game-over against the closing
- *  round and — when the game continues — increments `state.round` + emits
- *  ROUND_START, all BEFORE the score-overlay / life-lost dialog display (not
- *  in `resolveAfterLifeLost`). Every peer dispatches the same way. */
+ *  `round-end` mutate. That mutate peeks game-over against the closing round;
+ *  when the game continues, `state.round` increment + ROUND_START are deferred
+ *  to `resolveAfterLifeLost` (AFTER the score-overlay / life-lost dialog
+ *  display), so both that peek and the post-dialog recheck see the closing
+ *  round. Every peer dispatches the same way. */
 interface BuildEndMessage {
   type: "buildEnd";
 }

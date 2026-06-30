@@ -18,10 +18,18 @@ export interface GameOverOutcome {
 
 /** Pure peek: does the just-closed round trigger game-over?
  *
- *  Called from the round-end transition's mutate, AFTER `applyLifePenalties`
- *  and BEFORE the score / life-lost dialog displays. `state.round` is still
- *  the closing round — the increment is deferred to the continue / reselect
- *  branch so this comparison sees the round that just ended.
+ *  Called twice per round-end against the CLOSING round (`advanceRound` is
+ *  deferred to the continue branch of `routeLifeLostResolution`, so
+ *  `state.round` is unchanged across both calls):
+ *    1. in the round-end transition's mutate, AFTER `applyLifePenalties`
+ *       and BEFORE the score / life-lost dialog displays — decides whether
+ *       to suppress the (now-moot) interactive continue/abandon prompt.
+ *    2. in that transition's postDisplay, AFTER the dialog resolves — the
+ *       dialog's ABANDON/AFK choices can eliminate more players, newly
+ *       creating a last-player-standing. Reusing the full peek here is safe
+ *       precisely because the round hasn't advanced: the round-limit branch
+ *       was already false in call 1 and the round is the same, so only the
+ *       alive-count condition can flip.
  *
  *  Win rules:
  *    - `last-player-standing`: 0 or 1 alive players remain after life
@@ -36,9 +44,11 @@ export interface GameOverOutcome {
  *  No side effects: GAME_END is emitted by the caller at dispatch time so
  *  the event lands AFTER the score overlay, not at decision time. */
 export function peekGameOverOutcome(state: GameState): GameOverOutcome | null {
-  const standing = peekLastPlayerStanding(state);
-  if (standing) return standing;
   const alive = state.players.filter(isPlayerAlive);
+  if (alive.length <= 1) {
+    const winner = alive[0] ?? pickByScore(state.players)!;
+    return { winner, reason: "last-player-standing" };
+  }
   if (state.round >= state.maxRounds) {
     return {
       winner: pickByScore(alive)!,
@@ -46,22 +56,6 @@ export function peekGameOverOutcome(state: GameState): GameOverOutcome | null {
     };
   }
   return null;
-}
-
-/** The alive-count half of `peekGameOverOutcome`, exposed separately for
- *  the post-life-lost-dialog recheck: the dialog's ABANDON/AFK choices
- *  eliminate players AFTER the round-end mutate's full peek, but at that
- *  point `state.round` has already advanced to the upcoming round, so
- *  re-running the round-limit branch would end the game one scheduled
- *  round early. Last-player-standing is the only condition the dialog
- *  can newly create. */
-export function peekLastPlayerStanding(
-  state: GameState,
-): GameOverOutcome | null {
-  const alive = state.players.filter(isPlayerAlive);
-  if (alive.length > 1) return null;
-  const winner = alive[0] ?? pickByScore(state.players)!;
-  return { winner, reason: "last-player-standing" };
 }
 
 /** Emit GAME_END for the decided winner. Called from the single game-over

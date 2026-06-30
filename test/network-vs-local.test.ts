@@ -2137,9 +2137,12 @@ async function promoteWatcherDuringRoundEnd(
 ): Promise<FullStateMessage> {
   const { watcher } = pair;
   await runPairUntil(pair, () => windowReached(watcher), label);
-  // round++ already ran in round-end's mutate — the window's round value
-  // is the NEW round; a re-dispatched mutate would increment it again.
-  const roundAtWindow = watcher.state.round;
+  // round++ is deferred out of round-end's mutate to the post-dialog
+  // routing (`resolveAfterLifeLost`), so mid-window the round is still the
+  // CLOSING round. The promotion fast-forward runs that routing and
+  // advances it exactly once; a re-dispatched mutate would advance it a
+  // SECOND time (caught by the `roundAtWindow + 1` assertion below).
+  const roundAtWindow = watcher.state.round as number;
   const livesAtWindow = watcher.state.players.map((p) => p.lives);
   let roundEndsAfterWindow = 0;
   watcher.bus.on(GAME_EVENT.ROUND_END, () => {
@@ -2202,10 +2205,10 @@ async function promoteWatcherDuringRoundEnd(
     `${label}: round-end must not re-run after promotion`,
   );
   assertEquals(
-    watcher.state.round,
-    roundAtWindow,
-    `${label}: the round counter must not advance again before the next ` +
-      `battle`,
+    watcher.state.round as number,
+    roundAtWindow + 1,
+    `${label}: the deferred round advance must run exactly once (closing ` +
+      `round + 1) — a re-dispatched mutate would advance it a second time`,
   );
   return fullState;
 }

@@ -23,7 +23,6 @@ import {
   finalizeRoundCleanup,
   type GameOverOutcome,
   peekGameOverOutcome,
-  peekLastPlayerStanding,
   prepareBattle,
   prepareNextRound,
   recheckTerritory,
@@ -441,28 +440,20 @@ const ROUND_END: Transition = {
     // overlay), telling the player who just lost their last life they're
     // out before the game-over screen. With no interactive entry the
     // dialog auto-resolves after a short dwell, then postDisplay routes
-    // straight to game-over. The peek runs against the closing round
-    // (state.round not yet incremented). Tiebreak is score-only among
-    // alive players; eliminated players (lives = 0) are filtered out
-    // before the compare.
+    // straight to game-over. Tiebreak is score-only among alive players;
+    // eliminated players (lives = 0) are filtered out before the compare.
+    //
+    // The peek runs against the CLOSING round: `advanceRound` +
+    // ROUND_START are deferred out of this mutate to
+    // `routeLifeLostResolution`'s continue branch (after the dialog), so
+    // both this peek and the post-dialog recheck evaluate against the
+    // same round — collapsing the old `peekGameOverOutcome` /
+    // `peekLastPlayerStanding` split into one call used twice.
     const gameOverOutcome = peekGameOverOutcome(ctx.state);
     if (gameOverOutcome) {
       return { ...EMPTY_TRANSITION_RESULT, gameOverOutcome, eliminated };
     }
-    // Game continues — advance the counter and emit ROUND_START so the
-    // life-lost popup (and everything after it) reads the new round.
-    advanceRound(ctx.state);
-    // gruntSpawnSeq deliberately NOT reset — it must keep advancing so
-    // the per-round-first spawn lands at a different rotation than the
-    // previous round's first spawn. Only the per-round used-tile set
-    // resets (that's the within-round no-cluster guarantee).
-    ctx.state.gruntSpawnUsedTiles.clear();
-    emitRoundStart(ctx.state);
-    return {
-      ...EMPTY_TRANSITION_RESULT,
-      needsReselect,
-      eliminated,
-    };
+    return { ...EMPTY_TRANSITION_RESULT, needsReselect, eliminated };
   },
   display: [{ kind: STEP_SCORE_OVERLAY }, { kind: STEP_LIFE_LOST_DIALOG }],
   postDisplay: routeLifeLostResolution,
@@ -967,15 +958,15 @@ function routePostBattleToBuild(ctx: PhaseTransitionCtx): void {
  *       observers fire in the right order) and dispatch onGameOver.
  *    2. the dialog's ABANDON/AFK eliminations just dropped the alive
  *       count to one or fewer — those land in the dialog's `finish`
- *       callback, AFTER the mutate's peek, so re-check
- *       last-player-standing here. Without this the lone survivor plays
- *       a full pointless round (cannon, battle against nobody, build)
- *       before the next round-end notices. Only the alive-count
- *       condition is rechecked: `state.round` was already advanced by
- *       the mutate, so re-running the round-limit branch would end the
- *       game one scheduled round early. GAME_END here carries the
- *       already-advanced round — same stamp quirk as the score overlay.
- *    3. otherwise — the dialog populated `result.continuing`. Dispatch
+ *       callback, AFTER the mutate's peek, so re-peek here. Without this
+ *       the lone survivor plays a full pointless round (cannon, battle
+ *       against nobody, build) before the next round-end notices. The
+ *       round is still the CLOSING round (the advance below is deferred),
+ *       so the full `peekGameOverOutcome` is safe to reuse: its
+ *       round-limit branch was already false in the mutate and the round
+ *       hasn't moved, so only a newly-created last-player-standing fires.
+ *    3. otherwise — the dialog populated `result.continuing`. Advance the
+ *       round (deferred from the mutate) + emit ROUND_START, then dispatch
  *       continue/reselect via `resolveAfterLifeLost`.
  *
  *  Route handlers (`onGameOver` / `onReselect` / `onAdvance`) are
@@ -996,11 +987,19 @@ function routeLifeLostResolution(
     route.onGameOver(result.gameOverOutcome);
     return;
   }
-  const lateOutcome = peekLastPlayerStanding(ctx.state);
+  const lateOutcome = peekGameOverOutcome(ctx.state);
   if (lateOutcome) {
     route.onGameOver(lateOutcome);
     return;
   }
+  // Game continues — advance the round and emit ROUND_START now, deferred
+  // from the round-end mutate so the game-over peeks above evaluate
+  // against the closing round. gruntSpawnSeq deliberately keeps advancing
+  // (cross-round first-spawn rotation); only the per-round used-tile set
+  // resets (the within-round no-cluster guarantee).
+  advanceRound(ctx.state);
+  ctx.state.gruntSpawnUsedTiles.clear();
+  emitRoundStart(ctx.state);
   resolveAfterLifeLost({
     continuing: result.continuing ?? [],
     onReselect: route.onReselect,
