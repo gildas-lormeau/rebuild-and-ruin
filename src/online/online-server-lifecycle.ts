@@ -329,12 +329,13 @@ export async function handleServerLifecycleMessage(
       // stale one, and our own ticks resolve it through the same path the
       // host took (scheduled lockstep choice, or the owner-routed
       // max-timer force with the DIALOG_FORCE_GRACE non-owner backstop —
-      // see dialogs/dialog-tick.ts). Clearing it from the wire instead
-      // drops the armed resolution callback: round-end's only exit
-      // dispatcher (double-mutate over the closed WALL_BUILD) and
-      // UPGRADE_PICK's only exit (permanent hang — the phase has no
-      // self-driving timer; see promote.ts:forceResolveRoundEndPhase
-      // rationale).
+      // see dialogs/dialog-tick.ts). Both windows are self-driving phases
+      // (ROUND_END's life-lost beat, UPGRADE_PICK) whose tick rebuilds and
+      // drives the dialog from state each frame. Wire-clearing it would
+      // discard the in-progress choices/picks this peer has already
+      // recorded — which the payload-less marker can't restore — and the
+      // self-driving rebuild would restart them, desyncing the resolution
+      // (and thus the phase exit) tick across peers.
       return true;
 
     case MESSAGE.GAME_OVER:

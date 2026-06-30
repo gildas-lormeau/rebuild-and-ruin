@@ -236,11 +236,11 @@ function skipPendingAnimations(): void {
   // their prime from the post-broadcast `reprimeAiControllersForPhase`
   // in promoteToHost, but that skips the self slot (kind "human"), so
   // the promoted player would start the round with last round's cannon
-  // mode + cursor and no phantom seed. Mirror `forceResolveRoundEndPhase`
-  // (phase-machine.ts), which re-runs the init when it skips this same
-  // banner — here only the self slot still needs it. No accum work:
-  // enterCannonPhase primed `state.timer` in the mutate and
-  // `syncAccumulatorsFromTimer` above already rebuilt the accums from it.
+  // mode + cursor and no phantom seed. Re-run that dropped init here — but
+  // only for the self slot (the AI slots got theirs from the reprime
+  // above). No accum work: enterCannonPhase primed `state.timer` in the
+  // mutate and `syncAccumulatorsFromTimer` above already rebuilt the
+  // accums from it.
   if (
     _runtime.runtimeState.state.phase === Phase.CANNON_PLACE &&
     modeAtPromotion === Mode.TRANSITION

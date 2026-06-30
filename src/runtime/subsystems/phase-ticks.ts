@@ -885,8 +885,8 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
 
   /** Self-driving ROUND_END tick. Re-derives the beat from state each
    *  frame — no armed callback — so a host-promoted peer that adopts a
-   *  mid-window snapshot resumes the exit on its own (replacing the old
-   *  `forceResolveRoundEndPhase` repair hatch).
+   *  mid-window snapshot resumes the exit on its own, with no force-resolve
+   *  repair hatch.
    *
    *  Beat 1 (score overlay, Mode.TRANSITION): `enter-round-end` started it;
    *  the main loop's `tickScoreDelta` decrements it. Wait while active.

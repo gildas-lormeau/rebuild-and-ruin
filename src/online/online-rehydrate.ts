@@ -212,13 +212,14 @@ export function applyFullStateToRunningRuntime(
   runtime.selection.clearCastleBuilds();
   runtime.lifeLost.set(null);
   // A score overlay mid-display when the snapshot lands is superseded the
-  // same way: promotion fast-forwards the round-end chain into the
-  // snapshot (`forceResolveRoundEndPhase`), so the local overlay's armed
-  // `runDisplay` continuation must not survive the apply. The overlay
-  // keeps ticking in the adopted gameplay mode — left armed, it fires
-  // against the adopted post-round-end state and dispatches the round-end
-  // routing from a phase the snapshot already advanced (source-phase
-  // guard throw).
+  // same way. The overlay is runtime-only (never serialized), so this
+  // peer's local deltaTimer is out of sync with the round-end position the
+  // snapshot encodes. Reset drops it: the re-entered self-driving
+  // `tickRoundEndPhase` (ROUND_END is its own phase now) then finds the
+  // overlay inactive and aligns every surviving peer on the life-lost
+  // dialog beat at the snapshot tick. Left running, each peer would play
+  // out its own stale overlay duration and start the dialog — hence the
+  // exit dispatch — at a different sim tick (phase-boundary skew).
   runtime.scoreDelta.reset();
   // Same teardown as the life-lost dialog: a pick dialog mid-flight when a
   // snapshot lands is superseded. Dialogs are always rebuilt locally from
