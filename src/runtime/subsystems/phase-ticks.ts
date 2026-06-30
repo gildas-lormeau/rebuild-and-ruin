@@ -166,7 +166,6 @@ interface PhaseTicksDeps extends Pick<RuntimeConfig, "log"> {
     setPreScores: (scores: readonly number[]) => void;
     start: () => void;
     isActive: () => boolean;
-    reset: () => void;
   };
   /** Save human crosshair at end of battle so it can be restored next battle. */
   saveBattleCrosshair?: () => void;
@@ -413,16 +412,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
           primeControllerForCannonPhase(ctrl, runtimeState.state);
         }
       },
-      upgradePick: deps.upgradePick
-        ? {
-            prepare: deps.upgradePick.prepare,
-            show: deps.upgradePick.show,
-            tick: deps.upgradePick.tick,
-            isReadyToExit: deps.upgradePick.isReadyToExit,
-            get: deps.upgradePick.get,
-            set: deps.upgradePick.set,
-          }
-        : undefined,
+      upgradePick: deps.upgradePick,
       ceasefireSkipBattle: () => enterBuildSkippingBattle(runtimeState.state),
       startBuildPhaseLocal: startBuildPhase,
       endBattleLocalControllers: () => {
@@ -490,7 +480,6 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
   function startBuildPhase() {
     const remotePlayerSlots = runtimeState.frameMeta.remotePlayerSlots;
     deps.log(`startBuildPhase (round=${runtimeState.state.round})`);
-    deps.scoreDelta.reset();
     if (runtimeState.state.phase !== Phase.WALL_BUILD) {
       throw new Error("startBuildPhase called outside WALL_BUILD");
     }

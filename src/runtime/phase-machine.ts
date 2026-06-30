@@ -200,11 +200,13 @@ export interface PhaseTransitionCtx {
     // mutate (before `finalizeRound` mutates scores) and handed to
     // `setPreScores` — there is no separate capture hook. `start` begins
     // the overlay beat in the same transition's postDisplay; the
-    // self-driving `tickRoundEndPhase` then polls `isActive`.
+    // self-driving `tickRoundEndPhase` then polls `isActive`. The overlay's
+    // own teardown is owned outside the machine (host-promote / rehydrate /
+    // lifecycle call `RuntimeScoreDelta.reset` on the full handle), so the
+    // machine's narrowed view exposes no `reset`.
     readonly setPreScores: (scores: readonly number[]) => void;
     readonly start: () => void;
     readonly isActive: () => boolean;
-    readonly reset: () => void;
   };
 
   readonly battle: BattleLifecycle;
@@ -525,8 +527,8 @@ const ENTER_WALL_BUILD: Transition = {
     // Phase flip + entry-time timer anchor (timer must reflect THIS round's
     // upgrade set — see `enterWallBuildPhase` JSDoc for the parity story).
     enterWallBuildPhase(ctx.state);
-    // Per-controller startBuildPhase + scoreDelta reset + clearImpacts
-    // + accumulator resets. Same on every peer.
+    // Per-controller startBuildPhase + clearImpacts + accumulator resets.
+    // Same on every peer.
     ctx.startBuildPhaseLocal();
     return EMPTY_TRANSITION_RESULT;
   },
@@ -673,7 +675,6 @@ const CANNON_PLACE_DONE: Transition = {
   from: Phase.CANNON_PLACE,
   mutate: (ctx) => {
     ctx.log(`startBattle (round=${ctx.state.round})`);
-    ctx.scoreDelta.reset();
     const entry = prepareBattle(ctx.state);
     const modifierId = ctx.state.modern?.activeModifier;
     if (modifierId) {
