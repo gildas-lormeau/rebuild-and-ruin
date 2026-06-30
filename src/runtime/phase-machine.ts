@@ -315,18 +315,12 @@ export interface PhaseTransitionCtx {
  *  doesn't produce a modifier roll or balloon flights returns this (or
  *  spreads it). Keeps `TransitionResult.modifierDiff` / `flights` strictly
  *  required at the type level — consumers no longer defensively coalesce.
- *
- *  Frozen (deeply): display steps write into their transition's result in
- *  place (`runLifeLostDialogStep` stashes `result.continuing`). Today the
- *  only transition with such a step (round-end) spreads a fresh object,
- *  but a future transition that returns the bare constant AND gains a
- *  dialog step would silently cross-contaminate every later consumer of
- *  the shared object — the freeze turns that into a loud throw at the
- *  write site. */
-const EMPTY_TRANSITION_RESULT: TransitionResult = Object.freeze({
+ *  No code mutates a result (the type is fully `readonly`); the shared
+ *  singleton is only ever read or spread into a fresh object. */
+const EMPTY_TRANSITION_RESULT: TransitionResult = {
   modifierDiff: null,
-  flights: Object.freeze([]),
-});
+  flights: [],
+};
 /** Discriminator values for `DisplayStep.kind`. */
 const STEP_BANNER = "banner" as const;
 /** `enter-round-end` — end of WALL_BUILD (round closes here, after the
