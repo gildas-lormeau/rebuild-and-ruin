@@ -3,12 +3,15 @@ import {
   advanceBattleCountdown,
   allCannonPlaceDone,
   canPlayerBuild,
+  eliminatePlayers,
   emitBattleCeaseIfTimerCrossed,
+  emitRoundStart,
   tickBattlePhase as engineTickBattlePhase,
   enterBuildSkippingBattle,
   markCannonPlaceDoneAtDrain,
   moveGrunts,
   nextReadyCannon,
+  peekGameOverOutcome,
   primeControllerForCannonPhase,
   resetCannonFacings,
   setBattleCountdown,
@@ -46,8 +49,14 @@ import {
   isPlayerEliminated,
   type ValidPlayerId,
 } from "../../shared/core/player-slot.ts";
+import { isPlayerAlive } from "../../shared/core/player-types.ts";
 import { type PlayerController } from "../../shared/core/system-interfaces.ts";
-import { cannonSlotsFor, type GameState } from "../../shared/core/types.ts";
+import {
+  advanceRound,
+  cannonSlotsFor,
+  type GameState,
+} from "../../shared/core/types.ts";
+import { filterAliveEnclosedTowers } from "../../shared/sim/board-occupancy.ts";
 import { Mode } from "../../shared/ui/ui-mode.ts";
 import type { BannerShow } from "../banner-state.ts";
 import {
@@ -55,9 +64,9 @@ import {
   recordBattleVisualEvents,
   tickBalloonFlights,
 } from "../battle-anim.ts";
+import { resolveAfterLifeLost } from "../dialogs/life-lost-core.ts";
 import {
   finishUpgradePick,
-  forceResolveRoundEndPhase,
   type PhaseTransitionCtx,
   runTransition,
 } from "../phase-machine.ts";
@@ -135,8 +144,15 @@ interface PhaseTicksDeps extends Pick<RuntimeConfig, "log"> {
    *  cleanup. Banner steps overwrite via `showBanner` and never need
    *  to hide explicitly. */
   hideBanner: () => void;
-  lifeLost: Pick<RuntimeLifeLost, "show" | "forceResolveAll">;
-  /** Handlers called after the life-lost dialog resolves. `onGameOver`
+  /** Life-lost dialog hooks driven by the self-driving `tickRoundEndPhase`:
+   *  `show` builds the dialog, `tick` advances entries, `isResolved` +
+   *  `takeResolution` poll the result, `get` reads the live dialog. No
+   *  armed callback — promotion teardown can't orphan the round-end exit. */
+  lifeLost: Pick<
+    RuntimeLifeLost,
+    "show" | "tick" | "isResolved" | "takeResolution" | "get"
+  >;
+  /** Handlers called when the life-lost dialog resolves. `onGameOver`
    *  dispatches the game-over transition; `onReselect` seeds the
    *  reselect queue and enters the castle-reselect flow; `onAdvance`
    *  dispatches `advance-to-cannon`. Wired identically on every peer —
@@ -148,9 +164,9 @@ interface PhaseTicksDeps extends Pick<RuntimeConfig, "log"> {
   };
   scoreDelta: {
     setPreScores: (scores: readonly number[]) => void;
-    show: (onDone: () => void) => void;
+    start: () => void;
+    isActive: () => boolean;
     reset: () => void;
-    finishNow: () => void;
   };
   /** Save human crosshair at end of battle so it can be restored next battle. */
   saveBattleCrosshair?: () => void;
@@ -229,10 +245,6 @@ export interface RuntimePhaseTicks {
    *  and the Mode.GAME flip never run. See promote.ts
    *  `skipPendingAnimations`. */
   skipBattleIntro: () => void;
-  /** Fast-forward the round-end display chain (score overlay + life-lost
-   *  dialog) to its routed conclusion. Host-promotion repair — see
-   *  `forceResolveRoundEndPhase` in phase-machine.ts. */
-  resolveRoundEndNow: () => void;
 }
 
 export interface PhaseTicksSystem {
@@ -246,8 +258,11 @@ export interface PhaseTicksSystem {
   tickUpgradePickPhase: (dt: number) => void;
   /** Host-promotion repair — see `RuntimePhaseTicks.skipBattleIntro`. */
   skipBattleIntro: () => void;
-  /** Host-promotion repair — see `RuntimePhaseTicks.resolveRoundEndNow`. */
-  resolveRoundEndNow: () => void;
+  /** Self-driving ROUND_END phase tick. Drives the score-overlay beat
+   *  (Mode.TRANSITION) → life-lost dialog beat (Mode.LIFE_LOST) → exit
+   *  routing (game-over / reselect / advance-to-cannon), all re-derived
+   *  from state, so a host-promoted peer resumes without a repair hatch. */
+  tickRoundEndPhase: (dt: number) => void;
   /** Dispatch the `castle-done` prep transition. Used by both the round-1
    *  initial-selection path and the reselect cycle. The mutate runs
    *  `finalizeRoundCleanup` (gated on `round > 1` because round 1 has no
@@ -417,16 +432,6 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       awaitPitchSettled: deps.awaitPitchSettled,
       beginTilt: deps.beginTilt,
       warmShadowPermutations: deps.warmShadowPermutations,
-      lifeLost: {
-        show: deps.lifeLost.show,
-        forceResolveAll: deps.lifeLost.forceResolveAll,
-      },
-      lifeLostRoute: deps.lifeLostRoute,
-      notifyLifeLost: (pid) => {
-        if (!isRemotePlayer(pid, remotePlayerSlots)) {
-          runtimeState.controllers[pid]!.onLifeLost();
-        }
-      },
       finalizeLocalControllersBuildPhase: () => {
         for (const ctrl of local) {
           ctrl.finalizeBuildPhase(runtimeState.state);
@@ -870,9 +875,138 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     deps.requestRender();
     if (state.timer > 0) return false;
 
-    // --- End of phase: delegate to the round-end transition ---
-    runTransition("round-end", buildPhaseCtx());
+    // --- End of phase: enter the self-driving ROUND_END window ---
+    // `enter-round-end` runs `finalizeRound` + flips to Phase.ROUND_END +
+    // starts the score-overlay beat; `tickRoundEndPhase` drives it from
+    // there (overlay → life-lost dialog → exit routing).
+    runTransition("enter-round-end", buildPhaseCtx());
     return true;
+  }
+
+  /** Self-driving ROUND_END tick. Re-derives the beat from state each
+   *  frame — no armed callback — so a host-promoted peer that adopts a
+   *  mid-window snapshot resumes the exit on its own (replacing the old
+   *  `forceResolveRoundEndPhase` repair hatch).
+   *
+   *  Beat 1 (score overlay, Mode.TRANSITION): `enter-round-end` started it;
+   *  the main loop's `tickScoreDelta` decrements it. Wait while active.
+   *  Beat 2 (life-lost dialog, Mode.LIFE_LOST): build the dialog from the
+   *  stashed (or re-derived) routing, tick it, and exit when it resolves.
+   *
+   *  Self-recovers on adopt / post-teardown (Mode.GAME, no dialog): the
+   *  overlay is inactive, so it goes straight to the dialog beat. */
+  function tickRoundEndPhase(dt: number): void {
+    if (deps.scoreDelta.isActive()) {
+      // Score-overlay beat still animating. Keep the camera/render in the
+      // overlay window; the main loop's `tickScoreDelta` advances it.
+      if (runtimeState.mode !== Mode.TRANSITION) {
+        setMode(runtimeState, Mode.TRANSITION);
+      }
+      deps.requestRender();
+      return;
+    }
+    // Dialog beat. Build it once (first entry after the overlay, or a fresh
+    // adopt where the stash is gone and the dialog was never built locally).
+    if (!deps.lifeLost.get()) {
+      beginLifeLostBeat();
+      return;
+    }
+    deps.lifeLost.tick(dt);
+    if (deps.lifeLost.isResolved()) {
+      const { continuing, abandoned } = deps.lifeLost.takeResolution();
+      exitRoundEnd(continuing, abandoned);
+    }
+  }
+
+  /** Build + show the life-lost dialog from the stashed (or re-derived)
+   *  round-end routing. Suppresses the interactive reselect prompt when the
+   *  match is already over (the choice would be moot — only the button-less
+   *  "Eliminated" notice shows). With no entries at all, exits immediately. */
+  function beginLifeLostBeat(): void {
+    const { state } = runtimeState;
+    const remotePlayerSlots = runtimeState.frameMeta.remotePlayerSlots;
+    const { needsReselect, eliminated } = deriveRoundEndRouting();
+    // Game-over peek decides DISPLAY only: a moot reselect prompt is hidden
+    // when the match is ending. The authoritative exit routing re-peeks in
+    // `exitRoundEnd` after the dialog's own ABANDON eliminations apply.
+    const reselect = peekGameOverOutcome(state) ? [] : needsReselect;
+    for (const pid of [...reselect, ...eliminated]) {
+      if (!isRemotePlayer(pid, remotePlayerSlots)) {
+        runtimeState.controllers[pid]!.onLifeLost();
+      }
+    }
+    const shown = deps.lifeLost.show(reselect, eliminated);
+    if (!shown) {
+      // No entries (nothing lost) — exit the round-end window now.
+      exitRoundEnd([], []);
+      return;
+    }
+    if (reselect.length > 0 || eliminated.length > 0) {
+      emitGameEvent(state.bus, GAME_EVENT.LIFE_LOST_DIALOG_SHOW, {
+        needsReselect: reselect,
+        eliminated,
+        round: state.round,
+      });
+    }
+  }
+
+  /** Routing inputs for the in-progress ROUND_END window. The normal path
+   *  reads the stash `enter-round-end` left from `finalizeRound`. A peer
+   *  that ADOPTED a mid-window snapshot has no stash: re-derive
+   *  `needsReselect` from the board (alive players with zero enclosed
+   *  towers — survivors always keep at least one; a life-loser's board was
+   *  reset to zero), and skip the per-elimination notices (cosmetic-only —
+   *  `exitRoundEnd`'s game-over peek covers the routing). */
+  function deriveRoundEndRouting(): {
+    needsReselect: readonly ValidPlayerId[];
+    eliminated: readonly ValidPlayerId[];
+  } {
+    const stash = runtimeState.roundEnd;
+    if (stash) return stash;
+    const { state } = runtimeState;
+    const needsReselect = state.players
+      .filter(
+        (player) =>
+          isPlayerAlive(player) &&
+          filterAliveEnclosedTowers(player, state).length === 0,
+      )
+      .map((player) => player.id);
+    return { needsReselect, eliminated: [] };
+  }
+
+  /** Exit the ROUND_END window once the life-lost dialog resolves: apply
+   *  the dialog's ABANDON eliminations, then route. Game-over is decided by
+   *  a single `peekGameOverOutcome` against the CLOSING round (the advance
+   *  is deferred to here), which covers both the pre-dialog outcome and a
+   *  fresh last-player-standing the ABANDON eliminations just created.
+   *  Otherwise advance the round + emit ROUND_START and route
+   *  continue/reselect via `resolveAfterLifeLost`. */
+  function exitRoundEnd(
+    continuing: readonly ValidPlayerId[],
+    abandoned: readonly ValidPlayerId[],
+  ): void {
+    const { state } = runtimeState;
+    if (abandoned.length > 0) eliminatePlayers(state, abandoned);
+    runtimeState.roundEnd = null;
+    const outcome = peekGameOverOutcome(state);
+    if (outcome) {
+      // GAME_END is emitted by the single `finalizeGameOver` chokepoint
+      // (onGameOver → game-over transition → endGame), NOT here.
+      deps.lifeLostRoute.onGameOver(outcome);
+      return;
+    }
+    // Game continues — advance the round + emit ROUND_START now, deferred
+    // from `enter-round-end` so the game-over peek evaluated against the
+    // closing round. gruntSpawnSeq keeps advancing (cross-round first-spawn
+    // rotation); only the per-round used-tile set resets.
+    advanceRound(state);
+    state.gruntSpawnUsedTiles.clear();
+    emitRoundStart(state);
+    resolveAfterLifeLost({
+      continuing,
+      onReselect: deps.lifeLostRoute.onReselect,
+      onAdvance: deps.lifeLostRoute.onAdvance,
+    });
   }
 
   // -------------------------------------------------------------------------
@@ -902,6 +1036,12 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
         break;
       case Phase.WALL_BUILD:
         tickBuildPhase(dt);
+        break;
+      case Phase.ROUND_END:
+        // Self-driving window. Normally driven from `tickMode`'s
+        // Mode.TRANSITION / Mode.LIFE_LOST beats; reached here only after a
+        // host-promotion teardown forced Mode.GAME — re-enter the beat.
+        tickRoundEndPhase(dt);
         break;
       case Phase.MODIFIER_REVEAL:
         // Real timed phase — its banner's sweep-end flips mode to GAME
@@ -934,7 +1074,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     dispatchAdvanceToCannon,
     restoreUpgradePickPhase,
     tickUpgradePickPhase,
-    resolveRoundEndNow: () => forceResolveRoundEndPhase(buildPhaseCtx()),
+    tickRoundEndPhase,
     skipBattleIntro: () => {
       clearBalloonFlights(runtimeState.battleAnim);
       beginBattle();

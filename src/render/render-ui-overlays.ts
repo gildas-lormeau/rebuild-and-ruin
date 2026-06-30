@@ -92,6 +92,7 @@ const PHASE_STATUS_LABELS: Record<Phase, string> = {
   [Phase.MODIFIER_REVEAL]: "Reveal",
   [Phase.BATTLE]: "Battle",
   [Phase.UPGRADE_PICK]: "Upgrade",
+  [Phase.ROUND_END]: "Round End",
 };
 /** Lobby panel geometry picked once from IS_TOUCH_DEVICE — touch needs a
  *  bigger gap and a taller/higher panel for usable hit-targets. */

@@ -6,7 +6,7 @@
     "rounds": 2
   },
   "timeoutMs": 480000,
-  "eventCount": 8381,
+  "eventCount": 8386,
   "events": [
     {
       "type": "tick",
@@ -28047,6 +28047,20 @@
       }
     },
     {
+      "type": "phaseEnd",
+      "payload": {
+        "phase": "WALL_BUILD",
+        "round": 1
+      }
+    },
+    {
+      "type": "phaseStart",
+      "payload": {
+        "phase": "ROUND_END",
+        "round": 1
+      }
+    },
+    {
       "type": "scoreOverlayStart",
       "payload": {
         "round": 1
@@ -28781,7 +28795,7 @@
     {
       "type": "phaseEnd",
       "payload": {
-        "phase": "WALL_BUILD",
+        "phase": "ROUND_END",
         "round": 2
       }
     },
@@ -28800,6 +28814,12 @@
         "round": 2,
         "subtitle": "Position inside fort walls",
         "text": "Place Cannons"
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
       }
     },
     {
@@ -30651,18 +30671,18 @@
       }
     },
     {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
       "type": "cannonPlaced",
       "payload": {
         "cannonIdx": 3,
         "col": 38,
         "playerId": 0,
         "row": 23
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
       }
     },
     {
@@ -36404,12 +36424,6 @@
       }
     },
     {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
       "type": "towerKilled",
       "payload": {
         "towerIdx": 6
@@ -36447,6 +36461,12 @@
         "row": 12,
         "shooterCannonIdx": 1,
         "shooterId": 1
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
       }
     },
     {
@@ -36786,12 +36806,6 @@
       }
     },
     {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
       "type": "cannonFired",
       "payload": {
         "cannonIdx": 3,
@@ -36811,6 +36825,12 @@
         "targetX": 136,
         "targetY": 312,
         "vy0": 296.5778984872616
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
       }
     },
     {
@@ -51274,6 +51294,20 @@
     {
       "type": "roundEnd",
       "payload": {
+        "round": 2
+      }
+    },
+    {
+      "type": "phaseEnd",
+      "payload": {
+        "phase": "WALL_BUILD",
+        "round": 2
+      }
+    },
+    {
+      "type": "phaseStart",
+      "payload": {
+        "phase": "ROUND_END",
         "round": 2
       }
     },

@@ -10,9 +10,9 @@ Derived from the `TRANSITIONS` table in [`src/runtime/phase-machine.ts`](../src/
 
 ```mermaid
 stateDiagram-v2
-  WALL_BUILD --> [*]: round-end (game-over)
-  WALL_BUILD --> CASTLE_SELECT: round-end (reselect)
-  WALL_BUILD --> CANNON_PLACE: round-end (continue → advance-to-cannon)
+  WALL_BUILD --> [*]: enter-round-end (game-over)
+  WALL_BUILD --> CASTLE_SELECT: enter-round-end (reselect)
+  WALL_BUILD --> CANNON_PLACE: enter-round-end (continue → advance-to-cannon)
   BATTLE --> UPGRADE_PICK: battle-done
   BATTLE --> WALL_BUILD: battle-done
   CANNON_PLACE --> UPGRADE_PICK: ceasefire
@@ -23,9 +23,9 @@ stateDiagram-v2
   CANNON_PLACE --> WALL_BUILD: enter-wall-build
   UPGRADE_PICK --> WALL_BUILD: enter-wall-build
   CASTLE_SELECT --> CANNON_PLACE: enter-cannon-place
-  WALL_BUILD --> CANNON_PLACE: enter-cannon-place
+  ROUND_END --> CANNON_PLACE: enter-cannon-place
   CASTLE_SELECT --> CANNON_PLACE: castle-done
-  WALL_BUILD --> CANNON_PLACE: advance-to-cannon
+  ROUND_END --> CANNON_PLACE: advance-to-cannon
   [*] --> [*]: game-over
   CANNON_PLACE --> MODIFIER_REVEAL: cannon-place-done
   CANNON_PLACE --> BATTLE: cannon-place-done
@@ -34,19 +34,19 @@ stateDiagram-v2
   MODIFIER_REVEAL --> BATTLE: enter-battle
 ```
 
-> Dashed/annotated `round-end` exits route through `ctx.lifeLostRoute` handlers wired in `phase-ticks.ts` — **declared, not derived** from the machine. Verify those manually.
+> Dashed/annotated `enter-round-end` exits route through `ctx.lifeLostRoute` handlers wired in `phase-ticks.ts` (`exitRoundEnd`) — **declared, not derived** from the machine. Verify those manually.
 
 ## Transitions
 
-### `round-end`
+### `enter-round-end`
 
 - **guard (from):** `WALL_BUILD`
-- **enters phase:** — (prep; routes onward)
-- **engine ops:** `finalizeRound`, `peekGameOverOutcome`
+- **enters phase:** ROUND_END
+- **engine ops:** `finalizeRound`, `enterRoundEndPhase`
 - **broadcasts:** `buildEnd`
-- **display:** `score-overlay`, `life-lost-dialog`
-- **dispatches:** _ctx.lifeLostRoute → game-over / reselect / advance-to-cannon_
-- **external dispatchers:** `phase-ticks.ts:874`
+- **display:** —
+- **dispatches:** —
+- **external dispatchers:** `phase-ticks.ts:882`
 
 ### `battle-done`
 
@@ -56,7 +56,7 @@ stateDiagram-v2
 - **broadcasts:** `buildStart`
 - **display:** —
 - **dispatches:** `enter-upgrade-pick`, `enter-wall-build`
-- **external dispatchers:** `phase-ticks.ts:808`
+- **external dispatchers:** `phase-ticks.ts:813`
 
 ### `ceasefire`
 
@@ -66,7 +66,7 @@ stateDiagram-v2
 - **broadcasts:** `buildStart`
 - **display:** —
 - **dispatches:** `enter-upgrade-pick`, `enter-wall-build`
-- **external dispatchers:** `phase-ticks.ts:351`
+- **external dispatchers:** `phase-ticks.ts:366`
 
 ### `enter-upgrade-pick`
 
@@ -90,7 +90,7 @@ stateDiagram-v2
 
 ### `enter-cannon-place`
 
-- **guard (from):** `CASTLE_SELECT`, `WALL_BUILD`
+- **guard (from):** `CASTLE_SELECT`, `ROUND_END`
 - **enters phase:** CANNON_PLACE
 - **engine ops:** `enterCannonPhase`
 - **broadcasts:** —
@@ -106,17 +106,17 @@ stateDiagram-v2
 - **broadcasts:** `cannonStart`
 - **display:** —
 - **dispatches:** `enter-cannon-place`
-- **external dispatchers:** `phase-ticks.ts:334`
+- **external dispatchers:** `phase-ticks.ts:349`
 
 ### `advance-to-cannon`
 
-- **guard (from):** `WALL_BUILD`
+- **guard (from):** `ROUND_END`
 - **enters phase:** — (prep; routes onward)
 - **engine ops:** `finalizeRoundCleanup`
 - **broadcasts:** `cannonStart`
 - **display:** —
 - **dispatches:** `enter-cannon-place`
-- **external dispatchers:** `phase-ticks.ts:330`
+- **external dispatchers:** `phase-ticks.ts:345`
 
 ### `game-over`
 
@@ -126,7 +126,7 @@ stateDiagram-v2
 - **broadcasts:** —
 - **display:** —
 - **dispatches:** —
-- **external dispatchers:** `phase-ticks.ts:338`
+- **external dispatchers:** `phase-ticks.ts:353`
 
 ### `cannon-place-done`
 
@@ -136,7 +136,7 @@ stateDiagram-v2
 - **broadcasts:** `battleStart`
 - **display:** —
 - **dispatches:** `enter-modifier-reveal`, `enter-battle`
-- **external dispatchers:** `phase-ticks.ts:354`
+- **external dispatchers:** `phase-ticks.ts:369`
 
 ### `enter-modifier-reveal`
 
@@ -156,7 +156,7 @@ stateDiagram-v2
 - **broadcasts:** —
 - **display:** `banner(battle)`
 - **dispatches:** —
-- **external dispatchers:** `phase-ticks.ts:652`
+- **external dispatchers:** `phase-ticks.ts:657`
 
 ## Review hints (auto-derived)
 

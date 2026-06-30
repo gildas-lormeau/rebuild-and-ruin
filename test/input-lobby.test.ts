@@ -565,12 +565,14 @@ Deno.test(
       false,
       "the score overlay must freeze with the rest of the sim",
     );
-    assertEquals(Phase[sc.state.phase], Phase[Phase.WALL_BUILD]);
+    // The score overlay is the first beat of the self-driving ROUND_END
+    // window (WALL_BUILD already closed into it).
+    assertEquals(Phase[sc.state.phase], Phase[Phase.ROUND_END]);
 
-    // Close the menu: the overlay resumes and the chain routes onward.
+    // Close the menu: the overlay resumes and the window routes onward.
     await pressKeyAndSettle(sc, "F1");
     sc.runUntil(() => overlayEnded, { timeoutMs: 30_000 });
-    sc.runUntil(() => sc.state.phase !== Phase.WALL_BUILD, {
+    sc.runUntil(() => sc.state.phase !== Phase.ROUND_END, {
       timeoutMs: 60_000,
     });
   },

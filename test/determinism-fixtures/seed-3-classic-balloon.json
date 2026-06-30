@@ -6,7 +6,7 @@
     "rounds": 5
   },
   "timeoutMs": 480000,
-  "eventCount": 20086,
+  "eventCount": 20100,
   "events": [
     {
       "type": "tick",
@@ -27029,6 +27029,20 @@
       }
     },
     {
+      "type": "phaseEnd",
+      "payload": {
+        "phase": "WALL_BUILD",
+        "round": 1
+      }
+    },
+    {
+      "type": "phaseStart",
+      "payload": {
+        "phase": "ROUND_END",
+        "round": 1
+      }
+    },
+    {
       "type": "scoreOverlayStart",
       "payload": {
         "round": 1
@@ -27763,7 +27777,7 @@
     {
       "type": "phaseEnd",
       "payload": {
-        "phase": "WALL_BUILD",
+        "phase": "ROUND_END",
         "round": 2
       }
     },
@@ -27782,6 +27796,12 @@
         "round": 2,
         "subtitle": "Position inside fort walls",
         "text": "Place Cannons"
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
       }
     },
     {
@@ -30260,18 +30280,18 @@
       }
     },
     {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
       "type": "cannonPlaced",
       "payload": {
         "cannonIdx": 4,
         "col": 22,
         "playerId": 1,
         "row": 6
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
       }
     },
     {
@@ -50561,6 +50581,20 @@
       }
     },
     {
+      "type": "phaseEnd",
+      "payload": {
+        "phase": "WALL_BUILD",
+        "round": 2
+      }
+    },
+    {
+      "type": "phaseStart",
+      "payload": {
+        "phase": "ROUND_END",
+        "round": 2
+      }
+    },
+    {
       "type": "scoreOverlayStart",
       "payload": {
         "round": 2
@@ -51295,7 +51329,7 @@
     {
       "type": "phaseEnd",
       "payload": {
-        "phase": "WALL_BUILD",
+        "phase": "ROUND_END",
         "round": 3
       }
     },
@@ -51314,6 +51348,12 @@
         "round": 3,
         "subtitle": "Position inside fort walls",
         "text": "Place Cannons"
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
       }
     },
     {
@@ -60998,12 +61038,6 @@
       }
     },
     {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
       "type": "cannonFired",
       "payload": {
         "cannonIdx": 1,
@@ -61023,6 +61057,12 @@
         "targetX": 472,
         "targetY": 376,
         "vy0": 261.925475591194
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
       }
     },
     {
@@ -73703,6 +73743,20 @@
       }
     },
     {
+      "type": "phaseEnd",
+      "payload": {
+        "phase": "WALL_BUILD",
+        "round": 3
+      }
+    },
+    {
+      "type": "phaseStart",
+      "payload": {
+        "phase": "ROUND_END",
+        "round": 3
+      }
+    },
+    {
       "type": "scoreOverlayStart",
       "payload": {
         "round": 3
@@ -74437,7 +74491,7 @@
     {
       "type": "phaseEnd",
       "payload": {
-        "phase": "WALL_BUILD",
+        "phase": "ROUND_END",
         "round": 4
       }
     },
@@ -74456,6 +74510,12 @@
         "round": 4,
         "subtitle": "Position inside fort walls",
         "text": "Place Cannons"
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
       }
     },
     {
@@ -76430,12 +76490,6 @@
       }
     },
     {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
       "type": "cannonPlaced",
       "payload": {
         "cannonIdx": 6,
@@ -76745,6 +76799,12 @@
         "col": 5,
         "playerId": 2,
         "row": 3
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
       }
     },
     {
@@ -78572,18 +78632,18 @@
       }
     },
     {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
       "type": "cannonPlaced",
       "payload": {
         "cannonIdx": 8,
         "col": 3,
         "playerId": 2,
         "row": 21
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
       }
     },
     {
@@ -83686,12 +83746,6 @@
       }
     },
     {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
       "type": "cannonFired",
       "payload": {
         "cannonIdx": 4,
@@ -83711,6 +83765,12 @@
         "targetX": 472,
         "targetY": 312,
         "vy0": 209.97776289761205
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
       }
     },
     {
@@ -90648,12 +90708,6 @@
       }
     },
     {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
       "type": "wallPlaced",
       "payload": {
         "playerId": 1,
@@ -90663,6 +90717,12 @@
           347,
           391
         ]
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
       }
     },
     {
@@ -92547,12 +92607,6 @@
       }
     },
     {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
       "type": "wallPlaced",
       "payload": {
         "playerId": 1,
@@ -92561,6 +92615,12 @@
           110,
           65
         ]
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
       }
     },
     {
@@ -97068,12 +97128,6 @@
       }
     },
     {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
       "type": "wallPlaced",
       "payload": {
         "playerId": 0,
@@ -97083,6 +97137,12 @@
           1231,
           1186
         ]
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
       }
     },
     {
@@ -97949,6 +98009,20 @@
       }
     },
     {
+      "type": "phaseEnd",
+      "payload": {
+        "phase": "WALL_BUILD",
+        "round": 4
+      }
+    },
+    {
+      "type": "phaseStart",
+      "payload": {
+        "phase": "ROUND_END",
+        "round": 4
+      }
+    },
+    {
       "type": "scoreOverlayStart",
       "payload": {
         "round": 4
@@ -98677,7 +98751,7 @@
     {
       "type": "phaseEnd",
       "payload": {
-        "phase": "WALL_BUILD",
+        "phase": "ROUND_END",
         "round": 5
       }
     },
@@ -98696,6 +98770,12 @@
         "round": 5,
         "subtitle": "Position inside fort walls",
         "text": "Place Cannons"
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
       }
     },
     {
@@ -106886,15 +106966,15 @@
       }
     },
     {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
       "type": "battleAim",
       "payload": {
         "round": 5
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
       }
     },
     {
@@ -108880,12 +108960,6 @@
       }
     },
     {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
       "type": "wallDestroyed",
       "payload": {
         "col": 25,
@@ -108893,6 +108967,12 @@
         "row": 2,
         "shooterCannonIdx": 4,
         "shooterId": 0
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
       }
     },
     {
@@ -109990,12 +110070,6 @@
       }
     },
     {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
       "type": "cannonFired",
       "payload": {
         "cannonIdx": 6,
@@ -110015,6 +110089,12 @@
         "targetX": 344,
         "targetY": 296,
         "vy0": 209.83760138906175
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
       }
     },
     {
@@ -111833,12 +111913,6 @@
       }
     },
     {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
       "type": "cannonFired",
       "payload": {
         "cannonIdx": 10,
@@ -111858,6 +111932,12 @@
         "targetX": 360,
         "targetY": 344,
         "vy0": 223.0275100607601
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
       }
     },
     {
@@ -113472,12 +113552,6 @@
       }
     },
     {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
       "type": "cannonDamaged",
       "payload": {
         "cannonIdx": 10,
@@ -113485,6 +113559,12 @@
         "playerId": 2,
         "shooterCannonIdx": 8,
         "shooterId": 0
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
       }
     },
     {
@@ -118892,12 +118972,6 @@
       }
     },
     {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
       "type": "wallPlaced",
       "payload": {
         "playerId": 1,
@@ -118926,6 +119000,12 @@
         "round": 5,
         "row": 15,
         "source": "zone-pick"
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
       }
     },
     {
@@ -124203,14 +124283,22 @@
       }
     },
     {
-      "type": "tick",
+      "type": "roundEnd",
       "payload": {
-        "dt": 0.016666666666666666
+        "round": 5
       }
     },
     {
-      "type": "roundEnd",
+      "type": "phaseEnd",
       "payload": {
+        "phase": "WALL_BUILD",
+        "round": 5
+      }
+    },
+    {
+      "type": "phaseStart",
+      "payload": {
+        "phase": "ROUND_END",
         "round": 5
       }
     },
@@ -124218,6 +124306,12 @@
       "type": "scoreOverlayStart",
       "payload": {
         "round": 5
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
       }
     },
     {

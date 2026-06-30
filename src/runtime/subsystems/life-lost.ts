@@ -43,39 +43,37 @@ export interface RuntimeLifeLost {
    *  also clears any pending `onResolved` callback so a force-clear
    *  (rematch, host-promote) can't fire it later. */
   set: (d: LifeLostDialogState | null) => void;
-  /** Drive the life-lost flow to completion: create the dialog, then
-   *  either resolve immediately (no entries — nothing was lost), hold a
-   *  button-less "Eliminated" notice for a short dwell when every entry is
-   *  pre-resolved (only eliminations, no Continue/Abandon), or show the
-   *  interactive modal and wait for `tick` to resolve every entry. The
-   *  `onResolved(continuing, abandoned)` callback fires exactly once.
-   *  The CALLER eliminates abandoned players and routes the next phase
-   *  (game-over / reselect / continue) — see the ROUND_END postDisplay
-   *  in the phase machine. PoV auto-zoom side effects still happen
-   *  inside this flow.
+  /** Build + show the life-lost dialog: create the dialog, then either
+   *  hold a button-less "Eliminated" notice for a short dwell when every
+   *  entry is pre-resolved (only eliminations, no Continue/Abandon), or
+   *  show the interactive modal that `tick` drives to resolution. PoV
+   *  auto-zoom side effects happen inside this flow.
+   *
+   *  Self-driving: the caller (`tickRoundEndPhase`) polls `isResolved()`
+   *  and reads the result via `takeResolution()` — no armed callback that
+   *  promotion teardown could orphan.
    *
    *  Wire-arrived choices that landed before the dialog was built are
    *  drained inside `show()` via `OnlineDialogDrains.drainLifeLost`
    *  (online wiring only).
    *
-   *  Returns true when a dialog was actually shown. */
+   *  Returns true when a dialog was actually shown — false when there were
+   *  no entries at all (nothing lost), in which case the caller exits the
+   *  round-end window immediately. */
   show: (
     needsReselect: readonly ValidPlayerId[],
     eliminated: readonly ValidPlayerId[],
-    onResolved: (
-      continuing: readonly ValidPlayerId[],
-      abandoned: readonly ValidPlayerId[],
-    ) => void,
   ) => boolean;
   tick: (dt: number) => void;
-  /** Resolve an open dialog immediately: pending entries are written as
-   *  CONTINUE, then the armed `onResolved` callback fires with the final
-   *  lists, exactly as the tick loop would. No-op when no dialog is open.
-   *  Host-promotion repair (`forceResolveRoundEndPhase`) — CONTINUE, not
-   *  the max-timer backstop's ABANDON: that backstop is an
-   *  unresponsiveness penalty, and a host disconnect is not the
-   *  remaining players' fault. */
-  forceResolveAll: () => void;
+  /** True once every entry has resolved (and the eliminated-only notice
+   *  dwell, if any, has elapsed). Polled by the round-end tick. */
+  isResolved: () => boolean;
+  /** Read the final continue/abandon lists and tear the dialog down. Call
+   *  only after `isResolved()` returns true. */
+  takeResolution: () => {
+    continuing: readonly ValidPlayerId[];
+    abandoned: readonly ValidPlayerId[];
+  };
   panelPos: (playerId: ValidPlayerId) => { px: number; py: number };
 }
 
@@ -109,19 +107,6 @@ interface LifeLostSystemDeps {
   ) => void;
 }
 
-/** Callback signature used by every resolution path (immediate skip
- *  or dialog-tick). Receives the lists of CONTINUE and ABANDON resolutions;
- *  the caller (phase machine) eliminates abandoned players and routes the
- *  next transition based on `continuing`. The subsystem deliberately does
- *  NOT call `eliminatePlayers` itself — mirrors how upgrade-pick hands the
- *  resolved dialog back via `OnUpgradePickResolved` and lets the phase
- *  machine's `runPickerModalThenDispatch` apply the picks. Both
- *  subsystems produce resolutions; the phase machine applies them. */
-type OnLifeLostResolved = (
-  continuing: readonly ValidPlayerId[],
-  abandoned: readonly ValidPlayerId[],
-) => void;
-
 /** Extended return type: RuntimeLifeLost + extras for game-runtime wiring. */
 export type LifeLostSystem = RuntimeLifeLost & {
   sendLifeLostChoice: (
@@ -143,11 +128,6 @@ export type LifeLostSystem = RuntimeLifeLost & {
 export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
   const { runtimeState } = deps;
 
-  /** Set when a dialog is shown; cleared once resolution fires. The
-   *  tick loop reads it to invoke the caller's onResolved callback.
-   *  Tick is gated on Mode.LIFE_LOST. */
-  let onResolvedCb: OnLifeLostResolved | undefined;
-
   /** Seconds remaining on the eliminated-only "Eliminated" notice dwell.
    *  Set in `show()` when every entry is already resolved (only
    *  eliminations, no interactive Continue/Abandon) but there IS a panel
@@ -164,23 +144,22 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
    *  scheduled apply fires, wholesale on dialog teardown. */
   const inFlightChoices = new Set<ValidPlayerId>();
 
-  /** Drive the life-lost flow to completion. Resolves immediately when
-   *  there's nothing to show (`onResolved([], [])`); holds a button-less
-   *  "Eliminated" notice for a short dwell when every entry is
-   *  pre-resolved (only eliminations); otherwise shows the interactive
-   *  modal and calls `onResolved(continuing, abandoned)` once the dialog's
-   *  tick loop resolves every entry. The caller is responsible for
-   *  eliminating abandoned players.
+  /** Build + show the life-lost dialog. Holds a button-less "Eliminated"
+   *  notice for a short dwell when every entry is pre-resolved (only
+   *  eliminations); otherwise shows the interactive modal that `tick`
+   *  drives to resolution. The caller polls `isResolved()` +
+   *  `takeResolution()` and is responsible for eliminating abandoned
+   *  players.
    *
    *  Drains queued early-arrived wire choices (online only) before
    *  returning, so the dialog's first tick observes them as if they
    *  arrived after the dialog opened.
    *
-   *  Returns true when a dialog was actually shown. */
+   *  Returns true when a dialog was actually shown; false when there were
+   *  no entries at all (nothing lost this round). */
   function show(
     needsReselect: readonly ValidPlayerId[],
     eliminated: readonly ValidPlayerId[],
-    onResolved: OnLifeLostResolved,
   ): boolean {
     const remotePlayerSlots = runtimeState.frameMeta.remotePlayerSlots;
     deps.log(
@@ -197,9 +176,8 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
     if (isLifeLostAllResolved(dialog)) {
       if (dialog.entries.length === 0) {
         // Nothing to show — no life lost this round, or a game-over with
-        // no elimination. Resolve immediately.
+        // no elimination. Caller exits the round-end window immediately.
         deps.log("show lifeLost: no entries, skipping dialog");
-        onResolved(continuingPlayers(dialog), abandonedPlayers(dialog));
         return false;
       }
       // Eliminated-only: a player lost their last life but there's no
@@ -210,13 +188,11 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
       // flashing for one frame. See `noticeDwellRemaining`.
       deps.log("show lifeLost: eliminated-only notice, dwelling");
       runtimeState.dialogs.lifeLost = dialog;
-      onResolvedCb = onResolved;
       setMode(runtimeState, Mode.LIFE_LOST);
       noticeDwellRemaining = LIFE_LOST_AUTO_DELAY;
       return true;
     }
     runtimeState.dialogs.lifeLost = dialog;
-    onResolvedCb = onResolved;
     setMode(runtimeState, Mode.LIFE_LOST);
     deps.applyEarlyChoices?.((playerId, choice, round) => {
       // Stale-round guard: a choice whose applyAt landed after its own
@@ -236,29 +212,26 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
   }
 
   /**
-   * Tick the life-lost dialog; when every entry is resolved, hand the
-   * continuing + abandoned lists back through `onResolved` so the caller
-   * can eliminate abandoned players and route the next transition. The
-   * callback chain is synchronous: postDisplay runs inline, dispatches
-   * the next transition, and that transition's setMode call overwrites
-   * Mode.LIFE_LOST before any frame renders.
+   * Tick the life-lost dialog: advance the eliminated-only notice dwell
+   * or drive the interactive entries toward resolution. Does NOT resolve
+   * the dialog — the self-driving `tickRoundEndPhase` polls `isResolved()`
+   * and reads the result via `takeResolution()`.
    */
   function tickLifeLostDialogSystem(dt: number) {
     const dialog = runtimeState.dialogs.lifeLost;
     if (!dialog) return;
 
     // Eliminated-only notice: no interactive entries to tick — hold the
-    // panel for the dwell, then resolve (each entry is already ABANDON).
+    // panel for the dwell (each entry is already ABANDON).
     if (noticeDwellRemaining > 0) {
       dialog.timer += dt;
       noticeDwellRemaining -= dt;
       deps.requestRender();
-      if (noticeDwellRemaining <= 0) resolveDialogNow(dialog);
       return;
     }
 
     const state = runtimeState.state;
-    const dialogResolved = tickLifeLostDialog(
+    tickLifeLostDialog(
       dialog,
       dt,
       LIFE_LOST_MAX_TIMER,
@@ -273,44 +246,34 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
     );
 
     deps.requestRender();
+  }
 
-    if (!dialogResolved) return;
+  /** True once every entry has resolved and any eliminated-only notice
+   *  dwell has elapsed. Polled by `tickRoundEndPhase`. */
+  function isResolved(): boolean {
+    const dialog = runtimeState.dialogs.lifeLost;
+    if (!dialog) return false;
+    if (noticeDwellRemaining > 0) return false;
+    return isLifeLostAllResolved(dialog);
+  }
 
+  /** Compute the final continue/abandon lists and tear the dialog down.
+   *  Call only after `isResolved()` returns true. */
+  function takeResolution(): {
+    continuing: readonly ValidPlayerId[];
+    abandoned: readonly ValidPlayerId[];
+  } {
+    const dialog = runtimeState.dialogs.lifeLost;
+    if (!dialog) return { continuing: [], abandoned: [] };
+    const continuing = continuingPlayers(dialog);
+    const abandoned = abandonedPlayers(dialog);
     deps.log(
       `lifeLostDialog resolved: ${dialog.entries.map((e) => `P${e.playerId}=${e.choice}(auto=${e.autoResolve})`).join(", ")} timer=${dialog.timer.toFixed(1)}s`,
     );
-
-    resolveDialogNow(dialog);
-  }
-
-  /** Shared resolution tail: compute the final lists, tear the dialog
-   *  down, fire the armed callback once. Reached by the tick loop (every
-   *  entry resolved) and by `forceResolveAll` (host-promotion
-   *  fast-forward). */
-  function resolveDialogNow(dialog: LifeLostDialogState): void {
-    const continuing = continuingPlayers(dialog);
-    const abandoned = abandonedPlayers(dialog);
     runtimeState.dialogs.lifeLost = null;
     noticeDwellRemaining = 0;
     inFlightChoices.clear();
-
-    const callback = onResolvedCb;
-    onResolvedCb = undefined;
-    callback?.(continuing, abandoned);
-  }
-
-  function forceResolveAll(): void {
-    const dialog = runtimeState.dialogs.lifeLost;
-    if (!dialog) return;
-    for (const entry of dialog.entries) {
-      if (entry.choice === LifeLostChoice.PENDING) {
-        applyLifeLostChoice(entry, LifeLostChoice.CONTINUE);
-      }
-    }
-    deps.log(
-      `lifeLostDialog force-resolved: ${dialog.entries.map((e) => `P${e.playerId}=${e.choice}`).join(", ")}`,
-    );
-    resolveDialogNow(dialog);
+    return { continuing, abandoned };
   }
 
   /** Max-timer force-resolve, ownership-routed. The entry's OWNING peer
@@ -415,14 +378,14 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
     set: (dialog: LifeLostDialogState | null) => {
       runtimeState.dialogs.lifeLost = dialog;
       if (dialog === null) {
-        onResolvedCb = undefined;
         noticeDwellRemaining = 0;
         inFlightChoices.clear();
       }
     },
     show,
     tick: tickLifeLostDialogSystem,
-    forceResolveAll,
+    isResolved,
+    takeResolution,
     panelPos: deps.panelPos,
     // Extra — needed by game-runtime internals
     sendLifeLostChoice: deps.sendLifeLostChoice,

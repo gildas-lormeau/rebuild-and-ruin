@@ -576,17 +576,17 @@ Deno.test(
   },
 );
 
-// ── FULL_STATE mid-score-overlay must not double-fire the display chain ──
+// ── FULL_STATE mid-score-overlay converges without re-running round-end ──
 // At host migration every surviving peer adopts the new host's FULL_STATE
-// (phase WALL_BUILD, timer 0 when the old host died inside a round-end
-// display) and re-dispatches `round-end` on its next tick. When the apply
-// lands while the peer's OWN score overlay is still ticking, the re-run's
-// `scoreDelta.show()` must REPLACE the in-flight overlay (banner-style):
-// keeping the stale continuation armed fires BOTH display chains — the
-// stale one then routes `advance-to-cannon` from the phase the fresh chain
-// already advanced, and the phase machine's source-phase guard throws.
+// (phase ROUND_END when the old host died inside the round-end window).
+// ROUND_END is a real self-driving phase, so the adopter does NOT
+// re-dispatch `enter-round-end` (that only fires from WALL_BUILD via
+// `tickBuildPhase`); `tickGame` routes ROUND_END → `tickRoundEndPhase`,
+// which resumes the in-flight overlay and drives the exit. This guards
+// that an apply landing mid-overlay still ticks cleanly through to the
+// next phase (no double-finalizeRound, no source-phase-guard throw).
 Deno.test(
-  "running watcher adopting FULL_STATE mid-score-overlay does not double-fire the display chain",
+  "running watcher adopting FULL_STATE mid-score-overlay does not re-run round-end",
   async () => {
     const { host, watcher, pump } = await createNetworkedPair({
       seed: 42,
@@ -617,8 +617,8 @@ Deno.test(
     }
     assertEquals(
       watcher.state.phase,
-      Phase.WALL_BUILD,
-      "precondition: round-end displays with the phase still at WALL_BUILD",
+      Phase.ROUND_END,
+      "precondition: the round-end window runs in Phase.ROUND_END",
     );
 
     // Migration-style apply landing mid-overlay.
@@ -626,15 +626,16 @@ Deno.test(
       createFullStateMessage(host.state, 1) as ServerMessage,
     );
 
-    // The watcher re-runs round-end from the restored snapshot. Tick it
-    // alone (the experiment forks it from the host) through the replacement
-    // overlay and the life-lost step; a stale second continuation throws
-    // the source-phase guard inside tick().
+    // The watcher resumes the round-end window from the restored snapshot.
+    // Tick it alone (the experiment forks it from the host) through the
+    // overlay and the life-lost beat to the next phase; `tickRoundEndPhase`
+    // must NOT re-enter `enter-round-end` (that would re-run finalizeRound
+    // and throw the source-phase guard on the routed exit).
     let ticks = 0;
-    while (watcher.state.phase === Phase.WALL_BUILD) {
+    while (watcher.state.phase === Phase.ROUND_END) {
       watcher.tick(1);
       if (++ticks > 60_000) {
-        throw new Error("watcher never advanced past WALL_BUILD");
+        throw new Error("watcher never advanced past ROUND_END");
       }
     }
     // Run well past the original overlay's expiry so a stale continuation
@@ -1330,21 +1331,18 @@ Deno.test(
   },
 );
 
-// ── Promotion fast-forward into a reselect cycle ─────────────────────
-// A promotion landing in the round-end display chain fast-forwards it
-// (resolveRoundEndNow); when the routing enters a reselect cycle, the
-// AI selection arming draws state.rng (chooseBestTower + browse plan +
-// delays) BEFORE the FULL_STATE serialize — so the snapshot carries the
-// post-draw cursor. An adopter parked in its OWN round-end display
-// never entered the cycle locally; its adoption entry re-runs the same
-// arming AFTER applying, drawing again from the already-advanced
-// cursor: a one-sided rng fork in every reselect with an AI seat. The
-// serialize-first/draw-after contract requires every peer to draw the
-// arming from the snapshot cursor — the promoted host re-arms
-// post-serialize, adopters at the entry/re-arm — superseding any
-// pre-serialize draws.
+// ── Promotion into the ROUND_END window before a reselect cycle ──────
+// A promotion landing in the round-end window serializes at Phase.ROUND_END
+// — BEFORE the reselect cycle's AI selection arming draws state.rng
+// (chooseBestTower + browse plan + delays). So every peer (the promoted
+// host AND every adopter) re-ticks the rebuilt life-lost dialog to a
+// CONTINUE, enters the reselect, and draws the arming from the SAME
+// snapshot cursor. This is the serialize-first/draw-after contract: with
+// the serialize point moved ahead of the arming, there is no
+// promoted-drew-pre-serialize / adopter-drew-post-serialize asymmetry to
+// fork — both draw post-adopt.
 Deno.test(
-  "promotion fast-forwarded into a reselect keeps survivors in rng parity",
+  "promotion into the round-end window before a reselect keeps survivors in rng parity",
   async () => {
     // Registry-driven (`selection:reselect-cycle`): a classic seed whose
     // round-end shows the life-lost dialog → reselect. `npm run record-seeds`
@@ -1382,15 +1380,15 @@ Deno.test(
     await observer.deliverMessage(hostLeft);
     await pumpPromoted();
 
-    // Sanity: the fast-forward routed into the reselect cycle and the
-    // observer adopted it (it was parked in its own dialog — the
-    // never-entered-locally shape).
-    assertEquals(Phase[promotable.state.phase], Phase[Phase.CASTLE_SELECT]);
-    assertEquals(Phase[observer.state.phase], Phase[Phase.CASTLE_SELECT]);
+    // Promotion stays in the self-driving ROUND_END window (no fast-forward);
+    // the observer adopts the same ROUND_END snapshot. Both re-tick the
+    // rebuilt dialog into the reselect cycle below.
+    assertEquals(Phase[promotable.state.phase], Phase[Phase.ROUND_END]);
+    assertEquals(Phase[observer.state.phase], Phase[Phase.ROUND_END]);
 
-    // Run the survivors through the reselect and the following round —
-    // the double-drawn arming forks the shared cursor immediately, and
-    // the diverged castle plans/walls follow.
+    // Run the survivors through the reselect and the following round — a
+    // double-drawn arming would fork the shared cursor immediately, and
+    // the diverged castle plans/walls would follow.
     for (let i = 0; i < 3600; i++) {
       promotable.tick(1);
       await pumpPromoted();
@@ -1466,7 +1464,10 @@ Deno.test(
     observer.tick(90);
     await observer.deliverMessage(hostLeft);
     await pumpPromoted();
-    assertEquals(Phase[observer.state.phase], Phase[Phase.CASTLE_SELECT]);
+    // The adoption rewinds the observer from its local CASTLE_SELECT back to
+    // the promoted host's ROUND_END snapshot; both re-tick into the reselect
+    // from the same cursor below.
+    assertEquals(Phase[observer.state.phase], Phase[Phase.ROUND_END]);
 
     for (let i = 0; i < 3600; i++) {
       promotable.tick(1);
@@ -2074,7 +2075,7 @@ function assertPlayersConverge(
 }
 
 Deno.test(
-  "watcher promoted during the round-end score overlay routes past round-end",
+  "watcher promoted during the round-end score overlay converges through the window",
   async () => {
     const pair = await createNetworkedPair({
       seed: 1,
@@ -2089,7 +2090,7 @@ Deno.test(
       pair,
       (watcher) =>
         overlaySeen &&
-        watcher.state.phase === Phase.WALL_BUILD &&
+        watcher.state.phase === Phase.ROUND_END &&
         watcher.mode() === Mode.TRANSITION,
       "score-overlay window",
     );
@@ -2097,7 +2098,7 @@ Deno.test(
 );
 
 Deno.test(
-  "watcher promoted during the life-lost dialog force-continues into reselect",
+  "watcher promoted during the life-lost dialog re-ticks into reselect",
   async () => {
     // Registry-driven (`selection:reselect-cycle`): a classic seed whose
     // round-end shows the life-lost dialog → reselect. `npm run record-seeds`
@@ -2116,15 +2117,17 @@ Deno.test(
       (watcher) => watcher.mode() === Mode.LIFE_LOST,
       "dialog window",
     );
-    // A visible dialog implies pending (= reselect-eligible) entries; the
-    // repair forces CONTINUE, so the route must be the reselect cycle and
-    // the snapshot must carry it.
-    assertEquals(fullState.phase, Phase[Phase.CASTLE_SELECT]);
+    // Promotion stays in the self-driving ROUND_END window — the FULL_STATE
+    // carries it, and the promoted peer re-ticks the rebuilt dialog to a
+    // CONTINUE that enters the reselect cycle. A visible dialog implies
+    // pending (= reselect-eligible) entries; by the time the helper returns
+    // (next battle reached) those players have re-picked their castle.
+    assertEquals(fullState.phase, Phase[Phase.ROUND_END]);
     assert(reselectPids.length > 0, "dialog window implies reselect entries");
     for (const pid of reselectPids) {
       assert(
         pair.watcher.state.players[pid]!.homeTower !== null,
-        `P${pid} must have re-picked a castle after the forced CONTINUE`,
+        `P${pid} must have re-picked a castle after the dialog resolved`,
       );
     }
   },
@@ -2137,11 +2140,11 @@ async function promoteWatcherDuringRoundEnd(
 ): Promise<FullStateMessage> {
   const { watcher } = pair;
   await runPairUntil(pair, () => windowReached(watcher), label);
-  // round++ is deferred out of round-end's mutate to the post-dialog
-  // routing (`resolveAfterLifeLost`), so mid-window the round is still the
-  // CLOSING round. The promotion fast-forward runs that routing and
-  // advances it exactly once; a re-dispatched mutate would advance it a
-  // SECOND time (caught by the `roundAtWindow + 1` assertion below).
+  // round++ is deferred out of round-end to the post-dialog exit
+  // (`exitRoundEnd`), so mid-window the round is still the CLOSING round.
+  // The promoted peer resumes the self-driving window and advances it
+  // exactly once at the exit; a re-run of `enter-round-end` would advance
+  // it a SECOND time (caught by the `roundAtWindow + 1` assertion below).
   const roundAtWindow = watcher.state.round as number;
   const livesAtWindow = watcher.state.players.map((p) => p.lives);
   let roundEndsAfterWindow = 0;
@@ -2157,13 +2160,16 @@ async function promoteWatcherDuringRoundEnd(
     disconnectedPlayerId: null,
   } as ServerMessage);
 
-  // The repair must route past round-end before broadcasting — a snapshot
-  // parked at WALL_BUILD timer=0 makes every applying watcher re-dispatch
-  // round-end and double-run its mutate.
-  assert(
-    watcher.state.phase !== Phase.WALL_BUILD,
-    `${label}: promotion must route past round-end ` +
-      `(phase=${Phase[watcher.state.phase]})`,
+  // ROUND_END is self-driving: promotion does NOT route past the window.
+  // The generic teardown drops the overlay/dialog and forces Mode.GAME; the
+  // phase stays ROUND_END and the FULL_STATE carries it. `tickRoundEndPhase`
+  // then rebuilds the dialog and drives the exit on the next ticks — no
+  // re-run of `enter-round-end`, so finalizeRound's life penalties don't
+  // re-apply.
+  assertEquals(
+    watcher.state.phase,
+    Phase.ROUND_END,
+    `${label}: promotion stays in the self-driving ROUND_END window`,
   );
   const fullState = watcher.sentMessages
     .slice(sentBefore)
@@ -2171,10 +2177,10 @@ async function promoteWatcherDuringRoundEnd(
     | FullStateMessage
     | undefined;
   assert(fullState, `${label}: promotion must broadcast FULL_STATE`);
-  assert(
-    fullState.phase !== Phase[Phase.WALL_BUILD],
-    `${label}: FULL_STATE must carry the routed phase, not the closed ` +
-      `WALL_BUILD`,
+  assertEquals(
+    fullState.phase,
+    Phase[Phase.ROUND_END],
+    `${label}: FULL_STATE must carry the ROUND_END window phase`,
   );
   assertEquals(
     watcher.state.players.map((p) => p.lives),
@@ -2183,7 +2189,7 @@ async function promoteWatcherDuringRoundEnd(
   );
 
   // The promoted peer runs the match alone — it must reach the next
-  // battle WITHOUT closing another round on the way (a re-dispatched
+  // battle WITHOUT closing another round on the way (a re-run of
   // round-end emits a second ROUND_END and skips a round number).
   let battleReached = false;
   watcher.bus.on(GAME_EVENT.PHASE_START, (ev) => {

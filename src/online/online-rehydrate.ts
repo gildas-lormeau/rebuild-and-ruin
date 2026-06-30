@@ -375,5 +375,9 @@ function resolveModeAfterFullState(phase: Phase, hasBalloons: boolean): Mode {
   if (phase === Phase.CASTLE_SELECT) return Mode.SELECTION;
   if (phase === Phase.UPGRADE_PICK) return Mode.UPGRADE_PICK;
   if (phase === Phase.BATTLE && hasBalloons) return Mode.BALLOON_ANIM;
+  // ROUND_END falls through to Mode.GAME on purpose: `tickGame`'s ROUND_END
+  // branch re-enters the self-driving `tickRoundEndPhase`, which skips the
+  // (un-reconstructable) score overlay and rebuilds the life-lost dialog
+  // beat from re-derived routing — see `deriveRoundEndRouting`.
   return Mode.GAME;
 }

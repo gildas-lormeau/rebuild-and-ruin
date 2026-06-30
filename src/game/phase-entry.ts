@@ -84,6 +84,17 @@ export function enterBattlePhase(state: GameState): void {
   state.timer = BATTLE_TIMER;
 }
 
+/** Flip to ROUND_END — the self-driving round-close window. Primes no
+ *  entry-time game state: the window has no `state.timer` (its score-overlay
+ *  + life-lost beats are runtime-driven by `tickRoundEndPhase`), and the
+ *  round-close engine work (`finalizeRound`) ran in the same `enter-round-end`
+ *  mutate just before this flip. The helper exists as the sole sanctioned
+ *  `setPhase` caller for this phase. The round number stays at the closing
+ *  value through the whole window — the advance is deferred to the exit. */
+export function enterRoundEndPhase(state: GameState): void {
+  setPhase(state, Phase.ROUND_END);
+}
+
 /** Flip to UPGRADE_PICK. Unlike the other enter helpers this primes no
  *  entry-time game state, because UPGRADE_PICK has none: its countdown is a
  *  runtime dialog timer (not `state.timer`), its offers were generated a

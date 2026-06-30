@@ -291,13 +291,22 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
         selection.tick(dt);
         return;
       case Mode.TRANSITION:
-        tickBanner(dt);
+        // The ROUND_END score-overlay beat runs in Mode.TRANSITION but is
+        // not a banner — route it to the self-driving round-end tick.
+        if (runtimeState.state.phase === Phase.ROUND_END) {
+          phaseTicks.tickRoundEndPhase(dt);
+        } else {
+          tickBanner(dt);
+        }
         return;
       case Mode.BALLOON_ANIM:
         phaseTicks.tickBalloonAnim(dt);
         return;
       case Mode.LIFE_LOST:
-        lifeLost.tick(dt);
+        // ROUND_END's life-lost dialog beat — self-driving (drives the
+        // dialog tick AND polls for the exit). Mode.LIFE_LOST is
+        // round-end-only.
+        phaseTicks.tickRoundEndPhase(dt);
         return;
       case Mode.UPGRADE_PICK:
         // Self-driving like the timed phases: phase-ticks ticks the dialog
@@ -942,7 +951,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     phaseTicks: {
       restoreUpgradePickPhase: phaseTicks.restoreUpgradePickPhase,
       skipBattleIntro: phaseTicks.skipBattleIntro,
-      resolveRoundEndNow: phaseTicks.resolveRoundEndNow,
     },
     music: {
       activate: audio.music.activate,

@@ -9,11 +9,10 @@
 
 import {
   applyUpgradePicks,
-  eliminatePlayers,
-  emitRoundStart,
   enterBattlePhase,
   enterCannonPhase,
   enterModifierRevealPhase,
+  enterRoundEndPhase,
   enterUpgradePickPhase,
   enterWallBuildPhase,
   finalizeBattle,
@@ -22,7 +21,6 @@ import {
   finalizeRound,
   finalizeRoundCleanup,
   type GameOverOutcome,
-  peekGameOverOutcome,
   prepareBattle,
   prepareNextRound,
   recheckTerritory,
@@ -43,7 +41,7 @@ import {
   modifierDef,
 } from "../shared/core/modifier-defs.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
-import { advanceRound, type GameState } from "../shared/core/types.ts";
+import type { GameState } from "../shared/core/types.ts";
 import { snapshotAllWalls } from "../shared/sim/board-occupancy.ts";
 import { clearAllPlayerBags } from "../shared/sim/player-bag.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
@@ -58,14 +56,13 @@ import {
   BANNER_UPGRADE_PICK_SUB,
 } from "./banner-messages.ts";
 import type { BannerShow } from "./banner-state.ts";
-import { resolveAfterLifeLost } from "./dialogs/life-lost-core.ts";
 import type { RuntimeState } from "./state.ts";
 
 type TransitionId =
   | "castle-done"
   | "advance-to-cannon"
   | "enter-cannon-place"
-  | "round-end"
+  | "enter-round-end"
   | "cannon-place-done"
   | "enter-modifier-reveal"
   | "enter-battle"
@@ -82,41 +79,27 @@ type TransitionId =
 interface TransitionResult {
   readonly modifierDiff: ModifierDiff | null;
   readonly flights: readonly BalloonFlight[];
-  readonly needsReselect?: readonly ValidPlayerId[];
-  readonly eliminated?: readonly ValidPlayerId[];
-  /** Populated by the `life-lost-dialog` display step once the dialog
-   *  resolves (or immediately, for the all-pre-resolved path). Read by
-   *  `ROUND_END`'s postDisplay to route via `resolveAfterLifeLost`.
-   *  Mutable because it's written AFTER the mutate fn returns. */
-  continuing?: readonly ValidPlayerId[];
-  /** Set by `ROUND_END`'s mutate when `peekGameOverOutcome` detects the
-   *  match has ended. Causes the `life-lost-dialog` step to short-circuit
-   *  (no popup) and the postDisplay to fire `onGameOver` directly. */
-  readonly gameOverOutcome?: GameOverOutcome;
 }
 
-type DisplayStep =
-  | {
-      readonly kind: "banner";
-      /** Banner identity — forwarded through `showBanner` onto every
-       *  BANNER_* event so consumers discriminate on this, not
-       *  `phase`/`text`. */
-      readonly bannerKind: BannerKind;
-      /** Static text, or a function of the current GameState (used by
-       *  the modifier-reveal banner which reads the modifier label from
-       *  `state.modern.activeModifier`). State is already fully populated
-       *  by the preceding mutate step on both host and watcher. */
-      readonly text: string | ((state: GameState) => string);
-      readonly subtitle?: string;
-      /** Opaque accent-palette key extractor. Used by the
-       *  modifier-reveal banner to recolor its chrome (title + border).
-       *  The banner system treats the result as a string the renderer
-       *  indexes into its palette table. Only set where a non-default
-       *  palette is wanted. */
-      readonly paletteKey?: (state: GameState) => string | undefined;
-    }
-  | { readonly kind: "score-overlay" }
-  | { readonly kind: "life-lost-dialog" };
+type DisplayStep = {
+  readonly kind: "banner";
+  /** Banner identity — forwarded through `showBanner` onto every
+   *  BANNER_* event so consumers discriminate on this, not
+   *  `phase`/`text`. */
+  readonly bannerKind: BannerKind;
+  /** Static text, or a function of the current GameState (used by
+   *  the modifier-reveal banner which reads the modifier label from
+   *  `state.modern.activeModifier`). State is already fully populated
+   *  by the preceding mutate step on both host and watcher. */
+  readonly text: string | ((state: GameState) => string);
+  readonly subtitle?: string;
+  /** Opaque accent-palette key extractor. Used by the
+   *  modifier-reveal banner to recolor its chrome (title + border).
+   *  The banner system treats the result as a string the renderer
+   *  indexes into its palette table. Only set where a non-default
+   *  palette is wanted. */
+  readonly paletteKey?: (state: GameState) => string | undefined;
+};
 
 /** Per-transition mutation. Same function runs on every peer. Game-state
  *  mutation is uniform; the only role-gated effect is wire emission via
@@ -191,57 +174,20 @@ export interface PhaseTransitionCtx {
   readonly log: (msg: string) => void;
 
   readonly scoreDelta: {
-    // The round's pre-scores are captured inline in ROUND_END's mutate
-    // (before `finalizeRound` mutates scores) and handed to `setPreScores`
-    // — there is no separate capture hook. Always provided, not optional.
+    // The round's pre-scores are captured inline in `enter-round-end`'s
+    // mutate (before `finalizeRound` mutates scores) and handed to
+    // `setPreScores` — there is no separate capture hook. `start` begins
+    // the overlay beat in the same transition's postDisplay; the
+    // self-driving `tickRoundEndPhase` then polls `isActive`.
     readonly setPreScores: (scores: readonly number[]) => void;
-    readonly show: (onDone: () => void) => void;
+    readonly start: () => void;
+    readonly isActive: () => boolean;
     readonly reset: () => void;
-    /** Fire an active overlay's continuation now (natural-expiry shape).
-     *  Used only by `forceResolveRoundEndPhase`. */
-    readonly finishNow: () => void;
   };
 
-  /** Life-lost dialog hooks. Only required for transitions whose `display`
-   *  array contains a `life-lost-dialog` step (round-end). Other
-   *  transitions may omit.
-   *
-   *  `show` drives the dialog to completion. It either resolves
-   *  immediately (no entries needed input) or shows the modal and
-   *  ticks it to resolution. Either way, `onResolved(continuing,
-   *  abandoned)` fires once. `runLifeLostDialogStep`'s wrapper calls
-   *  `eliminatePlayers(state, abandoned)` and stashes `continuing` on
-   *  `result`; `ROUND_END`'s postDisplay reads it and routes via
-   *  `resolveAfterLifeLost` + `ctx.lifeLostRoute`. */
-  readonly lifeLost?: {
-    readonly show: (
-      needsReselect: readonly ValidPlayerId[],
-      eliminated: readonly ValidPlayerId[],
-      onResolved: (
-        continuing: readonly ValidPlayerId[],
-        abandoned: readonly ValidPlayerId[],
-      ) => void,
-    ) => boolean;
-    /** Resolve an open dialog now (pending entries → CONTINUE), firing
-     *  the armed `onResolved`. Used only by `forceResolveRoundEndPhase`. */
-    readonly forceResolveAll: () => void;
-  };
-  /** Post-life-lost dispatch bundle. `ROUND_END`'s postDisplay runs
-   *  `resolveAfterLifeLost` with these three handlers — wired identically
-   *  on every peer (each handler dispatches the next transition or seeds
-   *  the reselect queue). Optional so transitions that don't include a
-   *  life-lost-dialog step can omit. */
-  readonly lifeLostRoute?: {
-    readonly onGameOver: (outcome: GameOverOutcome) => void;
-    readonly onReselect: (continuing: readonly ValidPlayerId[]) => void;
-    readonly onAdvance: () => void;
-  };
-  /** Notify a local controller that its player lost a life. Called per
-   *  affected player after the score overlay, before the dialog shows. */
-  readonly notifyLifeLost?: (pid: ValidPlayerId) => void;
   /** Finalize local controllers' build-phase bag state. Called from
-   *  `round-end`'s mutate on every peer, over the controllers this peer
-   *  drives (remote humans are skipped — their controllers re-init via
+   *  `enter-round-end`'s mutate on every peer, over the controllers this
+   *  peer drives (remote humans are skipped — their controllers re-init via
    *  startBuildPhase at next round). */
   readonly finalizeLocalControllersBuildPhase?: () => void;
   /** End-of-battle loop: per local controller, clear fire targets and reset
@@ -383,29 +329,25 @@ const EMPTY_TRANSITION_RESULT: TransitionResult = Object.freeze({
 });
 /** Discriminator values for `DisplayStep.kind`. */
 const STEP_BANNER = "banner" as const;
-const STEP_SCORE_OVERLAY = "score-overlay" as const;
-const STEP_LIFE_LOST_DIALOG = "life-lost-dialog" as const;
-/** `round-end` — end of WALL_BUILD (round closes here, after the score is finalized).
+/** `enter-round-end` — end of WALL_BUILD (round closes here, after the
+ *  score is finalized). Dispatched from `tickBuildPhase` at `timer <= 0`.
  *
- *  Mutate (every peer): finalizes local controllers' bag state, then runs
- *  the engine's `finalizeRound` (wall sweep + territory finalize + life
- *  penalties + grunt sweep). The host additionally broadcasts the BUILD_END
- *  phase marker, which non-host peers ignore on the wire — they ran
- *  `finalizeRound` from their own `round-end` tick.
+ *  Mutate (every peer): finalizes local controllers' bag state, runs the
+ *  engine's `finalizeRound` (territory finalize + life penalties), stashes
+ *  the resulting `{needsReselect, eliminated}` routing on `runtimeState`,
+ *  then enters Phase.ROUND_END. The host additionally broadcasts the
+ *  BUILD_END phase marker, which non-host peers ignore on the wire — they
+ *  ran `finalizeRound` from their own `enter-round-end` tick.
  *
- *  Display: score-overlay animation → life-lost-dialog step. The dialog
- *  step writes `result.continuing` once resolved (or immediately, for
- *  the all-pre-resolved path) and hands control to postDisplay.
- *
- *  postDisplay: runs `resolveAfterLifeLost` with `ctx.lifeLostRoute`'s
- *  three handlers — every peer dispatches the next transition (game-over
- *  / reselect / continue) identically.
- *
- *  This transition itself does NOT enter a new phase: the routed
- *  follow-up (castle-done / advance-to-cannon → enter-cannon-place, or
- *  game-over) flips it. */
-const ROUND_END: Transition = {
-  id: "round-end",
+ *  postDisplay: starts the score-delta overlay (the first ROUND_END beat).
+ *  From here ROUND_END is SELF-DRIVING: `tickRoundEndPhase` (phase-ticks)
+ *  drives the overlay beat → life-lost dialog beat → exit routing
+ *  (game-over / reselect / advance-to-cannon), re-derived from state every
+ *  frame, so a host-promoted peer resumes without a repair hatch. The
+ *  round number stays at the closing value through the window — the
+ *  advance + ROUND_START are deferred to the exit (`exitRoundEnd`). */
+const ENTER_ROUND_END: Transition = {
+  id: "enter-round-end",
   from: Phase.WALL_BUILD,
   mutate: (ctx) => {
     ctx.finalizeLocalControllersBuildPhase?.();
@@ -417,7 +359,7 @@ const ROUND_END: Transition = {
     // clear here closes that window — see `clearAllPlayerBags` docstring.
     clearAllPlayerBags(ctx.state);
     // Capture pre-scores BEFORE finalizeRound mutates them via
-    // territory + life-penalty point awards — score-overlay needs the
+    // territory + life-penalty point awards — the score overlay needs the
     // starting values for the delta animation.
     const preScores = ctx.state.players.map((player) => player.score);
     // Phase A only: scoring + life penalties. The wall sweep, dead-zone
@@ -429,34 +371,20 @@ const ROUND_END: Transition = {
     // `applyLifePenalties` inside finalizeRound already runs
     // `resetZoneState` for eliminated/reselect players — every peer
     // converges identically.
-    const { needsReselect, eliminated } = finalizeRound(ctx.state);
+    const routing = finalizeRound(ctx.state);
     ctx.scoreDelta.setPreScores(preScores);
+    // Stash the routing for the self-driving tick: the dialog beat reads
+    // it to build the life-lost entries, and the exit reads it. Runtime-
+    // only — a peer that ADOPTS a mid-ROUND_END snapshot re-derives
+    // `needsReselect` from the board instead (see `deriveRoundEndRouting`).
+    ctx.runtimeState.roundEnd = routing;
+    enterRoundEndPhase(ctx.state);
     ctx.broadcast?.buildEnd?.();
-    // Decide game-over BEFORE the life-lost popup. The interactive
-    // continue/abandon prompt is moot when the match is ending, so we
-    // carry NO `needsReselect` on this branch — but we DO carry
-    // `eliminated` so the life-lost-dialog step still shows the
-    // button-less "Eliminated" notice as its own beat (after the score
-    // overlay), telling the player who just lost their last life they're
-    // out before the game-over screen. With no interactive entry the
-    // dialog auto-resolves after a short dwell, then postDisplay routes
-    // straight to game-over. Tiebreak is score-only among alive players;
-    // eliminated players (lives = 0) are filtered out before the compare.
-    //
-    // The peek runs against the CLOSING round: `advanceRound` +
-    // ROUND_START are deferred out of this mutate to
-    // `routeLifeLostResolution`'s continue branch (after the dialog), so
-    // both this peek and the post-dialog recheck evaluate against the
-    // same round — collapsing the old `peekGameOverOutcome` /
-    // `peekLastPlayerStanding` split into one call used twice.
-    const gameOverOutcome = peekGameOverOutcome(ctx.state);
-    if (gameOverOutcome) {
-      return { ...EMPTY_TRANSITION_RESULT, gameOverOutcome, eliminated };
-    }
-    return { ...EMPTY_TRANSITION_RESULT, needsReselect, eliminated };
+    return EMPTY_TRANSITION_RESULT;
   },
-  display: [{ kind: STEP_SCORE_OVERLAY }, { kind: STEP_LIFE_LOST_DIALOG }],
-  postDisplay: routeLifeLostResolution,
+  display: [],
+  // Start the score-overlay beat. `tickRoundEndPhase` takes over from here.
+  postDisplay: (ctx) => ctx.scoreDelta.start(),
 };
 /** `battle-done` — BATTLE prep transition. Runs engine post-battle
  *  housekeeping in two halves: `finalizeBattle` (combo bonuses, battle
@@ -608,7 +536,9 @@ const ENTER_WALL_BUILD: Transition = {
  *  and flips to Mode.GAME. */
 const ENTER_CANNON_PLACE: Transition = {
   id: "enter-cannon-place",
-  from: [Phase.CASTLE_SELECT, Phase.WALL_BUILD],
+  // From `castle-done` (CASTLE_SELECT) or `advance-to-cannon` (ROUND_END —
+  // the round-close continue path).
+  from: [Phase.CASTLE_SELECT, Phase.ROUND_END],
   mutate: (ctx) => {
     enterCannonPhase(ctx.state);
     return EMPTY_TRANSITION_RESULT;
@@ -667,19 +597,22 @@ const CASTLE_DONE: Transition = {
   display: [],
   postDisplay: (ctx) => runTransitionInline("enter-cannon-place", ctx),
 };
-/** `advance-to-cannon` — WALL_BUILD prep transition, after the life-lost
- *  dialog resolves with "continue" (no reselect, no game over).
+/** `advance-to-cannon` — ROUND_END exit prep transition, after the
+ *  life-lost dialog resolves with "continue" (no reselect, no game over).
  *
  *  Unlike `castle-done`, this path has no fresh-castle prefix: there's no
  *  new castle to finalize and `finalizeRound` already ran inside the
- *  preceding `round-end` transition. The mutate runs `finalizeRoundCleanup`
- *  (Phase B sweeps) under the cannons banner reveal and broadcasts;
- *  `postDisplay` routes inline to `enter-cannon-place`.
+ *  preceding `enter-round-end` transition. The mutate runs
+ *  `finalizeRoundCleanup` (Phase B sweeps) under the cannons banner reveal
+ *  and broadcasts; `postDisplay` routes inline to `enter-cannon-place`.
  *
- *  Triggered from `routeLifeLostResolution`'s `onAdvance` callback. */
+ *  Triggered from `exitRoundEnd`'s `onAdvance` callback (phase-ticks). */
 const ADVANCE_TO_CANNON: Transition = {
   id: "advance-to-cannon",
-  from: Phase.WALL_BUILD,
+  // Dispatched from `exitRoundEnd`'s `onAdvance` while the phase is still
+  // ROUND_END (the advance + ROUND_START already ran; the phase flip to
+  // CANNON_PLACE is owned by the routed `enter-cannon-place`).
+  from: Phase.ROUND_END,
   mutate: (ctx) => {
     finalizeRoundCleanup(ctx.state);
     ctx.broadcast?.cannonStart?.();
@@ -814,7 +747,7 @@ const TRANSITIONS: readonly Transition[] = [
   CANNON_PLACE_DONE,
   ENTER_MODIFIER_REVEAL,
   ENTER_BATTLE,
-  ROUND_END,
+  ENTER_ROUND_END,
   BATTLE_DONE,
   CEASEFIRE,
   ENTER_UPGRADE_PICK,
@@ -876,41 +809,6 @@ export function runTransition(id: TransitionId, ctx: PhaseTransitionCtx): void {
   executeTransition(transition, ctx);
 }
 
-/** Force the round-end display chain to its conclusion. Host-promotion
- *  repair — see `RuntimePhaseTicks.resolveRoundEndNow`.
- *
- *  Round-end's mutate already ran at dispatch (finalizeRound + round++),
- *  but the transition does not flip the phase: the exit routing lives in
- *  postDisplay, reached only through the display chain (score-overlay
- *  continuation → life-lost dialog resolution). Tearing the chain down —
- *  the generic promotion teardown — orphans that routing; Mode.GAME's
- *  tickBuildPhase then re-dispatches round-end over the closed WALL_BUILD
- *  (timer 0) and re-runs its mutate: double life penalties, double
- *  territory scoring, a skipped round number. So fast-forward instead:
- *  finish the overlay (its continuation arms the dialog step
- *  synchronously), force-resolve the dialog, and let postDisplay route
- *  with the ORIGINAL mutate result — including the game-over outcome,
- *  which cannot be re-derived after round++ (re-running the round-limit
- *  peek against the advanced round would end the game a round early).
- *
- *  The routed `enter-cannon-place` banner is skipped like every promotion
- *  teardown: watchers adopt the FULL_STATE broadcast straight into a
- *  ticking mode, so the promoted peer must enter the same condition
- *  instead of dwelling in banner cosmetics. Hiding the banner drops its
- *  postDisplay continuation, so its body runs here. The reselect route
- *  needs no skip (`selection.enter` owns mode + timer; a reselect cycle
- *  shows no banner) and the game-over route tears itself down via
- *  `endGame`. */
-export function forceResolveRoundEndPhase(ctx: PhaseTransitionCtx): void {
-  ctx.scoreDelta.finishNow();
-  ctx.lifeLost?.forceResolveAll();
-  if (ctx.state.phase === Phase.CANNON_PLACE) {
-    ctx.hideBanner();
-    ctx.initLocalCannonControllers?.();
-    ctx.setMode(Mode.GAME);
-  }
-}
-
 /** Post-cannon-place prep route: dispatch to `enter-modifier-reveal`
  *  when a modifier was rolled (modern mode), otherwise straight to
  *  `enter-battle`. Shared between host and watcher — the host reads
@@ -947,64 +845,6 @@ function routePostBattleToBuild(ctx: PhaseTransitionCtx): void {
   const hasOffers = !!ctx.state.modern?.pendingUpgradeOffers;
   if (hasOffers) runTransitionInline("enter-upgrade-pick", ctx);
   else runTransitionInline("enter-wall-build", ctx);
-}
-
-/** Shared post-life-lost routing. Three branches:
- *
- *    1. `result.gameOverOutcome` set — the round-end mutate already
- *       detected game-over via `peekGameOverOutcome`. The life-lost
- *       popup was suppressed (its choice would be moot). Emit GAME_END
- *       NOW (after the score overlay, not at decision time so SFX
- *       observers fire in the right order) and dispatch onGameOver.
- *    2. the dialog's ABANDON/AFK eliminations just dropped the alive
- *       count to one or fewer — those land in the dialog's `finish`
- *       callback, AFTER the mutate's peek, so re-peek here. Without this
- *       the lone survivor plays a full pointless round (cannon, battle
- *       against nobody, build) before the next round-end notices. The
- *       round is still the CLOSING round (the advance below is deferred),
- *       so the full `peekGameOverOutcome` is safe to reuse: its
- *       round-limit branch was already false in the mutate and the round
- *       hasn't moved, so only a newly-created last-player-standing fires.
- *    3. otherwise — the dialog populated `result.continuing`. Advance the
- *       round (deferred from the mutate) + emit ROUND_START, then dispatch
- *       continue/reselect via `resolveAfterLifeLost`.
- *
- *  Route handlers (`onGameOver` / `onReselect` / `onAdvance`) are
- *  wired identically on every peer, so each peer dispatches the next
- *  transition locally; the dialog resolves with identical entries on
- *  every peer (lockstep choices), so branch 2 fires identically too. */
-function routeLifeLostResolution(
-  ctx: PhaseTransitionCtx,
-  result: TransitionResult,
-): void {
-  const route = ctx.lifeLostRoute;
-  if (!route) return;
-  if (result.gameOverOutcome) {
-    // GAME_END is emitted by the single `finalizeGameOver` chokepoint (reached
-    // via `onGameOver` → game-over transition → endGame), NOT here — so a
-    // watcher whose local round-end is preempted by the wire GAME_OVER still
-    // emits it. See game-lifecycle.ts:finalizeGameOver.
-    route.onGameOver(result.gameOverOutcome);
-    return;
-  }
-  const lateOutcome = peekGameOverOutcome(ctx.state);
-  if (lateOutcome) {
-    route.onGameOver(lateOutcome);
-    return;
-  }
-  // Game continues — advance the round and emit ROUND_START now, deferred
-  // from the round-end mutate so the game-over peeks above evaluate
-  // against the closing round. gruntSpawnSeq deliberately keeps advancing
-  // (cross-round first-spawn rotation); only the per-round used-tile set
-  // resets (the within-round no-cluster guarantee).
-  advanceRound(ctx.state);
-  ctx.state.gruntSpawnUsedTiles.clear();
-  emitRoundStart(ctx.state);
-  resolveAfterLifeLost({
-    continuing: result.continuing ?? [],
-    onReselect: route.onReselect,
-    onAdvance: route.onAdvance,
-  });
 }
 
 /** Shared post-mutation sync for battle ENTRY (cannon-place-done): clear
@@ -1235,30 +1075,11 @@ function runDisplay(
   runStep(first!, ctx, result, () => runDisplay(rest, ctx, result, onDone));
 }
 
+/** Run a banner display step. The only display-step kind — the round-end
+ *  score-overlay + life-lost dialog beats are no longer display steps;
+ *  they're driven by the self-driving `tickRoundEndPhase`. */
 function runStep(
   step: DisplayStep,
-  ctx: PhaseTransitionCtx,
-  result: TransitionResult,
-  onDone: () => void,
-): void {
-  // Subsystems that own a Mode (life-lost, upgrade-pick) leave the mode
-  // on their terminal value when firing their completion callback; the
-  // transition's postDisplay sets the terminal mode after all steps finish.
-  switch (step.kind) {
-    case STEP_BANNER:
-      runBannerStep(step, ctx, result, onDone);
-      return;
-    case STEP_SCORE_OVERLAY:
-      ctx.scoreDelta.show(onDone);
-      return;
-    case STEP_LIFE_LOST_DIALOG:
-      runLifeLostDialogStep(ctx, result, onDone);
-      return;
-  }
-}
-
-function runBannerStep(
-  step: Extract<DisplayStep, { kind: "banner" }>,
   ctx: PhaseTransitionCtx,
   _result: TransitionResult,
   onDone: () => void,
@@ -1272,55 +1093,4 @@ function runBannerStep(
     subtitle: step.subtitle,
     paletteKey: step.paletteKey?.(ctx.state),
   });
-}
-
-/** Life-lost dialog step — notifies affected controllers, then hands
- *  the dialog off to `ctx.lifeLost.show` which either resolves
- *  immediately (only eliminations) or shows the modal and waits for
- *  the tick loop to resolve every entry. When `onResolved(continuing)`
- *  fires, we stash the list onto `result.continuing` and call the
- *  runner's `onDone` — postDisplay then routes via `resolveAfterLifeLost`
- *  + `ctx.lifeLostRoute`. */
-function runLifeLostDialogStep(
-  ctx: PhaseTransitionCtx,
-  result: TransitionResult,
-  onDone: () => void,
-): void {
-  const needsReselect = result.needsReselect ?? [];
-  const eliminated = result.eliminated ?? [];
-  for (const pid of [...needsReselect, ...eliminated]) {
-    ctx.notifyLifeLost?.(pid);
-  }
-  const finish = (
-    continuing: readonly ValidPlayerId[],
-    abandoned: readonly ValidPlayerId[],
-  ): void => {
-    // Mirrors how `runPickerModalThenDispatch`'s finish callback applies
-    // the upgrade picks after the subsystem hands them back — the dialog
-    // subsystem produces resolutions, the phase-machine applies them.
-    if (abandoned.length > 0) eliminatePlayers(ctx.state, abandoned);
-    result.continuing = continuing;
-    onDone();
-  };
-  if (
-    !ctx.lifeLost ||
-    (needsReselect.length === 0 && eliminated.length === 0)
-  ) {
-    if (ctx.lifeLost) ctx.lifeLost.show([], [], finish);
-    else finish([], []);
-    return;
-  }
-  // Spec: `max time of build phase → scores → zoom → life lost popup`.
-  // The score overlay just finished unzoomed (runTransition's
-  // setMode(TRANSITION) + snapCameraToFullMap put the display on fullMapVp).
-  // The camera reads `lifeLostKeepZoom` from FrameContext and snaps to the
-  // local pov player's zone via `holdLifeLostZoom` once the dialog opens —
-  // this used to be a poke from here (`engageAutoZoom`) that lost the race
-  // against `unzoomForOverlays` and produced a flicker.
-  emitGameEvent(ctx.state.bus, GAME_EVENT.LIFE_LOST_DIALOG_SHOW, {
-    needsReselect,
-    eliminated,
-    round: ctx.state.round,
-  });
-  ctx.lifeLost.show(needsReselect, eliminated, finish);
 }

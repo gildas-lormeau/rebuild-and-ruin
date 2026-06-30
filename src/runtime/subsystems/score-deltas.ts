@@ -23,30 +23,27 @@ interface ScoreDeltaDeps {
  *  dispatch); frozen with the rest of the sim by pause and the menu
  *  modes. Visibility is on the runtime's overlay state. */
 export interface RuntimeScoreDelta {
-  /** Set the round's pre-build scores. Sole producer: ROUND_END's mutate
-   *  captures them right before `finalizeRound` mutates scores via the
-   *  territory + life-penalty awards — every peer (host and watcher) runs
-   *  that mutate locally. */
+  /** Set the round's pre-build scores. Sole producer: `enter-round-end`'s
+   *  mutate captures them right before `finalizeRound` mutates scores via
+   *  the territory + life-penalty awards — every peer (host and watcher)
+   *  runs that mutate locally. */
   setPreScores: (scores: readonly number[]) => void;
-  /** Show animated score deltas. `onDone` fires once when animation finishes
-   *  (or immediately if no positive deltas exist). Calling while an overlay
-   *  is active REPLACES it — the previous `onDone` is dropped, banner-style
-   *  (a FULL_STATE apply mid-overlay re-dispatches round-end). */
-  show: (onDone: () => void) => void;
-  /** Tick the display timer (called every frame from mainLoop). */
+  /** Start the animated score-delta overlay (the ROUND_END score beat).
+   *  No completion callback — the self-driving `tickRoundEndPhase` polls
+   *  `isActive()` to know when to advance to the life-lost dialog beat.
+   *  Calling while an overlay is active REPLACES it. */
+  start: () => void;
+  /** True while the overlay is still animating (timer not yet expired).
+   *  The round-end tick waits on this before the dialog beat. */
+  isActive: () => boolean;
+  /** Tick the display timer (called every frame from mainLoop). Clears the
+   *  deltas and emits SCORE_OVERLAY_END when the timer expires. */
   tick: (dt: number) => void;
-  /** Finish an active overlay immediately: clear the display and fire the
-   *  pending `runDisplay` continuation, exactly as a natural timer expiry
-   *  would. No-op when no overlay is active. Host-promotion repair — the
-   *  round-end fast-forward (`forceResolveRoundEndPhase`) uses this to
-   *  hand control to the life-lost dialog step synchronously instead of
-   *  tearing the chain down (which would orphan the round-end routing). */
-  finishNow: () => void;
   /** Animation progress 0→1 (0 = just started, 1 = done). */
   progress: () => number;
-  /** Clear all score delta state (timer, deltas, pending callback). Safe to
-   *  call at any time — host-promote relies on this to drop a stale
-   *  `runDisplay` callback when promotion lands mid-overlay. */
+  /** Clear all score delta state (timer, deltas). Safe to call at any time —
+   *  host-promote teardown uses it to drop a mid-tick overlay; the promoted
+   *  peer re-enters the ROUND_END window and rebuilds. */
   reset: () => void;
 }
 
@@ -55,24 +52,12 @@ export function createScoreDeltaSystem(
 ): RuntimeScoreDelta {
   const { runtimeState } = deps;
 
-  /** Fires when the delta animation finishes. */
-  let pendingDoneCb: (() => void) | undefined;
-
   function setPreScores(scores: readonly number[]): void {
     runtimeState.scoreDisplay.preScores = scores;
   }
 
-  function show(onDone: () => void): void {
+  function start(): void {
     const scoreDisplay = runtimeState.scoreDisplay;
-    // Replace semantics (mirrors showBanner): a second show() while the
-    // overlay is still ticking — a FULL_STATE apply landing mid-overlay
-    // makes this peer re-dispatch round-end — drops the stale chain's
-    // continuation and restarts the overlay for the new chain. Letting
-    // both continuations fire routes postDisplay twice; the stale one
-    // then dispatches from a phase the fresh chain already advanced
-    // (source-phase guard throw — see the mid-score-overlay test in
-    // test/network-vs-local.test.ts).
-    pendingDoneCb = undefined;
     const players = runtimeState.state.players;
     scoreDisplay.deltas = computeScoreDeltas(
       players,
@@ -90,28 +75,30 @@ export function createScoreDeltaSystem(
     });
 
     if (scoreDisplay.deltas.length > 0) {
-      // Camera is already at fullMapVp — the score overlay is reached via
-      // `runTransition`, which snaps the camera to fullmap at dispatch.
+      // Camera is already at fullMapVp — `enter-round-end` snaps it before
+      // starting the overlay.
       scoreDisplay.deltaTimer = SCORE_DELTA_DISPLAY_TIME;
-      pendingDoneCb = onDone;
       emitGameEvent(runtimeState.state.bus, GAME_EVENT.SCORE_OVERLAY_START, {
         round: runtimeState.state.round,
       });
     } else {
-      // Also kills a replaced overlay's leftover timer — without this an
-      // empty re-show would leave the old timer draining toward an
-      // orphaned SCORE_OVERLAY_END.
+      // No positive deltas: nothing to animate. Leaving the timer at 0
+      // makes `isActive()` false so the tick advances straight to the
+      // dialog beat. Also kills a replaced overlay's leftover timer.
       scoreDisplay.deltaTimer = 0;
-      onDone();
     }
   }
 
+  function isActive(): boolean {
+    return runtimeState.scoreDisplay.deltaTimer > 0;
+  }
+
   /** Tick the score delta display timer (runs in every unpaused
-   *  gameplay mode, including the TRANSITION banner window).
-   *  Lifecycle: show() sets deltas+timer+onDone → this ticks down →
-   *  clears deltas and fires onDone exactly once when the timer expires.
-   *  Re-entrancy: onDone must NOT call show() — each call would restart
-   *  the overlay and the display would never end. */
+   *  gameplay mode, including the TRANSITION score-overlay window).
+   *  Lifecycle: start() sets deltas+timer → this ticks down → clears the
+   *  deltas and emits SCORE_OVERLAY_END when the timer expires. The
+   *  self-driving `tickRoundEndPhase` then observes `isActive()` false and
+   *  advances to the life-lost dialog beat. */
   function tick(dt: number): void {
     const scoreDisplay = runtimeState.scoreDisplay;
     if (scoreDisplay.deltaTimer <= 0) return;
@@ -119,9 +106,7 @@ export function createScoreDeltaSystem(
     if (scoreDisplay.deltaTimer <= 0) finishOverlay();
   }
 
-  /** Shared expiry tail: clear the display, emit the END beat, fire the
-   *  continuation once. Reached by the natural tick countdown and by
-   *  `finishNow` (host-promotion fast-forward). */
+  /** Expiry tail: clear the display and emit the END beat. */
   function finishOverlay(): void {
     const scoreDisplay = runtimeState.scoreDisplay;
     scoreDisplay.deltas = [];
@@ -129,14 +114,6 @@ export function createScoreDeltaSystem(
     emitGameEvent(runtimeState.state.bus, GAME_EVENT.SCORE_OVERLAY_END, {
       round: runtimeState.state.round,
     });
-    const callback = pendingDoneCb;
-    pendingDoneCb = undefined;
-    callback?.();
-  }
-
-  function finishNow(): void {
-    if (runtimeState.scoreDisplay.deltaTimer <= 0) return;
-    finishOverlay();
   }
 
   function progress(): number {
@@ -148,15 +125,14 @@ export function createScoreDeltaSystem(
   function reset(): void {
     runtimeState.scoreDisplay.deltas = [];
     runtimeState.scoreDisplay.deltaTimer = 0;
-    pendingDoneCb = undefined;
     runtimeState.scoreDisplay.preScores = [];
   }
 
   return {
     setPreScores,
-    show,
+    start,
+    isActive,
     tick,
-    finishNow,
     progress,
     reset,
   };

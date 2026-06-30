@@ -56,6 +56,7 @@ const ENTER_PHASE: Record<string, string> = {
   enterCannonPhase: "CANNON_PLACE",
   enterModifierRevealPhase: "MODIFIER_REVEAL",
   enterBattlePhase: "BATTLE",
+  enterRoundEndPhase: "ROUND_END",
   enterUpgradePickPhase: "UPGRADE_PICK",
   enterWallBuildPhase: "WALL_BUILD",
   enterSelectionPhase: "CASTLE_SELECT",
@@ -67,7 +68,11 @@ const ENTER_PHASE: Record<string, string> = {
  *  routing changes — the doc labels them "declared, not derived" so a reader
  *  knows to verify them manually. */
 const CTX_ROUTE_EDGES: Record<string, { target: string; label: string }[]> = {
-  "round-end": [
+  // ROUND_END exits route through `tickRoundEndPhase` → `exitRoundEnd` →
+  // `ctx.lifeLostRoute` handlers (phase-ticks.ts), not a static
+  // `runTransitionInline`, so they're declared here against the
+  // `enter-round-end` transition that opens the window.
+  "enter-round-end": [
     { target: "[*]", label: "game-over" },
     { target: "CASTLE_SELECT", label: "reselect" },
     { target: "CANNON_PLACE", label: "continue → advance-to-cannon" },
@@ -424,9 +429,10 @@ function render(
   lines.push("```");
   lines.push("");
   lines.push(
-    "> Dashed/annotated `round-end` exits route through `ctx.lifeLostRoute` " +
-      "handlers wired in `phase-ticks.ts` — **declared, not derived** from " +
-      "the machine. Verify those manually.",
+    "> Dashed/annotated `enter-round-end` exits route through " +
+      "`ctx.lifeLostRoute` handlers wired in `phase-ticks.ts` " +
+      "(`exitRoundEnd`) — **declared, not derived** from the machine. " +
+      "Verify those manually.",
   );
   lines.push("");
 

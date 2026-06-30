@@ -17,6 +17,16 @@ export enum Phase {
    *  each; once all have resolved the machine flips to WALL_BUILD.
    *  Reached only when `pendingUpgradeOffers` is populated. */
   UPGRADE_PICK = "UPGRADE_PICK",
+  /** Round-close window: WALL_BUILD's timer expired and the round is
+   *  finalizing. Self-driving like UPGRADE_PICK — `tickRoundEndPhase`
+   *  drives the two display beats (score overlay in Mode.TRANSITION, then
+   *  the life-lost dialog in Mode.LIFE_LOST) and dispatches the exit
+   *  (game-over / reselect / advance-to-cannon) re-derived from state, so
+   *  a host-promoted peer resumes without a repair hatch. `finalizeRound`
+   *  already ran when this phase was entered (from `tickBuildPhase` at
+   *  `timer <= 0`); the round number stays at the closing value through
+   *  the whole window (advance is deferred to the exit). */
+  ROUND_END = "ROUND_END",
 }
 
 /** True if the phase is castle selection (initial or reselect). */

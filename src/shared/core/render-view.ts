@@ -115,6 +115,9 @@ export function selectRenderView(state: GameState): RenderView {
     case Phase.CASTLE_SELECT:
       return state as SelectionRenderView;
     case Phase.WALL_BUILD:
+    // ROUND_END renders the just-finalized build board under the score
+    // overlay / life-lost dialog, so it reuses the build view.
+    case Phase.ROUND_END:
       return state as BuildRenderView;
     case Phase.CANNON_PLACE:
       return state as CannonRenderView;

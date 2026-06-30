@@ -164,6 +164,17 @@ export interface RuntimeState {
   // Phase / selection
   selection: SelectionRuntimeState;
   dialogs: DialogRuntimeState;
+  /** Routing inputs for the in-progress ROUND_END window, stashed by
+   *  `enter-round-end`'s mutate from `finalizeRound`'s return and consumed
+   *  when the life-lost dialog beat is built / the window exits. Runtime-only
+   *  (never serialized): a peer that ADOPTS a mid-ROUND_END snapshot has no
+   *  stash and re-derives `needsReselect` from the board (alive players with
+   *  zero enclosed towers — survivors always keep one) while skipping the
+   *  cosmetic per-elimination notices. Null outside the window. */
+  roundEnd: {
+    needsReselect: readonly ValidPlayerId[];
+    eliminated: readonly ValidPlayerId[];
+  } | null;
 
   /** Lockstep scheduled-actions queue — every wire-broadcast input that
    *  mutates GameState is enqueued (on both originator and receiver) and
@@ -345,6 +356,7 @@ export function resetTransientState(runtimeState: RuntimeState): void {
   runtimeState.actionSchedule.reset();
   runtimeState.modifierRevealPlayStartMs = undefined;
   runtimeState.lastBattleCrosshair = undefined;
+  runtimeState.roundEnd = null;
 }
 
 /** Create initial runtime state. `state` and `frameMeta` are not yet valid:
@@ -364,6 +376,7 @@ export function createRuntimeState(): RuntimeState {
       castleBuilds: [],
     },
     dialogs: { lifeLost: null, upgradePick: null },
+    roundEnd: null,
     actionSchedule: createActionSchedule(),
 
     accum: createTimerAccums(),

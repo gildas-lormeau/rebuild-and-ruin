@@ -177,28 +177,13 @@ function skipPendingAnimations(): void {
   // windows where the teardown just dropped the step that owned the
   // phase's progress.
   const modeAtPromotion = _runtime.runtimeState.mode;
-  // Round-end display-window repair, BEFORE the generic teardown — the
-  // teardown would destroy the very chain this repair fast-forwards.
-  // Round-end's mutate already ran (finalizeRound + round++) but the
-  // phase is still WALL_BUILD with an expired timer; the display chain
-  // (score overlay → life-lost dialog) owns the exit routing. Torn down,
-  // Mode.GAME's tickBuildPhase re-dispatches round-end next tick and
-  // re-runs the mutate: double life penalties + double territory scoring
-  // + a skipped round number, broadcast to every watcher. Fast-forward
-  // the chain instead (see `forceResolveRoundEndPhase`) so the
-  // FULL_STATE snapshot lands PAST round-end and ticks forward on its
-  // own. The mode gate keeps the pre-dispatch edge case (Mode.GAME, the
-  // tick that is about to dispatch round-end for the FIRST time) on the
-  // normal path.
-  if (
-    _runtime.runtimeState.state.phase === Phase.WALL_BUILD &&
-    _runtime.runtimeState.state.timer <= 0 &&
-    (modeAtPromotion === Mode.TRANSITION || modeAtPromotion === Mode.LIFE_LOST)
-  ) {
-    _runtime.phaseTicks.resolveRoundEndNow();
-    _client.devLog("Fast-forwarded round-end display → next phase");
-    return;
-  }
+  // ROUND_END needs no special repair: it's a self-driving phase
+  // (`Phase.ROUND_END`). The generic teardown below drops the overlay /
+  // dialog (clearAnimationState handles Mode.TRANSITION + Mode.LIFE_LOST)
+  // and forces Mode.GAME; `tickGame`'s ROUND_END branch then re-enters
+  // `tickRoundEndPhase`, which rebuilds the life-lost dialog from
+  // re-derived routing and drives the exit — no double-scoring, no skipped
+  // round (the round number stays at the closing value until the exit).
   const description = clearAnimationState(modeAtPromotion);
   if (description) {
     setMode(_runtime.runtimeState, Mode.GAME);

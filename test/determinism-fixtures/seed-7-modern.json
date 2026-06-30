@@ -6,7 +6,7 @@
     "rounds": 2
   },
   "timeoutMs": 480000,
-  "eventCount": 8160,
+  "eventCount": 8165,
   "events": [
     {
       "type": "tick",
@@ -27251,6 +27251,20 @@
       }
     },
     {
+      "type": "phaseEnd",
+      "payload": {
+        "phase": "WALL_BUILD",
+        "round": 1
+      }
+    },
+    {
+      "type": "phaseStart",
+      "payload": {
+        "phase": "ROUND_END",
+        "round": 1
+      }
+    },
+    {
       "type": "scoreOverlayStart",
       "payload": {
         "round": 1
@@ -27979,7 +27993,7 @@
     {
       "type": "phaseEnd",
       "payload": {
-        "phase": "WALL_BUILD",
+        "phase": "ROUND_END",
         "round": 2
       }
     },
@@ -27998,6 +28012,12 @@
         "round": 2,
         "subtitle": "Position inside fort walls",
         "text": "Place Cannons"
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
       }
     },
     {
@@ -29768,18 +29788,18 @@
       }
     },
     {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
       "type": "cannonPlaced",
       "payload": {
         "cannonIdx": 3,
         "col": 37,
         "playerId": 1,
         "row": 23
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
       }
     },
     {
@@ -47784,12 +47804,6 @@
       }
     },
     {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
       "type": "wallPlaced",
       "payload": {
         "playerId": 0,
@@ -47799,6 +47813,12 @@
           1115,
           1070
         ]
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
       }
     },
     {
@@ -50003,6 +50023,20 @@
     {
       "type": "roundEnd",
       "payload": {
+        "round": 2
+      }
+    },
+    {
+      "type": "phaseEnd",
+      "payload": {
+        "phase": "WALL_BUILD",
+        "round": 2
+      }
+    },
+    {
+      "type": "phaseStart",
+      "payload": {
+        "phase": "ROUND_END",
         "round": 2
       }
     },
