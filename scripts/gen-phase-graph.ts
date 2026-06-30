@@ -98,8 +98,7 @@ async function main(): Promise<void> {
   verifyEnterPhaseMap(project.addSourceFileAtPath(ENTRY_FILE));
 
   const gameOps = collectGameOps(machine);
-  const stringConsts = collectStringConsts(machine);
-  const records = collectTransitions(machine, gameOps, stringConsts);
+  const records = collectTransitions(machine, gameOps);
   const externals = collectExternalDispatchers();
 
   const doc = render(records, externals);
@@ -132,22 +131,6 @@ function collectGameOps(machine: import("ts-morph").SourceFile): Set<string> {
     }
   }
   return ops;
-}
-
-/** Module-level `const NAME = "value"` (optionally `as const`) declarations —
- *  used to resolve `display` step `kind`s, which reference the `STEP_*`
- *  string consts rather than inlining the literal. */
-function collectStringConsts(
-  machine: import("ts-morph").SourceFile,
-): Map<string, string> {
-  const out = new Map<string, string>();
-  for (const decl of machine.getVariableDeclarations()) {
-    const init = decl.getInitializer();
-    if (!init) continue;
-    const match = /^["'](.+)["'](?:\s+as\s+const)?$/.exec(init.getText());
-    if (match) out.set(decl.getName(), match[1]);
-  }
-  return out;
 }
 
 /** Derive `enter*Phase → phase` from `game/phase-entry.ts` and assert it
@@ -230,7 +213,6 @@ function verifyEnterPhaseMap(entry: import("ts-morph").SourceFile): void {
 function collectTransitions(
   machine: import("ts-morph").SourceFile,
   gameOps: Set<string>,
-  stringConsts: Map<string, string>,
 ): TransitionRecord[] {
   const records: TransitionRecord[] = [];
 
@@ -247,7 +229,7 @@ function collectTransitions(
     const entersPhase = firstEnterPhase(mutateText);
     const engineOps = callsIn(mutateText, gameOps);
     const broadcasts = broadcastsIn(mutateText);
-    const display = parseDisplay(obj, stringConsts);
+    const display = parseDisplay(obj);
 
     const { targets, ctxRouted } = parseDispatchTargets(obj, machine);
 
@@ -325,7 +307,6 @@ function broadcastsIn(body: string): string[] {
 
 function parseDisplay(
   obj: import("ts-morph").ObjectLiteralExpression,
-  stringConsts: Map<string, string>,
 ): string[] {
   const arr = getProp(obj, "display")?.getInitializerIfKind(
     SyntaxKind.ArrayLiteralExpression,
@@ -335,12 +316,10 @@ function parseDisplay(
   for (const el of arr.getElements()) {
     const stepObj = el.asKind(SyntaxKind.ObjectLiteralExpression);
     if (!stepObj) continue;
-    // `kind` references a STEP_* const, not a literal — resolve it.
-    const kindRaw = propText(stepObj, "kind");
-    const kind =
-      stringConsts.get(kindRaw) ?? stringProp(stepObj, "kind") ?? "?";
+    // Every display step is a banner (DisplayStep is banner-only) — label it
+    // by its `bannerKind`.
     const banner = stringProp(stepObj, "bannerKind");
-    steps.push(banner ? `${kind}(${banner})` : kind);
+    steps.push(banner ? `banner(${banner})` : "banner");
   }
   return steps;
 }

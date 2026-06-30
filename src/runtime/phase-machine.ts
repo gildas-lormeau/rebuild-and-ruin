@@ -82,7 +82,6 @@ interface TransitionResult {
 }
 
 type DisplayStep = {
-  readonly kind: "banner";
   /** Banner identity — forwarded through `showBanner` onto every
    *  BANNER_* event so consumers discriminate on this, not
    *  `phase`/`text`. */
@@ -346,8 +345,6 @@ const EMPTY_TRANSITION_RESULT: TransitionResult = {
   modifierDiff: null,
   flights: [],
 };
-/** Discriminator values for `DisplayStep.kind`. */
-const STEP_BANNER = "banner" as const;
 /** `enter-round-end` — end of WALL_BUILD (round closes here, after the
  *  score is finalized). Dispatched from `tickBuildPhase` at `timer <= 0`.
  *
@@ -494,7 +491,6 @@ const ENTER_UPGRADE_PICK: Transition = {
   },
   display: [
     {
-      kind: STEP_BANNER,
       bannerKind: "upgrade-pick",
       text: BANNER_UPGRADE_PICK,
       subtitle: BANNER_UPGRADE_PICK_SUB,
@@ -536,7 +532,6 @@ const ENTER_WALL_BUILD: Transition = {
   },
   display: [
     {
-      kind: STEP_BANNER,
       bannerKind: "build",
       text: BANNER_BUILD,
       subtitle: BANNER_BUILD_SUB,
@@ -564,7 +559,6 @@ const ENTER_CANNON_PLACE: Transition = {
   },
   display: [
     {
-      kind: STEP_BANNER,
       bannerKind: "cannon-place",
       text: BANNER_PLACE_CANNONS,
       subtitle: BANNER_PLACE_CANNONS_SUB,
@@ -718,7 +712,6 @@ const ENTER_MODIFIER_REVEAL: Transition = {
   },
   display: [
     {
-      kind: STEP_BANNER,
       bannerKind: "modifier-reveal",
       // `activeModifier` is set by `prepareBattleState` during the prior
       // `cannon-place-done` mutate, so it's populated identically on
@@ -754,7 +747,6 @@ const ENTER_BATTLE: Transition = {
   // idempotent but unnecessary.
   display: [
     {
-      kind: STEP_BANNER,
       bannerKind: "battle",
       text: BANNER_BATTLE,
       subtitle: BANNER_BATTLE_SUB,
