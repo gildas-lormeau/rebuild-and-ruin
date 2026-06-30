@@ -116,6 +116,19 @@ type PostMutateFn = (ctx: PhaseTransitionCtx, r: TransitionResult) => void;
  *  every peer; the only role-gated effect is `ctx.broadcast?.X?.()`. */
 type PostDisplayFn = (ctx: PhaseTransitionCtx, r: TransitionResult) => void;
 
+/** Declarative successor edge. Returned by a "prep" transition (one with
+ *  no banner of its own) to name the entry transition the runner dispatches
+ *  next, INLINE, on the same dispatch tick — that's how the runner chains
+ *  prep → entry without each prep imperatively calling the next dispatch.
+ *  Reads the just-run transition's `result` (e.g. modifier roll) and/or
+ *  `ctx.state` to pick the branch. Absent on entry transitions (they're
+ *  terminal for the synchronous chain — their own exit is a later
+ *  banner-driven or self-driving-tick dispatch). */
+type RouteFn = (
+  ctx: PhaseTransitionCtx,
+  result: TransitionResult,
+) => TransitionId;
+
 interface Transition {
   readonly id: TransitionId;
   /** Source phase asserted on every peer's dispatch. A single `Phase`
@@ -130,6 +143,11 @@ interface Transition {
   readonly postMutate?: PostMutateFn;
   readonly display: readonly DisplayStep[];
   readonly postDisplay?: PostDisplayFn;
+  /** Successor edge for prep transitions — the runner dispatches its
+   *  result inline after `postDisplay`. Declaring it on the transition
+   *  (instead of dispatching from inside `postDisplay`) lets the table
+   *  show the phase graph. */
+  readonly route?: RouteFn;
 }
 
 /** Minimal battle-lifecycle hooks the machine needs to drive the post-
@@ -419,7 +437,7 @@ const BATTLE_DONE: Transition = {
   },
   postMutate: clearBattleAnim,
   display: [],
-  postDisplay: routePostBattleToBuild,
+  route: routePostBattleToBuild,
 };
 /** `ceasefire` — CANNON_PLACE prep transition (battle skipped).
  *
@@ -449,7 +467,7 @@ const CEASEFIRE: Transition = {
   },
   postMutate: clearBattleAnim,
   display: [],
-  postDisplay: routePostBattleToBuild,
+  route: routePostBattleToBuild,
 };
 /** `enter-upgrade-pick` — UPGRADE_PICK entry. Flips the phase,
  *  shows the "Choose Upgrade" banner, then runs the picker modal in
@@ -589,7 +607,7 @@ const CASTLE_DONE: Transition = {
   },
   postMutate: clearBattleAnim,
   display: [],
-  postDisplay: (ctx) => runTransitionInline("enter-cannon-place", ctx),
+  route: () => "enter-cannon-place",
 };
 /** `advance-to-cannon` — ROUND_END exit prep transition, after the
  *  life-lost dialog resolves with "continue" (no reselect, no game over).
@@ -614,7 +632,7 @@ const ADVANCE_TO_CANNON: Transition = {
   },
   postMutate: clearBattleAnim,
   display: [],
-  postDisplay: (ctx) => runTransitionInline("enter-cannon-place", ctx),
+  route: () => "enter-cannon-place",
 };
 /** `game-over` — the match ended; `GameOverOutcome.reason` says why
  *  (`round-limit-reached` or `last-player-standing`). The winner is
@@ -667,7 +685,7 @@ const CANNON_PLACE_DONE: Transition = {
   },
   postMutate: syncBattleAnim,
   display: [],
-  postDisplay: routeCannonPlaceDone,
+  route: routeCannonPlaceDone,
 };
 /** `enter-modifier-reveal` — MODIFIER_REVEAL entry. Delegates the phase
  *  flip + dwell-timer prime to `enterModifierRevealPhase` so the phase
@@ -771,6 +789,11 @@ const BY_ID: ReadonlyMap<TransitionId, Transition> = new Map(
  *   4. **postDisplay** — side-effects after all display steps (setMode,
  *      startBuildPhase, beginBattle, etc.).
  *
+ *   5. **route** — prep transitions name their entry transition here; the
+ *      runner dispatches it inline (no re-prime), chaining prep → entry on
+ *      the one dispatch tick. Entry transitions declare no `route` and end
+ *      the chain.
+ *
  *  Callback-based, not Promise-based: the tick loop is synchronous so
  *  microtasks don't flush between ticks; every wait threads through the
  *  subsystem's own callback.
@@ -803,42 +826,26 @@ export function runTransition(id: TransitionId, ctx: PhaseTransitionCtx): void {
   executeTransition(transition, ctx);
 }
 
-/** Post-cannon-place prep route: dispatch to `enter-modifier-reveal`
- *  when a modifier was rolled (modern mode), otherwise straight to
- *  `enter-battle`. Shared between host and watcher — the host reads
- *  `result.modifierDiff` from its own mutate; the watcher reads from
- *  the incoming BATTLE_START message (also threaded via result).
- *
- *  Uses `runTransitionInline`: the outer `runTransition` already primed
- *  the banner prev-scene and snapped the camera, so the inner entry
- *  transition reuses that prime instead of redoing it.
- */
+/** Post-cannon-place prep route: `enter-modifier-reveal` when a modifier
+ *  was rolled (modern mode), otherwise straight to `enter-battle`. Shared
+ *  between host and watcher — every peer reads `result.modifierDiff` from
+ *  its own mutate (clone-everywhere; the prepareBattle roll ran identically
+ *  off synced rng). The runner dispatches the returned id inline. */
 function routeCannonPlaceDone(
-  ctx: PhaseTransitionCtx,
+  _ctx: PhaseTransitionCtx,
   result: TransitionResult,
-): void {
-  // Thread the prep's result into the inner transition so its banner
-  // step can read `result.modifierDiff` (modifier-reveal banner text)
-  // and `proceedToBattleFromCtx` can read `result.flights` if needed.
-  if (result.modifierDiff) {
-    runTransitionInline("enter-modifier-reveal", ctx, {
-      modifierDiff: result.modifierDiff,
-      flights: result.flights,
-    });
-  } else {
-    runTransitionInline("enter-battle", ctx, { flights: result.flights });
-  }
+): TransitionId {
+  return result.modifierDiff ? "enter-modifier-reveal" : "enter-battle";
 }
 
-/** Post-battle / ceasefire prep transitions don't flip the phase — the
- *  following `enter-upgrade-pick` or `enter-wall-build` entry transition
- *  owns the phase entry. Route based on whether modern-mode upgrade offers
- *  were generated. Uses `runTransitionInline` for the same reason as
- *  `routeCannonPlaceDone`. */
-function routePostBattleToBuild(ctx: PhaseTransitionCtx): void {
-  const hasOffers = !!ctx.state.modern?.pendingUpgradeOffers;
-  if (hasOffers) runTransitionInline("enter-upgrade-pick", ctx);
-  else runTransitionInline("enter-wall-build", ctx);
+/** Post-battle / ceasefire prep route: the prep doesn't flip the phase —
+ *  the returned `enter-upgrade-pick` / `enter-wall-build` entry transition
+ *  owns the phase entry. Branches on whether modern-mode upgrade offers
+ *  were generated (in `prepareNextRound`). */
+function routePostBattleToBuild(ctx: PhaseTransitionCtx): TransitionId {
+  return ctx.state.modern?.pendingUpgradeOffers
+    ? "enter-upgrade-pick"
+    : "enter-wall-build";
 }
 
 /** Shared post-mutation sync for battle ENTRY (cannon-place-done): clear
@@ -973,24 +980,18 @@ export function finishUpgradePick(ctx: PhaseTransitionCtx): void {
 }
 
 /** Run a transition without re-priming the banner prev-scene or
- *  re-snapping the camera. Used ONLY when dispatched from inside another
- *  transition's `postDisplay`: the outer `runTransition` already primed
- *  and snapped at dispatch, and the chain's first banner consumes that
- *  prime — an inner banner's prev-scene is the previous banner's
- *  new-scene (display pixels), exactly as `showBanner` falls back to.
- *
- *  `seedResult`: optional fields merged onto the inner mutate's return.
- *  Used to thread `modifierDiff` / `flights` from a prep transition
- *  into the entry transition that needs them for its display step
- *  (banner text) or postDisplay (balloon-anim routing). */
-function runTransitionInline(
-  id: TransitionId,
-  ctx: PhaseTransitionCtx,
-  seedResult?: Partial<TransitionResult>,
-): void {
+ *  re-snapping the camera. Used for two cases, both already inside a
+ *  `Mode.TRANSITION` window the outer `runTransition` opened (primed +
+ *  snapped): the runner's own `route` chaining (prep → entry, same tick),
+ *  and `finishUpgradePick` resuming the flow into `enter-wall-build` after
+ *  the self-driving picker resolves. Either way the chain's first banner
+ *  consumes the outer prime; a later banner's prev-scene is the previous
+ *  banner's new-scene (display pixels), exactly as `showBanner` falls
+ *  back to. */
+function runTransitionInline(id: TransitionId, ctx: PhaseTransitionCtx): void {
   const transition = resolveTransition(id, ctx);
   ctx.setMode(Mode.TRANSITION);
-  executeTransition(transition, ctx, seedResult);
+  executeTransition(transition, ctx);
 }
 
 function resolveTransition(
@@ -1025,7 +1026,6 @@ function resolveTransition(
 function executeTransition(
   transition: Transition,
   ctx: PhaseTransitionCtx,
-  seedResult?: Partial<TransitionResult>,
 ): void {
   // `showBanner` owns the A/B capture per banner (see
   // `subsystems/banner.ts`). The chain's FIRST banner consumes the
@@ -1033,14 +1033,17 @@ function executeTransition(
   // read the current display pixels (the previous banner's swept end
   // state) as their prev-scene (A). Every banner renders the current
   // (post-mutation) state offscreen as its new-scene (B).
-  const mutated = transition.mutate(ctx);
-  const result: TransitionResult = seedResult
-    ? { ...mutated, ...seedResult }
-    : mutated;
+  const result = transition.mutate(ctx);
   transition.postMutate?.(ctx, result);
 
   runDisplay(transition.display, ctx, result, () => {
     transition.postDisplay?.(ctx, result);
+    // Prep transitions chain to their entry transition here, inline on the
+    // same dispatch tick. A prep's `display` is empty, so this runs
+    // synchronously; entry transitions declare no `route` and end the
+    // chain. The whole chain stays in the one `Mode.TRANSITION` window.
+    const nextId = transition.route?.(ctx, result);
+    if (nextId) runTransitionInline(nextId, ctx);
   });
 }
 

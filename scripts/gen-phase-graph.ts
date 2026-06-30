@@ -5,8 +5,9 @@
  * The phase machine is a data-driven `TRANSITIONS` table: each entry has a
  * `from` guard, a `mutate` that calls an `enter*Phase` helper (the target
  * phase) plus engine ops and `ctx.broadcast?.X` markers, ordered `display`
- * steps, and a `postDisplay` that routes onward via `runTransitionInline`.
- * This script parses that structure with ts-morph and renders:
+ * steps, and — for prep transitions — a declarative `route` edge naming the
+ * entry transition the runner chains to next. This script parses that
+ * structure with ts-morph and renders:
  *
  *   1. A Mermaid `stateDiagram-v2` of phase → phase edges (labelled by the
  *      transition that drives them).
@@ -248,7 +249,7 @@ function collectTransitions(
     const broadcasts = broadcastsIn(mutateText);
     const display = parseDisplay(obj, stringConsts);
 
-    const { targets, ctxRouted } = parsePostDisplay(obj, machine);
+    const { targets, ctxRouted } = parseDispatchTargets(obj, machine);
 
     records.push({
       id,
@@ -360,32 +361,47 @@ function propText(
   return getProp(obj, name)?.getInitializer()?.getText() ?? "";
 }
 
-/** Resolve postDisplay's onward dispatch targets. postDisplay is either an
+/** Resolve a transition's onward dispatch targets from BOTH its declarative
+ *  `route` edge (prep transitions return the next id) and its `postDisplay`
+ *  (residual inline dispatches like `finishUpgradePick`). Each is either an
  *  inline arrow (scan its body) or a named helper identifier (resolve the
- *  function declaration in the same file, scan ITS body) for
- *  `runTransitionInline`/`runTransition` string-literal targets. Flags
- *  ctx-routed transitions (life-lost routing) whose targets aren't static. */
-function parsePostDisplay(
+ *  declaration in the same file, scan ITS body). Targets come from `route`'s
+ *  returned id string-literals and any `runTransitionInline`/`runTransition`
+ *  string-literal calls. Flags ctx-routed transitions (life-lost routing)
+ *  whose targets aren't static. */
+function parseDispatchTargets(
   obj: import("ts-morph").ObjectLiteralExpression,
   machine: import("ts-morph").SourceFile,
 ): { targets: string[]; ctxRouted: boolean } {
-  const init = getProp(obj, "postDisplay")?.getInitializer();
-  if (!init) return { targets: [], ctxRouted: false };
-
-  let body = init.getText();
-  // Named helper: resolve its declaration and use its body instead.
-  if (init.getKind() === SyntaxKind.Identifier) {
-    const fn = machine.getFunction(init.getText());
-    if (fn) body = fn.getText();
-  }
-
   const targets = new Set<string>();
-  for (const match of body.matchAll(
-    /runTransition(?:Inline)?\(\s*"([^"]+)"/g,
-  )) {
-    targets.add(match[1]);
+  let ctxRouted = false;
+
+  for (const prop of ["route", "postDisplay"] as const) {
+    const init = getProp(obj, prop)?.getInitializer();
+    if (!init) continue;
+
+    let body = init.getText();
+    // Named helper: resolve its declaration and use its body instead.
+    if (init.getKind() === SyntaxKind.Identifier) {
+      const fn = machine.getFunction(init.getText());
+      if (fn) body = fn.getText();
+    }
+
+    for (const match of body.matchAll(
+      /runTransition(?:Inline)?\(\s*"([^"]+)"/g,
+    )) {
+      targets.add(match[1]);
+    }
+    // A `route` body resolves to its returned transition-id string literals
+    // (`=> "enter-battle"` or `return cond ? "a" : "b"`); a route body
+    // contains no other quoted strings.
+    if (prop === "route") {
+      for (const match of body.matchAll(/"([a-z][a-z-]+)"/g))
+        targets.add(match[1]);
+    }
+    if (/\b(lifeLostRoute|resolveAfterLifeLost)\b/.test(body)) ctxRouted = true;
   }
-  const ctxRouted = /\b(lifeLostRoute|resolveAfterLifeLost)\b/.test(body);
+
   return { targets: [...targets], ctxRouted };
 }
 
