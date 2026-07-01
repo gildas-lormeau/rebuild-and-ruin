@@ -81,6 +81,10 @@ import {
 } from "../../src/shared/core/grid.ts";
 import { modifierDef } from "../../src/shared/core/modifier-defs.ts";
 import {
+  interpolatedCopies,
+  PIECE_POOL_END_ROUND,
+  PIECE_POOL_START_ROUND,
+  PIECE_WEIGHTS,
   type PieceShape,
   piecesInRoundPool,
   rotateCW,
@@ -299,7 +303,11 @@ export interface EnclosureCandidate {
   /** The exact tiles to wall — the min-cut. Fill these and the tower encloses. */
   tiles: { row: number; col: number }[];
   /** Estimated build seconds to close the cut at the fair per-piece cadence
-   *  (0 if already enclosed / unenclosable). Compare against the phase timer. */
+   *  (0 if already enclosed / unenclosable), INCLUDING the expected bag-cycling
+   *  wait when a gap is a `needs-small-piece` island — a sub-4-cell hole prices
+   *  in the dud draws burned until a 1×1/1×2/1×3 arrives (long odds late), so a
+   *  "~1s" cut that really costs a dozen draws reads as the trap it is. Compare
+   *  against the phase timer. */
   estSeconds: number;
   /** TRUE if you can realistically finish this enclosure THIS phase — both
    *  `estSeconds <= timer` AND no seal tile carries a HARD blocker (see
@@ -1819,6 +1827,54 @@ export async function createMcpGame(
     return out;
   }
 
+  /** Expected extra build-seconds of bag-cycling before the small pieces a cut
+   *  needs actually arrive. The base `enclosureSeconds` prices only on-cut
+   *  placements, but a `needs-small-piece` island waits on a 1×1/1×2/1×3 draw —
+   *  late-round pool odds are long (weight 1 each vs 2-3 for the big shapes) and
+   *  every non-fitting draw burns a full piece cadence as a redirect. Modelled
+   *  as uniform draws over the round pool's copy counts (the real bag is a
+   *  tiered queue, but the agent can't see its position — expectation over an
+   *  unknown offset comes out the same): expected duds per gap =
+   *  totalCopies/fittingCopies - 1, summed per blocker (each island needs its
+   *  own small draw). This is what made "enclosable ~1s" a trap — the seed-42
+   *  R26 seam read as 1s while its real expected cost was a dozen draws. */
+  function smallPieceWaitSeconds(blockers: readonly SealBlocker[]): number {
+    const smalls = blockers.filter(
+      (blocker) => blocker.kind === "needs-small-piece",
+    );
+    if (smalls.length === 0) return 0;
+    const bag = sc.state.players[agentSlot]?.bag;
+    const round = bag?.round ?? sc.state.round;
+    const factor = Math.min(
+      1,
+      Math.max(
+        0,
+        (round - PIECE_POOL_START_ROUND) /
+          (PIECE_POOL_END_ROUND - PIECE_POOL_START_ROUND),
+      ),
+    );
+    const weights = bag?.smallPieces
+      ? PIECE_WEIGHTS.filter((pw) => pw.tier === 1)
+      : PIECE_WEIGHTS;
+    let seconds = 0;
+    for (const blocker of smalls) {
+      const island = buildableIslandSize(blocker.row, blocker.col, 4);
+      let total = 0;
+      let fitting = 0;
+      for (const pw of weights) {
+        // Small Pieces bags hold a flat 3 copies of each tier-1 shape (see
+        // piecePool) — a constant, so 1 per shape gives the same ratio.
+        const copies = bag?.smallPieces ? 1 : interpolatedCopies(pw, factor);
+        total += copies;
+        if (pw.piece.offsets.length <= island) fitting += copies;
+      }
+      if (fitting === 0) continue;
+      const expectedDuds = total / fitting - 1;
+      seconds += (expectedDuds * BUILD_PIECE_TICKS) / SIM_TICKS_PER_SEC;
+    }
+    return Math.round(seconds * 10) / 10;
+  }
+
   /** Roll the REAL `moveGrunts` model forward `maxTicks` build-seconds (grunts
    *  step once per second — GRUNT_TICK_INTERVAL=1.0) and report, per tile any
    *  grunt occupies during that window, the FIRST and LAST tick it's there.
@@ -2079,8 +2135,12 @@ export async function createMcpGame(
           const pos = unpackTile(key);
           return { row: pos.row, col: pos.col };
         });
-        const estSeconds = enclosureSeconds(cut.size);
         const blockers = classifySealBlockers(tiles);
+        // Honest time price: on-cut placements PLUS the expected bag-cycling
+        // wait for any needs-small-piece gap — without it a 1-tile island read
+        // as "~1s" while its real expected cost was a dozen dud draws.
+        const estSeconds =
+          enclosureSeconds(cut.size) + smallPieceWaitSeconds(blockers);
         out.push({
           ...base,
           status: "enclosable",
@@ -3932,20 +3992,32 @@ export async function createMcpGame(
    *  cycling toward a resolvable state, NOT a stall or divergence. That's the fix
    *  for `build_toward` bailing the instant the last gap needed a 1×1 it didn't
    *  hold. The auto-cap (or any caller budget) bounds the cycle so an unlucky bag
-   *  still terminates with partial progress banked. */
+   *  still terminates with partial progress banked.
+   *
+   *  Cycling brake: every redirect packs ~4 wall tiles into the castle, and the
+   *  cycle disables the stall/divergence guards — the exact path that packed 17
+   *  duds in one seed-42 R12 build and set up a bag-lock. So after each cycled
+   *  redirect the draw-pool dump gauge is re-read: the moment any pool shape
+   *  loses its last legal placement, the loop stops with `cycle-risk` instead of
+   *  cycling on toward the lock. `onTarget`/`redirected` split `placed` so the
+   *  caller can report dud-cycling honestly instead of as bare progress. */
   function driveBuildLoop(
     goalIdx: number | undefined,
     startTimer: number,
     pieceCap: number,
     budget: BuildBudget | undefined,
-  ): { placed: number; outcome: string } {
-    let placed = 0;
-    let stall = 0;
+  ): { placed: number; onTarget: number; redirected: number; outcome: string } {
+    const counters = {
+      placed: 0,
+      onTarget: 0,
+      redirected: 0,
+      stall: 0,
+      sinceImprove: 0,
+    };
     let bestNeeded = Number.POSITIVE_INFINITY;
-    let sinceImprove = 0;
     let outcome = "done";
     while (!gameOver() && sc.state.phase === Phase.WALL_BUILD) {
-      const stop = buildStop(placed, startTimer, pieceCap, budget);
+      const stop = buildStop(counters.placed, startTimer, pieceCap, budget);
       if (stop) {
         outcome = stop;
         break;
@@ -3973,31 +4045,69 @@ export async function createMcpGame(
       if (!cyclingForPiece) {
         if (candidate.tilesNeeded < bestNeeded) {
           bestNeeded = candidate.tilesNeeded;
-          sinceImprove = 0;
-        } else if (sinceImprove >= BUILD_DIVERGE_LIMIT) {
+          counters.sinceImprove = 0;
+        } else if (counters.sinceImprove >= BUILD_DIVERGE_LIMIT) {
           outcome = "diverging";
           break;
         }
       }
       const step = placeTowardTargets(plan.targets);
       if (step.noPiece) continue;
-      if (step.landed) {
-        placed++;
-        // On-target resets the stall; an off-target redirect counts as a stall
-        // (and toward divergence) ONLY when not deliberately cycling for a soft
-        // blocker — otherwise a long, legitimate bag-cycle would trip "stuck".
-        if (step.onTarget) stall = 0;
-        else if (!cyclingForPiece) stall++;
-        if (!cyclingForPiece) sinceImprove++;
-      } else {
-        stall++;
+      const braked = accountBuildStep(step, cyclingForPiece, counters);
+      if (braked) {
+        outcome = braked;
+        break;
       }
-      if (stall >= BUILD_STALL_LIMIT) {
+      if (counters.stall >= BUILD_STALL_LIMIT) {
         outcome = "stuck";
         break;
       }
     }
-    return { placed, outcome };
+    const { placed, onTarget, redirected } = counters;
+    return { placed, onTarget, redirected, outcome };
+  }
+
+  /** Per-step counter accounting for `driveBuildLoop`: one placement step's
+   *  effect on the placed/on-target/redirect/stall tallies. On-target resets the
+   *  stall; an off-target redirect counts as a stall (and toward divergence)
+   *  ONLY when not deliberately cycling for a soft blocker — otherwise a long,
+   *  legitimate bag-cycle would trip "stuck". A CYCLED redirect instead re-reads
+   *  the dump gauge and returns "cycle-risk" the moment any draw-pool shape has
+   *  lost its last legal placement — the brake on packing toward a bag-lock. */
+  function accountBuildStep(
+    step: { landed: boolean; onTarget: boolean },
+    cyclingForPiece: boolean,
+    counters: {
+      placed: number;
+      onTarget: number;
+      redirected: number;
+      stall: number;
+      sinceImprove: number;
+    },
+  ): "cycle-risk" | null {
+    if (!step.landed) {
+      counters.stall++;
+      return null;
+    }
+    counters.placed++;
+    if (step.onTarget) {
+      counters.onTarget++;
+      counters.stall = 0;
+    } else {
+      counters.redirected++;
+      if (!cyclingForPiece) counters.stall++;
+      else if (dumpBrakeTripped()) return "cycle-risk";
+    }
+    if (!cyclingForPiece) counters.sinceImprove++;
+    return null;
+  }
+
+  /** Has bag-cycling packed the castle to the point where some round-pool shape
+   *  no longer has any legal placement? The live read behind `cycle-risk`. */
+  function dumpBrakeTripped(): boolean {
+    const me = sc.state.players[agentSlot];
+    const cap = me ? dumpCapacityFor(me) : null;
+    return cap !== null && cap.placeable < cap.pool;
   }
 
   /** Drive the WHOLE build phase toward a goal: enclose a tower (default home).
@@ -4035,7 +4145,7 @@ export async function createMcpGame(
         : undefined;
     const effectiveBudget =
       autoCapSec !== undefined ? { ...budget, maxSeconds: autoCapSec } : budget;
-    const { placed, outcome } = driveBuildLoop(
+    const { placed, onTarget, redirected, outcome } = driveBuildLoop(
       goalIdx,
       startTimer,
       pieceCap,
@@ -4051,23 +4161,49 @@ export async function createMcpGame(
     // a jam, and knows to call again to continue.
     const autoPaused = outcome === "sec-budget" && autoCapSec !== undefined;
     const label = autoPaused ? "auto-paused" : outcome;
-    const why =
-      outcome === "diverging"
-        ? " — ring keeps expanding instead of closing (an obstacle, usually a grunt on the cheap seal tile, is forcing a longer detour); clear it, target a tighter tower, or place by hand"
-        : outcome === "stuck" || outcome === "blocked"
-          ? describeBlockers(finalCandidate?.blockers ?? [])
-          : autoPaused
-            ? " — hit the default time cap so one enclosure doesn't eat the whole phase; call build_toward again to continue (it cycles the bag for any small-piece gap), or pass maxSeconds to override"
-            : "";
+    const why = buildTowardWhy(outcome, autoPaused, finalCandidate);
+    // Dud-cycling is NOT progress — split the count so "placed 9" can't read as
+    // 9 steps toward the seal when 9 were redirects burning the bag (the seed-42
+    // R12 pack-up that set up a bag-lock was reported as three plain successes).
+    const detail =
+      redirected > 0 ? ` (${onTarget} on-target, ${redirected} cycled)` : "";
     bridge.lastResult = {
       // Placing pieces IS progress — only a no-op (placed 0 and not already
       // sealed) is a real REJECT. A budget/time stop mid-plan is an OK partial:
       // the `outcome:` prefix carries whether the goal was reached.
       kind: "build",
       success: placed > 0 || outcome === "done",
-      reason: `${label}: placed ${placed}, ${remaining} gaps left, ~${elapsed}s${why}`,
+      reason: `${label}: placed ${placed}${detail}, ${remaining} gaps left, ~${elapsed}s${why}`,
     };
     return observe();
+  }
+
+  /** The `— why` suffix for a `build_toward` result. Notably: a stuck/blocked
+   *  stop whose blocker scan comes back EMPTY is a shape-jam — the gap tiles sit
+   *  on buildable ground big enough for a 4-cell piece (so no blocker is
+   *  recorded) but no rotation of the arriving shapes actually covers them —
+   *  name it instead of reporting "stuck" with no diagnosis. */
+  function buildTowardWhy(
+    outcome: string,
+    autoPaused: boolean,
+    finalCandidate: EnclosureCandidate | undefined,
+  ): string {
+    if (outcome === "diverging") {
+      return " — ring keeps expanding instead of closing (an obstacle, usually a grunt on the cheap seal tile, is forcing a longer detour); clear it, target a tighter tower, or place by hand";
+    }
+    if (outcome === "cycle-risk") {
+      return " — bag-cycling is packing the castle: a draw-pool shape just lost its last legal placement (bag-lock risk); skip this seam (pass), place by hand, or declutter next battle";
+    }
+    if (outcome === "stuck" || outcome === "blocked") {
+      return (
+        describeBlockers(finalCandidate?.blockers ?? []) ||
+        " — shape-jam: no rotation of the arriving pieces covers the remaining gap tiles; place by hand (list_placements) or pass to skip"
+      );
+    }
+    if (autoPaused) {
+      return " — hit the default time cap so one enclosure doesn't eat the whole phase; call build_toward again to continue (it cycles the bag for any small-piece gap), or pass maxSeconds to override";
+    }
+    return "";
   }
 
   /** Survival escape: seal the cheapest tower that clears the round-end life
