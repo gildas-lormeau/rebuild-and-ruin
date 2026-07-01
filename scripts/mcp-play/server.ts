@@ -99,6 +99,21 @@ const BUILD_STAMP = formatStamp(BUILD_STAMP_MS);
 const SERVER_INFO = { name: "rebuild-and-ruin-play", version: BUILD_STAMP };
 const DEFAULT_PROTOCOL_VERSION = "2024-11-05";
 const DEFAULT_SAVE_PATH = "mcp-play-save.json";
+/** Server-level `instructions` surfaced to the model at MCP `initialize` — the
+ *  game's OBJECTIVE and core strategy, which the per-tool schemas (all about HOW
+ *  to act) never state. Without this an agent has no stated reason to prefer
+ *  building over passing and defaults to idle-pass. Scoring numbers are ground
+ *  truth from game-constants.ts (territory is LINEAR 1 pt/tile, NOT the tiered
+ *  table game-rules.md still shows). */
+const GAME_INSTRUCTIONS =
+  "You are playing Rebuild & Ruin, a Rampart-style territory game: up to 3 players, each sealed in their own river-bounded zone (only cannonballs cross between zones). Each round loops Cannon Place -> Battle -> Wall Build.\n\n" +
+  "HOW YOU WIN: the player with the HIGHEST SCORE among those still alive when the match ends wins. You can alternatively win by ELIMINATING every opponent (each starts with 3 lives; a player loses a life at a round's end if they have no living enclosed tower, and is out at 0 lives) — but that takes aggressive play. Scoring is the default path to victory.\n\n" +
+  "HOW SCORING WORKS — this is WHY you build:\n" +
+  "- TERRITORY: 1 point per enclosed interior tile, LINEAR — every tile you wall in is a point, so a bigger castle scores strictly more. It is NOT tiered or bracketed; there is no threshold to cross.\n" +
+  "- CASTLE BONUS: a large escalating bonus for enclosing towers with a LIVING tower inside (home castle counts double). More enclosed live towers stack the bonus higher (up to 1400).\n" +
+  "- Bonus squares (enclose them) and battle destruction (enemy walls +2, grunts/cannons +16) add points too.\n\n" +
+  "CORE STRATEGY: maximize enclosed territory EVERY round. Seal your home first, then expand to more towers and bonus squares whenever time allows. NEVER leave build time idle — unbanked territory scores 0, so if a full new enclosure won't finish before the timer, PRE-CLAIM it (build partial walls toward it so next round's seal is cheaper). Passing during Wall Build while any tower is still enclosable or pre-claimable throws away points. And keep at least one living tower enclosed each round or you lose a life.\n\n" +
+  "Read each observation's EXPECTED line for the decision to make and lastResult for what your last action did.";
 const TOOLS: ToolDef[] = [
   {
     name: "new_game",
@@ -1126,6 +1141,7 @@ async function handleRequest(req: JsonRpcRequest): Promise<void> {
         protocolVersion: requested,
         capabilities: { tools: {} },
         serverInfo: SERVER_INFO,
+        instructions: GAME_INSTRUCTIONS,
       });
       return;
     }

@@ -10,7 +10,7 @@ These rules are load-bearing across the whole game and easy to miss because they
 
 - **Grunts are neutral hazards, not player-owned units.** Once spawned, a grunt belongs to no one. It locks onto the nearest alive tower *in the zone it occupies* and attacks whatever is there. Spawn *direction* can be aimed (destroying/enclosing a house pushes grunts toward opponents' zones), but there is no "your grunts," no commanding them after spawn, and no routing them tile-by-tile. Upgrades that treat grunts as a directed offensive unit don't fit the model.
 - **Zones are spatially sealed; you only ever touch your own zone.** A player builds, encloses, and destroys exclusively within their own zone. Enemy towers, houses, cannons, and dead-cannon debris are always in the enemy's zone and are physically unreachable — **the only thing that crosses a river is a cannonball.** You can never enclose, salvage, or otherwise spatially interact with another player's structures.
-- **Territory scoring is bracketed, not per-tile.** Interior tiles map to a tiered point table (see Scoring), so adding a handful of tiles usually scores **zero** — only crossing a bracket threshold pays out. Flat per-tile or perimeter bonuses are near-useless against this curve.
+- **Territory scoring is linear — 1 point per enclosed interior tile** (`TERRITORY_POINTS_PER_SQUARE = 1`). Every tile you wall in pays, so a bigger enclosure scores strictly more; there is no bracket threshold to cross. The **castle bonus** (a separate award for enclosing *living towers*) is the tiered part — see Scoring.
 - **Enclosure is continuous, not a one-time check.** A cannon fires only while *every* one of its tiles stays inside enclosed territory. Breaking your own wall (to insert a cannon, clear space, etc.) un-encloses the territory and silences every cannon in it until it's sealed again — so self-inflicted wall destruction is usually self-sabotage, not a clever tradeoff.
 - **Dead cannons persist as blocking debris.** A destroyed cannon doesn't vanish — its footprint keeps blocking piece placement, cannon placement, and grunt movement until the zone is reset. Mechanics that "make a dead cannon keep blocking" are no-ops; it already does.
 
@@ -308,20 +308,7 @@ Dead towers can be revived by enclosing them, but it takes **two consecutive bui
 
 ### Territory Points (awarded at end of build phase)
 
-Based on number of interior tiles, tiered:
-
-| Interior tiles | Points |
-|---------------|--------|
-| ≥ 100 | 1000 |
-| ≥ 81 | 900 |
-| ≥ 64 | 800 |
-| ≥ 49 | 700 |
-| ≥ 36 | 600 |
-| ≥ 25 | 500 |
-| ≥ 16 | 400 |
-| ≥ 9 | 300 |
-| ≥ 4 | 200 |
-| ≥ 1 | 100 |
+**Linear: 1 point per enclosed interior tile** (`TERRITORY_POINTS_PER_SQUARE = 1`). A fresh 6×6-interior castle (36 tiles) scores 36 territory points, so `N` interior tiles = `N` points. No tiers, no thresholds — every tile pays. (The upgrade *Territorial Ambition* doubles this.)
 
 ### Castle Bonus (awarded at end of build phase)
 
