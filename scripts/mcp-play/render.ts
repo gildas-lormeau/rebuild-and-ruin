@@ -199,7 +199,7 @@ export function renderObservation(
       );
     const saver = savers[0];
     const hint = saver
-      ? ` Seal ${saver.isHome ? "home" : `tower ${saver.towerIdx}`} (~${saver.estSeconds.toFixed(0)}s)${saver.alive ? "" : " — dead but Restoration Crew revives it on enclose"} to avoid it; enclosing a DEAD tower does NOT count.`
+      ? ` → call seal_survivor() now — ONE call seals a compartment around ${saver.isHome ? "home" : `tower ${saver.towerIdx}`} (~${saver.estSeconds.toFixed(0)}s)${saver.alive ? "" : " — dead but Restoration Crew revives it on enclose"}, no coordinates. Passing forfeits the life; enclosing a DEAD tower does NOT count.`
       : " ⚠ No survival-clearing tower is reachable this build — enclosing a dead tower will NOT prevent the life loss.";
     lines.push(
       "  ☠ SURVIVAL: NO alive tower enclosed — finalize the round like this and you LOSE A LIFE and your whole zone resets to bare ground." +

@@ -1,0 +1,12 @@
+# seal_survivor demo / smoke: the ONE-call survival escape.
+# Seed 42 round 1 — the round-1 bombard's return fire breaches Red's ring, so
+# entering WALL_BUILD no alive tower is enclosed (the ☠ SURVIVAL case). Instead
+# of passing (which forfeits a life) or hand-building, seal_survivor() reseals a
+# compartment around the cheapest survivable tower in one call, no coordinates.
+# new_game is auto-synthesized (seed 42, rounds 2) since the file doesn't open with one.
+{"name": "select_castle", "arguments": {"towerIdx": 0}}
+{"name": "place_cannon", "arguments": {"row": 17, "col": 34, "mode": "normal"}}
+{"name": "end_cannon", "arguments": {}}
+{"name": "bombard", "arguments": {"slot": 1}}
+{"name": "seal_survivor", "arguments": {}}
+{"name": "pass", "arguments": {"seconds": 30}}

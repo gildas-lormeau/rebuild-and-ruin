@@ -61,6 +61,7 @@ interface Journal {
         maxSeconds?: number;
         maxPieces?: number;
       }
+    | { t: "seal_survivor"; maxSeconds?: number; maxPieces?: number }
     | { t: "build_out"; maxSeconds?: number; maxPieces?: number }
     | {
         t: "build_region";
@@ -479,6 +480,26 @@ const TOOLS: ToolDef[] = [
       ),
   },
   {
+    name: "seal_survivor",
+    description:
+      "WALL_BUILD, when the ☠ SURVIVAL line warns you'll lose a life: ONE call to save it. It seals a compartment around your cheapest survivable tower — the harness places every piece on the min-cut, carving a tight pocket even when your whole outer ring is too big to close in time. No coordinates, no tower pick, no grid-reading. Reach for this the moment you see the SURVIVAL warning instead of passing (which forfeits the life) or hand-building. If no life-clearing tower can be sealed in the time left it does nothing and lastResult says why (the loss is unavoidable) — then spend the time on offense/pre-claim instead. Read lastResult for the outcome.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        maxSeconds: {
+          type: "number",
+          description:
+            "Cap build-seconds spent THIS call (reserve the rest). Omit to seal to completion.",
+        },
+        maxPieces: {
+          type: "number",
+          description: "Cap pieces placed THIS call. Omit for no piece cap.",
+        },
+      },
+    },
+    handler: (args) => recordSealSurvivor(budgetArg(args)),
+  },
+  {
     name: "build_out",
     description:
       "WALL_BUILD: enclose your WHOLE castle in one call — the greedy form of build_toward. It seals your home, then keeps enclosing the next best tower that fits the time left (home first, then cheapest / most-bonus), so you never leave a tower unbuilt while the clock runs. When no full enclosure fits the remaining time, it PRE-CLAIMS — banks partial ring progress on the cheapest not-yet-reachable tower so next round's enclosure is cheaper — so spare build time is never idled away (idle build scores 0). Reach for this instead of chaining build_toward({towerIdx}) per tower and budgeting time by hand: one call expands as far as the clock allows. Pass maxSeconds / maxPieces to cap total spend and reserve the rest (e.g. for a defensive build). Read lastResult for which towers sealed + any pre-claim.",
@@ -749,6 +770,7 @@ const TOOLS: ToolDef[] = [
         if (move.t === "act") game.act(move.decision);
         else if (move.t === "pass") game.pass(move.n, move.seconds);
         else if (move.t === "build") game.build(move.towerIdx, budgetOf(move));
+        else if (move.t === "seal_survivor") game.sealSurvivor(budgetOf(move));
         else if (move.t === "build_out") game.buildOut(budgetOf(move));
         else if (move.t === "build_region") {
           game.buildRegion(move.rect, budgetOf(move));
@@ -868,6 +890,17 @@ function recordBuild(towerIdx?: number, budget?: BuildBudget): unknown {
   journal?.moves.push({
     t: "build",
     towerIdx,
+    maxSeconds: budget?.maxSeconds,
+    maxPieces: budget?.maxPieces,
+  });
+  return observation;
+}
+
+/** Run the survival-seal executor AND journal it (replay re-derives the saver). */
+function recordSealSurvivor(budget?: BuildBudget): unknown {
+  const observation = requireGame().sealSurvivor(budget);
+  journal?.moves.push({
+    t: "seal_survivor",
     maxSeconds: budget?.maxSeconds,
     maxPieces: budget?.maxPieces,
   });

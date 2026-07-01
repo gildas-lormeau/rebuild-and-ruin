@@ -980,6 +980,15 @@ export interface McpGame {
    *  Pass a `budget` (maxSeconds / maxPieces) to stop early and reserve the rest
    *  of the phase for a second build instead of gambling the whole timer. */
   build(towerIdx?: number, budget?: BuildBudget): Observation;
+  /** WALL_BUILD, survival escape: ONE call to avoid the "no alive tower enclosed
+   *  → lose a life + zone reset" round-end penalty. Picks the cheapest tower whose
+   *  seal actually CLEARS the life check (alive, or dead-but-Restoration-Crew;
+   *  tie-broken by bonus) and drives `build` at it — sealing a tight compartment
+   *  around it via the min-cut even when the whole outer ring is too big to close
+   *  in time. No coordinates, no tower pick. When no survival-clearing tower is
+   *  reachable this build it does nothing and says why (the life is unavoidable).
+   *  The zero-jargon front door for the ☠ SURVIVAL warning. Honours `budget`. */
+  sealSurvivor(budget?: BuildBudget): Observation;
   /** WALL_BUILD: enclose EVERYTHING reachable in one call — the greedy form of
    *  `build`. Seals your home, then keeps enclosing the next best feasible tower
    *  (home-first, then cheapest / most-bonus) until no full enclosure fits the
@@ -4058,6 +4067,50 @@ export async function createMcpGame(
     return observe();
   }
 
+  /** Survival escape: seal the cheapest tower that clears the round-end life
+   *  check (see `sealSurvivor` in McpGame). Delegates to `buildToward` so the
+   *  min-cut carves a tight compartment even when the outer ring is unsealable
+   *  in time. No-ops with an explanatory REJECT when survival is unreachable. */
+  function sealSurvivor(budget?: BuildBudget): Observation {
+    if (sc.state.phase !== Phase.WALL_BUILD) {
+      bridge.lastResult = {
+        kind: "build",
+        success: false,
+        reason: "not in WALL_BUILD",
+      };
+      return observe();
+    }
+    const player = sc.state.players[agentSlot]!;
+    if (survivesRoundEndLifeCheck(player)) {
+      bridge.lastResult = {
+        kind: "build",
+        success: true,
+        reason:
+          "survival already safe: an alive/revivable tower is enclosed — no life at risk this round-end.",
+      };
+      return observe();
+    }
+    const saver = cheapestFeasibleSurvivalEnclosure();
+    if (saver === null) {
+      // Separate the two hopeless cases so the agent knows whether to fight for
+      // it (a survivor exists but won't finish now — maybe cull/declutter helps
+      // next build) or accept the loss (none is enclosable at all this zone).
+      const anyEnclosable = enclosureCandidatesFor().some(
+        (candidate) =>
+          candidate.status === "enclosable" && candidate.satisfiesSurvival,
+      );
+      bridge.lastResult = {
+        kind: "build",
+        success: false,
+        reason: anyEnclosable
+          ? "no survival seal fits the time left — an alive/revivable tower is enclosable but won't finish this build; the life is unavoidable now."
+          : "no survival-clearing tower is enclosable in your zone — every alive/revivable tower leaks to the edge; the life is unavoidable this build.",
+      };
+      return observe();
+    }
+    return buildToward(saver.towerIdx, budget);
+  }
+
   /** Greedy whole-castle build: enclose home, then every other tower that fits
    *  the time left (home-first, then cheapest/most-bonus), then PRE-CLAIM the
    *  cheapest unreachable tower's ring with whatever time/pieces remain — so
@@ -5556,6 +5609,7 @@ export async function createMcpGame(
     act,
     pass,
     build: buildToward,
+    sealSurvivor,
     buildOut,
     buildRegion,
     path: buildPath,
