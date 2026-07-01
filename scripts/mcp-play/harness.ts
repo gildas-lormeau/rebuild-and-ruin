@@ -824,8 +824,11 @@ export interface Observation {
    *  expanding past old shells; prefer a compact `build_toward(<nearest>)` instead.
    *  The expanding builders (`build_out`/`build_region`) report the per-call delta
    *  they cause, so the cost of each expansion is visible at the moment you pay it.
-   *  Omitted outside WALL_BUILD or before any interior exists. */
-  compactness?: { interior: number; fat: number; fatPer100: number };
+   *  Omitted outside WALL_BUILD or before any interior exists. `fatPer100` is null
+   *  while the ring is open (interior < fat): a breach collapses the denominator
+   *  to a few stray tiles, so the ratio is suspended until the castle reseals —
+   *  the absolute `fat` count (the declutter trigger) stays honest throughout. */
+  compactness?: { interior: number; fat: number; fatPer100: number | null };
   /** BATTLE only: how many of my redundant inner ("fat") walls a cannonball can
    *  actually reach right now (non-load-bearing AND not tower-occluded) — i.e. how
    *  many interior tiles `declutter()` could free for the next build. Surfaced as
@@ -4569,16 +4572,24 @@ export async function createMcpGame(
 
   /** The standing compactness read for the given fat-wall count, or null when
    *  there's nothing enclosed yet. `interior` = my enclosed scoring tiles,
-   *  `fatPer100` = sunk fat per 100 interior (the over-expansion trend number). */
+   *  `fatPer100` = sunk fat per 100 interior (the over-expansion trend number).
+   *  The ratio is only a trend signal on a SEALED castle: a ring breach empties
+   *  `interior` while dense wall blocks still count as fat, exploding the ratio
+   *  into the thousands right when a reseal starts. `interior < fat` only happens
+   *  in that collapsed state (a genuinely over-packed castle alarms at 20-60), so
+   *  the ratio is suspended (null) there instead of screaming a meaningless HIGH. */
   function compactnessFor(
     fatCount: number,
-  ): { interior: number; fat: number; fatPer100: number } | null {
+  ): { interior: number; fat: number; fatPer100: number | null } | null {
     const interior = sc.state.players[agentSlot]?.interior.size ?? 0;
     if (interior === 0 && fatCount === 0) return null;
     return {
       interior,
       fat: fatCount,
-      fatPer100: Math.round((fatCount / Math.max(1, interior)) * 100),
+      fatPer100:
+        interior < fatCount
+          ? null
+          : Math.round((fatCount / Math.max(1, interior)) * 100),
     };
   }
 
@@ -4680,7 +4691,11 @@ export async function createMcpGame(
         `⚠ EXPOSED: ${exposed} grunt(s) can reach an unwalled tower — wall the tower this build or cull it in battle.`,
       );
     }
-    if (obs.compactness && obs.compactness.fatPer100 >= 20) {
+    if (
+      obs.compactness &&
+      obs.compactness.fatPer100 !== null &&
+      obs.compactness.fatPer100 >= 20
+    ) {
       out.push(
         `▣ FAT: ${obs.compactness.fatPer100} fat/100 — you're expanding past old shells; prefer build_toward(<nearest>) over build_out.`,
       );

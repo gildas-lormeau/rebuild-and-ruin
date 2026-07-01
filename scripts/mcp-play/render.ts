@@ -239,11 +239,7 @@ export function renderObservation(
   // greedy build_out and onto a compact build_toward (the only avoidable fat is
   // fat not yet placed).
   if (obs.compactness && obs.compactness.interior > 0) {
-    const { interior, fat, fatPer100 } = obs.compactness;
-    lines.push(
-      `  ▣ compactness: ${interior} interior (scoring) tiles, ${fat} sunk fat = ${fatPer100} fat/100. ` +
-        `${fatPer100 >= 20 ? "HIGH — you're expanding past old shells; prefer build_toward(<nearest>) over build_out" : "lean — keep sending pieces to the frontier"}.`,
-    );
+    lines.push(compactnessLine(obs.compactness));
   }
 
   // ── fat walls: SUNK history, not a to-do — in classic no placed wall is removable ─
@@ -313,6 +309,22 @@ export function renderObservation(
 /** Severity-ranked verdict header — the agent's "read this FIRST" digest. The
  *  harness derives the strings (`obs.alerts`); the renderer only frames them so
  *  the ordering/wording stays in one place. Empty when nothing is flagged. */
+/** The standing fat/interior read. A ring breach collapses `interior` while
+ *  dense wall blocks still count as fat, so the harness suspends `fatPer100`
+ *  (null) there — render the absolute fat count instead of a meaningless HIGH. */
+function compactnessLine(
+  compactness: NonNullable<Observation["compactness"]>,
+): string {
+  const { interior, fat, fatPer100 } = compactness;
+  if (fatPer100 === null) {
+    return `  ▣ compactness: ${fat} sunk fat, ${interior} interior — ring open, ratio suspended until resealed (declutter still targets the fat).`;
+  }
+  return (
+    `  ▣ compactness: ${interior} interior (scoring) tiles, ${fat} sunk fat = ${fatPer100} fat/100. ` +
+    `${fatPer100 >= 20 ? "HIGH — you're expanding past old shells; prefer build_toward(<nearest>) over build_out" : "lean — keep sending pieces to the frontier"}.`
+  );
+}
+
 function alertLines(obs: Observation): string[] {
   if (!obs.alerts || obs.alerts.length === 0) return [];
   return ["⚑ NOW (most urgent first):", ...obs.alerts.map((a) => `  ${a}`)];
