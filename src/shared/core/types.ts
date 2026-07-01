@@ -428,6 +428,13 @@ interface ModifierImplBase {
    *                      `clearActiveModifiers` in `prepareBattleState`)
    *   - `permanent`   → never fires (state persists across rounds) */
   clear?(state: GameState): void;
+  /** Optional post-battle diagnostic trace. Returns a one-line summary of
+   *  what the modifier resolved to this battle (e.g. supply-ship bonuses
+   *  awarded), logged generically by the `battle-done` transition via
+   *  `describeModifierResolution`. Log-only — must never mutate state, so
+   *  it can't affect cross-peer parity. Omit when the modifier has nothing
+   *  interesting to trace. */
+  resolutionLog?(state: GameState): string | null;
 }
 
 /** Instant modifier: side effects flow through normal game state at

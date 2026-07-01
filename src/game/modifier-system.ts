@@ -118,6 +118,20 @@ export function applyCheckpointModifierTiles(
   }
 }
 
+/** Post-battle diagnostic trace for the modifier that just resolved, or
+ *  null when there's nothing to say. Dispatched generically by the
+ *  `battle-done` transition (after `finalizeBattle`, before
+ *  `prepareNextRound`) so the phase machine never names a specific
+ *  modifier. Keys on `lastModifierId` — the just-finished battle's modifier,
+ *  snapshotted by `finalizeBattle` before `activeModifier` is cleared.
+ *  Log-only: `resolutionLog` impls must not mutate state. */
+export function describeModifierResolution(state: GameState): string | null {
+  if (!hasFeature(state, FID.MODIFIERS)) return null;
+  const modId = state.modern?.lastModifierId;
+  if (!modId) return null;
+  return MODIFIER_IMPLS_BY_ID[modId].resolutionLog?.(state) ?? null;
+}
+
 /** Clear the active instant modifier at BATTLE_END. Called from
  *  `finalizeBattle` to let battle-only modifiers (dust-storm's jitter
  *  buffer, rubble-clearing's held snapshot) drop their state before the

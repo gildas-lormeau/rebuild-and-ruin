@@ -52,7 +52,10 @@ export {
 } from "./game-over.ts";
 export { getGruntTargetTower, moveGrunts } from "./grunt-movement.ts";
 export { generateMap } from "./map-generation.ts";
-export { applyCheckpointModifierTiles } from "./modifier-system.ts";
+export {
+  applyCheckpointModifierTiles,
+  describeModifierResolution,
+} from "./modifier-system.ts";
 export { pickSupplyShipTarget } from "./modifiers/supply-ship.ts";
 export {
   enterBattlePhase,

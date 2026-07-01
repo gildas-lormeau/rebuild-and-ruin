@@ -52,7 +52,7 @@ stateDiagram-v2
 
 - **guard (from):** `BATTLE`
 - **enters phase:** — (prep; routes onward)
-- **engine ops:** `finalizeBattle`, `prepareNextRound`
+- **engine ops:** `finalizeBattle`, `describeModifierResolution`, `prepareNextRound`
 - **broadcasts:** `buildStart`
 - **display:** —
 - **dispatches:** `enter-upgrade-pick`, `enter-wall-build`

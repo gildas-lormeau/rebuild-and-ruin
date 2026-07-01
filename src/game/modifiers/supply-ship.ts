@@ -105,6 +105,18 @@ export const supplyShipImpl: ModifierImpl = {
   },
   // Ships are entity-layer; no tile or wall mutation.
   skipsRecheck: true,
+  // Post-battle trace: which players banked which hidden bonuses. Read
+  // AFTER `finalizeBattle` (which nulls `supplyShips` but leaves the queued
+  // `pendingSupplyBonuses` for next round's consume hooks). Log-only.
+  resolutionLog: (state: GameState) => {
+    const pending = state.modern?.pendingSupplyBonuses;
+    const summary = pending?.size
+      ? [...pending.entries()]
+          .map(([playerId, bonuses]) => `P${playerId}=${bonuses.join(",")}`)
+          .join(" ")
+      : "(no hits)";
+    return `supply ships resolved: ${summary}`;
+  },
 };
 
 /** Advance ship positions during battle. Called from `tickBattlePhase`

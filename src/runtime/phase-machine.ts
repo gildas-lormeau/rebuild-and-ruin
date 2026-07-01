@@ -9,6 +9,7 @@
 
 import {
   applyUpgradePicks,
+  describeModifierResolution,
   enterBattlePhase,
   enterCannonPhase,
   enterModifierRevealPhase,
@@ -28,7 +29,6 @@ import {
 } from "../game/index.ts";
 import type { BalloonFlight } from "../shared/core/battle-types.ts";
 import type { UpgradePickDialogState } from "../shared/core/dialog-state.ts";
-import { MODIFIER_ID } from "../shared/core/game-constants.ts";
 import {
   type BannerKind,
   emitGameEvent,
@@ -428,15 +428,10 @@ const BATTLE_DONE: Transition = {
     ctx.endBattleLocalControllers();
     ctx.saveBattleCrosshair?.();
     finalizeBattle(ctx.state);
-    if (ctx.state.modern?.lastModifierId === MODIFIER_ID.SUPPLY_SHIP) {
-      const pending = ctx.state.modern.pendingSupplyBonuses;
-      const summary = pending?.size
-        ? [...pending.entries()]
-            .map(([playerId, bonuses]) => `P${playerId}=${bonuses.join(",")}`)
-            .join(" ")
-        : "(no hits)";
-      ctx.log(`supply ships resolved: ${summary}`);
-    }
+    // Generic per-modifier post-battle trace (log-only) — the machine never
+    // names a specific modifier; the registry decides what to say.
+    const modifierTrace = describeModifierResolution(ctx.state);
+    if (modifierTrace) ctx.log(modifierTrace);
     prepareNextRound(ctx.state);
     ctx.broadcast?.buildStart?.();
     return EMPTY_TRANSITION_RESULT;
