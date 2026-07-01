@@ -29,7 +29,7 @@ type Once = (key: string, full: string, terse: string) => string;
 const TERSE_EXPECTED: Record<string, string> = {
   CASTLE_SELECT: "CASTLE_SELECT — select { towerIdx } a home tower.",
   WALL_BUILD:
-    "WALL_BUILD — SCORE by enclosing (every tile = 1 pt, living-tower castle bonus); never idle-pass, pre-claim if a full seal won't finish. build_out (default, seals everything that fits) / build_toward { towerIdx } / seal_survivor (one-call life rescue) / build_path { from, to } / hand place { row, col, rotation } / pass ONLY if nothing can be built. (full menu: round 1)",
+    "WALL_BUILD — SCORE by enclosing (every tile = 1 pt, living-tower castle bonus); never idle-pass, pre-claim if a full seal won't finish. build_out (default, seals everything that fits) / build_toward { towerIdx } / seal_survivor (one-call life rescue) / build_path { from, to } / hand place { row, col, rotation } / pass({ seconds: 30 }) ONLY if nothing can be built — that skips the WHOLE idle remainder in one call (bare pass() with no seconds only steps ~0.5s and needs dozens of calls to drain a phase). (full menu: round 1)",
   CANNON_PLACE:
     "CANNON_PLACE — cannon { row, col, mode }; see CANNON SPOTS for affordable spots; cannon-done / pass. (full menu: round 1)",
   UPGRADE_PICK:

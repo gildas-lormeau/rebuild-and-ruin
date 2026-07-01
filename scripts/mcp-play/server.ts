@@ -443,7 +443,7 @@ const TOOLS: ToolDef[] = [
   {
     name: "pass",
     description:
-      "Advance game time WITHOUT committing anything ('nothing to do, let time run'). Units are SECONDS — the SAME number you read as timerSec: pass({ seconds: 5 }) advances ~5s. It STOPS EARLY the moment something actionable changes — the phase flips, the pre-battle countdown ends, or the game ends — so a big value cheaply skips to the next decision (e.g. run out a quiet build, wait out a countdown). Omit args to step one beat. In BATTLE you re-decide fire/pass each step. To end cannon placement early use end_cannon. (`count` = raw action-quanta is a legacy form; prefer seconds.)",
+      "Advance game time WITHOUT committing anything ('nothing to do, let time run'). DEFAULT TO A LARGE seconds VALUE, e.g. pass({ seconds: 30 }) — it STOPS EARLY the moment something actionable changes (phase flips, countdown ends, game ends), so one call safely skips all the way to the next decision; it can never overshoot into a choice you needed to make. Omitting seconds steps only ONE beat (~0.5s) — that form exists for fine single-step control (e.g. re-deciding fire/pass each BATTLE beat), NOT for draining an idle WALL_BUILD once everything is sealed; calling bare pass() in a loop to wait out a phase wastes tool calls where one pass({seconds:30}) would do it. Units are SECONDS, the SAME number you read as timerSec. To end cannon placement early use end_cannon. (`count` = raw action-quanta is a legacy form; prefer seconds.)",
     inputSchema: {
       type: "object",
       properties: {
