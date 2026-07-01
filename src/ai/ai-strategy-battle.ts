@@ -119,6 +119,12 @@ const GRUNT_WALL_TARGET_PROBABILITY = 1 / 8;
 /** Chance to target a fresh (undamaged) enemy cannon before defaulting to
  *  enclosure-wall sieging. Damaged cannons are handled by the priority pool. */
 const FRESH_CANNON_TARGET_PROBABILITY = 1 / 3;
+/** Multiplier applied to the fresh-cannon targeting probability while a
+ *  targetable enemy super/Mortar gun is on the board — a disproportionate
+ *  threat (3×3 splash + pit) worth escalating fire onto, mirroring the
+ *  human-facing `cannonSnipe` hint. Weak-tier AI keeps a base of 0, so it
+ *  stays 0 — per-player variation preserved. */
+const HEAVY_ENEMY_GUN_TARGET_MULTIPLIER = 2;
 /** How many of the closest candidates to pick randomly from. */
 const TOP_TARGET_PICK_COUNT = 3;
 /** Minimum preferred distance (in tiles) from crosshair for target spread. */
@@ -404,11 +410,21 @@ export function pickTarget(
 
   // Fresh cannon targeting — without this, enclosure-wall sieging always wins
   // and undamaged cannons are never shot. Damaged cannons already fire above.
-  const freshCannonProb = traitLookup(battleTactics, [
+  // Escalate onto a disproportionate threat: while a targetable enemy super/
+  // Mortar gun is up, multiply the base probability. `hasTargetableHeavyEnemyGun`
+  // is a pure function of synced state (like `hasReadySuperGun`), so the rand()
+  // draw is identical on every peer — do NOT gate it on `shotCounts`.
+  let freshCannonProb = traitLookup(battleTactics, [
     0,
     FRESH_CANNON_TARGET_PROBABILITY,
     1 / 2,
   ] as const);
+  if (hasTargetableHeavyEnemyGun(state, playerId)) {
+    freshCannonProb = Math.min(
+      1,
+      freshCannonProb * HEAVY_ENEMY_GUN_TARGET_MULTIPLIER,
+    );
+  }
   if (rand() < freshCannonProb) {
     const freshCannons = filtered.filter(
       (cand) => cand.isCannon && !cand.priority,
@@ -664,6 +680,24 @@ function hasReadySuperGun(
       canFireOwnCannon(state, playerId, idx as CannonIdx)
     )
       return true;
+  }
+  return false;
+}
+
+/** True when an eligible enemy fields a live, targetable super/Mortar gun
+ *  (not a balloon, not captured by us). A pure function of synced state — the
+ *  fresh-cannon rand() gate multiplies its probability on this, so the draw
+ *  stays identical on every peer (same discipline as `hasReadySuperGun`). */
+function hasTargetableHeavyEnemyGun(
+  state: BattleViewState,
+  playerId: ValidPlayerId,
+): boolean {
+  for (const other of filterActiveEnemies(state, playerId)) {
+    for (const cannon of other.cannons) {
+      if (!isCannonAlive(cannon) || isBalloonCannon(cannon)) continue;
+      if (isCannonCapturedBy(state, cannon, playerId)) continue;
+      if (isSuperCannon(cannon) || cannon.mortar === true) return true;
+    }
   }
   return false;
 }
