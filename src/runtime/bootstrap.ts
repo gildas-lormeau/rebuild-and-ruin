@@ -251,12 +251,21 @@ export async function bootstrapGame(deps: InitGameDeps): Promise<void> {
   //   strategy without any further RNG draws — construction stays free of
   //   strategy-side state.rng consumption.
   //
-  //   The host-promotion path in online-host-promotion.ts derives BOTH
-  //   rngs privately, because a promoted host constructs AI controllers
-  //   asymmetrically (only on the new host). Post-promotion AI identity
-  //   is NOT preserved from the pre-promotion host. If you ever need
-  //   identity preservation across promotion, checkpoint the strategy
-  //   seeds into SerializedPlayer and restore them on rebuild.
+  //   Real host promotion KEEPS controllers on every surviving peer
+  //   (reprimeAiControllersForPhase) — identity is retained, only phase
+  //   state re-primes. The private-rng CONSTRUCTION path
+  //   (rebuildControllersForPhase in online-host-promotion.ts) fires on
+  //   fresh-boot checkpoint adoption instead (online-rehydrate.ts), where
+  //   there is no pre-existing controller to keep; it derives BOTH rngs
+  //   privately from deriveAiStrategySeed(seed [^ 1], round, slot). Either
+  //   way, identity is a pure function of checkpointed inputs, never
+  //   transmitted — but a rebuilt AI's personality is NOT preserved from
+  //   whatever the pre-adoption host happened to roll. This does not
+  //   desync (decisions still draw from the shared state.rng; the
+  //   re-derivation is peer-symmetric and never touches state.rng); it is
+  //   only a per-match flavor discontinuity. If you ever need that
+  //   continuity too, checkpoint the strategy seeds into SerializedPlayer
+  //   and restore them on rebuild.
   const factory = deps.controllerFactory ?? createController;
   const controllers = await Promise.all(
     Array.from({ length: playerCount }, (_, i) => {
