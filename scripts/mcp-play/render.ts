@@ -118,7 +118,7 @@ export function renderObservation(
   lines.push(...activeUpgradeLines(obs));
 
   // ── my battery + status line (battery prints before the YOU line, as in show.py) ─
-  lines.push(...batteryStatusLines(obs));
+  lines.push(...batteryStatusLines(obs, once));
 
   // ── build headroom: free land + open-pocket gauge (the cannon-count signal) ──
   lines.push(...headroomLines(obs));
@@ -178,34 +178,8 @@ export function renderObservation(
   lines.push(...balloonOpportunityLines(obs));
 
   // ── survival warning: no alive/revivable enclosed tower = a life lost at round
-  //    end. Gate on `survivesRoundEnd` (credits pending / Restoration-Crew
-  //    revives), NOT the raw alive count, which false-alarmed while RC was held. ──
-  if (obs.enclosureCandidates !== undefined && !obs.me.survivesRoundEnd) {
-    // Point at a tower whose seal actually CLEARS the loss — alive, or dead-but-
-    // revivable via Restoration Crew (`satisfiesSurvival`). Enclosing a plain dead
-    // tower banks territory but still costs the life, so "reseal the cheapest
-    // candidate" was a footgun when the cheapest one was dead.
-    const savers = obs.enclosureCandidates
-      .filter(
-        (candidate) =>
-          candidate.status === "enclosable" &&
-          candidate.feasible &&
-          candidate.satisfiesSurvival,
-      )
-      .sort(
-        (a, b) =>
-          a.estSeconds - b.estSeconds ||
-          (b.bonusSquares ?? 0) - (a.bonusSquares ?? 0),
-      );
-    const saver = savers[0];
-    const hint = saver
-      ? ` → call seal_survivor() now — ONE call seals a compartment around ${saver.isHome ? "home" : `tower ${saver.towerIdx}`} (~${saver.estSeconds.toFixed(0)}s)${saver.alive ? "" : " — dead but Restoration Crew revives it on enclose"}, no coordinates. Passing forfeits the life; enclosing a DEAD tower does NOT count.`
-      : " ⚠ No survival-clearing tower is reachable this build — enclosing a dead tower will NOT prevent the life loss.";
-    lines.push(
-      "  ☠ SURVIVAL: NO alive tower enclosed — finalize the round like this and you LOSE A LIFE and your whole zone resets to bare ground." +
-        hint,
-    );
-  }
+  //    end (see survivalLines) ──
+  lines.push(...survivalLines(obs));
 
   // ── bag-lock: current piece has zero legal placements anywhere ──────────────
   // The bag only advances by PLACING (pass does NOT cycle the piece), so this is
@@ -390,7 +364,7 @@ function upgradeOfferLines(obs: Observation): string[] {
 
 /** My battery rollup + the YOU status line. BATTERY and CAPTURED print before
  *  YOU (as in show.py), so they're pushed first and the YOU line last. */
-function batteryStatusLines(obs: Observation): string[] {
+function batteryStatusLines(obs: Observation, once: Once): string[] {
   const lines: string[] = [];
   const me = obs.me;
   const slots = me.cannonSlots;
@@ -400,6 +374,16 @@ function batteryStatusLines(obs: Observation): string[] {
     mine += ` (${byMode
       .map((entry) => `${entry.mode}×${entry.count}=${entry.slots}sl`)
       .join(" + ")})`;
+  }
+  // The max is recomputed each CANNON_PLACE and SHRINKS when cannons died or
+  // towers entered the phase unenclosed/dead — unexplained, a falling cap reads
+  // as a bug. One-time formula note the first cannon phase of the session.
+  if (obs.phase === "CANNON_PLACE") {
+    mine += once(
+      "cannonSlotsMaxHowto",
+      " (max = slots your live cannons already use + 2 for an enclosed alive home + 1 per other enclosed alive tower, recomputed each round — dead cannons and unsealed towers shrink it)",
+      "",
+    );
   }
   if (obs.phase === "BATTLE") {
     // cannonsReady's denominator is your raw cannon COUNT — it includes
@@ -651,6 +635,59 @@ function threatLines(obs: Observation): string[] {
   return lines;
 }
 
+/** Survival warning: no alive/revivable enclosed tower = a life lost at round
+ *  end. Gated on `survivesRoundEnd` (credits pending / Restoration-Crew
+ *  revives), NOT the raw alive count, which false-alarmed while RC was held.
+ *  Points at a tower whose seal actually CLEARS the loss — alive, or dead-but-
+ *  revivable via Restoration Crew (`satisfiesSurvival`); enclosing a plain dead
+ *  tower banks territory but still costs the life. When no candidate passes the
+ *  strict `feasible` gate, checks for a LONG-ODDS one (walls fit the clock,
+ *  only the expected small-piece bag-wait prices it out) before declaring the
+ *  life unreachable — seal_survivor attempts those now, and "no tower is
+ *  reachable" was twice disproven by a single lucky draw. */
+function survivalLines(obs: Observation): string[] {
+  if (obs.enclosureCandidates === undefined || obs.me.survivesRoundEnd) {
+    return [];
+  }
+  const savers = obs.enclosureCandidates
+    .filter(
+      (candidate) =>
+        candidate.status === "enclosable" &&
+        candidate.feasible &&
+        candidate.satisfiesSurvival,
+    )
+    .sort(
+      (a, b) =>
+        a.estSeconds - b.estSeconds ||
+        (b.bonusSquares ?? 0) - (a.bonusSquares ?? 0),
+    );
+  const saver = savers[0];
+  const longOdds = saver
+    ? undefined
+    : obs.enclosureCandidates
+        .filter(
+          (candidate) =>
+            candidate.status === "enclosable" &&
+            candidate.satisfiesSurvival &&
+            !(candidate.blockers ?? []).some((blocker) => blocker.hard) &&
+            candidate.estSeconds - candidate.waitSeconds <= obs.timerSec,
+        )
+        .sort((a, b) => a.estSeconds - b.estSeconds)[0];
+  let hint: string;
+  if (saver) {
+    hint = ` → call seal_survivor() now — ONE call seals a compartment around ${saver.isHome ? "home" : `tower ${saver.towerIdx}`} (~${saver.estSeconds.toFixed(0)}s)${saver.alive ? "" : " — dead but Restoration Crew revives it on enclose"}, no coordinates. Passing forfeits the life; enclosing a DEAD tower does NOT count.`;
+  } else if (longOdds) {
+    hint = ` → call seal_survivor() — LONG ODDS: ${longOdds.isHome ? "home" : `tower ${longOdds.towerIdx}`}'s walls fit (~${(longOdds.estSeconds - longOdds.waitSeconds).toFixed(0)}s) but it needs a small-piece draw (~${longOdds.waitSeconds.toFixed(0)}s expected bag-wait); it cycles the bag for you and a lucky draw saves the life. Passing forfeits it for sure.`;
+  } else {
+    hint =
+      " ⚠ No survival-clearing tower is reachable this build — enclosing a dead tower will NOT prevent the life loss.";
+  }
+  return [
+    "  ☠ SURVIVAL: NO alive tower enclosed — finalize the round like this and you LOSE A LIFE and your whole zone resets to bare ground." +
+      hint,
+  ];
+}
+
 /** Bag-lock tightness diagnosis. Fires whenever the castle has packed tight
  *  enough that some draw-pool shapes no longer have a legal placement — i.e. a
  *  fat piece could (or already did) bag-lock you. NOTE: with an atomic build_out
@@ -735,7 +772,15 @@ function enclosableDetail(
   } else {
     fit = candidate.feasible ? "fits in time" : "WON'T FINISH in time left";
   }
-  let out = `  ${candidate.tilesNeeded} tiles ~${candidate.estSeconds.toFixed(0)}s [${fit}] -> ${tiles}${more}`;
+  // Split the price so the number self-explains when it jumps: the bag-wait
+  // term toggles on/off as gaps shrink below piece size (or grunts move), and
+  // an unlabelled ~1s↔~33s flip read as an unstable estimate instead of a
+  // re-priced draw-odds wait.
+  const price =
+    candidate.waitSeconds > 0
+      ? `~${candidate.estSeconds.toFixed(0)}s (${(candidate.estSeconds - candidate.waitSeconds).toFixed(0)}s walls + ~${candidate.waitSeconds.toFixed(0)}s expected bag-wait)`
+      : `~${candidate.estSeconds.toFixed(0)}s`;
+  let out = `  ${candidate.tilesNeeded} tiles ${price} [${fit}] -> ${tiles}${more}`;
   const drift = candidate.driftTiles ?? [];
   if (drift.length > 0) {
     const shown = drift
@@ -779,7 +824,11 @@ function stillSealableLines(obs: Observation, once: Once): string[] {
     const who = candidate.isHome ? "home" : `tower ${candidate.towerIdx}`;
     const bonus =
       (candidate.bonusSquares ?? 0) > 0 ? `, ★+${candidate.bonusSquares}` : "";
-    return `${who} (~${candidate.estSeconds.toFixed(0)}s${bonus})`;
+    const wait =
+      candidate.waitSeconds > 0
+        ? ` incl ~${candidate.waitSeconds.toFixed(0)}s bag-wait`
+        : "";
+    return `${who} (~${candidate.estSeconds.toFixed(0)}s${wait}${bonus})`;
   });
   const tail = once(
     "stillSealableHowto",

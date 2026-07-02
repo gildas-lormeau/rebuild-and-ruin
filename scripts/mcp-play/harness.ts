@@ -309,6 +309,13 @@ export interface EnclosureCandidate {
    *  "~1s" cut that really costs a dozen draws reads as the trap it is. Compare
    *  against the phase timer. */
   estSeconds: number;
+  /** The expected bag-cycling wait already INCLUDED in `estSeconds` (0 when no
+   *  `needs-small-piece` gap). Split out so consumers can tell the geometric
+   *  wall-placement time (`estSeconds - waitSeconds`) from draw odds: a seal
+   *  whose walls fit the clock but whose EXPECTED wait doesn't is a long-odds
+   *  attempt (a lucky small draw still lands it), not an impossibility — the
+   *  distinction `sealSurvivor` acts on when a life is at stake. */
+  waitSeconds: number;
   /** TRUE if you can realistically finish this enclosure THIS phase — both
    *  `estSeconds <= timer` AND no seal tile carries a HARD blocker (see
    *  `blockers`). A grunt boxed on a min-cut tile, a burning pit, or an
@@ -2077,6 +2084,7 @@ export async function createMcpGame(
           tilesNeeded: 0,
           tiles: [],
           estSeconds: 0,
+          waitSeconds: 0,
           feasible: true,
           blockers: [],
         });
@@ -2090,6 +2098,7 @@ export async function createMcpGame(
           tilesNeeded: 0,
           tiles: [],
           estSeconds: 0,
+          waitSeconds: 0,
           feasible: false,
           blockers: [],
           reason: "no wallable ring — leaks to the map edge through water/pit",
@@ -2113,6 +2122,7 @@ export async function createMcpGame(
           tilesNeeded: 0,
           tiles: [],
           estSeconds: 0,
+          waitSeconds: 0,
           feasible: false,
           blockers: [],
           reason:
@@ -2127,6 +2137,7 @@ export async function createMcpGame(
           tilesNeeded: 0,
           tiles: [],
           estSeconds: 0,
+          waitSeconds: 0,
           feasible: true,
           blockers: [],
         });
@@ -2139,14 +2150,15 @@ export async function createMcpGame(
         // Honest time price: on-cut placements PLUS the expected bag-cycling
         // wait for any needs-small-piece gap — without it a 1-tile island read
         // as "~1s" while its real expected cost was a dozen dud draws.
-        const estSeconds =
-          enclosureSeconds(cut.size) + smallPieceWaitSeconds(blockers);
+        const waitSeconds = smallPieceWaitSeconds(blockers);
+        const estSeconds = enclosureSeconds(cut.size) + waitSeconds;
         out.push({
           ...base,
           status: "enclosable",
           tilesNeeded: cut.size,
           tiles,
           estSeconds,
+          waitSeconds,
           feasible:
             estSeconds <= state.timer &&
             !blockers.some((blocker) => blocker.hard),
@@ -3018,7 +3030,9 @@ export async function createMcpGame(
         .map((tile) => `(${tile.row},${tile.col})`)
         .join(",");
       const more = lost.length > 4 ? "…" : "";
-      parts.push(`you lost ${lost.length} walls near ${sample}${more}`);
+      parts.push(
+        `you lost ${lost.length} walls to enemy return fire near ${sample}${more}`,
+      );
     }
     if (inertNow > inertBefore) {
       parts.push(
@@ -3726,6 +3740,30 @@ export async function createMcpGame(
     )[0]!;
   }
 
+  /** `sealSurvivor`'s fallback when NO candidate passes the strict `feasible`
+   *  gate: the cheapest survival-clearing tower whose GEOMETRY fits the clock
+   *  (`estSeconds - waitSeconds <= timer`, no hard blockers) even though the
+   *  expected small-piece bag-wait prices the total past it. That wait is an
+   *  expectation over draws, not a wall — attempting (dud-cycling toward a
+   *  small piece) can still land the seal, and when the alternative is a
+   *  certain life loss, trying strictly dominates. Null only when the block is
+   *  genuinely geometric (walls alone don't fit, or the cut is hard-blocked). */
+  function longOddsSurvivalEnclosure(): EnclosureCandidate | null {
+    const candidates = enclosureCandidatesFor().filter(
+      (candidate) =>
+        candidate.status === "enclosable" &&
+        candidate.satisfiesSurvival &&
+        !candidate.blockers.some((blocker) => blocker.hard) &&
+        candidate.estSeconds - candidate.waitSeconds <= sc.state.timer,
+    );
+    if (candidates.length === 0) return null;
+    return candidates.sort(
+      (a, b) =>
+        a.estSeconds - b.estSeconds ||
+        (b.bonusSquares ?? 0) - (a.bonusSquares ?? 0),
+    )[0]!;
+  }
+
   /** buildOut's greedy pick: the next tower worth FULLY enclosing in the time
    *  left — home first (biggest territory, always priority), then cheapest /
    *  most-bonus. Null when nothing fully fits (→ pre-claim instead). */
@@ -3790,11 +3828,15 @@ export async function createMcpGame(
         const stakes = atRisk
           ? `☠ NO alive tower enclosed — finalize like this and you LOSE A LIFE and your zone resets. `
           : "";
+        const wait =
+          target.waitSeconds > 0
+            ? ` incl ~${target.waitSeconds.toFixed(0)}s expected bag-wait`
+            : "";
         bridge.lastResult = {
           kind: "build",
           success: false,
           reason:
-            `HELD — ${stakes}${who} is still enclosable (~${target.estSeconds.toFixed(0)}s, ` +
+            `HELD — ${stakes}${who} is still enclosable (~${target.estSeconds.toFixed(0)}s${wait}, ` +
             `you have ${sc.state.timer.toFixed(0)}s) and idle build scores 0: ${who}'s ` +
             `territory${bonus} banks THIS round only if you wall it. ` +
             `build_out() to enclose it (and everything else that fits), ` +
@@ -4006,6 +4048,7 @@ export async function createMcpGame(
     startTimer: number,
     pieceCap: number,
     budget: BuildBudget | undefined,
+    opts?: { noCycleBrake?: boolean },
   ): { placed: number; onTarget: number; redirected: number; outcome: string } {
     const counters = {
       placed: 0,
@@ -4053,7 +4096,12 @@ export async function createMcpGame(
       }
       const step = placeTowardTargets(plan.targets);
       if (step.noPiece) continue;
-      const braked = accountBuildStep(step, cyclingForPiece, counters);
+      const braked = accountBuildStep(
+        step,
+        cyclingForPiece,
+        counters,
+        opts?.noCycleBrake ?? false,
+      );
       if (braked) {
         outcome = braked;
         break;
@@ -4073,7 +4121,10 @@ export async function createMcpGame(
    *  ONLY when not deliberately cycling for a soft blocker — otherwise a long,
    *  legitimate bag-cycle would trip "stuck". A CYCLED redirect instead re-reads
    *  the dump gauge and returns "cycle-risk" the moment any draw-pool shape has
-   *  lost its last legal placement — the brake on packing toward a bag-lock. */
+   *  lost its last legal placement — the brake on packing toward a bag-lock.
+   *  `noCycleBrake` disables that brake on the survival path: a bag-lock risk
+   *  next round is cheaper than a certain life loss now (and a lost life resets
+   *  the zone anyway, clearing the packing the brake guards against). */
   function accountBuildStep(
     step: { landed: boolean; onTarget: boolean },
     cyclingForPiece: boolean,
@@ -4084,6 +4135,7 @@ export async function createMcpGame(
       stall: number;
       sinceImprove: number;
     },
+    noCycleBrake: boolean,
   ): "cycle-risk" | null {
     if (!step.landed) {
       counters.stall++;
@@ -4096,7 +4148,7 @@ export async function createMcpGame(
     } else {
       counters.redirected++;
       if (!cyclingForPiece) counters.stall++;
-      else if (dumpBrakeTripped()) return "cycle-risk";
+      else if (!noCycleBrake && dumpBrakeTripped()) return "cycle-risk";
     }
     if (!cyclingForPiece) counters.sinceImprove++;
     return null;
@@ -4122,7 +4174,11 @@ export async function createMcpGame(
    *  bag-peeking. A `budget` stops it early (banking partial progress, reserving
    *  the rest); with no explicit `maxSeconds` it self-caps (see `autoBuildCapSec`)
    *  so a big enclosure can't silently gamble the whole phase. */
-  function buildToward(towerIdx?: number, budget?: BuildBudget): Observation {
+  function buildToward(
+    towerIdx?: number,
+    budget?: BuildBudget,
+    opts?: { survival?: boolean; note?: string },
+  ): Observation {
     if (sc.state.phase !== Phase.WALL_BUILD) {
       bridge.lastResult = {
         kind: "build",
@@ -4150,6 +4206,9 @@ export async function createMcpGame(
       startTimer,
       pieceCap,
       effectiveBudget,
+      // Survival seal: don't brake on bag-lock risk — a packed castle next
+      // round is cheaper than the certain life loss this seal is preventing.
+      { noCycleBrake: opts?.survival ?? false },
     );
     const finalCandidate = enclosureCandidatesFor().find(
       (cand) => cand.towerIdx === goalIdx,
@@ -4173,7 +4232,7 @@ export async function createMcpGame(
       // the `outcome:` prefix carries whether the goal was reached.
       kind: "build",
       success: placed > 0 || outcome === "done",
-      reason: `${label}: placed ${placed}${detail}, ${remaining} gaps left, ~${elapsed}s${why}`,
+      reason: `${opts?.note ?? ""}${label}: placed ${placed}${detail}, ${remaining} gaps left, ~${elapsed}s${why}`,
     };
     return observe();
   }
@@ -4231,6 +4290,24 @@ export async function createMcpGame(
     }
     const saver = cheapestFeasibleSurvivalEnclosure();
     if (saver === null) {
+      // Long-odds fallback: a candidate whose WALL placements fit the clock but
+      // whose EXPECTED small-piece bag-wait doesn't. The wait is a probability,
+      // not geometry — a lucky 1×1/1×2 draw still lands the seal (and the loop
+      // already dud-cycles toward one). Attempting strictly dominates rejecting:
+      // the alternative is a certain life loss, so "unavoidable" was a lie here
+      // (twice disproven on seed 42 by one manual dud dump).
+      const longOdds = longOddsSurvivalEnclosure();
+      if (longOdds !== null) {
+        const wallsSec = longOdds.estSeconds - longOdds.waitSeconds;
+        return buildToward(longOdds.towerIdx, budget, {
+          survival: true,
+          note:
+            `long-odds seal of ${longOdds.isHome ? "home" : `tower ${longOdds.towerIdx}`}: ` +
+            `walls fit in ~${wallsSec.toFixed(0)}s but the expected small-piece bag-wait ` +
+            `(~${longOdds.waitSeconds.toFixed(0)}s more) exceeds the ${sc.state.timer.toFixed(0)}s left — ` +
+            `attempting anyway (passing forfeits the life; a lucky small draw saves it) — `,
+        });
+      }
       // Separate the two hopeless cases so the agent knows whether to fight for
       // it (a survivor exists but won't finish now — maybe cull/declutter helps
       // next build) or accept the loss (none is enclosable at all this zone).
@@ -4242,12 +4319,12 @@ export async function createMcpGame(
         kind: "build",
         success: false,
         reason: anyEnclosable
-          ? "no survival seal fits the time left — an alive/revivable tower is enclosable but won't finish this build; the life is unavoidable now."
+          ? "no survival seal fits — an alive/revivable tower is enclosable but its wall placements alone exceed the time left, or its cut is hard-blocked (grunt-boxed/pit/unfillable) this phase; the life is unavoidable now."
           : "no survival-clearing tower is enclosable in your zone — every alive/revivable tower leaks to the edge; the life is unavoidable this build.",
       };
       return observe();
     }
-    return buildToward(saver.towerIdx, budget);
+    return buildToward(saver.towerIdx, budget, { survival: true });
   }
 
   /** Greedy whole-castle build: enclose home, then every other tower that fits
