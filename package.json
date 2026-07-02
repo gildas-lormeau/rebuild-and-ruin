@@ -131,7 +131,7 @@
   "devDependencies": {
     "@biomejs/biome": "^2.5.2",
     "@types/node": "^25.9.4",
-    "@types/three": "^0.184.1",
+    "@types/three": "^0.185.0",
     "@typescript-eslint/eslint-plugin": "^8.62.1",
     "@typescript-eslint/parser": "^8.62.1",
     "eslint": "^10.6.0",
@@ -147,6 +147,6 @@
     "fflate": "^0.8.3",
     "libadlmidi-js": "^2.2.0",
     "qrcode-generator": "^2.0.4",
-    "three": "^0.184.0"
+    "three": "^0.185.1"
   }
 }
