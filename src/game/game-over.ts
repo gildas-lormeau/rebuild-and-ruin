@@ -19,15 +19,16 @@ export interface GameOverOutcome {
 
 /** Pure peek: does the just-closed round trigger game-over?
  *
- *  Called twice per round-end against the CLOSING round (`advanceRound` is
- *  deferred to the continue branch of `routeLifeLostResolution`, so
+ *  Called twice per ROUND_END window against the CLOSING round
+ *  (`advanceRound` is deferred to `exitRoundEnd`'s continue branch, so
  *  `state.round` is unchanged across both calls):
- *    1. in the round-end transition's mutate, AFTER `applyLifePenalties`
- *       and BEFORE the score / life-lost dialog displays — decides whether
- *       to suppress the (now-moot) interactive continue/abandon prompt.
- *    2. in that transition's postDisplay, AFTER the dialog resolves — the
- *       dialog's ABANDON/AFK choices can eliminate more players, newly
- *       creating a last-player-standing. Reusing the full peek here is safe
+ *    1. in `beginLifeLostBeat` (the self-driving ROUND_END dialog beat),
+ *       AFTER `applyLifePenalties` ran in `enter-round-end`'s mutate and
+ *       BEFORE the life-lost dialog shows — decides whether to suppress
+ *       the (now-moot) interactive continue/abandon prompt.
+ *    2. in `exitRoundEnd`, AFTER the dialog resolves — the dialog's
+ *       ABANDON/AFK choices can eliminate more players, newly creating a
+ *       last-player-standing. Reusing the full peek here is safe
  *       precisely because the round hasn't advanced: the round-limit branch
  *       was already false in call 1 and the round is the same, so only the
  *       alive-count condition can flip.

@@ -588,7 +588,7 @@ Deno.test(
     // their auto-built castles and each eventually gets a life-lost
     // dialog; the test ABANDONs every dialog through the keyboard path.
     // When an abandon drops the alive count to one, the post-dialog
-    // recheck in routeLifeLostResolution must end the game right there —
+    // re-peek in exitRoundEnd must end the game right there —
     // not after the surviving AI plays a full pointless solo round.
     using sc = await createScenario({
       seed: 42,

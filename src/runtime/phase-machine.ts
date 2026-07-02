@@ -444,8 +444,12 @@ const BATTLE_DONE: Transition = {
 /** `ceasefire` — CANNON_PLACE prep transition (battle skipped).
  *
  *  Triggered when `shouldSkipBattle(state)` at the top of `startBattle`:
- *  no side has fighting capability, so the battle is skipped at the
- *  engine level. `enterBuildSkippingBattle` does the pre-battle cleanup
+ *  the upgrade-hook aggregator (boolean OR across upgrade impls) says
+ *  this round's battle is skipped — the sole implementor today is the
+ *  Ceasefire upgrade (any player owning it skips the round's battle for
+ *  everyone). Fighting capability is NOT consulted: a classic round with
+ *  no cannons anywhere still runs a full BATTLE.
+ *  `enterBuildSkippingBattle` does the pre-battle cleanup
  *  (burning-pit decay, wall sweep, territory recheck, modifier clear)
  *  then calls `finalizeBattle` + `prepareNextRound` (upgrade-offer
  *  generation, interbattle grunt spawn — the round increment happens

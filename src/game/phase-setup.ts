@@ -296,12 +296,13 @@ export function prepareNextRound(state: GameState): void {
 }
 
 /** Emit `ROUND_START` for the round the engine just rolled into.
- *  `state.round` must already reflect the new round value — round-end's
- *  mutate increments it immediately before this call, and only on the
- *  continue/reselect path: the game-over peek returns early with the
- *  counter still at the closing round and this emit suppressed. (That
- *  ordering is why `routeLifeLostResolution` re-checks only the
- *  alive-count condition afterwards, never the round limit.) */
+ *  `state.round` must already reflect the new round value —
+ *  `exitRoundEnd` increments it (`advanceRound`) immediately before this
+ *  call, and only on the continue/reselect path: the game-over branch
+ *  returns early with the counter still at the closing round and this
+ *  emit suppressed. (That ordering is why `exitRoundEnd`'s post-dialog
+ *  re-peek can only flip on the alive-count condition, never the round
+ *  limit.) */
 export function emitRoundStart(state: GameState): void {
   emitGameEvent(state.bus, GAME_EVENT.ROUND_START, { round: state.round });
 }
