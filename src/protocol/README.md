@@ -18,7 +18,7 @@ Host ──WebSocket──> Server (relay) ──WebSocket──> Players / Watc
 - **Lockstep apply scheduling**: every state-mutating originator-driven message (`opponentPiecePlaced`, `opponentCannonPlaced`, `opponentTowerSelected` confirmed, `opponentCannonPhaseDone`, `cannonFired`) carries `applyAt = senderSimTick + SAFETY`. Both originator and receiver enqueue the apply for that tick; the queue drains at the top of each sim tick keyed off the shared `state.simTick` counter, so mutations and their RNG-consuming cascades fire at the same logical tick across peers — closing within-phase divergences (recheckTerritory grunt-respawn drift, AI cannon-fire grunt-spawn drift, castle-wall clumsy-builder drift) that wire delay would otherwise open.
 - **Local AI on every peer**: AI selections, castle wall plans, modifier tiles, bonus square placement, and grunt spawns all advance from `state.rng`. Watchers run the same code paths as host — no wire payload needed for any of these.
 - **Local execution**: build and cannon phases run locally on each client for zero-latency input. The host's local controllers broadcast their actions as incremental events; the watcher derives everything else from local engine fns.
-- **Precompute over per-fire RNG**: AI decisions and modifier effects whose RNG consumption can't be aligned to a deterministic state-mutation point are precomputed at battle-start and indexed by a lockstep counter at use time. Current users: `precomputedUpgradePicks` (drawn at battle-done, indexed by playerId at upgrade lock-in tick) and `precomputedDustStormJitters` (drawn at `prepareBattleState`, indexed by `state.shotsFired` at fire time). Both serialized in `fullState` for late-joiners.
+- **Precompute over per-fire RNG**: AI decisions and modifier effects whose RNG consumption can't be aligned to a deterministic state-mutation point are precomputed at battle-start and indexed by a lockstep counter at use time. Current user: `precomputedDustStormJitters` (drawn at `prepareBattleState`, indexed by `state.shotsFired` at fire time), serialized in `fullState` for late-joiners. (Upgrade offers ride `pendingUpgradeOffers`, drawn at battle-done with synced RNG.)
 
 ## Connection Flow
 
@@ -152,7 +152,7 @@ The `lint:applyat` script (`scripts/lint-applyat.ts`) statically asserts that ev
 
 **Per-fire RNG draws (e.g. dust-storm jitter)** also need to stay rng-quiet across the SAFETY window. The pattern: precompute a buffer at `prepareBattleState` (right after `rollModifier`) on every peer, store on `ModernState` (e.g. `precomputedDustStormJitters: readonly number[]`), and index by a lockstep counter (`state.shotsFired`, bumped at apply on every peer) at fire time. Both peers populate from the same `state.rng` prefix at the same simTick → identical buffers → no per-fire rng draws → no SAFETY-window drift. See `docs/adding-modifiers-and-upgrades.md` § "Per-fire RNG draws" for the full pattern.
 
-The same precompute idea covers any AI decision drawn from `state.rng` whose lock-in tick differs across peers — e.g. `precomputedUpgradePicks` (drawn at battle-done, consumed when the upgrade dialog locks in).
+The same draw-early-consume-later idea covers any decision drawn from `state.rng` whose lock-in tick differs across peers — e.g. `pendingUpgradeOffers` (drawn at battle-done, consumed when the upgrade dialog locks in).
 
 ## Game Phases
 

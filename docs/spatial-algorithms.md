@@ -15,14 +15,16 @@ key = row * GRID_COLS + col          // packTile(r, c)
              col: key % GRID_COLS }
 ```
 
-Grid size: 28 rows x 44 cols. Always use `packTile`/`unpackTile` — never
-encode manually.
+Grid size is orientation-dependent: 28 rows x 44 cols in landscape (and
+on the server / in tests), but `GRID_PORTRAIT_LAUNCHED` in `grid.ts`
+flips it to 44 rows x 28 cols on portrait-launched touch devices. Always
+use `packTile`/`unpackTile` — never encode manually.
 
 ## Flood-fill: computeOutside
 
-`computeOutside(walls, extraBarriers?)` in `spatial.ts` performs BFS from
-all map-edge tiles, expanding through tiles not blocked by `walls` or
-`extraBarriers`. Returns the set of "outside" tiles (reachable from edges).
+`computeOutside(walls)` in `spatial.ts` performs BFS from all map-edge
+tiles, expanding through tiles not blocked by `walls`. Returns the set
+of "outside" tiles (reachable from edges).
 Interior = everything NOT in outside and NOT a wall.
 
 **Critical: it uses 8-directional expansion (DIRS_8).** A single diagonal
@@ -82,11 +84,16 @@ During battle, use `getBattleInterior()`. Everywhere else, use
   PLUS awards territory points, revives pending towers, clears stale
   pending revives. Called exactly once at build phase end.
 
+Both live in `src/game/build-system.ts`.
+
 ## What blocks grunt movement
 
 `isGruntPassableTile(state, row, col)` returns false if:
 - Tile is out of bounds
-- Tile is water (unless frozen)
+- Tile is water (unless frozen, or exposed riverbed under the
+  `low_water` modifier)
+- Tile is grass flooded by the `high_tide` modifier (`isGruntBlocked`
+  in `grunt-movement.ts` checks `isFloodedTile` per step)
 - Tile has a cannon, alive house, tower, or burning pit
 - Tile has a wall (any player's wall)
 
@@ -133,3 +140,13 @@ enabling cross-zone grunt movement.
 5. **Walls block tile-by-tile.** Even an incomplete wall (no enclosure)
    physically blocks grunt movement on every wall tile. Don't confuse
    "no territory" with "no obstacle."
+
+## See also (newer algorithms, not covered here)
+
+- Catapult siege movement + range-3 tower attack —
+  `src/game/grunt-system.ts`, `src/game/grunt-movement.ts`
+- Grunt tie-break inertia (`lastMoveAxis`) —
+  `src/game/grunt-movement.ts`
+- High-tide flooding (`isFloodedTile`) — `src/shared/core/spatial.ts`
+- Min-cut enclosure/breach analysis (`findMinBreach`) —
+  `src/ai/ai-min-cut.ts`

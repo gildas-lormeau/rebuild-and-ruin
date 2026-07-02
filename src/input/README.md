@@ -1,15 +1,14 @@
-# `src/input/` — Input, sound, and haptics subsystems
+# `src/input/` — Input handlers
 
-The **input** domain owns browser input (keyboard, mouse, touch),
-touch UI rendering, the sound system (jsfxr + Web Audio), and the
-haptics system (navigator.vibrate). These are the "talk to the
-browser hardware" subsystems, the bottom layer that converts physical
-events into game-visible actions.
+The **input** domain owns browser input (keyboard, mouse, touch) and
+touch UI wiring. These are the "talk to the browser hardware"
+subsystems, the bottom layer that converts physical events into
+game-visible actions.
 
-Despite the name "input", this folder ALSO holds the sound and
-haptics systems. They live here because they're all "browser-device"
-concerns that the runtime wires in the same way: factory +
-per-event handler + observer seam for tests.
+Sound and haptics do NOT live here: sound lives in
+`src/runtime/audio/` + `src/runtime/subsystems/audio.ts`, haptics in
+`src/runtime/subsystems/haptics.ts` (the `HapticsObserver` interface
+is in `src/shared/core/system-interfaces.ts`).
 
 ## Read these first
 
@@ -20,9 +19,6 @@ per-event handler + observer seam for tests.
    registration. Each player has their own key bindings; the
    handler routes events to the right controller. **Start here to
    understand the keyboard → action → controller → intent flow.**
-3. **[sound-system.ts](./sound-system.ts)** — Sound factory with an
-   observer seam for tests. Worth reading to see the "factory +
-   observer" pattern that haptics mirrors.
 
 ## File categories
 
@@ -50,50 +46,9 @@ per-event handler + observer seam for tests.
   controls: show/hide d-pad based on phase, loupe zoom on long-press,
   floating action menu visibility.
 
-### Device output (sound + haptics)
-- **`sound-system.ts`** — Sound factory: jsfxr for one-shot SFX,
-  Web Audio API for multi-layered sounds (cannon boom, impact,
-  cannonball whistle, building). Exposes a `SoundSystem` handle with
-  `played(reason)` observer seam.
-- **`haptics-system.ts`** — Vibration factory. No-op on devices
-  without vibration support. Same observer seam pattern.
-
 ### Dev tool
 - **`input-recorder.ts`** — Captures touch/mouse/keyboard events
   for replay testing. In-page widget, guarded by a query param.
-
-## The observer seam (test-first design)
-
-Both `sound-system.ts` and `haptics-system.ts` expose a mandatory
-observer interface:
-
-```ts
-export interface HapticsObserver {
-  vibrate?(reason: HapticsReason, ms: number, minLevel: HapticsLevel): void;
-}
-
-export function createHapticsSystem(opts: {
-  observer?: HapticsObserver;
-}): HapticsSystem {
-  // ... real impl calls observer?.vibrate(...) before the platform gate
-}
-```
-
-The observer fires **before** the platform/level gate, so tests can
-assert on intended haptic/sound events without needing a real
-`navigator.vibrate` or `AudioContext`. Production callers omit the
-observer — it's for test inspection only.
-
-If you're adding a new output system (e.g., screen shake, flashlight
-pulse on mobile), follow the same pattern:
-1. Define a typed `Reason` enum for the distinct events.
-2. Define an `XxxObserver` interface.
-3. The factory takes an optional observer and calls it before the
-   platform gate.
-4. Tests plug in an observer via `HeadlessRuntimeOptions`.
-
-See `test/haptics-observer.test.ts` and `test/sound-observer.test.ts`
-for examples.
 
 ## Per-player key bindings
 
@@ -127,17 +82,6 @@ the UI visibility.
 4. If it's a UI-rebindable action, add to the options menu entry
    list in `src/runtime/subsystems/options.ts`.
 
-### Add a new sound effect
-1. Add the reason to `SoundReason` enum in `sound-system.ts`.
-2. Add a jsfxr params entry or Web Audio synth call.
-3. Call `sound.play(SoundReason.X)` from the relevant game event
-   handler (usually in a runtime subsystem, not game/).
-4. If tests should observe it, add a case to the observer interface.
-
-### Add a new haptic event
-Similar to sound: add reason, add case in `createHapticsSystem`,
-call from event handler.
-
 ### Debug "click does nothing"
 Start at `input-mouse.ts` / `input-touch-canvas.ts` to verify the
 event fires. Then step into `input-dispatch.ts` to see pointer
@@ -150,11 +94,6 @@ into `controller-human.ts` to see intent generation.
   stores the returned handles in `touchHandles` and calls their
   `update()` methods each frame. Don't try to recreate them on every
   frame — it would leak event listeners.
-
-- **Sound system has a lazy Web Audio init.** The `AudioContext`
-  can't be created until after user interaction (browser policy).
-  The factory defers `new AudioContext()` until the first play call.
-  Don't try to preload audio at module init time.
 
 - **`input-recorder.ts` is dev-only.** Guarded by a URL query param;
   not wired into production builds. If you touch it, verify
@@ -176,7 +115,7 @@ into `controller-human.ts` to see intent generation.
 - **[src/runtime/subsystems/input.ts](../runtime/subsystems/input.ts)** —
   The runtime subsystem that wires input handlers to controllers
   via the deps bag.
-- **[src/player/controller-human.ts](../player/controller-human.ts)**
+- **[src/controllers/controller-human.ts](../controllers/controller-human.ts)**
   — The human controller that consumes the events this folder emits.
 - **[src/shared/core/input-action.ts](../shared/core/input-action.ts)**
   — `Action` vocabulary + the `KeyBindings` type.
@@ -184,5 +123,3 @@ into `controller-human.ts` to see intent generation.
   — `PLAYER_KEY_BINDINGS` (default binding data).
 - **[test/input-lobby.test.ts](../../test/input-lobby.test.ts)** —
   Example of driving lobby input through the real dispatch path.
-- **[test/haptics-observer.test.ts](../../test/haptics-observer.test.ts)**
-  — Example of an observer-seam test.

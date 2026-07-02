@@ -84,7 +84,7 @@ Reverse-engineered from the implementation. Describes *what* the system does, no
 |------|-----------|
 | **Match** | A complete game from lobby to game-over. Settings (rounds, difficulty, mode) are immutable. |
 | **Round** | One cycle through cannon → battle → build (build is the round's closing phase). The game lasts 3/5/8/12 rounds or "to the death." |
-| **Phase** | A discrete game state: CASTLE_SELECT, WALL_BUILD, CANNON_PLACE, or BATTLE. CASTLE_SELECT is re-entered between rounds when a player loses lives (reselect cycle); the cycle type is derived from `state.round` (1 vs >1), not a separate phase tag. |
+| **Phase** | A discrete game state: CASTLE_SELECT, WALL_BUILD, CANNON_PLACE, BATTLE, ROUND_END, or (modern mode only) MODIFIER_REVEAL and UPGRADE_PICK. CASTLE_SELECT is re-entered between rounds when a player loses lives (reselect cycle); the cycle type is derived from `state.round` (1 vs >1), not a separate phase tag. |
 | **Phase Timer** | A countdown timer governing phase duration (e.g., 25s build, 15s cannon, 10s battle). Difficulty-scaled. |
 | **Battle Countdown** | A 6-second pre-battle sequence (Ready 3s + Aim 2s + Fire! 1s) before combat begins. |
 | **Banner** | A 3-second visual sweep between phases announcing the next phase. |

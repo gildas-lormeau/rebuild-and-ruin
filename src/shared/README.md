@@ -31,6 +31,8 @@ registries, interfaces that `game/` and everyone else agree on.
   registries"): `feature-defs.ts`, `upgrade-defs.ts`, `modifier-defs.ts`,
   `cannon-mode-defs.ts`. Each holds the `*_POOL`, `*_CONSUMERS`,
   compile-time `PoolComplete` check, and helper lookups.
+  `pool-def.ts` is the `PoolDef` base shape they all extend, plus the
+  shared `RARITY_WEIGHTS` rarity→weight table.
 - **Events**: `battle-events.ts` (BattleEvent / ImpactEvent unions +
   BATTLE_MESSAGE constants + `BATTLE_EVENT_CONSUMERS`),
   `game-event-bus.ts` (typed pub/sub).
@@ -102,12 +104,17 @@ by a single domain → that domain.
 UI state types + interaction DTOs consumed by `runtime/`, `render/`,
 and `input/`.
 
-- **`ui-contracts.ts`** — `UIContext`, `BannerState`, `BannerShow`,
-  `CreateXOverlayFn` factory types, touch UI factory types. The
-  interface between the composition root and render subsystems.
-- **`overlay-types.ts`** — `RenderOverlay`, `EntityOverlay`, `CastleData`,
-  `PlayerStats`, `GameOverOverlay`, `RendererInterface`, `LoupeHandle`.
-  Per-frame render payload types.
+- **`banner-content.ts`** — `BannerContent` / `SceneCapture` — the
+  banner payload + renderer-produced scene snapshots for the banner
+  prev/new-scene sweep. (The composition-root `UIContext` +
+  `CreateXOverlayFn` factory types live in
+  `src/runtime/ui-contracts.ts`, not here.)
+- **`input-deps.ts`** — Per-component / per-action deps shapes the
+  `input/` handler factories (keyboard, mouse, touch UI) take —
+  referenced by both `runtime/` and `input/`.
+- **`overlay-types.ts`** — `RenderOverlay`, `BattleOverlay`,
+  `UIOverlay`, `GameOverOverlay`, `RendererInterface`, `LoupeHandle`,
+  `CastleData`. Per-frame render payload types.
 - **`ui-mode.ts`** — `Mode` enum + predicates (`isInteractiveMode`,
   `isGameplayMode`). The orthogonal "what UI state am I in" axis
   (LOBBY / GAME / OPTIONS / BANNER / LIFE_LOST / UPGRADE_PICK /
@@ -127,10 +134,11 @@ and `input/`.
   the options menu uses.
 - **`theme.ts`** — Color constants, font constants, `rgb()` helper.
   Visual theme.
-- **`canvas-layout.ts`** — `computeLetterboxLayout()` — letterbox
-  math for the canvas. Pure geometry, no DOM.
-- **`router.ts`** — `GAME_CONTAINER_ACTIVE` CSS class name,
-  `GAME_EXIT_EVENT` DOM event name. UI routing primitives.
+
+(Letterbox math — `computeLetterboxLayout()` — lives in
+`src/render/render-layout.ts`; the `GAME_CONTAINER_ACTIVE` /
+`GAME_EXIT_EVENT` routing constants live in
+`src/online/online-router.ts`.)
 
 **When to add here:** UI state types, theme constants, interaction
 DTOs, or anything consumed by runtime/render/input for per-frame
@@ -145,8 +153,8 @@ entirely, these files would still be valid.
 - **`rng.ts`** — `Rng` class (seeded deterministic RNG),
   `createSeededRng()`, `MAX_UINT32`.
 - **`utils.ts`** — `assertNever()`, generic TS helpers.
-- **`jsfxr.d.ts`** — Ambient type declaration for the `jsfxr` npm
-  package.
+- **`cyclic.ts`** — Cyclic-index navigation: pure integer math shared
+  by every "move a cursor / cycle a value by ±1 with wraparound" site.
 
 **When to add here:** the file has zero imports from `shared/core/`,
 `shared/sim/`, `shared/ui/`, or any domain. Pure platform detection

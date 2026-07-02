@@ -12,9 +12,17 @@ The codebase has two complementary indices over its modules:
 - **Layers** (`.import-layers.json`) — mechanical depth. `layer(f) = 1 +
   max(layer(dep))`, or 0 if no intra-project imports. Used to enforce
   import-flow direction (higher layer imports lower). Names are pure
-  indices `L0`, `L1`, …, `L18` — no semantic content.
+  indices `L0`, `L1`, …, `L17` — no semantic content per layer, though
+  layer index does roll up into one of 5 tiers (`types` / `logic` /
+  `systems` / `assembly` / `roots`, via `tierOfLayer()`).
 - **Cells** (`.import-cells.json`) — `(domain × layer)` intersections
   with hand-curated `role` labels. Where naming actually happens.
+  A cell can additionally be split by **subdomain**: files under
+  `src/<domain>/<subpath>/...` where `<subpath>` is declared in
+  `SUBPATH_PARTITIONS` in `scripts/cells/regen-cells.ts` (currently
+  `game` → `modifiers`/`upgrades`, `render` → `3d/effects`,
+  `runtime` → `audio`/`subsystems`, `shared` → `sim`) get their own
+  cell. `LABELS` keys are `layer::domain` or `layer::domain/subdomain`.
 
 A layer-only view (the old shape) forced unrelated roles to share a label
 whenever they landed at the same depth (e.g. an online wire payload and a
@@ -23,7 +31,7 @@ gets a sharp role identity.
 
 ## Files in play
 
-- `.import-layers.json` — auto-generated. 19 layers, indexed `L0..L18`.
+- `.import-layers.json` — auto-generated. 18 layers, indexed `L0..L17`.
   Run `deno run -A scripts/generate-import-layers.ts` to regenerate.
   `--check` fails if any file is missing.
 - `.import-cells.json` — derived from layers + path-inferred domain +
@@ -32,7 +40,12 @@ gets a sharp role identity.
 - `.domain-boundaries.json` — domain edge policy (`allowed`, `typeOnlyFrom`)
   and a tiny `exceptions` block for files whose role overrides their path
   (e.g. `server/server.ts → entry`).
-- `scripts/cells/` — three tools (see below).
+- `scripts/cells/` — four files: the three workflow tools (see below;
+  `cell-lookup.ts` and `cell-edit-impact.ts` take `--json`,
+  `regen-cells.ts` takes `--allow-todo` to emit placeholder labels for
+  new cells) plus `tier-of-layer.ts`, the tier helper — the 5-tier
+  roll-up (`types` / `logic` / `systems` / `assembly` / `roots`)
+  consumed by the lint scripts.
 
 Domain is inferred from path:
 
@@ -121,9 +134,11 @@ longer fits, three responses (in order of preference):
    renderer landed.
 3. **Reorganize** — if the cell genuinely spans multiple unrelated
    roles, the right answer may be to move files between domains, split
-   a feature across two files, or accept that the cell is a true
-   compositional one (e.g. `L6 · game` legitimately holds modifier and
-   upgrade implementations side-by-side).
+   a feature across two files, or partition the cell by subdomain via
+   `SUBPATH_PARTITIONS` (e.g. modifier and upgrade implementations
+   both land at the same `game` layer by import-depth coincidence, so
+   `game/modifiers/*` and `game/upgrades/*` are split into their own
+   subdomain cells rather than sharing one label).
 
 Avoid: making the label vaguer ("misc render stuff"). The cell label is
 the analysis — a lie there is a bug.

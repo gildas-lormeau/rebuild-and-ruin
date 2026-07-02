@@ -54,8 +54,9 @@ modules.
    `DefaultStrategy`.
 
 2. **[ai-strategy.ts](./ai-strategy.ts)** — `DefaultStrategy` —
-   the concrete `AiStrategy` implementation plus `rollPersonality`
-   (skill/trait dice at game start). The composition root wires this
+   the concrete `AiStrategy` implementation. `rollPersonality`
+   (skill/trait dice at game start) lives in
+   `ai-personality-roll.ts`. The composition root wires this
    in; tests can swap for mocks against the interface.
 
 3. **[ai-brain.ts](./ai-brain.ts)** — Aggregates the four phase
@@ -83,14 +84,16 @@ modules.
   `controller-ai.ts` and a concrete brain.
 
 ### Strategy (pure decision)
-- **`ai-strategy.ts`** — `DefaultStrategy` class +
-  `rollPersonality`.
+- **`ai-strategy.ts`** — `DefaultStrategy` class (including the
+  `planBattle` probability-gate ladder over the tactic planners).
+- **`ai-personality-roll.ts`** — `rollPersonality` + archetype
+  profile tables (low-layer so online host promotion can call it).
 - **`ai-strategy-build.ts`** — Build-phase piece placement
   orchestrator (`pickPlacement` impl).
 - **`ai-strategy-cannon.ts`** — Cannon placement + tower selection.
-- **`ai-strategy-battle.ts`** — Battle target selection + shot
-  scoring + `trackShot` (post-fire observer) + `planBattle` chain
-  planners.
+- **`ai-strategy-battle.ts`** — Battle-phase dispatcher: `pickTarget`,
+  `trackShot` (post-fire observer), `countUsableCannons`, and the
+  shared helpers used across the per-tactic `ai-plan-*` planner files.
 
 ### Per-phase state machines (tick-driven)
 - **`ai-phase-select.ts`** — Initial castle selection. Browses
@@ -117,6 +120,48 @@ split into focused modules:
   predicate cache, placed here so closures may reference L≤10 symbols).
 - **`ai-castle-rect.ts`** — Castle rectangle geometry and gap
   analysis.
+
+### Battle-tactic planners + supporting modules
+Each `ai-plan-*.ts` file is one battle tactic; `planBattle` in
+`ai-strategy.ts` selects among them via a probability-gate ladder:
+- **`ai-plan-charity-sweep.ts`** — Volunteer cannons to clear grunts
+  off an enemy who can't defend (borrows `planGruntSweep`).
+- **`ai-plan-deny-enclosure.ts`** — Enclosure denial: min breach cut
+  on an intact ring, geographic-bottleneck crater on an open one.
+- **`ai-plan-fat-breach.ts`** — Minimum breach cut (`findMinBreach`)
+  through a fat ring of any thickness; backstop to deny-enclosure.
+- **`ai-plan-grunt-sweep.ts`** — Chain-fire at enemy grunts attacking
+  a specific player, nearest-neighbour order.
+- **`ai-plan-ice-trench.ts`** — U-shaped trench blocking grunts
+  crossing a frozen river.
+- **`ai-plan-max-repair-cost.ts`** — "Rubble siege": scattered single
+  breaks ≥4 apart to maximise the defender's re-enclosure cost.
+- **`ai-plan-pinch-kill.ts`** — Min-cut breach verified to force a
+  small-piece-only reseal — fired deterministically at top priority.
+- **`ai-plan-pocket-destruction.ts`** — Clears the firer's OWN small
+  pockets (one shot per pocket; the wall sweep peels the rest).
+- **`ai-plan-structural-hit.ts`** — Single (or two-tile) wall removals
+  breaching 2+ large enclosures at once; simulates and re-floods.
+- **`ai-plan-super-attack.ts`** — Wall demolition striding every other
+  tile for more breaches per shot.
+- **`ai-plan-wall-demolition.ts`** — Grow a connected enemy wall
+  segment via random walk and chain-fire a slice of it.
+
+Supporting modules:
+- **`ai-min-cut.ts`** — `findMinBreach` min-cut breach engine: fewest
+  new/removed wall tiles as a vertex-capacitated s-t min cut on the
+  8-adjacency flood graph.
+- **`ai-attacker-variation.ts`** — Per-attacker rotation of breach
+  firing order so co-sieging AIs don't fire identical sequences.
+- **`ai-in-flight-target.ts`** — In-flight cannonball target dedup
+  shared by the target picker and the chain-attack driver.
+- **`ai-build-lookahead.ts`** — Publishes gap-centroid anchors for
+  near-complete rings so cursor-anticipation biases toward them.
+- **`ai-build-desperate.ts`** — Last-resort interior discard to
+  advance the bag when life-loss is imminent.
+- **`ai-battle-diag.ts`** / **`ai-build-diag.ts`** — Test-only
+  diagnostic hooks (emit-on-decision via a global hook installed by
+  test observers; production cost = 1 branch).
 
 ### Dialog auto-resolvers (exposed via brain methods)
 - **`ai-life-lost.ts`** — Decides life-lost dialog choices for AI

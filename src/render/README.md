@@ -57,7 +57,8 @@ what to draw; render decides how.
 - **`render-ui.ts`** — concrete draw functions for the 2D layer:
   `drawPhaseTimer`, `drawSelectionCursor`, `drawAnnouncement`,
   `drawBanner`, `drawScoreDeltas`, `drawStatusBar`, `drawGameOver`,
-  `drawLifeLostDialog`, `drawComboFloats`, `drawUpgradePick`, `drawLobby`.
+  `drawLifeLostDialog`, `drawComboFloats`, `drawUpgradePick`, `drawLobby`,
+  `drawSupplyShipBonusLabels`.
 - **`render-ui-overlays.ts`** — per-frame overlay factories + hit-tests
   consumed by the runtime composition root (banner UI, online overlay,
   game-over overlay, lobby layout, dialog click handlers, selection
@@ -69,6 +70,9 @@ what to draw; render decides how.
   matching hit-tests (`optionsScreenHitTest`, `controlsScreenHitTest`).
 - **`render-ui-theme.ts`** — shared drawing primitives (`drawPanel`,
   `drawButton`, `beginModalScreen`).
+- **`overlay-helpers.ts`** — render-side helpers over `RenderOverlay`:
+  derive owner maps and snapshot interior set references for cache
+  invalidation.
 
 ### 3D rendering (`3d/`)
 - **`3d/renderer.ts`** — `createRender3d`: `RendererInterface` impl
@@ -96,6 +100,10 @@ what to draw; render decides how.
   `CanvasTexture` builders for entity materials. See
   `3d/sprites/CONVENTIONS.md`.
 - **`3d/frame-ctx.ts`** — per-frame `FrameCtx` passed to every manager.
+- **`3d/wall-destroy-anim.ts`** — shared sink/dust/fade curve math for
+  the unified wall-destruction animation (walls, debris, wall-dust).
+- **`3d/warm-entities.ts`** — synthetic "one of every entity" overlay
+  for shader pre-warming (`renderer.warmEntityShaders`).
 - **`3d/light-debug.ts`**, **`3d/perf-hud.ts`** — ancillary helpers.
 
 ## The render payload contract

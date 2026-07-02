@@ -116,8 +116,9 @@ invariant today), and an **Anchor** to where that fact lives.
   orchestrator applies all mutations via engine calls; dialog subsystems
   *produce* resolutions, the machine *applies* them (`applyUpgradePicks`,
   `eliminatePlayers`). `ROUND_END` reads `peekGameOverOutcome` *before*
-  `state.round++` (load-bearing — peek must see the closing round).
-  *Anchor:* `runtime/phase-machine.ts › ROUND_END`, `› finishUpgradePick`.
+  `advanceRound(state)` (load-bearing — peek must see the closing round).
+  *Anchor:* `runtime/subsystems/phase-ticks.ts › exitRoundEnd`,
+  `runtime/phase-machine.ts › finishUpgradePick`.
   *Check:* trace each transition's `mutate`; confirm reads precede writes and
   no controller method mutates state directly.
 

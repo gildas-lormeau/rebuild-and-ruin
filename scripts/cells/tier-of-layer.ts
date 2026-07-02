@@ -1,6 +1,6 @@
 /**
  * Tier is a function of layer — the 5 prescriptive partitions of the
- * 19-layer import graph (`types` / `logic` / `systems` / `assembly` /
+ * 18-layer import graph (`types` / `logic` / `systems` / `assembly` /
  * `roots`). These boundaries are architectural decisions, stable
  * across refactors; storing them in JSON only created a sync burden
  * (drift between `.import-layers.json` and `.import-cells.json`).

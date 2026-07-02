@@ -27,7 +27,7 @@ If you hold those three in mind, the file structure makes sense.
   another client is promoted via `HOST_MIGRATION` and rebuilds
   its controllers as if it had been host all along. `isHost` is
   **volatile** — it can flip mid-session — and must always be read
-  through `isHostInContext()` from `runtime-tick-context.ts`, never cached.
+  through `isHostInContext()` from `tick-context.ts`, never cached.
 - **Phase transitions go through checkpoints.** When the host enters
   a new phase, it broadcasts a full checkpoint
   (`BUILD_START` / `CANNON_START` / `BATTLE_START` / `BUILD_END`).
@@ -110,7 +110,7 @@ If you hold those three in mind, the file structure makes sense.
   `tryPlacePiece`, `tryPlaceCannon`, `fire` — action wrappers that
   apply locally THEN broadcast the event. Used by the local controller
   path.
-- **`online-host-crosshairs.ts`** — `broadcastLocalCrosshair` (deduped
+- **`online-remote-crosshairs.ts`** — `broadcastLocalCrosshair` (deduped
   aim-update fan-out for the local human / AI) +
   `extendWithRemoteCrosshairs` (merges remote-human crosshair targets
   into the frame via linear interpolation). Both host and watcher
@@ -144,6 +144,32 @@ If you hold those three in mind, the file structure makes sense.
 - **`runtime/lobby.ts`** — Online lobby DOM bootstrap + init.
   Exports `lobbyReady` — the single public API consumed by `entry.ts`.
 
+### Liveness + desync detection (3 files)
+- **`online-heartbeat.ts`** — Cross-peer desync detection: the host
+  broadcasts its shared-RNG cursor per sim tick; peers compare at the
+  matching simTick and self-disconnect on a mismatch.
+- **`online-lag-detector.ts`** — Sustained-desync detector: counts
+  stale wire stamps (`applyAt <= simTick`) in a sliding window and
+  fires `onTooMuchLag` once past the threshold.
+- **`online-away-watchdog.ts`** — Bounds long hidden-tab absences: a
+  seated peer hidden past `AWAY_DISCONNECT_MS` leaves cleanly, driving
+  the server's PLAYER_LEFT / HOST_LEFT flow.
+
+### Rejoin + seat handoff (5 files)
+- **`online-rejoin.ts`** — Host-side gate for a re-admitted peer
+  asking for its seat back from the AI that took it over.
+- **`online-rehydrate.ts`** — FULL_STATE application: drop a captured
+  `FullStateMessage` into a runtime (fresh-boot vs. already-running
+  variants).
+- **`online-resync-defer.ts`** — Host-side deferred room-wide resync
+  for a rejoiner (re-runs the host-migration mechanism so every peer
+  adopts + reprimes in lockstep).
+- **`online-seat-takeover.ts`** — Lockstep seat takeover: a departed
+  player's seat flips to local AI at a host-stamped `applyAt` tick
+  every peer shares.
+- **`online-seat-reclaim.ts`** — Exact inverse of seat takeover: a
+  rejoined human gets its AI-held seat back at a lockstep tick.
+
 ### Presence + UI + plumbing (4 files)
 - **`online-presence-state.ts`** — `OnlinePresenceState` (remote
   crosshair targets + smoothed visual positions + host-migration
@@ -161,7 +187,7 @@ If you hold those three in mind, the file structure makes sense.
 `session.isHost` can flip from `false` to `true` during host migration.
 **Never cache it across ticks, awaits, or phase transitions.** Always
 read fresh via `isHostInContext(session)` from
-`runtime/runtime-tick-context.ts`. This is enforced by a custom ESLint rule
+`src/runtime/tick-context.ts`. This is enforced by a custom ESLint rule
 (`no-restricted-syntax` → `MemberExpression[property.name='isHost']`)
 — direct `.isHost` access is banned outside a small allowlist (session
 init, reset, promotion). If you genuinely need to write it, use
@@ -282,7 +308,7 @@ for them so tests can drive them via injected messages.
   (`protocol.ts`, `checkpoint-data.ts`, `routes.ts`).
 - **[src/shared/core/phantom-types.ts](../shared/core/phantom-types.ts)** —
   `DedupChannel` definition (the `shouldSend` primitive).
-- **[src/runtime/runtime-tick-context.ts](../runtime/runtime-tick-context.ts)** —
+- **[src/runtime/tick-context.ts](../runtime/tick-context.ts)** —
   `isHostInContext`, `isRemotePlayer`, `tickPersistentAnnouncement`.
 - **[test/online-headless.ts](../../test/online-headless.ts)** — Test
   harness that builds an isolated online client backed by the real

@@ -96,7 +96,10 @@ src/runtime/
 │   ├── sfx-player.ts
 │   ├── music-assets.ts
 │   ├── music-synth-loader.ts
-│   └── sound-modal.ts
+│   ├── sound-modal.ts
+│   ├── ail-to-wopl.ts
+│   ├── sound-rsc.ts
+│   └── xmi-to-smf.ts
 │
 └── subsystems/             one createXSystem(deps) factory per file
 ```
@@ -147,9 +150,12 @@ composition root's deps object.
 |---|---|
 | `audio/music-player.ts` | XMI MIDI playback, bg tracks, fanfares |
 | `audio/sfx-player.ts` | VOC sample playback, event-map dispatcher, snare crescendo |
-| `audio/music-assets.ts` | IndexedDB asset storage + RSC/XMI extraction |
+| `audio/music-assets.ts` | IndexedDB asset persistence + validation for player-supplied assets |
 | `audio/music-synth-loader.ts` | WOPL synth worklet loader + gain envelope |
 | `audio/sound-modal.ts` | HTML modal for asset import (DOM UI) — standalone factory, not a sub-system; exposed to the options screen via a `showSoundModal` callback rather than the deps bag |
+| `audio/ail-to-wopl.ts` | Miles AIL AdLib bank (.AD) → WOPL v3 bank converter (pure data transform) |
+| `audio/sound-rsc.ts` | Miles RSC bundle parser + Creative VOC → PCM converter (pure data transform) |
+| `audio/xmi-to-smf.ts` | Miles XMI sub-song → in-memory SMF converter (pure data transform) |
 
 ### Modifier-effect cluster (`modifier-effects/`)
 Parallel structure to the audio cluster: registry + shared helpers +

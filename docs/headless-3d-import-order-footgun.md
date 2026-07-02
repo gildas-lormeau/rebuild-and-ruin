@@ -51,10 +51,12 @@ runtime and does **not** force the order — that is the trap.
 
 ## Proper fixes (pick one)
 
-- **Defensive guard (smallest):** in `procedural-texture.ts`, also check the
-  context is obtainable — `const ctx = canvas.getContext?.("2d"); if (!ctx)
-  return undefined;` — so a canvas-less stub `document` no longer crashes,
-  regardless of import order.
+- **Defensive guard (smallest):** `procedural-texture.ts` already has the
+  null-context half — `const ctx = canvas.getContext("2d"); if (!ctx) return
+  undefined;` — so a stub canvas whose `getContext` returns null is handled.
+  The remaining delta is the optional chaining (`canvas.getContext?.("2d")`):
+  a shim element with NO `getContext` method at all still throws, regardless
+  of import order.
 - **Honest shim:** make `online-dom-shim.ts`'s `createElement("canvas")` return
   a stub exposing a no-op `getContext` (mirrors `test/recording-canvas.ts`),
   so headless 3D-texture code degrades to no-op instead of throwing.
