@@ -146,7 +146,7 @@ interface HeadlessRuntimeOptions {
    *  schedule instead of immediate apply), so network tests exercise the
    *  same path as production online play. Undefined = local
    *  immediate-apply (all non-network tests). */
-  onlineDialogDrains?: RuntimeConfig["onlineDialogDrains"];
+  onlineEarlyChoices?: RuntimeConfig["onlineEarlyChoices"];
   /** Forwarded to `RuntimeConfig.onEndGame` — fires when this runtime's
    *  local game-over detection ends the game. Network tests use it to
    *  emit the production GAME_OVER payload into the wire sink, mirroring
@@ -290,7 +290,7 @@ export async function createHeadlessRuntime(
     remotePlayerSlots,
     hapticsObserver,
     onlinePhaseTicks: onlinePhaseTicksOverride,
-    onlineDialogDrains,
+    onlineEarlyChoices,
     assistedSlots,
     controllerFactory: controllerFactoryOverride,
   } = opts;
@@ -413,7 +413,7 @@ export async function createHeadlessRuntime(
       (hostMode
         ? buildHeadlessHostPhaseTicks((msg) => networkObserver?.sent?.(msg))
         : undefined),
-    onlineDialogDrains,
+    onlineEarlyChoices,
     onEndGame: opts.onEndGame,
     onlineHostAfterFrame: opts.onlineHostAfterFrame,
     observers: hapticsObserver ? { haptics: hapticsObserver } : undefined,

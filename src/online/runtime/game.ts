@@ -253,7 +253,7 @@ const runtime: GameRuntime = createGameRuntime({
     tryPlacePiece: sendActions.tryPlacePiece,
     fire: sendActions.fire,
   },
-  onlineDialogDrains: {
+  onlineEarlyChoices: {
     drainLifeLost: (apply) => {
       const queue = ctx.session.earlyLifeLostChoices;
       if (queue.size === 0) return;
@@ -265,6 +265,11 @@ const runtime: GameRuntime = createGameRuntime({
       }
       queue.clear();
     },
+    // Originator-side writer: the local scheduled apply drained with no
+    // dialog open (adoption superseded it) — same queue the wire path
+    // writes, so the show()-time drain treats own choices like remote ones.
+    queueLifeLost: (pid, choice, round) =>
+      ctx.session.earlyLifeLostChoices.set(pid, { choice, round }),
     drainUpgradePick: (apply) => {
       const queue = ctx.session.earlyUpgradePickChoices;
       if (queue.size === 0) return;
@@ -276,6 +281,8 @@ const runtime: GameRuntime = createGameRuntime({
       }
       queue.clear();
     },
+    queueUpgradePick: (pid, choice, round) =>
+      ctx.session.earlyUpgradePickChoices.set(pid, { choice, round }),
   },
   onEndGame: (winner, gameState) => {
     const payloads = createGameOverPayload(winner, gameState, PLAYER_NAMES);

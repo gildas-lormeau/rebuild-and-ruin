@@ -39,7 +39,13 @@ import {
 } from "../src/shared/core/game-constants.ts";
 import type { GameState } from "../src/shared/core/types.ts";
 import type { PlayerId, ValidPlayerId } from "../src/shared/core/player-slot.ts";
-import { LifeLostChoice } from "../src/shared/core/dialog-state.ts";
+import {
+  LifeLostChoice,
+  type ResolvedChoice,
+} from "../src/shared/core/dialog-state.ts";
+import { createLifeLostSystem } from "../src/runtime/subsystems/life-lost.ts";
+import type { RuntimeState } from "../src/runtime/state.ts";
+import { Mode } from "../src/shared/ui/ui-mode.ts";
 
 interface ReclaimHarness {
   deps: SeatReclaimDeps;
@@ -676,3 +682,67 @@ function mockWatchdogTiming() {
     },
   };
 }
+
+Deno.test("originator's scheduled life-lost choice survives a mid-flight dialog supersede via the early-choice queue", () => {
+  // The narrow migration race: a local human clicks CONTINUE, the lockstep
+  // apply is scheduled at simTick + SAFETY, and a promotion FULL_STATE
+  // adoption supersedes the dialog before that apply drains. Wire RECEIVERS
+  // round-stamp-queue the choice for the rebuilt dialog's show()-time drain;
+  // the ORIGINATOR's own scheduled apply must do the same — silently
+  // dropping it forks continuing/abandoned across peers at exitRoundEnd.
+  const queue = new Map<
+    ValidPlayerId,
+    { choice: ResolvedChoice; round: number }
+  >();
+  const schedule = createActionSchedule<GameState>();
+  const state = {
+    simTick: 100,
+    round: 4,
+    players: [{ id: 0, lives: 2 }],
+  } as unknown as GameState;
+  const runtimeState = {
+    state,
+    dialogs: { lifeLost: null },
+    frameMeta: { remotePlayerSlots: new Set<ValidPlayerId>() },
+    actionSchedule: schedule,
+    controllers: [{ autoResolvesLifeLost: () => false }],
+    mode: Mode.LIFE_LOST,
+    lockstepDebtUs: 0,
+  } as unknown as RuntimeState;
+
+  const sys = createLifeLostSystem({
+    runtimeState,
+    sendLifeLostChoice: () => {},
+    log: () => {},
+    requestRender: () => {},
+    panelPos: () => ({ px: 0, py: 0 }),
+    // Mirrors the production wiring in online/runtime/game.ts: the drain
+    // iterates the session queue and clears it; the queue writer is what
+    // the originator's no-dialog fallback must call.
+    applyEarlyChoices: (apply) => {
+      for (const [pid, queued] of queue) apply(pid, queued.choice, queued.round);
+      queue.clear();
+    },
+    queueEarlyChoice: (pid, choice, round) => queue.set(pid, { choice, round }),
+  });
+
+  // Round-end dialog opens; the local human clicks CONTINUE (online path:
+  // the apply is scheduled, not immediate).
+  sys.show([0 as ValidPlayerId], []);
+  sys.applyChoice(0 as ValidPlayerId, LifeLostChoice.CONTINUE);
+
+  // Promotion snapshot adoption supersedes the dialog mid-flight...
+  sys.set(null);
+  // ...then the surviving scheduled apply drains on the first post-adoption
+  // substep, BEFORE tickRoundEndPhase rebuilds the dialog.
+  schedule.drainUpTo(state.simTick + 1000, state);
+
+  // The self-driving round-end tick rebuilds the dialog; show() drains the
+  // early-choice queue (same round — ROUND_END holds the closing round).
+  sys.show([0 as ValidPlayerId], []);
+  assertEquals(
+    sys.get()!.entries[0]!.choice,
+    LifeLostChoice.CONTINUE,
+    "originator's own choice must resolve the rebuilt dialog via the queue",
+  );
+});

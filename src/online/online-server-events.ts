@@ -11,8 +11,8 @@ import {
   markCannonPlaceDoneAtDrain,
 } from "../game/index.ts";
 import { MESSAGE, type ServerMessage } from "../protocol/protocol.ts";
-import { applyLifeLostChoiceToDialog } from "../runtime/dialogs/life-lost-core.ts";
-import { applyUpgradePickChoiceToDialog } from "../runtime/dialogs/upgrade-pick-core.ts";
+import { applyOrQueueLifeLostChoice } from "../runtime/dialogs/life-lost-core.ts";
+import { applyOrQueueUpgradePickChoice } from "../runtime/dialogs/upgrade-pick-core.ts";
 import { isHostInContext, isRemotePlayer } from "../runtime/tick-context.ts";
 import type { ScheduledAction } from "../shared/core/action-schedule.ts";
 import {
@@ -413,20 +413,22 @@ function handleLifeLostChoice(
   deps.schedule({
     applyAt: msg.applyAt,
     playerId,
-    apply: () => {
-      const dialog = deps.getLifeLostDialog();
-      if (!dialog) {
-        // Dialog not built yet on this peer — queue for the show()-time
-        // drain, round-stamped so a stale choice (own dialog already
-        // closed) can't resolve a future round's dialog.
-        deps.session.earlyLifeLostChoices.set(playerId, {
-          choice: validated,
-          round,
-        });
-        return;
-      }
-      applyLifeLostChoiceToDialog(playerId, validated, dialog);
-    },
+    // Shared drain-time funnel (same one the originator's own scheduled
+    // apply uses): apply to the live dialog, or queue for the show()-time
+    // drain, round-stamped so a stale choice (own dialog already closed)
+    // can't resolve a future round's dialog.
+    apply: () =>
+      applyOrQueueLifeLostChoice(
+        playerId,
+        validated,
+        round,
+        deps.getLifeLostDialog(),
+        (pid, choice, choiceRound) =>
+          deps.session.earlyLifeLostChoices.set(pid, {
+            choice,
+            round: choiceRound,
+          }),
+      ),
   });
   return APPLIED;
 }
@@ -471,17 +473,22 @@ function handleUpgradePick(
   deps.schedule({
     applyAt: msg.applyAt,
     playerId,
-    apply: () => {
-      const dialog = deps.getUpgradePickDialog();
-      if (!dialog) {
-        // Dialog not built yet on this peer — queue for the tryShow()-
-        // time drain, round-stamped so a stale pick (own dialog already
-        // closed) can't resolve a future round's dialog.
-        deps.session.earlyUpgradePickChoices.set(playerId, { choice, round });
-        return;
-      }
-      applyUpgradePickChoiceToDialog(playerId, choice, dialog);
-    },
+    // Shared drain-time funnel (same one the originator's own scheduled
+    // apply uses): apply to the live dialog, or queue for the tryShow()-
+    // time drain, round-stamped so a stale pick (own dialog already
+    // closed) can't resolve a future round's dialog.
+    apply: () =>
+      applyOrQueueUpgradePickChoice(
+        playerId,
+        choice,
+        round,
+        deps.getUpgradePickDialog(),
+        (pid, pickChoice, pickRound) =>
+          deps.session.earlyUpgradePickChoices.set(pid, {
+            choice: pickChoice,
+            round: pickRound,
+          }),
+      ),
   });
   return APPLIED;
 }

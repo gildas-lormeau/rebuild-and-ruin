@@ -28,7 +28,7 @@ import {
   scheduleOrApplyDialogChoice,
 } from "../dialogs/dialog-tick.ts";
 import {
-  applyUpgradePickChoiceToDialog,
+  applyOrQueueUpgradePickChoice,
   createUpgradePickDialog,
   moveUpgradePickFocus,
   resolveUpgradePickEntry,
@@ -80,6 +80,16 @@ interface UpgradePickSystemDeps {
       choice: UpgradeId,
       round: number,
     ) => boolean,
+  ) => void;
+  /** Online-only writer for the same session queue `applyEarlyChoices`
+   *  drains. Called by the ORIGINATOR's own scheduled apply when it drains
+   *  with no dialog open (a snapshot adoption superseded the dialog
+   *  mid-flight) — mirrors `LifeLostSystemDeps.queueEarlyChoice`; see that
+   *  doc for the fork this closes. Undefined in local play. */
+  readonly queueEarlyChoice?: (
+    playerId: ValidPlayerId,
+    choice: UpgradeId,
+    round: number,
   ) => void;
 }
 
@@ -317,6 +327,9 @@ export function createUpgradePickSystem(
     if (!dialog) return;
     const playerId = entry.playerId;
     const choice = entry.offers[cardIdx]!;
+    // Captured at decision time — the same value the wire message carries.
+    // See the matching capture in life-lost's scheduleOrApplyChoice.
+    const round = runtimeState.state.round;
     scheduleOrApplyDialogChoice({
       online: deps.applyEarlyChoices !== undefined,
       playerId,
@@ -331,11 +344,20 @@ export function createUpgradePickSystem(
         entry.focusedCard = cardIdx;
         deps.sendUpgradePick(playerId, choice, applyAt);
       },
+      // Same drain-time funnel as the wire receiver: apply to the live
+      // dialog, or round-stamp-queue when an adoption superseded it.
       applyAtTick: () =>
-        applyUpgradePickChoiceToDialog(
+        applyOrQueueUpgradePickChoice(
           playerId,
           choice,
+          round,
           runtimeState.dialogs.upgradePick,
+          (pid, queuedChoice, queuedRound) =>
+            deps.queueEarlyChoice?.(
+              pid,
+              queuedChoice as UpgradeId,
+              queuedRound,
+            ),
         ),
     });
   }

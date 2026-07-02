@@ -68,7 +68,7 @@
         },
         {
           "file": "src/runtime/types.ts",
-          "interface": "OnlineDialogDrains"
+          "interface": "OnlineEarlyChoices"
         },
         {
           "file": "src/runtime/types.ts",

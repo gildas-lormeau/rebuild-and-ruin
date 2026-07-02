@@ -112,20 +112,22 @@ export interface OnlineActions {
   fire: (ctrl: BattleController, gameState: BattleViewState) => void;
 }
 
-/** Online-only drain hooks for wire-arrived dialog choices that landed
- *  before the local sim made the dialog interactable. The session-side
- *  queues (`earlyLifeLostChoices`, `earlyUpgradePickChoices`) accumulate
- *  these when a choice's scheduled apply fires with no open dialog —
- *  normally the brief gap between the sender's decision and this peer
- *  building the dialog (life-lost: ROUND_END skew; upgrade-pick: the
- *  banner-preview window before `Mode.UPGRADE_PICK` is active).
+/** Online-only plumbing for the session-side early-choice queues
+ *  (`earlyLifeLostChoices`, `earlyUpgradePickChoices`): dialog choices
+ *  whose scheduled apply fires while no dialog is open. Two writers feed
+ *  each queue — the wire receiver's schedule closure (normal gap between
+ *  the sender's decision and this peer building the dialog: life-lost
+ *  ROUND_END skew, upgrade-pick's banner-preview window) and the
+ *  originator's own scheduled apply via `queue*` (a snapshot adoption
+ *  superseded the dialog mid-flight; queueing keeps the originator in
+ *  step with every receiver).
  *  Each drain is called once when the corresponding subsystem makes the
  *  dialog interactable; it iterates its session queue, calls `apply` for
  *  each pending entry, then clears the queue. `round` is the sender's
  *  `state.round` at decision time — the subsystem rejects entries from
  *  a different round (a choice that arrived after its own dialog closed
  *  must not resolve a future round's dialog). */
-interface OnlineDialogDrains {
+interface OnlineEarlyChoices {
   drainLifeLost: (
     apply: (
       playerId: ValidPlayerId,
@@ -133,12 +135,22 @@ interface OnlineDialogDrains {
       round: number,
     ) => boolean,
   ) => void;
+  queueLifeLost: (
+    playerId: ValidPlayerId,
+    choice: ResolvedChoice,
+    round: number,
+  ) => void;
   drainUpgradePick: (
     apply: (
       playerId: ValidPlayerId,
       choice: UpgradeId,
       round: number,
     ) => boolean,
+  ) => void;
+  queueUpgradePick: (
+    playerId: ValidPlayerId,
+    choice: UpgradeId,
+    round: number,
   ) => void;
 }
 
@@ -241,10 +253,10 @@ export interface RuntimeConfig {
    *  See `OnlineActions`. When undefined, composition uses
    *  `createLocalInputActions` to produce the same shape. */
   onlineActions?: OnlineActions;
-  /** Online-only drain hooks for wire-arrived dialog choices that landed
-   *  before the local sim made the dialog interactable. See
-   *  `OnlineDialogDrains`. Undefined in local play. */
-  onlineDialogDrains?: OnlineDialogDrains;
+  /** Online-only early-choice queue plumbing (drain + originator-side
+   *  writer per dialog). See `OnlineEarlyChoices`. Undefined in local
+   *  play. */
+  onlineEarlyChoices?: OnlineEarlyChoices;
   /** Online-only game-over broadcast hook. Fires once when the game ends,
    *  before the frame's gameOver payload is set. */
   onEndGame?: (winner: { id: ValidPlayerId }, state: GameState) => void;

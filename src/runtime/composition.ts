@@ -623,7 +623,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     requestRender,
     panelPos: (pid) =>
       lifeLostPanelPos(selectRenderView(runtimeState.state), pid),
-    applyEarlyChoices: config.onlineDialogDrains?.drainLifeLost,
+    applyEarlyChoices: config.onlineEarlyChoices?.drainLifeLost,
+    queueEarlyChoice: config.onlineEarlyChoices?.queueLifeLost,
   });
 
   // -------------------------------------------------------------------------
@@ -642,7 +643,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
         applyAt,
         round: runtimeState.state.round,
       }),
-    applyEarlyChoices: config.onlineDialogDrains?.drainUpgradePick,
+    applyEarlyChoices: config.onlineEarlyChoices?.drainUpgradePick,
+    queueEarlyChoice: config.onlineEarlyChoices?.queueUpgradePick,
   });
 
   // -------------------------------------------------------------------------

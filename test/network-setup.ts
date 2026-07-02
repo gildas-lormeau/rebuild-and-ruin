@@ -448,7 +448,7 @@ async function buildHostRuntime(opts: ScenarioOptions): Promise<RuntimeBuild> {
     // the drains' job here is flipping the dialog subsystems onto the
     // online lockstep branch (broadcast + applyAt schedule), matching a
     // production host.
-    onlineDialogDrains: buildDialogDrains(createSession()),
+    onlineEarlyChoices: buildEarlyChoiceQueues(createSession()),
     // Opt-in (see `ScenarioOptions.broadcastGameOver`): mirror production's
     // host-side GAME_OVER broadcast so tests can exercise the watcher's
     // MESSAGE.GAME_OVER receive path.
@@ -508,7 +508,7 @@ async function buildWatcherRuntime(
     // copy would hide those flips from the runtime's tick filter.
     remotePlayerSlots: client.ctx.session.remotePlayerSlots,
     onlinePhaseTicks: buildWatcherPhaseTicks(),
-    onlineDialogDrains: buildDialogDrains(client.ctx.session),
+    onlineEarlyChoices: buildEarlyChoiceQueues(client.ctx.session),
     // amHost=false flips the broadcast gate in `buildPhaseCtx`
     // (no `ctx.broadcast` on watcher), so watcher transitions don't emit
     // wire messages even though they run the same code as host.
@@ -582,7 +582,7 @@ async function buildBidirectionalHost(
     // The SESSION's set, not a copy — see buildWatcherRuntime.
     remotePlayerSlots: client.ctx.session.remotePlayerSlots,
     onlinePhaseTicks: buildHostPhaseTicks((msg) => sentMessages.push(msg)),
-    onlineDialogDrains: buildDialogDrains(client.ctx.session),
+    onlineEarlyChoices: buildEarlyChoiceQueues(client.ctx.session),
     // Host deferred-resync poll (HIGH-2 3c-2): fire any parked targeted
     // resync once the host's sim clock reaches its fire tick.
     onlineHostAfterFrame: () => {
@@ -656,7 +656,7 @@ async function buildBidirectionalWatcher(
     remotePlayerSlots: client.ctx.session.remotePlayerSlots,
     onlinePhaseTicks: buildWatcherPhaseTicks(),
     amHost: () => false,
-    onlineDialogDrains: buildDialogDrains(client.ctx.session),
+    onlineEarlyChoices: buildEarlyChoiceQueues(client.ctx.session),
   });
   headless.runtime.runtimeState.state.debugTag = "WATCHER";
   if (opts.testHooks) {
@@ -696,15 +696,15 @@ function buildWatcherPhaseTicks(): OnlinePhaseTicks {
  *  dispatcher's `isRemoteHumanAction` validation (host accepts only
  *  remote-human-slot actions; watcher accepts everything) routes
  *  correctly on each peer. */
-/** Production-shaped dialog drains over a peer session's early-choice
- *  queues — mirrors the `onlineDialogDrains` wiring in
- *  `src/online/runtime/game.ts` (minus dev logging). Presence of these
+/** Production-shaped early-choice queue plumbing over a peer session —
+ *  mirrors the `onlineEarlyChoices` wiring in
+ *  `src/online/runtime/game.ts` (minus dev logging). Presence of the
  *  drains is what flips the life-lost / upgrade-pick subsystems onto the
  *  online lockstep branch (broadcast + applyAt schedule), so harness
  *  peers exercise the same dialog wire path as production online play. */
-function buildDialogDrains(
+function buildEarlyChoiceQueues(
   session: OnlineSession,
-): NonNullable<RuntimeConfig["onlineDialogDrains"]> {
+): NonNullable<RuntimeConfig["onlineEarlyChoices"]> {
   return {
     drainLifeLost: (apply) => {
       for (const [pid, queued] of session.earlyLifeLostChoices) {
@@ -712,12 +712,16 @@ function buildDialogDrains(
       }
       session.earlyLifeLostChoices.clear();
     },
+    queueLifeLost: (pid, choice, round) =>
+      session.earlyLifeLostChoices.set(pid, { choice, round }),
     drainUpgradePick: (apply) => {
       for (const [pid, queued] of session.earlyUpgradePickChoices) {
         apply(pid, queued.choice as UpgradeId, queued.round);
       }
       session.earlyUpgradePickChoices.clear();
     },
+    queueUpgradePick: (pid, choice, round) =>
+      session.earlyUpgradePickChoices.set(pid, { choice, round }),
   };
 }
 

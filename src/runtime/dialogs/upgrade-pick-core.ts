@@ -104,22 +104,38 @@ export function moveUpgradePickFocus(
   entry.focusedCard = wrapIndex(entry.focusedCard, dir, entry.offers.length);
 }
 
-/** Apply a lockstep-scheduled upgrade pick to whichever peer's dialog
- *  state is live at drain time. Shared between originator and receiver
- *  so the apply behaves identically on every peer — mirrors
- *  `applyLifeLostChoiceToDialog` in life-lost-core.ts. The choice is
- *  untrusted wire data on the receiver, so membership in the entry's
- *  offers doubles as validation; a pick that lost the first-wins race
- *  (entry already resolved) or arrived with no dialog open is a silent
- *  no-op — the RECEIVER's schedule closure handles the no-dialog case by
- *  round-stamped early-queueing (see `handleUpgradePick` in
- *  online-server-events.ts). */
-export function applyUpgradePickChoiceToDialog(
+/** Drain-time funnel for a lockstep-scheduled upgrade pick: apply it to
+ *  the live dialog, or hand it to `queue` (round-stamped) when no dialog
+ *  is open at drain time — mirrors `applyOrQueueLifeLostChoice` in
+ *  life-lost-core.ts, and is shared by the wire receiver's schedule
+ *  closure AND the originator's own scheduled apply so both sides of one
+ *  pick behave identically around a mid-flight snapshot adoption (the
+ *  rebuilt dialog's show()-time drain applies the queue). */
+export function applyOrQueueUpgradePickChoice(
   playerId: ValidPlayerId,
   choice: string,
+  round: number,
   dialog: UpgradePickDialogState | null,
+  queue: (playerId: ValidPlayerId, choice: string, round: number) => void,
 ): void {
-  if (!dialog) return;
+  if (!dialog) {
+    queue(playerId, choice, round);
+    return;
+  }
+  applyUpgradePickChoiceToDialog(playerId, choice, dialog);
+}
+
+/** Apply a lockstep-scheduled upgrade pick to the live dialog. The choice
+ *  is untrusted wire data on the receiver, so membership in the entry's
+ *  offers doubles as validation; a pick that lost the first-wins race
+ *  (entry already resolved) is a silent no-op. Drain-time callers go
+ *  through `applyOrQueueUpgradePickChoice`, which owns the no-dialog
+ *  branch. */
+function applyUpgradePickChoiceToDialog(
+  playerId: ValidPlayerId,
+  choice: string,
+  dialog: UpgradePickDialogState,
+): void {
   const entry = dialog.entries.find((e) => e.playerId === playerId);
   if (!entry || entry.choice !== null) return;
   const cardIdx = entry.offers.findIndex((offer) => offer === choice);

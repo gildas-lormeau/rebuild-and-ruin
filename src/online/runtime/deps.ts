@@ -291,7 +291,7 @@ function buildIncrementalDeps(
     // the banner preview (prepare) the dialog exists for rendering but
     // picks must still be buffered in earlyUpgradePickChoices. The
     // buffered queue is drained inside `tryShow()` immediately after
-    // Mode flips, via `onlineDialogDrains.drainUpgradePick`.
+    // Mode flips, via `onlineEarlyChoices.drainUpgradePick`.
     getUpgradePickDialog: () =>
       init.runtime.runtimeState.mode === Mode.UPGRADE_PICK
         ? init.runtime.runtimeState.dialogs.upgradePick

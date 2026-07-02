@@ -20,7 +20,7 @@ import {
 import {
   abandonedPlayers,
   applyLifeLostChoice,
-  applyLifeLostChoiceToDialog,
+  applyOrQueueLifeLostChoice,
   continuingPlayers,
   createLifeLostDialogState,
   focusedLifeLostChoice,
@@ -54,7 +54,7 @@ export interface RuntimeLifeLost {
    *  promotion teardown could orphan.
    *
    *  Wire-arrived choices that landed before the dialog was built are
-   *  drained inside `show()` via `OnlineDialogDrains.drainLifeLost`
+   *  drained inside `show()` via `OnlineEarlyChoices.drainLifeLost`
    *  (online wiring only).
    *
    *  Returns true when a dialog was actually shown — false when there were
@@ -104,6 +104,19 @@ interface LifeLostSystemDeps {
       choice: ResolvedChoice,
       round: number,
     ) => boolean,
+  ) => void;
+  /** Online-only writer for the same session queue `applyEarlyChoices`
+   *  drains. Called by the ORIGINATOR's own scheduled apply when it drains
+   *  with no dialog open (a snapshot adoption superseded the dialog
+   *  mid-flight) — the wire receiver's schedule closure already queues in
+   *  that window, and dropping locally while receivers queue would fork
+   *  `continuing`/`abandoned` at `exitRoundEnd`. Round-stamped so the
+   *  show()-time drain's stale-round guard applies equally to own choices.
+   *  Undefined in local play (choices apply immediately, never scheduled). */
+  queueEarlyChoice?: (
+    playerId: ValidPlayerId,
+    choice: ResolvedChoice,
+    round: number,
   ) => void;
 }
 
@@ -320,6 +333,12 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
     playerId: ValidPlayerId,
     choice: ResolvedChoice,
   ): void {
+    // Captured at decision time — the same value the wire message carries
+    // (`round: state.round`, stamped in the send wiring). ROUND_END holds
+    // the closing round for the whole window, so a queued own-choice passes
+    // the rebuilt dialog's stale-round guard exactly when a receiver's
+    // queued copy does.
+    const round = runtimeState.state.round;
     scheduleOrApplyDialogChoice({
       online: deps.applyEarlyChoices !== undefined,
       playerId,
@@ -332,11 +351,16 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
           applyLifeLostChoice(entry, choice),
         ),
       send: (applyAt) => deps.sendLifeLostChoice(choice, playerId, applyAt),
+      // Same drain-time funnel as the wire receiver: apply to the live
+      // dialog, or round-stamp-queue when an adoption superseded it.
       applyAtTick: () =>
-        applyLifeLostChoiceToDialog(
+        applyOrQueueLifeLostChoice(
           playerId,
           choice,
+          round,
           runtimeState.dialogs.lifeLost,
+          (pid, queuedChoice, queuedRound) =>
+            deps.queueEarlyChoice?.(pid, queuedChoice, queuedRound),
         ),
     });
   }

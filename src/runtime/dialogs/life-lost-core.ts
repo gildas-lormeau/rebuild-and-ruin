@@ -138,23 +138,32 @@ export function focusedLifeLostChoice(entry: LifeLostEntry): ResolvedChoice {
     : LifeLostChoice.ABANDON;
 }
 
-/** Apply a lockstep-scheduled life-lost choice to whichever peer's dialog
- *  state is live at drain time. Shared between originator and receiver so
- *  the apply behaves identically on every peer; a choice that lost the
- *  first-wins race (entry already resolved) or arrived with no dialog
- *  open is a silent no-op — the RECEIVER's schedule closure handles the
- *  no-dialog case by round-stamped early-queueing (see
- *  `handleLifeLostChoice` in online-server-events.ts). */
-export function applyLifeLostChoiceToDialog(
+/** Drain-time funnel for a lockstep-scheduled life-lost choice: apply it
+ *  to the live dialog, or hand it to `queue` (round-stamped) when no
+ *  dialog is open at drain time — a mid-flight snapshot adoption
+ *  supersedes dialogs, and the rebuilt dialog's `show()` drains the queue.
+ *  Shared by the wire receiver's schedule closure AND the originator's own
+ *  scheduled apply, so both sides of one choice behave identically around
+ *  the no-dialog window; an originator that silently dropped here while
+ *  receivers queued forked `continuing`/`abandoned` at `exitRoundEnd`.
+ *  A choice that lost the first-wins race (entry already resolved) is a
+ *  silent no-op. */
+export function applyOrQueueLifeLostChoice(
   playerId: ValidPlayerId,
   choice: ResolvedChoice,
+  round: number,
   dialog: LifeLostDialogState | null,
+  queue: (
+    playerId: ValidPlayerId,
+    choice: ResolvedChoice,
+    round: number,
+  ) => void,
 ): void {
-  if (!dialog) return;
-  const entry = dialog.entries.find((e) => e.playerId === playerId);
-  if (entry && entry.choice === LifeLostChoice.PENDING) {
-    entry.choice = choice;
+  if (!dialog) {
+    queue(playerId, choice, round);
+    return;
   }
+  applyLifeLostChoiceToDialog(playerId, choice, dialog);
 }
 
 /** Dispatch the continue / reselect branch after the life-lost dialog
@@ -169,4 +178,20 @@ export function resolveAfterLifeLost(deps: ResolveAfterLifeLostDeps): void {
   const { continuing, onReselect, onAdvance } = deps;
   if (continuing.length > 0) onReselect(continuing);
   else onAdvance();
+}
+
+/** Apply a lockstep-scheduled life-lost choice to the live dialog. First
+ *  wins: an already-resolved entry is a silent no-op (also what drops a
+ *  relay self-echo of the originator's own broadcast). Drain-time callers
+ *  go through `applyOrQueueLifeLostChoice`, which owns the no-dialog
+ *  branch. */
+function applyLifeLostChoiceToDialog(
+  playerId: ValidPlayerId,
+  choice: ResolvedChoice,
+  dialog: LifeLostDialogState,
+): void {
+  const entry = dialog.entries.find((e) => e.playerId === playerId);
+  if (entry && entry.choice === LifeLostChoice.PENDING) {
+    entry.choice = choice;
+  }
 }
