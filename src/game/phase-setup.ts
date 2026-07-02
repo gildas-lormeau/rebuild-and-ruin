@@ -79,7 +79,7 @@ import {
   seedInitialHouses,
 } from "./castle-generation.ts";
 import { comboDemolitionBonus, createComboTracker } from "./combos.ts";
-import { getDeadZones, getGruntTargetTower } from "./grunt-movement.ts";
+import { evictGruntsTargetingZone, getDeadZones } from "./grunt-movement.ts";
 import {
   recomputeGruntTargetedWalls,
   rollGruntWallAttacks,
@@ -577,22 +577,21 @@ function resetZoneState(
  *  tile-set-keyed).
  *
  *  Cross-zone grunts (in another zone but targeting a tower in `zone`)
- *  are only wiped when `ownerEliminated`. On a plain life-loss reset
- *  the zone's towers are revived by `resetZoneState` two lines later,
- *  so a grunt mid-crossing to attack one of them keeps a valid target
- *  and must survive. */
+ *  are only wiped when `ownerEliminated` — via the shared
+ *  `evictGruntsTargetingZone`, which the ABANDON elimination path
+ *  (`eliminatePlayers`) also runs. On a plain life-loss reset the zone's
+ *  towers are revived by `resetZoneState` two lines later, so a grunt
+ *  mid-crossing to attack one of them keeps a valid target and must
+ *  survive. */
 function evictEntitiesInZone(
   state: GameState,
   zone: ZoneId,
   ownerEliminated: boolean,
 ): void {
-  state.grunts = state.grunts.filter((grunt) => {
-    if (zoneAt(state.map, grunt.row, grunt.col) === zone) return false;
-    if (ownerEliminated && grunt.targetTowerIdx !== undefined) {
-      if (getGruntTargetTower(state, grunt)?.zone === zone) return false;
-    }
-    return true;
-  });
+  state.grunts = state.grunts.filter(
+    (grunt) => zoneAt(state.map, grunt.row, grunt.col) !== zone,
+  );
+  if (ownerEliminated) evictGruntsTargetingZone(state, zone);
   state.map.houses = state.map.houses.filter((house) => house.zone !== zone);
   state.bonusSquares = state.bonusSquares.filter(
     (bonus) => bonus.zone !== zone,

@@ -402,11 +402,10 @@
   {
     "layer": 6,
     "domain": "game",
-    "role": "core game systems (combos, game-over, selection, map gen, elevation)",
+    "role": "core game systems (combos, selection, map gen, elevation)",
     "files": [
       "src/game/aim-occlusion.ts",
       "src/game/combos.ts",
-      "src/game/game-over.ts",
       "src/game/map-generation.ts",
       "src/game/selection.ts",
       "src/game/surface-elevation.ts"
@@ -810,9 +809,10 @@
   {
     "layer": 9,
     "domain": "game",
-    "role": "cannon, modifier & wall-impact systems",
+    "role": "cannon, modifier, game-over & wall-impact systems",
     "files": [
       "src/game/cannon-system.ts",
+      "src/game/game-over.ts",
       "src/game/modifier-system.ts",
       "src/game/wall-impact.ts"
     ]

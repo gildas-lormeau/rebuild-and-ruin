@@ -13,7 +13,9 @@ import {
   GAME_MODE_CLASSIC,
   GAME_MODE_MODERN,
   LOBBY_TIMER,
+  MODIFIER_ID,
 } from "../src/shared/core/game-constants.ts";
+import { LifeLostChoice } from "../src/shared/core/dialog-state.ts";
 import { Phase } from "../src/shared/core/game-phase.ts";
 import { isPlayerAlive } from "../src/shared/core/player-types.ts";
 import {
@@ -659,6 +661,83 @@ Deno.test(
     assert(
       false,
       `expected an eliminating ABANDON dialog before game end (winner=${winner})`,
+    );
+  },
+);
+
+Deno.test(
+  "scenario: ABANDON elimination evicts cross-zone grunts targeting the abandoned zone",
+  async () => {
+    // The natural elimination path (lives hit zero in applyLifePenalties)
+    // runs resetZoneState(ownerEliminated=true), whose cross-zone clause
+    // deletes grunts still targeting the dead zone from OUTSIDE it —
+    // frozen-river crossers mid-raid. The life-lost ABANDON path
+    // (exitRoundEnd → eliminatePlayers) must run the same eviction
+    // (evictGruntsTargetingZone); without it the straggler survives,
+    // retargets, and becomes an extra attacker on a living player that a
+    // natural elimination would have deleted.
+    //
+    // Seed probed under forceModifier=frozen_river (count grunts whose
+    // targetTowerIdx tower sits in a LIFE_LOST_DIALOG_SHOW victim's zone):
+    // seed 1's first life-loss is player 0 at round 3 with 2 cross-zone
+    // stragglers locked onto their zone and all 3 players still alive, so
+    // forcing player 0 to ABANDON exercises the eviction while the game
+    // continues. If the precondition guard below fails after an AI/rules
+    // change, re-probe for a new (seed, victim) pair.
+    using sc = await createScenario({
+      seed: 1,
+      mode: "modern",
+      rounds: 15,
+      testHooks: {
+        forceModifier: MODIFIER_ID.FROZEN_RIVER,
+        lifeLostChoices: [
+          { playerId: 0 as ValidPlayerId, choice: LifeLostChoice.ABANDON },
+        ],
+      },
+    });
+
+    const victimZone = sc.state.playerZones[0];
+    const countStragglers = () =>
+      sc.state.grunts.filter(
+        (grunt) =>
+          grunt.targetTowerIdx !== undefined &&
+          sc.state.map.towers[grunt.targetTowerIdx]?.zone === victimZone,
+      ).length;
+
+    let stragglersAtDialog = -1;
+    let eliminated = false;
+    let stragglersAtNextRound = -1;
+    sc.bus.on(GAME_EVENT.LIFE_LOST_DIALOG_SHOW, (ev) => {
+      if (
+        ev.needsReselect.includes(0 as ValidPlayerId) &&
+        stragglersAtDialog < 0
+      ) {
+        stragglersAtDialog = countStragglers();
+      }
+    });
+    sc.bus.on(GAME_EVENT.PLAYER_ELIMINATED, (ev) => {
+      if (ev.playerId === 0) eliminated = true;
+    });
+    sc.bus.on(GAME_EVENT.ROUND_START, () => {
+      // First ROUND_START after the elimination: emitted by exitRoundEnd
+      // right after eliminatePlayers, before the cannons-banner cleanup —
+      // so a surviving straggler still holds its (stale) lock here.
+      if (eliminated && stragglersAtNextRound < 0) {
+        stragglersAtNextRound = countStragglers();
+      }
+    });
+
+    sc.runUntil(() => stragglersAtNextRound >= 0, { timeoutMs: 600_000 });
+
+    assertGreater(
+      stragglersAtDialog,
+      0,
+      "probed precondition drifted: no cross-zone straggler targeted the victim's zone at their life-lost dialog — re-probe the seed",
+    );
+    assertEquals(
+      stragglersAtNextRound,
+      0,
+      "ABANDON elimination must evict grunts targeting the abandoned zone, like a natural elimination does",
     );
   },
 );

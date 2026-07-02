@@ -103,6 +103,20 @@ export function getDeadZones(state: GameState): ReadonlySet<ZoneId> {
   return zones;
 }
 
+/** Delete every grunt whose sticky pathing lock points at a tower in
+ *  `zone`. Position sweeps can't find these: a mid-crossing grunt
+ *  (frozen river) raids a zone it isn't standing in yet. Runs when the
+ *  zone's owner is ELIMINATED — from both elimination paths
+ *  (`evictEntitiesInZone` when lives hit zero, `eliminatePlayers` for the
+ *  life-lost ABANDON choice) so they leave identical world state. On a
+ *  plain life-loss the targeters survive instead: the zone's towers are
+ *  revived and the rebuilding owner is still a valid raid target. */
+export function evictGruntsTargetingZone(state: GameState, zone: ZoneId): void {
+  state.grunts = state.grunts.filter(
+    (grunt) => getGruntTargetTower(state, grunt)?.zone !== zone,
+  );
+}
+
 export function getLiveTargetTower(
   state: GameState,
   grunt: Pick<Grunt, "targetTowerIdx">,

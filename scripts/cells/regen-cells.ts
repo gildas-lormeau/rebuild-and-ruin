@@ -135,8 +135,7 @@ const LABELS: Record<string, string> = {
   "6::ai":
     "AI decision intents (life lost, upgrade pick) + base-layer tactic planners (grunt sweep, ice trench)",
   "6::controllers": "BaseController abstraction",
-  "6::game":
-    "core game systems (combos, game-over, selection, map gen, elevation)",
+  "6::game": "core game systems (combos, selection, map gen, elevation)",
   "6::game/modifiers": "modifier implementations",
   "6::game/upgrades": "upgrade implementations",
   "6::input": "input-handler deps shapes",
@@ -186,7 +185,7 @@ const LABELS: Record<string, string> = {
   // L9 — system implementations
   "9::ai":
     "AI strategy types + build score helpers + super-attack tactic planner",
-  "9::game": "cannon, modifier & wall-impact systems",
+  "9::game": "cannon, modifier, game-over & wall-impact systems",
   "9::input": "input device handlers (kb, mouse, touch)",
   "9::online": "online runtime lobby",
   "9::render": "render UI entry",

@@ -6,6 +6,7 @@ import {
 import { isPlayerAlive, type Player } from "../shared/core/player-types.ts";
 import type { GameState } from "../shared/core/types.ts";
 import { eliminatePlayer } from "../shared/sim/player-rules.ts";
+import { evictGruntsTargetingZone } from "./grunt-movement.ts";
 
 /** Reason a game-over fires. Carried on `GameOverOutcome` so the runtime
  *  can log which path ended the match; not consumed by game flow. */
@@ -78,7 +79,13 @@ export function emitGameEnd(
 /** Eliminate the listed players and emit `PLAYER_ELIMINATED` for each.
  *  Skips missing/null player slots so callers can pass raw IDs from UI
  *  state without pre-filtering. Game rule — the runtime merely picks
- *  which players to eliminate (e.g. life-lost ABANDON choice). */
+ *  which players to eliminate (e.g. life-lost ABANDON choice).
+ *
+ *  Also evicts grunts still targeting the player's zone — the one cleanup
+ *  delta vs the life-loss zone reset that already ran this round-end
+ *  (`resetZoneState(ownerEliminated=false)` spares cross-zone targeters
+ *  because a rebuilding owner is still a valid raid target), so an
+ *  ABANDON elimination leaves the same world state as lives hitting zero. */
 export function eliminatePlayers(
   state: GameState,
   playerIds: readonly ValidPlayerId[],
@@ -96,6 +103,8 @@ export function eliminatePlayers(
       playerId: player.id,
       round: state.round,
     });
+    const zone = state.playerZones[player.id];
+    if (zone !== undefined) evictGruntsTargetingZone(state, zone);
   }
 }
 
