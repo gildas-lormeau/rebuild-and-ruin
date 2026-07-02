@@ -167,8 +167,7 @@ const LABELS: Record<string, string> = {
   "7::shared/sim": "sim internals — board occupancy & territory queries",
 
   // L8 — subsystems
-  "8::ai":
-    "AI strategy primitives (build types, castle rect) + wall-demolition tactic planner",
+  "8::ai": "AiStrategy contract + castle-rect geometry",
   "8::controllers": "controller factory",
   "8::entry": "server entry",
   "8::runtime/subsystems": "mid-depth subsystem factories",
@@ -184,7 +183,7 @@ const LABELS: Record<string, string> = {
 
   // L9 — system implementations
   "9::ai":
-    "AI strategy types + build score helpers + super-attack tactic planner",
+    "AiBrain contract, phase state machines, battle/cannon strategy, min-cut & build scoring",
   "9::game": "cannon, modifier, game-over & wall-impact systems",
   "9::input": "input device handlers (kb, mouse, touch)",
   "9::online": "online runtime lobby",
@@ -197,7 +196,8 @@ const LABELS: Record<string, string> = {
 
   // L10 — mid-depth assembly
   "10::ai":
-    "AI brain types, build shared/target, phase machines, battle/cannon dispatchers",
+    "AI brain assembly, build target selection & battle tactic planners",
+  "10::controllers": "AI controller (host wrapper around injected brain)",
   "10::game": "grunt system",
   "10::online": "online phase transitions",
   "10::render": "map renderer",
@@ -207,8 +207,8 @@ const LABELS: Record<string, string> = {
 
   // L11 — system composition
   "11::ai":
-    "AI brain + build strategy + derived tactic planners (pocket destruction, structural hit)",
-  "11::controllers": "AI controller (host wrapper around injected brain)",
+    "build desperation/lookahead + derived tactic planners (max-repair-cost, super-attack)",
+  "11::controllers": "AI assisted-human controller variant",
   "11::game": "battle & build systems",
   "11::online": "online phase transitions",
   "11::render": "frame renderers",
@@ -216,7 +216,6 @@ const LABELS: Record<string, string> = {
 
   // L12 — phase orchestration
   "12::ai": "AI strategy orchestrator",
-  "12::controllers": "AI assisted-human controller variant",
   "12::game": "game actions, phase setup & scheduling",
   "12::online": "online server-event handlers",
   "12::render": "3D renderer entry",

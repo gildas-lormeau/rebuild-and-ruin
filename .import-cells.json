@@ -545,6 +545,14 @@
   },
   {
     "layer": 7,
+    "domain": "ai",
+    "role": "AI charity-sweep tactic planner (delegates to grunt sweep)",
+    "files": [
+      "src/ai/ai-build-types.ts"
+    ]
+  },
+  {
+    "layer": 7,
     "domain": "controllers",
     "role": "human controller",
     "files": [
@@ -684,10 +692,10 @@
   {
     "layer": 8,
     "domain": "ai",
-    "role": "AI strategy primitives (build types, castle rect) + wall-demolition tactic planner",
+    "role": "AiStrategy contract + castle-rect geometry",
     "files": [
-      "src/ai/ai-build-types.ts",
-      "src/ai/ai-castle-rect.ts"
+      "src/ai/ai-castle-rect.ts",
+      "src/ai/ai-strategy-types.ts"
     ]
   },
   {
@@ -799,11 +807,17 @@
   {
     "layer": 9,
     "domain": "ai",
-    "role": "AI strategy types + build score helpers + super-attack tactic planner",
+    "role": "AiBrain contract, phase state machines, battle/cannon strategy, min-cut & build scoring",
     "files": [
+      "src/ai/ai-brain-types.ts",
       "src/ai/ai-build-score.ts",
       "src/ai/ai-min-cut.ts",
-      "src/ai/ai-strategy-types.ts"
+      "src/ai/ai-phase-battle.ts",
+      "src/ai/ai-phase-build.ts",
+      "src/ai/ai-phase-cannon.ts",
+      "src/ai/ai-phase-select.ts",
+      "src/ai/ai-strategy-battle.ts",
+      "src/ai/ai-strategy-cannon.ts"
     ]
   },
   {
@@ -868,17 +882,26 @@
   {
     "layer": 10,
     "domain": "ai",
-    "role": "AI brain types, build shared/target, phase machines, battle/cannon dispatchers",
+    "role": "AI brain assembly, build target selection & battle tactic planners",
     "files": [
-      "src/ai/ai-brain-types.ts",
+      "src/ai/ai-brain.ts",
       "src/ai/ai-build-shared.ts",
       "src/ai/ai-build-target.ts",
-      "src/ai/ai-phase-battle.ts",
-      "src/ai/ai-phase-build.ts",
-      "src/ai/ai-phase-cannon.ts",
-      "src/ai/ai-phase-select.ts",
-      "src/ai/ai-strategy-battle.ts",
-      "src/ai/ai-strategy-cannon.ts"
+      "src/ai/ai-plan-charity-sweep.ts",
+      "src/ai/ai-plan-deny-enclosure.ts",
+      "src/ai/ai-plan-fat-breach.ts",
+      "src/ai/ai-plan-pinch-kill.ts",
+      "src/ai/ai-plan-pocket-destruction.ts",
+      "src/ai/ai-plan-structural-hit.ts",
+      "src/ai/ai-plan-wall-demolition.ts"
+    ]
+  },
+  {
+    "layer": 10,
+    "domain": "controllers",
+    "role": "AI controller (host wrapper around injected brain)",
+    "files": [
+      "src/controllers/controller-ai.ts"
     ]
   },
   {
@@ -917,26 +940,20 @@
   {
     "layer": 11,
     "domain": "ai",
-    "role": "AI brain + build strategy + derived tactic planners (pocket destruction, structural hit)",
+    "role": "build desperation/lookahead + derived tactic planners (max-repair-cost, super-attack)",
     "files": [
-      "src/ai/ai-brain.ts",
       "src/ai/ai-build-desperate.ts",
       "src/ai/ai-build-lookahead.ts",
-      "src/ai/ai-plan-charity-sweep.ts",
-      "src/ai/ai-plan-deny-enclosure.ts",
-      "src/ai/ai-plan-fat-breach.ts",
-      "src/ai/ai-plan-pinch-kill.ts",
-      "src/ai/ai-plan-pocket-destruction.ts",
-      "src/ai/ai-plan-structural-hit.ts",
-      "src/ai/ai-plan-wall-demolition.ts"
+      "src/ai/ai-plan-max-repair-cost.ts",
+      "src/ai/ai-plan-super-attack.ts"
     ]
   },
   {
     "layer": 11,
     "domain": "controllers",
-    "role": "AI controller (host wrapper around injected brain)",
+    "role": "AI assisted-human controller variant",
     "files": [
-      "src/controllers/controller-ai.ts"
+      "src/controllers/controller-ai-assisted-human.ts"
     ]
   },
   {
@@ -970,17 +987,7 @@
     "domain": "ai",
     "role": "AI strategy orchestrator",
     "files": [
-      "src/ai/ai-plan-max-repair-cost.ts",
-      "src/ai/ai-plan-super-attack.ts",
       "src/ai/ai-strategy-build.ts"
-    ]
-  },
-  {
-    "layer": 12,
-    "domain": "controllers",
-    "role": "AI assisted-human controller variant",
-    "files": [
-      "src/controllers/controller-ai-assisted-human.ts"
     ]
   },
   {

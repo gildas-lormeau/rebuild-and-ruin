@@ -4,9 +4,24 @@ import {
   isBalloonCannon,
 } from "../core/battle-types.ts";
 import type { CannonIdx, Tower } from "../core/geometry-types.ts";
+import type { TileKey } from "../core/grid.ts";
 import type { ValidPlayerId } from "../core/player-slot.ts";
 import type { Player } from "../core/player-types.ts";
 import { isCannonTile, isTowerTile } from "../core/spatial.ts";
+
+/** Pre-built tile-key Sets for fast O(1) occupancy checks.
+ *  Build once via `buildOccupancyCache` (board-occupancy.ts), then pass to
+ *  `canPlacePiece` to avoid per-tile linear scans over towers/cannons/grunts. */
+export interface OccupancyCache {
+  readonly towerKeys: ReadonlySet<TileKey>;
+  readonly cannonKeys: ReadonlySet<TileKey>;
+  readonly gruntKeys: ReadonlySet<TileKey>;
+  /** Union of every player's walls. Use for any-wall presence checks
+   *  (e.g. wall-overlap validation in `canPlacePiece`); for own-wall checks,
+   *  test `player.walls.has(key)` directly. */
+  readonly wallKeys: ReadonlySet<TileKey>;
+  readonly pitKeys: ReadonlySet<TileKey>;
+}
 
 type CapturedCannonState = {
   readonly capturedCannons: readonly CapturedCannon[];

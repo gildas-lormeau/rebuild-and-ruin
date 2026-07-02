@@ -15,7 +15,7 @@ import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import type { Player } from "../shared/core/player-types.ts";
 import { unpackTile } from "../shared/core/spatial.ts";
 import type { BuildViewState } from "../shared/core/system-interfaces.ts";
-import { type OccupancyCache } from "../shared/sim/board-occupancy.ts";
+import type { OccupancyCache } from "../shared/sim/occupancy-queries.ts";
 import { getInterior } from "../shared/sim/player-interior.ts";
 import { poolFillableTowerRing } from "./ai-build-target.ts";
 import type { PeekFitTarget } from "./ai-build-types.ts";

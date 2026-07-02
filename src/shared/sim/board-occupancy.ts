@@ -20,22 +20,12 @@ import {
   packTile,
 } from "../core/spatial.ts";
 import type { GameViewState } from "../core/system-interfaces.ts";
-import { hasCannonAt, hasTowerAt } from "./occupancy-queries.ts";
+import {
+  hasCannonAt,
+  hasTowerAt,
+  type OccupancyCache,
+} from "./occupancy-queries.ts";
 import { assertInteriorFresh } from "./player-interior.ts";
-
-/** Pre-built tile-key Sets for fast O(1) occupancy checks.
- *  Build once via `buildOccupancyCache`, then pass to `canPlacePiece`
- *  to avoid per-tile linear scans over towers/cannons/grunts. */
-export interface OccupancyCache {
-  readonly towerKeys: ReadonlySet<TileKey>;
-  readonly cannonKeys: ReadonlySet<TileKey>;
-  readonly gruntKeys: ReadonlySet<TileKey>;
-  /** Union of every player's walls. Use for any-wall presence checks
-   *  (e.g. wall-overlap validation in `canPlacePiece`); for own-wall checks,
-   *  test `player.walls.has(key)` directly. */
-  readonly wallKeys: ReadonlySet<TileKey>;
-  readonly pitKeys: ReadonlySet<TileKey>;
-}
 
 /** Preset: tiles that block bonus square placement.
  *  Does NOT include interior: bonus squares CAN appear inside territory

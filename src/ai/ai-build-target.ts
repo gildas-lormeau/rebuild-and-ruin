@@ -30,12 +30,12 @@ import {
   unpackTile,
 } from "../shared/core/spatial.ts";
 import type { BuildViewState } from "../shared/core/system-interfaces.ts";
+import { hasAliveHouseAt, hasGruntAt } from "../shared/sim/board-occupancy.ts";
 import {
-  hasAliveHouseAt,
-  hasGruntAt,
+  hasCannonAt,
+  hasTowerAt,
   type OccupancyCache,
-} from "../shared/sim/board-occupancy.ts";
-import { hasCannonAt, hasTowerAt } from "../shared/sim/occupancy-queries.ts";
+} from "../shared/sim/occupancy-queries.ts";
 import { getInterior } from "../shared/sim/player-interior.ts";
 import {
   emitTargetSelectedDiag,
