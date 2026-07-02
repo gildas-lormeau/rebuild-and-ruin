@@ -270,8 +270,10 @@ export interface PhaseTransitionCtx {
    *  the start of the next battle (touch UX). Composition gates it on
    *  IS_TOUCH_DEVICE, so it's absent on non-touch wirings. */
   readonly saveBattleCrosshair?: () => void;
-  /** Upgrade-pick dialog hooks. Present only in modern mode (classic
-   *  wirings omit it). Required by transitions whose display chain runs the
+  /** Upgrade-pick dialog hooks. Always wired — the sole ctx factory
+   *  (`buildPhaseCtx`) passes the composition's picker subsystem
+   *  unconditionally; classic games simply never dispatch the transitions
+   *  that consume it. Required by transitions whose display chain runs the
    *  picker modal (`enter-upgrade-pick`) and by the self-driving phase tick
    *  (`tickUpgradePickPhase`).
    *
@@ -282,7 +284,7 @@ export interface PhaseTransitionCtx {
    *  resolution callback that promotion teardown could orphan. `get`/`set`
    *  let `finishUpgradePick` read the resolved snapshot and tear the
    *  dialog down at the single exit funnel. */
-  readonly upgradePick?: {
+  readonly upgradePick: {
     readonly prepare: () => boolean;
     /** Flip to Mode.UPGRADE_PICK + drain early wire picks. False = no
      *  offers (exit immediately). */
@@ -483,7 +485,7 @@ const ENTER_UPGRADE_PICK: Transition = {
   from: [Phase.BATTLE, Phase.CANNON_PLACE],
   mutate: (ctx) => {
     enterUpgradePickPhase(ctx.state);
-    ctx.upgradePick?.prepare();
+    ctx.upgradePick.prepare();
     return EMPTY_TRANSITION_RESULT;
   },
   display: [
@@ -929,10 +931,10 @@ function proceedToBattleFromCtx(ctx: PhaseTransitionCtx): void {
  *  resolutions, the phase machine applies them. */
 function runPickerModalThenDispatch(ctx: PhaseTransitionCtx): void {
   const picker = ctx.upgradePick;
-  if (!picker || !picker.prepare()) {
-    // No picker wired (shouldn't happen since this transition is only
-    // dispatched when offers exist), or prepare failed — fall through
-    // as if picks were already resolved.
+  if (!picker.prepare()) {
+    // No offers to surface (shouldn't happen since this transition is only
+    // dispatched when offers exist) — fall through as if picks were
+    // already resolved.
     finishUpgradePick(ctx);
     return;
   }
@@ -951,14 +953,14 @@ function runPickerModalThenDispatch(ctx: PhaseTransitionCtx): void {
  *  dispatch `enter-wall-build`. Called by the self-driving phase tick when
  *  `isReadyToExit()` flips, and by the no-offers fall-through above. */
 export function finishUpgradePick(ctx: PhaseTransitionCtx): void {
-  const resolved = ctx.upgradePick?.get() ?? null;
+  const resolved = ctx.upgradePick.get();
   if (resolved) {
     applyUpgradePicks(ctx.state, resolved);
     recheckTerritory(ctx.state);
     // Tear the dialog down at the single exit funnel — the build banner's
     // A-snapshot freezes the last-painted picker frame, so the cross-fade
     // to the build scene doesn't depend on dialog state surviving here.
-    ctx.upgradePick?.set(null);
+    ctx.upgradePick.set(null);
   }
   // Consume the offers: this is the single exit funnel for UPGRADE_PICK
   // (the picker modal's resolution AND the promotion force-resolve), so

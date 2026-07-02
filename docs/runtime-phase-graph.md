@@ -46,7 +46,7 @@ stateDiagram-v2
 - **broadcasts:** `buildEnd`
 - **display:** —
 - **dispatches:** —
-- **external dispatchers:** `phase-ticks.ts:871`
+- **external dispatchers:** `phase-ticks.ts:868`
 
 ### `battle-done`
 
@@ -56,7 +56,7 @@ stateDiagram-v2
 - **broadcasts:** `buildStart`
 - **display:** —
 - **dispatches:** `enter-upgrade-pick`, `enter-wall-build`
-- **external dispatchers:** `phase-ticks.ts:802`
+- **external dispatchers:** `phase-ticks.ts:799`
 
 ### `ceasefire`
 
@@ -66,7 +66,7 @@ stateDiagram-v2
 - **broadcasts:** `buildStart`
 - **display:** —
 - **dispatches:** `enter-upgrade-pick`, `enter-wall-build`
-- **external dispatchers:** `phase-ticks.ts:365`
+- **external dispatchers:** `phase-ticks.ts:364`
 
 ### `enter-upgrade-pick`
 
@@ -106,7 +106,7 @@ stateDiagram-v2
 - **broadcasts:** `cannonStart`
 - **display:** —
 - **dispatches:** `enter-cannon-place`
-- **external dispatchers:** `phase-ticks.ts:348`
+- **external dispatchers:** `phase-ticks.ts:347`
 
 ### `advance-to-cannon`
 
@@ -116,7 +116,7 @@ stateDiagram-v2
 - **broadcasts:** `cannonStart`
 - **display:** —
 - **dispatches:** `enter-cannon-place`
-- **external dispatchers:** `phase-ticks.ts:344`
+- **external dispatchers:** `phase-ticks.ts:343`
 
 ### `game-over`
 
@@ -126,7 +126,7 @@ stateDiagram-v2
 - **broadcasts:** —
 - **display:** —
 - **dispatches:** —
-- **external dispatchers:** `phase-ticks.ts:352`
+- **external dispatchers:** `phase-ticks.ts:351`
 
 ### `cannon-place-done`
 
@@ -136,7 +136,7 @@ stateDiagram-v2
 - **broadcasts:** `battleStart`
 - **display:** —
 - **dispatches:** `enter-modifier-reveal`, `enter-battle`
-- **external dispatchers:** `phase-ticks.ts:368`
+- **external dispatchers:** `phase-ticks.ts:367`
 
 ### `enter-modifier-reveal`
 
@@ -156,7 +156,7 @@ stateDiagram-v2
 - **broadcasts:** —
 - **display:** `banner(battle)`
 - **dispatches:** —
-- **external dispatchers:** `phase-ticks.ts:646`
+- **external dispatchers:** `phase-ticks.ts:645`
 
 ## Review hints (auto-derived)
 

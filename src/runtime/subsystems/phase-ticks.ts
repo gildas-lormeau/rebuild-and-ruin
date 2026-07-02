@@ -171,14 +171,13 @@ interface PhaseTicksDeps extends Pick<RuntimeConfig, "log"> {
   saveBattleCrosshair?: () => void;
   /** Called after beginBattle completes (crosshair override, etc.). */
   onBeginBattle?: () => void;
-  /** Upgrade-pick hook bag — wired together or not at all (classic mode
-   *  omits it). Grouping into a single optional field encodes that
-   *  invariant at the type level, so the `upgradePick` ctx object can be
-   *  assembled without non-null assertions. UPGRADE_PICK is self-driving
+  /** Upgrade-pick hook bag. Always wired — composition passes the picker
+   *  subsystem unconditionally; classic games never enter UPGRADE_PICK, so
+   *  the hooks are simply inert there. UPGRADE_PICK is self-driving
    *  (like MODIFIER_REVEAL): `prepare`+`show` activate the dialog, then
    *  `tickUpgradePickPhase` polls `isReadyToExit` and the phase machine
    *  dispatches the exit via `get`/`set`. No resolution callback. */
-  upgradePick?: {
+  upgradePick: {
     prepare: () => boolean;
     show: () => boolean;
     tick: (dt: number) => void;
@@ -662,7 +661,6 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
    *  `show` rebuild it from `pendingUpgradeOffers`. No offers ⟹ exit. */
   function tickUpgradePickPhase(dt: number): void {
     const picker = deps.upgradePick;
-    if (!picker) return;
     if (!picker.get()) {
       if (!picker.prepare() || !picker.show()) {
         finishUpgradePick(buildPhaseCtx());
@@ -681,7 +679,6 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
    *  force-resolve, no pre-broadcast dispatch — the snapshot ships in
    *  UPGRADE_PICK and every peer ticks it forward on its own. */
   function restoreUpgradePickPhase(): void {
-    if (!deps.upgradePick) return;
     setMode(runtimeState, Mode.UPGRADE_PICK);
   }
 
