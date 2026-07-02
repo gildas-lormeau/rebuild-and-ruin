@@ -164,7 +164,7 @@ export interface BurningPit extends TilePos {
 
 export interface Crosshair extends PixelPos {
   playerId: ValidPlayerId;
-  cannonReady?: boolean;
+  cannonReady: boolean;
 }
 
 /** A tile that was recently thawed — drives the crack-and-fade animation. */

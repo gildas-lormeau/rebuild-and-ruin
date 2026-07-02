@@ -326,7 +326,10 @@ export interface BattleController {
   //    interface's only accessors: read, absolute-set, occlusion-resolve-and-set,
   //    and tower-center. ──
 
-  getCrosshair(): Crosshair;
+  /** Aim position tagged with playerId. Readiness (`cannonReady`) is not
+   *  the controller's to answer — the phase tick derives it from game state
+   *  when assembling `frame.crosshairs`. */
+  getCrosshair(): Omit<Crosshair, "cannonReady">;
 
   /** Set crosshair to absolute pixel position (mouse). */
   setCrosshair(x: number, y: number): void;

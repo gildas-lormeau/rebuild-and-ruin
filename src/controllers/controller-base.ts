@@ -93,7 +93,7 @@ export abstract class BaseController implements PlayerController {
     this.crosshair = { x: center.col * TILE_SIZE, y: center.row * TILE_SIZE };
   }
 
-  getCrosshair(): Crosshair {
+  getCrosshair(): Omit<Crosshair, "cannonReady"> {
     return { ...this.crosshair, playerId: this.playerId };
   }
 

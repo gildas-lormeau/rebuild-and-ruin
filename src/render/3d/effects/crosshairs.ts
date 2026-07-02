@@ -204,7 +204,7 @@ export function createCrosshairsManager(scene: THREE.Scene): CrosshairsManager {
       // instead of `tanP · CROSSHAIR_MARGIN_Y` pixels above it. Pure
       // rendering adjustment — game-state `ch.y` (fire target) is untouched.
       const centerZ = ch.y + aimZShift(ch.x, ch.y, pitch, overlay, map);
-      const geom = crosshairGeometry(ch.cannonReady === true, time);
+      const geom = crosshairGeometry(ch.cannonReady, time);
       const { alpha, arm, diag, gap } = geom;
       // Lift the crosshair onto the top of whatever geometry sits at
       // the aim point (wall / tower / cannon / house / grunt) —
