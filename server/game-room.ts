@@ -162,6 +162,26 @@ const PHASE_GATES: Partial<Record<MessageType, Set<ServerPhase>>> = {
   [MESSAGE.OPPONENT_TOWER_SELECTED]: new Set([Phase.CASTLE_SELECT]),
   [MESSAGE.AIM_UPDATE]: new Set([Phase.BATTLE]),
 };
+/** Marker-regime projection of a FULL_STATE snapshot's `phase` field: the
+ *  value the tracked phase WOULD hold if every boundary marker had been
+ *  received. Mirrors the broadcast points in the client's phase machine
+ *  (src/runtime/phase-machine.ts): `battleStart` is sent before
+ *  MODIFIER_REVEAL is entered, `buildStart` before UPGRADE_PICK, and the
+ *  tracked phase holds WALL_BUILD through ROUND_END until the next
+ *  `cannonStart` / `selectStart`. Projecting (instead of adopting the raw
+ *  phase) keeps the gate's semantics identical to healthy marker tracking —
+ *  the FULL_STATE branch below only closes staleness, it never makes the
+ *  gate stricter. `satisfies Record<Phase, Phase>` forces a mapping
+ *  decision when a new phase is added. */
+const MARKER_PHASE_OF_SNAPSHOT: Record<string, Phase> = {
+  [Phase.CASTLE_SELECT]: Phase.CASTLE_SELECT,
+  [Phase.CANNON_PLACE]: Phase.CANNON_PLACE,
+  [Phase.MODIFIER_REVEAL]: Phase.BATTLE,
+  [Phase.BATTLE]: Phase.BATTLE,
+  [Phase.UPGRADE_PICK]: Phase.WALL_BUILD,
+  [Phase.WALL_BUILD]: Phase.WALL_BUILD,
+  [Phase.ROUND_END]: Phase.WALL_BUILD,
+} satisfies Record<Phase, Phase>;
 
 export class GameRoom {
   /** Shared read-only references to RoomEntry's maps — single source of truth
@@ -236,13 +256,33 @@ export class GameRoom {
 
   /** Update tracked phase from a host checkpoint message.
    *  If adding a new phase-changing message type, add its transition here
-   *  AND add phase gating to PHASE_GATES below if the new phase restricts messages. */
-  private updatePhaseFromMessage(type: string): void {
+   *  AND add phase gating to PHASE_GATES below if the new phase restricts messages.
+   *
+   *  FULL_STATE re-syncs the tracked phase from the snapshot's `phase`
+   *  field (projected through MARKER_PHASE_OF_SNAPSHOT). Load-bearing for
+   *  host migration: markers only flow from a live host, so a phase
+   *  boundary the survivors cross during the hostless window (host death →
+   *  promotion) would otherwise leave the gate stale for the REST of that
+   *  phase, silently dropping every non-host game-state message it
+   *  mis-gates (cannon places, done flags, fires) — the originator applies
+   *  locally, no one else sees it, and the boards fork. The promoted host
+   *  always broadcasts FULL_STATE, and this update runs before the relay
+   *  (stage 1 vs stage 6), so peers adopt the snapshot only after the gate
+   *  is already corrected. An unknown/malformed phase string is ignored
+   *  (keep the current phase) rather than trusted. */
+  private updatePhaseFromMessage(
+    type: string,
+    msg: Record<string, unknown>,
+  ): void {
     const prev = this.phase;
     if (type === MESSAGE.CANNON_START) this.phase = Phase.CANNON_PLACE;
     else if (type === MESSAGE.BATTLE_START) this.phase = Phase.BATTLE;
     else if (type === MESSAGE.BUILD_START) this.phase = Phase.WALL_BUILD;
     else if (type === MESSAGE.SELECT_START) this.phase = Phase.CASTLE_SELECT;
+    else if (type === MESSAGE.FULL_STATE) {
+      const snapshotPhase = MARKER_PHASE_OF_SNAPSHOT[msg.phase as string];
+      if (snapshotPhase !== undefined) this.phase = snapshotPhase;
+    }
     // Stamp the moment we leave WALL_BUILD so the gate can grace late, validly
     // in-flight piece placements from non-host peers (see the gate below).
     if (prev === Phase.WALL_BUILD && this.phase !== Phase.WALL_BUILD) {
@@ -293,7 +333,7 @@ export class GameRoom {
     // type requires adding it to the HOST_ONLY set above.
     if (HOST_ONLY.has(type)) {
       if (senderSocket !== this.hostSocket) return;
-      this.updatePhaseFromMessage(type);
+      this.updatePhaseFromMessage(type, msg);
       // INIT is the host's "game is starting" signal — flip the room to
       // started so late joins are rejected and a host disconnect takes the
       // migration path instead of teardown. The raw payload is buffered by

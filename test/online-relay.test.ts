@@ -101,6 +101,74 @@ Deno.test("relay matches current lobby, checkpoint, and migration protocol", asy
   }
 });
 
+Deno.test("FULL_STATE re-syncs the relay's phase gate after host migration", async () => {
+  const host = await connectClient("HOST");
+  const player1 = await connectClient("PLAYER1");
+  const player2 = await connectClient("PLAYER2");
+
+  try {
+    send(host.ws, {
+      type: MESSAGE.CREATE_ROOM,
+      settings: { maxRounds: 3, cannonMaxHp: 3, waitTimerSec: 30 },
+    });
+    const code = (await host.waitFor(MESSAGE.ROOM_CREATED)).code as string;
+    send(host.ws, { type: MESSAGE.SELECT_SLOT, playerId: 0 });
+    await host.waitFor(MESSAGE.JOINED);
+
+    send(player1.ws, { type: MESSAGE.JOIN_ROOM, code });
+    await player1.waitFor(MESSAGE.ROOM_JOINED);
+    send(player1.ws, { type: MESSAGE.SELECT_SLOT, playerId: 1 });
+    await player1.waitFor(MESSAGE.JOINED);
+
+    send(player2.ws, { type: MESSAGE.JOIN_ROOM, code });
+    await player2.waitFor(MESSAGE.ROOM_JOINED);
+    send(player2.ws, { type: MESSAGE.SELECT_SLOT, playerId: 2 });
+    await player2.waitFor(MESSAGE.JOINED);
+
+    send(host.ws, {
+      type: MESSAGE.INIT,
+      seed: 42,
+      playerCount: 3,
+      settings: { maxRounds: 3, cannonMaxHp: 3, buildTimer: 25, cannonPlaceTimer: 15 },
+    });
+    await player1.waitFor(MESSAGE.INIT);
+    await player2.waitFor(MESSAGE.INIT);
+
+    // Host marks WALL_BUILD, then dies. The survivors' sims cross into
+    // CANNON_PLACE during the hostless window — no live host, so no
+    // cannonStart marker ever reaches the server.
+    send(host.ws, { type: MESSAGE.BUILD_START });
+    await player1.waitFor(MESSAGE.BUILD_START);
+    host.ws.close();
+    const hostLeft = await player1.waitFor(MESSAGE.HOST_LEFT);
+    assertEquals(hostLeft.newHostPlayerId, 1);
+    await player2.waitFor(MESSAGE.HOST_LEFT);
+
+    // The promoted host's FULL_STATE carries the authoritative phase — the
+    // relay must adopt it (game-room.ts updatePhaseFromMessage), otherwise
+    // the gate stays at WALL_BUILD and silently drops every
+    // CANNON_PLACE-gated non-host message for the rest of the phase.
+    send(player1.ws, { type: MESSAGE.FULL_STATE, round: 2, phase: "CANNON_PLACE" });
+    await player2.waitFor(MESSAGE.FULL_STATE);
+
+    send(player2.ws, {
+      type: MESSAGE.OPPONENT_CANNON_PLACED,
+      playerId: 2,
+      row: 5,
+      col: 5,
+      mode: "normal",
+    });
+    const relayed = await player1.waitFor(
+      (msg) => msg.type === MESSAGE.OPPONENT_CANNON_PLACED && msg.playerId === 2,
+    );
+    assertEquals(relayed.row, 5);
+  } finally {
+    for (const handle of [host, player1, player2]) {
+      if (handle.ws.readyState === WebSocket.OPEN) handle.ws.close();
+    }
+  }
+});
+
 Deno.test("rejoin replays INIT, broadcasts the resync, and relays seat reclaim", async () => {
   const host = await connectClient("HOST");
   let player = await connectClient("PLAYER");
@@ -158,7 +226,10 @@ Deno.test("rejoin replays INIT, broadcasts the resync, and relays seat reclaim",
     // ── Host answers by re-broadcasting the resync to the WHOLE room (a no-op
     // migration): every peer — the rejoiner AND existing watchers — adopts it
     // and re-primes its AI in lockstep (a targeted resync forks the AI). ──
-    send(host.ws, { type: MESSAGE.FULL_STATE, round: 2, phase: "wallBuild" });
+    // `phase` uses the real wire value (Phase enum key, see
+    // online-serialize.ts `Phase[state.phase]`) — the relay adopts it into
+    // its phase gate since the migration staleness fix.
+    send(host.ws, { type: MESSAGE.FULL_STATE, round: 2, phase: "WALL_BUILD" });
     await player.waitFor(MESSAGE.FULL_STATE);
     await watcher.waitFor(MESSAGE.FULL_STATE);
 
