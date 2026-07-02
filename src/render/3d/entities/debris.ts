@@ -20,9 +20,9 @@ import {
 } from "../../../shared/core/grid.ts";
 import { unpackTile } from "../../../shared/core/spatial.ts";
 import type { RenderOverlay } from "../../../shared/ui/overlay-types.ts";
-import { wallDestroyAnimAt } from "../../../shared/ui/wall-destroy-anim.ts";
 import type { FrameCtx } from "../frame-ctx.ts";
 import { buildDebris, getDebrisVariant } from "../sprites/debris-scene.ts";
+import { wallDestroyAnimAt } from "../wall-destroy-anim.ts";
 import {
   cannonKind,
   TILE_2X2_CENTER_OFFSET,

@@ -23,11 +23,8 @@ import {
   audioContextNeedsResume,
   isAudioContextInterrupted,
 } from "../../shared/platform/platform.ts";
-import {
-  type PcmSample,
-  parseSoundRsc,
-} from "../../shared/platform/sound-rsc.ts";
 import type { MusicAssets } from "./music-assets.ts";
+import { type PcmSample, parseSoundRsc } from "./sound-rsc.ts";
 
 /** Narrow SFX handle exposed on `GameRuntime`. Subset of `SfxSubsystem`
  *  surfaced for the app shell — lets the home-page "Play" button pre-warm

@@ -12,11 +12,7 @@
 
 import coreUrl from "libadlmidi-js/dist/libadlmidi.dosbox.slim.core.js?url";
 import wasmUrl from "libadlmidi-js/dist/libadlmidi.dosbox.slim.core.wasm?url";
-import { ailToWopl } from "../../shared/platform/ail-to-wopl.ts";
-import {
-  xmiContainerBlocks,
-  xmidToSmf,
-} from "../../shared/platform/xmi-to-smf.ts";
+import { ailToWopl } from "./ail-to-wopl.ts";
 import {
   type CachedPcm,
   fanfareCacheId,
@@ -26,6 +22,7 @@ import {
   storePcmCache,
   type XmiFileKey,
 } from "./music-assets.ts";
+import { xmiContainerBlocks, xmidToSmf } from "./xmi-to-smf.ts";
 
 interface PcmRenderer {
   render(midi: Uint8Array): CachedPcm | undefined;

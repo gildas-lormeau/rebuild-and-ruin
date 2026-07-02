@@ -6,8 +6,8 @@
  * underneath the held mesh — so cannonball, grunt read identically.
  */
 
-import { WALL_DESTROY_ANIM_DURATION_MS } from "../core/game-constants.ts";
-import { TILE_SIZE } from "../core/grid.ts";
+import { WALL_DESTROY_ANIM_DURATION_MS } from "../../shared/core/game-constants.ts";
+import { TILE_SIZE } from "../../shared/core/grid.ts";
 
 interface WallDestroyAnim {
   /** World-units the held wall is translated DOWN by. 0 during the

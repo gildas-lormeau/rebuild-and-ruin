@@ -92,13 +92,14 @@ const LABELS: Record<string, string> = {
   "0::render": "render primitives & 3D helpers",
   "0::render/3d/effects": "3D effect infrastructure",
   "0::runtime": "runtime leaf utilities & banner ramps",
-  "0::runtime/audio": "audio asset storage",
+  "0::runtime/audio":
+    "audio asset storage & retro format converters (AIL/XMI/snd)",
   "0::server": "wire send helpers",
   "0::shared": "shared constants, RNG & platform leaves",
 
   // L1 — foundational types
   "1::online": "online wiring config",
-  "1::render": "3D sprite scene builders & lights",
+  "1::render": "3D sprite scene builders, lights & wall-destroy anim curve",
   "1::render/3d/effects": "effect terrain pattern textures",
   "1::runtime": "modifier reveal overlays & browser timing",
   "1::runtime/audio": "audio leaf infra (synth loader, sound modal)",

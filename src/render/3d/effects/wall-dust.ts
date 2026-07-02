@@ -12,8 +12,8 @@ import {
   TILE_SIZE,
   type TileKey,
 } from "../../../shared/core/grid.ts";
-import { wallDestroyAnimAt } from "../../../shared/ui/wall-destroy-anim.ts";
 import type { FrameCtx } from "../frame-ctx.ts";
+import { wallDestroyAnimAt } from "../wall-destroy-anim.ts";
 import { type EffectManager, getSharedSmokeTexture } from "./fire-burst.ts";
 import { tileSeed } from "./helpers.ts";
 

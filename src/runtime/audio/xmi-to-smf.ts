@@ -23,6 +23,10 @@ const STATUS_BYTE_MASK = 0x80;
 const FORM_TAG = "FORM";
 /** IFF sub-form tag for a single XMI sub-song block (`FORM XMID`). */
 const XMID_TAG = "XMID";
+/** SMF ticks-per-quarter. Fixed: paired with the injected 1_000_000
+ *  us/quarter tempo meta to reproduce Miles AIL's 120 Hz tick rate —
+ *  changing one without the other would shift playback speed. */
+const SMF_DIVISION = 120;
 
 /**
  * Split a Miles XMI container into per-sub-song FORM-XMID blocks. Accepts
@@ -64,7 +68,7 @@ export function xmiContainerBlocks(data: Uint8Array): XmiSubSongHandle[] {
  * Convert one FORM-XMID block to a single-track SMF. Returns `null` if the
  * block has no EVNT chunk (a rare padding entry seen in some containers).
  */
-export function xmidToSmf(xmid: Uint8Array, division = 120): Uint8Array | null {
+export function xmidToSmf(xmid: Uint8Array): Uint8Array | null {
   if (readTag(xmid, 0) !== FORM_TAG || readTag(xmid, 8) !== XMID_TAG)
     throw new Error("not a FORM XMID block");
   const formLen = readU32BE(xmid, 4);
@@ -227,7 +231,7 @@ export function xmidToSmf(xmid: Uint8Array, division = 120): Uint8Array | null {
   writeU32BE(mthd, 4, 6);
   writeU16BE(mthd, 8, 0); // format 0
   writeU16BE(mthd, 10, 1); // 1 track
-  writeU16BE(mthd, 12, division);
+  writeU16BE(mthd, 12, SMF_DIVISION);
 
   const mtrk = new Uint8Array(8 + trackBytes.length);
   mtrk.set([0x4d, 0x54, 0x72, 0x6b], 0);

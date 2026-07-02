@@ -84,9 +84,12 @@
     "layer": 0,
     "domain": "runtime",
     "subdomain": "audio",
-    "role": "audio asset storage",
+    "role": "audio asset storage & retro format converters (AIL/XMI/snd)",
     "files": [
-      "src/runtime/audio/music-assets.ts"
+      "src/runtime/audio/ail-to-wopl.ts",
+      "src/runtime/audio/music-assets.ts",
+      "src/runtime/audio/sound-rsc.ts",
+      "src/runtime/audio/xmi-to-smf.ts"
     ]
   },
   {
@@ -110,13 +113,10 @@
       "src/shared/core/player-slot.ts",
       "src/shared/core/pool-def.ts",
       "src/shared/core/zone-id.ts",
-      "src/shared/platform/ail-to-wopl.ts",
       "src/shared/platform/cyclic.ts",
       "src/shared/platform/platform.ts",
       "src/shared/platform/rng.ts",
-      "src/shared/platform/sound-rsc.ts",
       "src/shared/platform/utils.ts",
-      "src/shared/platform/xmi-to-smf.ts",
       "src/shared/ui/settings-defs.ts",
       "src/shared/ui/ui-mode.ts"
     ]
@@ -143,7 +143,7 @@
   {
     "layer": 1,
     "domain": "render",
-    "role": "3D sprite scene builders & lights",
+    "role": "3D sprite scene builders, lights & wall-destroy anim curve",
     "files": [
       "src/render/3d/lights.ts",
       "src/render/3d/sprites/balloon-scene.ts",
@@ -151,7 +151,8 @@
       "src/render/3d/sprites/grunt-scene.ts",
       "src/render/3d/sprites/pit-scene.ts",
       "src/render/3d/sprites/sprite-materials.ts",
-      "src/render/3d/sprites/sprite-textures.ts"
+      "src/render/3d/sprites/sprite-textures.ts",
+      "src/render/3d/wall-destroy-anim.ts"
     ]
   },
   {
@@ -202,8 +203,7 @@
       "src/shared/core/player-zones.ts",
       "src/shared/core/upgrade-defs.ts",
       "src/shared/ui/interaction-types.ts",
-      "src/shared/ui/theme.ts",
-      "src/shared/ui/wall-destroy-anim.ts"
+      "src/shared/ui/theme.ts"
     ]
   },
   {
