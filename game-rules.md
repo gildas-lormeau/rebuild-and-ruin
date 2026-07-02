@@ -22,7 +22,7 @@ These rules are load-bearing across the whole game and easy to miss because they
 - **Terrain**: Grass (buildable) and Water (impassable).
 - **River**: A Y-shaped river divides the map into **3 zones** of roughly equal size. Generated via Bezier curves from a central junction to 3 map edges; 3 tiles wide.
 - **Towers**: 12 total (4 per zone), each occupying 2×2 tiles. Placed via farthest-point sampling with minimum 5-tile gap between towers and a safe zone around each.
-- **Houses**: 8 per zone initially, 1×1 tiles. Placed on grass with a 1-tile margin from water and towers, minimum 3-tile Manhattan distance between houses. Houses are spawned after castle construction (visible from the cannon phase onward). Zones are refilled to 8 houses at the start of each build phase when below that count.
+- **Houses**: 12 per zone initially, 1×1 tiles. Placed on grass with a 1-tile margin from water and towers, minimum 3-tile Manhattan distance between houses. Houses are spawned after castle construction (visible from the cannon phase onward). Each surviving zone then **grows by 2 houses every round** (at end of battle, before the next build) with **no cap** — 30+ per zone in a long game, so grunt-spawn pressure keeps rising. A zone is only re-seeded back up to 12 after a zone reset (life-loss reselect).
 - **Bonus squares**: 3 per zone, placed on open (non-enclosed) grass with a 1-tile gap from borders/river and minimum 3-tile Manhattan distance from each other. Replenished after any are captured.
 
 ---
@@ -105,7 +105,7 @@ At the transition from Cannon Place to Battle, all placed balloons are resolved:
 
 ### Grunt Spawning
 
-From round 2 onward, at the end of cannon placement, each non-eliminated player has 2 chances of 10% each to have a grunt spawned in their zone.
+From round 2 onward, at the end of cannon placement, each non-eliminated player has 2 chances of 25% each to have a grunt spawned in their zone.
 
 In modern mode, each spawned grunt has a **25%** chance to be a **catapult** variant (slower, range-3 tower attack — see Modern Mode > Catapults).
 
@@ -156,7 +156,7 @@ Grunts **move during the build phase** (not during battle) and **attack during t
 
 #### Targeting
 
-- Each grunt locks onto the nearest alive tower **in its zone** and never retargets (even if the tower dies).
+- Each grunt locks onto the nearest alive tower **in its zone**. The lock is sticky while that tower lives; when the target dies, the grunt re-acquires the next nearest alive tower in its zone — it moves on after a kill rather than parking on the corpse.
 - Grunts never cross rivers.
 
 #### Movement (Build Phase)
@@ -188,6 +188,7 @@ Grunts move 1 tile per second during the build phase:
 - At the **start** of the next battle, one roll per eligible grunt: 25% chance to attack an adjacent wall. Eligibility: `blockedRounds ≥ 2` AND target tower still alive AND a wall is adjacent. (The Sapper modifier bypasses both the count requirement and the roll.)
 - Wall attack uses the same 3-second timer; destroys one wall tile closest to the target tower.
 - **Catapults bypass this roll entirely** when a wall lies in their line of fire — they siege the wall directly every tick they're in range. See Modern Mode > Catapults.
+- **One swing per battle**: a grunt that completes an attack (tower or wall) is done for that battle — no chaining from a wall kill into a tower attack or from one wall to the next (this also stops a catapult re-routing to the next blocking wall mid-battle).
 
 ### End of Battle
 
@@ -373,22 +374,22 @@ Bracketed phases are conditional:
 
 ### Modifiers
 
-One modifier may roll each round from round 3 onward (65% chance, no consecutive repeats, weighted random draw from 13 implemented). Pool weights are tiered like upgrades: **Common ×3, Uncommon ×2, Rare ×1** — the most match-defining modifiers (Fog of War, Sapper, Frostbite, Sinkhole, Frozen River) appear least often. Most clear at the end of the battle; **Frozen River**, **High Tide**, and **Low Water** persist for the round and clear at the next Cannon Place transition; **Sinkhole** terrain changes are permanent.
+One modifier may roll each round from round 3 onward (65% chance, no consecutive repeats, weighted random draw from 13 implemented). Pool weights are tiered like upgrades: **Common ×3, Uncommon ×2, Rare ×1** — the most match-defining modifiers (Fog of War, Sapper, Frostbite, Sinkhole, Frozen River, High Tide) appear least often. Most clear at the end of the battle; **Frozen River**, **High Tide**, and **Low Water** persist for the round and clear at the next Cannon Place transition; **Sinkhole** terrain changes are permanent.
 
 | Modifier | Rarity | Effect |
 |----------|--------|--------|
-| Wildfire | Common | Elongated burn scar (~10 tiles), destroys walls/grunts/houses/bonus squares |
 | Rubble Clearing | Common | All dead cannon debris and burning pits are removed from the map |
-| Low Water | Common | Shallow river-edge tiles become grass for one round, expanding buildable land |
+| Low Water | Common | Shallow river-edge tiles are exposed for one round — buildable and grunt-walkable (they stay water underneath; the river never thins enough for grunts to cross zones, and walls/grunts on the exposed bank are lost when the water returns) |
 | Supply Ship | Common | Three neutral cargo ships sail the river — sink one for a hidden one-round bonus |
+| Wildfire | Uncommon | Elongated burn scar (~10 tiles), destroys walls/grunts/houses/bonus squares |
 | Grunt Surge | Uncommon | Spawns 6–10 extra grunts distributed across alive towers |
-| High Tide | Uncommon | River widens 1 tile, flooding banks and destroying structures. Recedes next round |
 | Dust Storm | Uncommon | All cannonballs gain ±15° angle jitter on launch |
 | Dry Lightning | Uncommon | Random grass tiles ignite as burning pits without needing wall destruction |
+| High Tide | Rare | River widens 1 tile, flooding banks and destroying structures. Recedes next round |
 | Frozen River | Rare | Water tiles become traversable by grunts; thawed by cannonball impact |
 | Sinkhole | Rare | Cluster of grass tiles permanently collapses into water, destroying structures |
 | Fog of War | Rare | Thick fog covers every merged castle during battle — aim from memory |
-| Frostbite | Rare | Grunts spawn as ice cubes — fully immobile and require two hits to break |
+| Frostbite | Rare | Grunts freeze as ice cubes — fully immobile, unable to attack walls or towers, and requiring two hits to break |
 | Sapper | Rare | Grunts attack any adjacent wall on sight — no blocked-rounds requirement |
 
 **Supply Ships** (the Supply Ship modifier): 3 neutral cargo ships (2 HP each) sail the river arms toward the junction during battle. Sink one with cannonballs to claim its **hidden one-round bonus**, rolled at spawn from four types: **extra cannon slot**, **+5s build time** (same as Master Builder), a **mortar shot**, or a **small-pieces bag bias**. The bonus goes to the player who lands the killing hit and is consumed the following round; any ship still afloat auto-sinks as the battle ends.
@@ -423,7 +424,7 @@ From round 3 onward (and not in the final round), each non-eliminated player is 
 | One-use | Erosion | Sweep one layer of exposed walls from every player |
 | One-use | Clear the Field | Remove all grunts from the map |
 
-**Master Builder** special-cases by owner count: **1 owner** gets a +5s *exclusive* build window (other players are locked out during it). **2+ owners** cancel the lockout — instead, +5s is added to every player's timer.
+**Master Builder** grants every owner a +5s *exclusive* head-start window: whenever at least one player owns it, +5s is added to the build timer and non-owners are locked out for the first 5 seconds. With multiple owners, all of them build during the head-start — they race each other for the exclusive window.
 
 ### Combos
 
