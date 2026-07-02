@@ -3,5 +3,6 @@
   "project": ["src/**/*.ts", "dev/**/*.ts", "server/**/*.ts", "test/**/*.ts", "scripts/**/*.ts"],
   "ignore": ["test/**"],
   "ignoreDependencies": ["@std/.*"],
+  "ignoreBinaries": ["rg", "diff"],
   "bun": false
 }
