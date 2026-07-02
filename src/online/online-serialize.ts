@@ -64,12 +64,28 @@ export function createFullStateMessage(
   migrationSeq: number,
   flights?: readonly { flight: BalloonFlight; progress: number }[],
   gruntAccum?: number,
+  /** The sender's runtime `roundEnd` routing stash — serialized only for
+   *  mid-ROUND_END snapshots so adopters rebuild the identical life-lost
+   *  dialog (see the field doc on `FullStateMessage.roundEnd`). Callers
+   *  may pass their stash unconditionally; the phase gate below drops it
+   *  outside the window. */
+  roundEnd?: {
+    needsReselect: readonly ValidPlayerId[];
+    eliminated: readonly ValidPlayerId[];
+  } | null,
 ): FullStateMessage {
   return {
     type: MESSAGE.FULL_STATE,
     migrationSeq,
     phase: Phase[state.phase],
     round: state.round,
+    roundEnd:
+      state.phase === Phase.ROUND_END && roundEnd
+        ? {
+            needsReselect: [...roundEnd.needsReselect],
+            eliminated: [...roundEnd.eliminated],
+          }
+        : undefined,
     timer: state.timer,
     battleCountdown: state.battleCountdown,
     maxRounds: state.maxRounds,

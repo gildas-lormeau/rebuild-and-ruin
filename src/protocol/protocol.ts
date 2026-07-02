@@ -278,6 +278,17 @@ export interface FullStateMessage extends SerializedModifierTiles {
    *  Drives the phase-exit predicate so a peer joining mid-CANNON_PLACE
    *  sees the same done set as the host. */
   cannonPlaceDone: number[];
+  /** Round-end routing (present iff the snapshot is mid-ROUND_END): the
+   *  sender's runtime `roundEnd` stash from `finalizeRound`. Adopters
+   *  rebuild their stash from it so the life-lost dialog — including the
+   *  eliminated-only notice and its dwell — is identical on every peer.
+   *  `eliminated` is NOT derivable from board state (a this-round
+   *  elimination is indistinguishable from an earlier round's), which is
+   *  why it rides the snapshot. Absent outside ROUND_END; adopters then
+   *  null their stash (a stale stash surviving an adoption that jumps a
+   *  peer across round-end windows would route a DIFFERENT round's losers
+   *  into reselect). */
+  roundEnd?: { needsReselect: number[]; eliminated: number[] };
   salvageSlots?: number[];
   playerZones: number[];
   gameMode: string;

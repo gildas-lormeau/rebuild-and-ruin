@@ -85,6 +85,10 @@ function rebroadcastFullStateForResync(deps: DeferredResyncDeps): void {
       session.hostMigrationSeq,
       runtimeState.battleAnim.flights,
       runtimeState.accum.grunt,
+      // Inert under the Mode.GAME/SELECTION gate above (never mid-ROUND_END,
+      // so the serializer's phase gate drops it) — passed for parity with
+      // the promotion sender, the honest value either way.
+      runtimeState.roundEnd,
     ),
   );
   // AFTER the serialize — see the ordering note in promote.ts. Bags first so

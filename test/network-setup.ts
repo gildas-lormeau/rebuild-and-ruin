@@ -91,7 +91,19 @@ export interface NetworkedPair {
    *  armed but untickable) until the next checkpoint's stale-dialog
    *  dismissal in online-server-lifecycle.ts. */
   readonly watcherUpgradePickDialog: () => UpgradePickDialogState | null;
+  /** Read-only views of each peer's runtime round-end routing stash.
+   *  Migration tests read the host's to build a routing-bearing FULL_STATE
+   *  (what `promoteToHost` serializes) and assert on the watcher's after
+   *  an adoption (`adoptRoundEndRouting` overwrite vs stale strand). */
+  readonly hostRoundEndStash: () => RoundEndStash;
+  readonly watcherRoundEndStash: () => RoundEndStash;
 }
+
+/** Shape of `RuntimeState.roundEnd` as exposed by the pair accessors. */
+export type RoundEndStash = {
+  needsReselect: readonly ValidPlayerId[];
+  eliminated: readonly ValidPlayerId[];
+} | null;
 
 interface RuntimeBuild {
   readonly scenario: Scenario;
@@ -239,6 +251,9 @@ export async function createNetworkedPair(
     watcherSession: watcherBuild.client!.ctx.session,
     watcherUpgradePickDialog: () =>
       watcherBuild.headless.runtime.upgradePick.get(),
+    hostRoundEndStash: () => hostBuild.headless.runtime.runtimeState.roundEnd,
+    watcherRoundEndStash: () =>
+      watcherBuild.headless.runtime.runtimeState.roundEnd,
   };
 }
 

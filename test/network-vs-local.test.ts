@@ -739,6 +739,202 @@ async function promoteWatcherMidUpgradePick(
   }
 }
 
+// ── Adoption must overwrite the round-end routing stash ────────────────
+// `runtimeState.roundEnd` is cleared only by `exitRoundEnd`; an adoption
+// that jumps a peer out of a mid-ROUND_END window is the one path that
+// skips it. Left stranded, a LATER round's window entered via adoption
+// consumes the stale stash and routes a DIFFERENT round's losers into
+// reselect (this peer enters CASTLE_SELECT while every other peer
+// advances to CANNON_PLACE — permanent fork). `adoptRoundEndRouting`
+// overwrites the stash on every FULL_STATE apply: the snapshot's routing
+// mid-ROUND_END, null otherwise.
+Deno.test(
+  "adoption jumping a watcher out of ROUND_END clears the routing stash",
+  async () => {
+    // Registry-driven reselect seed: round 10 closes with a life-lost
+    // dialog (P0+P1 reselect); rounds 11-13 close loss-free.
+    const pair = await createNetworkedPair({
+      seed: RESELECT.seed,
+      mode: "classic",
+      rounds: 15,
+    });
+    const { host, watcher } = pair;
+
+    // Park the watcher mid-dialog (stash populated by its own
+    // enter-round-end).
+    await runPairUntil(
+      pair,
+      () => watcher.mode() === Mode.LIFE_LOST,
+      "watcher mid life-lost dialog",
+    );
+    const staleRound = watcher.state.round as number;
+    const stashAtWindow = pair.watcherRoundEndStash();
+    assert(
+      stashAtWindow && stashAtWindow.needsReselect.length > 0,
+      "precondition: the parked watcher holds a reselect routing stash",
+    );
+
+    // Host alone exits its window into the next round's CANNON_PLACE —
+    // the position a promoted host would broadcast after the boundary.
+    let ticks = 0;
+    while (
+      !(
+        Phase[host.state.phase] === Phase[Phase.CANNON_PLACE] &&
+        (host.state.round as number) === staleRound + 1
+      )
+    ) {
+      host.tick(1);
+      if (++ticks > 120_000) {
+        throw new Error("host never reached the next CANNON_PLACE");
+      }
+    }
+    await watcher.deliverMessage(
+      createFullStateMessage(
+        host.state,
+        1,
+        undefined,
+        undefined,
+        pair.hostRoundEndStash(),
+      ) as ServerMessage,
+    );
+    assertEquals(
+      pair.watcherRoundEndStash(),
+      null,
+      "a non-ROUND_END adoption must clear the routing stash",
+    );
+
+    // Host alone reaches the NEXT (loss-free) round-end window; the
+    // watcher adopts it mid-window — entering ROUND_END without ever
+    // running enter-round-end, exactly the stale-stash consumer path.
+    ticks = 0;
+    while (
+      !(
+        Phase[host.state.phase] === Phase[Phase.ROUND_END] &&
+        (host.state.round as number) === staleRound + 1
+      )
+    ) {
+      host.tick(1);
+      if (++ticks > 120_000) {
+        throw new Error("host never reached the loss-free ROUND_END window");
+      }
+    }
+    await watcher.deliverMessage(
+      createFullStateMessage(
+        host.state,
+        2,
+        undefined,
+        undefined,
+        pair.hostRoundEndStash(),
+      ) as ServerMessage,
+    );
+
+    // The watcher drives the adopted window to its exit on its own. With
+    // the loss-free routing it exits straight to CANNON_PLACE; a stale
+    // stash would show the OLD round's dialog and route its losers into
+    // CASTLE_SELECT instead.
+    ticks = 0;
+    while (watcher.state.phase === Phase.ROUND_END) {
+      watcher.tick(1);
+      if (++ticks > 60_000) {
+        throw new Error("watcher never exited the adopted ROUND_END window");
+      }
+    }
+    assertEquals(
+      Phase[watcher.state.phase],
+      Phase[Phase.CANNON_PLACE],
+      "a loss-free adopted window must advance to CANNON_PLACE, not reselect",
+    );
+    assertEquals(watcher.state.round as number, staleRound + 2);
+  },
+);
+
+// ── Mid-ROUND_END adoption rebuilds the eliminated-only notice ─────────
+// The eliminated list is NOT derivable from board state (a this-round
+// elimination is indistinguishable from an earlier round's), so it rides
+// the FULL_STATE (`roundEnd` field). Without it a stash-less adopter
+// showed no notice and exited the window ~LIFE_LOST_AUTO_DELAY (2s)
+// before every stash-holding peer — a phase-boundary skew that forks rng
+// draws. With it the adopter shows the same eliminated-only notice and
+// dwells like everyone else.
+Deno.test(
+  "watcher adopting an eliminated-only ROUND_END snapshot shows the notice",
+  async () => {
+    // Probed seed: round 25 closes eliminated-only (P0 out, no reselect).
+    const pair = await createNetworkedPair({
+      seed: 1,
+      mode: "classic",
+      rounds: 30,
+    });
+    const { host, watcher } = pair;
+
+    // Park the watcher late in the closing WALL_BUILD — it never enters
+    // ROUND_END, so it has no stash (the boundary-straddling adopter).
+    await runPairUntil(
+      pair,
+      () =>
+        host.state.phase === Phase.WALL_BUILD &&
+        (host.state.round as number) === 25 &&
+        host.state.timer < 1,
+      "pair near the eliminated-only round close",
+    );
+    assertEquals(
+      pair.watcherRoundEndStash(),
+      null,
+      "precondition: the parked watcher holds no routing stash",
+    );
+
+    // Host alone crosses into the eliminated-only window.
+    let ticks = 0;
+    while (
+      !(
+        host.state.phase === Phase.ROUND_END &&
+        (pair.hostRoundEndStash()?.eliminated.length ?? 0) > 0
+      )
+    ) {
+      host.tick(1);
+      if (++ticks > 60_000) {
+        throw new Error("host never reached the eliminated-only window");
+      }
+    }
+    const hostRouting = pair.hostRoundEndStash()!;
+    assertEquals(
+      hostRouting.needsReselect.length,
+      0,
+      "precondition: the probed window is eliminated-only",
+    );
+
+    const shown: { needsReselect: readonly number[]; eliminated: readonly number[] }[] = [];
+    watcher.bus.on(GAME_EVENT.LIFE_LOST_DIALOG_SHOW, (ev) => {
+      shown.push({ needsReselect: ev.needsReselect, eliminated: ev.eliminated });
+    });
+
+    await watcher.deliverMessage(
+      createFullStateMessage(
+        host.state,
+        1,
+        undefined,
+        undefined,
+        hostRouting,
+      ) as ServerMessage,
+    );
+
+    ticks = 0;
+    while (watcher.state.phase === Phase.ROUND_END) {
+      watcher.tick(1);
+      if (++ticks > 60_000) {
+        throw new Error("watcher never exited the adopted ROUND_END window");
+      }
+    }
+    assertEquals(
+      shown.length,
+      1,
+      "the adopter must show the eliminated-only notice like every stash-holder",
+    );
+    assertEquals([...shown[0]!.eliminated], [...hostRouting.eliminated]);
+    assertEquals(shown[0]!.needsReselect.length, 0);
+  },
+);
+
 // ── Promotion mid-pick must supersede the promoted host's OWN dialog ────
 // Dialogs are never serialized, so a resolved entry kept on the promoted
 // host is invisible to every adopter — adopters wipe + rebuild all-pending

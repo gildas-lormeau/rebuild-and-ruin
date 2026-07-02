@@ -19,7 +19,7 @@ import type { GameRuntime } from "../runtime/handle.ts";
 import { setMode } from "../runtime/state.ts";
 import type { BalloonFlight } from "../shared/core/battle-types.ts";
 import { Phase } from "../shared/core/game-phase.ts";
-import type { PlayerId } from "../shared/core/player-slot.ts";
+import type { PlayerId, ValidPlayerId } from "../shared/core/player-slot.ts";
 import { isPlayerAlive } from "../shared/core/player-types.ts";
 import { filterAliveEnclosedTowers } from "../shared/sim/board-occupancy.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
@@ -77,6 +77,8 @@ export async function applyMidGameCheckpoint(
 
   const result = restoreFullStateSnapshot(state, msg);
   if (!result) return null;
+
+  adoptRoundEndRouting(runtime, msg);
 
   // UPGRADE_PICK is now self-driving (resolveModeAfterFullState maps it to
   // Mode.UPGRADE_PICK; tickUpgradePickPhase rebuilds the dialog from
@@ -230,6 +232,7 @@ export function applyFullStateToRunningRuntime(
   // would block the self-driving tick from rebuilding this round's dialog
   // from `pendingUpgradeOffers`.
   supersedeDialogsForSnapshot(runtime, session);
+  adoptRoundEndRouting(runtime, msg);
   // A score overlay mid-display when the snapshot lands is superseded the
   // same way. The overlay is runtime-only (never serialized), so this
   // peer's local deltaTimer is out of sync with the round-end position the
@@ -321,6 +324,31 @@ export function applyFullStateToRunningRuntime(
     runtime.selection.requeueCastleBuildsFromState();
   }
   snapPitchToPhase(runtime, state.phase);
+}
+
+/** Rebuild (or clear) the runtime round-end routing stash from the
+ *  snapshot. Runs on BOTH adoption paths (fresh boot + running peer):
+ *  - Mid-ROUND_END snapshot: adopt the sender's authoritative routing so
+ *    the rebuilt life-lost dialog — including the eliminated-only notice
+ *    and its dwell, whose `eliminated` list is NOT derivable from board
+ *    state — matches every other peer's beat-for-beat.
+ *  - Any other snapshot: null the stash. An adoption that jumps this peer
+ *    out of a mid-ROUND_END window is the one path that skips
+ *    `exitRoundEnd`'s clear; a stash stranded here would be consumed by a
+ *    LATER round's window entered via adoption, routing a different
+ *    round's losers into reselect.
+ *  A routing-less ROUND_END snapshot (defensive: older sender) also nulls
+ *  — `deriveRoundEndRouting`'s board fallback covers it. */
+function adoptRoundEndRouting(
+  runtime: GameRuntime,
+  msg: FullStateMessage,
+): void {
+  runtime.runtimeState.roundEnd = msg.roundEnd
+    ? {
+        needsReselect: msg.roundEnd.needsReselect as ValidPlayerId[],
+        eliminated: msg.roundEnd.eliminated as ValidPlayerId[],
+      }
+    : null;
 }
 
 /** Mirror of promote.ts's cannon-entry / battle-intro repairs, for the

@@ -100,6 +100,10 @@ export function promoteToHost(): void {
       _client.ctx.session.hostMigrationSeq,
       _runtime.runtimeState.battleAnim.flights,
       _runtime.runtimeState.accum.grunt,
+      // Mid-ROUND_END promotion ships the round-end routing so adopters
+      // rebuild the identical life-lost dialog (the eliminated list is
+      // not board-derivable); the serializer drops it outside the window.
+      _runtime.runtimeState.roundEnd,
     ),
   );
   // AFTER the serialize, deliberately — see the ordering note in the
