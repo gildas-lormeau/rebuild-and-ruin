@@ -169,7 +169,11 @@ export interface ControllerIdentity {
   /** Discriminant for the isHuman type guard (string union, not enum — only two values). */
   readonly kind: "human" | "ai";
 
-  /** Reset stale state after losing a life (before reselection). */
+  /** Reset stale state after losing a life (before reselection). May fire
+   *  more than once per life-loss: the self-driving round-end dialog beat
+   *  re-fires it whenever the life-lost dialog is rebuilt (e.g. after a
+   *  mid-window host migration wipes dialogs room-wide), so implementations
+   *  must stay idempotent resets — never accrue effects here. */
   onLifeLost(): void;
 
   /** Reset all state for a new game. */
