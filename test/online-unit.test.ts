@@ -78,6 +78,66 @@ Deno.test("DedupChannel.shouldSend updates stored key on change", () => {
 });
 
 Deno.test("lifecycle drops stale full_state after host migration", () => {
+  const harness = makeMigrationHarness({ isStopped: () => false });
+  const { deps } = harness;
+
+  // Migration event moves sequence from 0 -> 1.
+  handleServerLifecycleMessage(
+    {
+      type: MESSAGE.HOST_LEFT,
+      newHostPlayerId: 1,
+      disconnectedPlayerId: 0,
+    } as ServerMessage,
+    deps,
+  );
+  assert(harness.seq() === 1, `expected migrationSeq=1, got ${harness.seq()}`);
+
+  // Stale full state (seq 0) must be ignored.
+  handleServerLifecycleMessage(makeFullState(0), deps);
+  assertEquals(harness.applies(), 0, `expected stale full_state to be ignored, calls=${harness.applies()}`);
+
+  // Current sequence should apply.
+  handleServerLifecycleMessage(makeFullState(1), deps);
+  assertEquals(harness.applies(), 1, `expected current full_state to apply once, calls=${harness.applies()}`);
+
+  // Newer sequence should apply and advance sequence.
+  handleServerLifecycleMessage(makeFullState(2), deps);
+  assertEquals(harness.applies(), 2, `expected newer full_state to apply, calls=${harness.applies()}`);
+  assertEquals(harness.seq(), 2, `expected migrationSeq to advance to 2, got ${harness.seq()}`);
+});
+
+Deno.test("lifecycle ignores full_state after local game-over (Mode.STOPPED)", () => {
+  // A peer that already finalized the match locally (game-over screen,
+  // Mode.STOPPED) must NOT adopt a mid-game FULL_STATE from a slower
+  // promoted host — adopting would flip it back into a gameplay mode,
+  // replay the round-end exit, and re-emit GAME_END. The authoritative
+  // wire GAME_OVER is the only post-stop message such a peer acts on.
+  const harness = makeMigrationHarness({ isStopped: () => true });
+  const { deps } = harness;
+
+  handleServerLifecycleMessage(
+    {
+      type: MESSAGE.HOST_LEFT,
+      newHostPlayerId: 1,
+      disconnectedPlayerId: 0,
+    } as ServerMessage,
+    deps,
+  );
+
+  // Current-seq snapshot — would apply on a live peer — must be ignored.
+  handleServerLifecycleMessage(makeFullState(1), deps);
+  assertEquals(
+    harness.applies(),
+    0,
+    `expected full_state to be ignored on a stopped peer, calls=${harness.applies()}`,
+  );
+});
+
+/** Minimal HandleServerLifecycleDeps harness for the FULL_STATE migration
+ *  branch. Counters expose what the branch did (seq bookkeeping + apply
+ *  calls); `isStopped` models the local mode being Mode.STOPPED (match
+ *  already finalized on this peer). */
+function makeMigrationHarness(opts: { isStopped: () => boolean }) {
   let migrationSeq = 0;
   let applyCalls = 0;
 
@@ -127,6 +187,7 @@ Deno.test("lifecycle drops stale full_state after host migration", () => {
     },
     game: {
       getState: () => ({}) as unknown as GameState,
+      isStopped: opts.isStopped,
       initFromServer: async () => {},
       enterTowerSelection: () => {},
     },
@@ -147,30 +208,12 @@ Deno.test("lifecycle drops stale full_state after host migration", () => {
     },
   };
 
-  // Migration event moves sequence from 0 -> 1.
-  handleServerLifecycleMessage(
-    {
-      type: MESSAGE.HOST_LEFT,
-      newHostPlayerId: 1,
-      disconnectedPlayerId: 0,
-    } as ServerMessage,
+  return {
     deps,
-  );
-  assert(migrationSeq === 1, `expected migrationSeq=1, got ${migrationSeq}`);
-
-  // Stale full state (seq 0) must be ignored.
-  handleServerLifecycleMessage(makeFullState(0), deps);
-  assertEquals(applyCalls, 0, `expected stale full_state to be ignored, calls=${applyCalls}`);
-
-  // Current sequence should apply.
-  handleServerLifecycleMessage(makeFullState(1), deps);
-  assertEquals(applyCalls, 1, `expected current full_state to apply once, calls=${applyCalls}`);
-
-  // Newer sequence should apply and advance sequence.
-  handleServerLifecycleMessage(makeFullState(2), deps);
-  assertEquals(applyCalls, 2, `expected newer full_state to apply, calls=${applyCalls}`);
-  assertEquals(migrationSeq, 2, `expected migrationSeq to advance to 2, got ${migrationSeq}`);
-});
+    seq: () => migrationSeq,
+    applies: () => applyCalls,
+  };
+}
 
 function makeFullState(migrationSeq: number): FullStateMessage {
   return {

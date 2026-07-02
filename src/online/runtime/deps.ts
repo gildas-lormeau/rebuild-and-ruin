@@ -353,6 +353,7 @@ function buildUiDeps(client: OnlineClient) {
 function buildGameDeps(init: DepsInit) {
   return {
     getState: () => init.runtime.runtimeState.state,
+    isStopped: () => init.runtime.runtimeState.mode === Mode.STOPPED,
     initFromServer: init.initFromServer,
   };
 }

@@ -103,6 +103,12 @@ export interface HandleServerLifecycleDeps {
 
   game: {
     getState: () => GameState | undefined;
+    /** True once this peer finalized the match locally (Mode.STOPPED,
+     *  game-over screen). Specifically STOPPED — NOT `!isGameplayMode`:
+     *  the OPTIONS/CONTROLS overlays pause ticking too, but a peer
+     *  sitting in a menu mid-game must still adopt a migration
+     *  FULL_STATE. */
+    isStopped: () => boolean;
     initFromServer: (msg: InitMessage) => Promise<void>;
   };
 
@@ -372,6 +378,20 @@ export async function handleServerLifecycleMessage(
         return true;
       }
       if (!isHostInContext(deps.session) && deps.game.getState()) {
+        // Finished peers stay finished. A game-over-straddling migration
+        // (old host dies during the final ROUND_END window) can have a
+        // slower promoted host broadcast a mid-ROUND_END FULL_STATE after
+        // this peer already finalized game-over locally. Adopting it would
+        // flip this peer back into a gameplay mode, replay the round-end
+        // exit, and re-emit GAME_END. The promoted host reaches the same
+        // outcome deterministically and its authoritative wire GAME_OVER
+        // still repaints this peer's terminal frame (handleGameOverTransition
+        // has no such guard). Mirrors the sender-side finished-peer guard
+        // in promote.ts.
+        if (deps.game.isStopped()) {
+          deps.log("ignored full_state after local game-over");
+          return true;
+        }
         const incomingSeq = msg.migrationSeq ?? 0;
         if (incomingSeq < deps.session.hostMigrationSeq) {
           deps.log(
