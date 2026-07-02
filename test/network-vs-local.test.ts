@@ -739,6 +739,78 @@ async function promoteWatcherMidUpgradePick(
   }
 }
 
+// ── Promotion mid-pick must supersede the promoted host's OWN dialog ────
+// Dialogs are never serialized, so a resolved entry kept on the promoted
+// host is invisible to every adopter — adopters wipe + rebuild all-pending
+// from pendingUpgradeOffers, and a kept resolved pick forks the applied
+// upgrade set (adopters force/re-pick a potentially different card, dropped
+// by the host's first-wins guard) and the phase-exit tick. The sender must
+// run the same supersede as the adopters (supersedeDialogsForSnapshot).
+Deno.test(
+  "watcher promoted mid-pick supersedes its own dialog like every adopter",
+  async () => {
+    const pair = await createNetworkedPair({
+      seed: 42,
+      mode: "modern",
+      rounds: 6,
+    });
+    const { watcher } = pair;
+
+    // Reach the modal with at least one entry already RESOLVED — the kept
+    // resolved choice is exactly what forked cross-peer before the fix.
+    await runPairUntil(
+      pair,
+      () =>
+        watcher.mode() === Mode.UPGRADE_PICK &&
+        (pair
+          .watcherUpgradePickDialog()
+          ?.entries.some((entry) => entry.choice !== null) ??
+          false),
+      "modal open with a resolved entry",
+    );
+    const pickRound = watcher.state.round;
+
+    pair.watcherSession.myPlayerId = 0 as ValidPlayerId;
+    await watcher.deliverMessage({
+      type: MESSAGE.HOST_LEFT,
+      newHostPlayerId: 0 as ValidPlayerId,
+      disconnectedPlayerId: null,
+    } as ServerMessage);
+
+    // Immediately after promotion the promoted host holds what every
+    // adopter holds right after its apply: no dialog.
+    assertEquals(
+      pair.watcherUpgradePickDialog(),
+      null,
+      "promotion must supersede the promoted host's own pick dialog",
+    );
+
+    // The self-driving tick rebuilds it from pendingUpgradeOffers —
+    // all-pending, exactly like every adopter's rebuild.
+    watcher.tick(1);
+    const rebuilt = pair.watcherUpgradePickDialog();
+    assert(rebuilt, "self-driving tick must rebuild the dialog from offers");
+    assert(
+      rebuilt.entries.every((entry) => entry.choice === null),
+      "rebuilt dialog must be all-pending (resolved picks discarded uniformly)",
+    );
+
+    // The phase still self-drives to its exit: the round closes.
+    let ticks = 0;
+    while (
+      watcher.state.round === pickRound &&
+      watcher.mode() !== Mode.STOPPED
+    ) {
+      watcher.tick(1);
+      if (++ticks > 60_000) {
+        throw new Error(
+          `stalled after promotion (phase=${Phase[watcher.state.phase]} mode=${watcher.mode()})`,
+        );
+      }
+    }
+  },
+);
+
 // ── FULL_STATE adoption past the pick must clear the local dialog ────
 // A watcher sitting in its own pick modal when a WALL_BUILD snapshot lands
 // (the host already advanced past the pick phase) must drop the dialog at

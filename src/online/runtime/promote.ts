@@ -18,6 +18,7 @@ import { Mode } from "../../shared/ui/ui-mode.ts";
 import {
   redealPlayerBagsForAdoption,
   reprimeAiControllersForPhase,
+  supersedeDialogsForSnapshot,
   syncAccumulatorsFromTimer,
 } from "../online-host-promotion.ts";
 import { scheduleSeatTakeover } from "../online-seat-takeover.ts";
@@ -85,6 +86,14 @@ export function promoteToHost(): void {
     _runtime.runtimeState.state.simTick,
     _runtime.runtimeState.state,
   );
+  // Sender side of the FULL_STATE adoption contract: every adopter wipes
+  // its dialogs + early-choice queues on apply and rebuilds all-pending
+  // from the snapshot — the sender must do the SAME, or its kept resolved
+  // entries (invisible to the room: dialogs are never serialized) fork the
+  // applied upgrade set and the phase-exit tick against every adopter.
+  // AFTER the drain above, so a choice the drain just applied is discarded
+  // here exactly like the adopters discard their already-applied copy.
+  supersedeDialogsForSnapshot(_runtime, _client.ctx.session);
   _client.send(
     createFullStateMessage(
       _runtime.runtimeState.state,
@@ -294,12 +303,12 @@ function clearAnimationState(mode: Mode): string | null {
       _runtime.scoreDelta.reset();
       return "Skipped phase transition/animation → game mode";
     case Mode.UPGRADE_PICK:
-      // No teardown here: an open pick modal means state.phase is
-      // UPGRADE_PICK, and the phase repair in skipPendingAnimations
-      // consumes the dialog (force-resolve → enter-wall-build) and lands
-      // the mode on GAME itself. Clearing the dialog here would discard
-      // the picks made so far AND drop the armed resolution callback —
-      // the only dispatcher of this phase's exit.
+      // Keep the MODE — the phase is UPGRADE_PICK and the self-driving
+      // `tickUpgradePickPhase` must keep running under Mode.UPGRADE_PICK.
+      // The DIALOG is not kept: `promoteToHost` supersedes it just before
+      // the FULL_STATE broadcast (`supersedeDialogsForSnapshot`), the same
+      // wipe every adopter runs on apply, so the whole room rebuilds
+      // all-pending from `pendingUpgradeOffers` in lockstep.
       return null;
     case Mode.GAME:
     case Mode.LOBBY:

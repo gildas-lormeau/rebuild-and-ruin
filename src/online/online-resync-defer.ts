@@ -40,7 +40,10 @@ export function pollDeferredResyncs(deps: DeferredResyncDeps): void {
   const runtimeState = deps.runtime.runtimeState;
   // Wait for a clean phase: the migration snapshot/apply pair only covers the
   // self-driving phases. Dialog/transition windows resolve within a few ticks;
-  // the rejoiner just waits for them.
+  // the rejoiner just waits for them. This gate is also why the resync sender
+  // needs no `supersedeDialogsForSnapshot` call (unlike `promoteToHost`, which
+  // cannot defer): a snapshot is never sent from here while a dialog is open,
+  // so there is no sender-side dialog state to discard.
   if (runtimeState.mode !== Mode.GAME && runtimeState.mode !== Mode.SELECTION) {
     return;
   }

@@ -64,6 +64,53 @@ interface AiPromotionDeps {
  * (upcomingRound = round + 1). A one-shot supply small-pieces bias is
  * gone with the original deal — symmetric on every peer, migration-only.
  */
+/** Dialog handles the snapshot supersede tears down — structural slice of
+ *  `GameRuntime.lifeLost` / `.upgradePick` (typed structurally so this
+ *  lower-layer module doesn't import `runtime/handle.ts`). */
+interface SupersedableDialogs {
+  readonly lifeLost: { set: (dialog: null) => void };
+  readonly upgradePick: { set: (dialog: null) => void };
+}
+
+/** Session slice holding the round-stamped early dialog-choice queues —
+ *  structural slice of `OnlineSession` (same no-import rationale). */
+interface SupersedableChoiceQueues {
+  readonly earlyLifeLostChoices: { clear: () => void };
+  readonly earlyUpgradePickChoices: { clear: () => void };
+}
+
+/** Supersede every dialog-resolution artifact this peer holds when an
+ *  authoritative FULL_STATE crosses it. The ADOPT side runs it on apply
+ *  (`applyFullStateToRunningRuntime`); the SENDER (`promoteToHost`) runs
+ *  the SAME call before serializing — dialogs are never serialized, so a
+ *  resolved entry kept on one peer is invisible to every other, and
+ *  keeping it (the old promote behavior) forked the applied upgrade set
+ *  and the phase-exit tick across peers. After the wipe the whole room
+ *  rebuilds all-pending from the snapshot's `pendingUpgradeOffers` /
+ *  re-derived round-end routing: AI entries re-resolve deterministically
+ *  (private derived Rng), human entries re-prompt through the normal
+ *  lockstep pick path.
+ *
+ *  The round-stamped early-choice queues are cleared for the same reason:
+ *  a pre-snapshot choice replayed into a REBUILT dialog on one peer only
+ *  would resurrect exactly the asymmetry the wipe removes. Choices still
+ *  in the action schedule with `applyAt` beyond the snapshot tick are NOT
+ *  touched — they survive on every peer uniformly and re-apply (or
+ *  re-queue) against the rebuilt dialogs in lockstep.
+ *
+ *  The healthy-host resync path (`online-resync-defer.ts`) deliberately
+ *  does NOT need this: its mode gate defers the rebroadcast until
+ *  Mode.GAME / Mode.SELECTION, where no dialog can be open. */
+export function supersedeDialogsForSnapshot(
+  runtime: SupersedableDialogs,
+  session: SupersedableChoiceQueues,
+): void {
+  runtime.lifeLost.set(null);
+  runtime.upgradePick.set(null);
+  session.earlyLifeLostChoices.clear();
+  session.earlyUpgradePickChoices.clear();
+}
+
 export function redealPlayerBagsForAdoption(state: GameState): void {
   if (state.phase !== Phase.WALL_BUILD) return;
   for (const player of state.players) {

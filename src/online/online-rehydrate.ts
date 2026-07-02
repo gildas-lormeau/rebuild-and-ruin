@@ -27,6 +27,7 @@ import {
   rebuildControllersForPhase,
   redealPlayerBagsForAdoption,
   reprimeAiControllersForPhase,
+  supersedeDialogsForSnapshot,
   syncAccumulatorsFromTimer,
 } from "./online-host-promotion.ts";
 import {
@@ -34,6 +35,14 @@ import {
   type SeatTakeoverSession,
 } from "./online-seat-takeover.ts";
 import { restoreFullStateSnapshot } from "./online-serialize.ts";
+import type { OnlineSession } from "./online-session.ts";
+
+/** Session slice holding the round-stamped early dialog choices — the
+ *  queue side of `supersedeDialogsForSnapshot`. */
+type EarlyDialogChoiceSession = Pick<
+  OnlineSession,
+  "earlyLifeLostChoices" | "earlyUpgradePickChoices"
+>;
 
 interface MidGameApplyResult {
   balloonFlights: { flight: BalloonFlight; progress: number }[];
@@ -122,7 +131,7 @@ export async function applyMidGameCheckpoint(
 export function applyFullStateToRunningRuntime(
   runtime: GameRuntime,
   msg: FullStateMessage,
-  session: SeatTakeoverSession,
+  session: SeatTakeoverSession & EarlyDialogChoiceSession,
 ): void {
   const state = runtime.runtimeState.state;
   // Captured before the restore overwrites them — the self-human prime
@@ -210,7 +219,17 @@ export function applyFullStateToRunningRuntime(
   // — see selection.requeueCastleBuildsFromState. Outside CASTLE_SELECT
   // no build animation can be live, so the wipe alone is correct.
   runtime.selection.clearCastleBuilds();
-  runtime.lifeLost.set(null);
+  // Both dialogs + the early-choice queues are superseded by the snapshot —
+  // the same call the SENDER (promoteToHost) runs before serializing, so
+  // the whole room discards dialog-resolution state uniformly and rebuilds
+  // all-pending. Dialogs are always rebuilt locally from the snapshot,
+  // never adopted over the wire — a stale local dialog surviving the apply
+  // would hand a stale, possibly wrong-round dialog to `prepare()`
+  // (ensureDialog short-circuits on non-null): for a snapshot past the pick
+  // it would re-apply last round's picks; for a UPGRADE_PICK snapshot it
+  // would block the self-driving tick from rebuilding this round's dialog
+  // from `pendingUpgradeOffers`.
+  supersedeDialogsForSnapshot(runtime, session);
   // A score overlay mid-display when the snapshot lands is superseded the
   // same way. The overlay is runtime-only (never serialized), so this
   // peer's local deltaTimer is out of sync with the round-end position the
@@ -221,15 +240,6 @@ export function applyFullStateToRunningRuntime(
   // out its own stale overlay duration and start the dialog — hence the
   // exit dispatch — at a different sim tick (phase-boundary skew).
   runtime.scoreDelta.reset();
-  // Same teardown as the life-lost dialog: a pick dialog mid-flight when a
-  // snapshot lands is superseded. Dialogs are always rebuilt locally from
-  // the snapshot, never adopted over the wire — so the stale local dialog
-  // must not survive the apply. Leaving it would hand a stale, possibly
-  // wrong-round dialog to `prepare()` (ensureDialog short-circuits on
-  // non-null): for a snapshot past the pick it would re-apply last round's
-  // picks; for a UPGRADE_PICK snapshot it would block the self-driving
-  // tick from rebuilding this round's dialog from `pendingUpgradeOffers`.
-  runtime.upgradePick.set(null);
   // The banner is the third armed display continuation (with the score
   // overlay and the dialogs above). It renders unconditionally while
   // non-null but ticks only in Mode.TRANSITION, so a sweep in progress
