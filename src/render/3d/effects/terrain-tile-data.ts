@@ -20,6 +20,7 @@ import {
   snapshotInteriorRefs,
 } from "../../overlay-helpers.ts";
 import type { FrameCtx } from "../frame-ctx.ts";
+import { FLAG_FROZEN } from "./helpers.ts";
 
 export interface TerrainTileDataManager {
   readonly texture: THREE.DataTexture;
@@ -37,10 +38,6 @@ interface TileDataFingerprint {
   frozenTiles: ReadonlySet<TileKey> | undefined;
   inBattle: boolean;
 }
-
-/** Bit masks for the G channel. Kept in sync with the GLSL constants in
- *  `terrain.ts`'s shader patch. Bit 0 is reserved. */
-const FLAG_FROZEN = 2;
 
 export function createTerrainTileDataManager(): TerrainTileDataManager {
   const data = new Uint8Array(GRID_COLS * GRID_ROWS * 4);

@@ -1,12 +1,16 @@
 /**
  * Pre-rolled AI personality shape. Lives here so `ControllerFactory` in
  * `system-interfaces.ts` can reference it without importing upward into
- * `ai/`. Rolling logic + trait profiles stay in `src/ai/ai-strategy.ts`.
+ * `ai/`. Rolling logic + trait profiles stay in
+ * `src/ai/ai-personality-roll.ts`.
  */
 
-/** Archetype string literals — must stay in sync with the `Archetype` const
- *  in `src/ai/ai-strategy.ts`. The const there is the single source of truth
- *  for the value space; this union is its type-level mirror. */
+/** Archetype string literals — type-level mirror of the `Archetype` const
+ *  in `src/ai/ai-personality-roll.ts` (the value-space source of truth,
+ *  which can't be imported here: it lives in a higher layer). Drift is
+ *  caught at compile time by `ARCHETYPE_PROFILES: Record<ArchetypeId, ...>`
+ *  keyed with `[Archetype.X]` in that file — add/remove/rename on either
+ *  side and tsc fails there. */
 
 export type ArchetypeId =
   | "builder"

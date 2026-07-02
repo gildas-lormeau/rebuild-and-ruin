@@ -3,7 +3,7 @@
  * L0 (leaf modules) so every layer can import.
  */
 
-import type { PoolDef } from "./pool-def.ts";
+import { type PoolDef, RARITY_WEIGHTS } from "./pool-def.ts";
 
 export type UpgradeId =
   | "mortar"
@@ -52,10 +52,11 @@ type PoolIds = (typeof UPGRADE_POOL)[number]["id"];
 
 type PoolComplete = UpgradeId extends PoolIds ? true : never;
 
-/** Draft pool weights: higher = more likely to appear in offers. */
-const WEIGHT_COMMON = 3;
-const WEIGHT_UNCOMMON = 2;
-const WEIGHT_RARE = 1;
+/** Draft pool weights — `RARITY_WEIGHTS` in pool-def.ts is the shared
+ *  tuning vocabulary with the modifier roll pool. */
+const WEIGHT_COMMON = RARITY_WEIGHTS.common;
+const WEIGHT_UNCOMMON = RARITY_WEIGHTS.uncommon;
+const WEIGHT_RARE = RARITY_WEIGHTS.rare;
 const BATTLE: UpgradeCategory = "battle";
 const BUILD: UpgradeCategory = "build";
 const STRATEGIC: UpgradeCategory = "strategic";

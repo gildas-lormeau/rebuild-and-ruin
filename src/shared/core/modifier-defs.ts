@@ -8,7 +8,7 @@ import type { BurningPit, CannonMode } from "./battle-types.ts";
 import type { ModifierId } from "./game-constants.ts";
 import type { TileKey } from "./grid.ts";
 import type { ValidPlayerId } from "./player-slot.ts";
-import type { PoolDef } from "./pool-def.ts";
+import { type PoolDef, RARITY_WEIGHTS } from "./pool-def.ts";
 
 /** Visual diff produced by a modifier apply function.
  *  Consumed by the modifier reveal banner to progressively show map changes.
@@ -117,14 +117,14 @@ type PoolIds = (typeof MODIFIER_POOL)[number]["id"];
 type PoolComplete = ModifierId extends PoolIds ? true : never;
 
 const poolComplete: PoolComplete = true;
-/** Rarity weights for modifier rolls — mirrors `upgrade-defs.ts` so the two
- *  pool systems share a tuning vocabulary. Higher = more likely to roll.
+/** Rarity weights for modifier rolls — `RARITY_WEIGHTS` in pool-def.ts is
+ *  the shared tuning vocabulary with the upgrade draft pool.
  *  Common modifiers are mild / recoverable (rubble_clearing, supply_ship,
  *  low_water). Rare modifiers are match-defining or permanent
  *  (fog_of_war, sapper, frostbite, sinkhole, frozen_river, high_tide). */
-const WEIGHT_COMMON = 3;
-const WEIGHT_UNCOMMON = 2;
-const WEIGHT_RARE = 1;
+const WEIGHT_COMMON = RARITY_WEIGHTS.common;
+const WEIGHT_UNCOMMON = RARITY_WEIGHTS.uncommon;
+const WEIGHT_RARE = RARITY_WEIGHTS.rare;
 // `as const satisfies` (not a `readonly ModifierDef[]` annotation) so the
 // element `id` types stay as their string literals — that's what makes
 // `PoolIds` narrow and `PoolComplete` catch missing entries at compile

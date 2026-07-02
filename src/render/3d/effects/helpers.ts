@@ -1,13 +1,18 @@
 /**
  * Shared math + geometry helpers for the 3D renderer's effects cluster:
- * per-tile seed hash, tile-set fingerprint, and flat XZ-oriented disc
- * geometry.
+ * per-tile seed hash, tile-set fingerprint, flat XZ-oriented disc
+ * geometry, and the tile-data texture's flag bit layout.
  */
 
 import * as THREE from "three";
 
 const TILE_SEED_ROW_MULT = 41;
 const TILE_SEED_COL_MULT = 17;
+/** G-channel bit mask in the terrain tile-data texture: tile is frozen.
+ *  Written CPU-side by `terrain-tile-data.ts`, read GPU-side by
+ *  `terrain.ts`'s shader patch (interpolated into the GLSL source, so
+ *  both sides share this one definition). Bit 0 is reserved. */
+export const FLAG_FROZEN = 2;
 
 /** Stable per-tile seed used by effects that want deterministic
  *  randomness across (row, col) — e.g. per-tile phase offsets, per-tile

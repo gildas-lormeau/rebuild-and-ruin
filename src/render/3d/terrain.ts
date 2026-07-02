@@ -19,6 +19,7 @@ import {
 import type { ValidPlayerId } from "../../shared/core/player-slot.ts";
 import { getPlayerColor, MAX_PLAYERS } from "../../shared/ui/player-config.ts";
 import type { RGB } from "../../shared/ui/theme.ts";
+import { FLAG_FROZEN } from "./effects/helpers.ts";
 import { ELEVATION_STACK } from "./elevation.ts";
 import type { FrameCtx } from "./frame-ctx.ts";
 
@@ -324,7 +325,7 @@ const float BANK_GRASS_DIST = ${GLSL_GRASS_TO_BANK_DIST};
 const float BANK_WATER_DIST = ${GLSL_BANK_TO_WATER_DIST};
 const float BANK_TRANSITION = ${GLSL_TRANSITION_WIDTH};
 const float ICE_BLEND_WIDTH = ${GLSL_ICE_BLEND_WIDTH};
-const int FLAG_FROZEN = 2;
+const int FLAG_FROZEN = ${FLAG_FROZEN};
 
 bool isFlagSet(int flags, int mask) {
   return (flags / mask - (flags / (mask * 2)) * 2) == 1;
