@@ -46,7 +46,7 @@ stateDiagram-v2
 - **broadcasts:** `buildEnd`
 - **display:** —
 - **dispatches:** —
-- **external dispatchers:** `phase-ticks.ts:868`
+- **external dispatchers:** `phase-ticks.ts:867`
 
 ### `battle-done`
 
@@ -56,7 +56,7 @@ stateDiagram-v2
 - **broadcasts:** `buildStart`
 - **display:** —
 - **dispatches:** `enter-upgrade-pick`, `enter-wall-build`
-- **external dispatchers:** `phase-ticks.ts:799`
+- **external dispatchers:** `phase-ticks.ts:798`
 
 ### `ceasefire`
 
@@ -66,7 +66,7 @@ stateDiagram-v2
 - **broadcasts:** `buildStart`
 - **display:** —
 - **dispatches:** `enter-upgrade-pick`, `enter-wall-build`
-- **external dispatchers:** `phase-ticks.ts:364`
+- **external dispatchers:** `phase-ticks.ts:363`
 
 ### `enter-upgrade-pick`
 
@@ -75,7 +75,7 @@ stateDiagram-v2
 - **engine ops:** `enterUpgradePickPhase`
 - **broadcasts:** —
 - **display:** `banner(upgrade-pick)`
-- **dispatches:** —
+- **dispatches:** `enter-wall-build`
 - **external dispatchers:** —
 
 ### `enter-wall-build`
@@ -86,7 +86,7 @@ stateDiagram-v2
 - **broadcasts:** —
 - **display:** `banner(build)`
 - **dispatches:** —
-- **external dispatchers:** —
+- **external dispatchers:** `phase-ticks.ts:665 (via finishUpgradePick)`, `phase-ticks.ts:670 (via finishUpgradePick)`
 
 ### `enter-cannon-place`
 
@@ -106,7 +106,7 @@ stateDiagram-v2
 - **broadcasts:** `cannonStart`
 - **display:** —
 - **dispatches:** `enter-cannon-place`
-- **external dispatchers:** `phase-ticks.ts:347`
+- **external dispatchers:** `phase-ticks.ts:346`
 
 ### `advance-to-cannon`
 
@@ -116,7 +116,7 @@ stateDiagram-v2
 - **broadcasts:** `cannonStart`
 - **display:** —
 - **dispatches:** `enter-cannon-place`
-- **external dispatchers:** `phase-ticks.ts:343`
+- **external dispatchers:** `phase-ticks.ts:342`
 
 ### `game-over`
 
@@ -126,7 +126,7 @@ stateDiagram-v2
 - **broadcasts:** —
 - **display:** —
 - **dispatches:** —
-- **external dispatchers:** `phase-ticks.ts:351`
+- **external dispatchers:** `phase-ticks.ts:350`
 
 ### `cannon-place-done`
 
@@ -136,7 +136,7 @@ stateDiagram-v2
 - **broadcasts:** `battleStart`
 - **display:** —
 - **dispatches:** `enter-modifier-reveal`, `enter-battle`
-- **external dispatchers:** `phase-ticks.ts:367`
+- **external dispatchers:** `phase-ticks.ts:366`
 
 ### `enter-modifier-reveal`
 
@@ -156,10 +156,10 @@ stateDiagram-v2
 - **broadcasts:** —
 - **display:** `banner(battle)`
 - **dispatches:** —
-- **external dispatchers:** `phase-ticks.ts:645`
+- **external dispatchers:** `phase-ticks.ts:644`
 
 ## Review hints (auto-derived)
 
 - **Phases entered only from outside the machine:** `CASTLE_SELECT` — these are entered by a subsystem (e.g. `selection`), not by any `enter*Phase` inside `phase-machine.ts`. Confirm their entry path.
-- **Transitions with no tick-driven dispatcher in `phase-ticks.ts`:** `enter-upgrade-pick`, `enter-wall-build`, `enter-cannon-place`, `enter-modifier-reveal` — reached only via another transition's postDisplay (inline routing).
+- **Transitions with no tick-driven dispatcher in `phase-ticks.ts`:** `enter-upgrade-pick`, `enter-cannon-place`, `enter-modifier-reveal` — reached only via another transition's postDisplay (inline routing).
 

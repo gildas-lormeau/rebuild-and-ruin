@@ -271,7 +271,6 @@ export interface PhaseTicksSystem {
   /** Dispatch the `game-over` transition; the mutate logs the outcome's
    *  reason and calls `ctx.endGame(winner)`. */
   dispatchGameOver: (outcome: GameOverOutcome) => void;
-  startBattle: () => void;
   tickBalloonAnim: (dt: number) => void;
   startBuildPhase: () => void;
   tickCannonPhase: (dt: number) => boolean;
@@ -1071,7 +1070,6 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     },
     dispatchCastleDone,
     dispatchGameOver,
-    startBattle,
     tickBalloonAnim,
     startBuildPhase,
     tickCannonPhase,

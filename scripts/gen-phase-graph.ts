@@ -99,7 +99,7 @@ async function main(): Promise<void> {
 
   const gameOps = collectGameOps(machine);
   const records = collectTransitions(machine, gameOps);
-  const externals = collectExternalDispatchers();
+  const externals = collectExternalDispatchers(collectDispatchFunnels(machine));
 
   const doc = render(records, externals);
 
@@ -248,9 +248,33 @@ function collectTransitions(
   return records;
 }
 
-/** Grep phase-ticks.ts for `runTransition("id", ...)` sites — the tick-driven
- *  (timer / drained-action) dispatchers that kick each transition. */
-function collectExternalDispatchers(): Map<string, string[]> {
+/** Exported phase-machine functions that dispatch a transition when called
+ *  from outside the machine (e.g. `finishUpgradePick`, the UPGRADE_PICK exit
+ *  funnel the self-driving tick calls). Maps funnel name → the transition
+ *  ids its body dispatches. `runTransition` itself is the generic runner,
+ *  not a funnel. */
+function collectDispatchFunnels(
+  machine: import("ts-morph").SourceFile,
+): Map<string, string[]> {
+  const out = new Map<string, string[]>();
+  for (const fn of machine.getFunctions()) {
+    const name = fn.getName();
+    if (!name || !fn.isExported() || name === "runTransition") continue;
+    const ids = [
+      ...fn.getText().matchAll(/runTransition(?:Inline)?\(\s*"([^"]+)"/g),
+    ].map((match) => match[1]);
+    if (ids.length) out.set(name, ids);
+  }
+  return out;
+}
+
+/** Grep phase-ticks.ts for the tick-driven (timer / drained-action)
+ *  dispatchers that kick each transition: direct `runTransition("id", ...)`
+ *  sites, plus calls to machine dispatch funnels (attributed to the
+ *  transitions the funnel dispatches, labelled `via <funnel>`). */
+function collectExternalDispatchers(
+  funnels: Map<string, string[]>,
+): Map<string, string[]> {
   const out = new Map<string, string[]>();
   let text: string;
   try {
@@ -258,16 +282,21 @@ function collectExternalDispatchers(): Map<string, string[]> {
   } catch {
     return out;
   }
-  const lines = text.split("\n");
-  const re = /runTransition\(\s*"([^"]+)"/;
-  lines.forEach((line, idx) => {
-    const match = re.exec(line);
-    if (!match) return;
-    const id = match[1];
-    const loc = `phase-ticks.ts:${idx + 1}`;
+  const add = (id: string, loc: string): void => {
     const list = out.get(id) ?? [];
     list.push(loc);
     out.set(id, list);
+  };
+  const lines = text.split("\n");
+  const direct = /runTransition\(\s*"([^"]+)"/;
+  lines.forEach((line, idx) => {
+    const loc = `phase-ticks.ts:${idx + 1}`;
+    const match = direct.exec(line);
+    if (match) add(match[1], loc);
+    for (const [funnel, ids] of funnels) {
+      if (!new RegExp(`\\b${funnel}\\(`).test(line)) continue;
+      for (const id of ids) add(id, `${loc} (via ${funnel})`);
+    }
   });
   return out;
 }
@@ -346,7 +375,9 @@ function propText(
  *  inline arrow (scan its body) or a named helper identifier (resolve the
  *  declaration in the same file, scan ITS body). Targets come from `route`'s
  *  returned id string-literals and any `runTransitionInline`/`runTransition`
- *  string-literal calls. Flags ctx-routed transitions (life-lost routing)
+ *  string-literal calls — followed transitively through same-file helper
+ *  calls (`runPickerModalThenDispatch` → `finishUpgradePick` →
+ *  `enter-wall-build`). Flags ctx-routed transitions (life-lost routing)
  *  whose targets aren't static. */
 function parseDispatchTargets(
   obj: import("ts-morph").ObjectLiteralExpression,
@@ -366,10 +397,8 @@ function parseDispatchTargets(
       if (fn) body = fn.getText();
     }
 
-    for (const match of body.matchAll(
-      /runTransition(?:Inline)?\(\s*"([^"]+)"/g,
-    )) {
-      targets.add(match[1]);
+    for (const id of collectDispatchIds(body, machine, new Set())) {
+      targets.add(id);
     }
     // A `route` body resolves to its returned transition-id string literals
     // (`=> "enter-battle"` or `return cond ? "a" : "b"`); a route body
@@ -382,6 +411,34 @@ function parseDispatchTargets(
   }
 
   return { targets: [...targets], ctxRouted };
+}
+
+/** `runTransition`/`runTransitionInline` string-literal ids in `body`, plus
+ *  those found by recursing into any same-file function it calls (helpers
+ *  like `finishUpgradePick`; imported callees resolve to nothing and are
+ *  skipped). `seen` guards cycles. */
+function collectDispatchIds(
+  body: string,
+  machine: import("ts-morph").SourceFile,
+  seen: Set<string>,
+): Set<string> {
+  const ids = new Set<string>();
+  for (const match of body.matchAll(
+    /runTransition(?:Inline)?\(\s*"([^"]+)"/g,
+  )) {
+    ids.add(match[1]);
+  }
+  for (const match of body.matchAll(/\b(\w+)\s*\(/g)) {
+    const callee = match[1];
+    if (seen.has(callee)) continue;
+    const fn = machine.getFunction(callee);
+    if (!fn) continue;
+    seen.add(callee);
+    for (const id of collectDispatchIds(fn.getText(), machine, seen)) {
+      ids.add(id);
+    }
+  }
+  return ids;
 }
 
 function getProp(
