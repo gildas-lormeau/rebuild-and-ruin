@@ -940,12 +940,16 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
   }
 
   /** Routing inputs for the in-progress ROUND_END window. The normal path
-   *  reads the stash `enter-round-end` left from `finalizeRound`. A peer
-   *  that ADOPTED a mid-window snapshot has no stash: re-derive
-   *  `needsReselect` from the board (alive players with zero enclosed
-   *  towers — survivors always keep at least one; a life-loser's board was
-   *  reset to zero), and skip the per-elimination notices (cosmetic-only —
-   *  `exitRoundEnd`'s game-over peek covers the routing). */
+   *  reads the stash — left by `enter-round-end` from `finalizeRound`, or
+   *  rebuilt from the snapshot's `roundEnd` field by a mid-window adoption
+   *  (`adoptRoundEndRouting`), so an adopter shows the same dialog beats
+   *  (including the eliminated-only notice + dwell) as every stash-holder.
+   *  The no-stash fallback (defensive: routing-less snapshot from an older
+   *  sender) re-derives `needsReselect` from the board (alive players with
+   *  zero enclosed towers — survivors always keep at least one; a
+   *  life-loser's board was reset to zero) and skips the per-elimination
+   *  notices (`exitRoundEnd`'s game-over peek covers the routing; the
+   *  dwell skew is the accepted cost of the degraded path). */
   function deriveRoundEndRouting(): {
     needsReselect: readonly ValidPlayerId[];
     eliminated: readonly ValidPlayerId[];

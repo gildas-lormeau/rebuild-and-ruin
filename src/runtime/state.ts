@@ -166,11 +166,14 @@ export interface RuntimeState {
   dialogs: DialogRuntimeState;
   /** Routing inputs for the in-progress ROUND_END window, stashed by
    *  `enter-round-end`'s mutate from `finalizeRound`'s return and consumed
-   *  when the life-lost dialog beat is built / the window exits. Runtime-only
-   *  (never serialized): a peer that ADOPTS a mid-ROUND_END snapshot has no
-   *  stash and re-derives `needsReselect` from the board (alive players with
-   *  zero enclosed towers — survivors always keep one) while skipping the
-   *  cosmetic per-elimination notices. Null outside the window. */
+   *  when the life-lost dialog beat is built / the window exits. Null
+   *  outside the window — `exitRoundEnd` clears it, and every FULL_STATE
+   *  adoption overwrites it (`adoptRoundEndRouting`): mid-ROUND_END
+   *  snapshots carry the sender's routing (`FullStateMessage.roundEnd` —
+   *  the eliminated list is NOT board-derivable, and a stranded stale
+   *  stash would route a different round's losers), any other snapshot
+   *  nulls it. `deriveRoundEndRouting`'s board fallback covers the
+   *  defensive no-stash-no-routing case. */
   roundEnd: {
     needsReselect: readonly ValidPlayerId[];
     eliminated: readonly ValidPlayerId[];
