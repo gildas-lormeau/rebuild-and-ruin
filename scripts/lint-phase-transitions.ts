@@ -1,9 +1,15 @@
 /**
  * Phase-transition lint — enforce that banner subtitle constants are only
- * used in the two canonical transition files (host + watcher).
+ * used by the canonical phase-transition machine.
  *
  * BANNER_*_SUB constants define the subtitle text for each phase banner.
- * They should only appear in the files that orchestrate phase transitions.
+ * Under the clone-everywhere model there is a single transition table
+ * (src/runtime/phase-machine.ts) whose display steps own them; any other
+ * reference means phase-banner text is leaking out of the machine.
+ *
+ * Any mention of a BANNER_*_SUB identifier outside the allowlist is a
+ * violation — matching bare references (not just import lines) is what
+ * keeps multi-line import statements from slipping through.
  *
  * Usage:
  *   deno run -A scripts/lint-phase-transitions.ts
@@ -19,12 +25,9 @@ interface Violation {
 }
 
 const SRC = join(process.cwd(), "src");
-/** Files allowed to import BANNER_*_SUB constants. */
-const ALLOWED_SUB_FILES = new Set([
-  "banner-messages.ts",
-  "phase-ticks.ts",
-  "online-phase-transitions.ts",
-]);
+/** Files allowed to reference BANNER_*_SUB constants: the definition site
+ *  and the one transition table that consumes them. */
+const ALLOWED_SUB_FILES = new Set(["banner-messages.ts", "phase-machine.ts"]);
 
 main();
 
@@ -39,15 +42,16 @@ function main(): void {
     const content = readFileSync(filePath, "utf-8");
     const relPath = relative(process.cwd(), filePath);
 
-    // No file (except allowed) should import BANNER_*_SUB
+    // No file (except allowed) should reference BANNER_*_SUB at all —
+    // a bare-identifier match catches multi-line imports, re-exports,
+    // and direct uses alike.
     if (/BANNER_\w+_SUB/.test(content)) {
       const lines = content.split("\n");
       for (let idx = 0; idx < lines.length; idx++) {
-        const line = lines[idx]!;
-        if (/BANNER_\w+_SUB/.test(line) && /import/.test(line)) {
+        if (/BANNER_\w+_SUB/.test(lines[idx]!)) {
           violations.push({
             file: relPath,
-            message: `Line ${idx + 1}: imports BANNER_*_SUB directly — only transition files should use these`,
+            message: `Line ${idx + 1}: references BANNER_*_SUB — phase-banner subtitles belong to the phase machine only`,
           });
         }
       }
