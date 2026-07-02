@@ -26,7 +26,7 @@ stateDiagram-v2
   ROUND_END --> CANNON_PLACE: enter-cannon-place
   CASTLE_SELECT --> CANNON_PLACE: castle-done
   ROUND_END --> CANNON_PLACE: advance-to-cannon
-  [*] --> [*]: game-over
+  ROUND_END --> [*]: game-over
   CANNON_PLACE --> MODIFIER_REVEAL: cannon-place-done
   CANNON_PLACE --> BATTLE: cannon-place-done
   CANNON_PLACE --> MODIFIER_REVEAL: enter-modifier-reveal
@@ -120,7 +120,7 @@ stateDiagram-v2
 
 ### `game-over`
 
-- **guard (from):** `*`
+- **guard (from):** `ROUND_END`
 - **enters phase:** — (prep; routes onward)
 - **engine ops:** —
 - **broadcasts:** —

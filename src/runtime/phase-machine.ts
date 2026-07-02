@@ -1,6 +1,6 @@
 /**
  * Phase transition state machine. Each `TRANSITIONS` entry declares:
- * `from` guard (`"*"` = any), `mutate` (identical on every peer; only
+ * `from` guard, `mutate` (identical on every peer; only
  * `ctx.broadcast?.X?.()` is host-gated), optional `postMutate` (sync after
  * mutate, before display), `display` (ordered UI steps), optional
  * `postDisplay`. Phase entry is owned by game/ via `enter*Phase`; bus
@@ -134,9 +134,8 @@ interface Transition {
    *  accepts only that phase; a readonly array accepts any of the
    *  listed phases (used by entry transitions like `enter-battle` that
    *  may be dispatched from either CANNON_PLACE directly or from
-   *  MODIFIER_REVEAL after the modifier banner). `"*"` opts out of the
-   *  guard entirely (the game-over transition may fire from any phase). */
-  readonly from: Phase | readonly Phase[] | "*";
+   *  MODIFIER_REVEAL after the modifier banner). */
+  readonly from: Phase | readonly Phase[];
   readonly mutate: MutateFn;
   /** Shared post-mutation sync. Runs after mutate, before display. */
   readonly postMutate?: PostMutateFn;
@@ -643,7 +642,13 @@ const ADVANCE_TO_CANNON: Transition = {
  *  game-over). */
 const GAME_OVER: Transition = {
   id: "game-over",
-  from: "*",
+  // Sole dispatcher is `exitRoundEnd` (via `lifeLostRoute.onGameOver`),
+  // which fires before the continue path's round advance — the phase is
+  // always still ROUND_END at dispatch. The watcher's wire GAME_OVER path
+  // calls `finalizeGameOver` directly and never dispatches this
+  // transition, so the guard costs nothing and catches any future
+  // wrong-phase dispatch loudly.
+  from: Phase.ROUND_END,
   mutate: (ctx) => {
     const outcome = ctx.gameOverOutcome;
     if (!outcome) {
@@ -1001,20 +1006,17 @@ function resolveTransition(
   }
 
   // Source-phase guard: every peer dispatches transitions from its own
-  // local tick, so the source phase is always known. Bypass for `*`
-  // (the game-over transition may fire from any phase).
-  if (transition.from !== "*") {
-    const currentPhase = ctx.state.phase;
-    const allowed = Array.isArray(transition.from)
-      ? transition.from.includes(currentPhase)
-      : currentPhase === transition.from;
-    if (!allowed) {
-      throw new Error(
-        `runTransition: transition "${id}" expects phase "${String(
-          transition.from,
-        )}" but state is in "${currentPhase}"`,
-      );
-    }
+  // local tick, so the source phase is always known.
+  const currentPhase = ctx.state.phase;
+  const allowed = Array.isArray(transition.from)
+    ? transition.from.includes(currentPhase)
+    : currentPhase === transition.from;
+  if (!allowed) {
+    throw new Error(
+      `runTransition: transition "${id}" expects phase "${String(
+        transition.from,
+      )}" but state is in "${currentPhase}"`,
+    );
   }
 
   return transition;
