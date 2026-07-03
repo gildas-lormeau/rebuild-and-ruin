@@ -290,6 +290,27 @@ export class GameRoom {
     }
   }
 
+  /** Log a phase-gated drop of a game-state message. A dropped game-state
+   *  message is never routine: the originator has already applied the action
+   *  locally via its lockstep schedule, so the drop means no other peer will
+   *  see it — a potential silent board fork (leading-edge marker race: a
+   *  wall-clock-lagging host delivers its boundary marker AFTER a fast peer's
+   *  first action of the new phase reaches the stale gate). This log is the
+   *  observability half of that known race; drops here should be ~never in
+   *  healthy sessions. Cosmetic types (RATE_LIMITED_TYPES) are excluded —
+   *  phantom/aim traffic is legitimately in flight across every phase
+   *  boundary and dropping it is invisible by design. */
+  private logGatedDrop(type: string, senderSocket: WebSocket): void {
+    if (RATE_LIMITED_TYPES.has(type)) return;
+    const sender =
+      senderSocket === this.hostSocket
+        ? "host"
+        : `P${this.players.get(senderSocket) ?? "?"}`;
+    console.warn(
+      `[gate] dropped out-of-phase "${type}" from ${sender} (tracked phase: ${this.phase}, seed: ${this.seed})`,
+    );
+  }
+
   // ---------------------------------------------------------------------------
   // Message relay with validation
   // ---------------------------------------------------------------------------
@@ -368,7 +389,10 @@ export class GameRoom {
         validPhases.has(Phase.WALL_BUILD) &&
         this.leftWallBuildAtMs !== undefined &&
         Date.now() - this.leftWallBuildAtMs <= WALL_BUILD_PLACE_GRACE_MS;
-      if (!gracedLatePiece) return;
+      if (!gracedLatePiece) {
+        this.logGatedDrop(type, senderSocket);
+        return;
+      }
     }
 
     // ── Stage 4: Payload validation ──
