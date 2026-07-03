@@ -8,7 +8,6 @@ import {
   prepareCastleWallsForPlayer,
   recheckTerritory,
 } from "../../game/index.ts";
-import { DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS } from "../../shared/core/action-schedule.ts";
 import { isHuman } from "../../shared/core/controller-guards.ts";
 import {
   SELECT_ANNOUNCEMENT_DURATION,
@@ -33,7 +32,7 @@ import {
   createCastleBuildState,
   tickCastleBuildAnimation,
 } from "../castle-build.ts";
-import { lockstepDebtTicks, type RuntimeState, setMode } from "../state.ts";
+import { lockstepStampTick, type RuntimeState, setMode } from "../state.ts";
 import { advancePhaseTimer, isRemotePlayer } from "../tick-context.ts";
 import {
   ACCUM_SELECT,
@@ -454,17 +453,10 @@ export function createSelectionSystem(
       // press) instead of spamming the wire + schedule with no-op dupes.
       if (inFlightConfirms.has(pid)) return false;
       inFlightConfirms.add(pid);
-      // + debt: while this peer is fast-forward replaying a hidden-tab gap,
-      // a bare `simTick + SAFETY` stamp would land in the other peers'
-      // past. Projecting the stamp past the remaining debt keeps it in
-      // everyone's future; healthy play adds 0. Confirms are owner-funnel
-      // obligations the other peers' phase exit waits on, so they must
-      // ride out during replay rather than be quarantined like board
-      // actions (see LOCKSTEP_QUARANTINE_DEBT_TICKS).
-      const applyAt =
-        runtimeState.state.simTick +
-        DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS +
-        lockstepDebtTicks(runtimeState);
+      // Debt-corrected stamp — confirms are owner-funnel obligations the
+      // other peers' phase exit waits on, so they ride out during replay
+      // rather than being quarantined (see `lockstepStampTick`).
+      const applyAt = lockstepStampTick(runtimeState);
       const towerIdx = selectionState.highlighted;
       deps.sendTowerSelected(pid, towerIdx, true, applyAt);
       runtimeState.actionSchedule.schedule({

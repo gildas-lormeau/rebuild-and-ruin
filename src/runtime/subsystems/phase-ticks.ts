@@ -19,7 +19,6 @@ import {
   tickBuildUpgrades,
   wallBuildTimerMax,
 } from "../../game/index.ts";
-import { DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS } from "../../shared/core/action-schedule.ts";
 import {
   ageImpacts,
   type Crosshair,
@@ -71,7 +70,7 @@ import {
 } from "../phase-machine.ts";
 import {
   assertStateInstalled,
-  lockstepDebtTicks,
+  lockstepStampTick,
   type RuntimeState,
   setMode,
 } from "../state.ts";
@@ -531,14 +530,10 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
           // through the post-cannon-place transition (modifier roll,
           // grunt spawn).
           const playerId = ctrl.playerId;
-          // + debt: keeps the stamp in every peer's future while this peer
-          // fast-forward replays a hidden-tab gap (0 in healthy play) —
-          // the done flag is an owner-funnel obligation remote peers' phase
-          // exit waits on, so it must fire during replay, stamp-corrected.
-          const applyAt =
-            state.simTick +
-            DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS +
-            lockstepDebtTicks(runtimeState);
+          // Debt-corrected stamp — the done flag is an owner-funnel
+          // obligation remote peers' phase exit waits on, so it must fire
+          // during replay, stamp-corrected (see `lockstepStampTick`).
+          const applyAt = lockstepStampTick(runtimeState);
           state.pendingCannonPlaceDone.add(playerId);
           runtimeState.actionSchedule.schedule({
             applyAt,

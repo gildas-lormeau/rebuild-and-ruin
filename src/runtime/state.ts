@@ -1,6 +1,7 @@
 import {
   type ActionSchedule,
   createActionSchedule,
+  DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS,
 } from "../shared/core/action-schedule.ts";
 import {
   type BattleAnimState,
@@ -318,6 +319,26 @@ export function consumeLockstepDebtTicks(
   const ticks = Math.min(lockstepDebtTicks(runtimeState), maxTicks);
   runtimeState.lockstepDebtUs -= ticks * SIM_TICK_US;
   return ticks;
+}
+
+/** Lockstep `applyAt` stamp for an owner-funnel obligation committed NOW
+ *  (selection confirm, cannon done-flag, dialog choice): SAFETY ticks in
+ *  the future, plus any outstanding lockstep debt. Without the debt term,
+ *  a commit made while this peer fast-forward replays a hidden-tab gap
+ *  would land in the other peers' PAST; projecting past the remaining
+ *  debt keeps it in everyone's future (0 in healthy play). Owner-funnel
+ *  obligations are the commits the other peers' phase exit or dialog
+ *  waits on, so they ride out during replay, stamp-corrected — unlike
+ *  board commits, which are quarantined instead
+ *  (`LOCKSTEP_QUARANTINE_DEBT_TICKS`). Callers must schedule locally AND
+ *  broadcast the SAME stamp so origin and receivers apply on one
+ *  simTick. */
+export function lockstepStampTick(runtimeState: RuntimeState): number {
+  return (
+    runtimeState.state.simTick +
+    DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS +
+    lockstepDebtTicks(runtimeState)
+  );
 }
 
 /** Whole sim ticks currently owed (floor — the sub-tick residue stays
