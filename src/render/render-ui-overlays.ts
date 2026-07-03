@@ -646,9 +646,15 @@ function buildStatusBar(
   const modifierId = view.modern?.activeModifier ?? null;
   const secs = Math.max(0, Math.ceil(view.timer) - 1);
   return {
-    round: Number.isFinite(view.maxRounds)
-      ? `R${view.round}/${view.maxRounds}`
-      : `R${view.round}`,
+    // Sudden death (top-score tie at the round limit) plays past
+    // maxRounds — label those overtime rounds SD1, SD2, … instead of the
+    // nonsensical R13/12.
+    round:
+      view.round > view.maxRounds
+        ? `SD${view.round - view.maxRounds}`
+        : Number.isFinite(view.maxRounds)
+          ? `R${view.round}/${view.maxRounds}`
+          : `R${view.round}`,
     phase: PHASE_STATUS_LABELS[view.phase],
     timer: view.timer > 0 ? `${secs}s` : "",
     modifier: modifierId ? modifierDef(modifierId).label : undefined,

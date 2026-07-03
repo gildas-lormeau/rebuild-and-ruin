@@ -37,12 +37,21 @@ export interface GameOverOutcome {
  *    - `last-player-standing`: 0 or 1 alive players remain after life
  *      penalties.
  *    - `round-limit-reached`: closing round equals `state.maxRounds`
- *      (we just played the final scheduled round).
- *  Returns `null` when neither condition is met.
+ *      (we just played the final scheduled round) AND the top score among
+ *      alive players is unique. A top-score tie triggers **sudden death**:
+ *      return `null`, so the caller's continue branch plays one more full
+ *      round (`round` advances past `maxRounds`). Re-evaluated at every
+ *      subsequent round-end — the match ends when the tie breaks by score
+ *      or eliminations reduce the field to one (the last-player-standing
+ *      branch dominates). Everyone alive plays the extra round, so a
+ *      non-tied player who overtakes during sudden death wins it.
+ *  Returns `null` when no end condition is met.
  *
  *  Eligibility is binary — eliminated players (no lives left) cannot win
  *  while any non-eliminated player exists. Among alive candidates, **score
- *  is the only tiebreak**; how many lives each has remaining doesn't matter.
+ *  is the only ranking**; how many lives each has remaining doesn't matter.
+ *  (Degenerate 0-alive case only: an exact tie falls back to slot order —
+ *  no one is left to play a sudden-death round.)
  *  No side effects: GAME_END is emitted by the caller at dispatch time so
  *  the event lands AFTER the score overlay, not at decision time. */
 export function peekGameOverOutcome(state: GameState): GameOverOutcome | null {
@@ -52,10 +61,12 @@ export function peekGameOverOutcome(state: GameState): GameOverOutcome | null {
     return { winner, reason: "last-player-standing" };
   }
   if (state.round >= state.maxRounds) {
-    return {
-      winner: pickByScore(alive)!,
-      reason: "round-limit-reached",
-    };
+    const winner = pickByScore(alive)!;
+    const tiedOnTop = alive.filter(
+      (player) => player.score === winner.score,
+    ).length;
+    if (tiedOnTop >= 2) return null; // sudden death — play another round
+    return { winner, reason: "round-limit-reached" };
   }
   return null;
 }
@@ -109,10 +120,13 @@ export function eliminatePlayers(
   }
 }
 
-/** Highest-score winner pick. Ties resolved by slot order (the reduce keeps
- *  `best` on equality). Caller is responsible for filtering candidates by
- *  eligibility (alive vs eliminated) — this helper does not look at lives.
- *  Returns null only on an empty list. */
+/** Highest-score pick. On an exact tie the reduce keeps `best`, i.e. the
+ *  lowest slot — but an alive-candidates tie never reaches the player as a
+ *  result: `peekGameOverOutcome` detects it and routes to sudden death
+ *  instead. Slot order only decides the degenerate 0-alive tie. Caller is
+ *  responsible for filtering candidates by eligibility (alive vs
+ *  eliminated) — this helper does not look at lives. Returns null only on
+ *  an empty list. */
 function pickByScore(candidates: readonly Player[]): Player | null {
   if (candidates.length === 0) return null;
   return candidates.reduce(

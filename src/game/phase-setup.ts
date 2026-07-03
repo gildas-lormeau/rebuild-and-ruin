@@ -438,6 +438,7 @@ export function finalizeRound(state: GameState): {
   eliminated: ValidPlayerId[];
 } {
   finalizeTerritoryWithScoring(state);
+  applyEqualizeScoresHook(state);
   const result = applyLifePenalties(state);
   emitGameEvent(state.bus, GAME_EVENT.ROUND_END, { round: state.round });
   return result;
@@ -463,6 +464,20 @@ export function finalizeRoundCleanup(state: GameState): void {
   recomputeAllTerritory(state);
   sweepGruntsInDeadZones(state);
   recomputeGruntTargetedWalls(state);
+}
+
+/** Test-only `equalizeScoresOnRound` hook: pin every alive player's score
+ *  to the alive maximum at the end of the named round, so the game-over
+ *  peek sees an exact top-score tie (the sudden-death trigger no seed can
+ *  reliably produce). Runs after scoring, before the ROUND_END window's
+ *  game-over peeks. Consumes no RNG. */
+function applyEqualizeScoresHook(state: GameState): void {
+  if (state.testHooks?.equalizeScoresOnRound !== state.round) return;
+  const alive = state.players.filter(isPlayerAlive);
+  const maxScore = Math.max(...alive.map((player) => player.score));
+  for (const player of alive) {
+    addScore(player, maxScore - player.score);
+  }
 }
 
 /** Shared pre-battle housekeeping run from both the real battle path

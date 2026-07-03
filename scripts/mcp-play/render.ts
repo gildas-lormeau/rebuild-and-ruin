@@ -979,7 +979,11 @@ function standingsLines(obs: Observation): string[] {
     const byScore = [...layout].sort((a, b) => b.score - a.score);
     // Winner rule: highest score among ALIVE players — an eliminated player
     // can't win while any opponent survives (fall back to all if everyone's
-    // out). Mirrors peekGameOverOutcome's last-player / score-tiebreak logic.
+    // out). Mirrors peekGameOverOutcome's last-player / top-score logic.
+    // No tie handling needed: an alive top-score tie never reaches game
+    // over — peekGameOverOutcome routes it to a sudden-death extra round,
+    // so by the time gameOver is true the top score is unique (or the
+    // degenerate 0-alive slot-order case applies, matched by sort order).
     const alive = byScore.filter((player) => !player.eliminated);
     const winner = (alive.length > 0 ? alive : byScore)[0]!;
     const ordered = [winner, ...byScore.filter((player) => player !== winner)];

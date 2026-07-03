@@ -534,9 +534,11 @@ export function createSfxSubsystem(deps: SfxSubsystemDeps): SfxSubsystem {
       const state = deps.getState();
       if (!state) return;
       // Infinity-mode ("to the death") carries maxRounds=Infinity, so
-      // this predicate is always false there.
+      // this predicate is always false there. `>=` (not `===`) so
+      // sudden-death overtime rounds (round > maxRounds) keep the
+      // final-battle stinger too — every overtime battle is a decider.
       if (state.maxRounds === Infinity) return;
-      if (state.round !== state.maxRounds) return;
+      if (state.round < state.maxRounds) return;
       void playSample("final");
     };
     bus.on(GAME_EVENT.BANNER_START, finalBattleHandler);

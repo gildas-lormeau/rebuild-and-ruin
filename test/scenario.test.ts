@@ -240,6 +240,61 @@ Deno.test("scenario: runGame plays a full game to completion", async () => {
 });
 
 Deno.test(
+  "scenario: sudden death — top-score tie at the round limit plays overtime rounds",
+  async () => {
+    // `equalizeScoresOnRound` pins every alive player's score to the alive
+    // max at the closing round's finalize — the exact top-score tie no seed
+    // reliably produces. The game-over peek must then route to sudden death
+    // (an extra full round) instead of ending on the slot-order tiebreak,
+    // and end once natural scoring breaks the tie.
+    const ROUNDS = 2;
+    const sc = await createScenario({
+      seed: 42,
+      rounds: ROUNDS,
+      testHooks: { equalizeScoresOnRound: ROUNDS },
+    });
+
+    const roundStarts: number[] = [];
+    sc.bus.on(GAME_EVENT.ROUND_START, (ev) => roundStarts.push(ev.round));
+    const bannerKinds: string[] = [];
+    sc.bus.on(GAME_EVENT.BANNER_START, (ev) => bannerKinds.push(ev.bannerKind));
+    let endRound = -1;
+    let endWinner = -1;
+    sc.bus.on(GAME_EVENT.GAME_END, (ev) => {
+      endRound = ev.round;
+      endWinner = ev.winner;
+    });
+
+    sc.runGame({ timeoutMs: 600_000 });
+
+    assert(endRound !== -1, "game must end");
+    assert(
+      endRound > ROUNDS,
+      `tied round ${ROUNDS} must not end the game — GAME_END at round ${endRound}`,
+    );
+    assert(
+      roundStarts.includes(ROUNDS + 1),
+      `overtime round ${ROUNDS + 1} must start (starts: ${roundStarts.join(",")})`,
+    );
+    assert(
+      bannerKinds.includes("sudden-death"),
+      `sudden-death banner must show (kinds: ${bannerKinds.join(",")})`,
+    );
+    // The winner must hold a UNIQUE top score among alive players — the tie
+    // resolved by play, not by slot order.
+    const alive = sc.state.players.filter(isPlayerAlive);
+    const topScore = Math.max(...alive.map((player) => player.score));
+    const tiedOnTop = alive.filter((player) => player.score === topScore);
+    assertEquals(
+      tiedOnTop.length,
+      1,
+      "top score must be unique when sudden death ends",
+    );
+    assertEquals(endWinner, tiedOnTop[0]!.id, "the unique top scorer wins");
+  },
+);
+
+Deno.test(
   "scenario: piece on house spawns grunt at house tile, no wall on that tile",
   async () => {
     // Original-Rampart parity: when a piece is placed on a house, the

@@ -24,6 +24,7 @@ export type BannerKind =
   | "battle"
   | "build"
   | "cannon-place"
+  | "sudden-death"
   | "upgrade-pick";
 
 type LifecycleEvent =

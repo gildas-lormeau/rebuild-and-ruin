@@ -136,7 +136,9 @@ export interface McpGameOptions {
   mode?: "classic" | "modern";
   /** Which slot the agent drives. Default 0. */
   agentSlot?: ValidPlayerId;
-  /** Rounds before the match ends. Default 3. */
+  /** Rounds before the match ends. Default 3. Not a hard cap: an exact
+   *  top-score tie among alive players at the limit triggers sudden-death
+   *  overtime — full extra rounds until the top score is unique. */
   rounds?: number;
   /** Sim-frames advanced per agent action — the "time cost" of a move, which
    *  lets timed phases (build 25s, cannon 15s, battle 10s) end naturally.

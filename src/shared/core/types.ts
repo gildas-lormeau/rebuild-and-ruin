@@ -258,6 +258,12 @@ export interface TestHooks {
    *  actually reaches a life-loss. Lets a test drive the human ABANDON /
    *  elimination path that no seed can produce. Never serialized. */
   lifeLostChoices?: readonly LifeLostChoiceOverride[];
+  /** Pin every alive player's score to the alive maximum at the end of the
+   *  given round (consumed in `finalizeRound`, after scoring and before the
+   *  game-over peek). Lets a test drive the sudden-death path — an exact
+   *  top-score tie at the round limit — that no seed can reliably produce.
+   *  Consumes no RNG. Never serialized. */
+  equalizeScoresOnRound?: number;
 }
 
 /** State exclusive to modern mode. null on GameState in classic mode. */

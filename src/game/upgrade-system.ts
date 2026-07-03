@@ -335,6 +335,10 @@ export function generateUpgradeOffers(
   // No upgrades for the final round — they'd only affect a single battle
   // before the game ends, wasting the pick interaction. `maxRounds` is
   // Infinity for unlimited-round games, so this never trips there.
+  // Sudden-death overtime rounds (upcomingRound > maxRounds) also get no
+  // offers, necessarily: offers draw here at battle-done, before the
+  // closing round's scores finalize — whether a top-score tie will force
+  // overtime isn't knowable yet.
   if (upcomingRound >= state.maxRounds) return null;
 
   const offers = new Map<ValidPlayerId, UpgradeOfferTuple>();

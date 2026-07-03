@@ -94,7 +94,7 @@ stateDiagram-v2
 - **enters phase:** CANNON_PLACE
 - **engine ops:** `enterCannonPhase`
 - **broadcasts:** —
-- **display:** `banner(cannon-place)`
+- **display:** `banner(sudden-death)`, `banner(cannon-place)`
 - **dispatches:** —
 - **external dispatchers:** —
 

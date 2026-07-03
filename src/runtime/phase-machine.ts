@@ -51,6 +51,8 @@ import {
   BANNER_BUILD_SUB,
   BANNER_PLACE_CANNONS,
   BANNER_PLACE_CANNONS_SUB,
+  BANNER_SUDDEN_DEATH,
+  BANNER_SUDDEN_DEATH_SUB,
   BANNER_UPGRADE_PICK,
   BANNER_UPGRADE_PICK_SUB,
 } from "./banner-messages.ts";
@@ -87,6 +89,11 @@ type DisplayStep = {
    *  BANNER_* event so consumers discriminate on this, not
    *  `phase`/`text`. */
   readonly bannerKind: BannerKind;
+  /** Conditional step: skipped (no banner, no BANNER_* events) when this
+   *  returns false. Evaluated against the post-mutate state on every peer —
+   *  it must read only synced fields (used by the sudden-death banner,
+   *  which keys on `round > maxRounds`). Absent = always shown. */
+  readonly when?: (state: GameState) => boolean;
   /** Static text, or a function of the current GameState (used by
    *  the modifier-reveal banner which reads the modifier label from
    *  `state.modern.activeModifier`). State is already fully populated
@@ -553,6 +560,17 @@ const ENTER_CANNON_PLACE: Transition = {
     return EMPTY_TRANSITION_RESULT;
   },
   display: [
+    {
+      bannerKind: "sudden-death",
+      text: BANNER_SUDDEN_DEATH,
+      subtitle: BANNER_SUDDEN_DEATH_SUB,
+      // `round` was advanced past `maxRounds` by `exitRoundEnd`'s continue
+      // branch when the game-over peek detected a top-score tie at the
+      // round limit. Fires on both entry paths (advance-to-cannon and a
+      // castle-done reselect); false for "To The Death" (maxRounds is
+      // Infinity — sudden death never triggers there).
+      when: (state) => state.round > state.maxRounds,
+    },
     {
       bannerKind: "cannon-place",
       text: BANNER_PLACE_CANNONS,
@@ -1069,6 +1087,10 @@ function runDisplay(
     return;
   }
   const [first, ...rest] = steps;
+  if (first!.when && !first!.when(ctx.state)) {
+    runDisplay(rest, ctx, result, onDone);
+    return;
+  }
   runStep(first!, ctx, result, () => runDisplay(rest, ctx, result, onDone));
 }
 
