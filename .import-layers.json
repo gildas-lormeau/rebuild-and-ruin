@@ -67,6 +67,7 @@
       "src/runtime/audio/music-synth-loader.ts",
       "src/runtime/audio/sound-modal.ts",
       "src/runtime/browser/timing.ts",
+      "src/runtime/dialogs/dialog-tick.ts",
       "src/runtime/modifier-effects/dust-storm.ts",
       "src/runtime/modifier-effects/fog.ts",
       "src/runtime/modifier-effects/frostbite.ts",
@@ -107,7 +108,6 @@
       "src/render/3d/sprites/wall-scene.ts",
       "src/render/render-ui-theme.ts",
       "src/runtime/camera-projection.ts",
-      "src/runtime/dialogs/dialog-tick.ts",
       "src/shared/core/battle-events.ts",
       "src/shared/core/dialog-state.ts",
       "src/shared/sim/pieces.ts",
@@ -372,6 +372,7 @@
     "files": [
       "src/ai/ai-build-desperate.ts",
       "src/ai/ai-build-lookahead.ts",
+      "src/ai/ai-plan-grunt-breach.ts",
       "src/ai/ai-plan-max-repair-cost.ts",
       "src/ai/ai-plan-super-attack.ts",
       "src/controllers/controller-ai-assisted-human.ts",

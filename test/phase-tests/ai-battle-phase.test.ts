@@ -5,8 +5,16 @@ import seed977796DenyFatWall from "./fixtures/battle/seed977796-deny-enclosure-f
 import mcpOverwalledPinch from "./fixtures/battle/mcp-overwalled-pinch.json" with {
   type: "json",
 };
+import seed977796GruntBreach from "./fixtures/battle/seed977796-grunt-breach.json" with {
+  type: "json",
+};
 import { planDenyEnclosure } from "../../src/ai/ai-plan-deny-enclosure.ts";
 import {
+  GRUNT_BREACH_MAX_WALK,
+  planGruntBreach,
+} from "../../src/ai/ai-plan-grunt-breach.ts";
+import {
+  componentHoldsTower,
   countBrokenEnclosures,
   countUsableCannons,
   DESTROY_POCKET_MAX_SIZE,
@@ -22,6 +30,7 @@ import {
   computeOutside,
   forEachTowerTile,
   packTile,
+  zoneAt,
 } from "../../src/shared/core/spatial.ts";
 import { Rng } from "../../src/shared/platform/rng.ts";
 import { createPhaseScenario } from "./loader.ts";
@@ -178,6 +187,87 @@ Deno.test(
         `tower enclosures (${enemyDestroyedRedWalls} RED walls destroyed by ` +
         `enemies) — the pinch-kill tactic must un-enclose EVERY tower of an ` +
         `over-walled defender it can breach`,
+    );
+  },
+);
+
+Deno.test(
+  "phase-test: a grunt-breach plan opens the defender's tower ring within grunt-walking reach (seed 977796 RED r43 + grunt cluster)",
+  async () => {
+    // `planGruntBreach` drills the ring seam NEAREST the defender's in-zone
+    // grunts — not the global min-cut — betting on the grunt march through the
+    // gap next build (grunts block reseal tiles and are the only tower
+    // killers). The fixture is the deny-enclosure fat-ring checkpoint with a
+    // 3-grunt cluster authored just outside RED's western ring wall.
+    //
+    // The invariant: the plan must (a) target only the defender's live walls,
+    // (b) breach an intact tower enclosure when fully executed, and (c) sit
+    // within one build-phase's grunt walk of the cluster — otherwise the
+    // corridor opens where no grunt will ever march and the tactic is just a
+    // worse deny_enclosure.
+    const sc = await createPhaseScenario(
+      seed977796GruntBreach as unknown as FixtureFile,
+    );
+    assertEquals(sc.state.round, 43);
+    assertEquals(sc.state.phase, Phase.BATTLE);
+    const state = sc.state;
+    const red = state.players[0]!;
+    const blue = state.players[1]!;
+    assert(isActivePlayer(red.id) && isActivePlayer(blue.id));
+
+    // Non-vacuous: RED must present an intact tower ring AND a grunt cluster
+    // in its zone, or the proximity assertion below passes for the wrong reason.
+    const liveOutside = computeOutside(red.walls);
+    const towerRings = findEnclosureComponents(getBattleInterior(red)).filter(
+      (comp) =>
+        componentHoldsTower(comp, red) && !isEnclosureBroken(comp, liveOutside),
+    );
+    const redZoneGrunts = state.grunts.filter(
+      (grunt) =>
+        zoneAt(state.map, grunt.row, grunt.col) === state.playerZones[red.id],
+    );
+    assert(
+      towerRings.length > 0 && redZoneGrunts.length >= 2,
+      `fixture drifted: RED tower rings=${towerRings.length}, in-zone ` +
+        `grunts=${redZoneGrunts.length} — re-record`,
+    );
+
+    const usableCannons = countUsableCannons(state, blue.id);
+    assert(usableCannons >= 4, "BLUE lost its siege battery — re-record");
+
+    // Focused target → the planner is deterministic (the rng draw is only for
+    // the unfocused uniform enemy pick), so one call IS the spec.
+    const plan = planGruntBreach(state, blue.id, red.id, usableCannons, new Rng(1));
+    assert(plan && plan.length > 0, "planner found no drillable seam — re-record");
+
+    for (const tile of plan) {
+      assert(
+        red.walls.has(packTile(tile.row, tile.col)),
+        `plan tile (${tile.row},${tile.col}) is not a RED wall`,
+      );
+    }
+
+    const modWalls = new Set(red.walls);
+    for (const tile of plan) modWalls.delete(packTile(tile.row, tile.col));
+    assert(
+      countBrokenEnclosures(modWalls, towerRings) > 0,
+      "fully-executed grunt breach opens no intact tower ring — a guaranteed no-op",
+    );
+
+    const minGruntDist = Math.min(
+      ...plan.map((tile) =>
+        Math.min(
+          ...redZoneGrunts.map(
+            (grunt) =>
+              Math.abs(grunt.row - tile.row) + Math.abs(grunt.col - tile.col),
+          ),
+        ),
+      ),
+    );
+    assert(
+      minGruntDist <= GRUNT_BREACH_MAX_WALK,
+      `breach is ${minGruntDist} tiles from the nearest grunt (max ` +
+        `${GRUNT_BREACH_MAX_WALK}) — the corridor opens where no grunt will march`,
     );
   },
 );

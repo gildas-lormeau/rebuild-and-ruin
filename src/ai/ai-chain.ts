@@ -29,6 +29,7 @@ export const CHAIN = {
  *  re-selectable as their live preconditions demand. */
 export const TACTIC = {
   PINCH_KILL: "pinch_kill",
+  GRUNT_BREACH: "grunt_breach",
   DENY_ENCLOSURE: "deny_enclosure",
   MAX_REPAIR_COST: "max_repair_cost",
   ICE_TRENCH: "ice_trench",
@@ -50,4 +51,8 @@ export const OFFENSIVE_TACTICS: ReadonlySet<TacticId> = new Set([
   TACTIC.FAT_BREACH,
   TACTIC.WALL_DEMOLITION,
   TACTIC.SUPER_ATTACK,
+  // One corridor per battle: the drill's value is the grunt march it enables,
+  // and the grunts only march once (next build) — a second drill the same
+  // battle would spend shots on a seam with no fresh marchers.
+  TACTIC.GRUNT_BREACH,
 ]);

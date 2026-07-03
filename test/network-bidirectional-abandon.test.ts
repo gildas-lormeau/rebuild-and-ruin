@@ -49,7 +49,9 @@ const WIRE_DELAY_FRAMES = 5;
 // Re-probed again after boosting fresh-cannon targeting against enemy super/
 // Mortar guns (HEAVY_ENEMY_GUN_TARGET_MULTIPLIER): the extra cannon fire shifts
 // modern trajectories so modern 9-r8 stopped firing → modern 0-r8 (classics
-// survived).
+// survived). Re-probed again after adding the grunt_breach tactic (its
+// unconditional probability roll shifts every battle stream): modern 0-r8
+// stopped firing → modern 1-r8 (classics survived).
 const TRIALS: {
   readonly seed: number;
   readonly mode: "classic" | "modern";
@@ -57,7 +59,7 @@ const TRIALS: {
 }[] = [
   { seed: 1, mode: "classic", rounds: 8 },
   { seed: 5, mode: "classic", rounds: 8 },
-  { seed: 0, mode: "modern", rounds: 8 },
+  { seed: 1, mode: "modern", rounds: 8 },
 ];
 
 void _forceScenarioFirst;

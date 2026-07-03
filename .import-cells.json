@@ -170,6 +170,7 @@
     "role": "modifier reveal overlays & browser timing",
     "files": [
       "src/runtime/browser/timing.ts",
+      "src/runtime/dialogs/dialog-tick.ts",
       "src/runtime/modifier-effects/dust-storm.ts",
       "src/runtime/modifier-effects/fog.ts",
       "src/runtime/modifier-effects/frostbite.ts",
@@ -271,8 +272,7 @@
     "domain": "runtime",
     "role": "camera projection math & dialog lockstep helpers",
     "files": [
-      "src/runtime/camera-projection.ts",
-      "src/runtime/dialogs/dialog-tick.ts"
+      "src/runtime/camera-projection.ts"
     ]
   },
   {
@@ -944,6 +944,7 @@
     "files": [
       "src/ai/ai-build-desperate.ts",
       "src/ai/ai-build-lookahead.ts",
+      "src/ai/ai-plan-grunt-breach.ts",
       "src/ai/ai-plan-max-repair-cost.ts",
       "src/ai/ai-plan-super-attack.ts"
     ]

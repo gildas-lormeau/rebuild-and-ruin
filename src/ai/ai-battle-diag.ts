@@ -22,6 +22,11 @@ export type FireOrigin =
   // open-field breach instead of the min-cut. Distinct origin so the efficiency
   // metric can separate the two siege philosophies. Set via BattlePlan.originTag.
   | "max_repair_cost"
+  // grunt_breach shares CHAIN.STRUCTURAL's behaviour (surgical wall removal)
+  // but drills the ring seam NEAREST the defender's in-zone grunts (not the
+  // min-cut), betting on the grunt march through the gap next build. Distinct
+  // origin so metrics can attribute grunt-driven tower kills. Set via originTag.
+  | "grunt_breach"
   | "pocket"
   | "structural"
   | "wall_chain"

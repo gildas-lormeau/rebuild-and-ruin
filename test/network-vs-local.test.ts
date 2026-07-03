@@ -859,9 +859,9 @@ Deno.test(
 Deno.test(
   "watcher adopting an eliminated-only ROUND_END snapshot shows the notice",
   async () => {
-    // Probed seed: round 25 closes eliminated-only (P0 out, no reselect).
+    // Probed seed: round 14 closes eliminated-only (P0 out, no reselect).
     const pair = await createNetworkedPair({
-      seed: 1,
+      seed: 44,
       mode: "classic",
       rounds: 30,
     });
@@ -873,7 +873,7 @@ Deno.test(
       pair,
       () =>
         host.state.phase === Phase.WALL_BUILD &&
-        (host.state.round as number) === 25 &&
+        (host.state.round as number) === 14 &&
         host.state.timer < 1,
       "pair near the eliminated-only round close",
     );

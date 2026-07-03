@@ -36,6 +36,7 @@ import {
   planDenyEnclosure,
 } from "./ai-plan-deny-enclosure.ts";
 import { planFatBreach } from "./ai-plan-fat-breach.ts";
+import { planGruntBreach } from "./ai-plan-grunt-breach.ts";
 import { planGruntSweep } from "./ai-plan-grunt-sweep.ts";
 import { planIceTrench } from "./ai-plan-ice-trench.ts";
 import { planMaxRepairCost } from "./ai-plan-max-repair-cost.ts";
@@ -130,6 +131,22 @@ const PINCH_KILL_PROBABILITY: readonly [number, number, number] = [
   2 / 3,
   5 / 6,
 ];
+/** Chance to open the target's ring at the seam nearest its in-zone grunts —
+ *  the corridor bet: grunts through the gap block the reseal (placement rejects
+ *  grunt tiles) and threaten the tower (only grunts kill towers). Its planner
+ *  precondition (≥2 grunts within one build-phase walk of a tower ring) is
+ *  already rare, so the probability is kept high where the tactic is enabled;
+ *  the weak tier mirrors WEAK_DENY_ENCLOSURE_PROBABILITY (its rng.bool always
+ *  draws, so stream alignment is preserved). Per-player roll + uniform enemy
+ *  pick + rotateBreachForAttacker desync two attackers of the same defender. */
+const GRUNT_BREACH_PROBABILITY: readonly [number, number, number] = [
+  WEAK_DENY_ENCLOSURE_PROBABILITY,
+  0.65,
+  0.85,
+];
+/** Minimum usable cannons for a grunt breach — the drill is capped at 4 walls,
+ *  so like fat_breach it stays affordable below the general chain threshold. */
+const GRUNT_BREACH_MIN_CANNONS = 4;
 /** Minimum usable cannons to attempt an ice trench (lower than general chain threshold). */
 const ICE_TRENCH_MIN_CANNONS = 4;
 /** Delay multiplier by thinkingSpeed (1=slow 1.4×, 2=normal 1×, 3=fast 0.65×). */
@@ -350,17 +367,15 @@ export class DefaultStrategy implements AiStrategy {
     const usableCannonCount = countUsableCannons(state, playerId);
 
     // Ice trench — highest priority: block grunts crossing frozen river early
-    const iceTrenchProb = traitLookup(this.battleTactics, [1 / 3, 2 / 3, 1]);
-    if (
-      usableCannonCount >= ICE_TRENCH_MIN_CANNONS &&
-      this.rng.bool(iceTrenchProb)
-    ) {
-      const iceTrenchTargets = planIceTrench(state, playerId, this.rng);
-      if (iceTrenchTargets) {
-        chainTargets = iceTrenchTargets;
-        chainType = CHAIN.ICE_TRENCH;
-        tacticId = TACTIC.ICE_TRENCH;
-      }
+    const iceTrenchTargets = this.rollIceTrench(
+      state,
+      playerId,
+      usableCannonCount,
+    );
+    if (iceTrenchTargets) {
+      chainTargets = iceTrenchTargets;
+      chainType = CHAIN.ICE_TRENCH;
+      tacticId = TACTIC.ICE_TRENCH;
     }
 
     // Grunt sweep: enough grunts targeting us and enough usable cannons
@@ -404,22 +419,33 @@ export class DefaultStrategy implements AiStrategy {
       }
     }
 
-    // Charity grunt sweep — controlled by battleTactics
-    const charityProb = traitLookup(this.battleTactics, [
-      0,
-      CHARITY_SWEEP_PROBABILITY,
-      1 / 5,
-    ]);
-    if (
-      !chainTargets &&
-      usableCannonCount >= CHAIN_ATTACK_MIN_CANNONS &&
-      this.rng.bool(charityProb)
-    ) {
-      const charityTargets = planCharitySweep(
+    // Grunt breach — above the min-cut sieges when the defender has grunts
+    // massed near a tower ring: open the seam NEAREST the grunts so the march
+    // through the gap blocks the reseal and threatens the tower next build
+    // (a corridor the pacing grunts actually find, unlike the global min-cut).
+    // Excluded after firing (one corridor per battle — the marchers only march
+    // once); the per-player roll keeps two attackers from drilling in lockstep.
+    if (!chainTargets) {
+      const gruntBreachTargets = this.rollGruntBreach(
         state,
         playerId,
         usableCannonCount,
-        this.rng,
+        excludedTactics,
+      );
+      if (gruntBreachTargets) {
+        chainTargets = gruntBreachTargets;
+        chainType = CHAIN.STRUCTURAL;
+        originTag = "grunt_breach";
+        tacticId = TACTIC.GRUNT_BREACH;
+      }
+    }
+
+    // Charity grunt sweep — controlled by battleTactics
+    if (!chainTargets) {
+      const charityTargets = this.rollCharitySweep(
+        state,
+        playerId,
+        usableCannonCount,
       );
       if (charityTargets) {
         chainTargets = charityTargets;
@@ -625,6 +651,62 @@ export class DefaultStrategy implements AiStrategy {
     if (!take) return null;
     const breach = planPinchKill(state, playerId, usableCannonCount);
     return breach && rotateBreachForAttacker(breach, playerId);
+  }
+
+  /** Ice-trench gate: cannon threshold then the trait-scaled roll. The gate
+   *  reads only synced sim state, so conditioning the draw on it is
+   *  parity-safe (the draw sequence is identical on every peer). */
+  private rollIceTrench(
+    state: BattleViewState,
+    playerId: ValidPlayerId,
+    usableCannonCount: number,
+  ): TilePos[] | null {
+    if (usableCannonCount < ICE_TRENCH_MIN_CANNONS) return null;
+    const take = this.rng.bool(
+      traitLookup(this.battleTactics, [1 / 3, 2 / 3, 1]),
+    );
+    if (!take) return null;
+    return planIceTrench(state, playerId, this.rng);
+  }
+
+  /** Charity-sweep gate: cannon threshold then the trait-scaled roll. Same
+   *  parity argument as `rollIceTrench`. */
+  private rollCharitySweep(
+    state: BattleViewState,
+    playerId: ValidPlayerId,
+    usableCannonCount: number,
+  ): TilePos[] | null {
+    if (usableCannonCount < CHAIN_ATTACK_MIN_CANNONS) return null;
+    const take = this.rng.bool(
+      traitLookup(this.battleTactics, [0, CHARITY_SWEEP_PROBABILITY, 1 / 5]),
+    );
+    if (!take) return null;
+    return planCharitySweep(state, playerId, usableCannonCount, this.rng);
+  }
+
+  /** Per-player grunt-breach gate: cannon threshold, once-per-battle
+   *  exclusion, then the `GRUNT_BREACH_PROBABILITY` roll. Both gate conditions
+   *  derive from synced sim state (identical on every peer), so conditioning
+   *  the draw on them is parity-safe — unlike controller-local state. */
+  private rollGruntBreach(
+    state: BattleViewState,
+    playerId: ValidPlayerId,
+    usableCannonCount: number,
+    excludedTactics: ReadonlySet<TacticId>,
+  ): TilePos[] | null {
+    if (usableCannonCount < GRUNT_BREACH_MIN_CANNONS) return null;
+    if (excludedTactics.has(TACTIC.GRUNT_BREACH)) return null;
+    const take = this.rng.bool(
+      traitLookup(this.battleTactics, GRUNT_BREACH_PROBABILITY),
+    );
+    if (!take) return null;
+    return planGruntBreach(
+      state,
+      playerId,
+      this.focusFirePlayerId,
+      usableCannonCount,
+      this.rng,
+    );
   }
 
   pickTarget(
