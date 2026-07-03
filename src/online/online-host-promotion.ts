@@ -281,13 +281,15 @@ export function syncAccumulatorsFromTimer(
     // elapsed than it is. `extraBuildTimeSeconds` rides in FULL_STATE.
     accum.build = wallBuildTimerMax(state) - state.timer;
   } else if (state.phase === Phase.CANNON_PLACE && state.timer > 0) {
-    // timer === 0 is the cannons-banner window: `enterCannonPhase` primes
-    // the timer to 0 and the banner's postDisplay starts the real
-    // countdown via `resetAccum` (the promotion repair that skips the
-    // banner does the same). Reading 0 as "fully elapsed" here would make
-    // every applying peer skip cannon placement for the round; leave
-    // `cannon` at 0 (countdown from full) — same ambiguity rule as the
-    // CASTLE_SELECT branch below.
+    // timer === 0 can only be the countdown-expiry tick, NOT the
+    // cannons-banner window: `enterCannonPhase` primes the timer to FULL
+    // at entry, so a banner-window snapshot already computes to
+    // `cannon = 0` through the normal branch (the banner's postDisplay
+    // merely re-anchors via `resetAccum`). Reading an expiry-tick 0 as
+    // "fully elapsed" would make the applying peer dispatch the phase
+    // exit immediately, skipping cannon placement; leave `cannon` at 0
+    // (countdown from full) — same ambiguity rule as the CASTLE_SELECT
+    // branch below.
     accum.cannon = state.cannonPlaceTimer - state.timer;
   } else if (state.phase === Phase.BATTLE) {
     accum.battle = BATTLE_TIMER - state.timer;

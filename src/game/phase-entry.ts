@@ -18,10 +18,7 @@ import type { ModifierDiff } from "../shared/core/modifier-defs.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import type { GameState, SelectionState } from "../shared/core/types.ts";
 import { resolveBalloons } from "./battle-system.ts";
-import {
-  prepareCannonPhase,
-  prepareControllerCannonPhase,
-} from "./cannon-system.ts";
+import { prepareCannonPhase } from "./cannon-system.ts";
 import { supplyShipBuildTimerBonus } from "./modifiers/supply-ship.ts";
 import { prepareBattleState, setPhase } from "./phase-setup.ts";
 import { initTowerSelection } from "./selection.ts";
@@ -38,20 +35,6 @@ interface BattlePrep {
   modifierDiff: ModifierDiff | null;
   /** Balloons launched this battle (empty if no balloon cannons). */
   flights: BalloonFlight[];
-}
-
-/** Per-player init data for the cannon placement phase.
- *  Null for eliminated players (no cannons to place). */
-interface PlayerCannonInit {
-  maxSlots: number;
-  cursorPos: { row: number; col: number };
-}
-
-/** Result of `enterCannonPhase` — per-player init data the caller uses to
- *  initialize local controllers in the initControllers step.
- *  Index = playerId; null entries are eliminated players or empty slots. */
-interface CannonPhaseEntry {
-  playerInit: readonly (PlayerCannonInit | null)[];
 }
 
 /** Pre-battle setup: roll the modifier and resolve balloon flights in
@@ -143,21 +126,15 @@ export function wallBuildTimerMax(state: GameState): number {
   );
 }
 
-/** Enter the cannon placement phase. Sets the phase flag, computes cannon
- *  limits and default facings, resets the timer, and returns per-player
- *  init data (max slots + starting cursor position) for every active slot.
- *
- *  Replaces the runtime's manual sequence of `enterCannonPlacePhase` +
- *  `prepareCannonPhase` + per-player `prepareControllerCannonPhase`. The
- *  engine owns the order; the runtime consumes the returned struct to
- *  initialize its local controllers. */
-export function enterCannonPhase(state: GameState): CannonPhaseEntry {
+/** Enter the cannon placement phase: set the phase flag, prime the
+ *  entry-time timer, reset per-slot done tracking, and run preparation
+ *  (cannon limits, default facings). Controller init is runtime-owned —
+ *  the banner postDisplay loop primes each local controller via
+ *  `primeControllerForCannonPhase`, which re-derives per-player prep
+ *  from the state populated here. */
+export function enterCannonPhase(state: GameState): void {
   enterCannonPlacePhase(state);
   prepareCannonPhase(state);
-  const playerInit = state.players.map((_, idx) =>
-    prepareControllerCannonPhase(idx as ValidPlayerId, state),
-  );
-  return { playerInit };
 }
 
 /** Enter CASTLE_SELECT: flip the phase flag, clear any stale per-player
@@ -189,13 +166,13 @@ export function enterSelectionPhase(
   state.timer = SELECT_TIMER;
 }
 
-/** Transition game state to CANNON_PLACE. This only sets the phase flag and
- *  timer; callers should prefer `enterCannonPhase` which additionally runs
- *  preparation (limits, facings) and returns per-player init data.
- *  Private — internal helper for enterCannonPhase. */
+/** Transition game state to CANNON_PLACE: set the phase flag, prime the
+ *  entry-time timer, and reset per-slot done tracking. Callers should
+ *  prefer `enterCannonPhase`, which additionally runs preparation
+ *  (limits, facings). Private — internal helper for enterCannonPhase. */
 function enterCannonPlacePhase(state: GameState): void {
   setPhase(state, Phase.CANNON_PLACE);
-  state.timer = 0;
+  state.timer = state.cannonPlaceTimer;
   // Reset per-slot done tracking. Populated by local controllers' done
   // detection + wire signal for remote-driven slots; consulted by the
   // phase-exit predicate to wait for every active slot before advancing.

@@ -1072,13 +1072,14 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
   };
 }
 
-/** Pass 1 of the battle-phase tick: tick every local controller and collect
- *  fire events for the cannonballs they spawned this frame. AI-origin fires
- *  only — human-driven controllers (including AssistedHuman) emit their own
- *  CANNON_FIRED via the human action path, so re-emitting here would
- *  double-spawn on the receiver. Must run BEFORE `resolveBattleCombatStep`
- *  so the engine advances the newly-spawned balls the same frame; the data
- *  flow (return → parameter) is what enforces that order. */
+/** Pass 1 of the battle-phase tick: tick every local controller so any
+ *  cannonballs they fire this frame land in `state` (via the controller's
+ *  fire-commit executor) before the engine step advances balls. AI-origin
+ *  fires only — human-driven controllers (including AssistedHuman) fire
+ *  via the human action path, not from `battleTick`. Must run BEFORE
+ *  `engineTickBattlePhase` so newly-spawned balls advance the same frame;
+ *  only statement order at the `tickBattlePhase` call site enforces
+ *  that. */
 function tickLocalBattleControllers(
   local: readonly PlayerController[],
   state: GameState,

@@ -201,11 +201,11 @@ export function enterBuildSkippingBattle(state: GameState): void {
  *
  *  Does NOT emit `ROUND_END` (that fires from `finalizeRound` once the
  *  build-phase score is computed) and does NOT increment `state.round`
- *  (that happens in the `round-end` transition's mutate, right after
- *  `finalizeRound` — before the score overlay / life-lost dialog
- *  display, and skipped entirely on the game-over branch). The round
- *  being closed isn't actually finished here — it stays open through
- *  UPGRADE_PICK and WALL_BUILD until the score is finalized. */
+ *  (that happens in `exitRoundEnd` (`advanceRound`), after the ROUND_END
+ *  window's score-overlay + life-lost dialog beats, and skipped entirely
+ *  on the game-over branch). The round being closed isn't actually
+ *  finished here — it stays open through UPGRADE_PICK and WALL_BUILD
+ *  until the score is finalized. */
 export function finalizeBattle(state: GameState): void {
   awardComboBonuses(state);
   cleanupBattleArtifacts(state);
@@ -240,9 +240,10 @@ export function finalizeBattle(state: GameState): void {
  *  watcher / headless must produce identical RNG sequences. Callers must
  *  init controllers afterwards (resetCannonFacings + startBuildPhase loop).
  *
- *  Does NOT increment `state.round` — that happens later, in the
- *  `round-end` transition's mutate at the end of WALL_BUILD (and is
- *  skipped on the game-over branch). Helpers that need to know the
+ *  Does NOT increment `state.round` — that happens much later, in
+ *  `exitRoundEnd` at the close of the ROUND_END window that ends
+ *  WALL_BUILD (and is skipped on the game-over branch). Helpers that
+ *  need to know the
  *  round they're seeding for receive `upcomingRound` as an explicit
  *  parameter so the timing knowledge ("we're called pre-increment")
  *  lives only in this function, not in every helper. */
@@ -422,9 +423,11 @@ export function prepareCastleWallsForPlayer(
  *    - life penalties (`applyLifePenalties`)
  *
  *  Emits `ROUND_END` after the score is computed — the round is officially
- *  closed at this point. The caller (round-end's mutate) advances the
- *  counter immediately after this returns, unless its game-over peek ends
- *  the match — the counter then stays at the closing round.
+ *  closed at this point, but the counter stays at the closing value
+ *  through the whole ROUND_END window: `exitRoundEnd` advances it
+ *  (`advanceRound`) after the score-overlay + life-lost beats, unless its
+ *  game-over peek ends the match — the counter then stays at the closing
+ *  round.
  *
  *  Wall + grunt cleanup (isolated-wall removal, grunts in eliminated zones,
  *  recompute targetedWall) is deferred to `finalizeRoundCleanup` so the

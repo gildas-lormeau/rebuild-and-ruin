@@ -246,9 +246,9 @@ export interface PhaseTransitionCtx {
    *  `placeCannons(state, maxSlots)` + `cannonCursor` + `startCannonPhase`.
    *  Wired on every peer — "local" means the controllers this peer drives
    *  (AI + own human), not host role. The hook re-derives per-player prep
-   *  from state via `prepareControllerCannonPhase` — `enterCannonPhase`
-   *  has already populated `state.cannonLimits` / facings, so the work is
-   *  idempotent and the entry struct doesn't need to thread through ctx. */
+   *  from state via `primeControllerForCannonPhase` — `enterCannonPhase`
+   *  has already populated `state.cannonLimits` / facings, so no init
+   *  data needs to thread through ctx. */
   readonly initLocalCannonControllers: () => void;
   /** End-game side effects (set game-over frame, stop sound, switch to
    *  Mode.STOPPED, arm demo timer). Used by the `game-over` transition.
@@ -379,9 +379,11 @@ const ENTER_ROUND_END: Transition = {
     const routing = finalizeRound(ctx.state);
     ctx.scoreDelta.setPreScores(preScores);
     // Stash the routing for the self-driving tick: the dialog beat reads
-    // it to build the life-lost entries, and the exit reads it. Runtime-
-    // only — a peer that ADOPTS a mid-ROUND_END snapshot re-derives
-    // `needsReselect` from the board instead (see `deriveRoundEndRouting`).
+    // it to build the life-lost entries, and the exit reads it. Not part
+    // of GameState — it rides mid-ROUND_END FULL_STATE snapshots as
+    // `FullStateMessage.roundEnd`, and an adopting peer takes the SENDER's
+    // routing (`adoptRoundEndRouting`); only a routing-less ROUND_END
+    // snapshot falls back to board re-derivation (`deriveRoundEndRouting`).
     ctx.runtimeState.roundEnd = routing;
     enterRoundEndPhase(ctx.state);
     ctx.broadcast?.buildEnd?.();
@@ -396,7 +398,7 @@ const ENTER_ROUND_END: Transition = {
  *  cleanup, inGracePeriod clear, lastModifierId snapshot) followed by
  *  `prepareNextRound` (interbattle grunt spawn, upgrade offer generation,
  *  bonus-square replenish, piece bag init — round increment and
- *  ROUND_START happen later, in `round-end`). Broadcasts BUILD_START.
+ *  ROUND_START happen later, in `exitRoundEnd`). Broadcasts BUILD_START.
  *  Does NOT flip the phase and shows no banner — `postDisplay` routes to
  *  `enter-upgrade-pick` (when offers were generated) or `enter-wall-build`,
  *  each of which delegates the phase entry to game/ + shows its own banner.

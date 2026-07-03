@@ -254,12 +254,13 @@ export function isCannonPlacementLegal(
 
 /** Prepare state for cannon phase: compute limits, recompute default facings
  *  (enemy territory may have changed since last cannon phase), and flush the
- *  new facings to existing cannons.
- *  Does NOT init controllers — call prepareControllerCannonPhase separately. */
+ *  new facings to existing cannons. The entry-time timer prime is owned by
+ *  the `enterCannonPhase` helper (phase-entry.ts), not here.
+ *  Does NOT init controllers — `primeControllerForCannonPhase` runs
+ *  per-controller from the runtime's banner postDisplay loop. */
 export function prepareCannonPhase(state: GameState): void {
   computeCannonLimitsForPhase(state);
   resetCannonFacings(state);
-  state.timer = state.cannonPlaceTimer;
   state.pendingCannonSlotCost.fill(0);
 }
 
@@ -343,40 +344,6 @@ export function primeControllerForCannonPhase(
   return true;
 }
 
-/** Compute cannon-phase init data for a single player.
- *  Pure computation — no controller interaction.
- *  Used by both host (startCannonPhase loop) and watcher (handleCannonStartTransition).
- *  PRECONDITION: phase must already be CANNON_PLACE (set by enterCannonPlacePhase).
- *  Returns null for eliminated players (no init needed). */
-export function prepareControllerCannonPhase(
-  playerId: ValidPlayerId,
-  state: GameState,
-): { maxSlots: number; cursorPos: { row: number; col: number } } | null {
-  if (state.phase !== Phase.CANNON_PLACE) {
-    throw new Error(
-      `prepareControllerCannonPhase called in ${Phase[state.phase]} — must be CANNON_PLACE`,
-    );
-  }
-  const player = state.players[playerId];
-  if (!player || isPlayerEliminated(player)) return null;
-  const maxSlots = cannonSlotsFor(state, player.id);
-  let cursorPos = {
-    row: player.homeTower?.row ?? 0,
-    col: player.homeTower?.col ?? 0,
-  };
-  if (player.homeTower) {
-    const snapped = findNearestValidCannonPlacement(
-      player,
-      player.homeTower.row,
-      player.homeTower.col,
-      CannonMode.NORMAL,
-      state,
-    );
-    if (snapped) cursorPos = snapped;
-  }
-  return { maxSlots, cursorPos };
-}
-
 /** Return a player's alive cannons that can fire (excludes balloons and dead cannons). */
 export function filterActiveFiringCannons(player: Player): Cannon[] {
   return player.cannons.filter(
@@ -434,6 +401,40 @@ export function effectivePlacementCost(
   mode: CannonMode,
 ): number {
   return Math.max(1, cannonSlotCost(mode) - rapidEmplacementDiscount(player));
+}
+
+/** Compute cannon-phase init data for a single player.
+ *  Pure computation — no controller interaction; the shared body of
+ *  `primeControllerForCannonPhase` above, which applies it to a controller.
+ *  PRECONDITION: phase must already be CANNON_PLACE (set by `enterCannonPhase`).
+ *  Returns null for eliminated players (no init needed). */
+function prepareControllerCannonPhase(
+  playerId: ValidPlayerId,
+  state: GameState,
+): { maxSlots: number; cursorPos: { row: number; col: number } } | null {
+  if (state.phase !== Phase.CANNON_PLACE) {
+    throw new Error(
+      `prepareControllerCannonPhase called in ${Phase[state.phase]} — must be CANNON_PLACE`,
+    );
+  }
+  const player = state.players[playerId];
+  if (!player || isPlayerEliminated(player)) return null;
+  const maxSlots = cannonSlotsFor(state, player.id);
+  let cursorPos = {
+    row: player.homeTower?.row ?? 0,
+    col: player.homeTower?.col ?? 0,
+  };
+  if (player.homeTower) {
+    const snapped = findNearestValidCannonPlacement(
+      player,
+      player.homeTower.row,
+      player.homeTower.col,
+      CannonMode.NORMAL,
+      state,
+    );
+    if (snapped) cursorPos = snapped;
+  }
+  return { maxSlots, cursorPos };
 }
 
 /** True if at least one interior tile can still hold a NORMAL cannon.
