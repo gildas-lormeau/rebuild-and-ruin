@@ -27,7 +27,6 @@ import {
   WALL_BURN_DURATION,
 } from "../../shared/core/battle-types.ts";
 import { isHuman } from "../../shared/core/controller-guards.ts";
-import type { UpgradePickDialogState } from "../../shared/core/dialog-state.ts";
 import {
   BALLOON_FLIGHT_DURATION,
   BATTLE_COUNTDOWN,
@@ -93,6 +92,8 @@ import {
 } from "../timer-accums.ts";
 import type { OnlinePhaseTicks, RuntimeConfig } from "../types.ts";
 import type { RuntimeLifeLost } from "./life-lost.ts";
+import type { ScoreDeltaPhaseHooks } from "./score-deltas.ts";
+import type { UpgradePickPhaseHooks } from "./upgrade-pick.ts";
 
 interface PhaseTicksDeps extends Pick<RuntimeConfig, "log"> {
   runtimeState: RuntimeState;
@@ -162,11 +163,7 @@ interface PhaseTicksDeps extends Pick<RuntimeConfig, "log"> {
     onReselect: (continuing: readonly ValidPlayerId[]) => void;
     onAdvance: () => void;
   };
-  scoreDelta: {
-    setPreScores: (scores: readonly number[]) => void;
-    start: () => void;
-    isActive: () => boolean;
-  };
+  scoreDelta: ScoreDeltaPhaseHooks;
   /** Save human crosshair at end of battle so it can be restored next battle. */
   saveBattleCrosshair?: () => void;
   /** Called after beginBattle completes (crosshair override, etc.). */
@@ -177,14 +174,7 @@ interface PhaseTicksDeps extends Pick<RuntimeConfig, "log"> {
    *  (like MODIFIER_REVEAL): `prepare`+`show` activate the dialog, then
    *  `tickUpgradePickPhase` polls `isReadyToExit` and the phase machine
    *  dispatches the exit via `get`/`set`. No resolution callback. */
-  upgradePick: {
-    prepare: () => boolean;
-    show: () => boolean;
-    tick: (dt: number) => void;
-    isReadyToExit: () => boolean;
-    get: () => UpgradePickDialogState | null;
-    set: (dialog: UpgradePickDialogState | null) => void;
-  };
+  upgradePick: UpgradePickPhaseHooks;
   /** End-game side effects (set game-over frame, stop sound, switch to
    *  Mode.STOPPED, arm demo timer). Wired to `lifecycle.endGame` from
    *  composition. The machine's `game-over` mutate calls this through

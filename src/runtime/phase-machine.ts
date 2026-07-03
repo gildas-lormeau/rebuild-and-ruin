@@ -28,7 +28,6 @@ import {
   snapshotTerritory,
 } from "../game/index.ts";
 import type { BalloonFlight } from "../shared/core/battle-types.ts";
-import type { UpgradePickDialogState } from "../shared/core/dialog-state.ts";
 import {
   type BannerKind,
   emitGameEvent,
@@ -57,6 +56,8 @@ import {
 } from "./banner-messages.ts";
 import type { BannerShow } from "./banner-state.ts";
 import type { RuntimeState } from "./state.ts";
+import type { ScoreDeltaPhaseHooks } from "./subsystems/score-deltas.ts";
+import type { UpgradePickPhaseHooks } from "./subsystems/upgrade-pick.ts";
 
 type TransitionId =
   | "castle-done"
@@ -194,19 +195,13 @@ export interface PhaseTransitionCtx {
   readonly setMode: (m: Mode) => void;
   readonly log: (msg: string) => void;
 
-  readonly scoreDelta: {
-    // The round's pre-scores are captured inline in `enter-round-end`'s
-    // mutate (before `finalizeRound` mutates scores) and handed to
-    // `setPreScores` — there is no separate capture hook. `start` begins
-    // the overlay beat in the same transition's postDisplay; the
-    // self-driving `tickRoundEndPhase` then polls `isActive`. The overlay's
-    // own teardown is owned outside the machine (host-promote / rehydrate /
-    // lifecycle call `RuntimeScoreDelta.reset` on the full handle), so the
-    // machine's narrowed view exposes no `reset`.
-    readonly setPreScores: (scores: readonly number[]) => void;
-    readonly start: () => void;
-    readonly isActive: () => boolean;
-  };
+  /** Score-delta overlay hooks. The round's pre-scores are captured inline
+   *  in `enter-round-end`'s mutate (before `finalizeRound` mutates scores)
+   *  and handed to `setPreScores` — there is no separate capture hook.
+   *  `start` begins the overlay beat in the same transition's postDisplay;
+   *  the self-driving `tickRoundEndPhase` then polls `isActive`. See
+   *  `ScoreDeltaPhaseHooks` for why the narrowed view exposes no `reset`. */
+  readonly scoreDelta: Readonly<ScoreDeltaPhaseHooks>;
 
   readonly battle: BattleLifecycle;
 
@@ -283,16 +278,7 @@ export interface PhaseTransitionCtx {
    *  resolution callback that promotion teardown could orphan. `get`/`set`
    *  let `finishUpgradePick` read the resolved snapshot and tear the
    *  dialog down at the single exit funnel. */
-  readonly upgradePick: {
-    readonly prepare: () => boolean;
-    /** Flip to Mode.UPGRADE_PICK + drain early wire picks. False = no
-     *  offers (exit immediately). */
-    readonly show: () => boolean;
-    readonly tick: (dt: number) => void;
-    readonly isReadyToExit: () => boolean;
-    readonly get: () => UpgradePickDialogState | null;
-    readonly set: (dialog: UpgradePickDialogState | null) => void;
-  };
+  readonly upgradePick: Readonly<UpgradePickPhaseHooks>;
   /** Host-only phase markers, sent so the relay SERVER can track the
    *  current phase. Two distinct receivers, not one:
    *  - Non-host PEERS ignore them (`online-server-lifecycle.ts` acks but

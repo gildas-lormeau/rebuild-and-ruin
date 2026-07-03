@@ -47,6 +47,15 @@ export interface RuntimeScoreDelta {
   reset: () => void;
 }
 
+/** Narrowed view consumed by the phase machine and the self-driving
+ *  round-end tick (capture → start → poll). Deliberately excludes `reset`:
+ *  overlay teardown is owned outside the machine — host-promote /
+ *  rehydrate / lifecycle call it on the full handle. */
+export type ScoreDeltaPhaseHooks = Pick<
+  RuntimeScoreDelta,
+  "setPreScores" | "start" | "isActive"
+>;
+
 export function createScoreDeltaSystem(
   deps: ScoreDeltaDeps,
 ): RuntimeScoreDelta {

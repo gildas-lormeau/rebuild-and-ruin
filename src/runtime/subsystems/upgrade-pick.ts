@@ -126,6 +126,15 @@ export type UpgradePickSystem = RuntimeUpgradePick & {
   adoptSeat: (playerId: ValidPlayerId) => void;
 };
 
+/** Narrowed view of the system consumed by the phase machine
+ *  (`PhaseTransitionCtx.upgradePick`) and the self-driving phase tick
+ *  (`PhaseTicksDeps.upgradePick`): the dialog-driving methods only, none
+ *  of the per-player input/seat surface. */
+export type UpgradePickPhaseHooks = Pick<
+  UpgradePickSystem,
+  "prepare" | "show" | "tick" | "isReadyToExit" | "get" | "set"
+>;
+
 const EMPTY_SLOT_SET: ReadonlySet<ValidPlayerId> = new Set();
 
 export function createUpgradePickSystem(
