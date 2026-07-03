@@ -530,7 +530,7 @@ function dispatchPlacementAction(
     | "onCannonPlaced"
   >,
 ): boolean {
-  // Build-phase gate: allow cursor movement but block placement + rotation
+  // Build-phase gate: allow cursor movement + rotation but block placement
   // when an upgrade forbids building this frame (e.g. Master Builder lockout).
   const locked =
     state.phase === Phase.WALL_BUILD && !canPlayerBuild(state, ctrl.playerId);
@@ -538,11 +538,11 @@ function dispatchPlacementAction(
     dispatchMoveForCtrl(ctrl, action, state);
     return true;
   }
-  if (locked) return false;
   if (action === Action.ROTATE) {
     rotatePlacement(ctrl, state, deps.onPieceRotated);
     return true;
   }
+  if (locked) return false;
   if (action === Action.CONFIRM) {
     dispatchPlacementConfirm(ctrl, state, deps);
     return true;
