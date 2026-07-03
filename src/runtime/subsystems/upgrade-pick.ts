@@ -36,7 +36,7 @@ import {
 } from "../dialogs/upgrade-pick-core.ts";
 import {
   assertStateInstalled,
-  lockstepDebtTicks,
+  lockstepStampTick,
   type RuntimeState,
   setMode,
 } from "../state.ts";
@@ -343,8 +343,7 @@ export function createUpgradePickSystem(
       online: deps.applyEarlyChoices !== undefined,
       playerId,
       inFlight: inFlightPicks,
-      simTick: runtimeState.state.simTick,
-      extraDelayTicks: lockstepDebtTicks(runtimeState),
+      stampTick: () => lockstepStampTick(runtimeState),
       schedule: (action) => runtimeState.actionSchedule.schedule(action),
       applyLocal: () => resolveUpgradePickEntry(entry, cardIdx, dialog.timer),
       send: (applyAt) => {

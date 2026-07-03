@@ -61,7 +61,12 @@ import {
   LOCKSTEP_QUARANTINE_DEBT_TICKS,
   type ScheduledAction,
 } from "../src/shared/core/action-schedule.ts";
-import { lockstepDebtTicks, setMode } from "../src/runtime/state.ts";
+import {
+  lockstepDebtTicks,
+  lockstepStampTick,
+  type RuntimeState,
+  setMode,
+} from "../src/runtime/state.ts";
 import { createStubElement } from "./stub-dom.ts";
 import type { GameRuntime } from "../src/runtime/handle.ts";
 import type {
@@ -311,7 +316,7 @@ export async function createHeadlessRuntime(
           runtimeHolder.current!.runtimeState.actionSchedule.schedule(action),
         DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS,
         () => runtimeHolder.current!.runtimeState.state.round,
-        () => lockstepDebtTicks(runtimeHolder.current!.runtimeState),
+        () => runtimeHolder.current!.runtimeState,
       )
       : undefined);
 
@@ -618,7 +623,7 @@ export async function reinstallAssistedControllers(
             schedule,
             DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS,
             () => runtime.runtimeState.state.round,
-            () => lockstepDebtTicks(runtime.runtimeState),
+            () => runtime.runtimeState,
           )
           : createAiController(pid, strategyRng, personality),
     },
@@ -637,7 +642,7 @@ function buildAssistedControllerFactory(
   getSchedule: () => (action: ScheduledAction<GameState>) => void,
   safetyTicks: number,
   getRound: () => number,
-  getDebtTicks: () => number,
+  getRuntimeState: () => RuntimeState,
 ): ControllerFactory {
   const assistedSet = new Set<ValidPlayerId>(assistedSlots);
   return async (
@@ -683,7 +688,7 @@ function buildAssistedControllerFactory(
       (action) => getSchedule()(action),
       safetyTicks,
       getRound,
-      getDebtTicks,
+      getRuntimeState,
     );
   };
 }
@@ -698,7 +703,7 @@ async function constructAssistedController(
   schedule: (action: ScheduledAction<GameState>) => void,
   safetyTicks: number,
   getRound: () => number,
-  getDebtTicks: () => number,
+  getRuntimeState: () => RuntimeState,
 ): Promise<PlayerController> {
   const { AiAssistedHumanController } = await import(
     "../src/controllers/controller-ai-assisted-human.ts"
@@ -736,8 +741,9 @@ async function constructAssistedController(
     // Mirrors the production wiring in src/online/runtime/game.ts: board
     // commits are quarantined while the peer replays banked lockstep debt;
     // dialog commits ride out with a debt-corrected stamp.
-    isQuarantined: () => getDebtTicks() >= LOCKSTEP_QUARANTINE_DEBT_TICKS,
-    stampDelayTicks: getDebtTicks,
+    isQuarantined: () =>
+      lockstepDebtTicks(getRuntimeState()) >= LOCKSTEP_QUARANTINE_DEBT_TICKS,
+    stampTick: () => lockstepStampTick(getRuntimeState()),
   });
 }
 

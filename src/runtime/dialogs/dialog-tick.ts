@@ -7,7 +7,6 @@
  * Bus-event emission stays in the caller callbacks.
  */
 
-import { DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS } from "../../shared/core/action-schedule.ts";
 import type { ValidPlayerId } from "../../shared/core/player-slot.ts";
 
 interface DialogTickState<TEntry> {
@@ -39,14 +38,12 @@ interface LockstepChoiceParams {
    *  a repeat press and from the max-timer force loop re-firing every
    *  tick. */
   readonly inFlight: Set<ValidPlayerId>;
-  readonly simTick: number;
-  /** Outstanding lockstep debt (`lockstepDebtTicks`) — added to the stamp
-   *  so a choice committed while this peer fast-forward replays a
-   *  hidden-tab gap still lands in every other peer's future. 0 in
-   *  healthy play. Dialog choices are owner-funnel obligations the other
-   *  peers' dialogs wait on, so they ride out during replay rather than
-   *  being quarantined like board actions. */
-  readonly extraDelayTicks: number;
+  /** Debt-corrected lockstep `applyAt` stamp, read at commit time —
+   *  callers wire `lockstepStampTick`. Dialog choices are owner-funnel
+   *  obligations the other peers' dialogs wait on, so they ride out
+   *  during replay stamp-corrected rather than being quarantined like
+   *  board actions. */
+  readonly stampTick: () => number;
   readonly schedule: (action: {
     applyAt: number;
     playerId: ValidPlayerId;
@@ -164,10 +161,7 @@ export function scheduleOrApplyDialogChoice(
   }
   if (params.inFlight.has(params.playerId)) return;
   params.inFlight.add(params.playerId);
-  const applyAt =
-    params.simTick +
-    DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS +
-    params.extraDelayTicks;
+  const applyAt = params.stampTick();
   params.send(applyAt);
   params.schedule({
     applyAt,

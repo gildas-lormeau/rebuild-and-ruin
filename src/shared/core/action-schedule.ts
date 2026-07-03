@@ -75,8 +75,8 @@ export const DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS = 8;
  *  stayed hidden those extra milliseconds. Dialog and selection commits
  *  are NOT quarantined: other peers' phase flow waits on them, so they
  *  ride out with a debt-corrected stamp instead (`lockstepStampTick`,
- *  plus the debt terms threaded into dialog-tick and the assisted-human
- *  controller). */
+ *  injected as a `stampTick` closure where layering forbids the direct
+ *  call). */
 export const LOCKSTEP_QUARANTINE_DEBT_TICKS =
   DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS / 2;
 
