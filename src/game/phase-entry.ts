@@ -10,6 +10,7 @@
 import type { BalloonFlight } from "../shared/core/battle-types.ts";
 import {
   BATTLE_TIMER,
+  BUILD_LOCKOUT_BONUS_SECONDS,
   MODIFIER_REVEAL_TIMER,
   SELECT_TIMER,
 } from "../shared/core/game-constants.ts";
@@ -19,7 +20,7 @@ import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import type { GameState, SelectionState } from "../shared/core/types.ts";
 import { resolveBalloons } from "./battle-system.ts";
 import { prepareCannonPhase } from "./cannon-system.ts";
-import { supplyShipBuildTimerBonus } from "./modifiers/supply-ship.ts";
+import { drainSupplyBuildLockoutEarners } from "./modifiers/supply-ship.ts";
 import { prepareBattleState, setPhase } from "./phase-setup.ts";
 import { initTowerSelection } from "./selection.ts";
 import { buildTimerBonus, onBuildPhaseStart } from "./upgrade-system.ts";
@@ -101,29 +102,39 @@ export function enterWallBuildPhase(state: GameState): void {
   setPhase(state, Phase.WALL_BUILD);
   onBuildPhaseStart(state);
   // Drain the supply-ship `extra_build_time` queue ONCE per build entry
-  // and persist the seconds — `wallBuildTimerMax` is recomputed every
-  // tick (`advancePhaseTimer` overwrites `state.timer` from it), and a
-  // consuming drain can't be part of a per-tick recomputation. Writing
-  // 0 when nothing was queued stops a previous round's value leaking.
+  // and union the earners into the SAME exclusive build-lockout state
+  // Master Builder just configured above — either source seats a player
+  // in the one shared head-start window (see `drainSupplyBuildLockoutEarners`).
+  // A consuming drain can't be part of a per-tick recomputation, so this
+  // must run here rather than inside `wallBuildTimerMax`.
   if (state.modern) {
-    state.modern.extraBuildTimeSeconds = supplyShipBuildTimerBonus(state);
+    const supplyEarners = drainSupplyBuildLockoutEarners(state);
+    if (supplyEarners.size > 0) {
+      const owners = state.modern.masterBuilderOwners;
+      state.modern.masterBuilderOwners = owners
+        ? new Set([...owners, ...supplyEarners])
+        : supplyEarners;
+      state.modern.masterBuilderLockout = Math.max(
+        state.modern.masterBuilderLockout,
+        BUILD_LOCKOUT_BONUS_SECONDS,
+      );
+    }
   }
   state.timer = wallBuildTimerMax(state);
 }
 
 /** Max value of the WALL_BUILD phase timer for the CURRENT round: config
- *  base + upgrade bonus + this round's drained supply-ship
- *  `extra_build_time` seconds. Single source of truth for the entry
- *  prime above, the per-tick `advancePhaseTimer` max in `tickBuildPhase`,
- *  and the FULL_STATE accumulator resync (`syncAccumulatorsFromTimer`) —
- *  the bug this replaces was a two-term copy of this sum in the tick
- *  path silently clobbering the entry prime's third term. */
+ *  base + the exclusive build-lockout bonus (Master Builder ownership
+ *  and/or a sunk supply-ship `extra_build_time` bonus — both feed the
+ *  same `masterBuilderOwners` set, so `buildTimerBonus` covers either
+ *  source without a separate additive term). Single source of truth for
+ *  the entry prime above, the per-tick `advancePhaseTimer` max in
+ *  `tickBuildPhase`, and the FULL_STATE accumulator resync
+ *  (`syncAccumulatorsFromTimer`) — the bug this replaces was a two-term
+ *  copy of this sum in the tick path silently clobbering the entry
+ *  prime's third term. */
 export function wallBuildTimerMax(state: GameState): number {
-  return (
-    state.buildTimer +
-    buildTimerBonus(state) +
-    (state.modern?.extraBuildTimeSeconds ?? 0)
-  );
+  return state.buildTimer + buildTimerBonus(state);
 }
 
 /** Enter the cannon placement phase: set the phase flag, prime the

@@ -276,9 +276,10 @@ export function syncAccumulatorsFromTimer(
   if (gruntAccum !== undefined) accum.grunt = gruntAccum;
 
   if (state.phase === Phase.WALL_BUILD) {
-    // Three-term max (base + upgrade bonus + drained supply-ship seconds):
-    // a snapshot captured mid-bonus-build must not read as further
-    // elapsed than it is. `extraBuildTimeSeconds` rides in FULL_STATE.
+    // Two-term max (base + exclusive-lockout bonus): a snapshot captured
+    // mid-bonus-build must not read as further elapsed than it is.
+    // `masterBuilderOwners`/`masterBuilderLockout` (the shared source
+    // for both Master Builder and supply-ship earners) ride in FULL_STATE.
     accum.build = wallBuildTimerMax(state) - state.timer;
   } else if (state.phase === Phase.CANNON_PLACE && state.timer > 0) {
     // timer === 0 can only be the countdown-expiry tick, NOT the

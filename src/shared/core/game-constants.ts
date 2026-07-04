@@ -85,6 +85,13 @@ export const BUILD_TIMER = 25;
 export const CANNON_PLACE_TIMER = 15;
 /** Duration of the castle selection phase in seconds. */
 export const SELECT_TIMER = 16;
+/** Exclusive build head-start window, in seconds. Shared by every source
+ *  that can grant a player early/exclusive build access this round —
+ *  Master Builder ownership and a sunk supply-ship `extra_build_time`
+ *  bonus both race inside the SAME window (`ModernState.masterBuilderOwners`
+ *  / `masterBuilderLockout`), rather than stacking additional seconds per
+ *  source or per earner. */
+export const BUILD_LOCKOUT_BONUS_SECONDS = 5;
 /** Duration of the MODIFIER_REVEAL phase in seconds — the beat between
  *  the modifier-reveal banner's sweep-end and the battle banner, long
  *  enough to land a bespoke effect cue but short enough that it doesn't

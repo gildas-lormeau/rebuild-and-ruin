@@ -473,7 +473,6 @@
     "rubbleClearingHeld": null,
     "supplyShips": null,
     "pendingSupplyBonuses": null,
-    "extraBuildTimeSeconds": 0,
     "comboTracker": null,
     "frozenTiles": null,
     "sinkholeTiles": null,

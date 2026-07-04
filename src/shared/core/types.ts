@@ -289,12 +289,18 @@ export interface ModernState {
   activeModifierChangedTiles: readonly TileKey[];
   /** Previous round's modifier id (for no-repeat rule). null = none. */
   lastModifierId: ModifierId | null;
-  /** Master Builder lockout countdown (seconds remaining). 0 = no lockout.
-   *  When exactly one player owns Master Builder, non-owners are locked out
-   *  of building for this many seconds at the start of the build phase. */
+  /** Exclusive build-lockout countdown (seconds remaining). 0 = no lockout.
+   *  Shared by every source that can grant a head-start this round —
+   *  Master Builder ownership AND a sunk supply-ship `extra_build_time`
+   *  bonus both set/extend this same countdown (see `onBuildPhaseStart`
+   *  in `upgrades/master-builder.ts` and the union in
+   *  `enterWallBuildPhase`). Non-owners are locked out of building while
+   *  this is > 0. */
   masterBuilderLockout: number;
-  /** Players who picked Master Builder this round. null = nobody.
-   *  Persists through the build phase (needed to compute buildMax for advancePhaseTimer). */
+  /** Players seated in the exclusive build-lockout window this round —
+   *  the union of Master Builder owners and supply-ship `extra_build_time`
+   *  earners. null = nobody. Persists through the build phase (needed to
+   *  compute buildMax for advancePhaseTimer). */
   masterBuilderOwners: ReadonlySet<ValidPlayerId> | null;
   /** Combo scoring tracker (transient during battle, not serialized).
    *  Created at battle start, cleared at battle end. */
@@ -354,14 +360,6 @@ export interface ModernState {
    *  boundaries (not cleared in the modifier's `clear`) so a sink
    *  late in a battle still benefits the closing/next phase. */
   pendingSupplyBonuses: Map<ValidPlayerId, SupplyBonusId[]> | null;
-  /** Seconds added to the CURRENT round's WALL_BUILD timer from consumed
-   *  supply-ship `extra_build_time` bonuses. Written once per build entry
-   *  by `enterWallBuildPhase`'s drain (0 when nothing was queued), then
-   *  read by every recomputation of the build timer's max
-   *  (`wallBuildTimerMax`: per-tick `advancePhaseTimer` and the
-   *  FULL_STATE accumulator resync). The drain can't be re-run per tick —
-   *  it consumes the queue — so the result must persist in game state. */
-  extraBuildTimeSeconds: number;
 }
 
 /** Player selection lobby state. */
@@ -729,6 +727,5 @@ function createModernState(): ModernState {
     rubbleClearingHeld: null,
     supplyShips: null,
     pendingSupplyBonuses: null,
-    extraBuildTimeSeconds: 0,
   };
 }

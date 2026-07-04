@@ -72,10 +72,6 @@ const PICK_TO_FIRE_DWELL_SEC = 0.15;
  *  were leaded to a future ship position — at pick time the ship is up
  *  to `SUPPLY_SHIP_SPEED * flightTime` tiles behind that impact point. */
 const SHIP_ENGAGED_RADIUS = 4.0;
-/** Seconds added to WALL_BUILD timer per consumed `extra_build_time`
- *  bonus. Matches Master Builder's `MASTER_BUILDER_BONUS_SECONDS` so
- *  the player intuition of "+5s build" is consistent across sources. */
-const EXTRA_BUILD_TIME_SECONDS = 5;
 /** One-round bonus pool. Each ship rolls one at spawn (hidden until
  *  sunk). On sink the bonus is queued via `queueSupplyBonus` and consumed
  *  the following round by the relevant phase hook (see `consumeSupplyBonuses`
@@ -232,19 +228,26 @@ export function tryHitSupplyShip(
   }
 }
 
-/** Total seconds added to the WALL_BUILD timer this round from supply
- *  ship `extra_build_time` bonuses across all players. Each consumed
- *  bonus contributes `EXTRA_BUILD_TIME_SECONDS`. Called from
- *  `enterWallBuildPhase`. Drains the consumed entries. */
-export function supplyShipBuildTimerBonus(state: GameState): number {
+/** Drain every player's queued `extra_build_time` bonus and return the
+ *  set of players who had at least one. A player with multiple sunk
+ *  ships this round still only earns ONE seat in the shared exclusive
+ *  build-lockout window (see `masterBuilderOwners`/`masterBuilderLockout`
+ *  in `ModernState`) — the window's length is fixed, not stacked per
+ *  bonus. Called once from `enterWallBuildPhase`, after the Master
+ *  Builder upgrade hook has set its own owners/lockout baseline; the
+ *  caller unions this set into that same state. */
+export function drainSupplyBuildLockoutEarners(
+  state: GameState,
+): ReadonlySet<ValidPlayerId> {
   const pending = state.modern?.pendingSupplyBonuses;
-  if (!pending) return 0;
-  let totalSeconds = 0;
+  if (!pending) return new Set();
+  const earners = new Set<ValidPlayerId>();
   for (const playerId of [...pending.keys()]) {
-    const consumed = consumeSupplyBonuses(state, playerId, "extra_build_time");
-    totalSeconds += consumed * EXTRA_BUILD_TIME_SECONDS;
+    if (consumeSupplyBonuses(state, playerId, "extra_build_time") > 0) {
+      earners.add(playerId);
+    }
   }
-  return totalSeconds;
+  return earners;
 }
 
 /** Pick a non-sinking supply ship as a shot target for AI cannons and

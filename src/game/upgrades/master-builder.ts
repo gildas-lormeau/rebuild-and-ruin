@@ -1,12 +1,14 @@
 /**
  * Master Builder upgrade — all hook implementations: onBuildPhaseStart
- * (configure owners/lockout), tickBuild (decrement lockout each frame),
- * canPlayerBuild (locked-out players can't build), buildTimerBonus
- * (+N seconds while any player owns MB). Do NOT call these directly
- * from outside the upgrade-system dispatcher.
+ * (configure owners/lockout), tickBuild (decrement lockout), canPlayerBuild
+ * (locked-out players can't build), buildTimerBonus (+N seconds while any
+ * player owns MB). Do NOT call directly — go through the dispatcher.
+ * `masterBuilderOwners`/`masterBuilderLockout` are SHARED with supply-ship
+ * `extra_build_time` earners, unioned in by `enterWallBuildPhase`.
  */
 
 import { FID } from "../../shared/core/feature-defs.ts";
+import { BUILD_LOCKOUT_BONUS_SECONDS } from "../../shared/core/game-constants.ts";
 import type { ValidPlayerId } from "../../shared/core/player-slot.ts";
 import { isPlayerAlive } from "../../shared/core/player-types.ts";
 import {
@@ -16,11 +18,6 @@ import {
 } from "../../shared/core/types.ts";
 import { UID } from "../../shared/core/upgrade-defs.ts";
 
-/** Extra build seconds granted by Master Builder. Owners get this window
- *  as an exclusive head-start; non-owners are locked out. With multiple
- *  owners they race each other during the head-start.
- *  Internal: callers go through the dispatcher. */
-const MASTER_BUILDER_BONUS_SECONDS = 5;
 export const masterBuilderImpl: UpgradeImpl = {
   onBuildPhaseStart,
   tickBuild,
@@ -40,7 +37,7 @@ function onBuildPhaseStart(state: GameState): void {
   state.modern!.masterBuilderOwners =
     mbPlayers.length > 0 ? new Set(mbPlayers.map((player) => player.id)) : null;
   state.modern!.masterBuilderLockout =
-    mbPlayers.length > 0 ? MASTER_BUILDER_BONUS_SECONDS : 0;
+    mbPlayers.length > 0 ? BUILD_LOCKOUT_BONUS_SECONDS : 0;
 }
 
 /** Decrement the Master Builder lockout timer each build frame.
@@ -70,6 +67,6 @@ function canPlayerBuild(state: GameState, playerId: ValidPlayerId): boolean {
  *  Returns +N seconds while any player owns MB, 0 otherwise. */
 function buildTimerBonus(state: GameState): number {
   return (state.modern?.masterBuilderOwners?.size ?? 0) > 0
-    ? MASTER_BUILDER_BONUS_SECONDS
+    ? BUILD_LOCKOUT_BONUS_SECONDS
     : 0;
 }

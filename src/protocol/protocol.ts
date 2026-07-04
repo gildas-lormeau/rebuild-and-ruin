@@ -344,12 +344,6 @@ export interface FullStateMessage extends SerializedModifierTiles {
    *  field is mirror-simulated cross-peer but joiners need the
    *  snapshot. */
   pendingSupplyBonuses?: [number, SupplyBonusId[]][] | null;
-  /** Seconds added to the current round's WALL_BUILD timer from drained
-   *  supply-ship `extra_build_time` bonuses. Needed by a snapshot
-   *  captured mid-build: the receiver recomputes the build timer's max
-   *  (`wallBuildTimerMax`) every tick, and without this term it would
-   *  clip the restored timer back to the no-bonus length. */
-  extraBuildTimeSeconds?: number;
   towerPendingRevive: number[];
   capturedCannons: {
     victimId: ValidPlayerId;
