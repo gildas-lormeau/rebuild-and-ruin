@@ -218,13 +218,20 @@ export interface BuildController {
    *  renders with previews. */
   startBuildPhase(state: BuildViewState): void;
 
-  /** Called each frame during build phase. Returns piece placement previews for rendering.
+  /** Called each frame during build phase — always, even while this
+   *  controller's player is Master-Builder-locked-out, so the preview keeps
+   *  updating. `canBuild` tells the implementation whether it may commit a
+   *  placement this frame; it must still refresh the preview when false.
    *  Returns empty array when no preview is active. Implementations must
    *  also assign the returned array to `this.currentBuildPhantoms` so the
    *  render path reads the same snapshot between ticks.
    *  NOTE: Returns array (not null) because multiple piece previews can exist simultaneously.
    *  Contrast with cannonTick() which returns null when inactive. */
-  buildTick(state: BuildViewState, dt: number): PiecePlacementPreview[];
+  buildTick(
+    state: BuildViewState,
+    dt: number,
+    canBuild: boolean,
+  ): PiecePlacementPreview[];
 
   finalizeBuildPhase(state: BuildViewState): void;
 

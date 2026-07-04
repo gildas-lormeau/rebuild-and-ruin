@@ -804,12 +804,17 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       remotePlayerSlots,
       state.players,
     )) {
-      // Master Builder lockout: skip AI only — an AI's buildTick is where its
-      // placements execute. A human's buildTick is a pure phantom refresh;
-      // input-dispatch allows a locked-out human to move the cursor and
-      // rotate (placement blocked there), so keep the preview tracking it.
-      if (!isHuman(ctrl) && !canPlayerBuild(state, ctrl.playerId)) continue;
-      const phantoms = ctrl.buildTick(state, dt);
+      // buildTick always runs regardless of Master Builder lockout, for
+      // every controller kind — it only ever refreshes the phantom preview.
+      // canBuild tells the controller whether it may commit a placement
+      // this frame; each controller gates its own commit on it (human
+      // placement is driven separately by CONFIRM in input-dispatch.ts,
+      // already blocked there under lockout; AI gates its own
+      // commit.placePiece call in controller-ai.ts). This keeps every
+      // locked-out player's phantom live and rotating instead of
+      // freezing/blanking for the lockout window.
+      const canBuild = canPlayerBuild(state, ctrl.playerId);
+      const phantoms = ctrl.buildTick(state, dt, canBuild);
 
       if (!isHuman(ctrl)) continue;
       for (const phantom of phantoms) {

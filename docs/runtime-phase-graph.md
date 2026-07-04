@@ -46,7 +46,7 @@ stateDiagram-v2
 - **broadcasts:** `buildEnd`
 - **display:** —
 - **dispatches:** —
-- **external dispatchers:** `phase-ticks.ts:856`
+- **external dispatchers:** `phase-ticks.ts:861`
 
 ### `battle-done`
 

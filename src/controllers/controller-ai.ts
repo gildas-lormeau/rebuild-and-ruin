@@ -134,13 +134,28 @@ export class AiController extends BaseController {
     // buildTick() call populates currentBuildPhantoms.
   }
 
-  buildTick(state: BuildViewState, _dt: number): PiecePlacementPreview[] {
+  buildTick(
+    state: BuildViewState,
+    _dt: number,
+    canBuild: boolean,
+  ): PiecePlacementPreview[] {
     const result = this.brain.build.tick(this, state);
-    this.currentBuildPhantoms = result.phantoms;
-    if (result.commit) {
+    // A Master Builder lockout holds this controller's commit undelivered:
+    // keep showing the last dwelling-piece phantom (the tick that produces
+    // `commit` reports an empty phantom array, since it normally expects
+    // the piece to land this frame) rather than blanking the preview for
+    // the whole lockout window.
+    if (result.phantoms.length > 0 || !result.commit) {
+      this.currentBuildPhantoms = result.phantoms;
+    }
+    if (result.commit && canBuild) {
       const placed = this.commit.placePiece(state, result.commit, this);
       this.brain.build.onPlaceResult(this, state, placed);
     }
+    // AI phantoms are never network-broadcast (deterministic, recomputed
+    // per-peer), so the raw per-tick result is fine to return here — the
+    // retained-phantom fallback above only needs to reach
+    // currentBuildPhantoms for local rendering.
     return result.phantoms;
   }
 

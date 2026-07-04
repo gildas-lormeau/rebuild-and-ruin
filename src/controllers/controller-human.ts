@@ -213,10 +213,14 @@ export class HumanController extends BaseController implements InputReceiver {
   // show the preview even before the first tick runs. buildTick is pure
   // (no dt-dependent state), so reusing it at dt=0 is safe.
   protected override onStartBuildPhase(state: BuildViewState): void {
-    this.currentBuildPhantoms = this.buildTick(state, 0);
+    this.currentBuildPhantoms = this.buildTick(state, 0, true);
   }
 
-  buildTick(state: BuildViewState, _dt: number): PiecePlacementPreview[] {
+  buildTick(
+    state: BuildViewState,
+    _dt: number,
+    _canBuild: boolean,
+  ): PiecePlacementPreview[] {
     const piece = state.players[this.playerId]?.currentPiece;
     if (!piece) {
       this.currentBuildPhantoms = [];

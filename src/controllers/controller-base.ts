@@ -135,10 +135,16 @@ export abstract class BaseController implements PlayerController {
 
   /** Subclass hook called after bag/cursor are initialized. Override for AI targeting etc. */
   protected onStartBuildPhase(_state: BuildViewState): void {}
-  /** Called each frame during build. Returns placement previews for rendering. */
+  /** Called each frame during build, regardless of Master Builder lockout —
+   *  it must always refresh the phantom preview. `canBuild` reflects
+   *  whether this controller's player may actually commit a placement this
+   *  frame (false during a lockout); a human ignores it here since human
+   *  placement commits separately via CONFIRM in input-dispatch.ts, which
+   *  gates on the same signal. Returns placement previews for rendering. */
   abstract buildTick(
     state: BuildViewState,
     dt: number,
+    canBuild: boolean,
   ): PiecePlacementPreview[];
 
   /** @final Template method — do NOT override. Override onFinalizeBuildPhase() instead.
