@@ -36,7 +36,7 @@ export function planFatBreach(
 
   for (const enemy of enemies) {
     if (enemy.walls.size < FAT_BREACH_MIN_WALLS) continue;
-    const breach = findMinBreach(state, enemy, cap);
+    const breach = findMinBreach(state, enemy, cap, rng);
     if (breach) return breach;
   }
   return null;

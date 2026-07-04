@@ -61,7 +61,7 @@ export function planDenyEnclosure(
   // efficient breach and free of the wasted hits the geographic-bottleneck
   // siege below lands on redundant backing layers — the old approach left a
   // 2-thick ring standing because it only sieged the shorter on-cut layer.
-  const breach = findMinBreach(state, enemy, limit);
+  const breach = findMinBreach(state, enemy, limit, rng);
   if (breach) return rotateBreachForAttacker(breach, playerId);
 
   // No full breach fits the cannon budget (already-open defender, or an intact

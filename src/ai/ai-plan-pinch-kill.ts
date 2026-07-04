@@ -1,10 +1,9 @@
 /**
  * AI tactic — pinch kill. The `findMinBreach` min-cut breach of an enemy whose
- * reseal we VERIFY is forced through an obstacle-flanked slot only a small piece
- * (1×1/1×2/1×3) can fill — a kill, not a refillable tax. `findMinBreach` already
- * does the detection (its cheapest wall path to an enclosed tower hugs the free
- * obstacle channels and pays only at the wall plugs); this adds the reseal check
- * so `planBattle` fires it deterministically at top priority, not on a roll.
+ * reseal we VERIFY is forced through an obstacle-flanked slot only a small
+ * piece (1×1/1×2/1×3) can fill — a kill, not a refillable tax. This adds the
+ * reseal check so `planBattle` fires it at top offensive priority (behind the
+ * per-player `PINCH_KILL_PROBABILITY` roll that desyncs multiple attackers).
  */
 
 import { TOWER_SIZE } from "../shared/core/game-constants.ts";
@@ -20,6 +19,7 @@ import {
   unpackTile,
 } from "../shared/core/spatial.ts";
 import type { BattleViewState } from "../shared/core/system-interfaces.ts";
+import type { Rng } from "../shared/platform/rng.ts";
 import {
   buildOccupancyCache,
   collectAliveHouseKeys,
@@ -36,19 +36,25 @@ const MAX_PINCH_TARGETS = 8;
 const SMALL_PIECE_ISLAND = 4;
 
 /** Plan a guaranteed pinch kill: the min-cut breach of the first enemy whose
- *  reseal it forces through a small-piece-only slot. Enemies are scanned in
- *  slot order (no rng — a sure kill must not depend on a tactic roll). Returns
- *  null when no enemy's cheapest breach leaves an unrefillable reseal. */
+ *  reseal it forces through a small-piece-only slot. The enemy scan order is
+ *  shuffled per attacker (rng never GATES the kill — whenever any enemy is
+ *  pinchable, a pinch still fires) and the min-cut seam pick inside
+ *  `findMinBreach` is rng-varied, so two attackers no longer converge on the
+ *  identical victim + cut. Returns null when no enemy's cheapest breach leaves
+ *  an unrefillable reseal. */
 export function planPinchKill(
   state: BattleViewState,
   playerId: ValidPlayerId,
   usableCannonCount: number,
+  rng: Rng,
 ): TilePos[] | null {
   const cap = Math.min(usableCannonCount, MAX_PINCH_TARGETS);
   if (cap < 1) return null;
-  for (const enemy of filterActiveEnemies(state, playerId)) {
+  const enemies = [...filterActiveEnemies(state, playerId)];
+  rng.shuffle(enemies);
+  for (const enemy of enemies) {
     if (enemy.enclosedTowers.length === 0) continue;
-    const breach = findMinBreach(state, enemy, cap);
+    const breach = findMinBreach(state, enemy, cap, rng);
     if (!breach || breach.length === 0) continue;
     if (forcesSmallPieceReseal(state, enemy, breach)) return breach;
   }

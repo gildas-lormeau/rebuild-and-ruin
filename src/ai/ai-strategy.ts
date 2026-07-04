@@ -649,7 +649,7 @@ export class DefaultStrategy implements AiStrategy {
       traitLookup(this.battleTactics, PINCH_KILL_PROBABILITY),
     );
     if (!take) return null;
-    const breach = planPinchKill(state, playerId, usableCannonCount);
+    const breach = planPinchKill(state, playerId, usableCannonCount, this.rng);
     return breach && rotateBreachForAttacker(breach, playerId);
   }
 

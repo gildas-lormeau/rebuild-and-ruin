@@ -531,11 +531,17 @@ export function countBrokenEnclosures(
  *  tower-less large pockets as a repair tax. One affordable chain can open every
  *  tower ring (a same-round kill); a tighter budget opens what it can each round.
  *  Returns null when no intact large enclosure is breachable within `cap`.
- *  Shared by the deny-enclosure and fat-breach tactics. */
+ *  Shared by the deny-enclosure and fat-breach tactics.
+ *
+ *  `rng` picks uniformly among EQUAL-cost breach seams of each ring (see
+ *  `findBreachPath`) so two attackers of one ring drill different seams — the
+ *  per-attacker variation lever for every min-cut tactic. Omit it for a
+ *  deterministic first-settled seam (the mcp-play breach tool path). */
 export function findMinBreach(
   state: BattleViewState,
   enemy: Player,
   cap: number,
+  rng?: Rng,
 ): TilePos[] | null {
   if (cap < 1) return null;
   const outside = computeOutside(enemy.walls);
@@ -560,7 +566,7 @@ export function findMinBreach(
   const breaches: { path: TilePos[]; holdsTower: boolean; firstKey: number }[] =
     [];
   for (const comp of candidates) {
-    const path = findBreachPath(state, enemy, comp, outside, cap);
+    const path = findBreachPath(state, enemy, comp, outside, cap, rng);
     if (!path || path.length === 0) continue;
     breaches.push({
       path,
@@ -1299,13 +1305,21 @@ function jitterWithinTile(
  *  zone box: stepping onto a non-wall tile is free, onto a single-hit wall
  *  costs one shot, and a reinforced wall (absorbs the first hit, so one chain
  *  shot can't clear it) is impassable — the breach routes around it. Returns
- *  null when the cheapest breach exceeds `cap` shots or none exists in-box. */
+ *  null when the cheapest breach exceeds `cap` shots or none exists in-box.
+ *
+ *  Without `rng` the seam is the first outside tile settled — a pure function
+ *  of the TARGET's geometry, identical for every attacker. With `rng`, the
+ *  whole minimum-cost bucket is drained and one of the equal-cost outside
+ *  endpoints is picked uniformly, so attackers (each at a different position
+ *  in the lockstep rng stream) drill different seams of a ring whose min cut
+ *  is not unique. Exactly one draw per found path — parity-stable. */
 function findBreachPath(
   state: BattleViewState,
   enemy: Player,
   interior: readonly TileKey[],
   outside: ReadonlySet<TileKey>,
   cap: number,
+  rng?: Rng,
 ): TilePos[] | null {
   const walls = enemy.walls;
   const box = breachBox(state, interior);
@@ -1331,6 +1345,10 @@ function findBreachPath(
     buckets[0]!.push(id);
   }
 
+  // Outside tiles settled at the minimum cost — the equal-cost seam endpoints.
+  // Deterministic mode returns on the first one; rng mode drains the rest of
+  // that bucket (0-cost relaxations keep feeding it) and picks uniformly.
+  const endpoints: number[] = [];
   for (let cost = 0; cost <= cap; cost++) {
     const bucket = buckets[cost]!;
     while (bucket.length > 0) {
@@ -1340,9 +1358,14 @@ function findBreachPath(
       const col = box.minC + (id % boxW);
       // Reaching an outside tile means the path's walls, if destroyed, let the
       // flood in — `cost` is the breach cost. Sources are intact interior, so
-      // the first outside tile settled is the global minimum (cost >= 1).
+      // the first outside tile settled is at the global minimum (cost >= 1).
+      // Never relax FROM an outside tile — the breach is complete there.
       if (outside.has(packTile(row, col))) {
-        return reconstructBreachWalls(parent, id, box, boxW, walls);
+        if (rng === undefined) {
+          return reconstructBreachWalls(parent, id, box, boxW, walls);
+        }
+        endpoints.push(id);
+        continue;
       }
       for (const [dr, dc] of DIRS_8) {
         const nr = row + dr;
@@ -1364,6 +1387,12 @@ function findBreachPath(
           buckets[nextCost]!.push(nId);
         }
       }
+    }
+    // Bucket fully drained: every outside endpoint reachable at this cost has
+    // been settled, so `endpoints` is the complete equal-cost seam set.
+    if (endpoints.length > 0) {
+      const chosen = endpoints[Math.floor(rng!.next() * endpoints.length)]!;
+      return reconstructBreachWalls(parent, chosen, box, boxW, walls);
     }
   }
   return null;

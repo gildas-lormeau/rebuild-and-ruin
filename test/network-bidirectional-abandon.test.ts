@@ -51,15 +51,18 @@ const WIRE_DELAY_FRAMES = 5;
 // modern trajectories so modern 9-r8 stopped firing → modern 0-r8 (classics
 // survived). Re-probed again after adding the grunt_breach tactic (its
 // unconditional probability roll shifts every battle stream): modern 0-r8
-// stopped firing → modern 1-r8 (classics survived).
+// stopped firing → modern 1-r8 (classics survived). Re-probed again after the
+// per-attacker breach-seam variation (findBreachPath rng-picks among equal-cost
+// seams + planPinchKill shuffles its victim scan): classic 1-r8 and modern 1-r8
+// stopped firing → classic 9-r8, modern 9-r8 (classic 5-r8 survived).
 const TRIALS: {
   readonly seed: number;
   readonly mode: "classic" | "modern";
   readonly rounds: number;
 }[] = [
-  { seed: 1, mode: "classic", rounds: 8 },
   { seed: 5, mode: "classic", rounds: 8 },
-  { seed: 1, mode: "modern", rounds: 8 },
+  { seed: 9, mode: "classic", rounds: 8 },
+  { seed: 9, mode: "modern", rounds: 8 },
 ];
 
 void _forceScenarioFirst;

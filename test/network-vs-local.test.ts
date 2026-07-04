@@ -751,10 +751,12 @@ async function promoteWatcherMidUpgradePick(
 Deno.test(
   "adoption jumping a watcher out of ROUND_END clears the routing stash",
   async () => {
-    // Registry-driven reselect seed: round 10 closes with a life-lost
-    // dialog (P0+P1 reselect); rounds 11-13 close loss-free.
+    // Probed seed (tmp probe over classic r15): round 2 closes with a
+    // life-lost dialog whose loser survives (reselect routing), and round 3
+    // closes loss-free — the registry reselect seed no longer guarantees a
+    // loss-free follow-up window after the breach-seam variation change.
     const pair = await createNetworkedPair({
-      seed: RESELECT.seed,
+      seed: 9,
       mode: "classic",
       rounds: 15,
     });
