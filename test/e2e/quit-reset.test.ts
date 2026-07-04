@@ -44,58 +44,60 @@ Deno.test(
       mobile: true,
     });
 
-    // 1. Mobile emulation should have flipped `mobileZoomEnabled` on
-    //    the camera via `setupTouchControls` (touch device path).
-    const initialCam = await sc.camera.state();
-    assert(
-      initialCam.autoZoomOn,
-      "mobile emulation should have enabled auto-zoom via setupTouchControls",
-    );
-
-    // 2. Wait 5 s on the lobby screen (matches the user's repro pace —
+    // 1. Wait 5 s on the lobby screen (matches the user's repro pace —
     //    they don't tap immediately).
     await new Promise((resolve) => setTimeout(resolve, 5_000));
 
-    // 3. Press "action" to join slot 0. On mobile (`IS_TOUCH_DEVICE`
+    // 2. Press "action" to join slot 0. On mobile (`IS_TOUCH_DEVICE`
     //    true), `onLobbyJoin` short-circuits the lobby timer and
     //    starts the game immediately — same as tapping a slot.
     await sc.input.pressKey("n");
 
-    // 4. Wait for the first in-game event (banner or phase start).
+    // 3. Wait for the first in-game event (banner or phase start).
     await waitForPhase(sc, Phase.BATTLE, { timeoutMs: 60_000 });
 
-    // 5. Press ESC twice to quit. First press arms the warning;
+    // `autoZoomOn` gates on `hasPointerPlayer()` (all-AI lobby demo /
+    // spectator must read as inactive), so it only flips true once a
+    // human has actually joined a slot — check it here, not before.
+    const joinedCam = await sc.camera.state();
+    assert(
+      joinedCam.autoZoomOn,
+      "mobile emulation + a joined human should enable auto-zoom",
+    );
+
+    // 4. Press ESC twice to quit. First press arms the warning;
     //    second press within the 2 s window confirms. Same path as
     //    the touch ✕ button.
     await sc.input.pressKey("Escape");
     await new Promise((resolve) => setTimeout(resolve, 300));
     await sc.input.pressKey("Escape");
 
-    // 6. Wait 20 s for the lobby's 15 s auto-start timer + a 5 s
+    // 5. Wait 20 s for the lobby's 15 s auto-start timer + a 5 s
     //    margin to let the new game reach a deterministic phase.
     //    The user sees the bug around the 40 s mark; we reproduce
     //    the same wall-clock cadence.
     await new Promise((resolve) => setTimeout(resolve, 20_000));
 
-    // 7. Wait for the next in-game event in the all-AI game. (The
+    // 6. Wait for the next in-game event in the all-AI game. (The
     //    lobby auto-start bootstrapped a fresh game because nobody
     //    joined during the countdown.)
     await waitForPhase(sc, Phase.BATTLE, { timeoutMs: 60_000 });
 
-    // 8. Poll the camera across the all-AI game's battle phase.
-    //    Without a human player every zoom-engagement path is
-    //    supposed to stay off (`autoZoom` gates on
-    //    `hasPointerPlayer`, the zone/battle zoom helpers likewise).
-    //    Any `cameraZone`, any pitch, any cropped viewport during
-    //    this window means a leak.
+    // 7. Poll the camera across the all-AI game's battle phase.
+    //    Without a human player the auto-zoom TARGET-engagement path is
+    //    supposed to stay off (`mobileAutoZoomActive` gates on
+    //    `hasPointerPlayer`, the zone/battle zoom helpers likewise). Any
+    //    `cameraZone` or cropped viewport during this window means a
+    //    leak. Battle pitch tilt is a separate, unconditional per-battle
+    //    camera animation (`beginTilt` fires on every battle entry,
+    //    human or all-AI — see phase-machine.ts's `beginTilt` doc) so it
+    //    is NOT part of this leak check.
     let sawCameraZone: number | undefined;
-    let sawPitch = 0;
     let sawCroppedViewport = false;
     const deadline = Date.now() + 10_000;
     while (Date.now() < deadline) {
       const snap = await sc.camera.state();
       if (snap.cameraZone !== undefined) sawCameraZone = snap.cameraZone;
-      if (snap.pitch !== 0) sawPitch = snap.pitch;
       if (snap.hasViewport) sawCroppedViewport = true;
       if (sawCameraZone !== undefined || sawCroppedViewport) break;
       await new Promise((resolve) => setTimeout(resolve, 200));
@@ -107,19 +109,13 @@ Deno.test(
         `auto-zoom (saw zone=${sawCameraZone})`,
     );
     assert(
-      sawPitch === 0,
-      `no human → no battle tilt; the post-quit all-AI game must not ` +
-        `pitch (saw pitch=${sawPitch})`,
-    );
-    assert(
       !sawCroppedViewport,
       "no human → no cropped viewport; camera must stay at fullMapVp",
     );
     // Note: `autoZoomOn` reports `mobileZoomEnabled && zoomActivated`.
     // `resetCamera` on game bootstrap legitimately re-arms
     // `zoomActivated`, so this flag stays true — what matters is that
-    // no concrete zoom target (cameraZone / viewport / pitch)
-    // actually engaged.
+    // no concrete zoom target (cameraZone / viewport) actually engaged.
     void sc.bus.events(GAME_EVENT.BANNER_START);
   },
 );

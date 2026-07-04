@@ -481,6 +481,19 @@ export async function createE2EScenario(
       : []),
   ];
   const browser = await chromium.launch({ headless, args: launchArgs });
+  // If anything below throws before the scenario object is returned, close
+  // the browser rather than leaking a zombie Chromium process — a run with
+  // several setup failures (e.g. the dev server not up yet) otherwise piles
+  // up orphaned browsers that starve later tests in the same run of CPU/
+  // memory, surfacing as unrelated timeouts (room-join waitForFunction, etc.).
+  try {
+    return await setUpScenario();
+  } catch (err) {
+    await browser.close().catch(() => {});
+    throw err;
+  }
+
+  async function setUpScenario(): Promise<E2EScenario> {
   // Mobile emulation: Playwright's `isMobile: true` + `hasTouch: true`
   // are what the runtime's `IS_TOUCH_DEVICE` detection keys on, so the
   // touch controls wire up (and `camera.enableMobileZoom` fires from
@@ -1307,6 +1320,7 @@ export async function createE2EScenario(
   };
 
   return scenario;
+  }
 }
 
 /** Tick until a `phaseStart` event for `phase` fires. Returns the captured
