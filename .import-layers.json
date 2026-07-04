@@ -324,7 +324,6 @@
       "src/ai/ai-brain-types.ts",
       "src/ai/ai-build-score.ts",
       "src/ai/ai-min-cut.ts",
-      "src/ai/ai-phase-battle.ts",
       "src/ai/ai-phase-build.ts",
       "src/ai/ai-phase-cannon.ts",
       "src/ai/ai-phase-select.ts",
@@ -350,10 +349,11 @@
   {
     "name": "L10",
     "files": [
-      "src/ai/ai-brain.ts",
       "src/ai/ai-build-shared.ts",
       "src/ai/ai-build-target.ts",
+      "src/ai/ai-phase-battle.ts",
       "src/ai/ai-plan-charity-sweep.ts",
+      "src/ai/ai-plan-declutter.ts",
       "src/ai/ai-plan-deny-enclosure.ts",
       "src/ai/ai-plan-fat-breach.ts",
       "src/ai/ai-plan-pinch-kill.ts",
@@ -370,6 +370,7 @@
   {
     "name": "L11",
     "files": [
+      "src/ai/ai-brain.ts",
       "src/ai/ai-build-desperate.ts",
       "src/ai/ai-build-lookahead.ts",
       "src/ai/ai-plan-grunt-breach.ts",

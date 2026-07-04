@@ -55,13 +55,17 @@ const WIRE_DELAY_FRAMES = 5;
 // per-attacker breach-seam variation (findBreachPath rng-picks among equal-cost
 // seams + planPinchKill shuffles its victim scan): classic 1-r8 and modern 1-r8
 // stopped firing → classic 9-r8, modern 9-r8 (classic 5-r8 survived).
+// Re-probed again after the declutter tactic (fat castles now spend one chain
+// per battle on their own walls, shifting every subsequent battle stream):
+// classic 9-r8 stopped firing → classic 0-r8 (classic 5-r8, modern 9-r8
+// survived).
 const TRIALS: {
   readonly seed: number;
   readonly mode: "classic" | "modern";
   readonly rounds: number;
 }[] = [
+  { seed: 0, mode: "classic", rounds: 8 },
   { seed: 5, mode: "classic", rounds: 8 },
-  { seed: 9, mode: "classic", rounds: 8 },
   { seed: 9, mode: "modern", rounds: 8 },
 ];
 

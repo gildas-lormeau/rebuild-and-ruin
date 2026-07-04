@@ -31,6 +31,7 @@ import type { FireOrigin } from "./ai-battle-diag.ts";
 import type { AiPlacement } from "./ai-build-types.ts";
 import { CHAIN, type ChainType, TACTIC, type TacticId } from "./ai-chain.ts";
 import { planCharitySweep } from "./ai-plan-charity-sweep.ts";
+import { planDeclutter } from "./ai-plan-declutter.ts";
 import {
   pickTargetEnemy,
   planDenyEnclosure,
@@ -419,6 +420,32 @@ export class DefaultStrategy implements AiStrategy {
       }
     }
 
+    // Declutter — clear the player's own redundant "fat" walls once they've
+    // accumulated past `planDeclutter`'s trigger threshold (fat boxes in the
+    // piece bag and leaves no ground for new cannons, and the build-phase
+    // sweep can never remove it). Deliberately ABOVE the probabilistic siege
+    // cascade: deny_enclosure alone claims most re-plans, so a lower rung
+    // starves and bloated castles never clean up (measured: 60-98 fat, 10+
+    // guns, zero declutter fires). Below defense and the guaranteed pinch
+    // kill. Once per battle via the exclusion set — the trigger stays true
+    // all battle, so without it a fat castle would never fire at an enemy.
+    // Shares pocket destruction's own-wall chain semantics (CHAIN.POCKET:
+    // own-wall target checks, super-gun bail-out).
+    if (!chainTargets) {
+      const declutterTargets = this.gateDeclutter(
+        state,
+        playerId,
+        usableCannonCount,
+        excludedTactics,
+      );
+      if (declutterTargets) {
+        chainTargets = declutterTargets;
+        chainType = CHAIN.POCKET;
+        originTag = "declutter";
+        tacticId = TACTIC.DECLUTTER;
+      }
+    }
+
     // Grunt breach — above the min-cut sieges when the defender has grunts
     // massed near a tower ring: open the seam NEAREST the grunts so the march
     // through the gap blocks the reseal and threatens the tower next build
@@ -459,22 +486,11 @@ export class DefaultStrategy implements AiStrategy {
     // breach of their cheapest ring) rather than minimise the cut. Prototype,
     // tier 2/3, placed before deny so both draw comparable samples. Re-selectable
     // (not excluded) so a multi-attack battle keeps raising the repair floor.
-    const rubbleProb = traitLookup(this.battleTactics, [
-      0,
-      MAX_REPAIR_COST_PROBABILITY,
-      MAX_REPAIR_COST_PROBABILITY,
-    ]);
-    if (
-      !chainTargets &&
-      usableCannonCount >= CHAIN_ATTACK_MIN_CANNONS &&
-      this.rng.bool(rubbleProb)
-    ) {
-      const rubbleTargets = planMaxRepairCost(
+    if (!chainTargets) {
+      const rubbleTargets = this.rollMaxRepairCost(
         state,
         playerId,
-        this.focusFirePlayerId,
         usableCannonCount,
-        this.rng,
       );
       if (rubbleTargets) {
         chainTargets = rubbleTargets;
@@ -489,22 +505,11 @@ export class DefaultStrategy implements AiStrategy {
     // cheapest ring, maximising the cost for them to re-enclose any tower (the actual
     // life-loss condition). Re-selectable across re-plans (not excluded), so a
     // multi-attack battle keeps sieging the defender's best fallback ring.
-    const denyProb = traitLookup(this.battleTactics, [
-      WEAK_DENY_ENCLOSURE_PROBABILITY,
-      DENY_ENCLOSURE_PROBABILITY,
-      1,
-    ]);
-    if (
-      !chainTargets &&
-      usableCannonCount >= CHAIN_ATTACK_MIN_CANNONS &&
-      this.rng.bool(denyProb)
-    ) {
-      const denyTargets = planDenyEnclosure(
+    if (!chainTargets) {
+      const denyTargets = this.rollDenyEnclosure(
         state,
         playerId,
-        this.focusFirePlayerId,
         usableCannonCount,
-        this.rng,
       );
       if (denyTargets) {
         chainTargets = denyTargets;
@@ -634,6 +639,75 @@ export class DefaultStrategy implements AiStrategy {
     }
 
     return { chainTargets, chainType, originTag, tacticId };
+  }
+
+  /** Declutter gate: cannon threshold (same rationale as pocket destruction —
+   *  a player with <6 firing cannons shouldn't spend their whole round on
+   *  own-wall cleanup) and the once-per-battle exclusion, then the
+   *  deterministic fat-threshold plan. No rng draw — the trigger is a pure
+   *  function of the player's own synced walls, and self-cleanup has no
+   *  cross-attacker cloning to desync. */
+  private gateDeclutter(
+    state: BattleViewState,
+    playerId: ValidPlayerId,
+    usableCannonCount: number,
+    excludedTactics: ReadonlySet<TacticId>,
+  ): TilePos[] | null {
+    if (usableCannonCount < CHAIN_ATTACK_MIN_CANNONS) return null;
+    if (excludedTactics.has(TACTIC.DECLUTTER)) return null;
+    return planDeclutter(state, playerId, usableCannonCount);
+  }
+
+  /** Enclosure-denial gate: cannon threshold then the trait-scaled roll. Same
+   *  parity argument as `rollIceTrench` — both gate conditions read only
+   *  synced sim state, so the draw sequence is identical on every peer. */
+  private rollDenyEnclosure(
+    state: BattleViewState,
+    playerId: ValidPlayerId,
+    usableCannonCount: number,
+  ): TilePos[] | null {
+    if (usableCannonCount < CHAIN_ATTACK_MIN_CANNONS) return null;
+    const take = this.rng.bool(
+      traitLookup(this.battleTactics, [
+        WEAK_DENY_ENCLOSURE_PROBABILITY,
+        DENY_ENCLOSURE_PROBABILITY,
+        1,
+      ]),
+    );
+    if (!take) return null;
+    return planDenyEnclosure(
+      state,
+      playerId,
+      this.focusFirePlayerId,
+      usableCannonCount,
+      this.rng,
+    );
+  }
+
+  /** Rubble-siege gate: cannon threshold then the trait-scaled roll. Same
+   *  parity argument as `rollIceTrench` — both gate conditions read only
+   *  synced sim state, so the draw sequence is identical on every peer. */
+  private rollMaxRepairCost(
+    state: BattleViewState,
+    playerId: ValidPlayerId,
+    usableCannonCount: number,
+  ): TilePos[] | null {
+    if (usableCannonCount < CHAIN_ATTACK_MIN_CANNONS) return null;
+    const take = this.rng.bool(
+      traitLookup(this.battleTactics, [
+        0,
+        MAX_REPAIR_COST_PROBABILITY,
+        MAX_REPAIR_COST_PROBABILITY,
+      ]),
+    );
+    if (!take) return null;
+    return planMaxRepairCost(
+      state,
+      playerId,
+      this.focusFirePlayerId,
+      usableCannonCount,
+      this.rng,
+    );
   }
 
   /** Per-player pinch-kill gate. Draws the `PINCH_KILL_PROBABILITY` roll

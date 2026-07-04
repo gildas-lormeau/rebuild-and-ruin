@@ -26,6 +26,7 @@ import {
 } from "./ai-chain.ts";
 import { STEP } from "./ai-constants.ts";
 import { isTileTargetedByInFlightBall } from "./ai-in-flight-target.ts";
+import { computeLiveInterior, isFatWallTile } from "./ai-strategy-battle.ts";
 import type {
   AiStrategy,
   BattleHost,
@@ -416,26 +417,6 @@ function tickChainMoving(
   }
 }
 
-/** Advance past the current chain target (it's gone or already covered by an
- *  in-flight ball). When the chain runs dry, re-plan against the live board;
- *  if even the re-plan finds nothing, drop the chain and fall back to PICKING. */
-function advanceChainOrReplan(
-  host: BattleHost,
-  phase: BattlePhase,
-  state: BattleViewState,
-): void {
-  phase.chainIdx++;
-  if (
-    phase.chainTargets &&
-    phase.chainIdx >= phase.chainTargets.length &&
-    !replanChain(host, phase, state)
-  ) {
-    phase.chainTargets = undefined;
-    phase.crosshairTarget = null;
-    phase.state = { step: STEP.PICKING };
-  }
-}
-
 /** Chain attack: dwell then produce a fire intent at the chain target.
  *  Brain holds CHAIN_DWELLING until the controller reports the commit
  *  result via `onBattleFireResult` — that's how the
@@ -477,6 +458,23 @@ function tickChainDwelling(
     return {};
   }
   const target = phase.chainTargets[phase.chainIdx]!;
+  // Declutter's enclosure-safety was proven at PLAN time (every 8-neighbour of
+  // the target was our own wall/interior — fat). Mid-chain enemy fire can
+  // invalidate that: a breach reaching the cluster flips freed ground to
+  // outside and turns the remaining targets load-bearing, so firing would
+  // extend the enemy's breach into our own castle. Re-verify against the LIVE
+  // board at the fire moment and skip stale targets (one interior flood per
+  // fired shot — plan-frequency cost, not per-tick).
+  if (
+    phase.originTag === "declutter" &&
+    !isLiveFatTarget(host, state, target)
+  ) {
+    advanceChainOrReplan(host, phase, state);
+    if (phase.state.step === STEP.CHAIN_DWELLING) {
+      phase.state = { step: STEP.CHAIN_MOVING };
+    }
+    return {};
+  }
   const intent: FireIntent = {
     playerId: host.playerId,
     targetRow: target.row,
@@ -487,6 +485,45 @@ function tickChainDwelling(
     origin: phase.originTag ?? CHAIN_TO_ORIGIN[phase.chainType],
     intendedTarget: phase.chainIntended?.[phase.chainIdx],
   };
+}
+
+/** Advance past the current chain target (it's gone or already covered by an
+ *  in-flight ball). When the chain runs dry, re-plan against the live board;
+ *  if even the re-plan finds nothing, drop the chain and fall back to PICKING. */
+function advanceChainOrReplan(
+  host: BattleHost,
+  phase: BattlePhase,
+  state: BattleViewState,
+): void {
+  phase.chainIdx++;
+  if (
+    phase.chainTargets &&
+    phase.chainIdx >= phase.chainTargets.length &&
+    !replanChain(host, phase, state)
+  ) {
+    phase.chainTargets = undefined;
+    phase.crosshairTarget = null;
+    phase.state = { step: STEP.PICKING };
+  }
+}
+
+/** Fire-time twin of `planDeclutter`'s fat filter: the target is still the
+ *  shooter's own wall AND still fat against the live wall set. */
+function isLiveFatTarget(
+  host: BattleHost,
+  state: BattleViewState,
+  target: TilePos,
+): boolean {
+  const shooter = state.players[host.playerId];
+  if (!shooter || !shooter.walls.has(packTile(target.row, target.col))) {
+    return false;
+  }
+  return isFatWallTile(
+    shooter.walls,
+    computeLiveInterior(shooter.walls),
+    target.row,
+    target.col,
+  );
 }
 
 /** Peek the cannon the next round-robin fire would use and report whether it's

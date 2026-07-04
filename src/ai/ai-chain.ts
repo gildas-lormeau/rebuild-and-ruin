@@ -24,7 +24,7 @@ export const CHAIN = {
  *  tactics have already fired and feeds them back to `planBattle` as an
  *  exclusion set so the attack sequence varies (e.g. structural → fat_breach →
  *  super_attack) instead of re-picking the highest-probability tactic every
- *  time. Only the four wall-breaching tactics are excluded; the defensive /
+ *  time. Only the tactics in `OFFENSIVE_TACTICS` are excluded; the defensive /
  *  utility tactics (ice_trench, grunt_sweep, charity, pocket) stay
  *  re-selectable as their live preconditions demand. */
 export const TACTIC = {
@@ -38,11 +38,12 @@ export const TACTIC = {
   STRUCTURAL: "structural",
   FAT_BREACH: "fat_breach",
   POCKET: "pocket",
+  DECLUTTER: "declutter",
   WALL_DEMOLITION: "wall_demolition",
   SUPER_ATTACK: "super_attack",
 } as const;
-/** The wall-breaching tactics subject to force-variety exclusion across a
- *  battle's re-plans. Defensive / utility tactics are intentionally absent —
+/** The tactics subject to once-per-battle exclusion across a battle's
+ *  re-plans. Most defensive / utility tactics are intentionally absent —
  *  and so is DENY_ENCLOSURE: it stays re-selectable so successive re-plans keep
  *  pursuing the defender's cheapest ring (raising its re-closure cost) instead
  *  of firing once and moving on. */
@@ -55,4 +56,9 @@ export const OFFENSIVE_TACTICS: ReadonlySet<TacticId> = new Set([
   // and the grunts only march once (next build) — a second drill the same
   // battle would spend shots on a seam with no fresh marchers.
   TACTIC.GRUNT_BREACH,
+  // One pocket per battle: declutter is a tempo spend on the player's OWN fat
+  // walls, and its trigger (fat count over threshold) stays true for the whole
+  // battle — without the exclusion a fat castle would re-plan cleanup chains
+  // all battle and never fire at an enemy.
+  TACTIC.DECLUTTER,
 ]);

@@ -28,6 +28,11 @@ export type FireOrigin =
   // origin so metrics can attribute grunt-driven tower kills. Set via originTag.
   | "grunt_breach"
   | "pocket"
+  // declutter shares CHAIN.POCKET's behaviour (own-wall cleanup: own-wall
+  // target-exists check, super-gun bail-out) but clears redundant inner "fat"
+  // walls instead of opening small pockets. Distinct origin so metrics can
+  // separate the two self-fire tactics. Set via BattlePlan.originTag.
+  | "declutter"
   | "structural"
   | "wall_chain"
   // super_attack shares CHAIN.WALL's behavior with wall_chain (demolition);

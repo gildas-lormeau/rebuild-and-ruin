@@ -22,6 +22,7 @@
     "test:reveals": "timeout 90 deno test --no-check test/fog-reveal.test.ts test/dust-storm-reveal.test.ts test/frostbite-reveal.test.ts test/grunt-surge-reveal.test.ts test/sapper-reveal.test.ts",
     "test:supply-ship": "timeout 60 deno test --no-check test/supply-ship.test.ts",
     "test:aim-occlusion": "timeout 60 deno test --no-check test/ai-occluded-aim.test.ts",
+    "test:declutter": "timeout 60 deno test --no-check test/ai-declutter.test.ts",
     "test:cannon-tier": "timeout 30 deno test --no-check test/cannon-tier.test.ts",
     "test:input": "timeout 30 deno test --no-check test/input-lobby.test.ts",
     "test:touch": "timeout 30 deno test --no-check test/input-touch.test.ts",

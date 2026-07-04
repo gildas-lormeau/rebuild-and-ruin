@@ -650,6 +650,29 @@ export function computeLiveInterior(walls: ReadonlySet<TileKey>): Set<TileKey> {
   return interiorFromOutside(walls, computeOutside(walls));
 }
 
+/** True when `(row, col)` is a fat wall of the given wall set: every
+ *  8-neighbour is in bounds and the owner's own wall or interior. The
+ *  enclosure flood (`computeOutside`) is 8-connected, so destroying a tile
+ *  that satisfies this can never connect interior to outside — the
+ *  enclosure-safety predicate for firing at one's OWN walls. Callers pass the
+ *  matching `computeLiveInterior(walls)` so a sweep over many tiles floods
+ *  only once. */
+export function isFatWallTile(
+  walls: ReadonlySet<TileKey>,
+  interior: ReadonlySet<TileKey>,
+  row: number,
+  col: number,
+): boolean {
+  for (const [dr, dc] of DIRS_8) {
+    const nr = row + dr;
+    const nc = col + dc;
+    if (!inBounds(nr, nc)) return false;
+    const nkey = packTile(nr, nc);
+    if (!walls.has(nkey) && !interior.has(nkey)) return false;
+  }
+  return true;
+}
+
 /** Whether an enclosure component contains any of the enemy's enclosed-tower
  *  footprints — i.e. breaching it un-encloses a tower (a life-loss lever),
  *  versus a tower-less pocket whose breach is only a repair tax. */
