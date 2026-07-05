@@ -160,6 +160,15 @@ export function cannonShotsRicochet(player: Player): boolean {
   return !!player.upgrades.get(UID.RICOCHET);
 }
 
+/** True when the player owns Reinforced Walls. Read by AI planners that
+ *  target the player's own walls — every one of the player's own wall tiles
+ *  (fresh, undamaged ones) absorbs the shooter's own fire same as an enemy's,
+ *  so a single-shot own-wall cleanup chain can never land a kill on a fresh
+ *  tile. */
+export function hasReinforcedWalls(player: Player): boolean {
+  return !!player.upgrades.get(UID.REINFORCED_WALLS);
+}
+
 /** End-of-build territory score multiplier for a player (multiplicative). */
 export function territoryScoreMult(player: Player): number {
   return productHooks(UPGRADE_IMPL_LIST, (impl) =>

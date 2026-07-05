@@ -98,6 +98,7 @@ export {
   cannonShotsRicochet,
   canPlaceOverBurningPit,
   canPlayerBuild,
+  hasReinforcedWalls,
   shouldAbsorbWallHit,
   shouldSkipBattle,
   tickBuildUpgrades,

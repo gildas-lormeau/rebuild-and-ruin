@@ -442,15 +442,17 @@ function tickChainDwelling(
     phase.state = { step: STEP.PICKING };
     return {};
   }
-  // Never spend a super gun on our OWN walls: a pocket-destruction chain fires
-  // at the player's own bordering walls, and a super gun's incendiary ball
-  // scorches our own territory (burning pit) instead of cleanly opening the
-  // pocket. If the next round-robin cannon is a super gun, abandon the cleanup
-  // and re-pick — the super gun gets an offensive target instead. (Super guns
-  // in grunt/wall chains are fine; only own-wall cleanup is off-limits.)
+  // Never spend a splash-capable cannon on our OWN walls: a pocket-destruction
+  // chain fires at the player's own bordering walls, and a super gun's
+  // incendiary ball (or a mortar-elected cannon's 3x3 splash) scorches
+  // neighbouring tiles that were only verified fat at plan time, destroying
+  // load-bearing wall instead of cleanly opening the pocket. If the next
+  // round-robin cannon splashes, abandon the cleanup and re-pick — it gets an
+  // offensive target instead. (Splash cannons in grunt/wall chains are fine;
+  // only own-wall cleanup is off-limits.)
   if (
     phase.chainType === CHAIN.POCKET &&
-    nextReadyCannonIsSuper(
+    nextReadyCannonSplashes(
       state,
       host.playerId,
       state.players[host.playerId]?.cannonRotationIdx,
@@ -530,11 +532,12 @@ function isLiveFatTarget(
   );
 }
 
-/** Peek the cannon the next round-robin fire would use and report whether it's
- *  a super gun. Mirrors the lookup `fireNextReadyCannon` does at commit time
- *  (same `cannonRotationIdx`), so the brain's prediction matches the cannon
- *  that actually fires. Pure — no rng, no rotation advance. */
-function nextReadyCannonIsSuper(
+/** Peek the cannon the next round-robin fire would use and report whether it
+ *  splashes a 3x3 area on impact (super gun or mortar-elected). Mirrors the
+ *  lookup `fireNextReadyCannon` does at commit time (same `cannonRotationIdx`),
+ *  so the brain's prediction matches the cannon that actually fires. Pure —
+ *  no rng, no rotation advance. */
+function nextReadyCannonSplashes(
   state: BattleViewState,
   playerId: ValidPlayerId,
   rotationIdx: number | undefined,
@@ -545,7 +548,7 @@ function nextReadyCannonIsSuper(
     next.type === "own"
       ? getCannon(state, playerId, next.ownIdx)
       : next.captured.cannon;
-  return cannon != null && isSuperCannon(cannon);
+  return cannon != null && (isSuperCannon(cannon) || cannon.mortar === true);
 }
 
 function completeChainFire(

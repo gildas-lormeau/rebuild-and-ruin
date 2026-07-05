@@ -11,6 +11,7 @@ import {
   aimReachesTile,
   cannonShotsRicochet,
   findShieldingRampart,
+  hasReinforcedWalls,
 } from "../game/index.ts";
 import type { TilePos } from "../shared/core/geometry-types.ts";
 import type { TileKey } from "../shared/core/grid.ts";
@@ -39,7 +40,8 @@ const MAX_DECLUTTER_TARGETS = 8;
  *  holes fit nothing). Each cleared tile also becomes enclosed interior at the
  *  next territory pass — the cleanup is score-positive, not just room-making.
  *  Returns null while the castle is lean, when ricochet is active (the random
- *  bounces would hit load-bearing own walls), or when no fat is shootable. */
+ *  bounces would hit load-bearing own walls), when Reinforced Walls is active
+ *  (see below), or when no fat is shootable. */
 export function planDeclutter(
   state: BattleViewState,
   playerId: ValidPlayerId,
@@ -51,6 +53,15 @@ export function planDeclutter(
   // the player's own castle, so bounces frequently land on adjacent
   // LOAD-BEARING own walls and break the enclosures declutter must preserve.
   if (cannonShotsRicochet(player)) return null;
+  // Reinforced Walls absorbs the shooter's own fire the same as an enemy's
+  // (owner-based, not attacker-based), and the splash-cannon guard in
+  // tickChainDwelling already bars super/mortar (the only fire that bypasses
+  // it) from this chain. So every fresh fat-wall shot just gets absorbed
+  // (marks damagedWalls, tile survives) and the chain advances past it
+  // without ever landing the second hit — a whole chain burned for zero
+  // walls cleared. Skip declutter entirely rather than plan a chain that
+  // can't complete.
+  if (hasReinforcedWalls(player)) return null;
   const cap = Math.min(usableCannonCount, MAX_DECLUTTER_TARGETS);
   if (cap < 1) return null;
   const interior = computeLiveInterior(player.walls);
