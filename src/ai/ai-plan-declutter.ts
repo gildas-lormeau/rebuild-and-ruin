@@ -23,7 +23,11 @@ import {
   unpackTile,
 } from "../shared/core/spatial.ts";
 import type { BattleViewState } from "../shared/core/system-interfaces.ts";
-import { computeLiveInterior, isFatWallTile } from "./ai-strategy-battle.ts";
+import {
+  computeLiveInterior,
+  isFatWallTile,
+  wallsMinusCommittedLosses,
+} from "./ai-strategy-battle.ts";
 
 /** Fat-wall count that triggers a declutter chain. Measured accumulation in
  *  AI-only games (16 games × 10 rounds): p50 = 25 fat walls per battle, growing
@@ -64,8 +68,12 @@ export function planDeclutter(
   if (hasReinforcedWalls(player)) return null;
   const cap = Math.min(usableCannonCount, MAX_DECLUTTER_TARGETS);
   if (cap < 1) return null;
-  const interior = computeLiveInterior(player.walls);
-  const fat = collectFatWalls(player.walls, interior);
+  // Project committed removals (in-flight balls, active grunt swings) so the
+  // plan never targets fat whose safety an unstoppable removal is about to
+  // void — see wallsMinusCommittedLosses.
+  const walls = wallsMinusCommittedLosses(state, player);
+  const interior = computeLiveInterior(walls);
+  const fat = collectFatWalls(walls, interior);
   if (fat.size < DECLUTTER_FAT_THRESHOLD) return null;
 
   const shootable = new Set<TileKey>();

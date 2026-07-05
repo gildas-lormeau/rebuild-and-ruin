@@ -18,7 +18,11 @@
 
 import { assert, assertEquals } from "@std/assert";
 import { setAiBattleDiagHook } from "../src/ai/ai-battle-diag.ts";
-import { computeLiveInterior } from "../src/ai/ai-strategy-battle.ts";
+import {
+  computeLiveInterior,
+  isFatWallTile,
+} from "../src/ai/ai-strategy-battle.ts";
+import { BATTLE_MESSAGE } from "../src/shared/core/battle-events.ts";
 import {
   DIRS_8,
   inBounds,
@@ -102,6 +106,89 @@ Deno.test(
     console.log(
       `\n  ${declutterFires} declutter fire(s), all at live fat walls — ` +
         `no enclosure-opening self-shot`,
+    );
+  },
+);
+
+Deno.test(
+  "AI declutter: targets are still fat when the ball LANDS (in-flight window)",
+  async () => {
+    // Fire-time verification alone is not the spec — with up to 8 balls
+    // airborne at once, a wall removal committed before our launch (an active
+    // grunt swing, an enemy ball already in flight) can land mid-flight, flip
+    // the freed ground to outside, and turn the not-yet-landed targets
+    // load-bearing. planDeclutter/isLiveFatTarget must verify against
+    // wallsMinusCommittedLosses so no declutter ball ever lands on a non-fat
+    // own wall. Probed seed: on pre-projection code, seed 1 lands 13 non-fat
+    // declutter impacts in rounds 7-8 (first at a grunt-swing flip); with the
+    // projection it lands zero through round 8.
+    using sc = await createScenario({
+      seed: 1,
+      mode: "classic",
+      rounds: Number.POSITIVE_INFINITY,
+    });
+
+    let declutterImpacts = 0;
+    const violations: string[] = [];
+    // FireOrigin of each cannon's in-flight ball, keyed `${shooter}:${idx}` —
+    // a cannon can't re-fire until its ball lands, so at WALL_DESTROYED time
+    // this holds the origin of the destroying shot.
+    const shotOriginByCannon = new Map<string, string>();
+    let lastShooter: number | undefined;
+    let lastCannonIdx: number | undefined;
+
+    setAiBattleDiagHook((ev) => {
+      // The diag hook fires synchronously right after CANNON_FIRED.
+      if (lastShooter === undefined || lastCannonIdx === undefined) return;
+      shotOriginByCannon.set(`${lastShooter}:${lastCannonIdx}`, ev.origin);
+      lastShooter = undefined;
+      lastCannonIdx = undefined;
+    });
+    sc.bus.on(BATTLE_MESSAGE.CANNON_FIRED, (ev) => {
+      lastShooter = ev.scoringPlayerId ?? ev.playerId;
+      lastCannonIdx = ev.cannonIdx;
+    });
+    sc.bus.on(BATTLE_MESSAGE.WALL_DESTROYED, (ev) => {
+      if (ev.shooterId === undefined || ev.shooterId !== ev.playerId) return;
+      const origin = shotOriginByCannon.get(
+        `${ev.shooterId}:${ev.shooterCannonIdx}`,
+      );
+      if (origin !== "declutter") return;
+      declutterImpacts++;
+      // The tile is already removed from walls when the event fires — re-add
+      // it to evaluate fatness of the board the ball actually hit.
+      const owner = sc.state.players[ev.playerId]!;
+      const wallsBefore = new Set(owner.walls);
+      wallsBefore.add(packTile(ev.row, ev.col));
+      const interior = computeLiveInterior(wallsBefore);
+      if (!isFatWallTile(wallsBefore, interior, ev.row, ev.col)) {
+        violations.push(
+          `r${sc.state.round} p${ev.playerId} declutter ball landed on ` +
+            `non-fat own wall (${ev.row},${ev.col})`,
+        );
+      }
+    });
+
+    try {
+      sc.runUntil(() => sc.state.round >= 9, { timeoutMs: 900_000 });
+    } finally {
+      setAiBattleDiagHook(undefined);
+    }
+
+    assert(
+      declutterImpacts > 0,
+      "expected declutter impacts by round 8 (probed seed) — the tactic " +
+        "never landed a wall hit (vacuous)",
+    );
+    assertEquals(
+      violations,
+      [],
+      `${violations.length} non-fat declutter impact(s) of ${declutterImpacts}`,
+    );
+
+    console.log(
+      `\n  ${declutterImpacts} declutter impact(s), all fat at landing — ` +
+        `in-flight window closed`,
     );
   },
 );

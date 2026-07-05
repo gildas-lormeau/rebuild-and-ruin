@@ -676,6 +676,53 @@ export function isFatWallTile(
   return true;
 }
 
+/** The player's wall set with every ALREADY-COMMITTED removal applied: impact
+ *  tiles of in-flight cannonballs (3×3 for mortar/incendiary splash) and walls
+ *  under an active grunt swing (regular grunts commit their wall attack at
+ *  battle start and never re-target). A fatness check against the raw wall set
+ *  only holds until the next of these removals lands — with several own balls
+ *  airborne at once, a mid-flight grunt swing or enemy breach flips the
+ *  not-yet-landed targets load-bearing and own fire extends the breach into
+ *  the castle. Verifying against this projection accounts for every removal
+ *  that is already unstoppable at verify time. A committed removal may still
+ *  be absorbed by a shield (projection over-subtracts) — conservative in the
+ *  safe direction for enclosure checks. Pure function of synced sim state. */
+export function wallsMinusCommittedLosses(
+  state: BattleViewState,
+  player: Player,
+): ReadonlySet<TileKey> {
+  let projected: Set<TileKey> | undefined;
+  const remove = (key: TileKey): void => {
+    if (!player.walls.has(key)) return;
+    projected ??= new Set(player.walls);
+    projected.delete(key);
+  };
+  for (const ball of state.cannonballs) {
+    if (ball.mortar || ball.incendiary) {
+      for (let dr = -1; dr <= 1; dr++) {
+        for (let dc = -1; dc <= 1; dc++) {
+          const nr = ball.impactRow + dr;
+          const nc = ball.impactCol + dc;
+          if (inBounds(nr, nc)) remove(packTile(nr, nc));
+        }
+      }
+    } else if (inBounds(ball.impactRow, ball.impactCol)) {
+      // Impact tiles can sit off-grid (e.g. dust-storm-deflected trajectories).
+      remove(packTile(ball.impactRow, ball.impactCol));
+    }
+  }
+  for (const grunt of state.grunts) {
+    if (
+      grunt.attackingWall &&
+      !grunt.attackDone &&
+      grunt.targetedWall !== undefined
+    ) {
+      remove(grunt.targetedWall);
+    }
+  }
+  return projected ?? player.walls;
+}
+
 /** Whether an enclosure component contains any of the enemy's enclosed-tower
  *  footprints — i.e. breaching it un-encloses a tower (a life-loss lever),
  *  versus a tower-less pocket whose breach is only a repair tax. */

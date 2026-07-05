@@ -26,7 +26,11 @@ import {
 } from "./ai-chain.ts";
 import { STEP } from "./ai-constants.ts";
 import { isTileTargetedByInFlightBall } from "./ai-in-flight-target.ts";
-import { computeLiveInterior, isFatWallTile } from "./ai-strategy-battle.ts";
+import {
+  computeLiveInterior,
+  isFatWallTile,
+  wallsMinusCommittedLosses,
+} from "./ai-strategy-battle.ts";
 import type {
   AiStrategy,
   BattleHost,
@@ -514,19 +518,25 @@ function advanceChainOrReplan(
 }
 
 /** Fire-time twin of `planDeclutter`'s fat filter: the target is still the
- *  shooter's own wall AND still fat against the live wall set. */
+ *  shooter's own wall AND still fat against the live wall set projected past
+ *  every already-committed removal (in-flight balls, active grunt swings —
+ *  `wallsMinusCommittedLosses`). Without the projection, a removal committed
+ *  before this fire but landing after it flips the target load-bearing while
+ *  our ball is airborne and can't be recalled. */
 function isLiveFatTarget(
   host: BattleHost,
   state: BattleViewState,
   target: TilePos,
 ): boolean {
   const shooter = state.players[host.playerId];
-  if (!shooter || !shooter.walls.has(packTile(target.row, target.col))) {
-    return false;
-  }
+  if (!shooter) return false;
+  const walls = wallsMinusCommittedLosses(state, shooter);
+  // Absent from the projection = destroyed, doomed by a committed removal, or
+  // already covered by an in-flight ball — all reasons to skip, not fire.
+  if (!walls.has(packTile(target.row, target.col))) return false;
   return isFatWallTile(
-    shooter.walls,
-    computeLiveInterior(shooter.walls),
+    walls,
+    computeLiveInterior(walls),
     target.row,
     target.col,
   );
