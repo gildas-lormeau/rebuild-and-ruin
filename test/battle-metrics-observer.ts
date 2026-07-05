@@ -69,6 +69,13 @@ export interface PlayerBattleMetrics {
    *  Isolates which branches scatter (high jump) vs concentrate (low jump). */
   pickPathJumpSum: Record<string, number>;
   pickPathJumpPairs: Record<string, number>;
+  /** Sum of inter-shot tile-jump attributed to the CURRENT shot's FireOrigin,
+   *  and the pair count — mean = how far each ORIGIN's shots land from the
+   *  prior shot. Unlike the pickPath split (standard shots only), this covers
+   *  chain shots too, so chain-ENTRY glides (a fresh tactic's first target)
+   *  show up against the tactic that chose them — the travel-source axis. */
+  originJumpSum: Record<string, number>;
+  originJumpPairs: Record<string, number>;
   /** Sum of cannon→target flight distance (px) and flight time (s) over shots
    *  — the distance confound covariate; per-shot avg = sum / shots. */
   flightDistSumPx: number;
@@ -528,6 +535,13 @@ export function createBattleMetricsObserver(): BattleMetricsObserver {
         const row = current.get(lastShooter);
         if (!row) return;
         row.origin[ev.origin] = (row.origin[ev.origin] ?? 0) + 1;
+        const originJump = lastJump.get(lastShooter);
+        if (originJump !== undefined) {
+          row.originJumpSum[ev.origin] =
+            (row.originJumpSum[ev.origin] ?? 0) + originJump;
+          row.originJumpPairs[ev.origin] =
+            (row.originJumpPairs[ev.origin] ?? 0) + 1;
+        }
         if (ev.pickPath !== undefined) {
           row.pickPath[ev.pickPath] = (row.pickPath[ev.pickPath] ?? 0) + 1;
           const jump = lastJump.get(lastShooter);
@@ -561,6 +575,8 @@ function emptyRow(round: number, playerId: number): PlayerBattleMetrics {
     shots: 0,
     outcome,
     origin: {},
+    originJumpSum: {},
+    originJumpPairs: {},
     pickPath: {},
     pickPathJumpSum: {},
     pickPathJumpPairs: {},

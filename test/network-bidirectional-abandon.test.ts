@@ -70,14 +70,18 @@ const WIRE_DELAY_FRAMES = 5;
 // Re-probed after the cursor ping-pong fixes (sticky battle victim +
 // cursor-nearest breach rotation): classic 13-r8 and modern 6-r8 stopped
 // firing → classic 1-r8, modern 1-r8 (classic 0-r8 survived).
+// Re-probed after the sustained-pressure fallback + glide-priced breach
+// order (declutter re-plan gate, nearest-neighbour firing order, ring cost
+// includes crosshair travel): all three stopped firing → classic 3-r8,
+// classic 5-r8, modern 7-r8.
 const TRIALS: {
   readonly seed: number;
   readonly mode: "classic" | "modern";
   readonly rounds: number;
 }[] = [
-  { seed: 0, mode: "classic", rounds: 8 },
-  { seed: 1, mode: "classic", rounds: 8 },
-  { seed: 1, mode: "modern", rounds: 8 },
+  { seed: 3, mode: "classic", rounds: 8 },
+  { seed: 5, mode: "classic", rounds: 8 },
+  { seed: 7, mode: "modern", rounds: 8 },
 ];
 
 void _forceScenarioFirst;

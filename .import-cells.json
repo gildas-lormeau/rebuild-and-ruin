@@ -382,7 +382,6 @@
     "domain": "ai",
     "role": "AI decision intents (life lost, upgrade pick) + base-layer tactic planners (grunt sweep, ice trench)",
     "files": [
-      "src/ai/ai-attacker-variation.ts",
       "src/ai/ai-in-flight-target.ts",
       "src/ai/ai-life-lost.ts",
       "src/ai/ai-plan-grunt-sweep.ts",
@@ -893,6 +892,7 @@
       "src/ai/ai-plan-pinch-kill.ts",
       "src/ai/ai-plan-pocket-destruction.ts",
       "src/ai/ai-plan-structural-hit.ts",
+      "src/ai/ai-plan-sustained-pressure.ts",
       "src/ai/ai-plan-wall-demolition.ts"
     ]
   },

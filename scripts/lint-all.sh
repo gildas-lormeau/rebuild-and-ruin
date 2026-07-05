@@ -31,7 +31,7 @@ echo "lint:all: parallel checks..."
   run biome        npx @biomejs/biome check src/ dev/ server/
   run knip         npx knip
   run madge        npx madge --circular --extensions ts src/ dev/ server/
-  run jscpd        npx jscpd src/ dev/ --min-lines 10
+  run jscpd        npx jscpd src/ dev/ --min-lines 10 --ignore-pattern "import\\s[^;]*;"
 ) &
 
 # Lane 3 — eslint (isolated)

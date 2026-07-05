@@ -41,6 +41,7 @@ export const TACTIC = {
   DECLUTTER: "declutter",
   WALL_DEMOLITION: "wall_demolition",
   SUPER_ATTACK: "super_attack",
+  SUSTAINED_PRESSURE: "sustained_pressure",
 } as const;
 /** The tactics subject to once-per-battle exclusion across a battle's
  *  re-plans. Most defensive / utility tactics are intentionally absent —
@@ -61,4 +62,7 @@ export const OFFENSIVE_TACTICS: ReadonlySet<TacticId> = new Set([
   // battle — without the exclusion a fat castle would re-plan cleanup chains
   // all battle and never fire at an enemy.
   TACTIC.DECLUTTER,
+  // SUSTAINED_PRESSURE is deliberately absent: it is the guaranteed tail
+  // fallback — re-selectable every re-plan so the battery keeps grinding the
+  // victim instead of downshifting to the per-shot loop.
 ]);

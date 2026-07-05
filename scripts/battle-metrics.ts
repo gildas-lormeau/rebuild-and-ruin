@@ -186,15 +186,29 @@ function printReport(results: readonly SeedMetrics[]): void {
     `  → hard-wasted (immune towers + debris + off-map): ${pct(wasted, totalShots)}`,
   );
 
-  console.log("\nShot INTENT — FireOrigin (% of shots)");
+  console.log(
+    "\nShot INTENT — FireOrigin (% of shots) + jump (mean tile-distance from the prior shot — the travel-source axis, chain entries included)",
+  );
   const origins = new Map<string, number>();
+  const originJumpSum = new Map<string, number>();
+  const originJumpPairs = new Map<string, number>();
   for (const row of rows) {
     for (const [origin, count] of Object.entries(row.origin)) {
       origins.set(origin, (origins.get(origin) ?? 0) + count);
     }
+    for (const [origin, jumpSum] of Object.entries(row.originJumpSum)) {
+      originJumpSum.set(origin, (originJumpSum.get(origin) ?? 0) + jumpSum);
+    }
+    for (const [origin, pairs] of Object.entries(row.originJumpPairs)) {
+      originJumpPairs.set(origin, (originJumpPairs.get(origin) ?? 0) + pairs);
+    }
   }
   for (const [origin, count] of [...origins].sort((a, b) => b[1] - a[1])) {
-    console.log(`  ${origin.padEnd(14)} ${pct(count, totalShots)}  (${count})`);
+    const pairs = originJumpPairs.get(origin) ?? 0;
+    const jump = pairs > 0 ? (originJumpSum.get(origin) ?? 0) / pairs : 0;
+    console.log(
+      `  ${origin.padEnd(14)} ${pct(count, totalShots)}  (${count})  jump=${jump.toFixed(1)}`,
+    );
   }
 
   console.log(

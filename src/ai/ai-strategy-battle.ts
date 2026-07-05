@@ -165,6 +165,11 @@ const liveEnclosureCache = new WeakMap<
 const BREACH_FALLBACK_BOX_MARGIN = 8;
 /** Sentinel "unreached" distance for the breach-cut 0-1 BFS. */
 const BREACH_UNREACHED = 1 << 20;
+/** Crosshair glide tiles that cost the same battle time as one extra drilled
+ *  wall: at the boosted 10 tiles/s glide, ~4 tiles ≈ one shot's dwell + the
+ *  contiguous step to it. Prices ring DISTANCE into `findMinBreach`'s ring
+ *  order so chains don't tour the map for marginal wall savings. */
+const GLIDE_TILES_PER_SHOT = 4;
 /** Pockets smaller than this are worth destroying — can't fit a 2×2 cannon.
  *  Distinct from DESTROY_POCKET_MAX_SIZE (build scoring) which is higher (9)
  *  because build prevention is stricter than battle destruction. Exported
@@ -565,9 +570,18 @@ export function findMinBreach(
   if (candidates.length === 0) return null;
 
   // The cheapest independent breach of each ring (each a min-cut on the same
-  // live walls), tagged with whether the ring holds an enclosed tower.
-  const breaches: { path: TilePos[]; holdsTower: boolean; firstKey: number }[] =
-    [];
+  // live walls), tagged with whether the ring holds an enclosed tower and
+  // its shot-equivalent cost: path length + crosshair glide distance priced
+  // in GLIDE_TILES_PER_SHOT. A far ring costs real battle time to reach, so
+  // between comparably-priced rings the near one fires first — but a
+  // genuinely cheaper far ring still wins once its wall saving exceeds the
+  // travel price (soft preference, not a distance filter).
+  const breaches: {
+    path: TilePos[];
+    holdsTower: boolean;
+    firstKey: number;
+    cost: number;
+  }[] = [];
   for (const comp of candidates) {
     const path = findBreachPath(state, enemy, comp, outside, cap, rng, cursor);
     if (!path || path.length === 0) continue;
@@ -575,16 +589,18 @@ export function findMinBreach(
       path,
       holdsTower: componentHoldsTower(comp, enemy),
       firstKey: packTile(path[0]!.row, path[0]!.col),
+      cost: path.length + glideDistToPath(path, cursor) / GLIDE_TILES_PER_SHOT,
     });
   }
   if (breaches.length === 0) return null;
 
   // Tower rings first (opening them is what forces the life loss), then
-  // cheapest-first, with a stable key tiebreak so the chain is deterministic.
+  // cheapest shot-equivalent cost, with a stable key tiebreak so the chain
+  // is deterministic.
   breaches.sort(
     (a, b) =>
       Number(b.holdsTower) - Number(a.holdsTower) ||
-      a.path.length - b.path.length ||
+      a.cost - b.cost ||
       a.firstKey - b.firstKey,
   );
 
@@ -754,6 +770,22 @@ export function leadWithEnemy(
   if (enemyId === undefined) return;
   const idx = enemies.findIndex((enemy) => enemy.id === enemyId);
   if (idx > 0) enemies.unshift(enemies.splice(idx, 1)[0]!);
+}
+
+/** Crosshair glide distance to a breach path: the Manhattan distance from the
+ *  cursor to the path's NEAREST tile (the greedy nearest-neighbour firing
+ *  order enters there). 0 when the caller has no cursor (mcp-play). */
+function glideDistToPath(
+  path: readonly TilePos[],
+  cursor: TilePos | undefined,
+): number {
+  if (!cursor) return 0;
+  let best = Number.POSITIVE_INFINITY;
+  for (const tile of path) {
+    const dist = manhattanDistance(tile.row, tile.col, cursor.row, cursor.col);
+    if (dist < best) best = dist;
+  }
+  return best;
 }
 
 /** True when the player owns a fire-capable super gun (alive, enclosed, no ball

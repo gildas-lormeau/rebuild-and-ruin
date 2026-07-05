@@ -19,7 +19,7 @@ import type {
 import type { PieceShape } from "../shared/core/pieces.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import type { Player } from "../shared/core/player-types.ts";
-import { pxToTile } from "../shared/core/spatial.ts";
+import { orderByNearest, pxToTile } from "../shared/core/spatial.ts";
 import type {
   BattleViewState,
   BuildViewState,
@@ -27,7 +27,6 @@ import type {
 } from "../shared/core/system-interfaces.ts";
 import type { ZoneId } from "../shared/core/zone-id.ts";
 import { Rng } from "../shared/platform/rng.ts";
-import { rotateBreachForAttacker } from "./ai-attacker-variation.ts";
 import type { FireOrigin } from "./ai-battle-diag.ts";
 import type { AiPlacement } from "./ai-build-types.ts";
 import { CHAIN, type ChainType, TACTIC, type TacticId } from "./ai-chain.ts";
@@ -46,6 +45,7 @@ import { planPinchKill } from "./ai-plan-pinch-kill.ts";
 import { planPocketDestruction } from "./ai-plan-pocket-destruction.ts";
 import { planStructuralHit } from "./ai-plan-structural-hit.ts";
 import { planSuperAttack } from "./ai-plan-super-attack.ts";
+import { planSustainedPressure } from "./ai-plan-sustained-pressure.ts";
 import { planWallDemolition } from "./ai-plan-wall-demolition.ts";
 import {
   type BattleTargetMemory,
@@ -97,6 +97,11 @@ const SUPER_ATTACK_PROBABILITY = 1 / 8;
 const STRUCTURAL_HIT_PROBABILITY = 1 / 2;
 /** Chance to attempt a diagonal fat-wall breach (drill through a ≥3-thick wall body). */
 const FAT_BREACH_PROBABILITY = 1 / 4;
+/** Chance per re-plan to fall back to a sustained-pressure grind of the
+ *  victim's remaining walls instead of downshifting to the per-shot loop for
+ *  the battle's tail. Scales with battleTactics; a miss is permanent for the
+ *  battle (the per-shot loop never re-enters chains). */
+const SUSTAINED_PRESSURE_PROBABILITY = 1 / 2;
 /** Chance to launch a min-cut enclosure-denial siege — the top-priority
  *  offensive tactic, since enclosure denial (not tower kills) is how defensive
  *  players actually lose lives. Scales with battleTactics. */
@@ -140,7 +145,8 @@ const PINCH_KILL_PROBABILITY: readonly [number, number, number] = [
  *  already rare, so the probability is kept high where the tactic is enabled;
  *  the weak tier mirrors WEAK_DENY_ENCLOSURE_PROBABILITY (its rng.bool always
  *  draws, so stream alignment is preserved). Per-player roll + uniform enemy
- *  pick + rotateBreachForAttacker desync two attackers of the same defender. */
+ *  pick + the cursor-seeded `orderByNearest` firing order desync two attackers
+ *  of the same defender (different crosshairs, different entry ends). */
 const GRUNT_BREACH_PROBABILITY: readonly [number, number, number] = [
   WEAK_DENY_ENCLOSURE_PROBABILITY,
   0.65,
@@ -434,9 +440,12 @@ export class DefaultStrategy implements AiStrategy {
     // guns, zero declutter fires). Below defense and the guaranteed pinch
     // kill. Once per battle via the exclusion set — the trigger stays true
     // all battle, so without it a fat castle would never fire at an enemy.
-    // Shares pocket destruction's own-wall chain semantics (CHAIN.POCKET:
-    // own-wall target checks, super-gun bail-out).
-    if (!chainTargets) {
+    // RE-PLANS ONLY: a battle must never OPEN with own-wall cleanup — the
+    // entry chain goes to an enemy (or real defense), and the once-per-battle
+    // cleanup rides a later re-plan slot. Shares pocket destruction's own-wall
+    // chain semantics (CHAIN.POCKET: own-wall target checks, super-gun
+    // bail-out).
+    if (!chainTargets && replanExcludedTactics !== undefined) {
       const declutterTargets = this.gateDeclutter(
         state,
         playerId,
@@ -530,22 +539,11 @@ export class DefaultStrategy implements AiStrategy {
     }
 
     // Structural hit — surgical 1–2 shot attack that breaks 2+ large enclosures
-    const structuralProb = traitLookup(this.battleTactics, [
-      0,
-      STRUCTURAL_HIT_PROBABILITY,
-      3 / 4,
-    ]);
-    const structuralMaxHits = traitLookup(this.battleTactics, [0, 1, 3]);
-    if (
-      !chainTargets &&
-      structuralMaxHits > 0 &&
-      !excludedTactics.has(TACTIC.STRUCTURAL) &&
-      this.rng.bool(structuralProb)
-    ) {
-      const structuralTargets = planStructuralHit(
+    if (!chainTargets) {
+      const structuralTargets = this.rollStructuralHit(
         state,
         playerId,
-        structuralMaxHits,
+        excludedTactics,
         cursor,
       );
       if (structuralTargets) {
@@ -651,6 +649,30 @@ export class DefaultStrategy implements AiStrategy {
       }
     }
 
+    // Sustained pressure — the tail fallback. Once the surgical tactics stop
+    // planning (rings min-cut open, once-per-battle attacks spent), a failed
+    // re-plan used to drop the battery to the per-shot loop for the REST of
+    // the battle — the measured "few holes then quiet" downshift. Instead,
+    // grind a contiguous slice of the victim's remaining walls: visible
+    // pressure plus next-build repair tax. Re-selectable every re-plan (not in
+    // OFFENSIVE_TACTICS); the trait-scaled roll keeps weak tiers passive and
+    // lets mid tiers sometimes stay surgical (a miss falls through to the
+    // per-shot loop, which never re-enters chains this battle).
+    if (!chainTargets) {
+      const pressureTargets = this.rollSustainedPressure(
+        state,
+        playerId,
+        usableCannonCount,
+        cursor,
+      );
+      if (pressureTargets) {
+        chainTargets = pressureTargets;
+        chainType = CHAIN.WALL;
+        originTag = "sustained_pressure";
+        tacticId = TACTIC.SUSTAINED_PRESSURE;
+      }
+    }
+
     return { chainTargets, chainType, originTag, tacticId };
   }
 
@@ -728,6 +750,61 @@ export class DefaultStrategy implements AiStrategy {
     );
   }
 
+  /** Structural-hit gate: trait-scaled max-hits + probability roll, then the
+   *  surgical plan. The maxHits > 0 check runs before the rng draw so the
+   *  weak tier's stream is unperturbed (mirrors fat_breach's maxAttempts). */
+  private rollStructuralHit(
+    state: BattleViewState,
+    playerId: ValidPlayerId,
+    excludedTactics: ReadonlySet<TacticId>,
+    cursor: TilePos,
+  ): TilePos[] | null {
+    const structuralProb = traitLookup(this.battleTactics, [
+      0,
+      STRUCTURAL_HIT_PROBABILITY,
+      3 / 4,
+    ]);
+    const structuralMaxHits = traitLookup(this.battleTactics, [0, 1, 3]);
+    if (structuralMaxHits <= 0) return null;
+    if (excludedTactics.has(TACTIC.STRUCTURAL)) return null;
+    if (!this.rng.bool(structuralProb)) return null;
+    return planStructuralHit(state, playerId, structuralMaxHits, cursor);
+  }
+
+  /** Sustained-pressure gate: cannon threshold, then the trait-scaled roll
+   *  (0 at the weak tier — the gate skips the draw entirely so that tier's
+   *  rng stream is unperturbed), then the victim-wall grind. Same parity
+   *  argument as `rollIceTrench` — gate conditions read only synced sim
+   *  state, so the draw sequence is identical on every peer. */
+  private rollSustainedPressure(
+    state: BattleViewState,
+    playerId: ValidPlayerId,
+    usableCannonCount: number,
+    cursor: TilePos,
+  ): TilePos[] | null {
+    // Gated at the LOW fat-breach threshold, not the general chain one: the
+    // fallback exists precisely for battles the ≥6-cannon tactics sat out,
+    // and a 4–5 cannon battery grinding 8–10 walls is the difference between
+    // a passive tail and visible pressure. Strong tier always grinds (a
+    // single miss is permanent — the per-shot loop never re-enters chains).
+    if (usableCannonCount < FAT_BREACH_MIN_CANNONS) return null;
+    const prob = traitLookup(this.battleTactics, [
+      0,
+      SUSTAINED_PRESSURE_PROBABILITY,
+      1,
+    ]);
+    if (prob <= 0) return null;
+    if (!this.rng.bool(prob)) return null;
+    return planSustainedPressure(
+      state,
+      playerId,
+      usableCannonCount,
+      this.rng,
+      cursor,
+      this.battleVictimId,
+    );
+  }
+
   /** Rubble-siege gate: cannon threshold then the trait-scaled roll. Same
    *  parity argument as `rollIceTrench` — both gate conditions read only
    *  synced sim state, so the draw sequence is identical on every peer. */
@@ -778,7 +855,7 @@ export class DefaultStrategy implements AiStrategy {
       cursor,
       this.battleVictimId,
     );
-    return breach && rotateBreachForAttacker(breach, cursor);
+    return breach && orderByNearest(breach, undefined, cursor);
   }
 
   /** Ice-trench gate: cannon threshold then the trait-scaled roll. The gate

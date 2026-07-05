@@ -68,7 +68,7 @@
     "lint:fix": "biome check --fix --unsafe src/ server/",
     "lint:unused": "knip",
     "lint:circular": "madge --circular --extensions ts src/ server/",
-    "lint:duplicates": "jscpd src/ --min-lines 10",
+    "lint:duplicates": "jscpd src/ --min-lines 10 --ignore-pattern \"import\\s[^;]*;\"",
     "lint:guards": "deno run -A scripts/lint-useless-guards.ts",
     "lint:if-chain": "deno run -A scripts/lint-if-chain.ts",
     "lint:passthrough": "deno run -A scripts/lint-passthrough-wrappers.ts",

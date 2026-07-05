@@ -49,6 +49,10 @@ export type FireOrigin =
   // diagonal fat-wall cuts from single/double-tile structural hits. Set via
   // originTag.
   | "fat_breach"
+  // sustained_pressure shares CHAIN.WALL's behavior (enemy-wall chain fire);
+  // distinct origin so metrics can separate the guaranteed tail-fallback grind
+  // from wall_chain / super_attack demolitions. Set via BattlePlan.originTag.
+  | "sustained_pressure"
   | "ice_trench"
   | "focus_fire"
   | "default";

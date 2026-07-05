@@ -151,8 +151,6 @@ Supporting modules:
 - **`ai-min-cut.ts`** — `findMinBreach` min-cut breach engine: fewest
   new/removed wall tiles as a vertex-capacitated s-t min cut on the
   8-adjacency flood graph.
-- **`ai-attacker-variation.ts`** — Per-attacker rotation of breach
-  firing order so co-sieging AIs don't fire identical sequences.
 - **`ai-in-flight-target.ts`** — In-flight cannonball target dedup
   shared by the target picker and the chain-attack driver.
 - **`ai-build-lookahead.ts`** — Publishes gap-centroid anchors for

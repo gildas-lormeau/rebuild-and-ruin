@@ -18,6 +18,7 @@ import {
   inBounds,
   isWater,
   manhattanDistance,
+  orderByNearest,
   packTile,
   unpackTile,
   zoneAt,
@@ -29,7 +30,6 @@ import {
   collectAliveHouseKeys,
   getBattleInterior,
 } from "../shared/sim/board-occupancy.ts";
-import { rotateBreachForAttacker } from "./ai-attacker-variation.ts";
 import { pickTargetEnemy } from "./ai-plan-deny-enclosure.ts";
 import {
   componentHoldsTower,
@@ -95,7 +95,7 @@ export function planGruntBreach(
   const blocked = terminusBlockedSet(state);
   for (const seam of ringWallsByGruntDistance(enemy, rings, grunts)) {
     const drill = drillSeam(state, enemy, seam, outside, blocked, cap, grunts);
-    if (drill) return rotateBreachForAttacker(drill, cursor);
+    if (drill) return orderByNearest(drill, undefined, cursor);
   }
   return null;
 }
