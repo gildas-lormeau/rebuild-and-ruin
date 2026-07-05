@@ -861,9 +861,10 @@ Deno.test(
 Deno.test(
   "watcher adopting an eliminated-only ROUND_END snapshot shows the notice",
   async () => {
-    // Probed seed: round 14 closes eliminated-only (P0 out, no reselect).
+    // Probed seed: round 14 closes eliminated-only (P1 out, no reselect;
+    // game runs to r34 — probe: tmp/probe-roundend-seeds.ts part 2).
     const pair = await createNetworkedPair({
-      seed: 44,
+      seed: 13,
       mode: "classic",
       rounds: 30,
     });
