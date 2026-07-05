@@ -51,6 +51,7 @@ export function planStructuralHit(
   state: BattleViewState,
   playerId: ValidPlayerId,
   maxHits: number,
+  cursor: TilePos,
 ): TilePos[] | null {
   const enemies = filterActiveEnemies(state, playerId);
   const allHits: StructuralHitCandidate[] = [];
@@ -83,7 +84,7 @@ export function planStructuralHit(
     picked++;
   }
 
-  return targets.length > 0 ? orderByNearest(targets) : null;
+  return targets.length > 0 ? orderByNearest(targets, undefined, cursor) : null;
 }
 
 /** Analyse a player's walls and find single- or double-tile removals that

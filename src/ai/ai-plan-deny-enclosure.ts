@@ -24,7 +24,11 @@ import { filterActiveEnemies } from "../shared/sim/board-occupancy.ts";
 import { rotateBreachForAttacker } from "./ai-attacker-variation.ts";
 import { isRingWallable } from "./ai-castle-rect.ts";
 import { type EnclosureSeed, findEnclosureCut } from "./ai-min-cut.ts";
-import { findMinBreach } from "./ai-strategy-battle.ts";
+import {
+  findMinBreach,
+  pickNearCursorWeighted,
+  weightedPickByRank,
+} from "./ai-strategy-battle.ts";
 
 /** Empty wall set: passed to `findEnclosureCut` so the cut is the GEOGRAPHIC
  *  ring bottleneck (independent of current battle damage). */
@@ -49,6 +53,7 @@ export function planDenyEnclosure(
   focusEnemyId: ValidPlayerId | undefined,
   usableCannonCount: number,
   rng: Rng,
+  cursor: TilePos,
 ): TilePos[] | null {
   const enemy = pickTargetEnemy(state, playerId, focusEnemyId, rng);
   if (!enemy) return null;
@@ -61,8 +66,8 @@ export function planDenyEnclosure(
   // efficient breach and free of the wasted hits the geographic-bottleneck
   // siege below lands on redundant backing layers — the old approach left a
   // 2-thick ring standing because it only sieged the shorter on-cut layer.
-  const breach = findMinBreach(state, enemy, limit, rng);
-  if (breach) return rotateBreachForAttacker(breach, playerId);
+  const breach = findMinBreach(state, enemy, limit, rng, cursor);
+  if (breach) return rotateBreachForAttacker(breach, cursor);
 
   // No full breach fits the cannon budget (already-open defender, or an intact
   // ring too thick to open this round). Either way, crater the structural
@@ -78,7 +83,7 @@ export function planDenyEnclosure(
     if (bottleneck.has(wallKey)) targetKeys.push(wallKey);
   }
   if (targetKeys.length === 0) return null;
-  return orderSiegeTiles(state, targetKeys, limit, rng);
+  return orderSiegeTiles(state, targetKeys, limit, rng, cursor);
 }
 
 /** The enemy to attack: the focus-fire target when it's still active, else a
@@ -105,14 +110,17 @@ export function pickTargetEnemy(
 
 /** Order siege targets for chain execution: most boxed-in (hardest to
  *  re-route) first, then a nearest-neighbour walk so consecutive shots
- *  concentrate into one breach. The start tile is rotated among the most
- *  boxed-in candidates so two attackers sieging the same ring don't walk an
- *  identical tile list. Returns null when `keys` is empty. */
+ *  concentrate into one breach. The start tile is a cursor-biased
+ *  rank-weighted pick among the most boxed-in candidates — severity stays the
+ *  primary filter, the crosshair only breaks the near-tie — so the chain
+ *  enters near the cursor and two attackers sieging the same ring still walk
+ *  different tile lists. Returns null when `keys` is empty. */
 function orderSiegeTiles(
   state: BattleViewState,
   keys: readonly TileKey[],
   limit: number,
   rng: Rng,
+  cursor: TilePos,
 ): TilePos[] | null {
   if (keys.length === 0) return null;
   const tiles = keys
@@ -122,10 +130,14 @@ function orderSiegeTiles(
         chokepointSeverity(state, b) - chokepointSeverity(state, a) ||
         packTile(a.row, a.col) - packTile(b.row, b.col),
     );
-  const startIdx = rng.int(
-    0,
-    Math.min(BREACH_START_CANDIDATES, tiles.length) - 1,
-  );
+  const topCount = Math.min(BREACH_START_CANDIDATES, tiles.length);
+  const start = pickNearCursorWeighted(
+    tiles.slice(0, topCount),
+    cursor,
+    (tile) => tile,
+    rng,
+  )!;
+  const startIdx = tiles.indexOf(start);
   if (startIdx > 0) tiles.unshift(tiles.splice(startIdx, 1)[0]!);
   const ordered = orderByNearest(tiles, limit);
   return ordered.length > 0 ? ordered : null;
@@ -163,24 +175,6 @@ function cheapestRingBottleneck(
   // two attackers on the same defender don't always siege the identical ring.
   cuts.sort((a, b) => a.size - b.size);
   return weightedPickByRank(cuts, rng);
-}
-
-/** Pick from a best-first-sorted list with linear rank weighting: index 0 (the
- *  best) is most likely, the last least. Returns undefined only when empty. */
-function weightedPickByRank<T>(
-  sortedBestFirst: readonly T[],
-  rng: Rng,
-): T | undefined {
-  const count = sortedBestFirst.length;
-  if (count <= 1) return sortedBestFirst[0];
-  const total = (count * (count + 1)) / 2;
-  let roll = rng.next() * total;
-  for (let rank = 0; rank < count; rank++) {
-    const weight = count - rank;
-    if (roll < weight) return sortedBestFirst[rank]!;
-    roll -= weight;
-  }
-  return sortedBestFirst[count - 1];
 }
 
 /** How boxed-in a candidate wall is: count of its 8-neighbours that block a

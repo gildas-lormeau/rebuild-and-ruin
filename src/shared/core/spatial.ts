@@ -235,14 +235,19 @@ export function filterOffTiles<T extends TilePos>(
   return items.filter((item) => !tiles.has(packTile(item.row, item.col)));
 }
 
-/** Order items by greedy nearest-neighbor (Manhattan distance). */
+/** Order items by greedy nearest-neighbor (Manhattan distance). When `from`
+ *  is given the walk starts at the item nearest to it (e.g. the shooter's
+ *  crosshair, so a chain's first hop isn't an unbudgeted cross-map jump);
+ *  otherwise it starts at `items[0]`. */
 export function orderByNearest<T extends TilePos>(
   items: readonly T[],
   maxCount?: number,
+  from?: TilePos,
 ): T[] {
   if (items.length <= 1) return [...items];
-  const ordered = [items[0]!];
-  const remaining = items.slice(1);
+  const remaining = [...items];
+  const firstIdx = from ? nearestItemIndex(remaining, from) : 0;
+  const ordered = remaining.splice(firstIdx, 1);
   const limit = maxCount ?? items.length;
   while (ordered.length < limit && remaining.length > 0) {
     const last = ordered[ordered.length - 1]!;

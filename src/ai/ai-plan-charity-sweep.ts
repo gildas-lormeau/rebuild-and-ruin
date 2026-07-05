@@ -26,13 +26,14 @@ export function planCharitySweep(
   playerId: ValidPlayerId,
   usableCannonCount: number,
   rng: Rng,
+  cursor: TilePos,
 ): TilePos[] | null {
   const enemies = filterActiveEnemies(state, playerId);
   rng.shuffle(enemies);
   for (const enemy of enemies) {
     if (countUsableCannons(state, enemy.id) > CHARITY_CANNON_THRESHOLD)
       continue;
-    const targets = planGruntSweep(state, enemy.id, usableCannonCount, rng);
+    const targets = planGruntSweep(state, enemy.id, usableCannonCount, cursor);
     if (targets) return targets;
   }
   return null;

@@ -31,6 +31,7 @@ import {
   DESTROY_POCKET_MAX_SIZE,
   findEnclosureComponents,
   isEnclosureBroken,
+  pickNearCursorWeighted,
 } from "./ai-strategy-battle.ts";
 
 /** Hard cap on the returned chain length, regardless of usable cannons. */
@@ -55,6 +56,7 @@ export function planMaxRepairCost(
   focusEnemyId: ValidPlayerId | undefined,
   usableCannonCount: number,
   rng: Rng,
+  cursor: TilePos,
 ): TilePos[] | null {
   const target = pickEnemyLifeline(state, playerId, focusEnemyId, rng);
   if (!target) return null;
@@ -64,18 +66,25 @@ export function planMaxRepairCost(
   if (ringKeys.length === 0) return null;
 
   const limit = Math.min(usableCannonCount * 2, MAX_CHAIN_TILES);
-  const breach = selectExposedBreach(state, ringKeys, limit, rng);
+  const breach = selectExposedBreach(state, ringKeys, limit, rng, cursor);
   if (!breach) return null;
 
   // Validate on the live board: removing the breach must open the enclosure.
   if (planBreaches(enemy.walls, breach, lifeline))
-    return rotateBreachForAttacker(breach, playerId);
+    return rotateBreachForAttacker(breach, cursor);
 
   // Fat ring: the inner ring is backed by an off-cut layer. Widen the breach to
   // the walls cardinally beside it (the backing layer) and re-validate.
-  const widened = widenToBacking(state, enemy.walls, breach, limit, rng);
+  const widened = widenToBacking(
+    state,
+    enemy.walls,
+    breach,
+    limit,
+    rng,
+    cursor,
+  );
   if (widened && planBreaches(enemy.walls, widened, lifeline))
-    return rotateBreachForAttacker(widened, playerId);
+    return rotateBreachForAttacker(widened, cursor);
   return null;
 }
 
@@ -157,6 +166,7 @@ function widenToBacking(
   breach: readonly TilePos[],
   limit: number,
   rng: Rng,
+  cursor: TilePos,
 ): TilePos[] | null {
   const keys = new Set<TileKey>();
   for (const tile of breach) {
@@ -169,7 +179,7 @@ function widenToBacking(
       if (walls.has(neighbor)) keys.add(neighbor);
     }
   }
-  return selectExposedBreach(state, [...keys], limit, rng) ?? null;
+  return selectExposedBreach(state, [...keys], limit, rng, cursor) ?? null;
 }
 
 /** Select SCATTERED single-tile breaches at the most repair-constrained ring
@@ -186,24 +196,31 @@ function selectExposedBreach(
   ringKeys: readonly TileKey[],
   limit: number,
   rng: Rng,
+  cursor: TilePos,
 ): TilePos[] | null {
   if (ringKeys.length === 0) return null;
   const tiles = ringKeys.map((key) => unpackTile(key));
   const constrained = new Map<TileKey, number>();
   for (const key of ringKeys) constrained.set(key, repairExposure(state, key));
 
-  // Most-constrained first; rotate the seed among the top few for variety so
-  // two attackers on one ring don't pick the identical gap set.
+  // Most-constrained first; the seed is a cursor-biased rank-weighted pick
+  // among the top few — exposure stays the primary filter, the crosshair only
+  // breaks the near-tie — so the chain enters near the cursor and two
+  // attackers on one ring still pick different gap sets.
   const sorted = [...tiles].sort(
     (a, b) =>
       constrained.get(packTile(b.row, b.col))! -
         constrained.get(packTile(a.row, a.col))! ||
       packTile(a.row, a.col) - packTile(b.row, b.col),
   );
-  const startIdx = rng.int(
-    0,
-    Math.min(BREACH_START_CANDIDATES, sorted.length) - 1,
-  );
+  const topCount = Math.min(BREACH_START_CANDIDATES, sorted.length);
+  const start = pickNearCursorWeighted(
+    sorted.slice(0, topCount),
+    cursor,
+    (tile) => tile,
+    rng,
+  )!;
+  const startIdx = sorted.indexOf(start);
   if (startIdx > 0) sorted.unshift(sorted.splice(startIdx, 1)[0]!);
 
   const chosen: TilePos[] = [];

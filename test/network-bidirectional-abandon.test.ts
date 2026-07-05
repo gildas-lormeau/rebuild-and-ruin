@@ -59,14 +59,25 @@ const WIRE_DELAY_FRAMES = 5;
 // per battle on their own walls, shifting every subsequent battle stream):
 // classic 9-r8 stopped firing → classic 0-r8 (classic 5-r8, modern 9-r8
 // survived).
+// Re-probed after crosshair-seeded chain ordering (orderByNearest `from`):
+// classic 0-r8 and modern 9-r8 stopped firing → classic 13-r8, modern 6-r8
+// (classic 5-r8 survived).
+// Re-probed after cursor-biased breach-seam picks (pickNearCursorWeighted):
+// modern 6-r8 stopped firing → modern 10-r8 (classic 5-r8 and 13-r8 survived).
+// Re-probed after cursor-nearest pickTarget picks (nearest enclosure, breach
+// wall, weighted top-3): classic 5-r8 and modern 10-r8 stopped firing →
+// classic 0-r8, modern 6-r8 (classic 13-r8 survived).
+// Re-probed after the cursor ping-pong fixes (sticky battle victim +
+// cursor-nearest breach rotation): classic 13-r8 and modern 6-r8 stopped
+// firing → classic 1-r8, modern 1-r8 (classic 0-r8 survived).
 const TRIALS: {
   readonly seed: number;
   readonly mode: "classic" | "modern";
   readonly rounds: number;
 }[] = [
   { seed: 0, mode: "classic", rounds: 8 },
-  { seed: 5, mode: "classic", rounds: 8 },
-  { seed: 9, mode: "modern", rounds: 8 },
+  { seed: 1, mode: "classic", rounds: 8 },
+  { seed: 1, mode: "modern", rounds: 8 },
 ];
 
 void _forceScenarioFirst;

@@ -289,7 +289,11 @@ const EFFECT_PROBES: Partial<Record<UpgradeId, EffectProbe>> = {
  *  Re-picked 1→2 when the chain-attack in-flight dedup drifted seed-1 into
  *  the masking case (every player rebuilt back past the demolition strip).
  *  Re-picked 2→0 when gating pinch_kill behind a per-player probability roll
- *  drifted seed-2 into the masking case (seed-0 now un-masks). */
+ *  drifted seed-2 into the masking case (seed-0 now un-masks).
+ *  Re-picked 0→1 when crosshair-seeded chain ordering (orderByNearest `from`)
+ *  drifted seed-0 into the masking case.
+ *  Re-picked 1→0 when the cursor ping-pong fixes (sticky battle victim +
+ *  cursor-nearest breach rotation) drifted seed-1; seed-0 un-masks again. */
 const SEED = 0;
 
 for (const upgradeId of UPGRADE_IDS) {

@@ -43,6 +43,7 @@ const MAX_POCKET_TARGETS = 5;
 export function planPocketDestruction(
   state: BattleViewState,
   playerId: ValidPlayerId,
+  cursor: TilePos,
 ): TilePos[] | null {
   const player = state.players[playerId]!;
   // Ricochet adds 2 random bounces within Chebyshev radii [5, 3] after the
@@ -110,7 +111,7 @@ export function planPocketDestruction(
   }
   if (targets.length === 0) return null;
   if (targets.length > MAX_POCKET_TARGETS) targets.length = MAX_POCKET_TARGETS;
-  return orderByNearest(targets);
+  return orderByNearest(targets, undefined, cursor);
 }
 
 /** True if any 8-dir neighbor of (row, col) is interior of a LARGE enclosure

@@ -158,7 +158,11 @@ export function initBattle(
   phase.originTag = undefined;
   phase.usedTactics.clear();
   if (state) {
-    const plan = phase.strategy.planBattle(state, host.playerId);
+    const plan = phase.strategy.planBattle(
+      state,
+      host.playerId,
+      host.crosshair,
+    );
     phase.chainIntended = plan.chainTargets
       ? [...plan.chainTargets]
       : undefined;
@@ -588,6 +592,7 @@ function replanChain(
   const plan = phase.strategy.planBattle(
     state,
     host.playerId,
+    host.crosshair,
     phase.usedTactics,
   );
   if (!plan.chainTargets || plan.chainTargets.length === 0) return false;

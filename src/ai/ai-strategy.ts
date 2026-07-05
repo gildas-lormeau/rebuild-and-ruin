@@ -19,6 +19,7 @@ import type {
 import type { PieceShape } from "../shared/core/pieces.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import type { Player } from "../shared/core/player-types.ts";
+import { pxToTile } from "../shared/core/spatial.ts";
 import type {
   BattleViewState,
   BuildViewState,
@@ -166,6 +167,14 @@ export class DefaultStrategy implements AiStrategy {
    *  interface so the battle-diag emit path can distinguish a focus-fire
    *  pickTarget commit from an unfocused one. */
   focusFirePlayerId: ValidPlayerId | undefined;
+  /** The ONE enemy castle this battle's chains attack. Rolled once at battle
+   *  entry (the focus target when focus fired, else a uniform pick); every
+   *  enemy-choosing chain tactic (deny, max-repair, pinch, fat-breach) leads
+   *  with it. Without this each finished chain re-rolled its victim uniformly,
+   *  so a 3-player battle ping-ponged the crosshair between two enemy castles
+   *  — the dominant cross-map glide. Uniform at BATTLE granularity keeps the
+   *  anti-weakest-bias property (leaders get attacked across battles). */
+  private battleVictimId: ValidPlayerId | undefined;
   /** Sticky enclosure target — prevents per-shot oscillation between
    *  enclosures. Invalidated when the anchor tile leaves any eligible
    *  enemy's interior (breach, enemy eliminated, focus-fire switch). */
@@ -328,32 +337,26 @@ export class DefaultStrategy implements AiStrategy {
   planBattle(
     state: BattleViewState,
     playerId: ValidPlayerId,
+    crosshair: PixelPos,
     replanExcludedTactics?: ReadonlySet<TacticId>,
   ): BattlePlan {
     const excludedTactics = replanExcludedTactics ?? EMPTY_TACTICS;
-    // Focus-fire is decided once at battle entry (the call that OMITS the
-    // exclusion set). Re-plans after each finished chain always pass their
-    // set — even an empty one (only OFFENSIVE tactics are recorded, so a
-    // battle whose entry chain was defensive re-plans with an empty set) —
-    // and keep the entry-time focus: re-rolling it every chain would thrash
-    // the per-shot fallback target and consume RNG mid-battle.
+    // Travel-order-free planners seed their nearest-neighbour walk here so a
+    // fresh chain's first shot is near the cursor, not a cross-map jump (the
+    // crosshair glides at bounded speed — long hops directly cost shots).
+    const cursor: TilePos = {
+      row: pxToTile(crosshair.y),
+      col: pxToTile(crosshair.x),
+    };
+    // Focus-fire and the battle victim are decided once at battle entry (the
+    // call that OMITS the exclusion set). Re-plans after each finished chain
+    // always pass their set — even an empty one (only OFFENSIVE tactics are
+    // recorded, so a battle whose entry chain was defensive re-plans with an
+    // empty set) — and keep the entry-time targets: re-rolling every chain
+    // would thrash the per-shot fallback target and ping-pong the crosshair
+    // between enemy castles.
     if (replanExcludedTactics === undefined) {
-      // Focus fire probability scales with battleTactics
-      const focusProb = traitLookup(this.battleTactics, [
-        0.2,
-        FOCUS_FIRE_PROBABILITY,
-        0.8,
-      ]);
-      if (this.rng.bool(focusProb)) {
-        this.focusFirePlayerId = pickTargetEnemy(
-          state,
-          playerId,
-          undefined,
-          this.rng,
-        )?.id;
-      } else {
-        this.focusFirePlayerId = undefined;
-      }
+      this.rollBattleTargets(state, playerId);
     }
 
     // Chain attacks
@@ -372,6 +375,7 @@ export class DefaultStrategy implements AiStrategy {
       state,
       playerId,
       usableCannonCount,
+      cursor,
     );
     if (iceTrenchTargets) {
       chainTargets = iceTrenchTargets;
@@ -385,7 +389,7 @@ export class DefaultStrategy implements AiStrategy {
         state,
         playerId,
         usableCannonCount,
-        this.rng,
+        cursor,
       );
       if (gruntTargets) {
         chainTargets = gruntTargets;
@@ -411,6 +415,7 @@ export class DefaultStrategy implements AiStrategy {
         state,
         playerId,
         usableCannonCount,
+        cursor,
       );
       if (pinchTargets) {
         chainTargets = pinchTargets;
@@ -437,6 +442,7 @@ export class DefaultStrategy implements AiStrategy {
         playerId,
         usableCannonCount,
         excludedTactics,
+        cursor,
       );
       if (declutterTargets) {
         chainTargets = declutterTargets;
@@ -458,6 +464,7 @@ export class DefaultStrategy implements AiStrategy {
         playerId,
         usableCannonCount,
         excludedTactics,
+        cursor,
       );
       if (gruntBreachTargets) {
         chainTargets = gruntBreachTargets;
@@ -473,6 +480,7 @@ export class DefaultStrategy implements AiStrategy {
         state,
         playerId,
         usableCannonCount,
+        cursor,
       );
       if (charityTargets) {
         chainTargets = charityTargets;
@@ -491,6 +499,7 @@ export class DefaultStrategy implements AiStrategy {
         state,
         playerId,
         usableCannonCount,
+        cursor,
       );
       if (rubbleTargets) {
         chainTargets = rubbleTargets;
@@ -510,6 +519,7 @@ export class DefaultStrategy implements AiStrategy {
         state,
         playerId,
         usableCannonCount,
+        cursor,
       );
       if (denyTargets) {
         chainTargets = denyTargets;
@@ -536,6 +546,7 @@ export class DefaultStrategy implements AiStrategy {
         state,
         playerId,
         structuralMaxHits,
+        cursor,
       );
       if (structuralTargets) {
         chainTargets = structuralTargets;
@@ -570,6 +581,8 @@ export class DefaultStrategy implements AiStrategy {
         playerId,
         usableCannonCount,
         this.rng,
+        cursor,
+        this.battleVictimId,
       );
       if (fatTargets) {
         chainTargets = fatTargets;
@@ -585,7 +598,7 @@ export class DefaultStrategy implements AiStrategy {
     // cleanup. The 5-target chain dominates a 1-2 cannon round and
     // contributes nothing to immediate score or survival.
     if (!chainTargets && usableCannonCount >= CHAIN_ATTACK_MIN_CANNONS) {
-      const pocketTargets = planPocketDestruction(state, playerId);
+      const pocketTargets = planPocketDestruction(state, playerId, cursor);
       if (pocketTargets) {
         chainTargets = pocketTargets;
         chainType = CHAIN.POCKET;
@@ -641,6 +654,34 @@ export class DefaultStrategy implements AiStrategy {
     return { chainTargets, chainType, originTag, tacticId };
   }
 
+  /** Battle-entry target roll: focus-fire (trait-scaled probability) and the
+   *  battle-long victim castle (focus target when focus fired, else a uniform
+   *  draw among active enemies — see `battleVictimId`). Both draws read only
+   *  synced sim state, so the sequence is identical on every peer. */
+  private rollBattleTargets(
+    state: BattleViewState,
+    playerId: ValidPlayerId,
+  ): void {
+    const focusProb = traitLookup(this.battleTactics, [
+      0.2,
+      FOCUS_FIRE_PROBABILITY,
+      0.8,
+    ]);
+    if (this.rng.bool(focusProb)) {
+      this.focusFirePlayerId = pickTargetEnemy(
+        state,
+        playerId,
+        undefined,
+        this.rng,
+      )?.id;
+    } else {
+      this.focusFirePlayerId = undefined;
+    }
+    this.battleVictimId =
+      this.focusFirePlayerId ??
+      pickTargetEnemy(state, playerId, undefined, this.rng)?.id;
+  }
+
   /** Declutter gate: cannon threshold (same rationale as pocket destruction —
    *  a player with <6 firing cannons shouldn't spend their whole round on
    *  own-wall cleanup) and the once-per-battle exclusion, then the
@@ -652,10 +693,11 @@ export class DefaultStrategy implements AiStrategy {
     playerId: ValidPlayerId,
     usableCannonCount: number,
     excludedTactics: ReadonlySet<TacticId>,
+    cursor: TilePos,
   ): TilePos[] | null {
     if (usableCannonCount < CHAIN_ATTACK_MIN_CANNONS) return null;
     if (excludedTactics.has(TACTIC.DECLUTTER)) return null;
-    return planDeclutter(state, playerId, usableCannonCount);
+    return planDeclutter(state, playerId, usableCannonCount, cursor);
   }
 
   /** Enclosure-denial gate: cannon threshold then the trait-scaled roll. Same
@@ -665,6 +707,7 @@ export class DefaultStrategy implements AiStrategy {
     state: BattleViewState,
     playerId: ValidPlayerId,
     usableCannonCount: number,
+    cursor: TilePos,
   ): TilePos[] | null {
     if (usableCannonCount < CHAIN_ATTACK_MIN_CANNONS) return null;
     const take = this.rng.bool(
@@ -678,9 +721,10 @@ export class DefaultStrategy implements AiStrategy {
     return planDenyEnclosure(
       state,
       playerId,
-      this.focusFirePlayerId,
+      this.battleVictimId,
       usableCannonCount,
       this.rng,
+      cursor,
     );
   }
 
@@ -691,6 +735,7 @@ export class DefaultStrategy implements AiStrategy {
     state: BattleViewState,
     playerId: ValidPlayerId,
     usableCannonCount: number,
+    cursor: TilePos,
   ): TilePos[] | null {
     if (usableCannonCount < CHAIN_ATTACK_MIN_CANNONS) return null;
     const take = this.rng.bool(
@@ -704,9 +749,10 @@ export class DefaultStrategy implements AiStrategy {
     return planMaxRepairCost(
       state,
       playerId,
-      this.focusFirePlayerId,
+      this.battleVictimId,
       usableCannonCount,
       this.rng,
+      cursor,
     );
   }
 
@@ -718,13 +764,21 @@ export class DefaultStrategy implements AiStrategy {
     state: BattleViewState,
     playerId: ValidPlayerId,
     usableCannonCount: number,
+    cursor: TilePos,
   ): TilePos[] | null {
     const take = this.rng.bool(
       traitLookup(this.battleTactics, PINCH_KILL_PROBABILITY),
     );
     if (!take) return null;
-    const breach = planPinchKill(state, playerId, usableCannonCount, this.rng);
-    return breach && rotateBreachForAttacker(breach, playerId);
+    const breach = planPinchKill(
+      state,
+      playerId,
+      usableCannonCount,
+      this.rng,
+      cursor,
+      this.battleVictimId,
+    );
+    return breach && rotateBreachForAttacker(breach, cursor);
   }
 
   /** Ice-trench gate: cannon threshold then the trait-scaled roll. The gate
@@ -734,13 +788,14 @@ export class DefaultStrategy implements AiStrategy {
     state: BattleViewState,
     playerId: ValidPlayerId,
     usableCannonCount: number,
+    cursor: TilePos,
   ): TilePos[] | null {
     if (usableCannonCount < ICE_TRENCH_MIN_CANNONS) return null;
     const take = this.rng.bool(
       traitLookup(this.battleTactics, [1 / 3, 2 / 3, 1]),
     );
     if (!take) return null;
-    return planIceTrench(state, playerId, this.rng);
+    return planIceTrench(state, playerId, this.rng, cursor);
   }
 
   /** Charity-sweep gate: cannon threshold then the trait-scaled roll. Same
@@ -749,13 +804,20 @@ export class DefaultStrategy implements AiStrategy {
     state: BattleViewState,
     playerId: ValidPlayerId,
     usableCannonCount: number,
+    cursor: TilePos,
   ): TilePos[] | null {
     if (usableCannonCount < CHAIN_ATTACK_MIN_CANNONS) return null;
     const take = this.rng.bool(
       traitLookup(this.battleTactics, [0, CHARITY_SWEEP_PROBABILITY, 1 / 5]),
     );
     if (!take) return null;
-    return planCharitySweep(state, playerId, usableCannonCount, this.rng);
+    return planCharitySweep(
+      state,
+      playerId,
+      usableCannonCount,
+      this.rng,
+      cursor,
+    );
   }
 
   /** Per-player grunt-breach gate: cannon threshold, once-per-battle
@@ -767,6 +829,7 @@ export class DefaultStrategy implements AiStrategy {
     playerId: ValidPlayerId,
     usableCannonCount: number,
     excludedTactics: ReadonlySet<TacticId>,
+    cursor: TilePos,
   ): TilePos[] | null {
     if (usableCannonCount < GRUNT_BREACH_MIN_CANNONS) return null;
     if (excludedTactics.has(TACTIC.GRUNT_BREACH)) return null;
@@ -777,9 +840,10 @@ export class DefaultStrategy implements AiStrategy {
     return planGruntBreach(
       state,
       playerId,
-      this.focusFirePlayerId,
+      this.battleVictimId,
       usableCannonCount,
       this.rng,
+      cursor,
     );
   }
 
@@ -810,6 +874,7 @@ export class DefaultStrategy implements AiStrategy {
 
   onLifeLost(): void {
     this.focusFirePlayerId = undefined;
+    this.battleVictimId = undefined;
     this._homeWasBroken = false;
     this.battleTargetMemory.ownerId = undefined;
     this.battleTargetMemory.anchorTileKey = undefined;

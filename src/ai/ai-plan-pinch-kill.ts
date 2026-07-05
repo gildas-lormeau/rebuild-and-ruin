@@ -26,7 +26,7 @@ import {
   filterActiveEnemies,
 } from "../shared/sim/board-occupancy.ts";
 import { findEnclosureCut } from "./ai-min-cut.ts";
-import { findMinBreach } from "./ai-strategy-battle.ts";
+import { findMinBreach, leadWithEnemy } from "./ai-strategy-battle.ts";
 
 /** Max breach holes fired in one chain (also the per-search cost cap). */
 const MAX_PINCH_TARGETS = 8;
@@ -36,25 +36,29 @@ const MAX_PINCH_TARGETS = 8;
 const SMALL_PIECE_ISLAND = 4;
 
 /** Plan a guaranteed pinch kill: the min-cut breach of the first enemy whose
- *  reseal it forces through a small-piece-only slot. The enemy scan order is
- *  shuffled per attacker (rng never GATES the kill — whenever any enemy is
- *  pinchable, a pinch still fires) and the min-cut seam pick inside
- *  `findMinBreach` is rng-varied, so two attackers no longer converge on the
- *  identical victim + cut. Returns null when no enemy's cheapest breach leaves
- *  an unrefillable reseal. */
+ *  reseal it forces through a small-piece-only slot. The scan LEADS with the
+ *  battle's sticky victim (`preferredEnemyId` — keeps the crosshair on one
+ *  castle) and shuffles the rest per attacker (rng never GATES the kill —
+ *  whenever any enemy is pinchable, a pinch still fires); the min-cut seam
+ *  pick inside `findMinBreach` is rng-varied, so two attackers don't converge
+ *  on the identical victim + cut. Returns null when no enemy's cheapest
+ *  breach leaves an unrefillable reseal. */
 export function planPinchKill(
   state: BattleViewState,
   playerId: ValidPlayerId,
   usableCannonCount: number,
   rng: Rng,
+  cursor: TilePos,
+  preferredEnemyId: ValidPlayerId | undefined,
 ): TilePos[] | null {
   const cap = Math.min(usableCannonCount, MAX_PINCH_TARGETS);
   if (cap < 1) return null;
   const enemies = [...filterActiveEnemies(state, playerId)];
   rng.shuffle(enemies);
+  leadWithEnemy(enemies, preferredEnemyId);
   for (const enemy of enemies) {
     if (enemy.enclosedTowers.length === 0) continue;
-    const breach = findMinBreach(state, enemy, cap, rng);
+    const breach = findMinBreach(state, enemy, cap, rng, cursor);
     if (!breach || breach.length === 0) continue;
     if (forcesSmallPieceReseal(state, enemy, breach)) return breach;
   }

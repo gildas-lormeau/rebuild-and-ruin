@@ -75,6 +75,7 @@ export function planGruntBreach(
   focusEnemyId: ValidPlayerId | undefined,
   usableCannonCount: number,
   rng: Rng,
+  cursor: TilePos,
 ): TilePos[] | null {
   const cap = Math.min(usableCannonCount, GRUNT_BREACH_MAX_TILES);
   if (cap < 1) return null;
@@ -94,7 +95,7 @@ export function planGruntBreach(
   const blocked = terminusBlockedSet(state);
   for (const seam of ringWallsByGruntDistance(enemy, rings, grunts)) {
     const drill = drillSeam(state, enemy, seam, outside, blocked, cap, grunts);
-    if (drill) return rotateBreachForAttacker(drill, playerId);
+    if (drill) return rotateBreachForAttacker(drill, cursor);
   }
   return null;
 }

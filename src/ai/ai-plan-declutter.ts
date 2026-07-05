@@ -15,7 +15,12 @@ import {
 import type { TilePos } from "../shared/core/geometry-types.ts";
 import type { TileKey } from "../shared/core/grid.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
-import { DIRS_4, packTile, unpackTile } from "../shared/core/spatial.ts";
+import {
+  DIRS_4,
+  orderByNearest,
+  packTile,
+  unpackTile,
+} from "../shared/core/spatial.ts";
 import type { BattleViewState } from "../shared/core/system-interfaces.ts";
 import { computeLiveInterior, isFatWallTile } from "./ai-strategy-battle.ts";
 
@@ -39,6 +44,7 @@ export function planDeclutter(
   state: BattleViewState,
   playerId: ValidPlayerId,
   usableCannonCount: number,
+  cursor: TilePos,
 ): TilePos[] | null {
   const player = state.players[playerId]!;
   // Ricochet adds 2 random bounces after the impact; targets sit deep inside
@@ -63,13 +69,12 @@ export function planDeclutter(
   }
   if (shootable.size === 0) return null;
 
-  const cluster = largestFatCluster(shootable);
-  const targets: TilePos[] = [];
-  for (const key of cluster) {
-    if (targets.length >= cap) break;
-    targets.push(unpackTile(key));
-  }
-  return targets;
+  // Greedy nearest-neighbour walk seeded from the crosshair: same contiguous
+  // cluster, but the chain enters at its cursor-nearest tile and never
+  // ping-pongs between BFS frontier branches (measured: the #3 source of
+  // >=15-tile intra-chain glides).
+  const cluster = largestFatCluster(shootable).map((key) => unpackTile(key));
+  return orderByNearest(cluster, cap, cursor);
 }
 
 /** The player's fat walls: own wall tiles whose every 8-neighbour is in bounds

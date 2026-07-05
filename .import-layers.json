@@ -90,7 +90,6 @@
   {
     "name": "L2",
     "files": [
-      "src/ai/ai-attacker-variation.ts",
       "src/ai/ai-battle-diag.ts",
       "src/ai/ai-build-diag.ts",
       "src/entry.ts",
@@ -153,6 +152,7 @@
     "name": "L6",
     "files": [
       "server/game-room.ts",
+      "src/ai/ai-attacker-variation.ts",
       "src/ai/ai-in-flight-target.ts",
       "src/ai/ai-life-lost.ts",
       "src/ai/ai-plan-grunt-sweep.ts",

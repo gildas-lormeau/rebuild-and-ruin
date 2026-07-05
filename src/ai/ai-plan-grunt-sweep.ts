@@ -1,7 +1,8 @@
 /**
  * AI tactic — grunt sweep. Chain-fires at enemy grunts attacking a specific
- * player, ordered by nearest neighbour from a random start. Used both for
- * self-defence and as the inner planner for the charity sweep tactic.
+ * player, ordered by nearest neighbour from the shooter's crosshair. Used
+ * both for self-defence and as the inner planner for the charity sweep
+ * tactic.
  */
 
 import { aimReachesTile } from "../game/index.ts";
@@ -10,7 +11,6 @@ import type { TilePos } from "../shared/core/geometry-types.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import { orderByNearest, zoneAt } from "../shared/core/spatial.ts";
 import type { BattleViewState } from "../shared/core/system-interfaces.ts";
-import type { Rng } from "../shared/platform/rng.ts";
 
 /** A sweep triggers only with MORE than this many grunts in the victim's
  *  zone (`<=` comparison — exactly 15 is still below the trigger). Lowered
@@ -20,7 +20,10 @@ const GRUNT_SWEEP_THRESHOLD = 15;
 const GRUNT_SWEEP_THRESHOLD_MODIFIER = 8;
 
 /** Plan a grunt sweep: chain-fire at enemy grunts attacking a specific player,
- *  ordered by nearest neighbor from a random start.
+ *  ordered by nearest neighbor from the shooter's crosshair (`cursor`) — the
+ *  sweep starts on the grunt closest to where the cursor already sits, so
+ *  entering the chain costs no cross-map hop. The cursor seed also varies the
+ *  walk per attacker (replacing the old rng-drawn random start).
  *  @param victimPlayerId — the player whose territory the grunts are attacking
  *    (the AI when called for our own defense; an enemy when called by
  *    `planCharitySweep` to clean up someone who can't fight back).
@@ -31,7 +34,7 @@ export function planGruntSweep(
   state: BattleViewState,
   victimPlayerId: ValidPlayerId,
   usableCannonCount: number,
-  rng: Rng,
+  cursor: TilePos,
 ): TilePos[] | null {
   const victimZone = state.playerZones[victimPlayerId];
   const grunts = state.grunts.filter(
@@ -51,11 +54,5 @@ export function planGruntSweep(
     .filter((grunt) => aimReachesTile(state, grunt.row, grunt.col))
     .map((grunt) => ({ row: grunt.row, col: grunt.col }));
   if (positions.length === 0) return null;
-  // Random starting point
-  const startIndex = rng.int(0, positions.length - 1);
-  [positions[0], positions[startIndex]] = [
-    positions[startIndex]!,
-    positions[0]!,
-  ];
-  return orderByNearest(positions, usableCannonCount);
+  return orderByNearest(positions, usableCannonCount, cursor);
 }

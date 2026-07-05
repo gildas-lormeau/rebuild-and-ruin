@@ -24,7 +24,11 @@ import {
 import { getBattleInterior } from "../../src/shared/sim/board-occupancy.ts";
 import { GAME_EVENT } from "../../src/shared/core/game-event-bus.ts";
 import { Phase } from "../../src/shared/core/game-phase.ts";
-import type { TileKey } from "../../src/shared/core/grid.ts";
+import {
+  GRID_COLS,
+  GRID_ROWS,
+  type TileKey,
+} from "../../src/shared/core/grid.ts";
 import { isActivePlayer } from "../../src/shared/core/player-slot.ts";
 import {
   computeOutside,
@@ -80,12 +84,24 @@ Deno.test(
     assert(usableCannons >= 4, "BLUE lost its siege battery — re-record");
 
     // The planner draws from its own controller RNG (ring choice + breach
-    // start rotation are weighted picks), so sample many streams: the
-    // invariant must hold for every ring the tactic can choose.
+    // start rotation are weighted picks) and biases seam picks toward the
+    // shooter's crosshair, so sample many rng streams AND cursor positions:
+    // the invariant must hold for every ring/seam the tactic can choose.
     const noopPlans: string[] = [];
     for (let sample = 1; sample <= 30; sample++) {
       const rng = new Rng(sample * 7919);
-      const plan = planDenyEnclosure(state, blue.id, red.id, usableCannons, rng);
+      const cursor = {
+        row: (sample * 13) % GRID_ROWS,
+        col: (sample * 29) % GRID_COLS,
+      };
+      const plan = planDenyEnclosure(
+        state,
+        blue.id,
+        red.id,
+        usableCannons,
+        rng,
+        cursor,
+      );
       if (!plan) continue;
       const modWalls = new Set(red.walls);
       for (const tile of plan) modWalls.delete(packTile(tile.row, tile.col));
@@ -236,8 +252,12 @@ Deno.test(
     assert(usableCannons >= 4, "BLUE lost its siege battery — re-record");
 
     // Focused target → the planner is deterministic (the rng draw is only for
-    // the unfocused uniform enemy pick), so one call IS the spec.
-    const plan = planGruntBreach(state, blue.id, red.id, usableCannons, new Rng(1));
+    // the unfocused uniform enemy pick), so one call IS the spec. The cursor
+    // only rotates where the drill STARTS, never which tiles it contains.
+    const plan = planGruntBreach(state, blue.id, red.id, usableCannons, new Rng(1), {
+      row: 0,
+      col: 0,
+    });
     assert(plan && plan.length > 0, "planner found no drillable seam — re-record");
 
     for (const tile of plan) {

@@ -240,10 +240,14 @@ export interface AiStrategy {
    *  always pass the set of offensive tactics already fired this battle so
    *  the cascade skips them (force variety); the set may legitimately be
    *  empty (defensive-only chains aren't recorded), which must NOT re-roll
-   *  focus. */
+   *  focus. `crosshair` is the shooter's live crosshair (same seam as
+   *  `pickTarget`): travel-order-free planners seed their nearest-neighbour
+   *  walk from it so a fresh chain starts near where the cursor already is
+   *  instead of at an arbitrary map-distant first tile. */
   planBattle(
     state: BattleViewState,
     playerId: ValidPlayerId,
+    crosshair: PixelPos,
     replanExcludedTactics?: ReadonlySet<TacticId>,
   ): BattlePlan;
 

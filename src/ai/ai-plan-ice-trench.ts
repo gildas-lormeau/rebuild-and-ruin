@@ -41,6 +41,7 @@ export function planIceTrench(
   state: BattleViewState,
   playerId: ValidPlayerId,
   rng: Rng,
+  cursor: TilePos,
 ): TilePos[] | null {
   const frozenTiles = state.modern?.frozenTiles;
   if (!frozenTiles || frozenTiles.size === 0) return null;
@@ -69,7 +70,7 @@ export function planIceTrench(
   for (const key of trenchKeys) {
     result.push(unpackTile(key));
   }
-  return orderByNearest(result);
+  return orderByNearest(result, undefined, cursor);
 }
 
 /** Precondition: collect grunts on the opposite bank (enemy zone, 4-dir

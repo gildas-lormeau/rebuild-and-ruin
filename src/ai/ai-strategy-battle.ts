@@ -533,15 +533,18 @@ export function countBrokenEnclosures(
  *  Returns null when no intact large enclosure is breachable within `cap`.
  *  Shared by the deny-enclosure and fat-breach tactics.
  *
- *  `rng` picks uniformly among EQUAL-cost breach seams of each ring (see
+ *  `rng` picks among EQUAL-cost breach seams of each ring (see
  *  `findBreachPath`) so two attackers of one ring drill different seams — the
  *  per-attacker variation lever for every min-cut tactic. Omit it for a
- *  deterministic first-settled seam (the mcp-play breach tool path). */
+ *  deterministic first-settled seam (the mcp-play breach tool path). `cursor`
+ *  (the shooter's live crosshair tile) biases that seam pick toward the
+ *  cursor — rank-weighted, not hard-nearest, so the variety survives. */
 export function findMinBreach(
   state: BattleViewState,
   enemy: Player,
   cap: number,
   rng?: Rng,
+  cursor?: TilePos,
 ): TilePos[] | null {
   if (cap < 1) return null;
   const outside = computeOutside(enemy.walls);
@@ -566,7 +569,7 @@ export function findMinBreach(
   const breaches: { path: TilePos[]; holdsTower: boolean; firstKey: number }[] =
     [];
   for (const comp of candidates) {
-    const path = findBreachPath(state, enemy, comp, outside, cap, rng);
+    const path = findBreachPath(state, enemy, comp, outside, cap, rng, cursor);
     if (!path || path.length === 0) continue;
     breaches.push({
       path,
@@ -690,6 +693,20 @@ export function componentHoldsTower(
     if (hit) return true;
   }
   return false;
+}
+
+/** Move `enemyId`'s entry to the head of an enemy scan list (in place; no-op
+ *  when absent or already first). Chain planners lead their scan with the
+ *  battle's sticky victim so successive chains stay on one castle instead of
+ *  re-rolling a different one — the shuffled tail is only reached when the
+ *  victim yields no plan. */
+export function leadWithEnemy(
+  enemies: Player[],
+  enemyId: ValidPlayerId | undefined,
+): void {
+  if (enemyId === undefined) return;
+  const idx = enemies.findIndex((enemy) => enemy.id === enemyId);
+  if (idx > 0) enemies.unshift(enemies.splice(idx, 1)[0]!);
 }
 
 /** True when the player owns a fire-capable super gun (alive, enclosed, no ball
@@ -958,11 +975,11 @@ function pickEnclosureWallTarget(
   if (enclosure === undefined) {
     // The lock invalidated — start a fresh walk on the enclosure NEAREST the
     // crosshair (ref), so fire concentrates on one fortress region rather than
-    // teleporting to a random far enclosure (the dominant scatter source). A
-    // tiny top-2 random keeps ties / near-equidistant picks from locking
-    // deterministically and consumes one rand draw (parity-stable). Distance
+    // teleporting to a random far enclosure (the dominant scatter source).
+    // Deterministic nearest: variety comes from each attacker's own crosshair
+    // position, and the anchor lock prevents re-pick oscillation. Distance
     // uses each enclosure's centroid — cheap and only computed on a switch.
-    enclosure = pickNearestEnclosure(allEnclosures, refRow, refCol, rand);
+    enclosure = pickNearestEnclosure(allEnclosures, refRow, refCol);
     targetMemory.ownerId = enclosure.ownerId;
     targetMemory.anchorTileKey = enclosure.tiles[0];
     targetMemory.lastWallTileKey = undefined;
@@ -1008,6 +1025,8 @@ function pickEnclosureWallTarget(
     enclosure.depth,
     targetMemory.lastWallTileKey,
     rand,
+    refRow,
+    refCol,
   );
   targetMemory.lastWallTileKey = packTile(chosen.row, chosen.col);
   return {
@@ -1023,19 +1042,22 @@ function pickEnclosureWallTarget(
  *  perimeter that actually breaches, not the redundant inner shell. Among
  *  equally-thin walls, prefer one cardinally adjacent to `lastKey` so
  *  consecutive shots drill one column radially toward the breach (also cheaper
- *  crosshair travel + tighter combo streaks); uniform-random otherwise.
- *  `contiguous` reports whether the adjacency bias engaged vs a scatter pick —
- *  surfaced for the fire-decision diag. Draws exactly one `rand()` on every
- *  path (RNG-parity stable). */
+ *  crosshair travel + tighter combo streaks); otherwise the NEAREST to the
+ *  crosshair (equal depth = tactically tied, so travel breaks the tie — a
+ *  uniform pick here averaged half a ring of pointless glide). `contiguous`
+ *  reports whether the adjacency bias engaged vs a re-anchor pick — surfaced
+ *  for the fire-decision diag. */
 function pickBreachWall(
   borderWalls: readonly TilePos[],
   depth: ReadonlyMap<TileKey, number>,
   lastKey: TileKey | undefined,
   rand: () => number,
+  refRow: number,
+  refCol: number,
 ): TilePos & { contiguous: boolean } {
   // Primary key: thinnest barrier. Walls the BFS never reached (fully sealed,
   // no path of walls to the outside) sort last via Infinity, leaving the old
-  // uniform behaviour as the fallback when nothing is breachable.
+  // behaviour as the fallback when nothing is breachable.
   let minDepth = Number.POSITIVE_INFINITY;
   for (const wall of borderWalls) {
     const wallDepth = depth.get(packTile(wall.row, wall.col)) ?? Infinity;
@@ -1055,20 +1077,21 @@ function pickBreachWall(
       return { row: wall.row, col: wall.col, contiguous: true };
     }
   }
-  const wall = thinnest[Math.floor(rand() * thinnest.length)]!;
-  return { row: wall.row, col: wall.col, contiguous: false };
+  const sorted = sortByDistanceFrom(thinnest, refRow, refCol);
+  return { row: sorted[0]!.row, col: sorted[0]!.col, contiguous: false };
 }
 
-/** Pick the enclosure nearest the reference tile (crosshair), with a top-2
- *  random tiebreak. Distance is reference→centroid Manhattan; centroid is the
- *  tile-mean of the component, computed here (only on an enclosure switch).
- *  Concentrates fire on the closest fortress region instead of a uniform-random
- *  far jump — the dominant inter-shot scatter source (see pickPath diag). */
+/** Pick the enclosure nearest the reference tile (crosshair) — deterministic,
+ *  with the first tile's key as a stable tiebreak for equidistant centroids.
+ *  Distance is reference→centroid Manhattan; centroid is the tile-mean of the
+ *  component, computed here (only on an enclosure switch). Concentrates fire
+ *  on the closest fortress region instead of a far jump — the dominant
+ *  inter-shot scatter source (see pickPath diag). Per-attacker variety comes
+ *  from each shooter's own crosshair position, not an rng draw. */
 function pickNearestEnclosure<T extends { tiles: TileKey[] }>(
   enclosures: readonly T[],
   refRow: number,
   refCol: number,
-  rand: () => number,
 ): T {
   const scored = enclosures.map((enc) => {
     let sumRow = 0;
@@ -1084,9 +1107,8 @@ function pickNearestEnclosure<T extends { tiles: TileKey[] }>(
       Math.abs(sumCol / tileCount - refCol);
     return { enc, dist };
   });
-  scored.sort((a, b) => a.dist - b.dist);
-  const topCount = Math.min(2, scored.length);
-  return scored[Math.floor(rand() * topCount)]!.enc;
+  scored.sort((a, b) => a.dist - b.dist || a.enc.tiles[0]! - b.enc.tiles[0]!);
+  return scored[0]!.enc;
 }
 
 /** Live enclosure data for an enemy — connected interior `components` plus the
@@ -1264,7 +1286,7 @@ function pickSweetSpotTarget(
     );
     return distanceA - distanceB;
   });
-  return pickRandomFromTop(sorted, TOP_TARGET_PICK_COUNT, rand);
+  return pickWeightedFromTop(sorted, TOP_TARGET_PICK_COUNT, rand);
 }
 
 function pickJitteredNearestTarget(
@@ -1274,8 +1296,29 @@ function pickJitteredNearestTarget(
   rand: () => number,
 ): PixelPos {
   const sorted = sortByDistanceFrom(targets, currentRow, currentCol);
-  const target = pickRandomFromTop(sorted, TOP_TARGET_PICK_COUNT, rand);
+  const target = pickWeightedFromTop(sorted, TOP_TARGET_PICK_COUNT, rand);
   return jitterWithinTile(target.row, target.col, rand);
+}
+
+/** Rank-weighted pick from the head of a best-first-sorted list: the best
+ *  candidate is most likely (linear weights N..1 over the top N) instead of
+ *  uniform — spends less crosshair travel on the 2nd/3rd-nearest without
+ *  collapsing the spread entirely. One rand draw (none when ≤1 item). */
+function pickWeightedFromTop<T>(
+  items: readonly T[],
+  topCount: number,
+  rand: () => number,
+): T {
+  const count = Math.min(topCount, items.length);
+  if (count <= 1) return items[0]!;
+  const total = (count * (count + 1)) / 2;
+  let roll = rand() * total;
+  for (let rank = 0; rank < count; rank++) {
+    const weight = count - rank;
+    if (roll < weight) return items[rank]!;
+    roll -= weight;
+  }
+  return items[count - 1]!;
 }
 
 /** Sort targets by Manhattan distance from a reference tile, returning a new array. */
@@ -1289,15 +1332,6 @@ function sortByDistanceFrom(
       manhattanDistance(a.row, a.col, refRow, refCol) -
       manhattanDistance(b.row, b.col, refRow, refCol),
   );
-}
-
-function pickRandomFromTop<T>(
-  items: readonly T[],
-  topCount: number,
-  rand: () => number,
-): T {
-  const count = Math.min(topCount, items.length);
-  return items[Math.floor(rand() * count)]!;
 }
 
 /** Attach a diag-only pickPath tag to a pixel target (provenance for the
@@ -1343,6 +1377,7 @@ function findBreachPath(
   outside: ReadonlySet<TileKey>,
   cap: number,
   rng?: Rng,
+  cursor?: TilePos,
 ): TilePos[] | null {
   const walls = enemy.walls;
   const box = breachBox(state, interior);
@@ -1414,11 +1449,67 @@ function findBreachPath(
     // Bucket fully drained: every outside endpoint reachable at this cost has
     // been settled, so `endpoints` is the complete equal-cost seam set.
     if (endpoints.length > 0) {
-      const chosen = endpoints[Math.floor(rng!.next() * endpoints.length)]!;
+      const chosen =
+        cursor === undefined
+          ? endpoints[Math.floor(rng!.next() * endpoints.length)]!
+          : pickNearCursorWeighted(
+              endpoints,
+              cursor,
+              (id) => ({
+                row: box.minR + Math.floor(id / boxW),
+                col: box.minC + (id % boxW),
+              }),
+              rng!,
+            )!;
       return reconstructBreachWalls(parent, chosen, box, boxW, walls);
     }
   }
   return null;
+}
+
+/** Rank-weighted pick biased toward the shooter's crosshair: sort candidates
+ *  by Manhattan distance to `cursor` (stable tile-key tiebreak), then
+ *  `weightedPickByRank`. The soft cursor preference for choosing among
+ *  tactically-EQUAL candidates — the crosshair glides at bounded speed, so
+ *  entering a chain near where it already sits buys extra shots, while the
+ *  rank weighting keeps the per-attacker / per-battle variety a hard
+ *  nearest-pick would collapse. */
+export function pickNearCursorWeighted<T>(
+  candidates: readonly T[],
+  cursor: TilePos,
+  posOf: (item: T) => TilePos,
+  rng: Rng,
+): T | undefined {
+  if (candidates.length <= 1) return candidates[0];
+  const scored = candidates.map((item) => {
+    const pos = posOf(item);
+    return {
+      item,
+      dist: manhattanDistance(pos.row, pos.col, cursor.row, cursor.col),
+      key: packTile(pos.row, pos.col),
+    };
+  });
+  scored.sort((a, b) => a.dist - b.dist || a.key - b.key);
+  return weightedPickByRank(scored, rng)?.item;
+}
+
+/** Pick from a best-first-sorted list with linear rank weighting: index 0 (the
+ *  best) is most likely, the last least. One rng draw (none when ≤1 item).
+ *  Returns undefined only when empty. */
+export function weightedPickByRank<T>(
+  sortedBestFirst: readonly T[],
+  rng: Rng,
+): T | undefined {
+  const count = sortedBestFirst.length;
+  if (count <= 1) return sortedBestFirst[0];
+  const total = (count * (count + 1)) / 2;
+  let roll = rng.next() * total;
+  for (let rank = 0; rank < count; rank++) {
+    const weight = count - rank;
+    if (roll < weight) return sortedBestFirst[rank]!;
+    roll -= weight;
+  }
+  return sortedBestFirst[count - 1];
 }
 
 /** Walk the BFS parent chain from the settled outside tile back to its interior
