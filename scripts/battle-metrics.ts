@@ -416,6 +416,23 @@ function printReport(results: readonly SeedMetrics[]): void {
     )} tiles  (jump between consecutive shots — lower = concentrated fire)`,
   );
 
+  console.log("\nPressure / spectacle — sustained visible aggression");
+  meanLine(
+    "  enemy-fire streak max",
+    rows.map((r) => r.enemyStreakMax),
+  );
+  console.log(
+    "    (longest run of consecutive shots at enemy walls/cannons — housekeeping breaks it)",
+  );
+  meanLine(
+    "  incoming shots       ",
+    rows.map((r) => r.incomingShots),
+  );
+  const quiet = rows.filter((r) => r.incomingShots < 3).length;
+  console.log(
+    `  quiet battles (<3 in) = ${pct(quiet, rows.length)}  (player-battles barely attacked — the "nobody shoots at me" share)`,
+  );
+
   console.log("\nCannon utilization / firing cadence");
   const owned = sum(rows.map((r) => r.ownedCannonsAtStart));
   const usable = sum(rows.map((r) => r.usableCannonsAtStart));

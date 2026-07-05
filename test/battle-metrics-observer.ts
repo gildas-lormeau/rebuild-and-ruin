@@ -33,7 +33,7 @@ import {
 } from "../src/shared/core/game-event-bus.ts";
 import type { TileKey } from "../src/shared/core/grid.ts";
 import { Phase } from "../src/shared/core/game-phase.ts";
-import type { ValidPlayerId } from "../src/shared/core/player-slot.ts";
+import { isPlayerEliminated, type ValidPlayerId } from "../src/shared/core/player-slot.ts";
 import {
   type Player,
 } from "../src/shared/core/player-types.ts";
@@ -50,7 +50,6 @@ import {
 } from "../src/shared/core/spatial.ts";
 import { IMPACT, type ImpactKind, classifyImpact } from "./impact-classify.ts";
 import type { Scenario } from "./scenario.ts";
-import { isPlayerEliminated } from "../src/shared/core/player-slot.ts";
 
 export interface PlayerBattleMetrics {
   round: number;
@@ -187,6 +186,17 @@ export interface PlayerBattleMetrics {
    *  reload-throttled below the crosshair-cycle cadence. stallShots / shots =
    *  the fraction of fire that hit the per-cannon in-flight limit. */
   stallShots: number;
+  // --- pressure / spectacle (the "boring AI" regression axis) ---
+  /** Longest run of consecutive shots this battle aimed at enemy-directed
+   *  targets (enemy walls / enemy cannons). Housekeeping shots (own walls,
+   *  grunts, grass) break the run. The sustained-visible-aggression signal —
+   *  the May-era AI hammered "dozens of walls in a row"; surgical tactics
+   *  read as passive because this collapses even when per-shot quality rises. */
+  enemyStreakMax: number;
+  /** Shots fired BY enemies that impacted in this player's zone — victim-side
+   *  incoming pressure ("how hammered does this player feel"). Low values =
+   *  the player is left alone (e.g. not picked as anyone's battle victim). */
+  incomingShots: number;
   // --- fire concentration (consecutive-shot target spread) ---
   /** Sum of tile-distance between each shot's impact tile and the previous
    *  shot's, over `interShotPairs` consecutive pairs. mean = how far the AI
@@ -223,6 +233,9 @@ export function createBattleMetricsObserver(): BattleMetricsObserver {
   const firedCannons = new Map<number, Set<number>>();
   /** Last shot's impact tile per shooter — for consecutive-shot concentration. */
   const lastShotTile = new Map<number, { row: number; col: number }>();
+  /** Running enemy-directed streak per shooter — collapsed into
+   *  `row.enemyStreakMax`. Cleared each battle. */
+  const enemyStreak = new Map<number, number>();
   /** Inter-shot jump computed for the just-fired shot per shooter (undefined if
    *  it was the first shot). Consumed by the diag hook — which fires right after
    *  CANNON_FIRED — to attribute the jump to that shot's pickPath. */
@@ -283,6 +296,7 @@ export function createBattleMetricsObserver(): BattleMetricsObserver {
         destroyedThisRound.clear();
         firedCannons.clear();
         lastShotTile.clear();
+        enemyStreak.clear();
         shotOriginByCannon.clear();
         battleEndCaptured = false;
         lastShooter = undefined;
@@ -317,6 +331,22 @@ export function createBattleMetricsObserver(): BattleMetricsObserver {
           ev.impactY - ev.launchY,
         );
         row.flightTimeSum += ev.flightTime;
+        // Pressure: extend or break the shooter's enemy-directed streak, and
+        // attribute the shot to the victim whose zone it lands in.
+        const enemyDirected =
+          info.kind === IMPACT.ENEMY_WALL || info.kind === IMPACT.ENEMY_CANNON;
+        const streak = enemyDirected ? (enemyStreak.get(shooter) ?? 0) + 1 : 0;
+        enemyStreak.set(shooter, streak);
+        if (streak > row.enemyStreakMax) row.enemyStreakMax = streak;
+        const impactZoneOwner = zoneOwnerIdAt(
+          sc.state,
+          ev.impactRow,
+          ev.impactCol,
+        );
+        if (impactZoneOwner !== shooter) {
+          const victimRow = current.get(impactZoneOwner);
+          if (victimRow) victimRow.incomingShots++;
+        }
         // Over-commit: another in-flight ball from this shooter already targets
         // this tile (this fire is already pushed onto cannonballs, so >= 2).
         const sameTile = sc.state.cannonballs.filter(
@@ -566,6 +596,8 @@ function emptyRow(round: number, playerId: number): PlayerBattleMetrics {
     distinctCannonsFired: 0,
     readyAfterFireSum: 0,
     stallShots: 0,
+    enemyStreakMax: 0,
+    incomingShots: 0,
     interShotDistSum: 0,
     interShotPairs: 0,
     crosshairTravelPx: 0,
