@@ -25,7 +25,7 @@ import {
   type ViewOptions,
 } from "./harness.ts";
 import type { AgentDecision } from "./mcp-brain.ts";
-import { renderObservation } from "./render.ts";
+import { type CannonModeTally, renderObservation } from "./render.ts";
 
 interface JsonRpcRequest {
   jsonrpc: "2.0";
@@ -168,6 +168,7 @@ const TOOLS: ToolDef[] = [
       // Fresh session → fresh show-once gate (each static explainer re-emits in
       // full the first time it's seen this game). `verbose:true` defeats it.
       seenBlocks = new Set<string>();
+      cannonModeTally = freshCannonModeTally();
       renderVerbose = args.verbose === true;
       return game.observe();
     },
@@ -781,9 +782,17 @@ const TOOLS: ToolDef[] = [
       game = await startGame(loaded.config);
       // A restored session is a fresh render context — re-show each explainer once.
       seenBlocks = new Set<string>();
+      // Rebuild the mode tally from the replayed cannon acts so the skew nudge
+      // stays accurate across a load (not reset to zero mid-game).
+      cannonModeTally = freshCannonModeTally();
       for (const move of loaded.moves) {
-        if (move.t === "act") game.act(move.decision);
-        else if (move.t === "pass") game.pass(move.n, move.seconds);
+        if (move.t === "act") {
+          game.act(move.decision);
+          if (move.decision.kind === "cannon") {
+            cannonModeTally[move.decision.mode]++;
+          }
+          continue;
+        } else if (move.t === "pass") game.pass(move.n, move.seconds);
         else if (move.t === "build") game.build(move.towerIdx, budgetOf(move));
         else if (move.t === "seal_survivor") game.sealSurvivor(budgetOf(move));
         else if (move.t === "build_out") game.buildOut(budgetOf(move));
@@ -830,6 +839,11 @@ let journal: Journal | null = null;
  *  for a genuinely stateless caller or a human reading a single board. */
 let seenBlocks = new Set<string>();
 let renderVerbose = false;
+/** Session-cumulative count of cannons successfully placed this game, by mode —
+ *  feeds the renderer's CANNON_PLACE skew nudge (`cannonSkewLines`), which
+ *  pattern-interrupts an agent that only ever places `normal`. Reset at
+ *  new_game/load (a restored session starts its tally fresh). */
+let cannonModeTally: CannonModeTally = freshCannonModeTally();
 /** Live-watch sink: when `MCP_PLAY_WATCH=<path>` is set, every board snapshot is
  *  mirrored to three sibling files so a human can watch the agent play:
  *    - `<path>` — the BOARD GRID ONLY (fits a screen without scrolling). Open it
@@ -872,6 +886,11 @@ let autoJournalOff: boolean | undefined;
  *  without exposing the mutable module singleton itself. */
 export function peekCurrentGame(): McpGame | null {
   return game;
+}
+
+/** A zeroed per-mode tally — the new_game/load reset value. */
+function freshCannonModeTally(): CannonModeTally {
+  return { normal: 0, super: 0, balloon: 0, rampart: 0 };
 }
 
 function startGame(config: Journal["config"]): Promise<McpGame> {
@@ -1213,6 +1232,18 @@ export async function callTool(
     // sidecar (after the handler runs, so new_game's resolved seed is available).
     // Read-only/meta calls are skipped inside; failures never reach here.
     recordAutoJournal(name, args, result);
+    // Tally a SUCCESSFUL cannon placement by mode (rejects don't count) so the
+    // renderer's CANNON_PLACE skew nudge reads the real habit, not the attempts.
+    if (
+      name === "place_cannon" &&
+      isObservation(result) &&
+      result.lastResult?.kind === "cannon" &&
+      result.lastResult.success
+    ) {
+      cannonModeTally[
+        toCannonMode(typeof args.mode === "string" ? args.mode : undefined)
+      ]++;
+    }
     // Observation-shaped results render to the annotated ASCII board so the agent
     // reads the new state directly; observe({format:'json'}) opts back into raw
     // JSON, and non-observation payloads (check/plan/save) stay JSON.
@@ -1225,6 +1256,7 @@ export async function callTool(
         ? renderObservation(
             result,
             renderVerbose ? new Set<string>() : seenBlocks,
+            cannonModeTally,
           )
         : JSON.stringify(result, null, 2);
     // new_game opens a session, so it's the right place to surface the build

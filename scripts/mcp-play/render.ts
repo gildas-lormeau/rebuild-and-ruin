@@ -14,14 +14,24 @@
  */
 
 import { LEGEND_LINE_COUNT } from "../../dev/dev-console-grid.ts";
+import type { CannonMode } from "../../src/shared/core/battle-types.ts";
 import type { Observation } from "./harness.ts";
 
 type CannonSpots = NonNullable<Observation["cannonSuggestions"]>;
+
+/** Cumulative count of cannons the agent has successfully placed this session,
+ *  by mode. Session state owned by the server (like `seenBlocks`) and threaded
+ *  in — the CANNON_PLACE skew nudge (`cannonSkewLines`) reads it to pattern-
+ *  interrupt a mode monoculture. */
+export type CannonModeTally = Record<CannonMode, number>;
 
 /** Show-once gate threaded into the section helpers: returns `full` the first
  *  time `key` is seen in a session, `terse` thereafter. See `renderObservation`. */
 type Once = (key: string, full: string, terse: string) => string;
 
+/** Placements of `normal` before the skew nudge starts firing — high enough to
+ *  read as an entrenched habit across rounds, not first-round noise. */
+const NORMAL_SKEW_THRESHOLD = 8;
 /** Terse one-line replacements for the per-phase EXPECTED menus, keyed by the
  *  `Observation.phase` string. The full menu (from `expectedFor` in harness.ts)
  *  is emitted the FIRST time a phase is seen in a session; thereafter a stateful
@@ -44,6 +54,7 @@ const TERSE_EXPECTED: Record<string, string> = {
 export function renderObservation(
   obs: Observation,
   seen: Set<string> = new Set<string>(),
+  modeTally?: CannonModeTally,
 ): string {
   const lines: string[] = [];
   // Show-once gate: the FIRST time a static explainer block is rendered in a
@@ -168,14 +179,17 @@ export function renderObservation(
     );
   }
 
-  // ── cannon spots: legal placements grouped by mode, safe-interior first ──────
+  // ── cannon spots: legal placements as a role menu, ordered by situational fit ─
   if (obs.cannonSuggestions !== undefined) {
-    for (const line of renderCannonSpots(obs.cannonSuggestions, once))
+    for (const line of renderCannonSpots(obs, obs.cannonSuggestions, once))
       lines.push(line);
   }
 
   // ── balloon opportunity: conditional cannon-phase nudge to steal an enemy super ─
   lines.push(...balloonOpportunityLines(obs));
+
+  // ── mode skew: stateful pattern-interrupt for a normal-only cannon monoculture ─
+  lines.push(...cannonSkewLines(obs, modeTally));
 
   // ── survival warning: no alive/revivable enclosed tower = a life lost at round
   //    end (see survivalLines) ──
@@ -560,6 +574,28 @@ function balloonOpportunityLines(obs: Observation): string[] {
   ];
 }
 
+/** Pattern-interrupt for a cannon-mode monoculture. The 🎈 balloon and super
+ *  hints are STATIC — an agent that skims one skims them all, so a real habit
+ *  (place 'normal' every round, never weigh an alternative) sails past every
+ *  nudge for a whole game. This line is STATEFUL: it counts the modes actually
+ *  placed and fires only once the agent has committed to normals repeatedly
+ *  while never once trying super or balloon. The live `normal×N` count changes
+ *  every round (so it can't be pattern-matched-past like a fixed string), and it
+ *  self-silences the instant a single non-normal cannon is placed — an
+ *  interrupt-until-you-engage-once, not a permanent nag. Points at the live
+ *  balloon opportunity when there is one, else at the unused levers generically. */
+function cannonSkewLines(obs: Observation, tally?: CannonModeTally): string[] {
+  if (!tally || obs.phase !== "CANNON_PLACE") return [];
+  const nonNormal = tally.super + tally.balloon + tally.rampart;
+  if (nonNormal > 0 || tally.normal < NORMAL_SKEW_THRESHOLD) return [];
+  const pointer = obs.balloonOpportunity
+    ? "A balloon is affordable RIGHT NOW (see 🎈 above): a seized enemy gun is a +1/−1 swing this battle, near-free on slots you'd leave idle."
+    : "super (3×3, plants pits — area denial) and balloon (single-use, steals the enemy's scariest gun) are unused levers — weigh them deliberately instead of auto-placing normal.";
+  return [
+    `  ⚖ MODE SKEW: you've placed normal×${tally.normal}, super×0, balloon×0 all game — you have NEVER tried a non-normal cannon. ${pointer}`,
+  ];
+}
+
 /** Conditional declutter nudge: surfaced in BATTLE when enough non-load-bearing,
  *  aim-reachable fat exists to open a real dump pocket (≥4 = a 2×2). The proactive
  *  escape from a looming bag-lock — you can only shoot walls out during BATTLE, but
@@ -871,12 +907,23 @@ function suggestionLines(obs: Observation): string[] {
   return lines;
 }
 
-/** Render the CANNON_PLACE shortlist: spots grouped by mode, safest first.
- *  `✗` = the routability min-cut says a re-seal can't wall around the footprint
- *  (UNSEALABLE risk — tight space only); `°` = ring-adjacent but routable (goes
- *  inert on a breach, re-arms at reseal). The warning fires only when EVERY
- *  affordable spot is unroutable — never just because spots hug a clean ring. */
-function renderCannonSpots(suggestions: CannonSpots, once: Once): string[] {
+/** Render the CANNON_PLACE shortlist as a ROLE MENU — one line per affordable
+ *  mode, ordered by situational fit rather than a fixed normal-first dump (which
+ *  structurally reads as "normal is the default" and buries the alternatives).
+ *  The order is honest, not a fabricated point score: the one cross-mode signal
+ *  the engine actually computes — a live balloon capture (`balloonOpportunity`)
+ *  — floats a balloon to the TOP with its reason; a balloon with NO capturable
+ *  target sinks to the BOTTOM (3 idle slots that do nothing this round); normal
+ *  and super sit between as the neutral peers they are (cheap battery vs. 4-slot
+ *  area denial — neither dominates, so neither is forced above the other). Each
+ *  line still carries every affordable coord for that mode. `✗` = the min-cut
+ *  says a re-seal can't wall around the footprint (UNSEALABLE risk — tight space
+ *  only); `°` = ring-adjacent but routable (inert on a breach, re-arms at reseal). */
+function renderCannonSpots(
+  obs: Observation,
+  suggestions: CannonSpots,
+  once: Once,
+): string[] {
   if (suggestions.length === 0) {
     return [
       "  CANNON SPOTS: none (no affordable footprint fits — end_cannon or pass)",
@@ -885,8 +932,8 @@ function renderCannonSpots(suggestions: CannonSpots, once: Once): string[] {
   const lines: string[] = [
     once(
       "cannonSpotsHeader",
-      "  CANNON SPOTS (safest first; ✗ = tight spot, a re-seal can't wall around it after a breach → UNSEALABLE risk; ° = ring-adjacent: goes inert on a breach but re-arms at reseal):",
-      "  CANNON SPOTS (safest first; ✗ = UNSEALABLE risk; ° = ring-adjacent, inert on breach):",
+      "  CANNON SPOTS — pick by ROLE, ordered by situational fit (NOT a default; ★ = the mode the board rewards now). Coords safest-first; ✗ = tight spot, a re-seal can't wall around it after a breach → UNSEALABLE risk; ° = ring-adjacent: goes inert on a breach but re-arms at reseal:",
+      "  CANNON SPOTS (role menu; ★ = board-favoured mode; coords safest-first; ✗ = UNSEALABLE risk; ° = ring-adjacent, inert on breach):",
     ),
   ];
   const byMode = new Map<string, CannonSpots>();
@@ -895,7 +942,17 @@ function renderCannonSpots(suggestions: CannonSpots, once: Once): string[] {
     list.push(spot);
     byMode.set(spot.mode, list);
   }
-  for (const [mode, list] of byMode) {
+  const hasBalloonTarget = obs.balloonOpportunity !== undefined;
+  // Situational rank: a live capture floats balloon to the top; a targetless
+  // balloon sinks below the reliable modes; everything else keeps its order.
+  const rankOf = (mode: string): number => {
+    if (mode === "balloon") return hasBalloonTarget ? -1 : 9;
+    return mode === "normal" ? 0 : mode === "super" ? 1 : 2;
+  };
+  const ordered = [...byMode.entries()].sort(
+    ([a], [b]) => rankOf(a) - rankOf(b),
+  );
+  for (const [mode, list] of ordered) {
     const spots = list
       .map((spot) => {
         const mark =
@@ -907,8 +964,17 @@ function renderCannonSpots(suggestions: CannonSpots, once: Once): string[] {
         return `(${spot.row},${spot.col})${mark}`;
       })
       .join(" ");
+    // Per-role tag: honest situational value, keyed off the engine's own signal.
+    const tag =
+      mode === "balloon"
+        ? hasBalloonTarget
+          ? " ★ SEIZE the capturable enemy gun THIS battle (see 🎈) — then spent"
+          : " ⚠ no enclosed enemy gun to seize right now — these 3 slots sit idle this round"
+        : mode === "normal" && !hasBalloonTarget
+          ? " ★ reliable battery — the default when nothing special is on offer"
+          : "";
     lines.push(
-      `     ${mode} ${list[0]!.size}x${list[0]!.size} (${list[0]!.slotCost} slot — ${list[0]!.role}) -> ${spots}`,
+      `     ${mode} ${list[0]!.size}x${list[0]!.size} (${list[0]!.slotCost} slot — ${list[0]!.role})${tag} -> ${spots}`,
     );
   }
   if (suggestions.every((spot) => spot.routable === false)) {
