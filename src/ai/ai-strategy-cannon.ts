@@ -333,7 +333,13 @@ export function nextCannonPlacement(
   // permanent one here: place an ephemeral balloon (removed before WALL_BUILD,
   // so it can't trap the rebuild) if one would capture something, otherwise
   // stop placing for the round.
+  // Fresh-castle exception: a grace-period player is spending the life-loss
+  // compensation slots (firstRoundCannons + livesLost) inside the cramped
+  // fresh ring, where every 5th-cannon spot is corridor-shaped — abstaining
+  // there silently waives the catch-up firepower the rules grant, capping
+  // every reselect at 4 cannons.
   if (
+    !player.inGracePeriod &&
     countEnclosedAliveCannons(player) >= ABSTAIN_MIN_ENCLOSED &&
     corridorPenaltyAt(player, best.row, best.col) * ctx.corridorScale >=
       ABSTAIN_CORRIDOR_FLOOR
