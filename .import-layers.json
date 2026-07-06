@@ -92,6 +92,7 @@
     "files": [
       "src/ai/ai-battle-diag.ts",
       "src/ai/ai-build-diag.ts",
+      "src/ai/ai-upgrade-fallback.ts",
       "src/entry.ts",
       "src/online/online-types.ts",
       "src/protocol/checkpoint-data.ts",

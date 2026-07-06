@@ -213,7 +213,8 @@
     "role": "AI build-phase diagnostic hook (test-only event surface)",
     "files": [
       "src/ai/ai-battle-diag.ts",
-      "src/ai/ai-build-diag.ts"
+      "src/ai/ai-build-diag.ts",
+      "src/ai/ai-upgrade-fallback.ts"
     ]
   },
   {

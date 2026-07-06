@@ -8,7 +8,6 @@
  */
 
 import type { ArchetypeId } from "../shared/core/ai-personality.ts";
-import { deriveAiStrategySeed } from "../shared/core/ai-seed.ts";
 import { isBalloonCannon, isCannonAlive } from "../shared/core/battle-types.ts";
 import type { UpgradePickEntry } from "../shared/core/dialog-state.ts";
 import { GRID_COLS, GRID_ROWS } from "../shared/core/grid.ts";
@@ -16,8 +15,8 @@ import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import { zoneAt } from "../shared/core/spatial.ts";
 import type { UpgradePickViewState } from "../shared/core/system-interfaces.ts";
 import { UID, type UpgradeId } from "../shared/core/upgrade-defs.ts";
-import { Rng } from "../shared/platform/rng.ts";
 import { getInterior } from "../shared/sim/player-interior.ts";
+import { forcedUpgradePick } from "./ai-upgrade-fallback.ts";
 import { secondsToTicks } from "./ai-utils.ts";
 
 const SMALL_PIECES_TERRITORY_RATIO = 0.8;
@@ -160,14 +159,10 @@ function aiPickUpgrade(
   if (!playerHasThickWalls(state, playerId)) excluded.add(UID.DEMOLITION);
   const viable = offers.filter((id) => !excluded.has(id));
   const pool = viable.length > 0 ? viable : offers;
-  const pickRng = new Rng(
-    // lint:allow-state-rng -- reading state.rng.seed (immutable constructor
-    // seed, not a draw) to derive a private Rng. The derived seed depends
-    // only on (baseSeed, round, slot), so every peer arrives at the same
-    // private Rng for the same slot without advancing state.rng.
-    deriveAiStrategySeed(state.rng.seed, state.round, playerId),
-  );
-  return pool[Math.floor(pickRng.next() * pool.length)]!;
+  // lint:allow-state-rng -- reading state.rng.seed (immutable constructor seed,
+  // not a draw); forcedUpgradePick derives a private Rng from (seed, round,
+  // slot), so every peer picks the same offer without advancing state.rng.
+  return forcedUpgradePick(pool, state.rng.seed, state.round, playerId);
 }
 
 function playerTerritoryRatio(
