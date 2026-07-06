@@ -199,18 +199,16 @@ export function tickBattle(
   // cannon-animator from `host.crosshair`), so the brain only steers the
   // crosshair here — no explicit aim call.
 
-  // During countdown or after battle timer expires: move/orbit only
-  if (state.battleCountdown > 0 || state.timer <= 0) {
+  // During countdown: move/orbit only. (After the battle timer expires the
+  // runtime stops ticking controllers entirely — `weaponsActive` in
+  // runtime/subsystems/phase-ticks.ts — so `state.timer > 0` holds past here.)
+  if (state.battleCountdown > 0) {
     // Force back to countdown state if needed
     if (phase.state.step !== STEP.COUNTDOWN) {
       phase.state = { step: STEP.COUNTDOWN, orbit: null };
     }
     // If chain attack is planned, move toward first target during countdown
-    if (
-      phase.chainTargets &&
-      phase.chainIdx < phase.chainTargets.length &&
-      state.battleCountdown > 0
-    ) {
+    if (phase.chainTargets && phase.chainIdx < phase.chainTargets.length) {
       const first = phase.chainTargets[phase.chainIdx]!;
       phase.crosshairTarget = tileCenterPx(first.row, first.col);
     }
@@ -314,51 +312,42 @@ function tickCountdown(
   if (phase.state.step !== STEP.COUNTDOWN) return;
   const phaseState = phase.state;
 
-  if (state.battleCountdown > 0) {
-    // During countdown, move to target then orbit around it
-    const dist = Math.hypot(
-      phase.crosshairTarget.x - host.crosshair.x,
-      phase.crosshairTarget.y - host.crosshair.y,
-    );
-    if (dist > ORBIT_ENGAGEMENT_DISTANCE_PX) {
-      host.stepCrosshairToward(
-        phase.crosshairTarget.x,
-        phase.crosshairTarget.y,
-      );
-    } else {
-      if (!phaseState.orbit) {
-        const strategic = !!phase.crosshairTarget.strategic;
-        const boost = strategic ? 1.2 : 1;
-        const rng = phase.strategy.rng;
-        const speedBase = strategic
-          ? ORBIT_SPEED_STRATEGIC_RAD_S
-          : ORBIT_SPEED_DEFAULT_RAD_S;
-        const baseSpeed =
-          Math.PI * (speedBase + rng.next() * ORBIT_SPEED_RANGE_RAD_S);
-        phaseState.orbit = {
-          rx:
-            (ORBIT_RADIUS_BASE_PX + rng.next() * ORBIT_RADIUS_RANGE_PX) * boost,
-          ry:
-            (ORBIT_RADIUS_BASE_PX + rng.next() * ORBIT_RADIUS_RANGE_PX) * boost,
-          speed: baseSpeed * (rng.bool() ? 1 : -1),
-        };
-        // Seed the phase from the current approach angle so the orbit
-        // starts where the crosshair already is (no visible jump).
-        phase.orbitAngle = Math.atan2(
-          host.crosshair.y - phase.crosshairTarget.y,
-          host.crosshair.x - phase.crosshairTarget.x,
-        );
-      }
-      phase.orbitAngle += phaseState.orbit.speed * ORBIT_DT;
-      host.crosshair.x =
-        phase.crosshairTarget.x +
-        Math.cos(phase.orbitAngle) * phaseState.orbit.rx;
-      host.crosshair.y =
-        phase.crosshairTarget.y +
-        Math.sin(phase.orbitAngle) * phaseState.orbit.ry;
-    }
-  } else {
+  // During countdown, move to target then orbit around it
+  const dist = Math.hypot(
+    phase.crosshairTarget.x - host.crosshair.x,
+    phase.crosshairTarget.y - host.crosshair.y,
+  );
+  if (dist > ORBIT_ENGAGEMENT_DISTANCE_PX) {
     host.stepCrosshairToward(phase.crosshairTarget.x, phase.crosshairTarget.y);
+  } else {
+    if (!phaseState.orbit) {
+      const strategic = !!phase.crosshairTarget.strategic;
+      const boost = strategic ? 1.2 : 1;
+      const rng = phase.strategy.rng;
+      const speedBase = strategic
+        ? ORBIT_SPEED_STRATEGIC_RAD_S
+        : ORBIT_SPEED_DEFAULT_RAD_S;
+      const baseSpeed =
+        Math.PI * (speedBase + rng.next() * ORBIT_SPEED_RANGE_RAD_S);
+      phaseState.orbit = {
+        rx: (ORBIT_RADIUS_BASE_PX + rng.next() * ORBIT_RADIUS_RANGE_PX) * boost,
+        ry: (ORBIT_RADIUS_BASE_PX + rng.next() * ORBIT_RADIUS_RANGE_PX) * boost,
+        speed: baseSpeed * (rng.bool() ? 1 : -1),
+      };
+      // Seed the phase from the current approach angle so the orbit
+      // starts where the crosshair already is (no visible jump).
+      phase.orbitAngle = Math.atan2(
+        host.crosshair.y - phase.crosshairTarget.y,
+        host.crosshair.x - phase.crosshairTarget.x,
+      );
+    }
+    phase.orbitAngle += phaseState.orbit.speed * ORBIT_DT;
+    host.crosshair.x =
+      phase.crosshairTarget.x +
+      Math.cos(phase.orbitAngle) * phaseState.orbit.rx;
+    host.crosshair.y =
+      phase.crosshairTarget.y +
+      Math.sin(phase.orbitAngle) * phaseState.orbit.ry;
   }
 }
 

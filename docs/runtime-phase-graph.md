@@ -46,7 +46,7 @@ stateDiagram-v2
 - **broadcasts:** `buildEnd`
 - **display:** —
 - **dispatches:** —
-- **external dispatchers:** `phase-ticks.ts:861`
+- **external dispatchers:** `phase-ticks.ts:864`
 
 ### `battle-done`
 
@@ -56,7 +56,7 @@ stateDiagram-v2
 - **broadcasts:** `buildStart`
 - **display:** —
 - **dispatches:** `enter-upgrade-pick`, `enter-wall-build`
-- **external dispatchers:** `phase-ticks.ts:783`
+- **external dispatchers:** `phase-ticks.ts:786`
 
 ### `ceasefire`
 

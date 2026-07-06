@@ -46,18 +46,19 @@ const FIXTURES = [
   // determinism suite.
   "seed-7-modern.json",
   "seed-0-modern.json",
-  // Balloon fixture: seed-3 classic produces a balloon battle from round 3
-  // (the AI elects Propaganda Balloon cannons once defensiveness + spare
-  // slots line up). Locks the balloon-anim sequencing — balloons now flip
+  // Balloon fixture: seed-2 classic produces a balloon battle (the AI elects
+  // Propaganda Balloon cannons once defensiveness + spare slots line up).
+  // Locks the balloon-anim sequencing — balloons now flip
   // into BALLOON_ANIM and accrue flight progress only AFTER the battle-entry
   // tilt settles (`proceedToBattleFromCtx`'s pitch gate), so BALLOON_ANIM_END
   // (and the battle start it gates) land a fixed ~0.6s later than when
   // balloons used to animate through the tilt. A regression in that
   // sequencing diverges here. (Was seed-0 until the grunt-spawn-rate bump
   // shifted seed-0's cannon elections away from balloons — re-derived to
-  // seed-3 via the tmp/find-balloon-seed probe; 2 balloon anims after the
-  // house-spawn change shifted seed-3's dynamics from 3.)
-  "seed-3-classic-balloon.json",
+  // seed-3 via the tmp/find-balloon-seed probe; re-derived to seed-2 via
+  // tmp/probe-balloon-seed after the battle-timer input lockout shifted
+  // seed-3's cannon elections away from balloons.)
+  "seed-2-classic-balloon.json",
   // Camera-determinism fixture: same headless run as seed-42-classic but
   // with mobileZoomEnabled=true so CAMERA_TARGET events are emitted at
   // every phase entry / explicit zone command / holdLifeLostZoom / follow-

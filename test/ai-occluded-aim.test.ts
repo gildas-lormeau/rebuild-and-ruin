@@ -29,10 +29,12 @@ const SWEEP_ORIGINS = new Set(["grunt_sweep", "charity"]);
 Deno.test(
   "AI grunt sweep: occluded grunts (hidden behind a camera-near wall) are never targeted",
   async () => {
-    // High round cap: seed-4 modern is a 3-way stalemate, so we observe a fixed
-    // span of rounds rather than waiting for a winner (there isn't one). Grunt
-    // counts climb across rounds, so sweeps and wall-occluded grunts both appear.
-    using sc = await createScenario({ seed: 4, mode: "modern", rounds: 30 });
+    // High round cap: seed-10 modern reaches round 12 without a winner, so we
+    // observe a fixed span of rounds rather than waiting for one. Grunt
+    // counts climb across rounds, so sweeps and wall-occluded grunts both
+    // appear. (Was seed 4 until the battle-timer input lockout shifted the
+    // AI RNG streams — probe: tmp/probe-occluded-aim-seed.ts.)
+    using sc = await createScenario({ seed: 10, mode: "modern", rounds: 30 });
 
     let sweepFires = 0;
     let redirects = 0;
@@ -65,7 +67,8 @@ Deno.test(
 
     try {
       // Play a fixed span of rounds (the game won't end on its own here).
-      // seed-4's first grunt sweep lands at round 11, so observe through it.
+      // seed-10's first grunt sweep lands at round 4; observe through round
+      // 12 so plenty of sweeps meet plenty of occluded grunts.
       sc.runUntil(() => sc.state.round >= 12, { timeoutMs: 1_300_000 });
     } finally {
       setAiBattleDiagHook(undefined);

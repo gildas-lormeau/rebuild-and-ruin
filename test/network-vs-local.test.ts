@@ -751,12 +751,12 @@ async function promoteWatcherMidUpgradePick(
 Deno.test(
   "adoption jumping a watcher out of ROUND_END clears the routing stash",
   async () => {
-    // Probed seed (tmp probe over classic r15): round 2 closes with a
-    // life-lost dialog whose loser survives (reselect routing), and round 3
-    // closes loss-free — the registry reselect seed no longer guarantees a
-    // loss-free follow-up window after the breach-seam variation change.
+    // Probed seed (tmp/probe-adoption-seeds.ts part A over classic r15):
+    // round 2 closes with a life-lost dialog whose loser survives (reselect
+    // routing), and round 3 closes loss-free. (Was seed 9 until the
+    // battle-timer input lockout shifted the AI RNG streams.)
     const pair = await createNetworkedPair({
-      seed: 9,
+      seed: 4,
       mode: "classic",
       rounds: 15,
     });
@@ -862,9 +862,11 @@ Deno.test(
   "watcher adopting an eliminated-only ROUND_END snapshot shows the notice",
   async () => {
     // Probed seed: round 14 closes eliminated-only (P1 out, no reselect;
-    // game runs to r34 — probe: tmp/probe-roundend-seeds.ts part 2).
+    // game runs to r26 — probe: tmp/probe-adoption-seeds.ts part B. Was
+    // seed 13 until the battle-timer input lockout shifted the AI RNG
+    // streams).
     const pair = await createNetworkedPair({
-      seed: 13,
+      seed: 5,
       mode: "classic",
       rounds: 30,
     });

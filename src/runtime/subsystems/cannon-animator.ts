@@ -61,9 +61,7 @@ export function createCannonAnimator(deps: CannonAnimatorDeps): CannonAnimator {
   // cannon, else the owner's); otherwise it rests at `player.defaultFacing`.
   function syncTargets() {
     const { state } = runtimeState;
-    const weaponsActive =
-      state.phase === Phase.BATTLE &&
-      (state.timer > 0 || state.cannonballs.length > 0);
+    const weaponsActive = state.phase === Phase.BATTLE && state.timer > 0;
     const crosshairs = runtimeState.frame.crosshairs;
     const capturerOf = new Map(
       state.capturedCannons.map((captured) => [

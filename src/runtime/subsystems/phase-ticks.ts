@@ -698,11 +698,14 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     );
     emitBattleCeaseIfTimerCrossed(state, prevTimer);
 
-    // Weapons are locked once the timer has expired AND the last ball has
-    // landed — no more aiming, firing, or crosshair motion. Controllers
-    // therefore skip their battleTick (crosshair motion); the cannon-
-    // animator then computes the rest facing once weapons go inactive.
-    const weaponsActive = state.timer > 0 || state.cannonballs.length > 0;
+    // Weapons are locked the moment the timer expires — no more aiming,
+    // firing, or crosshair motion for ANY player (human pointer paths gate
+    // on the same `state.timer` in input-dispatch.ts; `BaseController.fire`
+    // self-gates too). In-flight balls still land, but players are
+    // spectators for that tail. Controllers therefore skip their battleTick
+    // (crosshair motion); the cannon-animator then computes the rest facing
+    // once weapons go inactive.
+    const weaponsActive = state.timer > 0;
 
     // Controller ticks (pass 1) must precede engine combat (pass 2): new
     // cannonballs spawned during `battleTick` need to exist before the

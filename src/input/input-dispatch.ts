@@ -252,6 +252,9 @@ export function dispatchBattleFire(
   },
 ): void {
   if (state.phase !== Phase.BATTLE) return;
+  // Timer expired: players are locked out for the ball-landing tail — the
+  // tap must not even move the crosshair (fire() already self-gates).
+  if (state.timer <= 0) return;
   deps.withPointerPlayer((human) => {
     human.aim(state, x, y);
     deps.gameAction.fire(human, state);
@@ -399,7 +402,9 @@ export function dispatchPointerMove(
     } else if (state.phase === Phase.CANNON_PLACE) {
       const w = coords.screenToWorld(x, y);
       human.setCannonCursor(w.wx, w.wy);
-    } else if (state.phase === Phase.BATTLE) {
+    } else if (state.phase === Phase.BATTLE && state.timer > 0) {
+      // Timer gate: once the battle timer expires the crosshair is frozen
+      // for every player (same rule the runtime applies to battleTick).
       const w = human.aim(state, x, y);
       maybeSendAimUpdate(w.wx, w.wy);
     }

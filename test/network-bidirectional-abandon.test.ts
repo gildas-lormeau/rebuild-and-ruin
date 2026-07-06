@@ -74,6 +74,9 @@ const WIRE_DELAY_FRAMES = 5;
 // order (declutter re-plan gate, nearest-neighbour firing order, ring cost
 // includes crosshair travel): all three stopped firing → classic 3-r8,
 // classic 5-r8, modern 7-r8.
+// Re-probed after the battle-timer input lockout (post-timer crosshair RNG
+// draws removed): modern 7-r8 stopped eliminating → modern 11-r8
+// (classic 3-r8 and 5-r8 survived).
 const TRIALS: {
   readonly seed: number;
   readonly mode: "classic" | "modern";
@@ -81,7 +84,7 @@ const TRIALS: {
 }[] = [
   { seed: 3, mode: "classic", rounds: 8 },
   { seed: 5, mode: "classic", rounds: 8 },
-  { seed: 7, mode: "modern", rounds: 8 },
+  { seed: 11, mode: "modern", rounds: 8 },
 ];
 
 void _forceScenarioFirst;
