@@ -18,7 +18,6 @@ import {
   TILE_SIZE,
 } from "../shared/core/grid.ts";
 import { Action, type KeyBindings } from "../shared/core/input-action.ts";
-import { rotateCW } from "../shared/core/pieces.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import type { Player } from "../shared/core/player-types.ts";
 import { cannonSize } from "../shared/core/spatial.ts";
@@ -35,6 +34,7 @@ import {
   type PlacePieceIntent,
 } from "../shared/core/system-interfaces.ts";
 import { cannonSlotsFor } from "../shared/core/types.ts";
+import { rotatePlayerPiece } from "../shared/sim/player-bag.ts";
 import { BaseController } from "./controller-base.ts";
 
 /** Speed multiplier when ROTATE (sprint) key is held during battle crosshair movement. */
@@ -318,15 +318,16 @@ export class HumanController extends BaseController implements InputReceiver {
     };
   }
 
-  /** Rotate the current build piece clockwise (Tetris-style: pivot stays in place). */
+  /** Rotate the current build piece clockwise (Tetris-style: pivot stays in
+   *  place). The piece field is game-owned — `rotatePlayerPiece` performs the
+   *  mutation and returns the pivot delta; the controller only re-anchors its
+   *  local cursor to keep it over the pivot. */
   rotatePiece(state: BuildViewState): void {
     const player = state.players[this.playerId];
     if (!player?.currentPiece) return;
-    const prevPivot = player.currentPiece.pivot;
-    player.currentPiece = rotateCW(player.currentPiece);
-    const newPivot = player.currentPiece.pivot;
-    this.buildCursor.row += prevPivot[0] - newPivot[0];
-    this.buildCursor.col += prevPivot[1] - newPivot[1];
+    const [dRow, dCol] = rotatePlayerPiece(player);
+    this.buildCursor.row += dRow;
+    this.buildCursor.col += dCol;
     this.clampBuildCursor(player.currentPiece);
   }
 

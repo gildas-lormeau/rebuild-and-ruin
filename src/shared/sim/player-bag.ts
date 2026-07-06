@@ -7,6 +7,7 @@
  */
 
 import { BOARD_LOCAL_SITE, deriveBoardLocalSeed } from "../core/ai-seed.ts";
+import { rotateCW } from "../core/pieces.ts";
 import type { Player } from "../core/player-types.ts";
 import { Rng } from "../platform/rng.ts";
 import { createBag, nextPiece } from "./pieces.ts";
@@ -49,6 +50,21 @@ export function advancePlayerBag(player: Player, _placed: true): void {
     );
   }
   player.currentPiece = nextPiece(player.bag);
+}
+
+/** Rotate the current build piece clockwise in place (Tetris-style: the pivot
+ *  stays at the same grid cell). Returns the pivot delta `[dRow, dCol]` =
+ *  `prevPivot - newPivot` so a caller tracking the pivot can re-anchor its
+ *  cursor; `[0, 0]` when the player has no current piece. This is the write
+ *  surface over `currentPiece` for rotation — controllers hold local input
+ *  state (cursor) but never mutate the game-owned piece field directly. */
+export function rotatePlayerPiece(player: Player): [number, number] {
+  const prevPiece = player.currentPiece;
+  if (!prevPiece) return [0, 0];
+  player.currentPiece = rotateCW(prevPiece);
+  const [prevRow, prevCol] = prevPiece.pivot;
+  const [newRow, newCol] = player.currentPiece.pivot;
+  return [prevRow - newRow, prevCol - newCol];
 }
 
 /** Clear every player's piece bag at end-of-build (round-end transition).
