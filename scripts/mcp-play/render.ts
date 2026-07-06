@@ -570,7 +570,7 @@ function balloonOpportunityLines(obs: Observation): string[] {
     ? `place ${balloon.balloonsToSeize === 1 ? "a balloon" : `${balloon.balloonsToSeize} balloons`} (mode:'balloon', 3 slots each) starting at (${sr},${sc}) to SEIZE it THIS battle — it fires FOR you, denies it to them, then is spent (slots free next round)`
     : `it needs ${balloon.balloonsToSeize} balloon hits (a super takes 2) but you can afford ${balloon.balloonsAffordable} now — one balloon at (${sr},${sc}) banks ${balloon.balloonsAffordable}/${balloon.balloonsToSeize} (progress persists; finish next round)`;
   return [
-    `  🎈 BALLOON OPPORTUNITY: ${balloon.name}'s ${mode} at (${gr},${gc}) is capturable — ${action}. Near-free on slots you'd otherwise leave idle (a seized gun is a +1/−1 swing).`,
+    `  🎈 BALLOON OPPORTUNITY: ${balloon.name}'s ${mode} at (${gr},${gc}) is capturable — ${action}. Near-free on slots you'd otherwise leave idle (a seized gun is a +1/−1 swing). It's REMOVED before WALL_BUILD, so it costs no build-space and can never add fat or trigger a bag-lock — a tight/packed castle is no reason to skip it (you only need a legal 2×2 spot at placement time).`,
   ];
 }
 

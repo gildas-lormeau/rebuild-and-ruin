@@ -379,7 +379,7 @@ const TOOLS: ToolDef[] = [
   {
     name: "place_cannon",
     description:
-      "CANNON_PLACE: place a cannon at row/col. mode is one of normal|super|balloon|rampart (default normal). normal=direct fire; super=3×3 incendiary (plants pits); balloon=SINGLE-USE (3 slots) — at battle start it auto-seizes the enemy's most dangerous cannon to fire for you that battle, then is spent and removed (slots free next round), so it's a defensive 'steal their scariest gun' tool, NOT a persistent battery.",
+      "CANNON_PLACE: place a cannon at row/col. mode is one of normal|super|balloon|rampart (default normal). normal=direct fire; super=3×3 incendiary (plants pits); balloon=SINGLE-USE (3 slots) — at battle start it auto-seizes the enemy's most dangerous cannon to fire for you that battle, then is spent and removed (slots free next round), so it's a defensive 'steal their scariest gun' tool, NOT a persistent battery. Because it's removed BEFORE WALL_BUILD, a balloon costs no build-space and can never add fat or cause a bag-lock (it leaves no debris) — so a tight/packed castle is no reason to skip it; you only need a legal 2×2 open spot at placement time.",
     inputSchema: {
       type: "object",
       properties: {
