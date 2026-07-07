@@ -32,6 +32,11 @@ type Once = (key: string, full: string, terse: string) => string;
 /** Placements of `normal` before the skew nudge starts firing — high enough to
  *  read as an entrenched habit across rounds, not first-round noise. */
 const NORMAL_SKEW_THRESHOLD = 8;
+/** Placements of a single non-normal mode before the monoculture nudge fires.
+ *  Lower than the normal threshold: leaning entirely on balloons (single-use,
+ *  3 slots, gone after battle) or supers (4 slots) starves the standing battery
+ *  faster than a normal habit does, so it's worth interrupting sooner. */
+const NONNORMAL_SKEW_THRESHOLD = 4;
 /** Terse one-line replacements for the per-phase EXPECTED menus, keyed by the
  *  `Observation.phase` string. The full menu (from `expectedFor` in harness.ts)
  *  is emitted the FIRST time a phase is seen in a session; thereafter a stateful
@@ -184,6 +189,9 @@ export function renderObservation(
     for (const line of renderCannonSpots(obs, obs.cannonSuggestions, once))
       lines.push(line);
   }
+
+  // ── idle slots: keep-placing interrupt — unspent slots are forfeited firepower ─
+  lines.push(...idleSlotLines(obs, once));
 
   // ── balloon opportunity: conditional cannon-phase nudge to steal an enemy super ─
   lines.push(...balloonOpportunityLines(obs));
@@ -574,26 +582,100 @@ function balloonOpportunityLines(obs: Observation): string[] {
   ];
 }
 
-/** Pattern-interrupt for a cannon-mode monoculture. The 🎈 balloon and super
- *  hints are STATIC — an agent that skims one skims them all, so a real habit
- *  (place 'normal' every round, never weigh an alternative) sails past every
- *  nudge for a whole game. This line is STATEFUL: it counts the modes actually
- *  placed and fires only once the agent has committed to normals repeatedly
- *  while never once trying super or balloon. The live `normal×N` count changes
- *  every round (so it can't be pattern-matched-past like a fixed string), and it
- *  self-silences the instant a single non-normal cannon is placed — an
- *  interrupt-until-you-engage-once, not a permanent nag. Points at the live
- *  balloon opportunity when there is one, else at the unused levers generically. */
+/** In-phase interrupt for unspent cannon slots. The battery line shows `used/max`,
+ *  but a passive count reads as status, not a to-do — a weak agent places one
+ *  cannon, calls end_cannon, and leaves 3–5 slots empty EVERY round while the
+ *  built-in AI fills all of them, so its cannon count never grows. Firing whenever
+ *  idle > 0 turns that silent gap into an explicit "keep placing" prompt; the live
+ *  idle count changes each round so it can't be skimmed past like a fixed string.
+ *  Space-aware, in escalating order: (1) castle fully packed (no gun spot) → bless a
+ *  balloon/end; (2) only ring-adjacent spots on a breached/tight ring → don't seam a
+ *  normal; (3) dump pocket down to the 3×3 minimum → stop cramming permanent normals
+ *  (a bag-lock costs more than idle slots); (4) otherwise push to fill with the
+ *  `once`-gated cluster + repair-lane wisdom. */
+function idleSlotLines(obs: Observation, once: Once): string[] {
+  if (obs.phase !== "CANNON_PLACE") return [];
+  const { used, max } = obs.me.cannonSlots;
+  const idle = max - used;
+  if (idle <= 0) return [];
+  if (!hasBatterySpot(obs)) {
+    return [
+      `  ▸ ${idle} idle cannon slot${idle === 1 ? "" : "s"} (${used}/${max}) but NO routable spot for a normal/super gun — your castle is packed. A balloon here (no build-space, gone after battle) or end_cannon is fine; to add real battery, expand your interior first, then place guns next round.`,
+    ];
+  }
+  if (ringOnlyBatteryAndFragile(obs)) {
+    return [
+      `  ▸ ${idle} idle cannon slot${idle === 1 ? "" : "s"} (${used}/${max}) — but the ONLY gun spots are ring-adjacent (°) and your ring is breached/tight. Do NOT drop a normal on the seam: it's PERMANENT and will block the re-seal an enemy breach forces (this is how a castle ends up "never closable at the south"). A balloon there is fine (removed after battle → never obstructs the reseal); otherwise leave the slot and RESEAL / expand interior first — a placed gun isn't worth a lost enclosure.`,
+    ];
+  }
+  if (dumpPocketAtRisk(obs)) {
+    const balloonOk = obs.balloonOpportunity
+      ? "The live 🎈 capture is still fine (a balloon is removed before WALL_BUILD → costs no build-space, can't cause a bag-lock)."
+      : "A balloon would be fine (no build-space) but only if a 🎈 capture is on offer — none now.";
+    return [
+      `  ▸ ${idle} idle cannon slot${idle === 1 ? "" : "s"} (${used}/${max}) — but your dump pocket is down to the 3×3 MINIMUM. STOP adding permanent normals: one more 2×2 gun can shrink the pocket below a placeable piece and BAG-LOCK your next build (no legal placement → forfeited build, and a lost life if it de-encloses you). Reserve the pocket. ${balloonOk} Otherwise leave the slots idle — an idle slot is far cheaper than a bag-lock.`,
+    ];
+  }
+  const howto = once(
+    "idleSlotsHowto",
+    " Good play: fill EVERY slot each round with normal cannons — they PERSIST and compound round over round (the AI reaches 15+ this way). CLUSTER them around your towers, and leave a 1-tile lane between clusters so a repair/divider wall still fits if a breach opens (see CANNON SPOTS — ✗ marks spots that would wall you in). Only end with idle slots if no gun spot fits; then expand your interior first.",
+    "",
+  );
+  return [
+    `  ▸ ${idle} IDLE CANNON SLOT${idle === 1 ? "" : "s"} (${used}/${max} used) — call cannon{...} again before end_cannon. Each unused slot is firepower forfeited, and because cannons persist the gap COMPOUNDS every round.${howto}`,
+  ];
+}
+
+/** Stateful pattern-interrupt for a cannon-mode habit that starves the standing
+ *  battery. The 🎈 balloon and super hints are STATIC — an agent that skims one
+ *  skims them all, so a real habit sails past every nudge for a whole game. This
+ *  line counts the modes actually placed; the live count changes every round (so
+ *  it can't be pattern-matched-past). Two shapes matter in practice:
+ *   - all-`normal`: never once weighed a special lever (a mild nudge).
+ *   - balloon-DOMINANT: more balloons than every other mode combined — the actual
+ *     weak-agent trap, spending the whole slot budget each round on single-use
+ *     capture units so the battery never grows. Fires only when a real gun spot
+ *     STILL fits (`hasBatterySpot`); a packed castle makes balloon-leaning correct,
+ *     so it stands down there rather than nagging an agent with no room. */
 function cannonSkewLines(obs: Observation, tally?: CannonModeTally): string[] {
   if (!tally || obs.phase !== "CANNON_PLACE") return [];
-  const nonNormal = tally.super + tally.balloon + tally.rampart;
-  if (nonNormal > 0 || tally.normal < NORMAL_SKEW_THRESHOLD) return [];
-  const pointer = obs.balloonOpportunity
-    ? "A balloon is affordable RIGHT NOW (see 🎈 above): a seized enemy gun is a +1/−1 swing this battle, near-free on slots you'd leave idle."
-    : "super (3×3, plants pits — area denial) and balloon (single-use, steals the enemy's scariest gun) are unused levers — weigh them deliberately instead of auto-placing normal.";
-  return [
-    `  ⚖ MODE SKEW: you've placed normal×${tally.normal}, super×0, balloon×0 all game — you have NEVER tried a non-normal cannon. ${pointer}`,
-  ];
+  const { normal, super: superN, balloon, rampart } = tally;
+  const balloonPointer = obs.balloonOpportunity
+    ? "There's a live 🎈 opportunity right now (above) — THAT is when a balloon pays; otherwise place normals."
+    : "Reserve balloons for a live 🎈 opportunity; the rest of the time, place normals.";
+  // Balloon-dominant AND a battery gun would still fit → the real mistake.
+  if (
+    balloon >= NONNORMAL_SKEW_THRESHOLD &&
+    balloon > normal + superN + rampart &&
+    hasBatterySpot(obs)
+  ) {
+    return [
+      `  ⚖ MODE SKEW: balloon×${balloon} — more than every other cannon combined, yet a normal/super gun DOES fit right now. A balloon is SINGLE-USE (removed after battle, 3 slots), a capture tool for one enemy gun, NOT your battery — leaning on it keeps your cannon count flat. Default to NORMAL cannons (1 slot; they persist and compound into a standing battery). ${balloonPointer}`,
+    ];
+  }
+  // All-normal habit: never once tried a special lever.
+  if (superN + balloon + rampart === 0 && normal >= NORMAL_SKEW_THRESHOLD) {
+    const pointer = obs.balloonOpportunity
+      ? `A balloon is affordable RIGHT NOW (see 🎈 above): a seized enemy gun is a +1/−1 swing this battle, near-free on slots you'd leave idle.`
+      : "super (3×3, plants pits — area denial) and balloon (single-use, steals the enemy's scariest gun) are unused levers — weigh them deliberately instead of auto-placing normal.";
+    return [
+      `  ⚖ MODE SKEW: normal×${normal}, and you've NEVER tried a non-normal cannon. ${pointer}`,
+    ];
+  }
+  return [];
+}
+
+/** Is there a routable spot for a STANDING BATTERY gun (normal/super) right now?
+ *  False = the castle is packed tight — only balloon-sized footprints fit, or the
+ *  only spots left would wall the ring shut. When there's no battery spot, idle
+ *  slots are UNAVOIDABLE and a balloon (no build-space, gone after battle) is the
+ *  right use of them — so the "fill your slots" nudges stand down (per the design:
+ *  balloon overuse is fine when there's almost no space). */
+function hasBatterySpot(obs: Observation): boolean {
+  return (obs.cannonSuggestions ?? []).some(
+    (spot) =>
+      (spot.mode === "normal" || spot.mode === "super") && spot.routable,
+  );
 }
 
 /** Conditional declutter nudge: surfaced in BATTLE when enough non-load-bearing,
@@ -971,7 +1053,9 @@ function renderCannonSpots(
           ? " ★ SEIZE the capturable enemy gun THIS battle (see 🎈) — then spent"
           : " ⚠ no enclosed enemy gun to seize right now — these 3 slots sit idle this round"
         : mode === "normal" && !hasBalloonTarget
-          ? " ★ reliable battery — the default when nothing special is on offer"
+          ? ringOnlyBatteryAndFragile(obs)
+            ? " ⚠ ring-adjacent on a breached/tight ring — a PERMANENT normal here blocks your reseal; prefer a balloon or leave the slot (see below)"
+            : " ★ reliable battery — the default when nothing special is on offer"
           : "";
     lines.push(
       `     ${mode} ${list[0]!.size}x${list[0]!.size} (${list[0]!.slotCost} slot — ${list[0]!.role})${tag} -> ${spots}`,
@@ -983,10 +1067,52 @@ function renderCannonSpots(
     );
   } else if (suggestions.every((spot) => (spot.wallLineSides ?? 0) > 0)) {
     lines.push(
-      "     ℹ no deep-interior spot yet (expected on a fresh castle) — the ° spots are routable but go inert when their ring wall is breached, re-arming at reseal. Recoverable, so place a normal complement if you want offense.",
+      ringOnlyBatteryAndFragile(obs)
+        ? "     ⚠ every gun spot is ring-adjacent (°) AND your ring is breached/tight — do NOT drop a PERMANENT normal on the seam: it obstructs the re-seal a breach forces, and in a tight pocket there's no room to route around it (the castle ends up unclosable). Use a BALLOON here instead (removed after battle → never blocks the reseal), or leave the slot and RESEAL / expand interior first."
+        : "     ℹ no deep-interior spot yet (expected on a fresh castle) — the ° spots are routable but go inert when their ring wall is breached, re-arming at reseal. Recoverable, so place a normal complement if you want offense.",
     );
   }
   return lines;
+}
+
+/** The trap the `routable` flag misses: every available battery (normal/super)
+ *  spot is RING-ADJACENT (`wallLineSides > 0`) AND the castle is fragile right now
+ *  — its ring is breached (`cannonsUnenclosed > 0`, guns stranded outside a sealed
+ *  ring) or the pocket is tight (no 3×3 dump room left). `routable` is computed on
+ *  BARE terrain ("could a ring route around this cannon on an empty board"), so it
+ *  rates such a spot safe; but a PERMANENT normal dropped on the one contested
+ *  seam physically obstructs the re-seal an opponent's 1–2-hole breach forces, and
+ *  in a tight pocket there's no room to route around it — exactly the case where
+ *  the castle "can almost never be closed at the south". A balloon is preferable
+ *  there (removed after battle → never blocks the reseal), and leaving the slot is
+ *  better than a normal. When this is true the "fill your slots with normals"
+ *  nudges must NOT push a normal into the seam. */
+function ringOnlyBatteryAndFragile(obs: Observation): boolean {
+  const battery = (obs.cannonSuggestions ?? []).filter(
+    (spot) =>
+      (spot.mode === "normal" || spot.mode === "super") && spot.routable,
+  );
+  if (battery.length === 0) return false;
+  const allRingAdjacent = battery.every(
+    (spot) => (spot.wallLineSides ?? 0) > 0,
+  );
+  if (!allRingAdjacent) return false;
+  const breached = (obs.me.cannonsUnenclosed ?? 0) > 0;
+  const pocket = obs.me.headroom?.openPocket;
+  const tight = pocket ? Math.min(pocket.h, pocket.w) < 3 : false;
+  return breached || tight;
+}
+
+/** The over-packing bag-lock predictor: the largest open pocket has shrunk to the
+ *  3×3 MINIMUM that still admits any piece (`min(h,w) <= 3`). One more permanent 2×2
+ *  cannon can drop it below a placeable footprint, so the NEXT build has no legal
+ *  drop → a forfeited build, and a lost life if the un-dumpable piece was the one
+ *  that would have re-sealed. At this margin the "fill your idle slots" push is
+ *  actively harmful: an idle slot is recoverable next round, a bag-lock is not. Used
+ *  to flip the idle-slot nudge from "keep placing normals" to "reserve the pocket". */
+function dumpPocketAtRisk(obs: Observation): boolean {
+  const pocket = obs.me.headroom?.openPocket;
+  return pocket ? Math.min(pocket.h, pocket.w) <= 3 : false;
 }
 
 /** Grunt-cluster block: dense packs (≥2×2) the harness surfaces. Yours read as
