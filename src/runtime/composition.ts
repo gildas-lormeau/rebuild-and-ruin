@@ -22,7 +22,10 @@ import {
 } from "../input/input-touch-ui.ts";
 import { updateTouchControls } from "../input/input-touch-update.ts";
 import type { GameMessage, ServerMessage } from "../protocol/protocol.ts";
-import { pickHitWorld as pickElevatedHit } from "../render/3d/elevation.ts";
+import {
+  targetTopAt as elevatedTopAt,
+  pickHitWorld as pickElevatedHit,
+} from "../render/3d/elevation.ts";
 import { createRender3d } from "../render/3d/renderer.ts";
 import {
   buildGameOverOverlay,
@@ -418,6 +421,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     },
     getOverlay: () => runtimeState.overlay,
     pickElevatedHit,
+    elevatedTopAt,
   });
 
   const { tickCamera } = camera;
@@ -575,6 +579,10 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
             // the live camera pitch + overlay heights. AI controllers ignore
             // this and use their own sim-only resolver for cross-peer parity.
             humanAimResolver: (_state, x, y) => camera.pickHitWorld(x, y),
+            // Keyboard counterpart: occlude the raw world crosshair at fire
+            // time so keyboard aim hits the wall it visually sits on, exactly
+            // like the mouse resolver above.
+            humanWorldOccluder: (wx, wy) => camera.occludeWorld(wx, wy),
           },
           config.getUrlModeOverride,
         ),
@@ -1014,6 +1022,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
         playerId,
         runtimeState.settings.keyBindings[0]!,
         (_state, screenX, screenY) => camera.pickHitWorld(screenX, screenY),
+        (wx, wy) => camera.occludeWorld(wx, wy),
       );
       runtimeState.controllers[playerId] = ctrl;
       // Prime for the live phase exactly as a mid-game adoption does for a

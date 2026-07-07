@@ -188,8 +188,11 @@ export function pickHitWorld(
  *  otherwise a ball aimed at a tower or cannon would fly past its top
  *  and hit the ground. Unlike `aimElevationAt`, no crosshair margin
  *  is added; the ball should disappear at the exact top of the target
- *  geometry, not a few units above it. */
-function targetTopAt(
+ *  geometry, not a few units above it. Exported so the camera's
+ *  world-space aim occluder can tell "crosshair already on elevated
+ *  geometry" (skip) from "crosshair on flat ground" (walk to the wall
+ *  drawn over it). */
+export function targetTopAt(
   x: number,
   y: number,
   overlay: RenderOverlay | undefined,

@@ -19,6 +19,7 @@ import type {
   AimResolver,
   ControllerFactory,
   PlayerController,
+  WorldOccluder,
 } from "../shared/core/system-interfaces.ts";
 import type { GameState } from "../shared/core/types.ts";
 import { MAX_UINT32, Rng } from "../shared/platform/rng.ts";
@@ -65,6 +66,10 @@ interface BootstrapFromSettingsDeps {
    *  world). Built in the composition root where the camera exists, then
    *  handed to the factory at construction. */
   readonly humanAimResolver: AimResolver;
+  /** Camera-backed world-space occluder for keyboard fire (same origin as
+   *  `humanAimResolver`). Optional: omitted in headless (no tilt), where
+   *  keyboard aim needs no occlusion. */
+  readonly humanWorldOccluder?: WorldOccluder;
 }
 
 /** Resolved game configuration from settings + URL overrides.
@@ -130,8 +135,9 @@ export function createHumanController(
   id: ValidPlayerId,
   keys: KeyBindings,
   aimResolver: AimResolver,
+  worldOccluder?: WorldOccluder,
 ): PlayerController {
-  return new HumanController(id, keys, aimResolver);
+  return new HumanController(id, keys, aimResolver, worldOccluder);
 }
 
 /** High-level bootstrap: resolves settings → params, then calls bootstrapGame.
@@ -183,6 +189,7 @@ export async function bootstrapNewGameFromSettings(
     onStateReady: deps.onStateReady,
     controllerFactory: deps.controllerFactory,
     humanAimResolver: deps.humanAimResolver,
+    humanWorldOccluder: deps.humanWorldOccluder,
   });
 }
 
@@ -295,6 +302,7 @@ export async function bootstrapGame(deps: InitGameDeps): Promise<void> {
           undefined,
           undefined,
           deps.humanAimResolver,
+          deps.humanWorldOccluder,
         );
       }
       // Remote human's seat: disconnect-takeover AI, identity derived

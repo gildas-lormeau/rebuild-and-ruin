@@ -326,11 +326,21 @@ export abstract class BaseController implements PlayerController {
    *  The orchestrator executes the actual mutation via fireNextReadyCannon(). */
   fire(state: BattleViewState): FireIntent | null {
     if (state.timer <= 0 || state.battleCountdown > 0) return null;
-    const targetRow = pxToTile(this.crosshair.y);
-    const targetCol = pxToTile(this.crosshair.x);
+    const { targetRow, targetCol } = this.resolveFireTarget();
     const rotationIdx = state.players[this.playerId]?.cannonRotationIdx;
     if (!nextReadyCannon(state, this.playerId, rotationIdx)) return null;
     return { playerId: this.playerId, targetRow, targetCol };
+  }
+
+  /** Resolve the crosshair to a target tile. Base = the crosshair's own tile
+   *  (AI + mouse crosshairs are already occluded). HumanController overrides
+   *  to occlude the raw keyboard crosshair under the battle tilt so keyboard
+   *  aim hits the wall it visually sits on. */
+  protected resolveFireTarget(): { targetRow: number; targetCol: number } {
+    return {
+      targetRow: pxToTile(this.crosshair.y),
+      targetCol: pxToTile(this.crosshair.x),
+    };
   }
 
   /** Default matches HumanController: entry waits for local UI input,

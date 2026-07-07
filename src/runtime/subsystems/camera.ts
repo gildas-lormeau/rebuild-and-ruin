@@ -128,6 +128,16 @@ export interface RuntimeCamera {
    *  elevated-geometry hit under battle tilt (walls/towers/etc). At
    *  pitch=0 this is identical to `screenToWorld`. */
   pickHitWorld: (x: number, y: number) => WorldPos;
+  /** Occlude a WORLD-space aim position (not a screen tap): if the point
+   *  sits on flat ground, walk the battle-tilt sight-ray to the elevated
+   *  tile whose top is drawn over it and return that tile's world position;
+   *  if it already sits on elevated geometry, or pitch=0, return it
+   *  unchanged. This is the keyboard-aim counterpart to `pickHitWorld`
+   *  (which takes a screen tap): the keyboard crosshair moves in raw world
+   *  space, so firing must resolve the same "aim what you see" occlusion the
+   *  mouse gets for free. The flat-ground guard keeps it idempotent — the
+   *  mouse/AI crosshairs are pre-occluded and must not be re-walked. */
+  occludeWorld: (wx: number, wy: number) => WorldPos;
   worldToScreen: (wx: number, wy: number) => { sx: number; sy: number };
   pixelToTile: (x: number, y: number) => { row: number; col: number };
 
@@ -240,6 +250,17 @@ interface CameraDeps {
     overlay: RenderOverlay | undefined,
     map: GameMap | undefined,
   ) => { wx: number; wy: number };
+  /** Renderer-supplied "tallest targetable top-Y at this world tile" (0 on
+   *  flat ground). Composition root injects `render/3d/elevation.ts`'s
+   *  `targetTopAt` so `occludeWorld` can guard: only a flat-ground crosshair
+   *  is walked onto the geometry drawn over it. Omitted in headless (no tilt
+   *  → occludeWorld returns its input unchanged). */
+  elevatedTopAt?: (
+    wx: number,
+    wy: number,
+    overlay: RenderOverlay | undefined,
+    map: GameMap | undefined,
+  ) => number;
 }
 
 const CANVAS_SIZE = { w: CANVAS_W, h: CANVAS_H } as const;
@@ -1090,6 +1111,28 @@ export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
     return { wx: hit.wx, wy: hit.wy };
   }
 
+  /** World-space aim occluder for the keyboard crosshair — see the
+   *  `occludeWorld` doc on `RuntimeCamera`. Unlike `pickHitWorld` there is
+   *  no `screenToWorld` step (the input is already a world position); the
+   *  flat-ground guard (`elevatedTopAt > 0`) makes it idempotent so a
+   *  pre-occluded mouse/AI crosshair is left untouched. */
+  function occludeWorld(wx: number, wy: number): WorldPos {
+    if (pitch.current <= 0 || !deps.pickElevatedHit) return { wx, wy };
+    const state = deps.getState();
+    if (!state) return { wx, wy };
+    const overlay = deps.getOverlay?.();
+    // Already on a wall/tower/cannon/…: don't re-walk (would drag onto a
+    // taller neighbour drawn further toward the camera).
+    if (
+      deps.elevatedTopAt &&
+      deps.elevatedTopAt(wx, wy, overlay, state.map) > 0
+    ) {
+      return { wx, wy };
+    }
+    const hit = deps.pickElevatedHit(wx, wy, pitch.current, overlay, state.map);
+    return { wx: hit.wx, wy: hit.wy };
+  }
+
   // --- Pinch-to-zoom ---
 
   function onPinchStart(midX: number, midY: number): void {
@@ -1411,6 +1454,7 @@ export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
     snapPitchSettled,
     screenToWorld,
     pickHitWorld,
+    occludeWorld,
     worldToScreen,
     pixelToTile,
     onPinchStart,

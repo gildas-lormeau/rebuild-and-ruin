@@ -140,6 +140,9 @@ export function createOnlineRuntimeSessionHelpers(
       // Camera-backed human aim resolver (screen px → occluded world). Only
       // the local human slot uses it; remote/AI slots resolve their own aim.
       humanAimResolver: (_state, x, y) => runtime.camera.pickHitWorld(x, y),
+      // Keyboard counterpart: occlude the raw world crosshair at fire time so
+      // keyboard aim hits the wall it visually sits on.
+      humanWorldOccluder: (wx, wy) => runtime.camera.occludeWorld(wx, wy),
     });
   }
 

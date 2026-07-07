@@ -20,7 +20,7 @@ import {
 import { Action, type KeyBindings } from "../shared/core/input-action.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import type { Player } from "../shared/core/player-types.ts";
-import { cannonSize } from "../shared/core/spatial.ts";
+import { cannonSize, pxToTile } from "../shared/core/spatial.ts";
 import {
   type AimResolver,
   type BattleViewState,
@@ -32,6 +32,7 @@ import {
   type PiecePlacementPreview,
   type PlaceCannonIntent,
   type PlacePieceIntent,
+  type WorldOccluder,
 } from "../shared/core/system-interfaces.ts";
 import { cannonSlotsFor } from "../shared/core/types.ts";
 import { rotatePlayerPiece } from "../shared/sim/player-bag.ts";
@@ -54,13 +55,37 @@ export class HumanController extends BaseController implements InputReceiver {
    *  touch handler normalizes (with a center dead-zone) before writing. */
   private dpadVector: { x: number; y: number } | undefined;
 
+  /** Camera-backed world-space occluder — resolves the raw keyboard
+   *  crosshair onto the wall/tower drawn over it at fire time. Identity when
+   *  omitted (headless / no tilt), so keyboard aim is unchanged there. */
+  private readonly worldOccluder: WorldOccluder;
+
   constructor(
     playerId: ValidPlayerId,
     keys: KeyBindings,
     aimResolver: AimResolver,
+    worldOccluder?: WorldOccluder,
   ) {
     super(playerId, aimResolver);
     this.keyMap = buildKeyMap(keys);
+    this.worldOccluder = worldOccluder ?? ((wx, wy) => ({ wx, wy }));
+  }
+
+  /** Occlude the raw keyboard crosshair before resolving its tile: under the
+   *  battle tilt a wall's top surface is drawn ~1 tile north of its footprint,
+   *  so the world-Y that *looks* like the wall is the grass row above it.
+   *  `worldOccluder` walks the sight-ray to the wall actually under the
+   *  cursor — the same "aim what you see" resolution the mouse path gets via
+   *  `aim()`. No-op on flat ground / no tilt. */
+  protected override resolveFireTarget(): {
+    targetRow: number;
+    targetCol: number;
+  } {
+    const occluded = this.worldOccluder(this.crosshair.x, this.crosshair.y);
+    return {
+      targetRow: pxToTile(occluded.wy),
+      targetCol: pxToTile(occluded.wx),
+    };
   }
 
   /** Rebuild the key map from updated bindings (InputReceiver). */

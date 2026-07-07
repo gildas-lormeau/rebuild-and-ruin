@@ -11,6 +11,7 @@ import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import type {
   AimResolver,
   PlayerController,
+  WorldOccluder,
 } from "../shared/core/system-interfaces.ts";
 import type { Rng } from "../shared/platform/rng.ts";
 import { HumanController } from "./controller-human.ts";
@@ -61,6 +62,10 @@ export async function createController(
   // camera exists). AI controllers ignore it — they build their own sim-only
   // resolver internally for cross-peer parity; only humans need the camera one.
   humanAimResolver?: AimResolver,
+  // Camera-backed world-space occluder for keyboard fire (same origin as
+  // humanAimResolver). Optional: omitted for headless/tests → keyboard aim
+  // stays un-occluded (there is no tilt to correct for).
+  humanWorldOccluder?: WorldOccluder,
 ): Promise<PlayerController> {
   if (isAi) {
     if (!sharedRng) throw new Error("sharedRng required for AI controller");
@@ -71,7 +76,12 @@ export async function createController(
   if (!keys) throw new Error("KeyBindings required for human controller");
   if (!humanAimResolver)
     throw new Error("humanAimResolver required for human controller");
-  return new HumanController(playerId, keys, humanAimResolver);
+  return new HumanController(
+    playerId,
+    keys,
+    humanAimResolver,
+    humanWorldOccluder,
+  );
 }
 
 /** Ensure AI chunks are cached. Awaited by bootstrapGame + host-promotion

@@ -469,6 +469,7 @@ export type ControllerFactory = (
   privateSeed: number | undefined,
   personality: AiPersonality | undefined,
   humanAimResolver: AimResolver,
+  humanWorldOccluder?: WorldOccluder,
 ) => Promise<PlayerController>;
 
 /** Resolves a controller's raw battle-aim input (native pixels) to the
@@ -490,6 +491,14 @@ export type AimResolver = (
   x: number,
   y: number,
 ) => WorldPos;
+
+/** Occludes a WORLD-space aim position (the keyboard crosshair, which moves
+ *  in raw world px) onto the elevated tile drawn over it under the battle
+ *  tilt — the keyboard counterpart to the mouse's screen-tap `AimResolver`.
+ *  Human impl is camera-backed (`camera.occludeWorld`); omitted for AI (whose
+ *  crosshair is already sim-occluded) and headless (no tilt), where it
+ *  defaults to identity. */
+export type WorldOccluder = (wx: number, wy: number) => WorldPos;
 
 /** Human input handling — no-op in BaseController, overridden by HumanController. */
 export interface InputReceiver {
