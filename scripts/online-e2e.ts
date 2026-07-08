@@ -123,8 +123,11 @@ const REPLAY = (() => {
 })();
 const ACTIONS: TestAction[] = [];
 const ASSERTS: TestAssert[] = [];
-// Filter positional args: skip --flags and their values
-const positionalArgs: string[] = [];
+// Filter positional args: skip --flags and their values. This MUST run before
+// MODE / NUM_HUMANS / SERVER_URL / NUM_ROUNDS are derived below — they read
+// positionalArgs, so populating it afterwards left them all on their online
+// defaults regardless of the CLI (e.g. `local 0 ... 1` still ran online-3-round).
+const positionalArgs: string[] = parsePositionalArgs();
 const MODE = positionalArgs[0] === "local" ? "local" : "online";
 const NUM_HUMANS = Math.min(
   3,
@@ -196,7 +199,9 @@ for (let i = 2; i < process.argv.length; i++) {
   }
 }
 
-{
+// Hoisted so the `positionalArgs` const above can call it before MODE et al.
+function parsePositionalArgs(): string[] {
+  const result: string[] = [];
   const args = process.argv.slice(2);
   const flagsWithValue = new Set([
     "--action",
@@ -210,8 +215,9 @@ for (let i = 2; i < process.argv.length; i++) {
       continue;
     } // skip flag + value
     if (args[i]!.startsWith("--")) continue; // skip boolean flags
-    positionalArgs.push(args[i]!);
+    result.push(args[i]!);
   }
+  return result;
 }
 
 if (MODE === "local") {
