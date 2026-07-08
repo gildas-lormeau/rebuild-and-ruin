@@ -14,7 +14,7 @@ import type {
 } from "../../protocol/protocol.ts";
 import { MESSAGE } from "../../protocol/protocol.ts";
 import type { GameRuntime } from "../../runtime/handle.ts";
-import { isSessionLive } from "../../runtime/state.ts";
+import { isSessionLive, safeState } from "../../runtime/state.ts";
 import { DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS } from "../../shared/core/action-schedule.ts";
 import { MIGRATION_ANNOUNCEMENT_DURATION } from "../../shared/core/game-constants.ts";
 import type { TowerIdx } from "../../shared/core/geometry-types.ts";
@@ -254,7 +254,12 @@ function buildIncrementalDeps(
     log: client.devLog,
     session: client.ctx.session,
     presence: client.ctx.presence,
-    getState: () => init.runtime.runtimeState.state,
+    // `safeState` (not the raw field) so a message drained before state is
+    // installed sees `undefined`, matching the `GameState | undefined` contract
+    // every handler guards on. The raw field's pre-init sentinel is `null`,
+    // which slips through `!== undefined` guards and throws on `.players` — the
+    // watcher-join race. Post-install the two are identical.
+    getState: () => safeState(init.runtime.runtimeState),
     schedule: (action) => {
       warnIfStaleWireStamp(
         init,
