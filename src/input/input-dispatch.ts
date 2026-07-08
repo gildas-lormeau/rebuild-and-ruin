@@ -7,7 +7,6 @@
  * ghost-clicks from synthetic mobile clicks fired after touchend.
  */
 
-import { canPlayerBuild } from "../game/index.ts";
 import type {
   LifeLostDialogState,
   UpgradePickDialogState,
@@ -535,10 +534,10 @@ function dispatchPlacementAction(
     | "onCannonPlaced"
   >,
 ): boolean {
-  // Build-phase gate: allow cursor movement + rotation but block placement
-  // when an upgrade forbids building this frame (e.g. Master Builder lockout).
-  const locked =
-    state.phase === Phase.WALL_BUILD && !canPlayerBuild(state, ctrl.playerId);
+  // Cursor movement + rotation are always allowed; a Master Builder lockout
+  // only blocks the CONFIRM commit, which HumanController.tryPlacePiece
+  // self-gates (returns null under lockout). So no lockout check is needed
+  // here — a locked CONFIRM falls through and places nothing.
   if (isMovementAction(action)) {
     dispatchMoveForCtrl(ctrl, action, state);
     return true;
@@ -547,7 +546,6 @@ function dispatchPlacementAction(
     rotatePlacement(ctrl, state, deps.onPieceRotated);
     return true;
   }
-  if (locked) return false;
   if (action === Action.CONFIRM) {
     dispatchPlacementConfirm(ctrl, state, deps);
     return true;
@@ -580,7 +578,8 @@ function dispatchPlacementConfirm(
   >,
 ): void {
   if (state.phase === Phase.WALL_BUILD) {
-    if (!canPlayerBuild(state, ctrl.playerId)) return;
+    // Master Builder lockout is gated inside HumanController.tryPlacePiece
+    // (returns null under lockout), so no placement check is needed here.
     const placed = deps.tryPlacePiece(ctrl, state);
     if (placed) deps.onPiecePlaced?.();
   } else if (state.phase === Phase.CANNON_PLACE) {

@@ -2,6 +2,7 @@ import {
   cannonSlotsUsed,
   canPlaceCannon,
   canPlacePiece,
+  canPlayerBuild,
   effectivePlacementCost,
   isCannonPlacementComplete,
 } from "../game/index.ts";
@@ -34,7 +35,7 @@ import {
   type PlacePieceIntent,
   type WorldOccluder,
 } from "../shared/core/system-interfaces.ts";
-import { cannonSlotsFor } from "../shared/core/types.ts";
+import { cannonSlotsFor, type GameState } from "../shared/core/types.ts";
 import { rotatePlayerPiece } from "../shared/sim/player-bag.ts";
 import { BaseController } from "./controller-base.ts";
 
@@ -323,9 +324,16 @@ export class HumanController extends BaseController implements InputReceiver {
   /** Compute a place-piece intent at the build cursor.
    *  Returns null if placement is invalid. The orchestrator executes the
    *  mutation via placePiece() then calls ctrl.advanceBag(true). */
-  tryPlacePiece(state: BuildViewState): PlacePieceIntent | null {
+  // Signature widens to GameState (bivariance — see system-interfaces.ts):
+  // the Master Builder lockout gate is a placement precondition alongside
+  // `canPlacePiece`, and `canPlayerBuild` reads `activeFeatures` + modern
+  // internals the BuildViewState slice deliberately hides. Every real call
+  // site passes GameState, so this is the canonical human commit gate —
+  // input-dispatch no longer needs to know about the lockout.
+  tryPlacePiece(state: GameState): PlacePieceIntent | null {
     const player = state.players[this.playerId];
     if (!player?.currentPiece || !player.bag) return null;
+    if (!canPlayerBuild(state, this.playerId)) return null;
     const piece = player.currentPiece;
     const valid = canPlacePiece(
       state,

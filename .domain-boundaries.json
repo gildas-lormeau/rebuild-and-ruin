@@ -17,8 +17,7 @@
       "ai"
     ],
     "input": [
-      "shared",
-      "game"
+      "shared"
     ],
     "render": [
       "shared",
