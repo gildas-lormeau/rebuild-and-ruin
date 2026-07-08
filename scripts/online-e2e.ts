@@ -720,9 +720,11 @@ async function runOnline() {
     `online-${NUM_HUMANS}h`,
   );
 
-  // Online-specific: critical messages check
+  // Online-specific: critical messages check. (CASTLE_WALLS was dropped from
+  // the protocol in 7ab7fff1 — the watcher now derives castle walls locally on
+  // the BUILD_START marker, nothing is sent over the wire — so it's no longer a
+  // received-message to assert on.)
   const critical = [
-    MESSAGE.CASTLE_WALLS,
     MESSAGE.CANNON_START,
     MESSAGE.BATTLE_START,
     MESSAGE.BUILD_START,
