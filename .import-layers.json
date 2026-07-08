@@ -7,7 +7,6 @@
       "src/ai/ai-constants.ts",
       "src/game/index.ts",
       "src/game/trajectory.ts",
-      "src/input/input-recorder.ts",
       "src/input/input.ts",
       "src/online/online-dom.ts",
       "src/online/online-lag-detector.ts",

@@ -46,10 +46,6 @@ is in `src/shared/core/system-interfaces.ts`).
   controls: show/hide d-pad based on phase, loupe zoom on long-press,
   floating action menu visibility.
 
-### Dev tool
-- **`input-recorder.ts`** — Captures touch/mouse/keyboard events
-  for replay testing. In-page widget, guarded by a query param.
-
 ## Per-player key bindings
 
 Shared-screen play means each player has their own keybindings. The
@@ -94,10 +90,6 @@ into `controller-human.ts` to see intent generation.
   stores the returned handles in `touchHandles` and calls their
   `update()` methods each frame. Don't try to recreate them on every
   frame — it would leak event listeners.
-
-- **`input-recorder.ts` is dev-only.** Guarded by a URL query param;
-  not wired into production builds. If you touch it, verify
-  `IS_DEV` gating still holds.
 
 - **Keyboard handlers are registered against `document`, not the
   canvas.** This means focus matters — if a DOM input field has

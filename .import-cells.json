@@ -22,7 +22,6 @@
     "domain": "input",
     "role": "input primitives & recorder",
     "files": [
-      "src/input/input-recorder.ts",
       "src/input/input.ts"
     ]
   },

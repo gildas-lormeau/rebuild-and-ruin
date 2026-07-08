@@ -107,32 +107,6 @@ interface Recording {
   steps: RecorderStep[];
 }
 
-interface InputTouchPoint {
-  id: number;
-  x: number;
-  y: number;
-}
-
-interface InputStep {
-  type: string;
-  x?: number;
-  y?: number;
-  t: number;
-  button?: number;
-  key?: string;
-  code?: string;
-  touches?: InputTouchPoint[];
-  changedTouches?: InputTouchPoint[];
-}
-
-interface InputRecording {
-  format: "input-recorder";
-  title: string;
-  url: string;
-  viewport: { width: number; height: number; dpr: number };
-  steps: InputStep[];
-}
-
 const SCREENSHOTS = process.argv.includes("--screenshot");
 const MOBILE = process.argv.includes("--mobile");
 const HEADLESS = process.argv.includes("--headless");
@@ -286,20 +260,10 @@ async function runLocal() {
     `${ts()} Starting local E2E test: ${NUM_HUMANS} human${NUM_HUMANS !== 1 ? "s" : ""} + ${3 - NUM_HUMANS} AI`,
   );
 
-  // --replay: replay a recorded JSON (Chrome DevTools or input-recorder format)
+  // --replay: replay a Chrome DevTools recording JSON
   if (REPLAY) {
     const raw = JSON.parse(readFileSync(REPLAY, "utf8"));
-    if (isInputRecording(raw)) {
-      if (MOBILE) {
-        await page.setViewportSize({
-          width: raw.viewport.width,
-          height: raw.viewport.height,
-        });
-      }
-      await replayInputRecording(page, raw);
-    } else {
-      await replayRecording(page, raw as Recording);
-    }
+    await replayRecording(page, raw as Recording);
     console.log(`${ts()} Waiting 3s after replay for logs to settle...`);
     await page.waitForTimeout(3000);
 
@@ -589,103 +553,6 @@ function pickSelector(selectors: string[][]): string {
     if (!sel.startsWith("xpath/")) return sel;
   }
   return selectors[0]!.join(" >> ");
-}
-
-function isInputRecording(rec: unknown): rec is InputRecording {
-  return (rec as InputRecording)?.format === "input-recorder";
-}
-
-async function replayInputRecording(
-  page: Page,
-  recording: InputRecording,
-): Promise<void> {
-  const { steps, viewport } = recording;
-  console.log(
-    `${ts()} Replaying input recording "${recording.title}" (${steps.length} steps)`,
-  );
-
-  // Navigate to the recorded URL
-  const url = recording.url.includes("localhost")
-    ? recording.url
-    : `${BASE_URL}${new URL(recording.url).search}`;
-  await page.goto(url, { timeout: 15000, waitUntil: "load" });
-
-  // Compute coordinate scaling if viewport differs
-  const currentVp = page.viewportSize() ?? {
-    width: viewport.width,
-    height: viewport.height,
-  };
-  const scaleX = currentVp.width / viewport.width;
-  const scaleY = currentVp.height / viewport.height;
-  if (Math.abs(scaleX - 1) > 0.01 || Math.abs(scaleY - 1) > 0.01) {
-    console.log(
-      `${ts()} Viewport scaling: ${viewport.width}x${viewport.height} → ${currentVp.width}x${currentVp.height} (${scaleX.toFixed(2)}x${scaleY.toFixed(2)})`,
-    );
-  }
-
-  let prevT = 0;
-  for (let i = 0; i < steps.length; i++) {
-    const step = steps[i]!;
-
-    // Wait for the time delta between steps
-    const delay = Math.max(0, step.t - prevT);
-    if (delay > 10) await page.waitForTimeout(Math.min(delay, 5000));
-    prevT = step.t;
-
-    const sx = (step.x ?? 0) * scaleX;
-    const sy = (step.y ?? 0) * scaleY;
-
-    switch (step.type) {
-      case "tap":
-        await page.touchscreen.tap(sx, sy);
-        break;
-
-      case "click":
-        await page.mouse.click(sx, sy, {
-          button: step.button === 2 ? "right" : "left",
-        });
-        break;
-
-      case "mousemove":
-        await page.mouse.move(sx, sy);
-        break;
-
-      case "touchstart":
-      case "touchmove":
-      case "touchend": {
-        // Single-touch: use Playwright touchscreen API for tap-like gestures
-        const pts = step.touches ?? step.changedTouches ?? [];
-        if (pts.length === 1) {
-          const px = pts[0]!.x * scaleX;
-          const py = pts[0]!.y * scaleY;
-          if (step.type === "touchstart") {
-            await page.touchscreen.tap(px, py);
-          }
-          // touchmove/touchend: no simple Playwright API for drag — skip
-        } else if (pts.length > 1) {
-          // Multi-touch not supported by Playwright touchscreen API
-          if (i === 0 || steps[i - 1]?.type !== step.type) {
-            console.log(
-              `${ts()}   (skipping multi-touch ${step.type}: ${pts.length} points)`,
-            );
-          }
-        }
-        break;
-      }
-
-      case "keydown":
-        await page.keyboard.down(step.key!);
-        break;
-
-      case "keyup":
-        await page.keyboard.up(step.key!);
-        break;
-
-      default:
-        break;
-    }
-  }
-  console.log(`${ts()} Input replay complete`);
 }
 
 async function runOnline() {

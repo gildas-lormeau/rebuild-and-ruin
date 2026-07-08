@@ -172,12 +172,6 @@ function activateOnlineAudio(): void {
   void import("./online-client.ts").then((module) => module.activateAudio());
 }
 
-if (params.has("record-inputs")) {
-  void import("./input/input-recorder.ts").then((module) =>
-    module.initRecorder(),
-  );
-}
-
 /** Hide the game container and notify game modules to clean up. */
 function exitGameIfActive(): void {
   if (gameContainer.classList.contains(GAME_CONTAINER_ACTIVE)) {
