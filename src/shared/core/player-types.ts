@@ -7,7 +7,6 @@
  */
 
 import type { Cannon } from "./battle-types.ts";
-import { STARTING_LIVES } from "./game-constants.ts";
 import type { Tower, TowerIdx } from "./geometry-types.ts";
 import type { TileKey } from "./grid.ts";
 import type { BagState, PieceShape } from "./pieces.ts";
@@ -127,18 +126,6 @@ export function isPlayerAlive(
   player: Player | null | undefined,
 ): player is Player {
   return !!player && !player.eliminated;
-}
-
-/** Cannon tier for a player, derived from lives lost. Tier 1 at full lives,
- *  tier 2 after one life lost, tier 3 after two (the post-continue tier for
- *  a player on their last life). Clamped to [1, 3] so test maps or custom
- *  starting-lives values can't produce tier 4+. Used by ball-speed and the
- *  3D cannon sprite selection. */
-export function cannonTier(player: { readonly lives: number }): 1 | 2 | 3 {
-  const lost = STARTING_LIVES - player.lives;
-  if (lost >= 2) return 3;
-  if (lost === 1) return 2;
-  return 1;
 }
 
 /** Find which player currently owns the tower at the given index, or

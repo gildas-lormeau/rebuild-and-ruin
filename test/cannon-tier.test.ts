@@ -15,7 +15,8 @@
 import { assertEquals } from "@std/assert";
 import { ballSpeedMult } from "../src/game/upgrade-system.ts";
 import { STARTING_LIVES } from "../src/shared/core/game-constants.ts";
-import { cannonTier, type Player } from "../src/shared/core/player-types.ts";
+import { cannonTier } from "../src/shared/core/cannon-tier.ts";
+import type { Player } from "../src/shared/core/player-types.ts";
 import { UID } from "../src/shared/core/upgrade-defs.ts";
 
 Deno.test("cannonTier: full lives → tier 1", () => {

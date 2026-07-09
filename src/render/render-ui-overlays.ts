@@ -1,5 +1,6 @@
 import type { LobbyHit, OnlineOverlayParams } from "../runtime/ui-contracts.ts";
 import type { BalloonFlight, Cannonball } from "../shared/core/battle-types.ts";
+import { cannonTier } from "../shared/core/cannon-tier.ts";
 import {
   LifeLostChoice,
   type LifeLostDialogState,
@@ -26,7 +27,6 @@ import {
 } from "../shared/core/grid.ts";
 import { modifierDef, type SupplyShip } from "../shared/core/modifier-defs.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
-import { cannonTier } from "../shared/core/player-types.ts";
 import type { RenderView } from "../shared/core/render-view.ts";
 import { castleCenterPx, computeFloodedTiles } from "../shared/core/spatial.ts";
 import { type ComboEvent, type SelectionState } from "../shared/core/types.ts";

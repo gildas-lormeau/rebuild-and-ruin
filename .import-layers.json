@@ -75,6 +75,7 @@
       "src/runtime/modifier-effects/sapper.ts",
       "src/shared/core/action-schedule.ts",
       "src/shared/core/ai-seed.ts",
+      "src/shared/core/cannon-tier.ts",
       "src/shared/core/elevation-constants.ts",
       "src/shared/core/feature-defs.ts",
       "src/shared/core/geometry-types.ts",

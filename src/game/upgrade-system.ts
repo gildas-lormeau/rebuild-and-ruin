@@ -8,16 +8,13 @@
  */
 
 import type { ImpactEvent } from "../shared/core/battle-events.ts";
+import { cannonTier } from "../shared/core/cannon-tier.ts";
 import type { UpgradePickDialogState } from "../shared/core/dialog-state.ts";
 import { FID } from "../shared/core/feature-defs.ts";
 import { emitGameEvent, GAME_EVENT } from "../shared/core/game-event-bus.ts";
 import type { TileKey } from "../shared/core/grid.ts";
 import { type ValidPlayerId } from "../shared/core/player-slot.ts";
-import {
-  cannonTier,
-  isPlayerSeated,
-  type Player,
-} from "../shared/core/player-types.ts";
+import { isPlayerSeated, type Player } from "../shared/core/player-types.ts";
 import {
   type BattleStartCannonDeps,
   type BounceDescriptor,

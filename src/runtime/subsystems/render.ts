@@ -5,6 +5,7 @@
  * Extracted from runtime/composition.ts to reduce composition-root fan-out.
  */
 
+import { cannonTier } from "../../shared/core/cannon-tier.ts";
 import { Phase } from "../../shared/core/game-phase.ts";
 import type { GameMap, Viewport } from "../../shared/core/geometry-types.ts";
 import type {
@@ -15,7 +16,6 @@ import {
   isPlayerEliminated,
   type ValidPlayerId,
 } from "../../shared/core/player-slot.ts";
-import { cannonTier } from "../../shared/core/player-types.ts";
 import { selectRenderView } from "../../shared/core/render-view.ts";
 import type {
   InputReceiver,

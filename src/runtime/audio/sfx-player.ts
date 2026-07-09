@@ -7,6 +7,7 @@
  * last 6 seconds of a timed phase). Observer hook mirrors music/haptics.
  */
 
+import { cannonTier } from "../../shared/core/cannon-tier.ts";
 import {
   GAME_EVENT,
   type GameEventBus,
@@ -15,7 +16,6 @@ import {
 } from "../../shared/core/game-event-bus.ts";
 import { Phase } from "../../shared/core/game-phase.ts";
 import type { ValidPlayerId } from "../../shared/core/player-slot.ts";
-import { cannonTier } from "../../shared/core/player-types.ts";
 import type { GameState } from "../../shared/core/types.ts";
 import {
   AUDIO_CONTEXT_SUSPENDED,
