@@ -79,6 +79,18 @@
  *    genuinely unavoidable, grandfather it here with a comment. See
  *    src/shared/README.md's decision tree.
  *
+ * 10. `getBattleInterior` (board-occupancy.ts) is the freshness-assert BYPASS:
+ *    it returns `player.interior` WITHOUT `assertInteriorFresh`, so it hands
+ *    back a knowingly-stale snapshot (walls destroyed frame-by-frame during
+ *    BATTLE aren't reflected until the next build). That is correct ONLY for
+ *    battle-time AI planning; peacetime code must use `getInterior()` (which
+ *    asserts). The type system can't catch the misuse — the stale set is
+ *    deliberately widened to `ReadonlySet<TileKey>` so it flows into shared
+ *    graph helpers (findEnclosureComponents), which defeats any brand guard —
+ *    so this is enforced structurally: only the battle-planner allowlist may
+ *    import it. A stray peacetime import fails here. (Tests are out of scope:
+ *    this lint scans src/ only.)
+ *
  * Usage:
  *   deno run -A scripts/lint-restricted-imports.ts
  *
@@ -209,6 +221,17 @@ const SHARED_TIER_ALLOWED: Record<string, ReadonlySet<string>> = {
 // (LifeLostEntry / UpgradePickEntry / choices) -> core/dialog-state.ts.
 // Add an entry here only if a future inversion is genuinely unavoidable.
 const SHARED_TIER_BASELINE: Record<string, ReadonlySet<string>> = {};
+/** Files allowed to import `getBattleInterior` — the freshness-assert bypass
+ *  (rule 10). Only battle-time AI planners may read the intentionally-stale
+ *  build-time interior snapshot; the defining file (board-occupancy.ts) is
+ *  skipped as self. Everything else must call `getInterior()` (asserts fresh).
+ *  Keyed by repo-relative path. */
+const BATTLE_INTERIOR_ALLOWED_IMPORTERS = new Set([
+  "src/ai/ai-strategy-battle.ts",
+  "src/ai/ai-plan-grunt-breach.ts",
+  "src/ai/ai-plan-wall-demolition.ts",
+  "src/ai/ai-plan-max-repair-cost.ts",
+]);
 
 main();
 
@@ -228,6 +251,7 @@ function main(): void {
     checkModifierRevealTimeImports(filePath, content, violations);
     checkSimTierImports(filePath, content, violations);
     checkSharedTierImports(filePath, content, violations);
+    checkBattleInteriorImports(filePath, content, violations);
   }
 
   if (violations.length === 0) {
@@ -504,6 +528,34 @@ function checkModifierRevealTimeImports(
       line: imp.line,
       message: `Import from "${imp.source}" — only ${MODIFIER_REVEAL_TIME_IMPORTER} may resolve modifier-reveal timing. Effect code consumes \`revealTimeMs\` already-resolved via the 2D overlay registry or \`overlay.ui.modifierReveal\`.`,
     });
+  }
+}
+
+function checkBattleInteriorImports(
+  file: string,
+  content: string,
+  violations: Violation[],
+): void {
+  const rel = relative(process.cwd(), file);
+  // The defining file reads player.interior to build the bypass — skip self.
+  if (rel === "src/shared/sim/board-occupancy.ts") return;
+  if (BATTLE_INTERIOR_ALLOWED_IMPORTERS.has(rel)) return;
+
+  for (const imp of parseImports(content)) {
+    if (
+      !imp.source.endsWith("/board-occupancy.ts") &&
+      !imp.source.endsWith("/board-occupancy")
+    ) {
+      continue;
+    }
+    if (imp.names.includes("getBattleInterior")) {
+      violations.push({
+        file: rel,
+        line: imp.line,
+        message:
+          "Import of `getBattleInterior` — the freshness-assert BYPASS is battle-planner-only (it returns a knowingly-stale interior). Use `getInterior()` (asserts fresh) everywhere else. Add a justified entry to BATTLE_INTERIOR_ALLOWED_IMPORTERS only for new battle-time AI planning.",
+      });
+    }
   }
 }
 
