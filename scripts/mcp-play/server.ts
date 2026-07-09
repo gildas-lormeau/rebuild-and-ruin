@@ -96,7 +96,7 @@ interface Journal {
 // spawn, can't tell you newer code exists — the exact trap that wasted time.)
 const BUILD_STAMP_MS = sourceMtimeMs();
 const BUILD_STAMP = formatStamp(BUILD_STAMP_MS);
-const SERVER_INFO = { name: "rebuild-and-ruin-play", version: BUILD_STAMP };
+const SERVER_INFO = { name: "play", version: BUILD_STAMP };
 const DEFAULT_PROTOCOL_VERSION = "2024-11-05";
 const DEFAULT_SAVE_PATH = "mcp-play-save.json";
 /** Server-level `instructions` surfaced to the model at MCP `initialize` — the
