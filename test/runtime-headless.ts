@@ -52,10 +52,8 @@ import type {
 import type { GameState } from "../src/shared/core/types.ts";
 import { SEED_CUSTOM } from "../src/shared/ui/player-config.ts";
 import { Mode } from "../src/shared/ui/ui-mode.ts";
-import {
-  createGameRuntime,
-  createLocalNetworkApi,
-} from "../src/runtime/composition.ts";
+import { createGameRuntime } from "../src/runtime/composition.ts";
+import { createLocalNetworkApi } from "../src/runtime/network-local.ts";
 import {
   DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS,
   LOCKSTEP_QUARANTINE_DEBT_TICKS,

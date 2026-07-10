@@ -44,6 +44,11 @@ interface GameLifecycleDeps {
   // Atomic state transitions
   readonly setModeStopped: () => void;
   readonly clearGameOver: () => void;
+  /** Close the lobby input gate (`lobby.active = false`). Game-start paths
+   *  flip this themselves (subsystems/lobby tickLobby, online
+   *  initFromServer); `shutdown` covers the quit-back-to-menu paths so
+   *  callers don't repeat the assignment. */
+  readonly closeLobbyGate: () => void;
   /** Bump `bootGeneration` so any in-flight `bootstrapGame` bails at its
    *  next await (see the field's doc in state.ts). Part of the teardown
    *  matrix so every quit path cancels a parked bootstrap. */
@@ -117,9 +122,15 @@ interface GameLifecycleSystem extends RuntimeLifecycle {
   returnToLobby: () => void;
   gameOverClick: (canvasX: number, canvasY: number) => void | Promise<void>;
   /** Per-session reset matrix shared by `endGame`, `returnToLobby`, and
-   *  the composition root's `shutdown`. Internal to the wiring — online
-   *  paths run it indirectly through `finalizeGameOver`. */
+   *  `shutdown`. Internal to the wiring — online paths run it indirectly
+   *  through `finalizeGameOver`. */
   teardownSession: () => void;
+  /** Quit-to-menu cleanup for route-level exits — exposed on the runtime
+   *  handle as `runtime.shutdown`. Called from both local (main.ts) and
+   *  online (online/runtime/game.ts GAME_EXIT_EVENT, plus the imperative
+   *  online "leave" path in online/runtime/session.showLobby) — they
+   *  each layer their own session/navigation resets on top. */
+  shutdown: () => void;
 }
 
 interface LifecycleWiringDeps {
@@ -284,6 +295,29 @@ export function createGameLifecycle(
     deps.showLobby();
   }
 
+  function shutdown(): void {
+    deps.setModeStopped();
+    deps.closeLobbyGate();
+    // Drop the sticky game-over overlay (clearFrameData preserves it by
+    // design). Leaving it set would keep the STOPPED-mode keyboard path
+    // armed after a route-level exit — Enter/Space behind the landing
+    // page would re-trigger rematch() with no game-over screen visible.
+    deps.clearGameOver();
+    // Same session teardown returnToLobby runs — critically clearing
+    // the demo auto-return timer: after an all-AI demo's game-over,
+    // exiting the route within the return delay would otherwise leave
+    // the timer to fire behind the landing page (mode still STOPPED),
+    // re-enter the lobby, and loop hidden demo games with audio.
+    teardownSession();
+    // Mirror returnToLobby's input reset: without it the next lobby
+    // inherits a stale mouseJoinedSlot (every slot click becomes a
+    // "hurry up" skip, so the mouse can never join) and on touch the
+    // in-game controls stay visible over the lobby — Mode.LOBBY render
+    // never calls updateTouchControls, so nothing else dismisses them.
+    deps.resetInputForLobby();
+    deps.stopAudio();
+  }
+
   async function gameOverClick(
     canvasX: number,
     canvasY: number,
@@ -313,6 +347,7 @@ export function createGameLifecycle(
     returnToLobby,
     gameOverClick,
     teardownSession,
+    shutdown,
     finalizeGameOver,
   };
 }
@@ -343,6 +378,9 @@ export function buildLifecycleDeps(
     },
     clearGameOver: () => {
       runtimeState.frame.gameOver = undefined;
+    },
+    closeLobbyGate: () => {
+      runtimeState.lobby.active = false;
     },
     invalidateInFlightBootstrap: () => {
       runtimeState.bootGeneration++;

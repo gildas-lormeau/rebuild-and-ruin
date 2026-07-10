@@ -38,9 +38,7 @@ import { emitGameEvent, GAME_EVENT } from "../../shared/core/game-event-bus.ts";
 import { Phase } from "../../shared/core/game-phase.ts";
 import type { TileKey } from "../../shared/core/grid.ts";
 import {
-  type CannonPhantomPayload,
   cannonPhantomKey,
-  type PiecePhantomPayload,
   piecePhantomKey,
 } from "../../shared/core/phantom-types.ts";
 import {
@@ -63,6 +61,7 @@ import {
   tickBalloonFlights,
 } from "../battle-anim.ts";
 import { resolveAfterLifeLost } from "../dialogs/life-lost-core.ts";
+import type { ModePhaseTicks } from "../mode-tick.ts";
 import {
   finishUpgradePick,
   type PhaseTransitionCtx,
@@ -90,29 +89,25 @@ import {
   resetAccum,
 } from "../timer-accums.ts";
 import type { OnlinePhaseTicks, RuntimeConfig } from "../types.ts";
+import type { WireSenders } from "../wire-senders.ts";
 import type { RuntimeLifeLost } from "./life-lost.ts";
 import type { ScoreDeltaPhaseHooks } from "./score-deltas.ts";
 import type { UpgradePickPhaseHooks } from "./upgrade-pick.ts";
 
-interface PhaseTicksDeps extends Pick<RuntimeConfig, "log"> {
+interface PhaseTicksDeps
+  extends Pick<RuntimeConfig, "log">,
+    // Pre-built typed-payload senders (wire-senders.ts) — protocol
+    // knowledge stays in the composition root. Only the phantom previews
+    // and the cannon-done flag broadcast from here — placement broadcasts
+    // go through the `OnlineActions` wrappers on the human-input path,
+    // never through phase ticks.
+    Pick<
+      WireSenders,
+      | "sendOpponentCannonPhantom"
+      | "sendOpponentPhantom"
+      | "sendOpponentCannonPhaseDone"
+    > {
   runtimeState: RuntimeState;
-  // Pre-built typed-payload senders — protocol knowledge stays in the
-  // composition root. For local play these close over the config's no-op
-  // network.send; for online they prepend the message type and send.
-  // Only the phantom previews and the cannon-done flag broadcast from
-  // here — placement broadcasts go through the `OnlineActions` wrappers
-  // on the human-input path, never through phase ticks.
-  sendOpponentCannonPhantom: (msg: CannonPhantomPayload) => void;
-  sendOpponentPhantom: (msg: PiecePhantomPayload) => void;
-  /** Broadcast "I'm done placing cannons" for a local human-kind slot.
-   *  No-op for local play; emits `OPPONENT_CANNON_PHASE_DONE` online with
-   *  the lockstep `applyAt` already stamped so the originator's local
-   *  enqueue and the receiver's wire-receipt enqueue land on the same
-   *  logical sim tick. */
-  sendOpponentCannonPhaseDone: (
-    playerId: ValidPlayerId,
-    applyAt: number,
-  ) => void;
 
   /** Online coordination bag — see `OnlinePhaseTicks`. Undefined for local
    *  play; every field is independently optional within the bag itself. */
@@ -234,22 +229,15 @@ export interface RuntimePhaseTicks {
   skipBattleIntro: () => void;
 }
 
-export interface PhaseTicksSystem {
+export interface PhaseTicksSystem extends ModePhaseTicks {
   /** Dispatch the `advance-to-cannon` prep transition (post-life-lost
    *  continue path). The mutate runs `finalizeRoundCleanup` only — the
    *  phase entry is owned by the routed `enter-cannon-place`. */
   dispatchAdvanceToCannon: () => void;
   /** Host-promotion repair — see `RuntimePhaseTicks.restoreUpgradePickPhase`. */
   restoreUpgradePickPhase: () => void;
-  /** Self-driving UPGRADE_PICK phase tick (Mode.UPGRADE_PICK). */
-  tickUpgradePickPhase: (dt: number) => void;
   /** Host-promotion repair — see `RuntimePhaseTicks.skipBattleIntro`. */
   skipBattleIntro: () => void;
-  /** Self-driving ROUND_END phase tick. Drives the score-overlay beat
-   *  (Mode.TRANSITION) → life-lost dialog beat (Mode.LIFE_LOST) → exit
-   *  routing (game-over / reselect / advance-to-cannon), all re-derived
-   *  from state, so a host-promoted peer resumes without a repair hatch. */
-  tickRoundEndPhase: (dt: number) => void;
   /** Dispatch the `castle-done` prep transition. Used by both the round-1
    *  initial-selection path and the reselect cycle. The mutate runs
    *  `finalizeRoundCleanup` (gated on `round > 1` because round 1 has no
@@ -260,18 +248,11 @@ export interface PhaseTicksSystem {
   /** Dispatch the `game-over` transition; the mutate logs the outcome's
    *  reason and calls `ctx.endGame(winner)`. */
   dispatchGameOver: (outcome: GameOverOutcome) => void;
-  tickBalloonAnim: (dt: number) => void;
   startBuildPhase: () => void;
   tickCannonPhase: (dt: number) => boolean;
   tickBattleCountdown: (dt: number) => void;
   tickBattlePhase: (dt: number) => boolean;
   tickBuildPhase: (dt: number) => boolean;
-  tickGame: (dt: number) => void;
-  /** Decay the migration/disconnect announcement banner. Mode-independent
-   *  — called from the composition root's `tickMode` for every tickable
-   *  mode, not just Mode.GAME (announcements are set by wire handlers in
-   *  any mode). */
-  tickOnlineAnnouncement: (dt: number) => void;
   syncCrosshairs: (weaponsActive: boolean, dt: number) => void;
 }
 

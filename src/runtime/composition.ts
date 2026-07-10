@@ -21,7 +21,6 @@ import {
   createZoneCycleButton,
 } from "../input/input-touch-ui.ts";
 import { updateTouchControls } from "../input/input-touch-update.ts";
-import type { GameMessage, ServerMessage } from "../protocol/protocol.ts";
 import {
   targetTopAt as elevatedTopAt,
   pickHitWorld as pickElevatedHit,
@@ -52,17 +51,12 @@ import {
 import { SELECT_TIMER } from "../shared/core/game-constants.ts";
 import { GAME_EVENT } from "../shared/core/game-event-bus.ts";
 import { Phase } from "../shared/core/game-phase.ts";
-import {
-  SPECTATOR_SLOT,
-  type ValidPlayerId,
-} from "../shared/core/player-slot.ts";
+import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import { selectRenderView, sunTFromState } from "../shared/core/render-view.ts";
 import { IS_DEV, IS_TOUCH_DEVICE } from "../shared/platform/platform.ts";
-import { assertNever } from "../shared/platform/utils.ts";
 import type { RendererInterface } from "../shared/ui/overlay-types.ts";
 import { MAX_SEED_LENGTH, SEED_CUSTOM } from "../shared/ui/player-config.ts";
 import { cycleOption } from "../shared/ui/settings-ui.ts";
-import { Mode } from "../shared/ui/ui-mode.ts";
 import { battleTargetPosition } from "./battle-aim.ts";
 import {
   bootstrapNewGameFromSettings,
@@ -73,12 +67,11 @@ import { createBrowserTimingApi } from "./browser/timing.ts";
 import type { GameRuntime } from "./handle.ts";
 import { createLocalInputActions } from "./input-actions.ts";
 import { createRuntimeLoop } from "./main-loop.ts";
+import { createModeTick } from "./mode-tick.ts";
 import {
   createRuntimeState,
-  isPaused,
   isSessionLive,
   safeState,
-  setMode,
   setVisibilityHidden,
 } from "./state.ts";
 import { createAudioOrchestrator } from "./subsystems/audio.ts";
@@ -110,18 +103,10 @@ import {
   type UpgradePickSystem,
 } from "./subsystems/upgrade-pick.ts";
 import type { TimingApi } from "./timing-api.ts";
-import type { NetworkApi, RuntimeConfig } from "./types.ts";
+import type { RuntimeConfig } from "./types.ts";
+import { createUIContext } from "./ui-context.ts";
 import type { UIContext } from "./ui-contracts.ts";
-
-/** Singleton empty set so repeated calls with no remotes return the same
- *  instance — runtime sub-systems read this through the `NetworkApi.remotePlayerSlots`
- *  seam, which is `ReadonlySet<ValidPlayerId>`, so the shared instance is
- *  immutable from every caller's perspective. */
-const EMPTY_REMOTE_SLOTS: ReadonlySet<ValidPlayerId> = new Set();
-/** Explicit no-op sender for pure-local play (no peers to notify).
- *  Named so call sites communicate intent rather than silently swallow
- *  messages via a default. */
-export const noopNetworkSend: (msg: GameMessage) => void = () => {};
+import { createWireSenders } from "./wire-senders.ts";
 
 /**
  * Browser-side bindings for `RuntimeConfig`.
@@ -155,44 +140,6 @@ export function createBrowserRuntimeBindings(
     renderer: rendererOverride ?? createRender3d(worldCanvas, uiCanvas),
     timing: createBrowserTimingApi(),
     keyboardEventSource: document,
-  };
-}
-
-/**
- * `NetworkApi` factory for the "no peers" wiring shape shared by local
- * play (src/main.ts) and the headless test runtime (test/runtime-headless.ts).
- *
- * The base shape is: `amHost=true`, `myPlayerId=SPECTATOR_SLOT`, empty
- * remotes, no-op `onMessage`. `send` is REQUIRED — callers must pass an
- * explicit sender (or the named `noopNetworkSend` for pure-local play)
- * so a test that forgets to wire the network seam fails loudly instead
- * of silently dropping every message. Callers can override `onMessage`
- * (e.g. headless in-memory loopback) and `remotePlayerSlots` (e.g.
- * headless simulating a peer machine). Online play
- * (src/online/runtime/game.ts) does NOT use this factory — it
- * builds its own `NetworkApi` backed by the WebSocket client session.
- */
-export function createLocalNetworkApi(opts: {
-  send: (msg: GameMessage) => void;
-  onMessage?: (
-    handler: (msg: ServerMessage) => void | Promise<void>,
-  ) => () => void;
-  remotePlayerSlots?: ReadonlySet<ValidPlayerId>;
-  /** Optional override — defaults to `true` to match local/test "no peers"
-   *  play where the runtime is the only authority. Network tests that
-   *  build a host + watcher pair set `false` on the watcher side; this
-   *  flips the broadcast gate in `buildPhaseCtx` (no `ctx.broadcast`
-   *  on watchers) so transitions don't emit wire messages even though
-   *  every peer runs the same `tickGame`. */
-  amHost?: () => boolean;
-}): NetworkApi {
-  const remotes = opts.remotePlayerSlots ?? EMPTY_REMOTE_SLOTS;
-  return {
-    send: opts.send,
-    onMessage: opts.onMessage ?? (() => () => {}),
-    amHost: opts.amHost ?? (() => true),
-    myPlayerId: () => SPECTATOR_SLOT,
-    remotePlayerSlots: () => remotes,
   };
 }
 
@@ -268,61 +215,18 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   // Main loop
   // -------------------------------------------------------------------------
 
-  // Single-switch dispatch for the per-frame mode tick. Centralizes the
-  // mapping from Mode → tick handler with an exhaustive `default` branch
-  // so an unhandled Mode is a loud failure rather than a silent no-op.
-  // Adding a new Mode is a compile error here (assertNever) AND at the
-  // call site (TickableMode-typed parameter in tickMainLoop).
-  function tickMode(mode: Exclude<Mode, Mode.STOPPED>, dt: number): void {
-    // Mode-independent: announcement banners are set by wire handlers at
-    // arbitrary moments (HOST_LEFT during SELECTION, PLAYER_LEFT
-    // mid-dialog) — decaying only inside tickGame froze them on screen
-    // until the next gameplay phase.
-    phaseTicks.tickOnlineAnnouncement(dt);
-    switch (mode) {
-      case Mode.LOBBY:
-        lobby.tickLobby(dt);
-        requestRender();
-        return;
-      case Mode.OPTIONS:
-        requestRender();
-        return;
-      case Mode.CONTROLS:
-        requestRender();
-        return;
-      case Mode.SELECTION:
-        selection.tick(dt);
-        return;
-      case Mode.TRANSITION:
-        // The ROUND_END score-overlay beat runs in Mode.TRANSITION but is
-        // not a banner — route it to the self-driving round-end tick.
-        if (runtimeState.state.phase === Phase.ROUND_END) {
-          phaseTicks.tickRoundEndPhase(dt);
-        } else {
-          tickBanner(dt);
-        }
-        return;
-      case Mode.BALLOON_ANIM:
-        phaseTicks.tickBalloonAnim(dt);
-        return;
-      case Mode.LIFE_LOST:
-        // ROUND_END's life-lost dialog beat — self-driving (drives the
-        // dialog tick AND polls for the exit). Mode.LIFE_LOST is
-        // round-end-only.
-        phaseTicks.tickRoundEndPhase(dt);
-        return;
-      case Mode.UPGRADE_PICK:
-        // Self-driving like the timed phases: phase-ticks ticks the dialog
-        // and dispatches the exit when it resolves (see tickUpgradePickPhase).
-        phaseTicks.tickUpgradePickPhase(dt);
-        return;
-      case Mode.GAME:
-        phaseTicks.tickGame(dt);
-        return;
-      default:
-        assertNever(mode);
-    }
-  }
+  // Mode → tick dispatch (delegated to mode-tick.ts). The thunks are
+  // forward references to subsystems constructed below — safe because the
+  // dispatch isn't invoked until a frame ticks, by which point composition
+  // has finished.
+  const tickMode = createModeTick({
+    getPhase: () => runtimeState.state.phase,
+    getPhaseTicks: () => phaseTicks,
+    tickLobby: (dt) => lobby.tickLobby(dt),
+    tickSelection: (dt) => selection.tick(dt),
+    tickBanner: (dt) => tickBanner(dt),
+    requestRender,
+  });
   const { clearFrameData, mainLoop } = createRuntimeLoop({
     runtimeState,
     isLockstepSession: () => isOnline && isSessionLive(runtimeState),
@@ -464,19 +368,23 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   });
 
   // -------------------------------------------------------------------------
+  // Outbound wire senders (delegated to wire-senders.ts) — the named message
+  // constructors the subsystems below broadcast through. Local play wires
+  // `config.network.send` to the named no-op.
+  // -------------------------------------------------------------------------
+
+  const wire = createWireSenders({
+    send: config.network.send,
+    runtimeState,
+  });
+
+  // -------------------------------------------------------------------------
   // Selection sub-system (delegated to subsystems/selection.ts)
   // -------------------------------------------------------------------------
 
   const selection = createSelectionSystem({
     runtimeState,
-    sendTowerSelected: (pid, idx, confirmed, applyAt) =>
-      config.network.send({
-        type: "opponentTowerSelected",
-        playerId: pid,
-        towerIdx: idx,
-        confirmed,
-        applyAt,
-      }),
+    sendTowerSelected: wire.sendTowerSelected,
     log: config.log,
     camera,
     syncSelectionOverlay: updateSelectionOverlay,
@@ -616,17 +524,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
 
   const lifeLost: LifeLostSystem = createLifeLostSystem({
     runtimeState,
-    // `round` is stamped here at the wire boundary (protocol metadata for
-    // the receivers' stale-round guard), not threaded through the
-    // subsystem's decision path.
-    sendLifeLostChoice: (choice, playerId, applyAt) =>
-      config.network.send({
-        type: "lifeLostChoice",
-        choice,
-        playerId,
-        applyAt,
-        round: runtimeState.state.round,
-      }),
+    sendLifeLostChoice: wire.sendLifeLostChoice,
     log: config.log,
     requestRender,
     panelPos: (pid) =>
@@ -643,14 +541,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     runtimeState,
     log: config.log,
     requestRender,
-    sendUpgradePick: (playerId, choice, applyAt) =>
-      config.network.send({
-        type: "upgradePick",
-        playerId,
-        choice,
-        applyAt,
-        round: runtimeState.state.round,
-      }),
+    sendUpgradePick: wire.sendUpgradePick,
     applyEarlyChoices: config.onlineEarlyChoices?.drainUpgradePick,
     queueEarlyChoice: config.onlineEarlyChoices?.queueUpgradePick,
   });
@@ -687,16 +578,9 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   const phaseTicks: PhaseTicksSystem = createPhaseTicksSystem({
     runtimeState,
     log: config.log,
-    sendOpponentCannonPhantom: (msg) =>
-      config.network.send({ type: "opponentCannonPhantom", ...msg }),
-    sendOpponentPhantom: (msg) =>
-      config.network.send({ type: "opponentPhantom", ...msg }),
-    sendOpponentCannonPhaseDone: (playerId, applyAt) =>
-      config.network.send({
-        type: "opponentCannonPhaseDone",
-        playerId,
-        applyAt,
-      }),
+    sendOpponentCannonPhantom: wire.sendOpponentCannonPhantom,
+    sendOpponentPhantom: wire.sendOpponentPhantom,
+    sendOpponentCannonPhaseDone: wire.sendOpponentCannonPhaseDone,
     online: config.onlinePhaseTicks,
     requestRender,
     primeBannerPrevScene,
@@ -764,42 +648,12 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   // UIContext — bridges internal state to render-ui-screens.ts functions
   // -------------------------------------------------------------------------
 
-  const uiCtx: UIContext = {
-    getState: () => safeState(runtimeState),
-    settings: runtimeState.settings,
-    getMode: () => runtimeState.mode,
-    setMode: (mode) => {
-      setMode(runtimeState, mode);
-    },
-    getPaused: () => isPaused(runtimeState),
-    setPaused: (paused) => {
-      // `setPaused` is called from the user-facing pause toggle
-      // (options menu / pause key). `pausedBy` is a single-owner slot,
-      // so clearing also clears a visibility-driven pause — acceptable
-      // because the tab must be visible for the user to hit the toggle
-      // at all. (Online play never reaches here: togglePause and
-      // mid-game F1 are disabled while online.)
-      runtimeState.pausedBy = paused ? "user" : "none";
-    },
-    optionsCursor: {
-      get value() {
-        return runtimeState.optionsUI.cursor;
-      },
-      set value(value) {
-        runtimeState.optionsUI.cursor = value;
-      },
-    },
-    controlsState: runtimeState.controlsState,
-    getOptionsContext: () => runtimeState.optionsUI.context,
-    setOptionsContext: (context) => {
-      runtimeState.optionsUI.context = context;
-    },
-    lobby: runtimeState.lobby,
-    getFrame: () => runtimeState.frame,
-    getLobbyRemaining: config.getLobbyRemaining,
+  const uiCtx: UIContext = createUIContext({
+    runtimeState,
     isOnline,
+    getLobbyRemaining: config.getLobbyRemaining,
     getSoundReady: audio.getSoundReady,
-  };
+  });
   // Action surface: online wrappers when present (broadcast inside each
   // adapter), local executors otherwise. Both sides match `OnlineActions`,
   // so the input dispatcher consumes one shape regardless of mode.
@@ -968,35 +822,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     },
     sfx: { activate: audio.sfx.activate },
 
-    // Shared quit-to-menu cleanup. Called from both local (main.ts) and
-    // online (online/runtime/game.ts GAME_EXIT_EVENT, plus the imperative
-    // online "leave" path in online/runtime/session.showLobby) — they
-    // each layer their own session/navigation resets on top.
-    shutdown: (): void => {
-      setMode(runtimeState, Mode.STOPPED);
-      // Close the lobby input gate. Game-start paths flip this themselves
-      // (subsystems/lobby tickLobby, online initFromServer); this covers the
-      // quit-back-to-menu paths so callers don't repeat the assignment.
-      runtimeState.lobby.active = false;
-      // Drop the sticky game-over overlay (clearFrameData preserves it by
-      // design). Leaving it set would keep the STOPPED-mode keyboard path
-      // armed after a route-level exit — Enter/Space behind the landing
-      // page would re-trigger rematch() with no game-over screen visible.
-      runtimeState.frame.gameOver = undefined;
-      // Same session teardown returnToLobby runs — critically clearing
-      // the demo auto-return timer: after an all-AI demo's game-over,
-      // exiting the route within the return delay would otherwise leave
-      // the timer to fire behind the landing page (mode still STOPPED),
-      // re-enter the lobby, and loop hidden demo games with audio.
-      lifecycle.teardownSession();
-      // Mirror returnToLobby's input reset: without it the next lobby
-      // inherits a stale mouseJoinedSlot (every slot click becomes a
-      // "hurry up" skip, so the mouse can never join) and on touch the
-      // in-game controls stay visible over the lobby — Mode.LOBBY render
-      // never calls updateTouchControls, so nothing else dismisses them.
-      input.resetForLobby();
-      audio.stopAll();
-    },
+    // Shared quit-to-menu cleanup (impl in subsystems/game-lifecycle.ts).
+    shutdown: lifecycle.shutdown,
 
     upgradePick,
     bindStateObservers,

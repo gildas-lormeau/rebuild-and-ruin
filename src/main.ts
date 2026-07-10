@@ -17,9 +17,11 @@ import {
 import {
   createBrowserRuntimeBindings,
   createGameRuntime,
+} from "./runtime/composition.ts";
+import {
   createLocalNetworkApi,
   noopNetworkSend,
-} from "./runtime/composition.ts";
+} from "./runtime/network-local.ts";
 import { LOBBY_TIMER } from "./shared/core/game-constants.ts";
 import { IS_DEV } from "./shared/platform/platform.ts";
 

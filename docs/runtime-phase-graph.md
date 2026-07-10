@@ -46,7 +46,7 @@ stateDiagram-v2
 - **broadcasts:** `buildEnd`
 - **display:** —
 - **dispatches:** —
-- **external dispatchers:** `phase-ticks.ts:864`
+- **external dispatchers:** `phase-ticks.ts:845`
 
 ### `battle-done`
 
@@ -56,7 +56,7 @@ stateDiagram-v2
 - **broadcasts:** `buildStart`
 - **display:** —
 - **dispatches:** `enter-upgrade-pick`, `enter-wall-build`
-- **external dispatchers:** `phase-ticks.ts:786`
+- **external dispatchers:** `phase-ticks.ts:767`
 
 ### `ceasefire`
 
@@ -66,7 +66,7 @@ stateDiagram-v2
 - **broadcasts:** `buildStart`
 - **display:** —
 - **dispatches:** `enter-upgrade-pick`, `enter-wall-build`
-- **external dispatchers:** `phase-ticks.ts:352`
+- **external dispatchers:** `phase-ticks.ts:333`
 
 ### `enter-upgrade-pick`
 
@@ -86,7 +86,7 @@ stateDiagram-v2
 - **broadcasts:** —
 - **display:** `banner(build)`
 - **dispatches:** —
-- **external dispatchers:** `phase-ticks.ts:650 (via finishUpgradePick)`, `phase-ticks.ts:655 (via finishUpgradePick)`
+- **external dispatchers:** `phase-ticks.ts:631 (via finishUpgradePick)`, `phase-ticks.ts:636 (via finishUpgradePick)`
 
 ### `enter-cannon-place`
 
@@ -106,7 +106,7 @@ stateDiagram-v2
 - **broadcasts:** `cannonStart`
 - **display:** —
 - **dispatches:** `enter-cannon-place`
-- **external dispatchers:** `phase-ticks.ts:335`
+- **external dispatchers:** `phase-ticks.ts:316`
 
 ### `advance-to-cannon`
 
@@ -116,7 +116,7 @@ stateDiagram-v2
 - **broadcasts:** `cannonStart`
 - **display:** —
 - **dispatches:** `enter-cannon-place`
-- **external dispatchers:** `phase-ticks.ts:331`
+- **external dispatchers:** `phase-ticks.ts:312`
 
 ### `game-over`
 
@@ -126,7 +126,7 @@ stateDiagram-v2
 - **broadcasts:** —
 - **display:** —
 - **dispatches:** —
-- **external dispatchers:** `phase-ticks.ts:339`
+- **external dispatchers:** `phase-ticks.ts:320`
 
 ### `cannon-place-done`
 
@@ -136,7 +136,7 @@ stateDiagram-v2
 - **broadcasts:** `battleStart`
 - **display:** —
 - **dispatches:** `enter-modifier-reveal`, `enter-battle`
-- **external dispatchers:** `phase-ticks.ts:355`
+- **external dispatchers:** `phase-ticks.ts:336`
 
 ### `enter-modifier-reveal`
 
@@ -156,7 +156,7 @@ stateDiagram-v2
 - **broadcasts:** —
 - **display:** `banner(battle)`
 - **dispatches:** —
-- **external dispatchers:** `phase-ticks.ts:629`
+- **external dispatchers:** `phase-ticks.ts:610`
 
 ## Review hints (auto-derived)
 

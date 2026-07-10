@@ -170,6 +170,7 @@
     "files": [
       "src/runtime/browser/timing.ts",
       "src/runtime/dialogs/dialog-tick.ts",
+      "src/runtime/mode-tick.ts",
       "src/runtime/modifier-effects/dust-storm.ts",
       "src/runtime/modifier-effects/fog.ts",
       "src/runtime/modifier-effects/frostbite.ts",
@@ -653,8 +654,10 @@
       "src/runtime/input-actions.ts",
       "src/runtime/main-loop.ts",
       "src/runtime/modifier-effects/reveal-time.ts",
+      "src/runtime/network-local.ts",
       "src/runtime/tick-consumers.ts",
-      "src/runtime/ui-contracts.ts"
+      "src/runtime/ui-contracts.ts",
+      "src/runtime/wire-senders.ts"
     ]
   },
   {
@@ -787,7 +790,8 @@
     "domain": "runtime",
     "role": "phase machine",
     "files": [
-      "src/runtime/phase-machine.ts"
+      "src/runtime/phase-machine.ts",
+      "src/runtime/ui-context.ts"
     ]
   },
   {

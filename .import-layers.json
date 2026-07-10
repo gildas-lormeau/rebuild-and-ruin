@@ -67,6 +67,7 @@
       "src/runtime/audio/sound-modal.ts",
       "src/runtime/browser/timing.ts",
       "src/runtime/dialogs/dialog-tick.ts",
+      "src/runtime/mode-tick.ts",
       "src/runtime/modifier-effects/dust-storm.ts",
       "src/runtime/modifier-effects/fog.ts",
       "src/runtime/modifier-effects/frostbite.ts",
@@ -266,6 +267,7 @@
       "src/runtime/input-actions.ts",
       "src/runtime/main-loop.ts",
       "src/runtime/modifier-effects/reveal-time.ts",
+      "src/runtime/network-local.ts",
       "src/runtime/subsystems/audio.ts",
       "src/runtime/subsystems/banner.ts",
       "src/runtime/subsystems/camera.ts",
@@ -275,6 +277,7 @@
       "src/runtime/subsystems/upgrade-pick.ts",
       "src/runtime/tick-consumers.ts",
       "src/runtime/ui-contracts.ts",
+      "src/runtime/wire-senders.ts",
       "src/shared/sim/board-occupancy.ts"
     ]
   },
@@ -315,7 +318,8 @@
       "src/runtime/subsystems/lobby.ts",
       "src/runtime/subsystems/options.ts",
       "src/runtime/subsystems/render.ts",
-      "src/runtime/subsystems/selection.ts"
+      "src/runtime/subsystems/selection.ts",
+      "src/runtime/ui-context.ts"
     ]
   },
   {
