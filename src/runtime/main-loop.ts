@@ -381,6 +381,15 @@ function tickMainLoop(params: {
 }): void {
   const { dt, mode, frame, tickMode } = params;
 
+  // Pause: keep rendering but skip all game ticks — including the
+  // ESC-to-quit countdown below, so the confirmation window doesn't
+  // silently expire under a pause.
+  if (params.paused && isGameplayMode(mode)) {
+    if (!frame.announcement) frame.announcement = "PAUSED";
+    params.requestRender();
+    return;
+  }
+
   // Tick ESC-to-quit countdown
   if (params.quit.pending) {
     const next = params.quit.timer - dt;
@@ -394,13 +403,6 @@ function tickMainLoop(params: {
       });
       frame.announcement = params.quit.message;
     }
-  }
-
-  // Pause: keep rendering but skip all game ticks
-  if (params.paused && isGameplayMode(mode)) {
-    if (!frame.announcement) frame.announcement = "PAUSED";
-    params.requestRender();
-    return;
   }
 
   if (mode === Mode.STOPPED) return;

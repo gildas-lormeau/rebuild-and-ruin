@@ -37,6 +37,9 @@ function vocToPcm(
   voc: Uint8Array,
 ): { sampleRate: number; pcm: Uint8Array } | null {
   if (!readAscii(voc, 0, 19).startsWith("Creative Voice File")) return null;
+  // Header-size field lives at bytes 20-21; a truncated chunk that still
+  // carries the 19-byte magic must not throw out of the DataView read.
+  if (voc.length < 22) return null;
   const view = new DataView(voc.buffer, voc.byteOffset, voc.byteLength);
   const headerEnd = view.getUint16(20, true);
   let cursor = headerEnd;

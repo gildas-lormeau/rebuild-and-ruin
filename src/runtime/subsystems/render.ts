@@ -282,7 +282,13 @@ export function createRenderSystem(deps: RenderSystemDeps): RenderSystem {
 
     // Refresh crosshairs from controller state when paused
     if (runtimeState.frameMeta.inBattle && isPaused(runtimeState)) {
-      deps.syncCrosshairs(runtimeState.state.battleCountdown <= 0, 0);
+      // Mirror the canonical weaponsActive gate (phase-ticks.ts): once the
+      // battle timer expires, weapons are locked for everyone while
+      // in-flight balls land — the paused crosshair must show that too.
+      deps.syncCrosshairs(
+        runtimeState.state.battleCountdown <= 0 && runtimeState.state.timer > 0,
+        0,
+      );
     }
 
     refreshOverlay();

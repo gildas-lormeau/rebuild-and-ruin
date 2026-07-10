@@ -117,6 +117,9 @@ function* parseAilHeader(
     position < firstOffset;
     position += AIL_HEADER_ENTRY_SIZE
   ) {
+    // A file truncated mid-entry leaves the 4-byte offset field short —
+    // bail rather than let the DataView read throw.
+    if (position + AIL_HEADER_ENTRY_SIZE > ail.byteLength) return;
     const program = ail[position];
     const bankTag = ail[position + 1];
     if (program === undefined || bankTag === undefined) return;

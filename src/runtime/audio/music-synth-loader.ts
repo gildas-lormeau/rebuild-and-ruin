@@ -183,14 +183,20 @@ async function createPcmRenderer(
 
 /** Extract one sub-song from an XMI container and convert it to standard
  *  MIDI bytes. Returns undefined if the container is missing the requested
- *  block or if the conversion fails. */
+ *  block or if the conversion fails — including parser throws on malformed
+ *  containers, so one corrupt file only fails its own tracks instead of
+ *  aborting the whole render loop. */
 function extractSmfBlock(
   assets: MusicAssets,
   file: XmiFileKey,
   songIndex: number,
 ): Uint8Array | undefined {
-  const blocks = xmiContainerBlocks(assets.xmi[file]);
-  const block = blocks[songIndex]?.block;
-  if (!block) return undefined;
-  return xmidToSmf(block) ?? undefined;
+  try {
+    const blocks = xmiContainerBlocks(assets.xmi[file]);
+    const block = blocks[songIndex]?.block;
+    if (!block) return undefined;
+    return xmidToSmf(block) ?? undefined;
+  } catch {
+    return undefined;
+  }
 }
