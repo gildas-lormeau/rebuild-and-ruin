@@ -1,10 +1,10 @@
 /**
- * Shared tower scene description — `home_tower` (gate + 3 flags + door)
- * and `secondary_tower` (no gate, single flag). Geometry: wide flat-
- * roofed keep with two taller flanking turrets, a thin pole + pennant
- * on the keep roof, optional +Z door slit. Pennant/flag meshes are
- * named `"flag"` on the group so the entity manager can recolor them
- * for per-player tinting without rewriting scene geometry.
+ * Tower scenes. `home_tower`: mini classic castle — rounded corner
+ * towers, crenellated curtain walls, paved courtyard, central
+ * standard, front-tower pennants, gate door. `secondary_tower`:
+ * single tiered round keep with a neutral banner — distinct by
+ * silhouette alone. Flag meshes are named `"flag"` so the entity
+ * manager can recolor them for per-player tinting.
  */
 
 import * as THREE from "three";
@@ -42,6 +42,7 @@ interface PoleParams {
 interface PolePlatformParams {
   width: number;
   depth: number;
+  /** 0 = invisible mount — no pedestal/lip, pole roots at the roof top. */
   height: number;
   /** [dx, dz] from turret center. Default [0, 0]. */
   offset?: readonly [number, number];
@@ -116,6 +117,16 @@ interface TurretParams {
 
 interface TowerParams {
   turrets: TurretParams[];
+}
+
+/** Per-variant knobs for the shared mini-castle layout. */
+interface MiniCastleParts {
+  body: TexturedSpec;
+  roof: TexturedSpec;
+  /** Tall standard on the courtyard base. */
+  centerPole: PoleParams;
+  /** Pennant pole planted on each front corner tower. Home-only. */
+  frontPole?: PoleParams;
 }
 
 interface Variant {
@@ -261,12 +272,14 @@ const STONE_BODY_SECONDARY: TexturedSpec = {
   metalness: 0.15,
   texture: "tower_stone",
 };
-const ROOF_SLATE_SECONDARY: TexturedSpec = {
+// STONE_BODY_SECONDARY without the texture map — parapet rings on the
+// round keep, so the trim blends with the sandstone drum instead of
+// reading as bright white hoops.
+const SANDSTONE_PLAIN: MaterialSpec = {
   kind: "standard",
-  color: 0xe0bfa8,
-  roughness: 0.75,
-  metalness: 0.1,
-  texture: "tower_roof",
+  color: 0xe8dcc8,
+  roughness: 0.85,
+  metalness: 0.15,
 };
 const FLAG_NEUTRAL: MaterialSpec = {
   kind: "standard",
@@ -295,6 +308,15 @@ const PLATFORM_STONE: MaterialSpec = {
   color: 0xdac5a2,
   roughness: 0.85,
   metalness: 0.15,
+};
+// Paved courtyard slab between the curtain walls (reuses the wall-top
+// cobble texture). Shared by both variants.
+const COURTYARD_FLOOR: TexturedSpec = {
+  kind: "standard",
+  color: 0xcfc5b0,
+  roughness: 0.9,
+  metalness: 0.05,
+  texture: "wall_top",
 };
 // Continuous low wall used on small turrets so characters on the
 // roof walkway don't fall off. Height matches the cubic merlon size
@@ -349,275 +371,270 @@ const UV_DENSITY = 2.0;
 const ROOF_TILES_PER_WORLD = 16;
 const roofWrapsPerWorld = ROOF_TILES_PER_WORLD / 4;
 const _boundsYCache = new Map<string, { minY: number; maxY: number }>();
+/**
+ * Mini classic castle — the top-down plan (16-cell grid, footprint
+ * cells 1..13, centered on the col(7)/row(7) axis like every sprite):
+ *
+ *   XXX       XXX
+ *   X X_x_x_x_X X    X  = rounded 3×3 corner towers (parapet ring)
+ *   XXX       XXX    x_ = curtain walls + merlons on the outer edge
+ *    |         |     B  = round courtyard base, P = its standard
+ *    x         x     door on the south curtain wall (+Z face)
+ *    |         |
+ *    x    B    x     home variant: P pennant poles centered on the
+ *    |   BPB   |     two front (south) towers
+ *    x    B    x
+ *    |         |
+ *   XXX       XXX
+ *   XPX_x_x_x_XPX
+ *   XXX       XXX
+ */
+const CASTLE_SIDES: ParapetSide[] = ["N", "S", "E", "W"];
+const TOWER_LO = 2;
+const TOWER_HI = 12;
+const TOWER_HEIGHT = 0.22;
+const WALL_HEIGHT = 0.15;
+const miniCastleTurrets = (parts: MiniCastleParts): TurretParams[] => {
+  const roofOf = (parapet?: ParapetParams): RoofParams => ({
+    thickness: 0,
+    eaveScale: 1.0,
+    material: parts.roof,
+    ...(parapet ? { parapet } : {}),
+  });
+  const cornerTower = (name: string, cx: number, rz: number): TurretParams => ({
+    name,
+    x: col(cx),
+    z: row(rz),
+    width: cells(3),
+    depth: cells(3),
+    height: TOWER_HEIGHT,
+    yBase: 0,
+    cornerR: CORNER_R,
+    material: parts.body,
+    roof: roofOf({ ...PARAPET, thickness: cells(0.5) }),
+  });
+  const curtainWall = (
+    name: string,
+    cx: number,
+    rz: number,
+    axis: "X" | "Z",
+    outer: ParapetSide,
+  ): TurretParams => ({
+    name,
+    x: col(cx),
+    z: row(rz),
+    width: axis === "X" ? cells(7) : cells(1),
+    depth: axis === "X" ? cells(1) : cells(7),
+    height: WALL_HEIGHT,
+    yBase: 0,
+    material: parts.body,
+    roof: roofOf({
+      ...MERLON_PARAPET,
+      skipSides: CASTLE_SIDES.filter((side) => side !== outer),
+    }),
+  });
+  // Invisible mount — the pennant poles stand directly on the tower
+  // roofs, no pedestal.
+  const frontPlatform = (pole: PoleParams): PolePlatformParams => ({
+    width: cells(1.5),
+    depth: cells(1.5),
+    height: 0,
+    material: PLATFORM_STONE,
+    pole,
+  });
+  const towerSW = cornerTower("tower_sw", TOWER_LO, TOWER_HI);
+  const towerSE = cornerTower("tower_se", TOWER_HI, TOWER_HI);
+  if (parts.frontPole) {
+    towerSW.polePlatform = frontPlatform(parts.frontPole);
+    towerSE.polePlatform = frontPlatform(parts.frontPole);
+  }
+  const gateWall = curtainWall("wall_s", 7, TOWER_HI, "X", "S");
+  gateWall.window = {
+    width: cells(2),
+    height: cells(1),
+    material: WINDOW_DARK,
+  };
+  return [
+    {
+      // Thin paved slab — the courtyard floor. Spans only to the inner
+      // faces of the curtain walls so no paving shows outside them.
+      name: "courtyard",
+      x: col(7),
+      z: row(7),
+      width: cells(9),
+      depth: cells(9),
+      height: 0.015,
+      yBase: 0,
+      material: parts.body,
+      roof: { thickness: 0, eaveScale: 1.0, material: COURTYARD_FLOOR },
+    },
+    cornerTower("tower_nw", TOWER_LO, TOWER_LO),
+    cornerTower("tower_ne", TOWER_HI, TOWER_LO),
+    towerSW,
+    towerSE,
+    curtainWall("wall_n", 7, TOWER_LO, "X", "N"),
+    curtainWall("wall_w", TOWER_LO, 7, "Z", "W"),
+    curtainWall("wall_e", TOWER_HI, 7, "Z", "E"),
+    gateWall,
+    {
+      name: "pole_base",
+      x: col(7),
+      z: row(7),
+      width: cells(4),
+      depth: cells(4),
+      height: 0.06,
+      yBase: 0,
+      cornerR: CORNER_R,
+      material: parts.body,
+      roof: roofOf(),
+      polePlatform: {
+        width: cells(2),
+        depth: cells(2),
+        height: 0.04,
+        material: PLATFORM_STONE,
+        pole: parts.centerPole,
+      },
+    },
+  ];
+};
+/**
+ * Round-keep layout for the secondary tower — one large tiered drum
+ * instead of the home's walled castle, so the two variants are
+ * distinguishable by silhouette alone at gameplay zoom. Round plinth,
+ * main drum with parapet ring + door, smaller upper drum carrying the
+ * banner pole.
+ */
+const roundKeepTurrets = (parts: MiniCastleParts): TurretParams[] => {
+  const DRUM_HEIGHT = 0.22;
+  const TOP_HEIGHT = 0.06;
+  const round = (size: number): number => cells(size) / 2;
+  return [
+    {
+      // Round paved plinth grounding the keep.
+      name: "plinth",
+      x: col(7),
+      z: row(7),
+      width: cells(11),
+      depth: cells(11),
+      height: 0.015,
+      yBase: 0,
+      cornerR: round(11),
+      material: parts.body,
+      roof: { thickness: 0, eaveScale: 1.0, material: COURTYARD_FLOOR },
+    },
+    {
+      // Main drum — parapet ring walkway + door at the base.
+      name: "keep",
+      x: col(7),
+      z: row(7),
+      width: cells(9),
+      depth: cells(9),
+      height: DRUM_HEIGHT,
+      yBase: 0,
+      cornerR: round(9),
+      material: parts.body,
+      roof: {
+        thickness: 0,
+        eaveScale: 1.0,
+        material: parts.roof,
+        parapet: {
+          ...PARAPET,
+          material: SANDSTONE_PLAIN,
+          thickness: cells(0.5),
+        },
+      },
+      window: { width: cells(2), height: cells(1), material: WINDOW_DARK },
+    },
+    {
+      // Upper drum — tiered top carrying the banner.
+      name: "keep_top",
+      x: col(7),
+      z: row(7),
+      width: cells(5),
+      depth: cells(5),
+      height: TOP_HEIGHT,
+      yBase: DRUM_HEIGHT,
+      cornerR: round(5),
+      material: parts.body,
+      roof: {
+        thickness: 0,
+        eaveScale: 1.0,
+        material: parts.roof,
+        parapet: {
+          ...PARAPET,
+          material: SANDSTONE_PLAIN,
+          thickness: cells(0.5),
+        },
+      },
+      polePlatform: {
+        width: cells(2),
+        depth: cells(2),
+        height: 0.04,
+        material: PLATFORM_STONE,
+        pole: parts.centerPole,
+      },
+    },
+  ];
+};
 export const VARIANTS: Variant[] = [
   {
-    // Secondary tower — same layout as home tower minus the gate.
+    // Secondary tower — single round keep, neutral banner.
     name: "secondary_tower",
     label: "secondary tower",
     canvasPx: 64,
     params: {
-      turrets: [
-        {
-          name: "rear_main",
-          x: col(7),
-          z: row(3),
-          width: cells(9),
-          depth: cells(7),
-          height: 0.15,
-          yBase: 0,
-          material: STONE_BODY_SECONDARY,
-          roof: {
-            thickness: 0,
-            eaveScale: 1.0,
-            material: ROOF_SLATE_SECONDARY,
-            parapet: {
-              ...MERLON_PARAPET,
-              skipSides: ["S"],
-              clip: {
-                W: { exclude: [{ lo: row(3.5), hi: row(6.5) }] },
-                E: { exclude: [{ lo: row(3.5), hi: row(6.5) }] },
-              },
-            },
-          },
-          polePlatform: {
-            offset: [0, cells(2.5)],
-            width: cells(3),
-            depth: cells(4),
-            height: 0.05,
-            material: PLATFORM_STONE,
-            pole: {
-              radius: 0.02,
-              height: 0.15,
-              material: WOOD_DARK,
-              flag: {
-                width: cells(2),
-                height: yCells(1),
-                yOffset: -yCells(0.5),
-                side: "+x",
-                material: FLAG_NEUTRAL,
-              },
-            },
+      turrets: roundKeepTurrets({
+        body: STONE_BODY_SECONDARY,
+        roof: COURTYARD_FLOOR,
+        centerPole: {
+          radius: 0.02,
+          height: yCells(5),
+          material: WOOD_DARK,
+          flag: {
+            width: cells(2),
+            height: yCells(1),
+            yOffset: -yCells(0.5),
+            side: "+x",
+            material: FLAG_NEUTRAL,
           },
         },
-        {
-          name: "front_main",
-          x: col(7),
-          z: row(9),
-          width: cells(11),
-          depth: cells(5),
-          height: 0.15,
-          yBase: 0,
-          material: STONE_BODY_SECONDARY,
-          roof: {
-            thickness: 0,
-            eaveScale: 1.0,
-            material: ROOF_SLATE_SECONDARY,
-            parapet: {
-              ...MERLON_PARAPET,
-              skipSides: ["N"],
-              clip: {
-                W: { exclude: [{ lo: row(6.5), hi: row(7.5) }] },
-                E: { exclude: [{ lo: row(6.5), hi: row(7.5) }] },
-              },
-            },
-          },
-          window: { width: cells(2), height: cells(1), material: WINDOW_DARK },
-        },
-        {
-          name: "rear_left",
-          x: col(2.5),
-          z: row(5.5),
-          width: cells(4),
-          depth: cells(4),
-          height: 0.25,
-          yBase: 0,
-          cornerR: CORNER_R,
-          material: STONE_BODY_SECONDARY,
-          roof: {
-            thickness: 0,
-            eaveScale: 1.0,
-            material: ROOF_SLATE_SECONDARY,
-            parapet: PARAPET,
-          },
-        },
-        {
-          name: "rear_right",
-          x: col(11.5),
-          z: row(5.5),
-          width: cells(4),
-          depth: cells(4),
-          height: 0.25,
-          yBase: 0,
-          cornerR: CORNER_R,
-          material: STONE_BODY_SECONDARY,
-          roof: {
-            thickness: 0,
-            eaveScale: 1.0,
-            material: ROOF_SLATE_SECONDARY,
-            parapet: PARAPET,
-          },
-        },
-      ],
+      }),
     },
   },
   {
-    // Home tower — all XZ authored in ASCII cells.
+    // Home tower — tall tinted standard + pennants on the front towers.
     name: "home_tower",
     label: "home tower",
     canvasPx: 64,
     params: {
-      turrets: [
-        {
-          name: "rear_main",
-          x: col(7),
-          z: row(3),
-          width: cells(11),
-          depth: cells(7),
-          height: 0.15,
-          yBase: 0,
-          material: STONE_BODY,
-          roof: {
-            thickness: 0,
-            eaveScale: 1.0,
-            material: ROOF_SLATE,
-            parapet: {
-              ...MERLON_PARAPET,
-              skipSides: ["S"],
-              clip: {
-                W: { exclude: [{ lo: row(1.5), hi: row(6.5) }] },
-                E: { exclude: [{ lo: row(1.5), hi: row(6.5) }] },
-              },
-            },
-          },
-          polePlatform: {
-            offset: [0, cells(2.5)],
+      turrets: miniCastleTurrets({
+        body: STONE_BODY,
+        roof: ROOF_SLATE,
+        centerPole: {
+          radius: 0.02,
+          height: yCells(16),
+          material: WOOD_DARK,
+          flag: {
             width: cells(3),
-            depth: cells(4),
-            height: 0.05,
-            material: PLATFORM_STONE,
-            pole: {
-              radius: 0.02,
-              height: yCells(16),
-              material: WOOD_DARK,
-              flag: {
-                width: cells(3),
-                height: yCells(1.5),
-                yOffset: -yCells(0.75),
-                side: "+x",
-                material: FLAG_BASE,
-              },
-            },
+            height: yCells(1.5),
+            yOffset: -yCells(0.75),
+            side: "+x",
+            material: FLAG_BASE,
           },
         },
-        {
-          name: "front_main",
-          x: col(7),
-          z: row(9),
-          width: cells(13),
-          depth: cells(5),
-          height: 0.15,
-          yBase: 0,
-          material: STONE_BODY,
-          roof: {
-            thickness: 0,
-            eaveScale: 1.0,
-            material: ROOF_SLATE,
-            parapet: {
-              ...MERLON_PARAPET,
-              skipSides: ["N"],
-              clip: {
-                S: { exclude: [{ lo: col(2.5), hi: col(11.5) }] },
-                W: { exclude: [{ lo: row(6.5), hi: row(7.5) }] },
-                E: { exclude: [{ lo: row(6.5), hi: row(7.5) }] },
-              },
-            },
+        frontPole: {
+          radius: 0.0156,
+          height: yCells(5),
+          material: WOOD_DARK,
+          flag: {
+            width: cells(2.5),
+            height: yCells(1.25),
+            yOffset: -yCells(0.625),
+            side: "+x",
+            material: FLAG_BASE,
           },
         },
-        {
-          name: "rear_left",
-          x: col(1.5),
-          z: row(4.5),
-          width: cells(4),
-          depth: cells(6),
-          height: 0.35,
-          yBase: 0,
-          cornerR: CORNER_R,
-          material: STONE_BODY,
-          roof: {
-            thickness: 0,
-            eaveScale: 1.0,
-            material: ROOF_SLATE,
-            parapet: PARAPET,
-          },
-        },
-        {
-          name: "rear_right",
-          x: col(12.5),
-          z: row(4.5),
-          width: cells(4),
-          depth: cells(6),
-          height: 0.35,
-          yBase: 0,
-          cornerR: CORNER_R,
-          material: STONE_BODY,
-          roof: {
-            thickness: 0,
-            eaveScale: 1.0,
-            material: ROOF_SLATE,
-            parapet: PARAPET,
-          },
-        },
-        {
-          name: "gate",
-          x: col(7),
-          z: row(13),
-          width: cells(9),
-          depth: cells(5),
-          height: 0.3,
-          yBase: 0,
-          cornerR: CORNER_R,
-          material: STONE_BODY,
-          roof: {
-            thickness: 0,
-            eaveScale: 1.0,
-            material: ROOF_SLATE,
-            parapet: PARAPET,
-          },
-          window: { width: cells(2), height: cells(1), material: WINDOW_DARK },
-          cornerFlags: [
-            {
-              corner: "SW",
-              pole: {
-                radius: 0.0156,
-                height: yCells(11.5),
-                material: WOOD_DARK,
-                flag: {
-                  width: cells(3),
-                  height: yCells(1.5),
-                  yOffset: -yCells(0.75),
-                  side: "+x",
-                  material: FLAG_BASE,
-                },
-              },
-            },
-            {
-              corner: "SE",
-              pole: {
-                radius: 0.0156,
-                height: yCells(11.5),
-                material: WOOD_DARK,
-                flag: {
-                  width: cells(3),
-                  height: yCells(1.5),
-                  yOffset: -yCells(0.75),
-                  side: "+x",
-                  material: FLAG_BASE,
-                },
-              },
-            },
-          ],
-        },
-      ],
+      }),
     },
   },
 ];
@@ -1025,26 +1042,30 @@ function addTurretPolePlatform(
   const pp = polePlatformPlacement(turret);
   if (!pp || !turret.polePlatform) return;
   const plat = pp.platform;
-  const platR = Math.min(plat.width, plat.depth) / 2;
-  const platSideSpec: TexturedSpec = {
-    ...turret.polePlatform.material,
-    texture: "tower_stone",
-  };
-  const platSideMat = mat(platSideSpec);
-  const platPlainMat = mat(turret.polePlatform.material);
+  // height 0 = invisible mount: no pedestal/lip meshes, the pole roots
+  // directly at the roof top.
+  if (plat.height > 0) {
+    const platR = Math.min(plat.width, plat.depth) / 2;
+    const platSideSpec: TexturedSpec = {
+      ...turret.polePlatform.material,
+      texture: "tower_stone",
+    };
+    const platSideMat = mat(platSideSpec);
+    const platPlainMat = mat(turret.polePlatform.material);
 
-  const platGeom = new three.CylinderGeometry(platR, platR, plat.height, 24);
-  applyCylinderWallUV(platGeom, platR, plat.height * TOWER_Y_SCALE);
-  const platMesh = new three.Mesh(platGeom, [
-    platSideMat,
-    platPlainMat,
-    platPlainMat,
-  ]);
-  platMesh.position.set(plat.pos[0], plat.pos[1], plat.pos[2]);
-  platMesh.name = "pole_base";
-  group.add(platMesh);
+    const platGeom = new three.CylinderGeometry(platR, platR, plat.height, 24);
+    applyCylinderWallUV(platGeom, platR, plat.height * TOWER_Y_SCALE);
+    const platMesh = new three.Mesh(platGeom, [
+      platSideMat,
+      platPlainMat,
+      platPlainMat,
+    ]);
+    platMesh.position.set(plat.pos[0], plat.pos[1], plat.pos[2]);
+    platMesh.name = "pole_base";
+    group.add(platMesh);
 
-  addPolePlatformLip(three, group, plat, platR, platPlainMat, platSideMat);
+    addPolePlatformLip(three, group, plat, platR, platPlainMat, platSideMat);
+  }
 
   if (pp.pole && turret.polePlatform.pole) {
     const p = pp.pole;
