@@ -48,6 +48,16 @@ const portraitMQ = matchMedia("(orientation: portrait)");
 // `/#play` (bookmark, reload, shared link) would bypass that gesture, so we
 // redirect those visits to the home page.
 let userInitiatedPlay = false;
+// The two game modules each build a full runtime — a THREE.WebGLRenderer on
+// the shared #canvas/#world-canvas stack, a perpetual RAF loop, document
+// listeners — as a module-level side effect of first import, and everything
+// downstream (composition.ts, online/runtime/game.ts) assumes one
+// composition per page lifetime. Importing BOTH in one page session would
+// put two renderers with independent GL-state caches on one context and
+// leave two frame loops running. Track which module is resident; switching
+// to the other game route reloads the page instead of importing a second
+// runtime.
+let loadedGameModule: "local" | "online" | undefined;
 
 if (GRID_PORTRAIT_LAUNCHED) {
   document.body.classList.add("portrait-launched");
@@ -78,13 +88,26 @@ function syncIsPortrait(): void {
 
 // --- Route handlers ---
 onRoute(ROUTE_ONLINE, () => {
+  if (loadedGameModule === "local") {
+    // The local runtime is resident — reload; the fresh page boots straight
+    // into #/online (this route supports direct entry).
+    location.reload();
+    return;
+  }
   exitGameIfActive();
   serverHostInput.value =
     localStorage.getItem(SERVER_STORAGE_KEY) || DEFAULT_SERVER;
-  void import("./online-client.ts");
+  void importOnline();
 });
 
 onRoute(ROUTE_PLAY, () => {
+  if (loadedGameModule === "online") {
+    // The online runtime is resident — reload; the direct-entry guard below
+    // then bounces the fresh page to home, where the player re-clicks
+    // "Local Play" (a reload can't preserve the audio-unlock gesture anyway).
+    location.reload();
+    return;
+  }
   if (!userInitiatedPlay) {
     // Direct entry (bookmark, reload, shared link) — bounce back home so the
     // visitor has to click "Local Play", which is the only place we get a user
@@ -99,7 +122,7 @@ onRoute(ROUTE_PLAY, () => {
     once: true,
     capture: true,
   });
-  void import("./main.ts").then((module) => module.enterLocalLobby());
+  void importLocal().then((module) => module.enterLocalLobby());
 });
 
 onRoute(ROUTE_HOME, () => {
@@ -115,7 +138,12 @@ document.getElementById("btn-local")!.addEventListener(CLICK_EVENT, () => {
   // window — once the dynamic import resolves the gesture is stale for
   // AudioContext.resume(). Safe to call even if no Rampart files are in IDB
   // (subsystem no-ops). Fire-and-forget: audio is optional, never block nav.
-  void import("./main.ts").then((module) => module.activateMusic());
+  // Skipped when the online runtime is resident: the route handler is about
+  // to reload the page, and importing main.ts here would construct the very
+  // second runtime the reload exists to prevent.
+  if (loadedGameModule !== "online") {
+    void importLocal().then((module) => module.activateMusic());
+  }
   userInitiatedPlay = true;
   navigateTo(ROUTE_PLAY);
 });
@@ -156,7 +184,7 @@ if (autoJoinCode && !GRID_PORTRAIT_LAUNCHED) {
   activateOnlineAudio();
   void (async () => {
     navigateTo(ROUTE_ONLINE, true);
-    const { lobbyReady } = await import("./online-client.ts");
+    const { lobbyReady } = await importOnline();
     const { joinRoom } = await lobbyReady;
     joinRoom(autoJoinCode.toUpperCase());
   })();
@@ -169,7 +197,23 @@ if (autoJoinCode && !GRID_PORTRAIT_LAUNCHED) {
 // belt-and-suspenders: any of them is a fresh gesture the browser accepts
 // for AudioContext.resume().
 function activateOnlineAudio(): void {
-  void import("./online-client.ts").then((module) => module.activateAudio());
+  // Same guard as btn-local's activateMusic: with the local runtime
+  // resident, the #/online route handler reloads the page — don't construct
+  // a second runtime inside this gesture window first.
+  if (loadedGameModule === "local") return;
+  void importOnline().then((module) => module.activateAudio());
+}
+
+/** Single import sites for the two game modules — they record which runtime
+ *  is resident so the route handlers can reload instead of double-importing. */
+function importLocal() {
+  loadedGameModule = "local";
+  return import("./main.ts");
+}
+
+function importOnline() {
+  loadedGameModule = "online";
+  return import("./online-client.ts");
 }
 
 /** Hide the game container and notify game modules to clean up. */
