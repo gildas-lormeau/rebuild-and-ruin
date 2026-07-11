@@ -344,8 +344,9 @@ export function projectedFinalizeDelta(
   player: Player,
 ): number {
   const territorySize = player.interior.size;
-  let pts =
-    territorySize * TERRITORY_POINTS_PER_SQUARE * territoryScoreMult(player);
+  let pts = Math.floor(
+    territorySize * TERRITORY_POINTS_PER_SQUARE * territoryScoreMult(player),
+  );
   const castleUnits = countCastleBonusUnits(state, player);
   if (castleUnits > 0) {
     pts +=
@@ -496,7 +497,9 @@ function awardEndOfBuildPoints(
   // Territory points — 1 point per enclosed square (linear; see
   // TERRITORY_POINTS_PER_SQUARE). The upgrade multiplier still applies.
   const territoryMult = territoryScoreMult(player);
-  const terrPts = territorySize * TERRITORY_POINTS_PER_SQUARE * territoryMult;
+  const terrPts = Math.floor(
+    territorySize * TERRITORY_POINTS_PER_SQUARE * territoryMult,
+  );
   if (terrPts > 0) addScore(player, terrPts);
 
   // Castle bonus (home castle = 2 units, others = 1 unit)

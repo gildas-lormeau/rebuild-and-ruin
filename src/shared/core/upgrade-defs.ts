@@ -209,7 +209,7 @@ export const UPGRADE_POOL: readonly UpgradeDef[] = [
   {
     id: "territorial_ambition",
     label: "Territorial Ambition",
-    description: "Territory points doubled at end of build",
+    description: "Territory points +50% at end of build",
     category: STRATEGIC,
     weight: WEIGHT_UNCOMMON,
     oneUse: false,
