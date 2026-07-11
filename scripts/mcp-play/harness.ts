@@ -592,6 +592,10 @@ export interface ActiveUpgrade {
 export interface Observation {
   phase: string;
   round: number;
+  /** Total rounds this match runs (the `rounds` option). With `round`, gives the
+   *  rounds REMAINING — the compounding horizon for any place-a-persistent-gun
+   *  vs single-use-balloon trade, and general endgame awareness. */
+  roundsTotal: number;
   timerSec: number;
   /** Pre-battle "Ready/Aim/Fire" countdown (seconds). While > 0 the battle is
    *  NOT live yet — `timerSec` is frozen and shots are wasted; wait it out. 0
@@ -761,6 +765,14 @@ export interface Observation {
        *  `min(h, w) >= 3` ⇒ a 3×3 dump pocket (admits any piece) still fits. */
       openPocket: { h: number; w: number };
     } | null;
+    /** Battery attrition: your DEAD cannons and the interior tiles their debris
+     *  permanently blocks (only a zone reset clears debris). A dead gun is worse
+     *  than an idle slot — the wreck counts against `headroom.openPocket` and
+     *  blocks rebuilding on those tiles forever. Omitted while nothing is dead.
+     *  A climbing count across rounds means enemy return fire is eating your
+     *  battery faster than you can rebuild it — factor that into how often you
+     *  trade bombards. */
+    attrition?: { deadGuns: number; debrisTiles: number };
     enclosedTowers: number;
     homeTowerEnclosed: boolean;
     /** MODERN only: the upgrades you have in force THIS round (the picks you
@@ -794,6 +806,26 @@ export interface Observation {
    *  huggers, which go inert if that wall is breached. If no `super` entry
    *  appears, no 3×3 fits your interior — place normals instead. */
   cannonSuggestions?: CannonSuggestion[];
+  /** CANNON_PLACE only: how many normal cannons you can add RIGHT NOW and still
+   *  keep a 3×3 dump pocket (the bag-lock floor) — the arbiter between "fill
+   *  every idle slot" and "reserve the pocket". Greedy simulation over the
+   *  safest routable spots: each is hypothetically placed and the largest open
+   *  rectangle re-measured; the count stops the placement BEFORE the one that
+   *  would shrink the pocket below 3×3. `safeNormals` is additionally capped by
+   *  your remaining slots. 0 = any further permanent gun risks a bag-lock (use
+   *  a balloon or end_cannon). `spots` are the vetted anchors, safest first. */
+  cannonBudget?: {
+    safeNormals: number;
+    spots: { row: number; col: number }[];
+  };
+  /** CANNON_PLACE + BATTLE: the battle-relevant gun count per living player —
+   *  cannons that are alive, direct-fire (normal/super), AND enclosed (inert
+   *  breached guns don't shoot). The roster's raw `cannons` count includes dead
+   *  debris and balloons, so it overstates everyone; this is the honest
+   *  firepower comparison. Return fire during YOUR bombard/cull/declutter comes
+   *  from these guns — a 3:1 deficit means every trade costs you ~3× what it
+   *  costs them, and the gap COMPOUNDS because their guns persist rounds. */
+  firepower?: { name: string; isMe: boolean; guns: number }[];
   /** WALL_BUILD only: every tower in your zone you could enclose (home first,
    *  then cheapest). The strategic layer — there can be several. `tiles` here is
    *  a sample (≤ ENCLOSURE_TILE_SAMPLE); `tilesNeeded` is the true count, and the
@@ -1289,6 +1321,10 @@ export async function createMcpGame(
   });
 
   const gameOver = (): boolean => sc.mode() === Mode.STOPPED;
+
+  /** Configured match length — surfaced on every observation (`roundsTotal`) so
+   *  the agent can weigh persistent-vs-single-use spends by rounds remaining. */
+  const totalRounds = opts.rounds ?? 3;
 
   /** Memoised count of my zone's land tiles — static for the match (zones +
    *  water never change). -1 = not yet computed. */
@@ -2576,6 +2612,95 @@ export async function createMcpGame(
     return hug;
   }
 
+  /** Safe-cannon budget: how many NORMAL cannons can be added right now without
+   *  shrinking the largest open rectangle below the 3×3 bag-lock floor — the
+   *  computed arbiter between the "fill every idle slot" and "reserve the dump
+   *  pocket" pressures (which otherwise contradict each other as prose).
+   *  Greedy-skip over the ROUTABLE normal spots the suggestions already vetted,
+   *  safest first: each candidate is hypothetically placed (same push/pop trick
+   *  as `spotRoutable`), the open pocket re-measured via `headroomFor`, and the
+   *  spot kept only if a 3×3 pocket survives. Overlapping candidates are
+   *  filtered by re-running `canPlaceCannon` against the hypotheticals. Capped
+   *  by remaining slots. `null` when there's no castle to measure. */
+  function cannonBudgetFor(
+    suggestions: CannonSuggestion[],
+  ): NonNullable<Observation["cannonBudget"]> | null {
+    const state = sc.state;
+    const me = state.players[agentSlot];
+    if (!me || !wallBounds(me.walls)) return null;
+    const remaining = cannonSlotsFor(state, agentSlot) - cannonSlotsUsed(me);
+    const candidates = suggestions.filter(
+      (spot) => spot.mode === CannonMode.NORMAL && spot.routable,
+    );
+    const accepted: { row: number; col: number }[] = [];
+    const hypotheticals: (typeof me.cannons)[number][] = [];
+    try {
+      for (const spot of candidates) {
+        if (accepted.length >= remaining) break;
+        // Re-check legality against previously accepted hypotheticals (the
+        // suggestion list was computed without them, so footprints may overlap).
+        if (!canPlaceCannon(me, spot.row, spot.col, CannonMode.NORMAL, state))
+          continue;
+        const hypothetical = {
+          row: spot.row,
+          col: spot.col,
+          mode: CannonMode.NORMAL,
+          hp: 1,
+        } as (typeof me.cannons)[number];
+        me.cannons.push(hypothetical);
+        hypotheticals.push(hypothetical);
+        const pocket = headroomFor()?.openPocket ?? { h: 0, w: 0 };
+        if (Math.min(pocket.h, pocket.w) >= 3) {
+          accepted.push({ row: spot.row, col: spot.col });
+        } else {
+          me.cannons.pop();
+          hypotheticals.pop();
+        }
+      }
+    } finally {
+      for (let i = 0; i < hypotheticals.length; i++) me.cannons.pop();
+    }
+    return { safeNormals: accepted.length, spots: accepted };
+  }
+
+  /** Live enclosed direct-fire guns per living player — the honest firepower
+   *  comparison (`Observation.firepower`). The layout's raw `cannons` count
+   *  includes dead debris, balloons, and ramparts; this counts only what can
+   *  actually shoot in a battle: alive, normal/super, inside a sealed ring. */
+  function firepowerFor(): NonNullable<Observation["firepower"]> {
+    return sc.state.players
+      .map((player, slot) => ({ player, slot }))
+      .filter(({ player }) => !player.eliminated)
+      .map(({ player, slot }) => ({
+        name: PLAYER_NAMES[slot] ?? `P${slot}`,
+        isMe: slot === agentSlot,
+        guns: player.cannons.filter(
+          (cannon) =>
+            isCannonAlive(cannon) &&
+            !isBalloonCannon(cannon) &&
+            !isRampartCannon(cannon) &&
+            isCannonEnclosed(cannon, player),
+        ).length,
+      }));
+  }
+
+  /** My dead cannons + the interior tiles their debris permanently blocks —
+   *  the battery-attrition ledger (`Observation.me.attrition`). Undefined while
+   *  nothing is dead so the field self-gates. */
+  function attritionFor():
+    | { deadGuns: number; debrisTiles: number }
+    | undefined {
+    const me = sc.state.players[agentSlot];
+    if (!me) return undefined;
+    const dead = me.cannons.filter((cannon) => !isCannonAlive(cannon));
+    if (dead.length === 0) return undefined;
+    const debrisTiles = dead.reduce(
+      (sum, cannon) => sum + cannonSize(cannon.mode) ** 2,
+      0,
+    );
+    return { deadGuns: dead.length, debrisTiles };
+  }
+
   /** How many of the agent's cannons can fire this instant (no ball in flight). */
   function cannonsReadyCount(): number {
     const state = sc.state;
@@ -3224,6 +3349,7 @@ export async function createMcpGame(
     const observation: Observation = {
       phase,
       round: state.round,
+      roundsTotal: totalRounds,
       timerSec: Math.round(state.timer * 10) / 10,
       battleCountdown: Math.round(state.battleCountdown * 10) / 10,
       gameOver: gameOver(),
@@ -3288,6 +3414,10 @@ export async function createMcpGame(
         walls: me.walls.size,
         interior: me.interior.size,
         headroom: headroomFor(),
+        ...(() => {
+          const attrition = attritionFor();
+          return attrition ? { attrition } : {};
+        })(),
         enclosedTowers: me.enclosedTowers.length,
         homeTowerEnclosed:
           me.homeTower !== null &&
@@ -3351,6 +3481,14 @@ export async function createMcpGame(
         observation.cannonSuggestions,
       );
       if (balloon) observation.balloonOpportunity = balloon;
+      const budget = cannonBudgetFor(observation.cannonSuggestions);
+      if (budget) observation.cannonBudget = budget;
+    }
+
+    // Firepower comparison rides the two phases where it drives a decision:
+    // CANNON_PLACE (spend slots?) and BATTLE (trade bombards or play safe?).
+    if (phase === Phase.CANNON_PLACE || phase === Phase.BATTLE) {
+      observation.firepower = firepowerFor();
     }
 
     if (phase === Phase.WALL_BUILD) attachBuildSurfaces(observation);

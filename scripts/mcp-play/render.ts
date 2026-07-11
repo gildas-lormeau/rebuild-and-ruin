@@ -139,6 +139,9 @@ export function renderObservation(
   // ── build headroom: free land + open-pocket gauge (the cannon-count signal) ──
   lines.push(...headroomLines(obs));
 
+  // ── firepower: honest live-gun comparison (return fire scales with theirs) ──
+  lines.push(...firepowerLines(obs));
+
   // ── BATTLE aim-assist: opponents + their towers as breach targets ───────────
   lines.push(...targetLines(obs, once));
 
@@ -342,6 +345,33 @@ function headroomLines(obs: Observation): string[] {
   ];
 }
 
+/** Firepower differential — live enclosed direct-fire guns per living player
+ *  (CANNON_PLACE + BATTLE, where the number drives a decision). The roster's
+ *  raw `cannons` count includes dead debris and balloons, so it flatters
+ *  everyone; this is the honest battle-throughput comparison. When the agent is
+ *  clearly outgunned the line says what that MEANS — enemy return fire during
+ *  its own bombard/cull/declutter outnumbers what it dishes out — because a
+ *  bare ratio was too easy to read past (the balloon-habit lesson: numbers
+ *  beat prose, but numbers + consequence beat numbers). */
+function firepowerLines(obs: Observation): string[] {
+  const firepower = obs.firepower;
+  if (!firepower || firepower.length < 2) return [];
+  const mine = firepower.find((entry) => entry.isMe);
+  if (!mine) return [];
+  const rivals = firepower.filter((entry) => !entry.isMe);
+  const list = rivals.map((entry) => `${entry.name} ${entry.guns}`).join(", ");
+  const maxRival = Math.max(...rivals.map((entry) => entry.guns));
+  const tail =
+    maxRival >= mine.guns * 2 && maxRival - mine.guns >= 3
+      ? " — OUTGUNNED: their return fire during your bombard/cull/declutter outnumbers what you fire, and the gap compounds (their guns persist). Favor defensive spends (cull/declutter) over trading bombards until your battery recovers."
+      : maxRival > mine.guns
+        ? " — they out-fire you in a trade; weigh bombards accordingly."
+        : "";
+  return [
+    `  ⚔ FIREPOWER (live enclosed direct-fire guns): you ${mine.guns} vs ${list}${tail}`,
+  ];
+}
+
 /** MODERN: the upgrades each player holds in force this round. The upgrade
  *  screen is shared, so a rival's picks are fair game to read. Empty in classic
  *  / when nobody holds an upgrade. */
@@ -445,6 +475,16 @@ function batteryStatusLines(obs: Observation, once: Once): string[] {
       return `T${tower.towerIdx}(${tower.row},${tower.col})${open}: ${tower.alive}/${tower.total} live${tag}${modes}`;
     });
     lines.push(`  BATTERY by tower: ${parts.join(" | ")}`);
+  }
+  // Attrition ledger: dead guns are PERMANENT debris — worse than idle slots
+  // (the wreck blocks rebuild tiles and shrinks the open pocket until a zone
+  // reset). Surfaced next to the battery so a shrinking gun count reads as the
+  // cost of the last bombard trade, not silent bad luck.
+  const attrition = me.attrition;
+  if (attrition) {
+    lines.push(
+      `  ☠ ATTRITION: ${attrition.deadGuns} dead gun${attrition.deadGuns === 1 ? "" : "s"} = permanent debris over ${attrition.debrisTiles} interior tiles (blocks rebuilding there + shrinks your open pocket; only a zone reset clears it). If this count keeps climbing, return fire is eating your battery — trade fewer bombards.`,
+    );
   }
   const captured = me.capturedCannons ?? [];
   if (captured.length > 0) {
@@ -577,9 +617,23 @@ function balloonOpportunityLines(obs: Observation): string[] {
   const action = canSeize
     ? `place ${balloon.balloonsToSeize === 1 ? "a balloon" : `${balloon.balloonsToSeize} balloons`} (mode:'balloon', 3 slots each) starting at (${sr},${sc}) to SEIZE it THIS battle — it fires FOR you, denies it to them, then is spent (slots free next round)`
     : `it needs ${balloon.balloonsToSeize} balloon hits (a super takes 2) but you can afford ${balloon.balloonsAffordable} now — one balloon at (${sr},${sc}) banks ${balloon.balloonsAffordable}/${balloon.balloonsToSeize} (progress persists; finish next round)`;
-  return [
+  const lines = [
     `  🎈 BALLOON OPPORTUNITY: ${balloon.name}'s ${mode} at (${gr},${gc}) is capturable — ${action}. Near-free on slots you'd otherwise leave idle (a seized gun is a +1/−1 swing). It's REMOVED before WALL_BUILD, so it costs no build-space and can never add fat or trigger a bag-lock — a tight/packed castle is no reason to skip it (you only need a legal 2×2 spot at placement time).`,
   ];
+  // ROI counterfactual: the balloon's 3 slots vs the same slots as persistent
+  // normals, priced in rounds remaining. Only when a normal genuinely fits
+  // (safeNormals > 0) AND enough match is left for compounding to matter —
+  // with no battery spot or in the final rounds, the balloon IS the right
+  // spend and the comparison would just be noise.
+  const roundsLeft = obs.roundsTotal - obs.round;
+  const safeNormals = obs.cannonBudget?.safeNormals ?? 0;
+  if (roundsLeft >= 2 && safeNormals > 0) {
+    const guns = Math.min(3, safeNormals);
+    lines.push(
+      `     ⚖ ROI: this balloon = +1 gun for THIS battle only, then gone. The same 3 slots as normals = +${guns} persistent gun${guns === 1 ? "" : "s"} firing EVERY battle for the ${roundsLeft} rounds left (~${guns * roundsLeft} gun-battles vs 1). Take the balloon only when the capture itself outweighs that compounding (e.g. it defuses their super).`,
+    );
+  }
+  return lines;
 }
 
 /** In-phase interrupt for unspent cannon slots. The battery line shows `used/max`,
@@ -606,6 +660,24 @@ function idleSlotLines(obs: Observation, once: Once): string[] {
   if (ringOnlyBatteryAndFragile(obs)) {
     return [
       `  ▸ ${idle} idle cannon slot${idle === 1 ? "" : "s"} (${used}/${max}) — but the ONLY gun spots are ring-adjacent (°) and your ring is breached/tight. Do NOT drop a normal on the seam: it's PERMANENT and will block the re-seal an enemy breach forces (this is how a castle ends up "never closable at the south"). A balloon there is fine (removed after battle → never obstructs the reseal); otherwise leave the slot and RESEAL / expand interior first — a placed gun isn't worth a lost enclosure.`,
+    ];
+  }
+  // Budget-driven verdict: when the harness computed a safe-cannon budget, ONE
+  // decisive instruction replaces the old contradictory pair ("fill every
+  // slot" vs "reserve the pocket") — the number already arbitrated them.
+  const budget = obs.cannonBudget;
+  if (budget) {
+    if (budget.safeNormals > 0) {
+      const spots = budget.spots
+        .slice(0, 3)
+        .map((spot) => `(${spot.row},${spot.col})`)
+        .join(" ");
+      return [
+        `  ▸ ${idle} idle cannon slot${idle === 1 ? "" : "s"} (${used}/${max}) — SAFE BUDGET: ${budget.safeNormals} normal${budget.safeNormals === 1 ? "" : "s"} at ${spots} keeps a 3×3 dump pocket (measured, not a vibe). Place ${budget.safeNormals === 1 ? "it" : "those"}, then STOP — further permanent guns risk a bag-lock. A balloon is exempt (removed before WALL_BUILD, no build-space).`,
+      ];
+    }
+    return [
+      `  ▸ ${idle} idle cannon slot${idle === 1 ? "" : "s"} (${used}/${max}) — SAFE BUDGET: 0. Every routable normal spot would shrink your dump pocket below 3×3 (bag-lock risk: forfeited build, lost life if it de-encloses you). Spend the slots on a balloon (no build-space) if a 🎈 capture is live, or end_cannon — an idle slot is far cheaper than a bag-lock.`,
     ];
   }
   if (dumpPocketAtRisk(obs)) {
