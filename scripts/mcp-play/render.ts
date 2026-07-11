@@ -643,8 +643,8 @@ function balloonOpportunityLines(obs: Observation): string[] {
  *  idle > 0 turns that silent gap into an explicit "keep placing" prompt; the live
  *  idle count changes each round so it can't be skimmed past like a fixed string.
  *  Space-aware, in escalating order: (1) castle fully packed (no gun spot) → bless a
- *  balloon/end; (2) only ring-adjacent spots on a breached/tight ring → don't seam a
- *  normal; (3) dump pocket down to the 3×3 minimum → stop cramming permanent normals
+ *  balloon/end; (2) only ring-adjacent spots → don't seam a permanent
+ *  normal (balloon only); (3) dump pocket down to the 3×3 minimum → stop cramming permanent normals
  *  (a bag-lock costs more than idle slots); (4) otherwise push to fill with the
  *  `once`-gated cluster + repair-lane wisdom. */
 function idleSlotLines(obs: Observation, once: Once): string[] {
@@ -657,9 +657,9 @@ function idleSlotLines(obs: Observation, once: Once): string[] {
       `  ▸ ${idle} idle cannon slot${idle === 1 ? "" : "s"} (${used}/${max}) but NO routable spot for a normal/super gun — your castle is packed. A balloon here (no build-space, gone after battle) or end_cannon is fine; to add real battery, expand your interior first, then place guns next round.`,
     ];
   }
-  if (ringOnlyBatteryAndFragile(obs)) {
+  if (ringOnlyBattery(obs)) {
     return [
-      `  ▸ ${idle} idle cannon slot${idle === 1 ? "" : "s"} (${used}/${max}) — but the ONLY gun spots are ring-adjacent (°) and your ring is breached/tight. Do NOT drop a normal on the seam: it's PERMANENT and will block the re-seal an enemy breach forces (this is how a castle ends up "never closable at the south"). A balloon there is fine (removed after battle → never obstructs the reseal); otherwise leave the slot and RESEAL / expand interior first — a placed gun isn't worth a lost enclosure.`,
+      `  ▸ ${idle} idle cannon slot${idle === 1 ? "" : "s"} (${used}/${max}) — but the ONLY gun spots are ring-adjacent (°). Do NOT drop a normal on the seam: it's PERMANENT, goes inert on every breach, and will block the re-seal an enemy breach forces (this is how a castle ends up "never closable at the south"). A balloon there is fine (removed before WALL_BUILD → never obstructs walls later); otherwise leave the slot and expand your interior first — a placed gun isn't worth a lost enclosure.`,
     ];
   }
   // Budget-driven verdict: when the harness computed a safe-cannon budget, ONE
@@ -677,7 +677,7 @@ function idleSlotLines(obs: Observation, once: Once): string[] {
       ];
     }
     return [
-      `  ▸ ${idle} idle cannon slot${idle === 1 ? "" : "s"} (${used}/${max}) — SAFE BUDGET: 0. Every routable normal spot would shrink your dump pocket below 3×3 (bag-lock risk: forfeited build, lost life if it de-encloses you). Spend the slots on a balloon (no build-space) if a 🎈 capture is live, or end_cannon — an idle slot is far cheaper than a bag-lock.`,
+      `  ▸ ${idle} idle cannon slot${idle === 1 ? "" : "s"} (${used}/${max}) — SAFE BUDGET: 0. Every routable normal spot is ring-adjacent (° — a permanent gun there blocks future reseals, never recommended) or would shrink your dump pocket below 3×3 (bag-lock risk: forfeited build, lost life if it de-encloses you). Spend the slots on a balloon (no build-space) if a 🎈 capture is live, or end_cannon — an idle slot is far cheaper than a bag-lock.`,
     ];
   }
   if (dumpPocketAtRisk(obs)) {
@@ -1125,8 +1125,8 @@ function renderCannonSpots(
           ? " ★ SEIZE the capturable enemy gun THIS battle (see 🎈) — then spent"
           : " ⚠ no enclosed enemy gun to seize right now — these 3 slots sit idle this round"
         : mode === "normal" && !hasBalloonTarget
-          ? ringOnlyBatteryAndFragile(obs)
-            ? " ⚠ ring-adjacent on a breached/tight ring — a PERMANENT normal here blocks your reseal; prefer a balloon or leave the slot (see below)"
+          ? ringOnlyBattery(obs)
+            ? " ⚠ every spot is ring-adjacent (°) — NOT recommended for a PERMANENT gun (inert on every breach, can block the reseal); prefer a balloon or leave the slot (see below)"
             : " ★ reliable battery — the default when nothing special is on offer"
           : "";
     lines.push(
@@ -1139,40 +1139,31 @@ function renderCannonSpots(
     );
   } else if (suggestions.every((spot) => (spot.wallLineSides ?? 0) > 0)) {
     lines.push(
-      ringOnlyBatteryAndFragile(obs)
-        ? "     ⚠ every gun spot is ring-adjacent (°) AND your ring is breached/tight — do NOT drop a PERMANENT normal on the seam: it obstructs the re-seal a breach forces, and in a tight pocket there's no room to route around it (the castle ends up unclosable). Use a BALLOON here instead (removed after battle → never blocks the reseal), or leave the slot and RESEAL / expand interior first."
-        : "     ℹ no deep-interior spot yet (expected on a fresh castle) — the ° spots are routable but go inert when their ring wall is breached, re-arming at reseal. Recoverable, so place a normal complement if you want offense.",
+      "     ⚠ every gun spot is ring-adjacent (°) — do NOT place a PERMANENT normal/super here: it sits on the wall seam, goes inert on EVERY breach, and can obstruct the re-seal a breach forces (the castle ends up unclosable). A BALLOON is fine (removed before WALL_BUILD → never blocks a wall later); otherwise leave the slot and expand your interior first so a deep spot opens up.",
     );
   }
   return lines;
 }
 
 /** The trap the `routable` flag misses: every available battery (normal/super)
- *  spot is RING-ADJACENT (`wallLineSides > 0`) AND the castle is fragile right now
- *  — its ring is breached (`cannonsUnenclosed > 0`, guns stranded outside a sealed
- *  ring) or the pocket is tight (no 3×3 dump room left). `routable` is computed on
- *  BARE terrain ("could a ring route around this cannon on an empty board"), so it
- *  rates such a spot safe; but a PERMANENT normal dropped on the one contested
- *  seam physically obstructs the re-seal an opponent's 1–2-hole breach forces, and
- *  in a tight pocket there's no room to route around it — exactly the case where
- *  the castle "can almost never be closed at the south". A balloon is preferable
- *  there (removed after battle → never blocks the reseal), and leaving the slot is
- *  better than a normal. When this is true the "fill your slots with normals"
- *  nudges must NOT push a normal into the seam. */
-function ringOnlyBatteryAndFragile(obs: Observation): boolean {
+ *  spot is RING-ADJACENT (`wallLineSides > 0`). `routable` is computed on BARE
+ *  terrain ("could a ring route around this cannon on an empty board"), so it
+ *  rates such a spot safe; but a PERMANENT normal dropped on the wall seam goes
+ *  inert on EVERY breach and physically obstructs the re-seal an opponent's
+ *  1–2-hole breach forces — exactly the case where the castle "can almost never
+ *  be closed at the south". This used to also require the ring to already be
+ *  breached/tight, but a gun placed on an intact ring is the same trap on a
+ *  delay (the breach comes later; the gun is permanent) — so ring-adjacency
+ *  alone now stands down every "fill your slots with normals" nudge. A balloon
+ *  is fine there (removed before WALL_BUILD → never blocks a wall later), and
+ *  leaving the slot is better than a normal. */
+function ringOnlyBattery(obs: Observation): boolean {
   const battery = (obs.cannonSuggestions ?? []).filter(
     (spot) =>
       (spot.mode === "normal" || spot.mode === "super") && spot.routable,
   );
   if (battery.length === 0) return false;
-  const allRingAdjacent = battery.every(
-    (spot) => (spot.wallLineSides ?? 0) > 0,
-  );
-  if (!allRingAdjacent) return false;
-  const breached = (obs.me.cannonsUnenclosed ?? 0) > 0;
-  const pocket = obs.me.headroom?.openPocket;
-  const tight = pocket ? Math.min(pocket.h, pocket.w) < 3 : false;
-  return breached || tight;
+  return battery.every((spot) => (spot.wallLineSides ?? 0) > 0);
 }
 
 /** The over-packing bag-lock predictor: the largest open pocket has shrunk to the

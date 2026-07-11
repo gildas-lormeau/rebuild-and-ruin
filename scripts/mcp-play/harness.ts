@@ -2616,8 +2616,12 @@ export async function createMcpGame(
    *  shrinking the largest open rectangle below the 3×3 bag-lock floor — the
    *  computed arbiter between the "fill every idle slot" and "reserve the dump
    *  pocket" pressures (which otherwise contradict each other as prose).
-   *  Greedy-skip over the ROUTABLE normal spots the suggestions already vetted,
-   *  safest first: each candidate is hypothetically placed (same push/pop trick
+   *  Greedy-skip over the ROUTABLE, DEEP-INTERIOR normal spots the suggestions
+   *  already vetted (ring-adjacent spots are excluded outright: a PERMANENT gun
+   *  on the wall seam goes inert on every breach and can obstruct the re-seal a
+   *  breach forces — never worth a recommendation; a balloon is the spend
+   *  there), safest first: each candidate is hypothetically placed (same
+   *  push/pop trick
    *  as `spotRoutable`), the open pocket re-measured via `headroomFor`, and the
    *  spot kept only if a 3×3 pocket survives. Overlapping candidates are
    *  filtered by re-running `canPlaceCannon` against the hypotheticals. Capped
@@ -2630,7 +2634,10 @@ export async function createMcpGame(
     if (!me || !wallBounds(me.walls)) return null;
     const remaining = cannonSlotsFor(state, agentSlot) - cannonSlotsUsed(me);
     const candidates = suggestions.filter(
-      (spot) => spot.mode === CannonMode.NORMAL && spot.routable,
+      (spot) =>
+        spot.mode === CannonMode.NORMAL &&
+        spot.routable &&
+        (spot.wallLineSides ?? 0) === 0,
     );
     const accepted: { row: number; col: number }[] = [];
     const hypotheticals: (typeof me.cannons)[number][] = [];
