@@ -8,6 +8,7 @@ import type {
   BurningPit,
   Cannon,
   Cannonball,
+  CannonMode,
   CapturedCannon,
   Grunt,
 } from "./battle-types.ts";
@@ -562,10 +563,10 @@ export interface UpgradeImpl {
   /** Side effects after a cannon is placed (e.g. consume one-shot upgrades).
    *  Runs from both originator (synchronous + scheduled drain) and receiver
    *  (scheduled drain) paths via `applyCannonAtDrain` / `placeCannon`.
-   *  Player-only signature (no state) so callers with the narrow
-   *  `CannonViewState` shape can dispatch without a cast. Widen if a future
-   *  consumer needs state — none today. */
-  onCannonPlaced?: (player: Player) => void;
+   *  No state param so callers with the narrow `CannonViewState` shape can
+   *  dispatch without a cast. Widen if a future consumer needs state —
+   *  none today. */
+  onCannonPlaced?: (player: Player, mode: CannonMode) => void;
 
   /* ── Query hooks (aggregated by dispatchers) ───────────────── */
 

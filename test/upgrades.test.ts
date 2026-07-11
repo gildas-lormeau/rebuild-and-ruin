@@ -21,10 +21,12 @@
 
 import { assert } from "@std/assert";
 import { buildTimerBonus } from "../src/game/index.ts";
+import { CannonMode } from "../src/shared/core/battle-types.ts";
 import { GAME_EVENT } from "../src/shared/core/game-event-bus.ts";
 import { Phase } from "../src/shared/core/game-phase.ts";
 import {
   IMPLEMENTED_UPGRADES,
+  UID,
   type UpgradeId,
 } from "../src/shared/core/upgrade-defs.ts";
 import { createScenario, type Scenario } from "./scenario.ts";
@@ -235,6 +237,28 @@ const EFFECT_PROBES: Partial<Record<UpgradeId, EffectProbe>> = {
         preWalls.clear();
       });
       return () => observed;
+    },
+  },
+
+  rapid_emplacement: {
+    description:
+      "upgrade survives a standard-cannon placement (only special cannons consume it)",
+    install: (sc) => {
+      const survivors = new Set<number>();
+      // CANNON_PLACED fires AFTER onCannonPlaced ran the consume hook, so
+      // the upgrade still being held across a NORMAL placement proves the
+      // discount wasn't burned on a cannon it couldn't discount.
+      sc.bus.on(GAME_EVENT.CANNON_PLACED, (ev) => {
+        const player = sc.state.players[ev.playerId];
+        const cannon = player?.cannons[ev.cannonIdx];
+        if (
+          cannon?.mode === CannonMode.NORMAL &&
+          player?.upgrades.get(UID.RAPID_EMPLACEMENT)
+        ) {
+          survivors.add(ev.playerId);
+        }
+      });
+      return (picker) => survivors.has(picker);
     },
   },
 

@@ -310,7 +310,7 @@ export const UPGRADE_POOL: readonly UpgradeDef[] = [
   {
     id: "rapid_emplacement",
     label: "Rapid Emplacement",
-    description: "Next cannon costs 1 fewer slot (min 1)",
+    description: "Next special cannon costs 1 fewer slot",
     category: BATTLE,
     weight: WEIGHT_UNCOMMON,
     oneUse: true,

@@ -8,6 +8,7 @@
  */
 
 import type { ImpactEvent } from "../shared/core/battle-events.ts";
+import type { CannonMode } from "../shared/core/battle-types.ts";
 import { cannonTier } from "../shared/core/cannon-tier.ts";
 import type { UpgradePickDialogState } from "../shared/core/dialog-state.ts";
 import { FID } from "../shared/core/feature-defs.ts";
@@ -227,8 +228,8 @@ export function onPiecePlaced(
 
 /** Post-placement hook: run upgrade-driven side effects triggered by a
  *  just-placed cannon (e.g. Rapid Emplacement consuming itself). */
-export function onCannonPlaced(player: Player): void {
-  forEachHook(UPGRADE_IMPL_LIST, (impl) => impl.onCannonPlaced?.(player));
+export function onCannonPlaced(player: Player, mode: CannonMode): void {
+  forEachHook(UPGRADE_IMPL_LIST, (impl) => impl.onCannonPlaced?.(player, mode));
 }
 
 /** Post-impact hook: yield bounce positions from any upgrade that wants

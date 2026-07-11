@@ -124,7 +124,7 @@ export function placeCannon(
   if (!isCannonPlacementLegal(player, row, col, mode, maxCannons, state))
     return false;
   applyCannonPlacement(player, row, col, mode, state);
-  onCannonPlaced(player);
+  onCannonPlaced(player, mode);
   emitGameEvent(state.bus, GAME_EVENT.CANNON_PLACED, {
     playerId: player.id,
     row,
@@ -197,7 +197,7 @@ export function applyCannonAtDrain(
   if (!isCannonPlacementLegal(player, row, col, mode, maxCannons, state))
     return false;
   applyCannonPlacement(player, row, col, mode, state);
-  onCannonPlaced(player);
+  onCannonPlaced(player, mode);
   return true;
 }
 
