@@ -98,6 +98,28 @@ another pact activated) · Tribute / Accept-Tribute (score transfer for bound
 peace — the one card where the leader belongs; hardest kingmaking cap, decide
 before drafting it into the pool).
 
+## Future directions — the match-arc layer (post-v1, 2026-07-16 brainstorm)
+
+v1 is a per-round game. Everything below converts it into a per-match *arc* —
+alliances age, grudges compound, temperaments get discovered, endings have a
+story. Shared prerequisite: **match-scoped pact history** (formed / fizzled /
+betrayed, per pair) in synced state riding FULL_STATE — the AI stance policy
+wants this anyway.
+
+Governing tuning principle for this whole layer: **betrayal must stay
+sometimes-correct.** Price it, never ban it. If penalties + revenge mechanics +
+reputation stack until backstabbing is never rational, nobody betrays and the
+dimension dies. Validate additions against "does a well-timed betrayal still
+win games sometimes?", not "does betrayal feel bad enough."
+
+- **Sworn Alliances (the ratchet)** — the same pair matching in consecutive rounds escalates the pact: the bonus grows per renewal *and so does the betrayal payout* (betraying a 3-round alliance keeps part of the accumulated pot instead of forfeiting). Long alliances become mutual dares — inherently unstable by design, which enforces the governing principle structurally.
+- **Coalition combos** — bridge to the combos feature: when both War Pact partners land hits on the target within a short window, both combo streaks extend (a "joint volley"). Makes coordination a real-time skill rather than parallel aggression. Small change in `comboTracker` scoring from the impact handlers.
+- **Diplomatic AI personas** — each AI slot draws a hidden temperament at match start (Loyalist / Opportunist / Serpent: honors pacts vs betrays-when-the-pot-is-right vs proposes-often-commits-rarely). Synced-RNG-drawn, stored in GameState (never controller-local — RNG-gate rule), never announced: you learn who you're dealing with by getting burned. Per-player variation at the shared mechanism.
+- **Vendetta (standing option)** — available only against a player who betrayed you earlier this match; modest damage bonus against them. Converts a grudge into a visible standing threat the betrayer lives under. The stacking risk against the governing principle is real — tune last, after betrayal frequency is observed.
+- **Spite respawns** — while a player holds an unavenged grudge, their grunt-kill respawn rolls bias toward the betrayer's zone. Invariant-safe: grunts stay neutral; this only weights an existing directional draw (spawn *direction* is explicitly aimable in the base rules, and Conscription already rolls a zone choice).
+- **The Chronicle** — a diplomacy ledger fed purely by bus events (pact formed, fizzle, betrayal, vendetta settled) plus an end-of-match recap on the game-over screen ("Longest alliance: Red & Gold, 4 rounds. Blue avenged round 5 in round 7."). Absorbs the parked Kill Feed idea in sharper form. Observers-only: zero sim state, zero parity risk.
+- **Felt betrayal** — a dedicated betrayal SFX (the sound architecture is event-mapped) and torn-treaty fizzle art on the reveal banner. Presentation is what turns "my pact flag turned off" into *"he betrayed me."* Cheap relative to everything above.
+
 ## Rejected designs (do not revisit without new arguments)
 
 - **False Flag** (match as a partner, get rewarded for betraying): breaks the system's one fixed point. Step 1 is already the bluff; if the *match* can also be a trap, no revealed pact is trustworthy and rational players stop pacting. The reveal must be where trust becomes mechanical; post-reveal betrayal stays possible but only ever as a penalized choice.
