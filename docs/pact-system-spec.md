@@ -37,6 +37,7 @@ Pacts run in a round when ALL hold (mirrors the modifier/upgrade gates):
 - Round ≥ 3 (same as modifiers and upgrades — standings exist, players know the map).
 - Exactly 3 players alive. Two-player rounds have no third party to team against; the feature silently skips.
 - Not the final round and not a sudden-death overtime round (same reasoning as upgrade offers: no kingmaking lever when the match can end on this round's scores).
+- **Every human on their own screen**: no client may seat more than one human slot. A shared screen cannot keep a secret — 2–3 humans on one keyboard (local multi-human play, `PLAYER_KEY_BINDINGS`) would watch each other commit, so the hidden step degenerates. Solo-local (1 human + AI) and online one-human-per-peer matches qualify. Derived from seating at match start, immutable like `gameMode`.
 
 ### Round flow
 
@@ -125,6 +126,7 @@ win games sometimes?", not "does betrayal feel bad enough."
 - **False Flag** (match as a partner, get rewarded for betraying): breaks the system's one fixed point. Step 1 is already the bluff; if the *match* can also be a trap, no revealed pact is trustworthy and rational players stop pacting. The reveal must be where trust becomes mechanical; post-reveal betrayal stays possible but only ever as a penalized choice.
 - **Unconditioned peace dividends** (score for merely not fighting): turtle equilibrium. Defensive cards pay in utility, not points; economic cards carry an engagement condition or a hard cap.
 - **3-way pacts**: with 3 players a universal pact means nobody fights; the matching space is deliberately pairwise.
+- **Shared-screen workarounds for the hidden pick** (rather than the seating gate): a blind pick with no rendered focus leaks through press-counting and finger-watching; public commits on a shared screen turn simultaneous choice into a last-second hover-chicken game — a different (worse) mechanic. If local multi-human demand ever justifies pacts there, blind pick is the only candidate worth revisiting.
 
 ---
 
@@ -147,7 +149,7 @@ Follows `docs/adding-modifiers-and-upgrades.md` conventions throughout.
 - **Feature gate**: add `"pacts"` to `FeatureId` + `FEATURE_POOL` + `FEATURE_CONSUMERS`; modern's feature set gains it via `setGameMode`.
 - **Phase**: `PACT_COMMIT`, conditional and self-driving like `UPGRADE_PICK` (re-derived from state every frame, no armed callback → host-promotion safe). Entered from the cannon-place-done transition **before** `prepareBattleState`'s modifier roll, via an `enterPactCommitPhase` helper in `phase-entry.ts`. Reveal is a banner beat at the end of the phase (modifier-reveal machinery), after which resolved pacts are plain public state.
 - **State** (`ModernState`): `pactHands` (dealt, public), `pactProposals` (public), `pactCommits` (hidden-until-reveal), `activePacts` (post-reveal, incl. violation flags), payout accumulators. Reset in `prepareNextRound` with the other one-round effects.
-- **Hidden info**: commits are display-gated only (clients are trusted; server is a relay — precedent: `SupplyShip.bonus` is hidden until sunk). Hard rule: unrevealed commits must be excluded from AI view slices (`BattleViewState` etc.) — "AI uses human-visible info only". Commit-reveal hashing is a known upgrade if the trust model ever changes; explicitly out of scope.
+- **Hidden info**: commits are display-gated only (clients are trusted; server is a relay — precedent: `SupplyShip.bonus` is hidden until sunk). Hard rule: unrevealed commits must be excluded from AI view slices (`BattleViewState` etc.) — "AI uses human-visible info only". Commit-reveal hashing is a known upgrade if the trust model ever changes; explicitly out of scope. Display-gating hides a commit per **client**, not per player — which is why the seating gate above requires one human per screen.
 - **Wire**: two input messages (`PACT_PROPOSE`, `PACT_COMMIT`) — uncomputable human input, everything else mirror-simulated. Deal uses synced RNG at cannon entry (no wire traffic). Resolved pacts ride the BATTLE_START checkpoint; mid-window FULL_STATE snapshots must carry hands/proposals/commits (same class as `FullStateMessage.roundEnd` routing — the `checkpoint-fields` lint will demand this).
 - **AI**: stance policy in `ai/` (public info only: standings, prior fizzles/betrayals this match; per-player variation injected at the shared mechanism, synced-RNG-drawn). Battle compliance = partner's walls/cannons excluded from target selection in `ai-strategy-battle.ts` while pacted. Proposal step: AI declares its true intent with probability p (TBD) — honest-by-default reads better than random bluffing.
 - **Input**: the commit dialog reuses upgrade-pick controls (Left/Right/Confirm, click/tap). The **only genuinely new input surface** is the optional step-1 proposal during Cannon Place (cycle-stance key + a tap chip on touch) — the known-expensive part; keep it one control.
