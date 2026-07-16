@@ -309,7 +309,7 @@ Dead towers can be revived by enclosing them, but it takes **two consecutive bui
 
 ### Territory Points (awarded at end of build phase)
 
-**Linear: 1 point per enclosed interior tile** (`TERRITORY_POINTS_PER_SQUARE = 1`). A fresh 6×6-interior castle (36 tiles) scores 36 territory points, so `N` interior tiles = `N` points. No tiers, no thresholds — every tile pays. (The upgrade *Territorial Ambition* doubles this.)
+**Linear: 1 point per enclosed interior tile** (`TERRITORY_POINTS_PER_SQUARE = 1`). A fresh 6×6-interior castle (36 tiles) scores 36 territory points, so `N` interior tiles = `N` points. No tiers, no thresholds — every tile pays. (The upgrade *Territorial Ambition* multiplies this by 1.5×.)
 
 ### Castle Bonus (awarded at end of build phase)
 
@@ -414,7 +414,7 @@ From round 3 onward (and not in the final round), each non-eliminated player is 
 | Build | Reclamation | Dead cannon debris auto-cleared at build start |
 | Build | Restoration Crew | One dead tower revives immediately when enclosed |
 | Build | Entomb | All players can bury grunts under placed walls |
-| Strategic | Territorial Ambition | Territory points doubled at end of build |
+| Strategic | Territorial Ambition | Territory points +50% at end of build |
 | Strategic | Conscription | When the owner **shoots** a grunt dead, 75% chance to respawn it on a random enemy zone (does not trigger on enclosure-kills — those follow the base 50% respawn rule) |
 | Strategic | Salvage | While active, each enemy-cannon kill banks +1 future-cannon slot (cap 2 banked per player). The bank persists across upgrade expiry and is consumed at the **next** cannon-place phase (typically the round after the kills, when Salvage itself is no longer owned). Bank then resets to 0 |
 | One-use | Ceasefire | Skip the next battle phase |
