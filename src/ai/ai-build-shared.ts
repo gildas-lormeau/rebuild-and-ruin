@@ -103,11 +103,12 @@ export function pickFallbackPlacement(
     ? unenclosedTowers.filter((tower) => tower !== castle.tower)
     : unenclosedTowers;
 
-  const isInsideOrFatCandidate = memoize(
-    (candidate: Candidate): boolean =>
-      insideEnclosure(candidate) ||
-      countFatBlocks(walls, candidate, aliveHouseKeys) > 0,
+  const insideEnclosureCached = memoize(insideEnclosure);
+  const fatBlocksCached = memoize((candidate: Candidate): number =>
+    countFatBlocks(walls, candidate, aliveHouseKeys),
   );
+  const isInsideOrFatCandidate = (candidate: Candidate): boolean =>
+    insideEnclosureCached(candidate) || fatBlocksCached(candidate) > 0;
 
   if (fallbackTowers.length > 0) {
     const ringDistanceCache = new Map<
@@ -121,6 +122,8 @@ export function pickFallbackPlacement(
       ringDistanceCache,
       createsSmallEnclosureCached,
       isInsideOrFatCandidate,
+      insideEnclosureCached,
+      fatBlocksCached,
     );
     if (picked.candidate) {
       return placementResult(picked.candidate, picked.reason);
@@ -262,9 +265,11 @@ function pickTowerExtensionCandidate(
   ringDistanceCache: Map<Candidate, { distance: number; tooClose: boolean }>,
   createsSmallEnclosureCached: (candidate: Candidate) => boolean,
   isInsideOrFatCandidate: (candidate: Candidate) => boolean,
+  insideEnclosureCached: (candidate: Candidate) => boolean,
+  fatBlocksCached: (candidate: Candidate) => number,
 ): {
   candidate: Candidate | null;
-  reason: "extend" | "extend-fallback" | "extend-all-fat";
+  reason: "extend" | "extend-fallback" | "extend-least-bad" | "extend-all-fat";
 } {
   const extending = scored.filter((score) =>
     isExtensionCandidateForFallback(
@@ -309,6 +314,50 @@ function pickTowerExtensionCandidate(
   );
   if (fallback.length > 0) {
     return { candidate: fallback[0]!.candidate, reason: "extend-fallback" };
+  }
+
+  // Deadlock escape: this branch only runs while a tower still needs
+  // enclosing, and bag cycling is load-bearing — the phase loop holds the
+  // SAME piece until it is committed, so returning null here every tick
+  // forfeits the rest of the build INCLUDING the queued pieces that could
+  // close the ring (seed 992367 r12 BLUE: a builder-skill AI held the C
+  // piece for 31 ticks because every legal placement was fat or
+  // pocket-trapping, while 1x3/1x2/1x1 sat next in the bag). Burn the
+  // piece on the least-bad exterior spot instead: prefer no trapped
+  // pocket, then fewest 2×2 fat blocks, then outside the ring margin,
+  // then nearest to a fallback tower's ring. Interior placements stay
+  // excluded — wasting closed interior is the desperate-discard path's
+  // call, not this one's.
+  const leastBad = scored.filter(
+    (score) => !insideEnclosureCached(score.candidate),
+  );
+  if (leastBad.length > 0) {
+    leastBad.sort((a, b) => {
+      const pocketDelta =
+        Number(createsSmallEnclosureCached(a.candidate)) -
+        Number(createsSmallEnclosureCached(b.candidate));
+      if (pocketDelta !== 0) return pocketDelta;
+      const fatDelta =
+        fatBlocksCached(a.candidate) - fatBlocksCached(b.candidate);
+      if (fatDelta !== 0) return fatDelta;
+      const ringA = centerDistanceForFallbackTowers(
+        a.candidate,
+        fallbackTowers,
+        castleMargin,
+        ringDistanceCache,
+      );
+      const ringB = centerDistanceForFallbackTowers(
+        b.candidate,
+        fallbackTowers,
+        castleMargin,
+        ringDistanceCache,
+      );
+      return (
+        Number(ringA.tooClose) - Number(ringB.tooClose) ||
+        ringA.distance - ringB.distance
+      );
+    });
+    return { candidate: leastBad[0]!.candidate, reason: "extend-least-bad" };
   }
 
   return { candidate: null, reason: "extend-all-fat" };

@@ -734,7 +734,7 @@ Deno.test(
     //
     // Seed probed under forceModifier=frozen_river (count grunts whose
     // targetTowerIdx tower sits in a LIFE_LOST_DIALOG_SHOW victim's zone):
-    // seed 12's first player-2 life-loss is round 9 with a cross-zone
+    // seed 23's first player-2 life-loss is round 10 with a cross-zone
     // straggler locked onto their zone and all 3 players still alive, so
     // forcing player 2 to ABANDON exercises the eviction while the game
     // continues. (Probe history: seed 12/r9 → seed 4/r11 after crosshair-
@@ -744,13 +744,15 @@ Deno.test(
     // declutter's committed-loss projection → seed 5/r7 after the
     // sustained-pressure fallback + glide-priced breach order → seed 12/r9,
     // victim 2, after the battle-timer input lockout stopped the AI's
-    // post-timer crosshair RNG draws. Probe: tmp/probe-abandon-eviction.ts.) Cross-zone stragglers
+    // post-timer crosshair RNG draws → seed 23/r10, victim 2, after the
+    // least-bad extension escape unstuck fat-vetoed builds.
+    // Probe: tmp/probe-abandon-eviction.ts.) Cross-zone stragglers
     // are a mid-game phenomenon (grunts need several rounds to mass on the
     // frozen river), so the wait budget must reach the eliminating round.
     // If the precondition guard below fails after an AI/rules change,
     // re-probe for a new (seed, victim) pair.
     using sc = await createScenario({
-      seed: 12,
+      seed: 23,
       mode: "modern",
       rounds: 15,
       testHooks: {

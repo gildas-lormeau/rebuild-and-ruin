@@ -588,25 +588,22 @@ Deno.test(
 );
 
 Deno.test(
-  "phase-test: high-buildSkill AI holding an unplaceable-clean piece still builds — KNOWN FAILING",
+  "phase-test: high-buildSkill AI holding an unplaceable-clean piece still builds",
   async () => {
     // Seed 992367 r12: BLUE (forced builder / buildSkill 4 via the fixture's
     // `forcePersonalities` hook — the live game rolled the same archetype)
     // enters WALL_BUILD holding the C piece. Its committed home-castle target
     // has 5 gaps the C physically cannot fill (1-wide slot; cannon-sandwiched
     // south run), and EVERY legal C placement is vetoed by a cleanliness hard
-    // filter (2×2 fat block, 2×3 fat run, or tiny pocket) at skill ≥ 3. The
-    // AI passes all 31 build ticks holding a piece it knows is useless while
-    // the bag's next three pieces (1x3/1x2/1x1) would all seal the ring — a
-    // bag-cycling deadlock. A skill ≤ 2 personality escapes by placing the C
-    // sloppily; the cleanest builder freezes. Spec: an AI with a legal
+    // filter (2×2 fat block, 2×3 fat run, or tiny pocket) at skill ≥ 3.
+    // Pre-fix, the AI passed all 31 build ticks holding a piece it knew was
+    // useless while the bag's next three pieces (1x3/1x2/1x1) would all seal
+    // the ring — a bag-cycling deadlock (skill ≤ 2 escaped by placing the C
+    // sloppily; the cleanest builder froze). Spec: an AI with a legal
     // placement available and an open castle must place SOMETHING during the
-    // build phase (burning the piece to cycle the bag is always available).
-    //
-    // KNOWN FAILING (2026-07-20): reproduces the live stall. Goes green when
-    // the fat/pocket hard rejects learn an enclosure-gain or bag-cycling
-    // override. Phase tests aren't in pre-commit fast-tests, so this red
-    // state doesn't block work.
+    // build phase. Guarded by the least-bad extension escape in
+    // `pickTowerExtensionCandidate` (ai-build-shared.ts), which burns the
+    // piece on the least-fat exterior spot so the bag advances.
     const BLUE = 1;
     const sc = await createPhaseScenario(
       roundTwelveBlueCPieceStall992367 as unknown as FixtureFile,
@@ -631,8 +628,9 @@ Deno.test(
       bluePlacements,
       0,
       "BLUE placed 0 pieces across the whole WALL_BUILD phase — " +
-        "bag-cycling deadlock: every C placement hard-rejected as fat/pocket, " +
-        "so the sealing 1x3/1x2/1x1 queued behind it were never drawn",
+        "bag-cycling deadlock is back: every C placement hard-rejected as " +
+        "fat/pocket, so the sealing 1x3/1x2/1x1 queued behind it were never " +
+        "drawn (least-bad extension escape regressed?)",
     );
   },
 );
