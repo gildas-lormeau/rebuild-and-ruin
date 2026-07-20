@@ -294,8 +294,10 @@ export function pickTarget(
       };
       const shipTarget = pickSupplyShipTarget(
         supplyShips,
+        state.map,
         shooterTile,
         crosshair,
+        state.battleCountdown,
         state.cannonballs,
         playerId,
         rng,

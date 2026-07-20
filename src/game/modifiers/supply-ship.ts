@@ -14,6 +14,7 @@ import {
   CROSSHAIR_SPEED,
 } from "../../shared/core/game-constants.ts";
 import type {
+  GameMap,
   PixelPos,
   TileGridPos,
   TilePos,
@@ -161,16 +162,7 @@ export function tickSupplyShips(
 
     const exit = exits[ship.spawnArm]!;
     const midpoint = riverMidpoints[ship.spawnArm]!;
-    const sample = sampleRiverBezier(exit, midpoint, junction, ship.pathT);
-    // Advance by exact arc-length step: dt_param = (speed · dt) / |B'(t)|.
-    // Keeps the ship at a constant tiles/sec regardless of local curve
-    // tangent magnitude (which varies along quadratic Beziers when the
-    // midpoint is off-chord). pathT is clamped at 1 as a safety cap
-    // against numerical drift — speed × battle-length never reaches the
-    // far end of the shortest arm in normal play.
-    const stepT =
-      sample.tangentMag > 0 ? (SUPPLY_SHIP_SPEED * dt) / sample.tangentMag : 0;
-    ship.pathT = Math.min(1, ship.pathT + stepT);
+    ship.pathT = advancePathT(exit, midpoint, junction, ship.pathT, dt);
     const advanced = sampleRiverBezier(exit, midpoint, junction, ship.pathT);
     ship.position.col = advanced.col;
     ship.position.row = advanced.row;
@@ -253,13 +245,26 @@ export function drainSupplyBuildLockoutEarners(
 /** Pick a non-sinking supply ship as a shot target for AI cannons and
  *  return a lead-predicted pixel position so a ball fired from
  *  `shooterTile` actually lands near the ship by the time it arrives.
- *  The lead accounts for the full pick→impact window:
- *    crosshair travel (current `crosshair` → lead position)
+ *  The lead accounts for the ship's travel during the pick→impact window.
+ *  Ships only sail while the battle clock runs (`tickSupplyShips` is
+ *  reached from the post-countdown branch of the runtime battle tick),
+ *  so the window counts battle-clock seconds, not wall seconds:
+ *    max(crosshair travel − remaining pre-battle countdown, 0)
+ *      (the crosshair glides during the countdown while the ship is
+ *       frozen, so countdown time is free travel, not lead)
  *    + AI pre-fire dwell
- *    + ball flight (`shooterTile` → lead position)
+ *    + ball flight (`shooterTile` → ship's current position)
  *  Earlier versions leaded only by ball flight, which under-predicted by
  *  ~1–2s of ship motion and pushed every shot behind the ship — the
- *  follow-up that would sink a damaged ship reliably missed.
+ *  follow-up that would sink a damaged ship reliably missed. And a
+ *  countdown-time pick used to charge the full crosshair travel as ship
+ *  motion, over-leading the opening shot by ~3 tiles.
+ *
+ *  The predicted position is integrated along the arm's Bezier
+ *  (`advancePathT`, the same stepping the ship's own tick uses), not
+ *  extrapolated straight along the current heading — the river bends,
+ *  so a straight-line lead lands 1+ tiles off the lane on curved
+ *  segments.
  *
  *  Pool priority (highest first):
  *    1. ships already engaged by one of my in-flight cannonballs — the
@@ -277,8 +282,10 @@ export function drainSupplyBuildLockoutEarners(
  *  inactive, ships cleared, or all sinking). */
 export function pickSupplyShipTarget(
   ships: readonly SupplyShip[] | null | undefined,
+  map: Pick<GameMap, "exits" | "junction" | "riverMidpoints">,
   shooterTile: TilePos,
   crosshair: PixelPos,
+  battleCountdown: number,
   cannonballs: readonly Cannonball[],
   shooterId: ValidPlayerId,
   rng: Rng,
@@ -305,13 +312,22 @@ export function pickSupplyShipTarget(
   const moveDRow = ship.position.row - crosshair.y / TILE_SIZE;
   const moveTime =
     Math.sqrt(moveDCol * moveDCol + moveDRow * moveDRow) / crosshairSpeedTiles;
-  const totalLeadTime = flightTime + moveTime + PICK_TO_FIRE_DWELL_SEC;
-  const leadCol =
-    ship.position.col +
-    Math.cos(ship.headingRad) * SUPPLY_SHIP_SPEED * totalLeadTime;
-  const leadRow =
-    ship.position.row +
-    Math.sin(ship.headingRad) * SUPPLY_SHIP_SPEED * totalLeadTime;
+  const totalLeadTime =
+    flightTime +
+    Math.max(moveTime - battleCountdown, 0) +
+    PICK_TO_FIRE_DWELL_SEC;
+  const exit = map.exits[ship.spawnArm]!;
+  const midpoint = map.riverMidpoints[ship.spawnArm]!;
+  const futureT = advancePathT(
+    exit,
+    midpoint,
+    map.junction,
+    ship.pathT,
+    totalLeadTime,
+  );
+  const future = sampleRiverBezier(exit, midpoint, map.junction, futureT);
+  const leadCol = future.col;
+  const leadRow = future.row;
   const noiseCol = (rng.next() - 0.5) * 2 * SUPPLY_SHIP_AIM_NOISE;
   const noiseRow = (rng.next() - 0.5) * 2 * SUPPLY_SHIP_AIM_NOISE;
   return {
@@ -449,6 +465,38 @@ function applySupplyShip(state: GameState): readonly TileKey[] {
  *  + tangent magnitude so callers can advance `t` at constant
  *  arc-length speed. Matches the same Bezier the map generator paints
  *  in `interpolatePath`. */
+/** Advance `pathT` along an arm's Bezier by `seconds` of travel at
+ *  constant arc-length speed (SUPPLY_SHIP_SPEED tiles/sec). Each substep
+ *  converts the tile-space step to parameter space via the local tangent
+ *  magnitude: dt_param = (speed · dt) / |B'(t)|. Keeps the ship at a
+ *  constant tiles/sec regardless of local curve tangent magnitude (which
+ *  varies along quadratic Beziers when the midpoint is off-chord). pathT
+ *  is clamped at 1 as a safety cap against numerical drift — speed ×
+ *  battle-length never reaches the far end of the shortest arm in normal
+ *  play. The per-frame tick passes `seconds` = frame dt (one substep);
+ *  the AI's lead prediction integrates multiple seconds ahead, where the
+ *  substepping keeps the projection on the curve instead of shooting off
+ *  along the current tangent. */
+function advancePathT(
+  exit: TileGridPos,
+  midpoint: TileGridPos,
+  junction: TileGridPos,
+  pathT: number,
+  seconds: number,
+): number {
+  const SUBSTEP_SEC = 0.1;
+  let t = pathT;
+  let remaining = seconds;
+  while (remaining > 0 && t < 1) {
+    const dt = Math.min(SUBSTEP_SEC, remaining);
+    const sample = sampleRiverBezier(exit, midpoint, junction, t);
+    if (sample.tangentMag <= 0) break;
+    t = Math.min(1, t + (SUPPLY_SHIP_SPEED * dt) / sample.tangentMag);
+    remaining -= dt;
+  }
+  return t;
+}
+
 function sampleRiverBezier(
   exit: TileGridPos,
   midpoint: TileGridPos,
