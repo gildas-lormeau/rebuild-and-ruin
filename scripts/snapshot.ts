@@ -57,7 +57,7 @@ import type { Rect } from "../dev/dev-console-grid.ts";
 import { setAiBuildDiagHook } from "../src/ai/ai-build-diag.ts";
 import { GAME_EVENT } from "../src/shared/core/game-event-bus.ts";
 import { Phase } from "../src/shared/core/game-phase.ts";
-import { playerByZone } from "../src/shared/core/player-types.ts";
+import { playerByZone } from "../src/shared/core/player-zones.ts";
 import { unpackTile } from "../src/shared/core/spatial.ts";
 import type { GameState } from "../src/shared/core/types.ts";
 import { type Scenario, waitForEvent } from "../test/scenario.ts";
