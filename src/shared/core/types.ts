@@ -3,6 +3,7 @@
  */
 
 import type { Rng } from "../platform/rng.ts";
+import type { AiPersonality } from "./ai-personality.ts";
 import type { ImpactEvent } from "./battle-events.ts";
 import type {
   BurningPit,
@@ -265,6 +266,22 @@ export interface TestHooks {
    *  top-score tie at the round limit — that no seed can reliably produce.
    *  Consumes no RNG. Never serialized. */
   equalizeScoresOnRound?: number;
+  /** Force an AI slot's personality instead of the archetype roll. Consumed
+   *  at controller construction — the bootstrap slot loop and
+   *  `rebuildControllersForPhase` (checkpoint adoption) — per `playerId`.
+   *  A forced slot skips the roll entirely: at the bootstrap site that
+   *  means no `state.rng` draw (same semantics as `forceModifier`), so
+   *  subsequent shared-stream state differs vs. an unforced run. Lets a
+   *  fixture reproduce personality-gated AI behavior (e.g. a
+   *  buildSkill-dependent build stall) that checkpoint resume otherwise
+   *  re-rolls away. Never serialized. */
+  forcePersonalities?: readonly ForcedPersonality[];
+}
+
+/** Test-only forced personality for one AI slot; see `TestHooks`. */
+interface ForcedPersonality {
+  readonly playerId: ValidPlayerId;
+  readonly personality: AiPersonality;
 }
 
 /** State exclusive to modern mode. null on GameState in classic mode. */
@@ -619,6 +636,17 @@ export function setGameMode(state: GameState, mode: GameMode): void {
 /** Check if a feature capability is active for this match. */
 export function hasFeature(state: GameState, feature: FeatureId): boolean {
   return state.activeFeatures.has(feature);
+}
+
+/** Test-hook lookup: the forced personality for `playerId`, if any.
+ *  See `TestHooks.forcePersonalities`. */
+export function forcedPersonalityFor(
+  state: Pick<GameState, "testHooks">,
+  playerId: ValidPlayerId,
+): AiPersonality | undefined {
+  return state.testHooks?.forcePersonalities?.find(
+    (forced) => forced.playerId === playerId,
+  )?.personality;
 }
 
 /** Round number for a freshly created game (round 1). */

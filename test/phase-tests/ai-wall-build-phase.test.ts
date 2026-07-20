@@ -29,6 +29,9 @@ import roundPits1 from "./fixtures/wall-build/round-pits-1.json" with {
 import roundPits2 from "./fixtures/wall-build/round-pits-2.json" with {
   type: "json",
 };
+import roundTwelveBlueCPieceStall992367 from "./fixtures/wall-build/round12-blue-c-piece-stall-992367.json" with {
+  type: "json",
+};
 import { GAME_EVENT } from "../../src/shared/core/game-event-bus.ts";
 import { Phase } from "../../src/shared/core/game-phase.ts";
 import { GRID_COLS, GRID_ROWS } from "../../src/shared/core/grid.ts";
@@ -580,6 +583,56 @@ Deno.test(
       `RED captured 0 (housesEnclosed=${housesEnclosed}, ` +
         `gruntsEnclosed=${gruntsEnclosed}, placed-on=${placedOnHouse}) — the ` +
         `idle-window capture phase sealed nothing; RED reverted to expansion`,
+    );
+  },
+);
+
+Deno.test(
+  "phase-test: high-buildSkill AI holding an unplaceable-clean piece still builds — KNOWN FAILING",
+  async () => {
+    // Seed 992367 r12: BLUE (forced builder / buildSkill 4 via the fixture's
+    // `forcePersonalities` hook — the live game rolled the same archetype)
+    // enters WALL_BUILD holding the C piece. Its committed home-castle target
+    // has 5 gaps the C physically cannot fill (1-wide slot; cannon-sandwiched
+    // south run), and EVERY legal C placement is vetoed by a cleanliness hard
+    // filter (2×2 fat block, 2×3 fat run, or tiny pocket) at skill ≥ 3. The
+    // AI passes all 31 build ticks holding a piece it knows is useless while
+    // the bag's next three pieces (1x3/1x2/1x1) would all seal the ring — a
+    // bag-cycling deadlock. A skill ≤ 2 personality escapes by placing the C
+    // sloppily; the cleanest builder freezes. Spec: an AI with a legal
+    // placement available and an open castle must place SOMETHING during the
+    // build phase (burning the piece to cycle the bag is always available).
+    //
+    // KNOWN FAILING (2026-07-20): reproduces the live stall. Goes green when
+    // the fat/pocket hard rejects learn an enclosure-gain or bag-cycling
+    // override. Phase tests aren't in pre-commit fast-tests, so this red
+    // state doesn't block work.
+    const BLUE = 1;
+    const sc = await createPhaseScenario(
+      roundTwelveBlueCPieceStall992367 as unknown as FixtureFile,
+    );
+    assertEquals(sc.state.round, 12);
+    assertEquals(sc.state.phase, Phase.WALL_BUILD);
+    // Precondition guards — if either fails, the fixture or the loader's
+    // bag/personality reconstruction drifted and the test is no longer
+    // exercising the stall (see the fixture's testHooks + the round+1 bag
+    // redeal in the loader).
+    assertEquals(sc.state.players[BLUE]!.currentPiece?.name, "C");
+    assertEquals(sc.aiArchetypes()[BLUE], "builder");
+
+    let bluePlacements = 0;
+    sc.bus.on(GAME_EVENT.WALL_PLACED, (ev) => {
+      if (ev.playerId === BLUE) bluePlacements++;
+    });
+
+    waitForPhase(sc, Phase.ROUND_END, { timeoutMs: 120_000 });
+
+    assertGreater(
+      bluePlacements,
+      0,
+      "BLUE placed 0 pieces across the whole WALL_BUILD phase — " +
+        "bag-cycling deadlock: every C placement hard-rejected as fat/pocket, " +
+        "so the sealing 1x3/1x2/1x1 queued behind it were never drawn",
     );
   },
 );

@@ -27,7 +27,7 @@ import {
 } from "../shared/core/player-slot.ts";
 import { isPlayerSeated } from "../shared/core/player-types.ts";
 import type { PlayerController } from "../shared/core/system-interfaces.ts";
-import type { GameState } from "../shared/core/types.ts";
+import { forcedPersonalityFor, type GameState } from "../shared/core/types.ts";
 import { Rng } from "../shared/platform/rng.ts";
 import { initPlayerBag } from "../shared/sim/player-bag.ts";
 
@@ -214,11 +214,15 @@ export async function rebuildControllersForPhase(
       // Roll personality from a separate, deterministic Rng. We must NOT
       // touch state.rng here — identity must be a pure function of the
       // snapshot (seed, round, slot), never of construction-time draws
-      // off the canonical stream.
+      // off the canonical stream. A forced personality (test hook) wins
+      // over the roll — fixtures use it to reproduce personality-gated
+      // behavior that this re-derivation would otherwise re-roll away.
       const personalityRng = new Rng(
         deriveAiStrategySeed(state.rng.seed ^ 1, state.round, pid),
       );
-      const personality = aiDeps.rollPersonality(personalityRng);
+      const personality =
+        forcedPersonalityFor(state, pid) ??
+        aiDeps.rollPersonality(personalityRng);
       const ctrl = await aiDeps.create(pid, strategyRng, personality);
 
       // Initialize the fresh AI for the current phase (no reset needed —

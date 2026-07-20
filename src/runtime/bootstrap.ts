@@ -21,7 +21,7 @@ import type {
   PlayerController,
   WorldOccluder,
 } from "../shared/core/system-interfaces.ts";
-import type { GameState } from "../shared/core/types.ts";
+import { forcedPersonalityFor, type GameState } from "../shared/core/types.ts";
 import { MAX_UINT32, Rng } from "../shared/platform/rng.ts";
 import {
   type GameSettings,
@@ -280,9 +280,13 @@ export async function bootstrapGame(deps: InitGameDeps): Promise<void> {
       const keys = deps.keyBindings[i];
       if (!deps.humanSlots[i]) {
         // Draw order matters: privateSeed before personality, slots in
-        // order, so the determinism fixtures stay byte-stable.
+        // order, so the determinism fixtures stay byte-stable. A forced
+        // personality (test hook) skips the roll — and its state.rng
+        // draws — for that slot.
         const privateSeed = state.rng.int(0, MAX_UINT32);
-        const personality = rollAiPersonality(state.rng, deps.difficulty);
+        const personality =
+          forcedPersonalityFor(state, pid) ??
+          rollAiPersonality(state.rng, deps.difficulty);
         return factory(
           pid,
           true,

@@ -26,15 +26,13 @@ import {
 import type { GameMap } from "../../src/shared/core/geometry-types.ts";
 import { Phase } from "../../src/shared/core/game-phase.ts";
 import { GRID_COLS, GRID_ROWS, Tile } from "../../src/shared/core/grid.ts";
-import { isPlayerSeated } from "../../src/shared/core/player-types.ts";
-import { initPlayerBag } from "../../src/shared/sim/player-bag.ts";
 import type { ValidPlayerId } from "../../src/shared/core/player-slot.ts";
 import { packTile } from "../../src/shared/core/spatial.ts";
 import type { GameState } from "../../src/shared/core/types.ts";
 import type { ZoneId } from "../../src/shared/core/zone-id.ts";
 import { recheckTerritory } from "../../src/game/build-system.ts";
 import { topZonesBySize } from "../../src/game/map-generation.ts";
-import { useSmallPieces } from "../../src/game/upgrade-system.ts";
+import { redealPlayerBagsForAdoption } from "../../src/online/online-host-promotion.ts";
 import { applyMidGameCheckpoint } from "../../src/online/online-rehydrate.ts";
 import { type AsciiRenderer, createAsciiRenderer } from "../ascii-renderer.ts";
 import {
@@ -78,7 +76,10 @@ export async function createPhaseScenario(
     // the filter on the next phase transition. Fresh-scenario creation
     // already drove the runtime to entryPhase, but no modifier roll fires
     // before round 3 (MODIFIER_FIRST_ROUND) so round-1 fixtures stay
-    // unaffected by the late assignment.
+    // unaffected by the late assignment. (The checkpoint path installs
+    // these earlier too — before applyMidGameCheckpoint — so hooks read
+    // at controller rebuild, e.g. forcePersonalities, take effect; this
+    // re-assignment is an idempotent no-op there.)
     sc.state.testHooks = fixture.testHooks;
   }
   if (fixture.houses && fixture.houses.length > 0) {
@@ -528,6 +529,13 @@ async function createCheckpointScenario(
   if (fixture.map) {
     installPinnedMap(headless.runtime.runtimeState.state, fixture.map);
   }
+  // Install test hooks BEFORE the checkpoint apply: its controller rebuild
+  // consumes `forcePersonalities`, which the shared post-creation install
+  // in `createPhaseScenario` would set too late. The restore never touches
+  // `state.testHooks` (never serialized), so the early install survives.
+  if (fixture.testHooks) {
+    headless.runtime.runtimeState.state.testHooks = fixture.testHooks;
+  }
   const result = await applyMidGameCheckpoint(
     headless.runtime,
     fixture.checkpoint,
@@ -545,7 +553,16 @@ async function createCheckpointScenario(
       (msg) => sentMessages.push(msg),
     );
   }
-  ensurePieceBagsForBuildPhase(headless.runtime.runtimeState.state);
+  // Piece bags are *not* serialized in checkpoints — they're regenerated
+  // at build-phase entry via `prepareNextRound → initPlayerBag`, which
+  // only runs during the natural BATTLE → WALL_BUILD transition. A
+  // checkpoint that drops the runtime directly into WALL_BUILD skips that
+  // setup, leaving `player.currentPiece` undefined — and the AI's
+  // `tickBuild` early-returns on the missing piece. Use the production
+  // adoption redeal (round+1 salt, same derivation as `prepareNextRound`)
+  // so the restored bags — including each player's piece in hand — match
+  // the recorded game byte-for-byte.
+  redealPlayerBagsForAdoption(headless.runtime.runtimeState.state);
   if (ascii) ascii.bind(() => headless.runtime.runtimeState.state);
   const sc = wrapHeadless(headless, sentMessages);
   if (ascii) (sc as { renderer: AsciiRenderer }).renderer = ascii;
@@ -566,24 +583,6 @@ function installPinnedMap(state: GameState, map: GameMap): void {
   state.playerZones = topZonesBySize(state.map, state.players.length).map(
     ({ zone }) => zone,
   );
-}
-
-/** Piece bags are *not* serialized in checkpoints — they're regenerated on
- *  each peer at build-phase entry via `prepareNextRound → initPlayerBag`,
- *  which only runs during the natural BATTLE → WALL_BUILD transition. A
- *  checkpoint that drops the runtime directly into WALL_BUILD skips that
- *  setup, leaving `player.currentPiece` undefined — and the AI's
- *  `tickBuild` early-returns on the missing piece, so the AI stands idle
- *  while everything else (grunts, timer) keeps ticking. Fill the gap here
- *  so the loader-restored state matches what a host would have at this
- *  point in the round. */
-function ensurePieceBagsForBuildPhase(state: GameState): void {
-  if (state.phase !== Phase.WALL_BUILD) return;
-  for (const player of state.players) {
-    if (!isPlayerSeated(player)) continue;
-    if (player.bag) continue;
-    initPlayerBag(player, state.round, state.rng, useSmallPieces(player));
-  }
 }
 
 /** Grunt-specific validation. Grunts share house/bonus-square's grass +
