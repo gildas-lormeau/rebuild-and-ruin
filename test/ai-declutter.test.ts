@@ -121,11 +121,18 @@ Deno.test(
     // the freed ground to outside, and turn the not-yet-landed targets
     // load-bearing. planDeclutter/isLiveFatTarget must verify against
     // wallsMinusCommittedLosses so no declutter ball ever lands on a non-fat
-    // own wall. Probed seed: on pre-projection code, seed 1 lands 13 non-fat
+    // own wall. The projection covers removals COMMITTED at fire time only —
+    // an enemy ball fired after our launch that lands first is unprojectable
+    // (our ball can't be recalled), so the probed seed must not hit that
+    // window. Probed seed: on pre-projection code, seed 1 landed 13 non-fat
     // declutter impacts in rounds 7-8 (first at a grunt-swing flip); with the
-    // projection it lands zero through round 8.
+    // projection it landed zero through round 8. Re-probed after the
+    // blocked-cut rescue shifted build streams (tmp/probe-declutter-
+    // landing.ts): seed 1 now hits the post-launch window once in r7
+    // (proven: flipping removal fired 8 ticks after our launch) → seed 8,
+    // 44 impacts, zero violations through round 8.
     using sc = await createScenario({
-      seed: 1,
+      seed: 8,
       mode: "classic",
       rounds: Number.POSITIVE_INFINITY,
     });

@@ -77,14 +77,17 @@ const WIRE_DELAY_FRAMES = 5;
 // Re-probed after the battle-timer input lockout (post-timer crosshair RNG
 // draws removed): modern 7-r8 stopped eliminating → modern 11-r8
 // (classic 3-r8 and 5-r8 survived).
+// Re-probed after the blocked-cut rescue (footprint-tight retry when a
+// grunt parks on the sole cut tile): classic 3-r8 and modern 11-r8 stopped
+// eliminating → classic 1-r8, modern 14-r8 (classic 5-r8 survived).
 const TRIALS: {
   readonly seed: number;
   readonly mode: "classic" | "modern";
   readonly rounds: number;
 }[] = [
-  { seed: 3, mode: "classic", rounds: 8 },
+  { seed: 1, mode: "classic", rounds: 8 },
   { seed: 5, mode: "classic", rounds: 8 },
-  { seed: 11, mode: "modern", rounds: 8 },
+  { seed: 14, mode: "modern", rounds: 8 },
 ];
 
 void _forceScenarioFirst;

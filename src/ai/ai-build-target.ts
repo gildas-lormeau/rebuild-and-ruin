@@ -7,6 +7,7 @@
  */
 
 import { canPlacePiece, type PlacementContext } from "../game/index.ts";
+import { TOWER_SIZE } from "../shared/core/game-constants.ts";
 import type {
   TileBounds,
   TilePos,
@@ -342,7 +343,11 @@ function planEnclosureTarget(ctx: TargetContext): TargetResult {
     // walls toward closure). Once home is enclosed, require piece feasibility
     // so placements can't drift into topologies that re-open home.
     if (manageable || homeTowerEnclosed) {
-      if (!canFillAfterPlugging(ctx, cand.gaps, cand.rect)) continue;
+      if (!canFillAfterPlugging(ctx, cand.gaps, cand.rect)) {
+        const rescue = rescueBlockedCut(cand, ctx, deadlineMaxGaps);
+        if (rescue !== null) return rescue;
+        continue;
+      }
     }
     // Only solo alive towers cache for the persistence short-circuit — a merge
     // has two towers (no single index to key on) and is cheap to re-derive
@@ -358,6 +363,54 @@ function planEnclosureTarget(ctx: TargetContext): TargetResult {
     };
   }
   return NO_TARGET;
+}
+
+/** Last-resort retry for a candidate about to be dropped because its min cut
+ *  is unplaceable (every cut tile fails `canPlacePiece` — e.g. a grunt boxed
+ *  in by the player's own walls parks on the sole cut tile) and the one-step
+ *  interior plugs are unwallable too (`canFillAfterPlugging` false). The
+ *  normal cut protects the whole rect interior, which can hide a legal seal
+ *  INSIDE the rect; shrinking the seed to the tower footprint drops that
+ *  protection. Grunt-occupied tiles are passed as uncuttable channels: the
+ *  normal path deliberately ignores grunts (they move between rounds), but
+ *  this branch exists precisely because a grunt blocks the cut NOW, so the
+ *  retry must route around it. Solo candidates only; the retry cut must fit
+ *  the deadline gap budget (no chasing an emergency ring the clock can't
+ *  close) and be piece-fillable, else the candidate drops as before. */
+function rescueBlockedCut(
+  cand: EnclosureCandidate,
+  ctx: TargetContext,
+  deadlineMaxGaps: number,
+): TargetResult | null {
+  if (cand.towers.length !== 1) return null;
+  const tower = cand.towers[0]!;
+  const footprint: TileRect = {
+    top: tower.row,
+    bottom: tower.row + TOWER_SIZE - 1,
+    left: tower.col,
+    right: tower.col + TOWER_SIZE - 1,
+  };
+  const gruntTiles = new Set<TileKey>();
+  for (const grunt of ctx.state.grunts) {
+    gruntTiles.add(packTile(grunt.row, grunt.col));
+  }
+  const cut = findEnclosureCut(
+    [{ tower, interior: footprint }],
+    ctx.state,
+    ctx.player.walls,
+    ctx.placementCtx.allowPitOverlap,
+    gruntTiles,
+  );
+  if (cut === null || cut.size === 0 || cut.size > deadlineMaxGaps) return null;
+  if (!canFillAfterPlugging(ctx, cut, footprint)) return null;
+  return {
+    targetGaps: cut,
+    targetRect: footprint,
+    chosenTowerIndex:
+      cut.size <= MANAGEABLE_GAP_LIMIT && ctx.state.towerAlive[tower.index]
+        ? tower.index
+        : undefined,
+  };
 }
 
 /** Ring-gap tiles the AI can realistically still place before the WALL_BUILD
