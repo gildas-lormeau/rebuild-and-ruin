@@ -332,6 +332,10 @@ export const UPGRADE_POOL: readonly UpgradeDef[] = [
 export const IMPLEMENTED_UPGRADES: readonly UpgradeDef[] = UPGRADE_POOL.filter(
   (def) => def.implemented,
 );
+/** Maximum banked Salvage slots per player in a single round. Caps the
+ *  runaway snowball if a player keeps destroying enemy cannons, and marks the
+ *  point past which chasing more cannon kills earns no extra bonus cannon. */
+export const SALVAGE_CAP = 2;
 
 /** Check if a global upgrade is active (any non-eliminated player has it). */
 export function isGlobalUpgradeActive(

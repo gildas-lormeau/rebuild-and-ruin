@@ -403,6 +403,20 @@ export function effectivePlacementCost(
   return Math.max(1, cannonSlotCost(mode) - rapidEmplacementDiscount(player));
 }
 
+/** True if at least one interior tile can still hold a NORMAL cannon.
+ *  NORMAL is the smallest footprint, so "no NORMAL placement" implies no
+ *  legal placement of any mode. Early-exits on the first legal tile. */
+export function hasLegalCannonPlacement(
+  player: Player,
+  state: GameViewState,
+): boolean {
+  for (const key of getInterior(player)) {
+    const { row, col } = unpackTile(key);
+    if (canPlaceCannon(player, row, col, CannonMode.NORMAL, state)) return true;
+  }
+  return false;
+}
+
 /** Compute cannon-phase init data for a single player.
  *  Pure computation — no controller interaction; the shared body of
  *  `primeControllerForCannonPhase` above, which applies it to a controller.
@@ -435,20 +449,6 @@ function prepareControllerCannonPhase(
     if (snapped) cursorPos = snapped;
   }
   return { maxSlots, cursorPos };
-}
-
-/** True if at least one interior tile can still hold a NORMAL cannon.
- *  NORMAL is the smallest footprint, so "no NORMAL placement" implies no
- *  legal placement of any mode. Early-exits on the first legal tile. */
-function hasLegalCannonPlacement(
-  player: Player,
-  state: GameViewState,
-): boolean {
-  for (const key of getInterior(player)) {
-    const { row, col } = unpackTile(key);
-    if (canPlaceCannon(player, row, col, CannonMode.NORMAL, state)) return true;
-  }
-  return false;
 }
 
 /** Apply cannon placement (no validation). Internal helper — external

@@ -30,6 +30,7 @@ export {
   cannonSlotsUsed,
   canPlaceCannon,
   effectivePlacementCost,
+  hasLegalCannonPlacement,
   isCannonEnclosed,
   isCannonPlacementComplete,
   markCannonPlaceDoneAtDrain,

@@ -10,6 +10,7 @@ import {
   aimRedirectsOntoTower,
   canFireOwnCannon,
   getGruntTargetTower,
+  hasLegalCannonPlacement,
   pickSupplyShipTarget,
   shouldAbsorbWallHit,
 } from "../game/index.ts";
@@ -53,6 +54,11 @@ import {
   zoneTileBounds,
 } from "../shared/core/spatial.ts";
 import type { BattleViewState } from "../shared/core/system-interfaces.ts";
+import {
+  isGlobalUpgradeActive,
+  SALVAGE_CAP,
+  UID,
+} from "../shared/core/upgrade-defs.ts";
 import type { Rng } from "../shared/platform/rng.ts";
 import {
   computeCardinalObstacleMask,
@@ -125,6 +131,12 @@ const FRESH_CANNON_TARGET_PROBABILITY = 1 / 3;
  *  human-facing `cannonSnipe` hint. Weak-tier AI keeps a base of 0, so it
  *  stays 0 — per-player variation preserved. */
 const HEAVY_ENEMY_GUN_TARGET_MULTIPLIER = 2;
+/** Modest multiplier applied to the fresh-cannon targeting probability while
+ *  the player can still bank a Salvage slot (global upgrade active, under the
+ *  per-round cap, and interior room to spend the bonus cannon). Nudges fire
+ *  onto enemy cannons to farm the salvage payoff without displacing the
+ *  higher-priority strategic-wall and grunt-wall gates that roll first. */
+const SALVAGE_CANNON_TARGET_MULTIPLIER = 1.5;
 /** How many of the closest candidates to pick randomly from. */
 const TOP_TARGET_PICK_COUNT = 3;
 /** Minimum preferred distance (in tiles) from crosshair for target spread. */
@@ -430,6 +442,17 @@ export function pickTarget(
     freshCannonProb = Math.min(
       1,
       freshCannonProb * HEAVY_ENEMY_GUN_TARGET_MULTIPLIER,
+    );
+  }
+  // Salvage opportunism: while this player can still bank a Salvage slot for a
+  // bonus cannon next round, nudge fire onto enemy cannons. Gated on a pure
+  // function of synced state (upgrade active + slot count + interior room), so
+  // the rand() draw below stays identical across peers — no extra draw, same
+  // shape as the heavy-gun multiplier.
+  if (salvageWorthChasing(state, playerId)) {
+    freshCannonProb = Math.min(
+      1,
+      freshCannonProb * SALVAGE_CANNON_TARGET_MULTIPLIER,
     );
   }
   if (rand() < freshCannonProb) {
@@ -827,6 +850,23 @@ function hasTargetableHeavyEnemyGun(
     }
   }
   return false;
+}
+
+/** True when destroying an enemy cannon would still pay off for this player:
+ *  the global Salvage upgrade is active, the player is below the per-round slot
+ *  cap, and they have interior room to actually place the bonus cannon a slot
+ *  buys. All three inputs are pure functions of synced state, so the
+ *  fresh-cannon rand() gate that multiplies on this stays parity-safe across
+ *  peers. Ordered cheap-checks-first so the interior scan only runs when the
+ *  upgrade is live and slots remain. */
+function salvageWorthChasing(
+  state: BattleViewState,
+  playerId: ValidPlayerId,
+): boolean {
+  if (!isGlobalUpgradeActive(state.players, UID.SALVAGE)) return false;
+  if ((state.salvageSlots[playerId] ?? 0) >= SALVAGE_CAP) return false;
+  const player = state.players[playerId];
+  return player != null && hasLegalCannonPlacement(player, state);
 }
 
 function collectStrategicWallTargets(

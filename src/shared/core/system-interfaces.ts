@@ -119,6 +119,10 @@ export interface BattleViewState extends GameViewState {
   readonly cannonballs: readonly Cannonball[];
   readonly cannonMaxHp: number;
   readonly capturedCannons: readonly CapturedCannon[];
+  /** Banked Salvage slots per player (indexed by player id). Read by the
+   *  battle-targeting salvage boost to tell whether killing an enemy cannon
+   *  would still earn this player a bonus cannon (below the per-round cap). */
+  readonly salvageSlots: readonly number[];
   readonly playerZones: readonly ZoneId[];
   /** Cannons whose fire has been scheduled on this peer but not yet
    *  drained. See `GameState.pendingCannonFires`. Read by `canFireOwnCannon`

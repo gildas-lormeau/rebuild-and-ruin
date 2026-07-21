@@ -7,11 +7,12 @@
 
 import type { ValidPlayerId } from "../../shared/core/player-slot.ts";
 import type { GameState, UpgradeImpl } from "../../shared/core/types.ts";
-import { isGlobalUpgradeActive, UID } from "../../shared/core/upgrade-defs.ts";
+import {
+  isGlobalUpgradeActive,
+  SALVAGE_CAP,
+  UID,
+} from "../../shared/core/upgrade-defs.ts";
 
-/** Maximum banked salvage slots per player. Caps runaway snowball if a player
- *  keeps destroying enemy cannons in a single round. */
-const SALVAGE_CAP = 2;
 export const salvageImpl: UpgradeImpl = { onCannonKilled };
 
 /** Award a salvage slot to the shooter that just killed an enemy cannon.
