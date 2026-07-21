@@ -1,20 +1,32 @@
 /**
  * Enclosure-disagreement oracle (measurement only — changes no behavior).
  *
- * Quantifies the `findReachableRingGaps` under-count that drives the AI
- * build-phase failures (the idle rounds AND the over-build stalls): the AI
- * commits to closing a tower, fills every gap the function reports, yet the
- * tower never encloses — the reported gap-set, fully filled, doesn't actually
- * seal the ring (dropped-unfillable tiles or diagonal leaks leave a hole).
+ * Checks whether the AI's committed enclosure cut, fully filled, actually seals
+ * the tower it targets: the AI commits to closing a tower, fills every gap the
+ * planner reports, and we ask whether the tower then encloses (8-dir, scoring's
+ * notion) or a hole remains.
+ *
+ * HISTORY / why this once "found" a bug it no longer finds: the committed path
+ * migrated to the min-cut planner (`soloEnclosure` → `findEnclosureCut`), which
+ * is leak-free by construction, so the geometry-leak buckets (predictive/boxed)
+ * are ~0 over thousands of commits. Earlier this oracle reported a large
+ * "predictive" bucket — but that was a MEASUREMENT bug, not a planner bug: it
+ * attributed each `target-selected` emit to the tower inferred from the `path`
+ * label (HOME → homeTower), and that label is derived from home-enclosure state,
+ * so a "HOME"-labelled emit routinely commits its cut to a DIFFERENT tower. The
+ * oracle scored that foreign cut against the home footprint and called the
+ * mismatch a leak. Fixed by reading `event.committedTowerIndices` (ground-truth
+ * tower identity threaded through TargetResult) instead of inferring from the
+ * label; predictive/boxed collapsed to ~0. Keep this attribution honest.
  *
  * Outcome-based and faithful: it does NOT reconstruct the AI's rect pipeline
  * (which applies expandRectAroundBlockers / clampRectOffPits — easy to get
  * wrong). Instead it observes the AI's REAL decisions via the build diag hook
- * (`target-selected` carries the actual expanded targetRect + targetGaps) and
- * the REAL outcome via the `TOWER_ENCLOSED` bus event.
+ * (`target-selected` carries the actual targetRect + targetGaps + the committed
+ * tower indices) and the REAL outcome via the `TOWER_ENCLOSED` bus event.
  *
- * For each (round, player, tower) the AI committed to closing (HOME or SEC
- * path), using the LAST target-selected snapshot that round:
+ * For each (round, player, committed tower) — one entry per tower the cut wraps,
+ * a merge contributing two — using the LAST target-selected snapshot that round:
  *   gapEncloses = trulyEncloses(W ∪ targetGaps)   ← would filling the AI's own
  *                                                    final gap-set close it?
  *   cfgEncloses = trulyEncloses(W ∪ computeFillableGaps(targetRect, W, bank=t))
@@ -26,15 +38,16 @@
  *   timing     — not enclosed, but its final gap-set WOULD have enclosed →
  *                ran out of ticks, NOT a gap-function bug.
  *   plug_fixes — leak the plug-seal (computeFillableGaps) would have closed →
- *                the cheap "#1" fix recovers it.
+ *                the cheap "#1" fix recovers it. Small residue (~0.3%).
  *   boxed      — leak, but terrain genuinely can't seal it (!isTowerEnclosable).
+ *                Expected ~0 under correct attribution.
  *   predictive — leak on sealable terrain that neither the AI's gap-set nor the
- *                plug-seal closes → needs rect expansion / a predictive
- *                enclosure check (the reverted, high-risk fix).
+ *                plug-seal closes. Expected 0: the min-cut planner is leak-free,
+ *                so a NON-zero predictive count is a real planner regression (or
+ *                an attribution bug creeping back in) — investigate, don't shrug.
  *
- * The plug_fixes vs predictive split among leaks is the decision input: high
- * plug_fixes ⇒ the cheap fix recovers most of the loss; high predictive ⇒ only
- * the deep fix moves the needle.
+ * Interpretation: predictive should read 0 and boxed ~0. If either climbs, the
+ * committed cut is disagreeing with computeOutside — a genuine geometry bug.
  *
  *   deno run -A scripts/diag-enclosure-oracle.ts [seed ...]
  *
@@ -52,8 +65,8 @@ import { GAME_EVENT } from "../src/shared/core/game-event-bus.ts";
 import { Phase } from "../src/shared/core/game-phase.ts";
 import type { Tower } from "../src/shared/core/geometry-types.ts";
 import type { TileKey } from "../src/shared/core/grid.ts";
-import { getInterior } from "../src/shared/sim/player-interior.ts";
 import { computeOutside, packTile } from "../src/shared/core/spatial.ts";
+import { getInterior } from "../src/shared/sim/player-interior.ts";
 import { createScenario, waitForEvent } from "../test/scenario.ts";
 
 type Verdict = "closed" | "timing" | "plugFixes" | "boxed" | "predictive";
@@ -168,18 +181,22 @@ async function runSeed(
     const state = sc.state;
     const player = state.players[event.playerId];
     if (!player) return;
-    const tower =
-      event.path === "HOME"
-        ? player.homeTower
-        : event.chosenTowerIndex !== undefined
-          ? state.map.towers[event.chosenTowerIndex]
-          : undefined;
-    if (!tower) return;
+    // Ground-truth attribution: the committed cut wraps exactly the towers in
+    // `committedTowerIndices` (one for a solo ring, two for a merge). Score the
+    // gap-set against EACH of them — never against the tower inferred from the
+    // path label, which is derived from home-enclosure state and routinely
+    // disagrees with the tower actually committed (the old inference invented a
+    // whole "predictive" bucket out of this mismatch). Fall back to the label
+    // inference only if the event predates the committedTowerIndices field.
+    const committed: Tower[] =
+      event.committedTowerIndices.length > 0
+        ? event.committedTowerIndices
+            .map((index) => state.map.towers[index])
+            .filter((tower): tower is Tower => tower !== undefined)
+        : inferTowerFromLabel(event, player, state);
+    if (committed.length === 0) return;
     const walls = player.walls;
-    const gapEncloses = trulyEncloses(
-      tower,
-      unionWalls(walls, event.targetGaps),
-    );
+    const gapUnion = unionWalls(walls, event.targetGaps);
     const cfg = computeFillableGaps(
       event.targetRect,
       walls,
@@ -187,16 +204,18 @@ async function runSeed(
       state,
       true,
     );
-    const cfgEncloses = trulyEncloses(tower, unionWalls(walls, cfg));
-    commits.set(`${event.round}:${event.playerId}:${tower.index}`, {
-      round: event.round,
-      pid: event.playerId,
-      towerIdx: tower.index,
-      pos: `(${tower.row},${tower.col})`,
-      gapEncloses,
-      cfgEncloses,
-      enclosable: isTowerEnclosable(tower, state),
-    });
+    const cfgUnion = unionWalls(walls, cfg);
+    for (const tower of committed) {
+      commits.set(`${event.round}:${event.playerId}:${tower.index}`, {
+        round: event.round,
+        pid: event.playerId,
+        towerIdx: tower.index,
+        pos: `(${tower.row},${tower.col})`,
+        gapEncloses: trulyEncloses(tower, gapUnion),
+        cfgEncloses: trulyEncloses(tower, cfgUnion),
+        enclosable: isTowerEnclosable(tower, state, false),
+      });
+    }
   });
   sc.bus.on(GAME_EVENT.TOWER_ENCLOSED, (ev) => {
     enclosed.add(`${sc.state.round}:${ev.playerId}:${ev.towerIndex}`);
@@ -257,6 +276,23 @@ function emptyBuckets(): Buckets {
 /** Ground truth: with wall set `walls`, is the tower enclosed? True iff no
  *  footprint tile is reachable from the map border under the 8-dir flood —
  *  the same notion territory scoring uses (interior = not outside). */
+/** Legacy path-label attribution — used only when an event predates the
+ *  `committedTowerIndices` field. Kept so an old recording still classifies
+ *  (imperfectly, as documented). Returns [] when it can't name a tower. */
+function inferTowerFromLabel(
+  event: { path: string; chosenTowerIndex: number | undefined },
+  player: { homeTower?: Tower | null },
+  state: { map: { towers: readonly Tower[] } },
+): Tower[] {
+  const tower =
+    event.path === "HOME"
+      ? player.homeTower
+      : event.chosenTowerIndex !== undefined
+        ? state.map.towers[event.chosenTowerIndex]
+        : undefined;
+  return tower ? [tower] : [];
+}
+
 function trulyEncloses(tower: Tower, walls: ReadonlySet<TileKey>): boolean {
   const outside = computeOutside(walls);
   return footprintKeys(tower).every((key) => !outside.has(key));

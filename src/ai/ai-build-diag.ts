@@ -49,6 +49,16 @@ type AiBuildDiagEvent =
       targetRect: TileRect | null;
       targetGaps: ReadonlySet<TileKey>;
       chosenTowerIndex: TowerIdx | undefined;
+      /** Ground-truth indices of the tower(s) the committed min-cut actually
+       *  wraps this tick — one for a solo ring, two for a merge, empty for the
+       *  idle/fallback paths (CAPTURE/EXP/STRAT_*) that don't target a tower.
+       *  Distinct from `chosenTowerIndex`, which is set ONLY for a cacheable
+       *  solo commit (the persistence key) and is undefined for merges,
+       *  dead-tower, wide-gap, and rescue commits. Consumers that need to know
+       *  which tower the cut targets (e.g. the enclosure oracle) MUST read this,
+       *  not infer the tower from the `path` label — the label is derived from
+       *  home-enclosure state, so a "HOME"-labelled emit can commit elsewhere. */
+      committedTowerIndices: readonly TowerIdx[];
       /** PieceShape.name for each of the next N pieces in the AI's bag
        *  queue (excluding the current piece). Read-only peek — never
        *  triggers a bag refill (would advance state.rng and break
@@ -240,6 +250,7 @@ export function emitTargetSelectedDiag(
   targetRect: TileRect | null,
   targetGaps: ReadonlySet<TileKey>,
   chosenTowerIndex: TowerIdx | undefined,
+  committedTowerIndices: readonly TowerIdx[],
   upcomingPieces: readonly string[],
   upcomingPieceFitsTarget: readonly boolean[],
   alternatives: readonly TargetAlternative[],
@@ -254,6 +265,7 @@ export function emitTargetSelectedDiag(
     targetRect,
     targetGaps,
     chosenTowerIndex,
+    committedTowerIndices,
     upcomingPieces,
     upcomingPieceFitsTarget,
     alternatives,

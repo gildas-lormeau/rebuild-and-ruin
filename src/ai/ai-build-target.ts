@@ -360,6 +360,7 @@ function planEnclosureTarget(ctx: TargetContext): TargetResult {
       targetGaps: cand.gaps,
       targetRect: cand.rect,
       chosenTowerIndex: cacheable ? cand.towers[0]!.index : undefined,
+      committedTowerIndices: cand.towers.map((tower) => tower.index),
     };
   }
   return NO_TARGET;
@@ -410,6 +411,7 @@ function rescueBlockedCut(
       cut.size <= MANAGEABLE_GAP_LIMIT && ctx.state.towerAlive[tower.index]
         ? tower.index
         : undefined,
+    committedTowerIndices: [tower.index],
   };
 }
 
@@ -556,6 +558,7 @@ function tryCloseableTowerTarget(
     chosenTowerIndex: ctx.state.towerAlive[tower.index]
       ? tower.index
       : undefined,
+    committedTowerIndices: [tower.index],
   };
 }
 
@@ -582,6 +585,7 @@ function emitTargetSelected(
     result.targetRect,
     result.targetGaps,
     result.chosenTowerIndex,
+    result.committedTowerIndices ?? [],
     upcomingPieces,
     upcomingPieceFitsTarget,
     alternatives,

@@ -42,6 +42,13 @@ export type TargetResult = {
    *  dead-tower targets, expand-territory, or strategicFallbackTarget — those
    *  are not commitments worth persisting. */
   chosenTowerIndex?: TowerIdx;
+  /** Diag-only ground truth: index of every tower the committed cut wraps (one
+   *  for a solo ring, two for a merge). Unlike `chosenTowerIndex` this is set
+   *  for ALL tower-enclosure commits — merges, dead-tower, wide-gap, rescue —
+   *  so the diag layer can attribute the emit to the real tower(s) instead of
+   *  inferring from the path label. Absent on idle/fallback (non-tower) results.
+   *  Read only by the build-diag hook; production control flow ignores it. */
+  committedTowerIndices?: readonly TowerIdx[];
 };
 
 /** Context for the target-selection pipeline (home repair → secondary → expand). */
