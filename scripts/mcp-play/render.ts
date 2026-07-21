@@ -29,6 +29,24 @@ export type CannonModeTally = Record<CannonMode, number>;
  *  time `key` is seen in a session, `terse` thereafter. See `renderObservation`. */
 type Once = (key: string, full: string, terse: string) => string;
 
+/** A rectangular region of the board worth inspecting, with a name the agent
+ *  passes to `observe({roi})` and a one-line reason. Computed from the same
+ *  structured signals the annotation sections already carry (the min-cut,
+ *  threats, grunt clusters, breach targets, castle bounds) — so a "view" points
+ *  at real geometry, never a guess. */
+export interface RoiRect {
+  minRow: number;
+  maxRow: number;
+  minCol: number;
+  maxCol: number;
+}
+
+export interface RoiEntry {
+  name: string;
+  rect: RoiRect;
+  why: string;
+}
+
 /** Placements of `normal` before the skew nudge starts firing — high enough to
  *  read as an entrenched habit across rounds, not first-round noise. */
 const NORMAL_SKEW_THRESHOLD = 8;
@@ -52,6 +70,9 @@ const TERSE_EXPECTED: Record<string, string> = {
   BATTLE:
     "BATTLE — bombard { slot } (spread) / breach { slot, towerIdx? } (min-cut open a pocket) / pit_strike { slot } / cull (defend vs your grunts) / declutter (shoot out your own fat to avoid a bag-lock) / fire { row, col } (snipe). See TARGETS. (full menu: round 1)",
 };
+/** Tiles of padding around an ROI's bounding box so the crop shows the region
+ *  IN CONTEXT (the gap plus the ring around it), not a hairline slice. */
+const ROI_PAD = 3;
 
 /** Render an observation as the annotated ASCII board (header, standings,
  *  roster, battery, aim-assist sections, then the raw board the harness baked).
@@ -60,6 +81,7 @@ export function renderObservation(
   obs: Observation,
   seen: Set<string> = new Set<string>(),
   modeTally?: CannonModeTally,
+  opts?: { includeBoard?: boolean },
 ): string {
   const lines: string[] = [];
   // Show-once gate: the FIRST time a static explainer block is rendered in a
@@ -291,18 +313,172 @@ export function renderObservation(
   // ── modern UPGRADE_PICK: the three offers, pick one by cardIdx ───────────────
   lines.push(...upgradeOfferLines(obs));
 
+  // ── VIEWS: precomputed regions of interest, pulled by name via observe({roi}) ─
+  // Replaces the always-on full board on action returns: the agent doesn't scan
+  // a 44×28 grid it mostly ignores — it gets a short menu of the salient regions
+  // (the harness already knows where they are) and pulls the one it wants as a
+  // cheap focused crop. On `observe` (board included below) it's a bonus pointer.
+  const views = roiMenuLine(obs);
+  if (views) lines.push(views);
+
   // The board carries a constant glyph legend (the first LEGEND_LINE_COUNT
   // lines, incl. a round/score line that ROSTER + STANDINGS already cover).
   // Show it once per session, then drop it — the coordinate headers below it
-  // stay, so the agent never loses tile-citing context.
-  lines.push(
-    once(
-      "board:legend",
-      obs.board,
-      obs.board.split("\n").slice(LEGEND_LINE_COUNT).join("\n"),
-    ),
-  );
+  // stay, so the agent never loses tile-citing context. Suppressed on action
+  // returns (`includeBoard: false`) so only an explicit `observe` pays the board
+  // tokens; the annotation sections above already drive every decision.
+  if (opts?.includeBoard !== false) {
+    lines.push(
+      once(
+        "board:legend",
+        obs.board,
+        obs.board.split("\n").slice(LEGEND_LINE_COUNT).join("\n"),
+      ),
+    );
+  }
   return lines.join("\n");
+}
+
+/** The one-line `VIEWS:` menu: the top few ROIs as ready-to-call `observe({roi})`
+ *  invocations, with the rest named so the agent knows they're pullable too.
+ *  Null when nothing salient (e.g. pre-selection). */
+function roiMenuLine(obs: Observation): string | null {
+  const rois = computeRois(obs);
+  if (rois.length === 0) return null;
+  const shown = rois.slice(0, 3);
+  const items = shown
+    .map((roi) => `observe({roi:"${roi.name}"}) ${roi.why}`)
+    .join(" · ");
+  const rest = rois.slice(3);
+  const more =
+    rest.length > 0
+      ? ` (+${rest.length} more: ${rest.map((roi) => roi.name).join(", ")})`
+      : "";
+  return `  VIEWS (pull a focused board — no clock): ${items}${more}`;
+}
+
+/** Precompute the salient regions of the current observation as named,
+ *  ready-to-pull `observe({roi})` crops. Ranked most-urgent first: the seal the
+ *  survival/home ring needs, grunts bearing on a tower, an enclose-kill cluster,
+ *  an opponent's softest breach target, your castle overview, an open bonus. The
+ *  server's `observe` handler resolves a `roi` name back to its `rect`. */
+export function computeRois(obs: Observation): RoiEntry[] {
+  const rois: RoiEntry[] = [];
+
+  // 1. reseal-gap / gap — the min-cut the survival (or home) ring must close.
+  const candidates = obs.enclosureCandidates ?? [];
+  const gapCand =
+    candidates.find((c) => c.status === "enclosable" && c.satisfiesSurvival) ??
+    candidates.find((c) => c.status === "enclosable" && c.isHome) ??
+    candidates.find((c) => c.status === "enclosable");
+  if (gapCand && gapCand.tiles.length > 0) {
+    const rect = padBox(gapCand.tiles);
+    if (rect) {
+      const urgent = obs.me.survivesRoundEnd === false;
+      const first = gapCand.tiles[0]!;
+      rois.push({
+        name: urgent ? "reseal-gap" : "gap",
+        rect,
+        why: `${gapCand.isHome ? "home" : `tower ${gapCand.towerIdx}`} seal near (${first.row},${first.col})`,
+      });
+    }
+  }
+
+  // 2. threat:N — a grunt bearing down on one of my towers (grunt + tower box).
+  (obs.threats ?? []).slice(0, 2).forEach((threat, index) => {
+    const rect = padBox([threat.grunt, threat.tower]);
+    if (rect) {
+      rois.push({
+        name: `threat:${index}`,
+        rect,
+        why: `${threat.kind} (${threat.grunt.row},${threat.grunt.col})→tower ${threat.tower.idx}`,
+      });
+    }
+  });
+
+  // 3. enclose-kill — one of MY zone's packed grunt clusters, boxable for points.
+  const cluster = (obs.gruntClusters ?? []).find((entry) => entry.mine);
+  if (cluster) {
+    rois.push({
+      name: "enclose-kill",
+      rect: {
+        minRow: Math.max(0, cluster.minRow - ROI_PAD),
+        maxRow: cluster.maxRow + ROI_PAD,
+        minCol: Math.max(0, cluster.minCol - ROI_PAD),
+        maxCol: cluster.maxCol + ROI_PAD,
+      },
+      why: `${cluster.count} grunts packed — enclose-kill`,
+    });
+  }
+
+  // 4. target:slot — an opponent's softest enclosed tower (breach/bombard aim).
+  for (const target of obs.targets ?? []) {
+    const soft = target.towers[0];
+    if (!soft) continue;
+    const rect = padBox([{ row: soft.row, col: soft.col }], 5);
+    if (rect) {
+      rois.push({
+        name: `target:${target.slot}`,
+        rect,
+        why: `${target.name} soft tower ${soft.towerIdx} (${soft.ringWalls}w ring)`,
+      });
+    }
+  }
+
+  // 5. home — the always-available overview of my own castle.
+  const me = obs.layout.find((player) => player.isMe);
+  if (me?.castle) {
+    rois.push({
+      name: "home",
+      rect: {
+        minRow: Math.max(0, me.castle.minRow - ROI_PAD),
+        maxRow: me.castle.maxRow + ROI_PAD,
+        minCol: Math.max(0, me.castle.minCol - ROI_PAD),
+        maxCol: me.castle.maxCol + ROI_PAD,
+      },
+      why: "your castle",
+    });
+  }
+
+  // 6. bonus — an open-grass bonus square that needs dedicated walls.
+  const openBonus = (obs.bonusTargets ?? []).find(
+    (bonus) => !bonus.enclosed && bonus.capturedByTower === null,
+  );
+  if (openBonus) {
+    const rect = padBox([{ row: openBonus.row, col: openBonus.col }], 4);
+    if (rect) {
+      rois.push({
+        name: "bonus",
+        rect,
+        why: `bonus square (${openBonus.row},${openBonus.col}) — needs walls`,
+      });
+    }
+  }
+
+  return rois;
+}
+
+function padBox(
+  tiles: readonly { row: number; col: number }[],
+  pad: number = ROI_PAD,
+): RoiRect | null {
+  if (tiles.length === 0) return null;
+  let minRow = Number.POSITIVE_INFINITY;
+  let maxRow = Number.NEGATIVE_INFINITY;
+  let minCol = Number.POSITIVE_INFINITY;
+  let maxCol = Number.NEGATIVE_INFINITY;
+  for (const tile of tiles) {
+    if (tile.row < minRow) minRow = tile.row;
+    if (tile.row > maxRow) maxRow = tile.row;
+    if (tile.col < minCol) minCol = tile.col;
+    if (tile.col > maxCol) maxCol = tile.col;
+  }
+  return {
+    minRow: Math.max(0, minRow - pad),
+    maxRow: maxRow + pad,
+    minCol: Math.max(0, minCol - pad),
+    maxCol: maxCol + pad,
+  };
 }
 
 /** Severity-ranked verdict header — the agent's "read this FIRST" digest. The

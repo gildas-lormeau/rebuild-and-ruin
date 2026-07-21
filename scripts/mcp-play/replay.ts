@@ -57,6 +57,15 @@ const VALUE_FLAGS = new Set(["seed", "mode", "rounds", "ticks"]);
 // `tmp/mcp-play/last.jsonl` (the live game being debugged) with this re-run.
 Deno.env.set("MCP_PLAY_NO_JOURNAL", "1");
 
+// Replay is a human-facing "watch the session evolve" tool: keep the full board
+// on EVERY call, not just observes. The live agent gets board-off action returns
+// (VIEWS menu + observe({roi}) on demand); a human reading a replay wants to see
+// the board after each move. `--diff` is unaffected (it compares the structured
+// digest, not the rendered board). An explicit env value still wins.
+if (Deno.env.get("MCP_PLAY_ACTION_BOARD") === undefined) {
+  Deno.env.set("MCP_PLAY_ACTION_BOARD", "1");
+}
+
 await main();
 
 async function main(): Promise<void> {

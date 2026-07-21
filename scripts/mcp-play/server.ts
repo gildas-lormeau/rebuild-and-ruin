@@ -25,7 +25,12 @@ import {
   type ViewOptions,
 } from "./harness.ts";
 import type { AgentDecision } from "./mcp-brain.ts";
-import { type CannonModeTally, renderObservation } from "./render.ts";
+import {
+  type CannonModeTally,
+  computeRois,
+  type RoiRect,
+  renderObservation,
+} from "./render.ts";
 
 interface JsonRpcRequest {
   jsonrpc: "2.0";
@@ -118,7 +123,7 @@ const TOOLS: ToolDef[] = [
   {
     name: "new_game",
     description:
-      "Start a new match. The agent drives one slot; the other slots are the built-in AI. Returns the first observation (castle selection). mode 'modern' adds the UPGRADE_PICK decision (rounds ≥ 3, and only when a later round exists to spend it — so set rounds ≥ 4 to reach it) plus passive modifiers/combos/catapults; default 'classic'.",
+      "Start a new match. The agent drives one slot; the other slots are the built-in AI. Returns the first observation (castle selection). mode 'modern' adds the UPGRADE_PICK decision (rounds ≥ 3, and only when a later round exists to spend it — so set rounds ≥ 4 to reach it) plus passive modifiers/combos/catapults; default 'classic'. READING THE RESULTS: every action return carries the annotation sections (STANDINGS, SURVIVAL, ENCLOSURE CANDIDATES, CANNON SPOTS, TARGETS, SUGGESTIONS, …) that drive every decision — the full ASCII board is NOT included on action returns to save tokens. When you actually want to eyeball the grid, each return ends with a VIEWS: line listing the precomputed regions worth inspecting; pull one with observe({ roi: '<name>' }) (e.g. 'reseal-gap', 'threat:0', 'target:1', 'home') for a tight focused crop, call observe() for the full map, or observe({ format: 'json' }) for the raw structured object.",
     inputSchema: {
       type: "object",
       properties: {
@@ -223,11 +228,27 @@ const TOOLS: ToolDef[] = [
           description:
             "Paint ONLY these entity layers over terrain (arbitrary subset; wins over layer).",
         },
+        roi: {
+          type: "string",
+          description:
+            "Pull a PRECOMPUTED region of interest by name instead of hand-picking coordinates. The names come from the VIEWS: menu on the last result (e.g. 'reseal-gap', 'threat:0', 'enclose-kill', 'target:1', 'home', 'bonus') — each resolves to a padded crop around that region's real geometry. Overrides crop/around when set.",
+        },
       },
     },
     handler: (args) => {
       const view: ViewOptions = {};
-      if (args.aroundRow !== undefined && args.aroundCol !== undefined) {
+      if (typeof args.roi === "string") {
+        const rect = resolveRoi(requireGame(), args.roi);
+        if (!rect) {
+          const names = computeRois(requireGame().observe())
+            .map((roi) => roi.name)
+            .join(", ");
+          throw new Error(
+            `Unknown roi '${args.roi}'. Available now: [${names || "none"}]. See the VIEWS: line on the last result.`,
+          );
+        }
+        view.crop = rect;
+      } else if (args.aroundRow !== undefined && args.aroundCol !== undefined) {
         const centerRow = num(args, "aroundRow");
         const centerCol = num(args, "aroundCol");
         const radius = args.radius === undefined ? 4 : num(args, "radius");
@@ -1031,6 +1052,16 @@ function requireGame(): McpGame {
   return game;
 }
 
+/** Resolve an `observe({roi})` name to its crop rect via the shared ROI
+ *  computation (the same regions the VIEWS: menu lists). Null for an unknown
+ *  name — the handler turns that into a "did you mean" listing. */
+function resolveRoi(activeGame: McpGame, name: string): RoiRect | null {
+  return (
+    computeRois(activeGame.observe()).find((roi) => roi.name === name)?.rect ??
+    null
+  );
+}
+
 function pathArg(args: Record<string, unknown>): string {
   return typeof args.path === "string" ? args.path : DEFAULT_SAVE_PATH;
 }
@@ -1248,6 +1279,12 @@ export async function callTool(
     // reads the new state directly; observe({format:'json'}) opts back into raw
     // JSON, and non-observation payloads (check/plan/save) stay JSON.
     const wantJson = name === "observe" && args.format === "json";
+    // The full ASCII board rides ONLY on an explicit `observe` (or when
+    // MCP_PLAY_ACTION_BOARD=1 forces it back onto every return, e.g. for the
+    // human replay/watch flow). Action returns carry the annotation sections +
+    // the VIEWS: menu instead — the agent pulls a focused board by ROI when it
+    // actually wants to look, saving the ~30-line grid on every mutation.
+    const includeBoard = name === "observe" || forceActionBoard();
     // `verbose` mode passes a throwaway empty Set each render, so every block
     // gets its full text every turn; otherwise the persistent session Set
     // collapses already-seen static blocks to their terse pointers.
@@ -1257,6 +1294,7 @@ export async function callTool(
             result,
             renderVerbose ? new Set<string>() : seenBlocks,
             cannonModeTally,
+            { includeBoard },
           )
         : JSON.stringify(result, null, 2);
     // new_game opens a session, so it's the right place to surface the build
@@ -1279,6 +1317,15 @@ export async function callTool(
       isError: true,
     };
   }
+}
+
+/** Force the full ASCII board back onto EVERY tool return (not just `observe`).
+ *  Default off — action returns carry the VIEWS: menu and the agent pulls a
+ *  board by ROI on demand. `MCP_PLAY_ACTION_BOARD=1` restores the always-on
+ *  board for the human replay/watch flow or an A/B baseline. Read at render time
+ *  (not module-load) so replay.ts can set the env after importing this module. */
+function forceActionBoard(): boolean {
+  return Deno.env.get("MCP_PLAY_ACTION_BOARD") === "1";
 }
 
 /** The full-map board for the watch view. The agent's tool result carries a
