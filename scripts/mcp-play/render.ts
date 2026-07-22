@@ -1097,7 +1097,7 @@ function enclosureLines(obs: Observation): string[] {
     // Flag it inline so a "SEAL NOW ★+BONUS" row can't be misread as survival-safe.
     if (candidate.alive === false) {
       line += candidate.satisfiesSurvival
-        ? "  ⚑DEAD (revives on enclose — Restoration Crew)"
+        ? "  ⚑DEAD (revives before the life check — pending revive or Restoration Crew)"
         : "  ⚑DEAD (enclosing does NOT satisfy survival this round)";
     }
     if (candidate.status === "enclosable") {

@@ -2093,7 +2093,13 @@ export async function createMcpGame(
       if (tower.zone !== zone) continue;
       const isHome = tower.index === homeIdx;
       const alive = state.towerAlive[tower.index] ?? false;
-      const satisfiesSurvival = alive || restorationRevive;
+      // Mirror survivesRoundEndLifeCheck: a dead tower already flagged
+      // towerPendingRevive is revived by finalize BEFORE the life check, so
+      // sealing it clears survival this round too — not just RC's revive.
+      // Missing this made the ⚑DEAD tag contradict the ☠ SURVIVAL banner and
+      // seal_survivor's own "already safe" text for the same tower.
+      const satisfiesSurvival =
+        alive || restorationRevive || state.towerPendingRevive.has(tower.index);
       const pocket = pocketRectFor(tower, isHome, bounds);
       // Bonus squares this tower's pocket would bank (only meaningful while the
       // tower isn't yet enclosed — once enclosed, whatever it holds is already
@@ -3954,7 +3960,18 @@ export async function createMcpGame(
     // Hold the FIRST such pass and shout the opportunity cost; a second pass goes
     // through (so a deliberate skip isn't trapped). Only fires when the skip is
     // big enough to have built the cheapest reachable tower.
-    if (startPhase === Phase.WALL_BUILD && !idleBuildPassWarned) {
+    // Bag-locked: the drawn piece has zero legal placement anywhere, and the
+    // bag only advances by placing — so build_out()/build_toward() can place
+    // nothing right now regardless of which tower looks "feasible" on paper
+    // (feasible bakes in an EXPECTED bag-cycling wait, not a guarantee about
+    // THIS piece). HELDing here sent the agent in a dead loop: pass() says
+    // "call build_out first", build_out() places 0 and can't advance the bag,
+    // so the next pass() HELDs again on the same stale target. Skip the guard
+    // entirely while bag-locked; there is nothing to build until the bag turns.
+    const bagLocked = sc.state.players[agentSlot]
+      ? !currentPieceHasAnyPlacement(sc.state.players[agentSlot]!)
+      : false;
+    if (startPhase === Phase.WALL_BUILD && !idleBuildPassWarned && !bagLocked) {
       const skipSec = seconds ?? (count * actionTicks) / SIM_TICKS_PER_SEC;
       // If NO alive tower is enclosed right now, passing doesn't just forfeit
       // territory — it costs a LIFE and resets the whole zone at round end. When
@@ -6081,7 +6098,7 @@ function expectedFor(phase: Phase): string {
     case Phase.WALL_BUILD:
       return "Build to SCORE: every enclosed tile is 1 point (linear) and enclosing a LIVING tower pays a big castle bonus, so seal your home then expand to more towers and bonus squares while time allows — bigger castles win. NEVER idle-pass here: unbanked territory scores 0, so if a full new enclosure won't finish before the timer, PRE-CLAIM it (part-build toward it for a cheaper seal next round). Fastest for the WHOLE phase: build_out() encloses home then every tower that fits the time left, then pre-claims the next tower's ring — one call, spare time never idled (use this by default unless you want a specific tower or to reserve time). build_toward({ towerIdx }) encloses ONE tower (omit towerIdx = home); add { maxSeconds | maxPieces } to stop early and reserve time for a defensive build. seal_survivor() is the one-call rescue when the SURVIVAL line warns you'll lose a life. build_path({ from, to }) lays a straight/L wall line to pre-claim or bridge towers across rounds — anchor both ends on existing wall or it erodes (watch fragileWalls). Or place pieces by hand: place_piece({ row, col, rotation }). Pass ONLY when nothing can be built or pre-claimed — bare pass() only steps ~0.5s, so to skip the whole idle remainder in one call use pass({ seconds: 30 }) (it stops early the moment something actionable changes, so a large value never overshoots).";
     case Phase.CANNON_PLACE:
-      return "Place a cannon at its top-left — call place_cannon({ row, col, mode }). See cannonSuggestions for legal spots you can afford, grouped by mode (no 'super' line = no 3x3 fits). Footprint: normal/balloon 2x2, super 3x3. Watch me.cannonSlots (used/max). End early with end_cannon(), or pass.";
+      return "Place a cannon at its top-left — call place_cannon({ row, col, mode }). See cannonSuggestions for legal spots you can afford, grouped by mode (no 'super' line = no 3x3 fits). Footprint: normal/balloon 2x2, super 3x3. Watch me.cannonSlots (used/max). End early with end_cannon(), or pass. Round 1 only: if you end this phase with zero cannons placed, the engine's new-player safety net (autoPlaceRound1Cannons) auto-fills evenly-spaced normal cannons for you — so a BATTLE observation showing cannons you never placed is expected there, not a bug; place at least one cannon yourself to opt out of it.";
     case Phase.UPGRADE_PICK:
       return "Pick ONE of your three upgrade offers — call pick_upgrade({ cardIdx }) where cardIdx is 0, 1, or 2 (the index into observation.upgradeOffers; each lists id + label + description). The pick applies for the next round only. There's no skip — choose the offer that best fits your board (e.g. second_wind if you have dead towers, clear_the_field if grunts crowd your zone).";
     case Phase.BATTLE:
