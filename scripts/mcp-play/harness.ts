@@ -4373,13 +4373,23 @@ export async function createMcpGame(
     // R12 pack-up that set up a bag-lock was reported as three plain successes).
     const detail =
       redirected > 0 ? ` (${onTarget} on-target, ${redirected} cycled)` : "";
+    // Survival calls disable the cycle-risk brake on purpose (see the comment
+    // above), so `why` never carries the "declutter next battle" advice that a
+    // normal cycle-risk stop gets — the caller has no other signal that this
+    // save just packed the castle. Surface it explicitly here instead (seed-42
+    // 2026-07-22: a long-odds seal_survivor cycled 16 duds to 100% fat and
+    // bag-locked the very next build; the life-save reason gave no hint why).
+    const cycleWarning =
+      opts?.survival && redirected >= 3
+        ? ` — cycled ${redirected} duds to save the life; fat is now higher, declutter next battle`
+        : "";
     bridge.lastResult = {
       // Placing pieces IS progress — only a no-op (placed 0 and not already
       // sealed) is a real REJECT. A budget/time stop mid-plan is an OK partial:
       // the `outcome:` prefix carries whether the goal was reached.
       kind: "build",
       success: placed > 0 || outcome === "done",
-      reason: `${opts?.note ?? ""}${label}: placed ${placed}${detail}, ${remaining} gaps left, ~${elapsed}s${why}`,
+      reason: `${opts?.note ?? ""}${label}: placed ${placed}${detail}, ${remaining} gaps left, ~${elapsed}s${why}${cycleWarning}`,
     };
     return observe();
   }
