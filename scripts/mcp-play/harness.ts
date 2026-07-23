@@ -1279,8 +1279,14 @@ const MAX_PIECE_EXTENT = 3;
 /** `build_toward` stops with this much build time left, so the phase-end sweep
  *  doesn't fire mid-placement and the agent isn't surprised by a phase flip. */
 const MIN_BUILD_LEFT_SEC = 1.5;
-/** Hard cap on placements per `build_toward` call — a runaway-loop backstop. */
-const MAX_BUILD_PIECES = 60;
+/** Hard cap on placements per build call — a runaway-loop backstop ONLY; the
+ *  `MIN_BUILD_LEFT_SEC` time floor ends every real build first. A piece costs
+ *  `BUILD_PIECE_TICKS` (78t = 1.3s), so a 25s classic build fits ~18 pieces
+ *  (~22 for a modern Master-Builder +5s phase). 32 is ~1.5x that ceiling —
+ *  far above any legitimate single call, yet it trips a stuck loop fast (the
+ *  old 60 was ~3x, needlessly slow to fail). Recheck if BUILD_PIECE_TICKS or
+ *  the build-phase length changes. */
+const MAX_BUILD_PIECES = 32;
 /** Consecutive non-progress placements before `build_toward` reports "stuck". */
 const BUILD_STALL_LIMIT = 4;
 /** Consecutive LANDED placements with no new low in tiles-to-seal before
