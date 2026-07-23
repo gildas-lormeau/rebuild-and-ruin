@@ -974,9 +974,11 @@ function supplyShipLines(obs: Observation): string[] {
   return lines;
 }
 
-/** Grunts bearing down on my towers. Lists in FULL only the ones that can reach
- *  a tower this build (EXPOSED or ATTACKING); the many [walled] grunts can't
- *  touch a tower while the ring holds, so they collapse to one summary line. */
+/** Grunts bearing down on my towers. Lists in FULL only the ones on a clear
+ *  path to a tower (EXPOSED or ATTACKING) — grunts advance only during
+ *  WALL_BUILD (frozen in BATTLE), so during battle this is next build's threat,
+ *  killable NOW; the many [walled] grunts can't touch a tower while the ring
+ *  holds, so they collapse to one summary line. */
 function threatLines(obs: Observation): string[] {
   if (!obs.threats || obs.threats.length === 0) return [];
   const urgent = obs.threats.filter(
@@ -986,7 +988,7 @@ function threatLines(obs: Observation): string[] {
     (threat) => threat.towerEnclosed && !threat.attacking,
   );
   const lines: string[] = [
-    "  ⚠ THREATS (grunts that can reach a tower — most urgent first):",
+    "  ⚠ THREATS (grunts on a clear path to a tower — they advance only in WALL_BUILD, FROZEN during BATTLE, so kill them NOW before they close in next build; most urgent first):",
   ];
   // Cap the enumeration: urgent threats are sorted most-urgent-first, so the top
   // few are the actionable ones; a long tail of equally-exposed grunts is noise.
@@ -1008,7 +1010,7 @@ function threatLines(obs: Observation): string[] {
   }
   if (urgent.length > URGENT_CAP) {
     lines.push(
-      `     + ${urgent.length - URGENT_CAP} more grunt(s) that can reach a tower (less urgent — closest shown above)`,
+      `     + ${urgent.length - URGENT_CAP} more grunt(s) on a clear path to a tower (less urgent — closest shown above)`,
     );
   }
   if (walled.length > 0) {
