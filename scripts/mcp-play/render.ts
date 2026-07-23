@@ -938,7 +938,7 @@ function declutterLines(obs: Observation): string[] {
   const clearable = obs.fatClearable ?? 0;
   if (clearable < 4) return [];
   return [
-    `  ♻ DECLUTTER AVAILABLE: ${clearable} of your redundant inner (fat) walls are cannonball-reachable — declutter() shoots them out (enclosure-safe, scores 0) to reopen a build pocket. Do it NOW if your castle is packing toward single-tile seams: walls are only removable in BATTLE, but a bag-lock bites next build. Otherwise bombard/cull.`,
+    `  ♻ DECLUTTER AVAILABLE: ${clearable} of your redundant inner (fat) walls are cannonball-reachable — declutter() shoots them out (scores 0) to reopen a build pocket. Its OWN shots only hit non-load-bearing fat, so they never de-enclose you; BUT like any battle action it ties up the window and still absorbs incidental enemy fire, which CAN breach your OUTER ring — check lastResult and reseal first next build if so. Do it NOW if your castle is packing toward single-tile seams: walls are only removable in BATTLE, but a bag-lock bites next build. Otherwise bombard/cull.`,
   ];
 }
 
