@@ -1076,7 +1076,14 @@ export interface McpGame {
    *  around it via the min-cut even when the whole outer ring is too big to close
    *  in time. No coordinates, no tower pick. When no survival-clearing tower is
    *  reachable this build it does nothing and says why (the life is unavoidable).
-   *  The zero-jargon front door for the ☠ SURVIVAL warning. Honours `budget`. */
+   *  The zero-jargon front door for the ☠ SURVIVAL warning. Honours `budget`.
+   *  Each call is chunked to ~`SEAL_SURVIVOR_CYCLE_CAP_SEC`s and auto-pauses: a
+   *  LONG-ODDS seal (walls fit but the small-piece bag-wait doesn't) would else
+   *  dud-cycle the WHOLE build blind, packing fat toward a later bag-lock — so it
+   *  stops after the chunk with the fat/pocket shown and you re-decide: call
+   *  again to keep gambling, declutter, or pass to accept the loss. Re-calling is
+   *  cheap (frozen clock; pieces still cost the same), so chunking costs no
+   *  fairness — it just keeps you in the loop instead of burning the phase. */
   sealSurvivor(budget?: BuildBudget): Observation;
   /** WALL_BUILD: enclose EVERYTHING reachable in one call — the greedy form of
    *  `build`. Seals your home, then keeps enclosing the next best feasible tower
@@ -1293,6 +1300,21 @@ const BUILD_DIVERGE_LIMIT = 8;
  *  bag-cycling so Fix-1's small-piece wait isn't cut short. */
 const BUILD_AUTOCAP_FACTOR = 1.5;
 const BUILD_AUTOCAP_BUFFER_SEC = 8;
+/** Per-CALL time cap (seconds) for a survival seal (`seal_survivor` → the
+ *  `survival` path of `build_toward`). A LONG-ODDS survival seal is defined by
+ *  its expected small-piece bag-wait EXCEEDING the time left, so the normal
+ *  auto-cap (`estSeconds × factor + buffer`) collapses to "the whole rest of
+ *  the build" — one call then dud-cycles the entire phase blind, silently
+ *  packing fat until it seals or the clock dies. That's a bad trade for the
+ *  agent: it's a gamble worth RE-DECIDING between chunks (the packed fat can
+ *  bag-lock a later build), and re-invoking is nearly free — you're about to
+ *  lose a life either way. So cap each survival call at this many seconds and
+ *  auto-pause: the agent re-observes the climbing fat / shrinking pocket and
+ *  chooses to call again (keep gambling), declutter, or accept the loss.
+ *  Chunking changes NOTHING about fairness — pieces still cost
+ *  `BUILD_PIECE_TICKS` each, so total build-time and piece-count to seal are
+ *  identical; only the re-decision cadence changes. */
+const SEAL_SURVIVOR_CYCLE_CAP_SEC = 5;
 /** A one-cell "piece" — probes a single tile's buildability via `canPlacePiece`
  *  for the buildable-island walk behind `needs-small-piece`/`unfillable`. */
 const SINGLE_CELL: readonly [number, number][] = [[0, 0]];
@@ -4206,14 +4228,25 @@ export async function createMcpGame(
   function autoBuildCapSec(
     goalIdx: number | undefined,
     startTimer: number,
+    survival: boolean,
   ): number | undefined {
     const initial = enclosureCandidatesFor().find(
       (cand) => cand.towerIdx === goalIdx,
     );
-    if (!initial || initial.estSeconds <= 0) return undefined;
+    // A survival seal is ALWAYS chunk-capped (even with no estimate — the
+    // long-odds case, whose tower may not be a live `enclosable` candidate — so
+    // it can't dud-cycle the whole build blind). A non-survival goal with no
+    // estimate stays uncapped (already enclosed/unenclosable — nothing to bound).
+    if (!initial || initial.estSeconds <= 0) {
+      return survival
+        ? Math.min(startTimer, SEAL_SURVIVOR_CYCLE_CAP_SEC)
+        : undefined;
+    }
+    const base =
+      initial.estSeconds * BUILD_AUTOCAP_FACTOR + BUILD_AUTOCAP_BUFFER_SEC;
     return Math.min(
       startTimer,
-      initial.estSeconds * BUILD_AUTOCAP_FACTOR + BUILD_AUTOCAP_BUFFER_SEC,
+      survival ? Math.min(base, SEAL_SURVIVOR_CYCLE_CAP_SEC) : base,
     );
   }
 
@@ -4449,7 +4482,7 @@ export async function createMcpGame(
     // progress on a thrash instead of losing the phase — see autoBuildCapSec).
     const autoCapSec =
       budget?.maxSeconds === undefined
-        ? autoBuildCapSec(goalIdx, startTimer)
+        ? autoBuildCapSec(goalIdx, startTimer, opts?.survival ?? false)
         : undefined;
     const effectiveBudget =
       autoCapSec !== undefined ? { ...budget, maxSeconds: autoCapSec } : budget;
@@ -4467,12 +4500,29 @@ export async function createMcpGame(
     );
     const remaining = finalCandidate?.tilesNeeded ?? 0;
     const elapsed = Math.round((startTimer - sc.state.timer) * 10) / 10;
+    // If the goal actually enclosed, the seal is DONE regardless of a time-cap
+    // stop landing on the same iteration — otherwise a seal that completes right
+    // at the ~5s survival chunk boundary mislabels as "auto-paused" and tells the
+    // agent to "keep gambling" a life it already saved.
+    const goalEnclosed =
+      goalIdx !== undefined &&
+      (sc.state.players[agentSlot]?.enclosedTowers.some(
+        (tower) => tower.index === goalIdx,
+      ) ??
+        false);
+    const effectiveOutcome = goalEnclosed ? "done" : outcome;
     // A "sec-budget" stop is the DEFAULT self-cap (not a caller budget) whenever
     // we injected autoCapSec — relabel it so the agent reads it as a pause, not
     // a jam, and knows to call again to continue.
-    const autoPaused = outcome === "sec-budget" && autoCapSec !== undefined;
-    const label = autoPaused ? "auto-paused" : outcome;
-    const why = buildTowardWhy(outcome, autoPaused, finalCandidate);
+    const autoPaused =
+      effectiveOutcome === "sec-budget" && autoCapSec !== undefined;
+    const label = autoPaused ? "auto-paused" : effectiveOutcome;
+    const why = buildTowardWhy(
+      effectiveOutcome,
+      autoPaused,
+      finalCandidate,
+      opts?.survival ?? false,
+    );
     // Dud-cycling is NOT progress — split the count so "placed 9" can't read as
     // 9 steps toward the seal when 9 were redirects burning the bag (the seed-42
     // R12 pack-up that set up a bag-lock was reported as three plain successes).
@@ -4493,7 +4543,7 @@ export async function createMcpGame(
       // sealed) is a real REJECT. A budget/time stop mid-plan is an OK partial:
       // the `outcome:` prefix carries whether the goal was reached.
       kind: "build",
-      success: placed > 0 || outcome === "done",
+      success: placed > 0 || effectiveOutcome === "done",
       reason: `${opts?.note ?? ""}${label}: placed ${placed}${detail}, ${remaining} gaps left, ~${elapsed}s${why}${cycleWarning}`,
     };
     return observe();
@@ -4508,6 +4558,7 @@ export async function createMcpGame(
     outcome: string,
     autoPaused: boolean,
     finalCandidate: EnclosureCandidate | undefined,
+    survival: boolean,
   ): string {
     if (outcome === "diverging") {
       return " — ring keeps expanding instead of closing (an obstacle, usually a grunt on the cheap seal tile, is forcing a longer detour); clear it, target a tighter tower, or place by hand";
@@ -4522,7 +4573,9 @@ export async function createMcpGame(
       );
     }
     if (autoPaused) {
-      return " — hit the default time cap so one enclosure doesn't eat the whole phase; call build_toward again to continue (it cycles the bag for any small-piece gap), or pass maxSeconds to override";
+      return survival
+        ? ` — paused after the ~${SEAL_SURVIVOR_CYCLE_CAP_SEC}s survival chunk (a long-odds seal cycles the bag for a lucky small piece and packs fat as it goes): call seal_survivor again to keep gambling, declutter to reopen the pocket, or pass to accept the life loss — re-decide with the fat/pocket now shown`
+        : " — hit the default time cap so one enclosure doesn't eat the whole phase; call build_toward again to continue (it cycles the bag for any small-piece gap), or pass maxSeconds to override";
     }
     return "";
   }
