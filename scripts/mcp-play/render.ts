@@ -161,7 +161,7 @@ export function renderObservation(
   // ── build headroom: free land + open-pocket gauge (the cannon-count signal) ──
   lines.push(...headroomLines(obs));
 
-  // ── firepower: honest live-gun comparison (return fire scales with theirs) ──
+  // ── firepower: honest live-gun comparison (enemy fire scales with theirs) ──
   lines.push(...firepowerLines(obs));
 
   // ── BATTLE aim-assist: opponents + their towers as breach targets ───────────
@@ -528,8 +528,9 @@ function headroomLines(obs: Observation): string[] {
  *  (CANNON_PLACE + BATTLE, where the number drives a decision). The roster's
  *  raw `cannons` count includes dead debris and balloons, so it flatters
  *  everyone; this is the honest battle-throughput comparison. When the agent is
- *  clearly outgunned the line says what that MEANS — enemy return fire during
- *  its own bombard/cull/declutter outnumbers what it dishes out — because a
+ *  clearly outgunned the line says what that MEANS — the enemy guns firing
+ *  throughout the battle window (regardless of whether the agent attacks)
+ *  outnumber what it dishes out — because a
  *  bare ratio was too easy to read past (the balloon-habit lesson: numbers
  *  beat prose, but numbers + consequence beat numbers). */
 function firepowerLines(obs: Observation): string[] {
@@ -542,7 +543,7 @@ function firepowerLines(obs: Observation): string[] {
   const maxRival = Math.max(...rivals.map((entry) => entry.guns));
   const tail =
     maxRival >= mine.guns * 2 && maxRival - mine.guns >= 3
-      ? " — OUTGUNNED: their return fire during your bombard/cull/declutter outnumbers what you fire, and the gap compounds (their guns persist). Favor defensive spends (cull/declutter) over trading bombards until your battery recovers."
+      ? " — OUTGUNNED: their guns keep firing at you throughout the battle window (whether or not you attack), and with more guns they destroy more of your walls than you do of theirs; the gap compounds (their guns persist). Favor defensive spends (cull/declutter) over trading bombards until your battery recovers."
       : maxRival > mine.guns
         ? " — they out-fire you in a trade; weigh bombards accordingly."
         : "";
@@ -662,7 +663,7 @@ function batteryStatusLines(obs: Observation, once: Once): string[] {
   const attrition = me.attrition;
   if (attrition) {
     lines.push(
-      `  ☠ ATTRITION: ${attrition.deadGuns} dead gun${attrition.deadGuns === 1 ? "" : "s"} = permanent debris over ${attrition.debrisTiles} interior tiles (blocks rebuilding there + shrinks your open pocket; only a zone reset clears it). If this count keeps climbing, return fire is eating your battery — trade fewer bombards.`,
+      `  ☠ ATTRITION: ${attrition.deadGuns} dead gun${attrition.deadGuns === 1 ? "" : "s"} = permanent debris over ${attrition.debrisTiles} interior tiles (blocks rebuilding there + shrinks your open pocket; only a zone reset clears it). If this count keeps climbing, enemy fire is eating your battery — trade fewer bombards.`,
     );
   }
   const captured = me.capturedCannons ?? [];

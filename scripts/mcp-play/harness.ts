@@ -781,7 +781,7 @@ export interface Observation {
      *  permanently blocks (only a zone reset clears debris). A dead gun is worse
      *  than an idle slot — the wreck counts against `headroom.openPocket` and
      *  blocks rebuilding on those tiles forever. Omitted while nothing is dead.
-     *  A climbing count across rounds means enemy return fire is eating your
+     *  A climbing count across rounds means enemy fire is eating your
      *  battery faster than you can rebuild it — factor that into how often you
      *  trade bombards. */
     attrition?: { deadGuns: number; debrisTiles: number };
@@ -834,7 +834,7 @@ export interface Observation {
    *  cannons that are alive, direct-fire (normal/super), AND enclosed (inert
    *  breached guns don't shoot). The roster's raw `cannons` count includes dead
    *  debris and balloons, so it overstates everyone; this is the honest
-   *  firepower comparison. Return fire during YOUR bombard/cull/declutter comes
+   *  firepower comparison. Enemy fire during YOUR bombard/cull/declutter comes
    *  from these guns — a 3:1 deficit means every trade costs you ~3× what it
    *  costs them, and the gap COMPOUNDS because their guns persist rounds. */
   firepower?: { name: string; isMe: boolean; guns: number }[];
@@ -3208,8 +3208,11 @@ export async function createMcpGame(
     return "your pit gun can't fire this battle";
   }
 
-  /** What happened to ME this battle — the return-fire I take while a one-call
-   *  bombard/breach runs (and can't react to). Walls lost AND WHERE they fell
+  /** What happened to ME this battle — the enemy fire I absorb while a one-call
+   *  bombard/breach runs (and can't react to). NOTE: this is NOT retaliation for
+   *  my action — opponents fire on their own targets every battle regardless of
+   *  whether (or whom) I attack; my one-call action just ties up the window so I
+   *  eat the incoming fire without responding. Walls lost AND WHERE they fell
    *  (a few sample tiles nearest my home, so I see which face was hit, not just a
    *  count), plus whether my own ring was breached (cannons going inert is the
    *  live tell — enclosedTowers only recomputes next build). Appended to the
@@ -3223,7 +3226,7 @@ export async function createMcpGame(
   ): string {
     const me = sc.state.players[agentSlot];
     // `selfCleared` = walls I intentionally shot out myself (declutter) — exclude
-    // them so the report counts only INCIDENTAL return-fire, not my own work.
+    // them so the report counts only INCIDENTAL enemy fire, not my own work.
     const lost = [...wallsBefore]
       .filter(
         (key) =>
@@ -3253,7 +3256,7 @@ export async function createMcpGame(
         .join(",");
       const more = lost.length > 4 ? "…" : "";
       parts.push(
-        `you lost ${lost.length} walls to enemy return fire near ${sample}${more}`,
+        `you lost ${lost.length} walls to enemy fire near ${sample}${more}`,
       );
     }
     if (inertNow > inertBefore) {
@@ -5343,7 +5346,7 @@ export async function createMcpGame(
       success: fired > 0,
       // pointsGained is MY attributed score; the target wall delta is its total
       // loss in the window (other players may have hit it too); the self-report
-      // is the return fire I took while this ran.
+      // is the enemy fire I took while this ran.
       reason: `${
         mode === "choke" ? "choke-bombard" : "bombard"
       }: fired ${fired}, +${pointsGained} pts (target lost ${wallsDestroyed} walls)${battleSelfReport(
@@ -5683,8 +5686,8 @@ export async function createMcpGame(
       }
     }
     // "Freed interior" = the fat tiles I myself shot out, NOT the gross wall
-    // delta (which would fold in incidental return-fire on my outer ring — that
-    // opens the ring, it doesn't free a build pocket). Return-fire is reported
+    // delta (which would fold in incidental enemy fire on my outer ring — that
+    // opens the ring, it doesn't free a build pocket). Enemy fire is reported
     // separately by battleSelfReport.
     const nowWalls = sc.state.players[agentSlot]?.walls;
     let cleared = 0;
@@ -5719,7 +5722,7 @@ export async function createMcpGame(
    *  reseal) or breach (opens ONE ring). Best spent from overwhelming firepower;
    *  live-gated and reload-paced exactly like bombard (no clock exploit). Does
    *  nothing if no opponent is large enough (bombard/breach a smaller target
-   *  instead). Read lastResult for holes punched + return fire. */
+   *  instead). Read lastResult for holes punched + enemy fire. */
   function finishItSpray(quanta?: number): Observation {
     if (sc.state.phase !== Phase.BATTLE) {
       bridge.lastResult = {
@@ -6031,7 +6034,7 @@ export async function createMcpGame(
       (sc.state.players[agentSlot]?.score ?? 0) - scoreBefore;
     // enclosedTowers only recomputes at their next build, so de-enclosure shows
     // up THEN, not mid-battle — report the ring damage, which is what carries.
-    // battleSelfReport is the return fire I took while this volley ran.
+    // battleSelfReport is the enemy fire I took while this volley ran.
     const aim = usedMinCut
       ? "min-cut"
       : "radius fallback (no min-cut breachable)";
