@@ -90,6 +90,7 @@ interface Journal {
       }
     | { t: "cull"; quanta?: number }
     | { t: "declutter"; quanta?: number }
+    | { t: "finish_it"; quanta?: number }
   )[];
 }
 
@@ -746,6 +747,25 @@ const TOOLS: ToolDef[] = [
       ),
   },
   {
+    name: "finish_it",
+    description:
+      "BATTLE (offensive finisher): the 'finish it' attack — spray single holes SPACED all the way AROUND the outer wall of the messiest LARGE opponent castle. Where bombard just spreads damage they reseal and breach opens ONE ring, this maximises the NUMBER of SEPARATE holes the victim must refill next build — every hole is its own piece placement + cursor trip, a demoralising repair tax (and in modern, the volume feeds wall-demolition COMBOS). It auto-targets the biggest, most over-built ('fat') enemy — the sprawling castle where the gain is largest — and needs no coordinates. Best spent when you have OVERWHELMING firepower (lots of cannons): the more guns, the more of the ring you punch in the battle window. Does nothing if no opponent is both large (interior ≥130) and messy (≥60 redundant inner walls) — bombard/breach a normal target instead. Same live-gated, reload-paced fairness as bombard (no clock exploit). Read lastResult for holes punched + which slot + return fire.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        quanta: {
+          type: "number",
+          description:
+            "Cap on action-quanta to spend. Omit to sweep the whole spaced ring, then hand the rest of the battle back (bombard it).",
+        },
+      },
+    },
+    handler: (args) =>
+      recordFinishIt(
+        args.quanta === undefined ? undefined : num(args, "quanta"),
+      ),
+  },
+  {
     name: "enclosure_plan",
     description:
       "WALL_BUILD: the FULL min-cut plan (all tiles) to enclose one tower in your zone — the un-sampled form of an enclosureCandidates entry. Call after picking a candidate to get the complete tile list to fill.",
@@ -826,6 +846,7 @@ const TOOLS: ToolDef[] = [
           game.pitStrike(move.slot, move.targets);
         } else if (move.t === "cull") game.cull(move.quanta);
         else if (move.t === "declutter") game.declutter(move.quanta);
+        else if (move.t === "finish_it") game.finishIt(move.quanta);
         else game.bombard(move.slot, move.quanta, move.mode);
       }
       journal = loaded;
@@ -1044,6 +1065,13 @@ function recordCull(quanta?: number): unknown {
 function recordDeclutter(quanta?: number): unknown {
   const observation = requireGame().declutter(quanta);
   journal?.moves.push({ t: "declutter", quanta });
+  return observation;
+}
+
+/** Run the finish-it spray executor AND journal it (replay re-derives the volley). */
+function recordFinishIt(quanta?: number): unknown {
+  const observation = requireGame().finishIt(quanta);
+  journal?.moves.push({ t: "finish_it", quanta });
   return observation;
 }
 

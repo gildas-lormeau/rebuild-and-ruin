@@ -39,6 +39,11 @@ export type FireOrigin =
   // it's a distinct origin only so battle-metrics can separate super-gun
   // attacks from normal-cannon wall demolition. Set via BattlePlan.originTag.
   | "super_attack"
+  // finish_it shares CHAIN.WALL's behaviour (enemy-wall chain fire) but sprays
+  // single holes spaced AROUND the outer shell of a large messy castle from
+  // overwhelming firepower — a demoralising repair tax, not a breach. Distinct
+  // origin so metrics can isolate the perimeter spray. Set via originTag.
+  | "finish_it"
   | "grunt_sweep"
   // charity shares CHAIN.GRUNT's behavior with grunt_sweep; distinct origin
   // only so metrics can flag enemy-zone "charity" sweeps (which help the

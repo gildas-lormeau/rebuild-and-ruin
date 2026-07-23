@@ -894,6 +894,7 @@
       "src/ai/ai-plan-declutter.ts",
       "src/ai/ai-plan-deny-enclosure.ts",
       "src/ai/ai-plan-fat-breach.ts",
+      "src/ai/ai-plan-finish-it.ts",
       "src/ai/ai-plan-pinch-kill.ts",
       "src/ai/ai-plan-pocket-destruction.ts",
       "src/ai/ai-plan-structural-hit.ts",

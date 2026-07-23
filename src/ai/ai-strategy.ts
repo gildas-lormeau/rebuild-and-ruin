@@ -37,6 +37,7 @@ import {
   planDenyEnclosure,
 } from "./ai-plan-deny-enclosure.ts";
 import { planFatBreach } from "./ai-plan-fat-breach.ts";
+import { planFinishIt } from "./ai-plan-finish-it.ts";
 import { planGruntBreach } from "./ai-plan-grunt-breach.ts";
 import { planGruntSweep } from "./ai-plan-grunt-sweep.ts";
 import { planIceTrench } from "./ai-plan-ice-trench.ts";
@@ -102,6 +103,18 @@ const FAT_BREACH_PROBABILITY = 1 / 4;
  *  the battle's tail. Scales with battleTactics; a miss is permanent for the
  *  battle (the per-shot loop never re-enters chains). */
 const SUSTAINED_PRESSURE_PROBABILITY = 1 / 2;
+/** Minimum usable cannons to launch a "finish it" perimeter spray. Well above
+ *  the general chain gate: the spray is a finishing move spent from a dominant
+ *  battery, not a staple. (Started at 17 = top ~7.3% of measured battle-states;
+ *  lowered to 14 to surface the move more often — the cannon gate is the single
+ *  biggest frequency lever, far more than the messy-wall threshold.) */
+const FINISH_IT_MIN_CANNONS = 14;
+/** Per-tier chance to spray a large messy castle's outer wall (weak tier 0 —
+ *  the gate skips the draw so that tier's rng stream is unperturbed, mirroring
+ *  fat_breach / sustained_pressure). Kept high where enabled: the >=14-cannon +
+ *  large-messy-target precondition is already rare, so a low probability would
+ *  make it near-dead. Scales with battleTactics. */
+const FINISH_IT_PROBABILITY: readonly [number, number, number] = [0, 0.6, 0.9];
 /** Chance to launch a min-cut enclosure-denial siege — the top-priority
  *  offensive tactic, since enclosure denial (not tower kills) is how defensive
  *  players actually lose lives. Scales with battleTactics. */
@@ -404,6 +417,33 @@ export class DefaultStrategy implements AiStrategy {
       }
     }
 
+    // Finish it — the perimeter spray, and the signature move of a dominant
+    // player. From a dominant battery (>=14 usable cannons — ramparts /
+    // balloons don't count, they can't fire) against a large messy castle,
+    // punch single holes spaced AROUND the outer wall: a demoralising repair
+    // tax (every hole a separate refill) plus modern demolition combos. Placed
+    // ABOVE pinch (but below defence: ice_trench / grunt_sweep still come
+    // first) so the dominant player LEADS with the spray, then kills / grinds.
+    // It must sit above pinch: pinch is re-selectable and fires most chains of
+    // a dominant battle, so any lower rung starves the spray (measured: ~1
+    // spray / 24 games below pinch vs ~2.6% of shots here). Once per battle via
+    // the exclusion set (the shell doesn't regenerate mid-battle), so it only
+    // costs pinch ONE chain — pinch reclaims the rest and its share is unchanged.
+    if (!chainTargets) {
+      const finishItTargets = this.rollFinishIt(
+        state,
+        playerId,
+        usableCannonCount,
+        excludedTactics,
+      );
+      if (finishItTargets) {
+        chainTargets = finishItTargets;
+        chainType = CHAIN.WALL;
+        originTag = "finish_it";
+        tacticId = TACTIC.FINISH_IT;
+      }
+    }
+
     // Pinch kill — top offensive priority (no min-cannon gate): a min-cut breach
     // whose reseal we've verified lands in a buildable island too small for a
     // tetromino, so the defender can only re-enclose the opened tower with a rare
@@ -558,29 +598,14 @@ export class DefaultStrategy implements AiStrategy {
     // enclosure, through a fat ring of ANY thickness. Tried after the surgical
     // structural hit (which handles cheap 1–2 tile breaches) for thick walls a
     // single hit can't cut through. Shares CHAIN.STRUCTURAL behavior; distinct
-    // only via the fat_breach origin tag for metrics. The maxAttempts guard
-    // (0 at the weak tier) skips the rng roll entirely so the RNG stream is
-    // unperturbed for weak AI, mirroring structuralMaxHits.
-    const fatBreachProb = traitLookup(this.battleTactics, [
-      0,
-      FAT_BREACH_PROBABILITY,
-      1 / 2,
-    ]);
-    const fatBreachMaxAttempts = traitLookup(this.battleTactics, [0, 1, 1]);
-    if (
-      !chainTargets &&
-      fatBreachMaxAttempts > 0 &&
-      usableCannonCount >= FAT_BREACH_MIN_CANNONS &&
-      !excludedTactics.has(TACTIC.FAT_BREACH) &&
-      this.rng.bool(fatBreachProb)
-    ) {
-      const fatTargets = planFatBreach(
+    // only via the fat_breach origin tag for metrics.
+    if (!chainTargets) {
+      const fatTargets = this.rollFatBreach(
         state,
         playerId,
         usableCannonCount,
-        this.rng,
+        excludedTactics,
         cursor,
-        this.battleVictimId,
       );
       if (fatTargets) {
         chainTargets = fatTargets;
@@ -605,20 +630,13 @@ export class DefaultStrategy implements AiStrategy {
     }
 
     // Wall demolition — controlled by battleTactics
-    const demolitionProb = traitLookup(this.battleTactics, [
-      0,
-      WALL_DEMOLITION_PROBABILITY,
-      1 / 2,
-    ]);
-    if (
-      !chainTargets &&
-      usableCannonCount >= CHAIN_ATTACK_MIN_CANNONS &&
-      !excludedTactics.has(TACTIC.WALL_DEMOLITION) &&
-      this.rng.bool(demolitionProb)
-    ) {
-      const demolitionTargets =
-        planWallDemolition(state, playerId, usableCannonCount, this.rng) ??
-        undefined;
+    if (!chainTargets) {
+      const demolitionTargets = this.rollWallDemolition(
+        state,
+        playerId,
+        usableCannonCount,
+        excludedTactics,
+      );
       if (demolitionTargets) {
         chainTargets = demolitionTargets;
         chainType = CHAIN.WALL;
@@ -627,20 +645,13 @@ export class DefaultStrategy implements AiStrategy {
     }
 
     // Super attack — controlled by battleTactics
-    const superAtkProb = traitLookup(this.battleTactics, [
-      0,
-      SUPER_ATTACK_PROBABILITY,
-      1 / 4,
-    ]);
-    if (
-      !chainTargets &&
-      usableCannonCount >= CHAIN_ATTACK_MIN_CANNONS &&
-      !excludedTactics.has(TACTIC.SUPER_ATTACK) &&
-      this.rng.bool(superAtkProb)
-    ) {
-      const superTargets =
-        planSuperAttack(state, playerId, usableCannonCount, this.rng) ??
-        undefined;
+    if (!chainTargets) {
+      const superTargets = this.rollSuperAttack(
+        state,
+        playerId,
+        usableCannonCount,
+        excludedTactics,
+      );
       if (superTargets) {
         chainTargets = superTargets;
         chainType = CHAIN.WALL;
@@ -803,6 +814,106 @@ export class DefaultStrategy implements AiStrategy {
       cursor,
       this.battleVictimId,
     );
+  }
+
+  /** Fat-breach gate: trait-scaled max-attempts + probability roll, cannon
+   *  threshold and once-per-battle exclusion, then the min-cut breach plan. The
+   *  maxAttempts > 0 check runs before the rng draw so the weak tier's stream
+   *  is unperturbed (mirrors structuralMaxHits). */
+  private rollFatBreach(
+    state: BattleViewState,
+    playerId: ValidPlayerId,
+    usableCannonCount: number,
+    excludedTactics: ReadonlySet<TacticId>,
+    cursor: TilePos,
+  ): TilePos[] | null {
+    const maxAttempts = traitLookup(this.battleTactics, [0, 1, 1]);
+    if (maxAttempts <= 0) return null;
+    if (usableCannonCount < FAT_BREACH_MIN_CANNONS) return null;
+    if (excludedTactics.has(TACTIC.FAT_BREACH)) return null;
+    const prob = traitLookup(this.battleTactics, [
+      0,
+      FAT_BREACH_PROBABILITY,
+      1 / 2,
+    ]);
+    if (!this.rng.bool(prob)) return null;
+    return planFatBreach(
+      state,
+      playerId,
+      usableCannonCount,
+      this.rng,
+      cursor,
+      this.battleVictimId,
+    );
+  }
+
+  /** Wall-demolition gate: cannon threshold and once-per-battle exclusion, then
+   *  the trait-scaled roll. Behaviour-preserving extraction of the former inline
+   *  block: the roll is drawn whenever the cannon + exclusion gates pass (weak
+   *  tier draws `bool(0)` too, matching the original compound condition), so the
+   *  rng stream is unchanged. Same parity argument as the other gates. */
+  private rollWallDemolition(
+    state: BattleViewState,
+    playerId: ValidPlayerId,
+    usableCannonCount: number,
+    excludedTactics: ReadonlySet<TacticId>,
+  ): TilePos[] | null {
+    if (usableCannonCount < CHAIN_ATTACK_MIN_CANNONS) return null;
+    if (excludedTactics.has(TACTIC.WALL_DEMOLITION)) return null;
+    const prob = traitLookup(this.battleTactics, [
+      0,
+      WALL_DEMOLITION_PROBABILITY,
+      1 / 2,
+    ]);
+    if (!this.rng.bool(prob)) return null;
+    return (
+      planWallDemolition(state, playerId, usableCannonCount, this.rng) ?? null
+    );
+  }
+
+  /** Super-attack gate: cannon threshold and once-per-battle exclusion, then
+   *  the trait-scaled roll, then the super-gun demolition plan. Behaviour-
+   *  preserving extraction of the former inline block: the roll is drawn
+   *  whenever the cannon + exclusion gates pass (weak tier draws `bool(0)` too,
+   *  matching the original compound condition), so the rng stream is unchanged.
+   *  Same parity argument as the other gates. */
+  private rollSuperAttack(
+    state: BattleViewState,
+    playerId: ValidPlayerId,
+    usableCannonCount: number,
+    excludedTactics: ReadonlySet<TacticId>,
+  ): TilePos[] | null {
+    if (usableCannonCount < CHAIN_ATTACK_MIN_CANNONS) return null;
+    if (excludedTactics.has(TACTIC.SUPER_ATTACK)) return null;
+    const prob = traitLookup(this.battleTactics, [
+      0,
+      SUPER_ATTACK_PROBABILITY,
+      1 / 4,
+    ]);
+    if (!this.rng.bool(prob)) return null;
+    return (
+      planSuperAttack(state, playerId, usableCannonCount, this.rng) ?? null
+    );
+  }
+
+  /** Finish-it gate: the dominant-firepower threshold (>=14 cannons) and the
+   *  once-per-battle exclusion, then the trait-scaled roll (0 at the weak tier —
+   *  the gate skips the draw so that tier's rng stream is unperturbed, mirroring
+   *  fat_breach), then the perimeter-spray plan (which itself returns null unless
+   *  an enemy is large AND messy). Same parity argument as the other gates —
+   *  every condition reads only synced sim state. */
+  private rollFinishIt(
+    state: BattleViewState,
+    playerId: ValidPlayerId,
+    usableCannonCount: number,
+    excludedTactics: ReadonlySet<TacticId>,
+  ): TilePos[] | null {
+    if (usableCannonCount < FINISH_IT_MIN_CANNONS) return null;
+    if (excludedTactics.has(TACTIC.FINISH_IT)) return null;
+    const prob = traitLookup(this.battleTactics, FINISH_IT_PROBABILITY);
+    if (prob <= 0) return null;
+    if (!this.rng.bool(prob)) return null;
+    return planFinishIt(state, playerId);
   }
 
   /** Rubble-siege gate: cannon threshold then the trait-scaled roll. Same

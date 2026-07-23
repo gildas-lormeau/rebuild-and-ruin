@@ -80,6 +80,9 @@ const WIRE_DELAY_FRAMES = 5;
 // Re-probed after the blocked-cut rescue (footprint-tight retry when a
 // grunt parks on the sole cut tile): classic 3-r8 and modern 11-r8 stopped
 // eliminating → classic 1-r8, modern 14-r8 (classic 5-r8 survived).
+// Re-probed after the finish_it perimeter-spray tactic (its per-player
+// rng.bool shifts the battle stream, changing which towers die): modern
+// 14-r8 stopped eliminating → modern 16-r8 (classic 1-r8 and 5-r8 survived).
 const TRIALS: {
   readonly seed: number;
   readonly mode: "classic" | "modern";
@@ -87,7 +90,7 @@ const TRIALS: {
 }[] = [
   { seed: 1, mode: "classic", rounds: 8 },
   { seed: 5, mode: "classic", rounds: 8 },
-  { seed: 14, mode: "modern", rounds: 8 },
+  { seed: 16, mode: "modern", rounds: 8 },
 ];
 
 void _forceScenarioFirst;

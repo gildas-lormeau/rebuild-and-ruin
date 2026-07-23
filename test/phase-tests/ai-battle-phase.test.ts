@@ -10,16 +10,24 @@ import seed977796GruntBreach from "./fixtures/battle/seed977796-grunt-breach.jso
 };
 import { planDenyEnclosure } from "../../src/ai/ai-plan-deny-enclosure.ts";
 import {
+  FINISH_IT_MIN_FAT_WALLS,
+  FINISH_IT_MIN_INTERIOR,
+  FINISH_IT_MIN_SPACING,
+  planFinishIt,
+} from "../../src/ai/ai-plan-finish-it.ts";
+import {
   GRUNT_BREACH_MAX_WALK,
   planGruntBreach,
 } from "../../src/ai/ai-plan-grunt-breach.ts";
 import {
   componentHoldsTower,
+  computeLiveInterior,
   countBrokenEnclosures,
   countUsableCannons,
   DESTROY_POCKET_MAX_SIZE,
   findEnclosureComponents,
   isEnclosureBroken,
+  isFatWallTile,
 } from "../../src/ai/ai-strategy-battle.ts";
 import { getBattleInterior } from "../../src/shared/sim/board-occupancy.ts";
 import { GAME_EVENT } from "../../src/shared/core/game-event-bus.ts";
@@ -32,8 +40,12 @@ import {
 import { isActivePlayer } from "../../src/shared/core/player-slot.ts";
 import {
   computeOutside,
+  DIRS_4,
   forEachTowerTile,
+  inBounds,
+  manhattanDistance,
   packTile,
+  unpackTile,
   zoneAt,
 } from "../../src/shared/core/spatial.ts";
 import { Rng } from "../../src/shared/platform/rng.ts";
@@ -288,6 +300,103 @@ Deno.test(
       minGruntDist <= GRUNT_BREACH_MAX_WALK,
       `breach is ${minGruntDist} tiles from the nearest grunt (max ` +
         `${GRUNT_BREACH_MAX_WALK}) — the corridor opens where no grunt will march`,
+    );
+  },
+);
+
+Deno.test(
+  "phase-test: finish_it sprays spaced holes around the outer wall of a large messy castle (seed 977796 r43)",
+  async () => {
+    // `planFinishIt` is the dominant-player perimeter spray: against a LARGE and
+    // MESSY castle it punches single holes SPACED AROUND the exposed outer wall
+    // — a demoralising repair tax (every hole a separate refill), not a breach.
+    // This fixture (the deny-enclosure fat-ring checkpoint) presents two big
+    // over-built castles; RED attacks BLUE's. The >=14-cannon firing gate lives
+    // in `rollFinishIt`; the planner itself is pure TARGET geometry (no rng), so
+    // one call IS the spec.
+    //
+    // Invariants: the spray must (a) hit only the target's live OUTER-shell
+    // walls (never inner walls or another player), (b) keep every hole
+    // separated (>= FINISH_IT_MIN_SPACING between consecutive holes, so each is
+    // its own refill), and (c) reach around the castle (holes on >=3 of the 4
+    // sides about the centroid), or it isn't a perimeter spray.
+    const sc = await createPhaseScenario(
+      seed977796DenyFatWall as unknown as FixtureFile,
+    );
+    assertEquals(sc.state.round, 43);
+    assertEquals(sc.state.phase, Phase.BATTLE);
+    const state = sc.state;
+    const red = state.players[0]!;
+    const blue = state.players[1]!;
+    assert(isActivePlayer(red.id) && isActivePlayer(blue.id));
+
+    // Non-vacuous: BLUE (RED's messiest enemy here) must actually be large AND
+    // messy, or the spray fires for the wrong reason / not at all.
+    const blueInterior = computeLiveInterior(blue.walls);
+    let blueFat = 0;
+    for (const key of blue.walls) {
+      const { row, col } = unpackTile(key);
+      if (isFatWallTile(blue.walls, blueInterior, row, col)) blueFat++;
+    }
+    assert(
+      blueInterior.size >= FINISH_IT_MIN_INTERIOR &&
+        blueFat >= FINISH_IT_MIN_FAT_WALLS,
+      `fixture drifted: BLUE interior=${blueInterior.size} fat=${blueFat} ` +
+        `(need int>=${FINISH_IT_MIN_INTERIOR} fat>=${FINISH_IT_MIN_FAT_WALLS}) — re-record`,
+    );
+
+    const spray = planFinishIt(state, red.id);
+    assert(spray !== null && spray.length > 0, "planner produced no spray");
+    // Substantial: a big castle's shell yields many spaced holes, not a token few.
+    assert(spray.length >= 10, `spray only ${spray.length} holes — too small`);
+
+    // (a) every hole is a BLUE wall on the EXPOSED OUTER shell (4-adjacent to the
+    // outside flood) — never an inner wall, never another player's wall.
+    const outside = computeOutside(blue.walls);
+    for (const tile of spray) {
+      const key = packTile(tile.row, tile.col);
+      assert(blue.walls.has(key), `hole (${tile.row},${tile.col}) is not a BLUE wall`);
+      const exposed = DIRS_4.some(([dr, dc]) => {
+        const nr = tile.row + dr;
+        const nc = tile.col + dc;
+        return inBounds(nr, nc) && outside.has(packTile(nr, nc));
+      });
+      assert(exposed, `hole (${tile.row},${tile.col}) is not on the outer shell`);
+    }
+
+    // (b) consecutive holes stay separated so each is its own refill.
+    for (let i = 1; i < spray.length; i++) {
+      const gap = manhattanDistance(
+        spray[i - 1]!.row,
+        spray[i - 1]!.col,
+        spray[i]!.row,
+        spray[i]!.col,
+      );
+      assert(
+        gap >= FINISH_IT_MIN_SPACING,
+        `holes ${i - 1}->${i} only ${gap} apart (< ${FINISH_IT_MIN_SPACING})`,
+      );
+    }
+
+    // (c) the spray reaches AROUND the castle: holes fall on >=3 of the 4 sides
+    // about the target's centroid (not a single clustered breach).
+    let cr = 0;
+    let cc = 0;
+    for (const key of blueInterior) {
+      const { row, col } = unpackTile(key);
+      cr += row;
+      cc += col;
+    }
+    cr /= blueInterior.size;
+    cc /= blueInterior.size;
+    const sides = new Set<string>();
+    for (const tile of spray) {
+      sides.add(tile.row < cr ? "N" : "S");
+      sides.add(tile.col < cc ? "W" : "E");
+    }
+    assert(
+      sides.size >= 3,
+      `spray only spans sides {${[...sides].join(",")}} — not a perimeter sweep`,
     );
   },
 );

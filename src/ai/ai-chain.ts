@@ -41,6 +41,7 @@ export const TACTIC = {
   DECLUTTER: "declutter",
   WALL_DEMOLITION: "wall_demolition",
   SUPER_ATTACK: "super_attack",
+  FINISH_IT: "finish_it",
   SUSTAINED_PRESSURE: "sustained_pressure",
 } as const;
 /** The tactics subject to once-per-battle exclusion across a battle's
@@ -62,6 +63,12 @@ export const OFFENSIVE_TACTICS: ReadonlySet<TacticId> = new Set([
   // battle — without the exclusion a fat castle would re-plan cleanup chains
   // all battle and never fire at an enemy.
   TACTIC.DECLUTTER,
+  // One perimeter spray per battle: the outer shell it punches doesn't
+  // regenerate mid-battle, so a second spray the same battle would re-fire at
+  // holes already open. Its precondition (>16 cannons vs a large messy castle)
+  // stays true all battle, so without the exclusion a dominant player would
+  // re-pick it every re-plan and never run the tail grind.
+  TACTIC.FINISH_IT,
   // SUSTAINED_PRESSURE is deliberately absent: it is the guaranteed tail
   // fallback — re-selectable every re-plan so the battery keeps grinding the
   // victim instead of downshifting to the per-shot loop.

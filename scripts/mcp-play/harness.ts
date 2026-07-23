@@ -27,6 +27,7 @@ import {
 } from "../../dev/dev-console-grid.ts";
 import { castleRect, isTowerEnclosable } from "../../src/ai/ai-castle-rect.ts";
 import { findEnclosureCut } from "../../src/ai/ai-min-cut.ts";
+import { planFinishIt } from "../../src/ai/ai-plan-finish-it.ts";
 import { DefaultStrategy } from "../../src/ai/ai-strategy.ts";
 import {
   findMinBreach,
@@ -1132,6 +1133,15 @@ export interface McpGame {
    *  battle BEFORE you'd otherwise pack into a single-tile seam. Stops when the
    *  reachable fat is gone (bombard the leftover battle) or at `quanta`. */
   declutter(quanta?: number): Observation;
+  /** BATTLE (offensive finisher): spray single holes spaced AROUND the outer
+   *  wall of the messiest large opponent castle — the "finish it" attack. Same
+   *  planner (`planFinishIt`) the AI fires: auto-picks the biggest, most
+   *  over-built enemy and distributes holes all the way around its exposed
+   *  shell, maximising the number of SEPARATE refills they owe next build (a
+   *  repair tax + modern demolition combos) rather than opening one ring like
+   *  breach. Live-gated, reload-paced. Does nothing if no opponent is large and
+   *  messy enough. */
+  finishIt(quanta?: number): Observation;
   /** Full min-cut plan (all tiles) to enclose one tower — the un-sampled form
    *  of an `enclosureCandidates` entry. Returns null if that tower isn't a
    *  candidate in your zone. */
@@ -5621,6 +5631,108 @@ export async function createMcpGame(
     return observe();
   }
 
+  /** BATTLE (offensive finisher): spray single holes SPACED AROUND the outer
+   *  wall of the messiest large opponent castle — the "finish it" attack. Uses
+   *  the very same `planFinishIt` the AI fires: it auto-picks the biggest,
+   *  most over-built ('fat') enemy and returns holes distributed all the way
+   *  around its exposed shell. Unlike bombard (spreads damage they reseal) or
+   *  breach (opens ONE ring), this maximises the NUMBER of separate refills the
+   *  victim must place next build — a demoralising repair tax, plus modern
+   *  demolition combos from the volume. Best spent from overwhelming firepower;
+   *  live-gated and reload-paced exactly like bombard (no clock exploit). Does
+   *  nothing if no opponent is both large and messy enough (bombard/breach a
+   *  normal target instead). Read lastResult for holes punched + return fire. */
+  function finishItSpray(quanta?: number): Observation {
+    if (sc.state.phase !== Phase.BATTLE) {
+      bridge.lastResult = {
+        kind: "fire",
+        success: false,
+        reason:
+          "not in BATTLE (finish_it sprays an enemy's outer wall in battle)",
+      };
+      return observe();
+    }
+    const spray = planFinishIt(sc.state, agentSlot);
+    if (!spray || spray.length === 0) {
+      bridge.lastResult = {
+        kind: "fire",
+        success: false,
+        reason:
+          "no large messy enemy castle to spray — finish_it wants a big over-built opponent (interior ≥130 with ≥60 redundant 'fat' walls). bombard/breach a normal target instead",
+      };
+      return observe();
+    }
+    // planFinishIt targets ONE enemy (the messiest); every hole is its wall.
+    const first = spray[0]!;
+    const targetSlot = sc.state.players.findIndex(
+      (player, slot) =>
+        slot !== agentSlot && player.walls.has(packTile(first.row, first.col)),
+    );
+    const me = sc.state.players[agentSlot];
+    const scoreBefore = me?.score ?? 0;
+    const myWallsBefore = new Set(me?.walls);
+    const inertBefore = cannonsUnenclosedCount();
+    const wallsBefore = sc.state.players[targetSlot]?.walls.size ?? 0;
+    const budget = quanta ?? Infinity;
+    const firedTiles = new Set<ReturnType<typeof packTile>>();
+    let spent = 0;
+    let fired = 0;
+    let idx = 0;
+    while (
+      !gameOver() &&
+      sc.state.phase === Phase.BATTLE &&
+      spent < budget &&
+      idx < spray.length
+    ) {
+      const target = sc.state.players[targetSlot];
+      const live = sc.state.battleCountdown <= 0 && sc.state.timer > 0;
+      const canFire =
+        live &&
+        target !== undefined &&
+        !target.eliminated &&
+        cannonsReadyCount() > 0;
+      if (!canFire) {
+        advance(actionTicks);
+        settleToDecision();
+        spent++;
+        continue;
+      }
+      const ready = cannonsReadyCount();
+      for (let shot = 0; shot < ready && idx < spray.length; shot++) {
+        if (sc.state.phase !== Phase.BATTLE || gameOver()) break;
+        const tile = spray[idx]!;
+        idx++;
+        const tileKey = packTile(tile.row, tile.col);
+        // Hole already opened (splash / another player's fire) — don't waste a
+        // shot re-punching it; the sweep moves on to the next spaced tile.
+        if (!sc.state.players[targetSlot]?.walls.has(tileKey)) continue;
+        firedTiles.add(tileKey);
+        bridge.pending = { kind: "fire", row: tile.row, col: tile.col };
+        advance(actionTicks);
+        settleToDecision();
+        fired++;
+        spent++;
+      }
+    }
+    const nowWalls = sc.state.players[targetSlot]?.walls;
+    let holes = 0;
+    for (const key of firedTiles) if (!nowWalls?.has(key)) holes++;
+    const wallsDestroyed = wallsBefore - (nowWalls?.size ?? 0);
+    const pointsGained =
+      (sc.state.players[agentSlot]?.score ?? 0) - scoreBefore;
+    bridge.lastResult = {
+      kind: "fire",
+      success: holes > 0,
+      reason: `finish_it (slot ${targetSlot}): fired ${fired}, punched ${holes} spaced hole(s) around their outer wall — that many separate refills they owe next build${
+        pointsGained > 0 ? `; +${pointsGained} pts` : ""
+      } (target lost ${wallsDestroyed} walls total)${battleSelfReport(
+        myWallsBefore,
+        inertBefore,
+      )}`,
+    };
+    return observe();
+  }
+
   /** Orthogonal sides of (row,col) that are water or off-board — the un-reroutable
    *  score for a pit: a wall pinched against rivers/edge can't be rebuilt one tile
    *  over, so a pit there is a near-permanent breach. */
@@ -6020,6 +6132,7 @@ export async function createMcpGame(
     pitStrike,
     cull: cullGrunts,
     declutter: declutterWalls,
+    finishIt: finishItSpray,
     enclosurePlan,
     check,
     placements: placementsInZone,
