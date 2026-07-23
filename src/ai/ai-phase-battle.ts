@@ -116,6 +116,16 @@ const POST_FIRE_THINK_SEC = 0.1;
 const POST_FIRE_THINK_SPREAD_SEC = 0.2;
 /** Retry wait when no cannon is ready to fire (ticks). */
 const CANNON_RETRY_WAIT = secondsToTicks(0.05);
+const FINISH_IT_DWELL_SPREAD_SEC = 0.03;
+/** Pause on a finish_it sweep target before firing — much shorter than the
+ *  standard chain dwell. A finish_it hole list is fully precomputed (a single
+ *  glide around the ring), so there is no next-target selection to "think" about
+ *  between shots: the cursor just travels to each spaced hole and taps. Kept
+ *  non-zero so the crosshair still visibly settles before the shot rather than
+ *  teleport-firing. Exported so the mcp-play harness charges the SAME per-hole
+ *  game-time (travel + this dwell), keeping the tool's shot count faithful to the
+ *  real battle loop instead of the flat per-action cost. */
+export const FINISH_IT_DWELL_DELAY_SEC = 0.05;
 
 export function createBattlePhase(strategy: AiStrategy): BattlePhase {
   return {
@@ -404,11 +414,16 @@ function tickChainMoving(
   }
   const center = tileCenterPx(target.row, target.col);
   if (host.stepCrosshairToward(center.x, center.y)) {
+    // finish_it sweeps a PRECOMPUTED hole list — there is no next-target
+    // selection to think about, so it dwells only briefly (glide-and-tap) vs the
+    // standard chain aim pause. Keyed on the synced originTag, not rng, so peers
+    // mirror-simulate identically.
+    const isFinishIt = phase.originTag === "finish_it";
     phase.state = {
       step: STEP.CHAIN_DWELLING,
       timer: phase.strategy.scaledDelay(
-        CHAIN_DWELL_DELAY_SEC,
-        CHAIN_DWELL_SPREAD_SEC,
+        isFinishIt ? FINISH_IT_DWELL_DELAY_SEC : CHAIN_DWELL_DELAY_SEC,
+        isFinishIt ? FINISH_IT_DWELL_SPREAD_SEC : CHAIN_DWELL_SPREAD_SEC,
       ),
     };
   }

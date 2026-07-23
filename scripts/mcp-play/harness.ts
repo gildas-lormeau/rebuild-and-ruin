@@ -27,6 +27,7 @@ import {
 } from "../../dev/dev-console-grid.ts";
 import { castleRect, isTowerEnclosable } from "../../src/ai/ai-castle-rect.ts";
 import { findEnclosureCut } from "../../src/ai/ai-min-cut.ts";
+import { FINISH_IT_DWELL_DELAY_SEC } from "../../src/ai/ai-phase-battle.ts";
 import { planFinishIt } from "../../src/ai/ai-plan-finish-it.ts";
 import { DefaultStrategy } from "../../src/ai/ai-strategy.ts";
 import {
@@ -68,6 +69,7 @@ import {
 } from "../../src/shared/core/cannon-mode-defs.ts";
 import {
   BALLOON_HITS_NEEDED,
+  CROSSHAIR_SPEED,
   type ModifierId,
   SIM_TICK_DT,
   SUPER_BALLOON_HITS_NEEDED,
@@ -78,6 +80,7 @@ import type { TileRect } from "../../src/shared/core/geometry-types.ts";
 import {
   GRID_COLS,
   GRID_ROWS,
+  TILE_SIZE,
   type TileKey,
 } from "../../src/shared/core/grid.ts";
 import { modifierDef } from "../../src/shared/core/modifier-defs.ts";
@@ -1275,6 +1278,19 @@ const SIM_TICKS_PER_SEC = Math.round(1 / SIM_TICK_DT);
  *  11 ≈ 2.5). Lets `enclosureSeconds` turn a tile count into a real time cost so
  *  `feasible` means "fits in the build time left", not "under a planner cap". */
 const CUT_TILES_PER_PIECE = 2.5;
+/** Per-hole game-time (ticks) of a finish_it sweep — mirrors the real battle
+ *  loop (`ai-phase-battle.ts`): the crosshair glides to each spaced hole, then
+ *  dwells briefly before firing. The mcp `finish_it` charges THIS per shot
+ *  (travel + dwell) instead of the flat `actionTicks`, so the tool lands the same
+ *  number of holes the AI would in a real battle — NOT the coarse ~0.5s/shot
+ *  proxy. Fairness holds: it's the true per-action cost, no frozen-clock exploit.
+ *  Travel uses the boosted battle crosshair speed (cursorSkill≥2 boosts to 2×,
+ *  the dominant-player case finish_it fires from). */
+const FINISH_IT_DWELL_TICKS = Math.max(
+  1,
+  Math.round(FINISH_IT_DWELL_DELAY_SEC * SIM_TICKS_PER_SEC),
+);
+const CROSSHAIR_PX_PER_TICK = CROSSHAIR_SPEED * 2 * SIM_TICK_DT;
 
 export async function createMcpGame(
   opts: McpGameOptions = {},
@@ -5682,6 +5698,9 @@ export async function createMcpGame(
     let spent = 0;
     let fired = 0;
     let idx = 0;
+    // Last hole actually fired — the cursor travels FROM here to the next hole,
+    // so consecutive-hole distance sets the per-shot time (see finishItHopTicks).
+    let prevHole: { row: number; col: number } | null = null;
     while (
       !gameOver() &&
       sc.state.phase === Phase.BATTLE &&
@@ -5712,8 +5731,12 @@ export async function createMcpGame(
         if (!sc.state.players[targetSlot]?.walls.has(tileKey)) continue;
         firedTiles.add(tileKey);
         bridge.pending = { kind: "fire", row: tile.row, col: tile.col };
-        advance(actionTicks);
+        // Charge the REAL per-hole cadence — cursor travel from the last hole
+        // plus the short finish_it dwell — not the flat per-action cost, so the
+        // sweep lands as many holes here as the AI would in a live battle.
+        advance(finishItHopTicks(prevHole, tile));
         settleToDecision();
+        prevHole = tile;
         fired++;
         spent++;
       }
@@ -6143,6 +6166,22 @@ export async function createMcpGame(
     agentSlot,
     scenario: sc,
   };
+}
+
+/** Ticks the finish_it cursor spends reaching `to` from `from` (pixel travel at
+ *  the boosted crosshair speed) plus the on-target dwell. The first hole is dwell
+ *  only — no prior cursor position to travel from. */
+function finishItHopTicks(
+  from: { row: number; col: number } | null,
+  to: { row: number; col: number },
+): number {
+  if (!from) return FINISH_IT_DWELL_TICKS;
+  const dx = (to.col - from.col) * TILE_SIZE;
+  const dy = (to.row - from.row) * TILE_SIZE;
+  return (
+    Math.ceil(Math.hypot(dx, dy) / CROSSHAIR_PX_PER_TICK) +
+    FINISH_IT_DWELL_TICKS
+  );
 }
 
 /** Why a pit-strike planted 0 pits — appended to the result line ONLY when the
