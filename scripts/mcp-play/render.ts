@@ -953,7 +953,7 @@ function finishItLines(obs: Observation): string[] {
   if (!target) return [];
   const thinness = Math.round((1 - target.thickRatio) * 100);
   return [
-    `  ⚔ FINISH IT AVAILABLE: ${target.cannons} cannons is overwhelming firepower, and ${target.name}'s castle (${target.interior} interior, ~${thinness}% thin-walled) is large enough to spray — finish_it() glides the cursor around their outer wall punching spaced holes, de-enclosing every tower inside at once.`,
+    `  ⚔ FINISH IT AVAILABLE: ${target.cannons} cannons is overwhelming firepower, and ${target.name}'s castle (${target.interior} interior, ~${thinness}% thin-walled) is a large MERGED seal (several towers in one ring) — finish_it() runs the cursor around its whole outer wall punching MANY small spaced holes (one intact wall left between each). Open more gaps than they can reseal in one build and every tower inside de-encloses at once — that's the finish. More guns = more of the ring holed before the timer.`,
   ];
 }
 
