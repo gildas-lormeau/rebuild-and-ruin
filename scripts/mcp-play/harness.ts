@@ -1133,14 +1133,14 @@ export interface McpGame {
    *  battle BEFORE you'd otherwise pack into a single-tile seam. Stops when the
    *  reachable fat is gone (bombard the leftover battle) or at `quanta`. */
   declutter(quanta?: number): Observation;
-  /** BATTLE (offensive finisher): spray single holes spaced AROUND the outer
-   *  wall of the messiest large opponent castle — the "finish it" attack. Same
-   *  planner (`planFinishIt`) the AI fires: auto-picks the biggest, most
-   *  over-built enemy and distributes holes all the way around its exposed
-   *  shell, maximising the number of SEPARATE refills they owe next build (a
-   *  repair tax + modern demolition combos) rather than opening one ring like
-   *  breach. Live-gated, reload-paced. Does nothing if no opponent is large and
-   *  messy enough. */
+  /** BATTLE (offensive finisher): spray spaced holes AROUND the outer wall of
+   *  the largest THIN-walled opponent castle — the "finish it" attack. Same
+   *  planner (`planFinishIt`) the AI fires: auto-picks the largest, thinnest-
+   *  perimeter enemy and distributes holes all the way around its exposed shell
+   *  (breaching two-thick spots, pivoting through inner walls across gaps),
+   *  maximising the SEPARATE breaches/refills they owe next build (a repair tax
+   *  + modern demolition combos) rather than opening one ring like breach.
+   *  Live-gated, reload-paced. Does nothing if no opponent is large enough. */
   finishIt(quanta?: number): Observation;
   /** Full min-cut plan (all tiles) to enclose one tower — the un-sampled form
    *  of an `enclosureCandidates` entry. Returns null if that tower isn't a
@@ -5631,17 +5631,21 @@ export async function createMcpGame(
     return observe();
   }
 
-  /** BATTLE (offensive finisher): spray single holes SPACED AROUND the outer
-   *  wall of the messiest large opponent castle — the "finish it" attack. Uses
-   *  the very same `planFinishIt` the AI fires: it auto-picks the biggest,
-   *  most over-built ('fat') enemy and returns holes distributed all the way
-   *  around its exposed shell. Unlike bombard (spreads damage they reseal) or
-   *  breach (opens ONE ring), this maximises the NUMBER of separate refills the
-   *  victim must place next build — a demoralising repair tax, plus modern
-   *  demolition combos from the volume. Best spent from overwhelming firepower;
+  /** BATTLE (offensive finisher): glide the cursor AROUND the outer wall of the
+   *  largest THIN-walled opponent castle and spam SPACED holes — the "finish it"
+   *  attack. Uses the very same `planFinishIt` the AI fires: it auto-picks the
+   *  largest, thinnest-perimeter enemy (thick 'fat-walled' perimeters resist
+   *  breaching, so they are avoided) and returns holes distributed all the way
+   *  around its exposed shell, punching THROUGH two-thick spots and bridging spur
+   *  gaps via inner-wall pivots so each gap is a real breach not a chip. That
+   *  castle is usually a MERGED enclosure, so breaching it in more places than
+   *  the victim can reseal in one build de-encloses ALL its towers at once —
+   *  while every gap is still its own refill (a repair tax, plus modern
+   *  demolition combos from the volume). Unlike bombard (spreads damage they
+   *  reseal) or breach (opens ONE ring). Best spent from overwhelming firepower;
    *  live-gated and reload-paced exactly like bombard (no clock exploit). Does
-   *  nothing if no opponent is both large and messy enough (bombard/breach a
-   *  normal target instead). Read lastResult for holes punched + return fire. */
+   *  nothing if no opponent is large enough (bombard/breach a smaller target
+   *  instead). Read lastResult for holes punched + return fire. */
   function finishItSpray(quanta?: number): Observation {
     if (sc.state.phase !== Phase.BATTLE) {
       bridge.lastResult = {
@@ -5658,7 +5662,7 @@ export async function createMcpGame(
         kind: "fire",
         success: false,
         reason:
-          "no large messy enemy castle to spray — finish_it wants a big over-built opponent (interior ≥130 with ≥60 redundant 'fat' walls). bombard/breach a normal target instead",
+          "no large enemy castle to spray — finish_it wants a large opponent (interior ≥130). bombard/breach a smaller target instead",
       };
       return observe();
     }

@@ -10,7 +10,7 @@ import seed977796GruntBreach from "./fixtures/battle/seed977796-grunt-breach.jso
 };
 import { planDenyEnclosure } from "../../src/ai/ai-plan-deny-enclosure.ts";
 import {
-  FINISH_IT_MIN_FAT_WALLS,
+  FINISH_IT_MAX_STEP,
   FINISH_IT_MIN_INTERIOR,
   FINISH_IT_MIN_SPACING,
   planFinishIt,
@@ -27,7 +27,6 @@ import {
   DESTROY_POCKET_MAX_SIZE,
   findEnclosureComponents,
   isEnclosureBroken,
-  isFatWallTile,
 } from "../../src/ai/ai-strategy-battle.ts";
 import { getBattleInterior } from "../../src/shared/sim/board-occupancy.ts";
 import { GAME_EVENT } from "../../src/shared/core/game-event-bus.ts";
@@ -40,10 +39,7 @@ import {
 import { isActivePlayer } from "../../src/shared/core/player-slot.ts";
 import {
   computeOutside,
-  DIRS_4,
   forEachTowerTile,
-  inBounds,
-  manhattanDistance,
   packTile,
   unpackTile,
   zoneAt,
@@ -305,21 +301,20 @@ Deno.test(
 );
 
 Deno.test(
-  "phase-test: finish_it sprays spaced holes around the outer wall of a large messy castle (seed 977796 r43)",
+  "phase-test: finish_it sweeps a fluid, spaced spray around a large thin castle (seed 977796 r43)",
   async () => {
-    // `planFinishIt` is the dominant-player perimeter spray: against a LARGE and
-    // MESSY castle it punches single holes SPACED AROUND the exposed outer wall
-    // — a demoralising repair tax (every hole a separate refill), not a breach.
-    // This fixture (the deny-enclosure fat-ring checkpoint) presents two big
-    // over-built castles; RED attacks BLUE's. The >=14-cannon firing gate lives
+    // `planFinishIt` is the dominant-player perimeter spray: against the LARGEST
+    // thin-perimeter enemy castle it glides the cursor around the outer wall,
+    // punching spaced holes (with breach punch-throughs at two-thick spots and
+    // inner-wall pivots bridging spur gaps). The >=14-cannon firing gate lives
     // in `rollFinishIt`; the planner itself is pure TARGET geometry (no rng), so
     // one call IS the spec.
     //
-    // Invariants: the spray must (a) hit only the target's live OUTER-shell
-    // walls (never inner walls or another player), (b) keep every hole
-    // separated (>= FINISH_IT_MIN_SPACING between consecutive holes, so each is
-    // its own refill), and (c) reach around the castle (holes on >=3 of the 4
-    // sides about the centroid), or it isn't a perimeter spray.
+    // Invariants: the spray must (a) hit only ONE enemy's walls, (b) be FLUID —
+    // no consecutive-shot cursor jump above FINISH_IT_MAX_STEP, (c) be SPREAD —
+    // most steps leave an intact wall between gaps (adjacent shots, i.e. breach
+    // / pivot pairs, are the minority), and (d) reach AROUND the castle (>=3 of
+    // the 4 sides about the centroid).
     const sc = await createPhaseScenario(
       seed977796DenyFatWall as unknown as FixtureFile,
     );
@@ -327,68 +322,72 @@ Deno.test(
     assertEquals(sc.state.phase, Phase.BATTLE);
     const state = sc.state;
     const red = state.players[0]!;
-    const blue = state.players[1]!;
-    assert(isActivePlayer(red.id) && isActivePlayer(blue.id));
-
-    // Non-vacuous: BLUE (RED's messiest enemy here) must actually be large AND
-    // messy, or the spray fires for the wrong reason / not at all.
-    const blueInterior = computeLiveInterior(blue.walls);
-    let blueFat = 0;
-    for (const key of blue.walls) {
-      const { row, col } = unpackTile(key);
-      if (isFatWallTile(blue.walls, blueInterior, row, col)) blueFat++;
-    }
-    assert(
-      blueInterior.size >= FINISH_IT_MIN_INTERIOR &&
-        blueFat >= FINISH_IT_MIN_FAT_WALLS,
-      `fixture drifted: BLUE interior=${blueInterior.size} fat=${blueFat} ` +
-        `(need int>=${FINISH_IT_MIN_INTERIOR} fat>=${FINISH_IT_MIN_FAT_WALLS}) — re-record`,
-    );
+    assert(isActivePlayer(red.id));
 
     const spray = planFinishIt(state, red.id);
     assert(spray !== null && spray.length > 0, "planner produced no spray");
     // Substantial: a big castle's shell yields many spaced holes, not a token few.
     assert(spray.length >= 10, `spray only ${spray.length} holes — too small`);
 
-    // (a) every hole is a BLUE wall on the EXPOSED OUTER shell (4-adjacent to the
-    // outside flood) — never an inner wall, never another player's wall.
-    const outside = computeOutside(blue.walls);
+    // The victim is the single enemy every sprayed tile belongs to.
+    const victim = state.players.find(
+      (player) =>
+        player.id !== red.id &&
+        player.walls.size > 0 &&
+        spray.every((tile) => player.walls.has(packTile(tile.row, tile.col))),
+    );
+    assert(victim, "spray tiles are not all a single enemy's walls");
+
+    // Non-vacuous: the victim is a LARGE castle (the guard's primary gate).
+    const victimInterior = computeLiveInterior(victim.walls);
+    assert(
+      victimInterior.size >= FINISH_IT_MIN_INTERIOR,
+      `fixture drifted: victim interior=${victimInterior.size} ` +
+        `(need >=${FINISH_IT_MIN_INTERIOR}) — re-record`,
+    );
+
+    // (a) every shot is one of the victim's walls (outer hole, breach
+    // punch-through, or inner-wall pivot) — never another player's wall.
     for (const tile of spray) {
-      const key = packTile(tile.row, tile.col);
-      assert(blue.walls.has(key), `hole (${tile.row},${tile.col}) is not a BLUE wall`);
-      const exposed = DIRS_4.some(([dr, dc]) => {
-        const nr = tile.row + dr;
-        const nc = tile.col + dc;
-        return inBounds(nr, nc) && outside.has(packTile(nr, nc));
-      });
-      assert(exposed, `hole (${tile.row},${tile.col}) is not on the outer shell`);
+      assert(
+        victim.walls.has(packTile(tile.row, tile.col)),
+        `shot (${tile.row},${tile.col}) is not a victim wall`,
+      );
     }
 
-    // (b) consecutive holes stay separated so each is its own refill.
+    // (b) FLUID: the cursor never jumps more than FINISH_IT_MAX_STEP between
+    // consecutive shots.
+    let separated = 0;
     for (let i = 1; i < spray.length; i++) {
-      const gap = manhattanDistance(
-        spray[i - 1]!.row,
-        spray[i - 1]!.col,
-        spray[i]!.row,
-        spray[i]!.col,
+      const step = Math.max(
+        Math.abs(spray[i - 1]!.row - spray[i]!.row),
+        Math.abs(spray[i - 1]!.col - spray[i]!.col),
       );
       assert(
-        gap >= FINISH_IT_MIN_SPACING,
-        `holes ${i - 1}->${i} only ${gap} apart (< ${FINISH_IT_MIN_SPACING})`,
+        step <= FINISH_IT_MAX_STEP,
+        `shots ${i - 1}->${i} jump ${step} > ${FINISH_IT_MAX_STEP}`,
       );
+      if (step >= FINISH_IT_MIN_SPACING) separated++;
     }
 
-    // (c) the spray reaches AROUND the castle: holes fall on >=3 of the 4 sides
+    // (c) SPREAD: most consecutive shots leave an intact wall between them;
+    // adjacent shots (breach / pivot pairs) are the minority.
+    assert(
+      separated >= (spray.length - 1) / 2,
+      `only ${separated}/${spray.length - 1} steps are spaced — spray is clustered`,
+    );
+
+    // (d) the spray reaches AROUND the castle: shots fall on >=3 of the 4 sides
     // about the target's centroid (not a single clustered breach).
     let cr = 0;
     let cc = 0;
-    for (const key of blueInterior) {
+    for (const key of victimInterior) {
       const { row, col } = unpackTile(key);
       cr += row;
       cc += col;
     }
-    cr /= blueInterior.size;
-    cc /= blueInterior.size;
+    cr /= victimInterior.size;
+    cc /= victimInterior.size;
     const sides = new Set<string>();
     for (const tile of spray) {
       sides.add(tile.row < cr ? "N" : "S");
