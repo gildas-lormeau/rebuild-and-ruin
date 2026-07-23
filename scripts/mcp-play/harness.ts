@@ -28,9 +28,17 @@ import {
 import { castleRect, isTowerEnclosable } from "../../src/ai/ai-castle-rect.ts";
 import { findEnclosureCut } from "../../src/ai/ai-min-cut.ts";
 import { FINISH_IT_DWELL_DELAY_SEC } from "../../src/ai/ai-phase-battle.ts";
-import { planFinishIt } from "../../src/ai/ai-plan-finish-it.ts";
-import { DefaultStrategy } from "../../src/ai/ai-strategy.ts";
 import {
+  type FinishItTarget,
+  pickThinnestCastle,
+  planFinishIt,
+} from "../../src/ai/ai-plan-finish-it.ts";
+import {
+  DefaultStrategy,
+  FINISH_IT_MIN_CANNONS,
+} from "../../src/ai/ai-strategy.ts";
+import {
+  countUsableCannons,
   findMinBreach,
   findTowerBreach,
 } from "../../src/ai/ai-strategy-battle.ts";
@@ -967,6 +975,31 @@ export interface Observation {
     balloonsAffordable: number;
     /** A legal 2×2 balloon top-left you can place at right now. */
     spot: { row: number; col: number };
+  };
+  /** BATTLE: a nudge that `finish_it()` is worth calling RIGHT NOW — surfaced
+   *  ONLY when you meet the SAME two-stage gate the tool itself (and the AI's
+   *  own `rollFinishIt`) require: `cannons >= FINISH_IT_MIN_CANNONS` (an
+   *  "overwhelming firepower" battery) AND at least one active enemy castle is
+   *  large enough (`interior >= FINISH_IT_MIN_INTERIOR`) to be worth spraying.
+   *  Among qualifying castles this reports the SAME target `finish_it()` would
+   *  pick — the thinnest-walled one, not necessarily the biggest — since a
+   *  thick outer wall resists breaching even on a big castle. Omitted whenever
+   *  either gate fails (too few cannons, or no target large enough), so — unlike
+   *  `cannonSnipe` / `balloonOpportunity`, which are cheap to check every turn —
+   *  this hint is deliberately conditional on the cannon count FIRST, because
+   *  finding the target requires a flood-fill + perimeter scan of every enemy
+   *  castle (not free like the other hints). */
+  finishItAvailable?: {
+    /** Opponent slot `finish_it()` would target. */
+    slot: number;
+    name: string;
+    /** The target's live enclosed interior — how big a prize the spray opens. */
+    interior: number;
+    /** Fraction of the target's outer shell that is two-thick (0 = fully thin,
+     *  1 = fully fat). Lower = easier to breach everywhere; this is the pick
+     *  criterion among qualifying (large-enough) castles. */
+    thickRatio: number;
+    cannons: number;
   };
   /** MODERN only: the environmental modifier in force this round (wildfire,
    *  frozen river, …), or null/omitted in classic and when none rolled. Passive
@@ -3024,6 +3057,29 @@ export async function createMcpGame(
     };
   }
 
+  /** `finish_it()` availability: the SAME two-stage gate the tool (and the AI's
+   *  own `rollFinishIt`) use — cheap cannon-count check first, since finding a
+   *  qualifying target costs a flood-fill + perimeter scan per active enemy and
+   *  shouldn't run every observe() unconditionally. */
+  function finishItSuggestion(): NonNullable<
+    Observation["finishItAvailable"]
+  > | null {
+    const cannons = countUsableCannons(sc.state, agentSlot);
+    if (cannons < FINISH_IT_MIN_CANNONS) return null;
+    const target: FinishItTarget | undefined = pickThinnestCastle(
+      sc.state,
+      agentSlot,
+    );
+    if (!target) return null;
+    return {
+      slot: target.slot,
+      name: PLAYER_NAMES[target.slot] ?? `P${target.slot}`,
+      interior: target.interior,
+      thickRatio: target.thickRatio,
+      cannons,
+    };
+  }
+
   /** Balloon hits to capture a cannon (super = 2, normal/Mortar = 1) — mirrors the
    *  engine's `balloonHitThreshold` (not exported). */
   function balloonHitsNeeded(cannon: Cannon): number {
@@ -4931,6 +4987,8 @@ export async function createMcpGame(
     if (snipe) observation.cannonSnipe = snipe;
     const clearable = declutterFatTargets().length;
     if (clearable > 0) observation.fatClearable = clearable;
+    const finishIt = finishItSuggestion();
+    if (finishIt) observation.finishItAvailable = finishIt;
   }
 
   function attachBuildSurfaces(observation: Observation): void {

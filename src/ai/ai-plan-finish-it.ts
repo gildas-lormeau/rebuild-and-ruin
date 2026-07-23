@@ -22,6 +22,16 @@ import type { BattleViewState } from "../shared/core/system-interfaces.ts";
 import { filterActiveEnemies } from "../shared/sim/board-occupancy.ts";
 import { computeLiveInterior } from "./ai-strategy-battle.ts";
 
+/** A `pickThinnestCastle` match: the target's walls plus the identifying/sizing
+ *  fields a caller needs to report the pick (e.g. a UI hint) without re-running
+ *  the flood-fill/ratio scan itself. */
+export interface FinishItTarget {
+  readonly slot: ValidPlayerId;
+  readonly walls: ReadonlySet<TileKey>;
+  readonly interior: number;
+  readonly thickRatio: number;
+}
+
 /** Concurrent player slots (Red/Blue/Gold). The spray's angular start is
  *  offset by slot so two dominant attackers hitting the same castle punch
  *  different holes instead of cloning the same sweep. */
@@ -87,12 +97,16 @@ export function planFinishIt(
  *  OUTER walls resist breaching — a thick perimeter is a worse target, not a
  *  better one (the old guard, which REQUIRED a fat-wall count, had this
  *  backwards). Pure synced geometry — no rng — so every peer picks the same
- *  target; per-attacker desync lives in the walk-seed rotation. */
-function pickThinnestCastle(
+ *  target; per-attacker desync lives in the walk-seed rotation. Exported so a
+ *  caller (e.g. the MCP play harness) can run the SAME eligibility check to
+ *  surface a "finish_it available" hint without duplicating the scan or paying
+ *  for the full `planFinishIt` ring/spray computation just to answer "does a
+ *  target qualify right now". */
+export function pickThinnestCastle(
   state: BattleViewState,
   playerId: ValidPlayerId,
-): { walls: ReadonlySet<TileKey> } | undefined {
-  let best: { walls: ReadonlySet<TileKey> } | undefined;
+): FinishItTarget | undefined {
+  let best: FinishItTarget | undefined;
   let bestRatio = Number.POSITIVE_INFINITY;
   for (const enemy of filterActiveEnemies(state, playerId)) {
     const interior = computeLiveInterior(enemy.walls);
@@ -100,7 +114,12 @@ function pickThinnestCastle(
     const ratio = thickPerimeterRatio(enemy.walls, computeOutside(enemy.walls));
     if (ratio < bestRatio) {
       bestRatio = ratio;
-      best = { walls: enemy.walls };
+      best = {
+        slot: enemy.id,
+        walls: enemy.walls,
+        interior: interior.size,
+        thickRatio: ratio,
+      };
     }
   }
   return best;

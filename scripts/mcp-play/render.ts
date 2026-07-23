@@ -176,6 +176,9 @@ export function renderObservation(
   // ── BATTLE declutter: nudge to shoot out your own fat before it bag-locks you ─
   lines.push(...declutterLines(obs));
 
+  // ── BATTLE finish_it: nudge when overwhelming firepower + a thin large target ─
+  lines.push(...finishItLines(obs));
+
   // ── supply ships: live river hulls to hunt for a hidden bonus ───────────────
   lines.push(...supplyShipLines(obs));
 
@@ -935,6 +938,21 @@ function declutterLines(obs: Observation): string[] {
   if (clearable < 4) return [];
   return [
     `  ♻ DECLUTTER AVAILABLE: ${clearable} of your redundant inner (fat) walls are cannonball-reachable — declutter() shoots them out (enclosure-safe, scores 0) to reopen a build pocket. Do it NOW if your castle is packing toward single-tile seams: walls are only removable in BATTLE, but a bag-lock bites next build. Otherwise bombard/cull.`,
+  ];
+}
+
+/** Conditional finish_it nudge: surfaced only when BOTH gates the tool itself
+ *  requires are already met — an overwhelming battery (cannons >= the
+ *  finish_it cannon floor) AND a large-enough, thin-walled enemy castle exists
+ *  to spray. Mirrors declutterLines' pattern: the eligibility check lives in
+ *  harness.ts (obs.finishItAvailable is only set when it already qualifies),
+ *  so this is pure formatting. */
+function finishItLines(obs: Observation): string[] {
+  const target = obs.finishItAvailable;
+  if (!target) return [];
+  const thinness = Math.round((1 - target.thickRatio) * 100);
+  return [
+    `  ⚔ FINISH IT AVAILABLE: ${target.cannons} cannons is overwhelming firepower, and ${target.name}'s castle (${target.interior} interior, ~${thinness}% thin-walled) is large enough to spray — finish_it() glides the cursor around their outer wall punching spaced holes, de-enclosing every tower inside at once.`,
   ];
 }
 

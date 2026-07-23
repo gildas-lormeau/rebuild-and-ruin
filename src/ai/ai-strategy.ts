@@ -103,12 +103,6 @@ const FAT_BREACH_PROBABILITY = 1 / 4;
  *  the battle's tail. Scales with battleTactics; a miss is permanent for the
  *  battle (the per-shot loop never re-enters chains). */
 const SUSTAINED_PRESSURE_PROBABILITY = 1 / 2;
-/** Minimum usable cannons to launch a "finish it" perimeter spray. Well above
- *  the general chain gate: the spray is a finishing move spent from a dominant
- *  battery, not a staple. (Started at 17 = top ~7.3% of measured battle-states;
- *  lowered to 14 to surface the move more often — the cannon gate is the single
- *  biggest frequency lever, far more than the messy-wall threshold.) */
-const FINISH_IT_MIN_CANNONS = 14;
 /** Per-tier chance to spray a large messy castle's outer wall (weak tier 0 —
  *  the gate skips the draw so that tier's rng stream is unperturbed, mirroring
  *  fat_breach / sustained_pressure). Kept high where enabled: the >=14-cannon +
@@ -175,6 +169,12 @@ const DELAY_SCALE_BY_THINKING_SPEED = [1.4, 1.0, 0.65] as const;
 /** Tile-cursor boost-distance threshold (tiles) by cursorSkill
  *  (1=8 rarely boosts, 2=5 default, 3=3 boosts early). */
 const TILE_BOOST_THRESHOLD_BY_CURSOR_SKILL = [8, 5, 3] as const;
+/** Minimum usable cannons to launch a "finish it" perimeter spray. Well above
+ *  the general chain gate: the spray is a finishing move spent from a dominant
+ *  battery, not a staple. (Started at 17 = top ~7.3% of measured battle-states;
+ *  lowered to 14 to surface the move more often — the cannon gate is the single
+ *  biggest frequency lever, far more than the messy-wall threshold.) */
+export const FINISH_IT_MIN_CANNONS = 14;
 
 export class DefaultStrategy implements AiStrategy {
   /** Shot count per cannon — tracks hits to know when to stop targeting.
