@@ -4687,8 +4687,15 @@ export async function createMcpGame(
       piecesLeft -= placed;
       return placed;
     };
+    // A 3×3 generic-dump pocket still fits (the bag-lock floor — the `+` needs a
+    // 3×3 bbox). The SAME structural read the SAFE-BUDGET cannon guard uses.
+    const hasDumpPocket = (): boolean => {
+      const pocket = headroomFor()?.openPocket ?? { h: 0, w: 0 };
+      return Math.min(pocket.h, pocket.w) >= 3;
+    };
 
     // Phase A — fully enclose every tower that fits, home first.
+    let pocketPaused = false;
     while (sc.state.timer > floorTimer && piecesLeft > 0) {
       const target = nextExpandTarget();
       if (target?.towerIdx === undefined) break;
@@ -4700,6 +4707,21 @@ export async function createMcpGame(
       // Stop spinning if a "feasible" tower couldn't actually be sealed (a late
       // grunt-lock) or no piece landed — otherwise we'd loop on the same target.
       if (!enclosed || placed === 0) break;
+      // Pocket-floor auto-pause: once survival is safe, stop STARTING another
+      // tower seal if the castle has packed below a 3×3 dump pocket. Atomic
+      // build_out otherwise packs to a next-build bag-lock invisibly (measured:
+      // pocket collapses below 3×3 within ~3 rounds of build_out spam while
+      // dumpCapacity reads full the whole time — it can't catch mid-call tights).
+      // Every completed seal is already banked; hand control back so the agent
+      // re-decides (declutter next battle, or build_toward by hand) instead of
+      // silently packing itself into a forfeited build + life loss.
+      if (
+        survivesRoundEndLifeCheck(sc.state.players[agentSlot]!) &&
+        !hasDumpPocket()
+      ) {
+        pocketPaused = true;
+        break;
+      }
     }
 
     // Phase B — pre-claim: bank partial ring progress on the cheapest tower that
@@ -4711,7 +4733,10 @@ export async function createMcpGame(
     // pre-claiming a non-survival tower.
     let preclaim = "";
     const survives = survivesRoundEndLifeCheck(sc.state.players[agentSlot]!);
-    if (survives && sc.state.timer > floorTimer && piecesLeft > 0) {
+    const spareTime = sc.state.timer > floorTimer && piecesLeft > 0;
+    // Pre-claim also packs walls, so skip it under the same pocket floor — a
+    // next-round-cheaper ring isn't worth pushing THIS castle into a bag-lock.
+    if (survives && spareTime && !pocketPaused && hasDumpPocket()) {
       const partial = cheapestPreclaimTarget();
       if (partial) {
         const placed = runOne(partial.towerIdx);
@@ -4719,10 +4744,16 @@ export async function createMcpGame(
           preclaim = `; pre-claimed ${placed} tile(s) of tower ${partial.towerIdx}'s ring for next round`;
         }
       }
-    } else if (!survives && sc.state.timer > floorTimer && piecesLeft > 0) {
+    } else if (!survives && spareTime) {
       preclaim =
         "; held spare time — no alive tower enclosed (pre-claim skipped; seal a survival tower first)";
     }
+    // Surface the pocket-floor stop so the agent knows WHY it paused with time
+    // left (atomic build_out otherwise hides the collapsing pocket entirely).
+    const pocketNote =
+      survives && (pocketPaused || !hasDumpPocket()) && spareTime
+        ? "; PAUSED at the 3×3 dump-pocket floor — further expansion/pre-claim would pack this castle toward a next-build bag-lock (a dealt 3-wide piece would have nowhere to go). Banked what's sealed. Reopen the pocket with declutter next battle, or build_toward by hand if you accept the risk."
+        : "";
 
     const elapsed = Math.round((startTimer - sc.state.timer) * 10) / 10;
     bridge.lastResult = {
@@ -4730,7 +4761,7 @@ export async function createMcpGame(
       success: totalPlaced > 0,
       reason:
         `expand: ${sealed.length > 0 ? `sealed [${sealed.join(",")}]` : "nothing new sealed"}, ` +
-        `placed ${totalPlaced}, ~${elapsed}s${preclaim}${expansionDeltaNote(compactBefore)}`,
+        `placed ${totalPlaced}, ~${elapsed}s${preclaim}${pocketNote}${expansionDeltaNote(compactBefore)}`,
     };
     return observe();
   }
