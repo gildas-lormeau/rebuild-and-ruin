@@ -1262,6 +1262,12 @@ function stillSealableLines(obs: Observation, once: Once): string[] {
     (candidate) => candidate.status === "enclosable" && candidate.feasible,
   );
   if (stillSealable.length === 0) return [];
+  // While a life is on the line, a bare "still enclosable: tower 2 (~4s) —
+  // build_out() before you pass" contradicts the ☠ SURVIVAL banner two lines
+  // up whenever tower 2 is the DEAD one: sealing it banks territory and still
+  // costs the life. Tag which is which rather than letting the two lines
+  // disagree (seed-42 R23 listed exactly one sealable tower, and it was dead).
+  const atRisk = obs.me.survivesRoundEnd === false;
   const parts = stillSealable.map((candidate) => {
     const who = candidate.isHome ? "home" : `tower ${candidate.towerIdx}`;
     const bonus =
@@ -1270,7 +1276,11 @@ function stillSealableLines(obs: Observation, once: Once): string[] {
       candidate.waitSeconds > 0
         ? ` incl ~${candidate.waitSeconds.toFixed(0)}s bag-wait`
         : "";
-    return `${who} (~${candidate.estSeconds.toFixed(0)}s${wait}${bonus})`;
+    const survival =
+      atRisk && !candidate.satisfiesSurvival
+        ? " — territory ONLY, does NOT clear the life loss"
+        : "";
+    return `${who} (~${candidate.estSeconds.toFixed(0)}s${wait}${bonus}${survival})`;
   });
   const tail = once(
     "stillSealableHowto",
