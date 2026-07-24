@@ -1078,13 +1078,42 @@ function survivalLines(obs: Observation): string[] {
   } else if (longOdds) {
     hint = ` → call seal_survivor() — LONG ODDS: ${longOdds.isHome ? "home" : `tower ${longOdds.towerIdx}`}'s walls fit (~${(longOdds.estSeconds - longOdds.waitSeconds).toFixed(0)}s) but it needs a small-piece draw (~${longOdds.waitSeconds.toFixed(0)}s expected bag-wait); it cycles the bag for you and a lucky draw saves the life. Passing forfeits it for sure.`;
   } else {
-    hint =
-      " ⚠ No survival-clearing tower is reachable this build — enclosing a dead tower will NOT prevent the life loss.";
+    hint = survivalUnreachableHint(obs.enclosureCandidates);
   }
   return [
     "  ☠ SURVIVAL: NO alive tower enclosed — finalize the round like this and you LOSE A LIFE and your whole zone resets to bare ground." +
       hint,
   ];
+}
+
+/** The ☠ SURVIVAL tail when neither a feasible nor a long-odds saver exists.
+ *  "No survival-clearing tower is reachable this build" reads as a verdict for
+ *  the whole phase; it is a read of THIS instant, and a hard blocker is usually
+ *  why. Seed-42 R23: every alive tower's cut was held by one grunt at (17,11),
+ *  the line said unreachable, and a build_region ring that enclose-killed the
+ *  cluster re-opened the cut and saved the life on the very next call. So name
+ *  the holder and the move that clears it instead of closing the door. */
+function survivalUnreachableHint(
+  candidates: NonNullable<Observation["enclosureCandidates"]>,
+): string {
+  const held = candidates
+    .filter(
+      (candidate) =>
+        candidate.status === "enclosable" &&
+        candidate.satisfiesSurvival &&
+        (candidate.blockers ?? []).some((blocker) => blocker.hard),
+    )
+    .sort((a, b) => a.estSeconds - b.estSeconds)[0];
+  const recheck =
+    " Re-check SURVIVAL after every build call — this is a live read, not a verdict for the phase. Enclosing a dead tower will NOT prevent the life loss.";
+  if (!held) {
+    return ` ⚠ No survival-clearing tower is reachable right now.${recheck}`;
+  }
+  const holders = (held.blockers ?? [])
+    .filter((blocker) => blocker.hard)
+    .map((blocker) => `(${blocker.row},${blocker.col}) ${blocker.kind}`)
+    .join(", ");
+  return ` ⚠ No survival-clearing tower is reachable right now: ${held.isHome ? "home" : `tower ${held.towerIdx}`}'s cut is only ~${held.estSeconds.toFixed(0)}s of walls but it's held at ${holders}. Free that tile and the seal re-opens — build_region a ring around the blocking grunt(s) to enclose-KILL them mid-build, or wall an inner-corner (◆) alternate around them.${recheck}`;
 }
 
 /** Bag-lock tightness diagnosis. Fires whenever the castle has packed tight
@@ -1265,7 +1294,7 @@ function bonusTargetLines(obs: Observation): string[] {
       : bonus.capturedByTower != null
         ? `capture via tower ${bonus.capturedByTower}`
         : bonus.ringPlan
-          ? `open grass — build_region({rect:{top:${bonus.ringPlan.rect.top},bottom:${bonus.ringPlan.rect.bottom},left:${bonus.ringPlan.rect.left},right:${bonus.ringPlan.rect.right}}) rings it in ${bonus.ringPlan.tilesNeeded} tiles (~${bonus.ringPlan.estSeconds.toFixed(0)}s) — verified wallable; a wider rect around it usually leaks and REJECTs`
+          ? `open grass — build_region({rect:{top:${bonus.ringPlan.rect.top},bottom:${bonus.ringPlan.rect.bottom},left:${bonus.ringPlan.rect.left},right:${bonus.ringPlan.rect.right}}}) rings it in ${bonus.ringPlan.tilesNeeded} tiles (~${bonus.ringPlan.estSeconds.toFixed(0)}s) — verified wallable; a wider rect around it usually leaks and REJECTs`
           : "UNREACHABLE — no wallable ring (every perimeter leaks to the map edge through water/pit); build_region will reject it, don't spend calls here";
     lines.push(`     (${bonus.row},${bonus.col}) ~${bonus.value}pts  [${tag}]`);
   }
