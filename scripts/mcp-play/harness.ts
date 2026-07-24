@@ -409,9 +409,24 @@ export interface BonusTarget {
   value: number;
   /** Already inside my interior → it banks at build end, no action needed. */
   enclosed: boolean;
-  /** Zone tower whose pocket contains this square (enclose it to capture the
-   *  bonus for free), or null if it sits in open grass needing dedicated walls. */
+  /** Zone tower whose pocket contains this square AND is still un-sealed —
+   *  enclosing it captures the bonus for free. Null when the square sits in open
+   *  grass (or only inside an ALREADY-enclosed tower's pocket, where no seal is
+   *  left to make and the square is plainly outside the resulting interior);
+   *  then `ringWallable` says whether a dedicated `build_region` can even work. */
   capturedByTower: number | null;
+  /** Only set when `capturedByTower` is null and the square isn't enclosed: a
+   *  footprint `build_region` will actually accept, verified with the same
+   *  `findEnclosureCut` the tool gates on, plus that ring's cost. Absent = no
+   *  footprint in the probe ladder has a wallable perimeter (every ring leaks to
+   *  the map edge through water/pit), so build_region will REJECT any of them.
+   *  Naming the rect matters: an eyeballed 3×3 around a square routinely leaks
+   *  while the tight 1×1 ring around the SAME square seals in ~2 pieces. */
+  ringPlan?: {
+    rect: { top: number; bottom: number; left: number; right: number };
+    tilesNeeded: number;
+    estSeconds: number;
+  };
 }
 
 /** One enclosed tower of an opponent — a `breach` target. De-enclosing its
@@ -1239,6 +1254,11 @@ const BATTLE_TARGET_SAMPLE = 10;
 const PIT_TARGETS_PER_OPPONENT = 3;
 /** How many enemy cannon tiles to surface in the conditional snipe nudge. */
 const CANNON_SNIPE_TILES = 4;
+/** Footprint ladder (`ringPlanFor`) probed around an open-grass bonus square,
+ *  tight first: the tile alone, then 3×3, then 5×5. Tight both rings most often
+ *  (a padded rect reaches water that leaks to the map edge) and pays best — the
+ *  square's ~100pts land for ~2 pieces instead of a fat shell. */
+const BONUS_RING_PADS: readonly number[] = [0, 1, 2];
 /** A grunt cluster (`gruntClustersFor`) must pack at least this many grunts in one
  *  4-connected blob to be worth flagging as enclose-killable / a weakness. */
 const CLUSTER_MIN_GRUNTS = 4;
@@ -2334,6 +2354,38 @@ export async function createMcpGame(
     return out;
   }
 
+  /** The cheapest footprint around (row,col) that `build_region` will accept.
+   *  Probes tight-first (the tile itself, then 3×3, then 5×5) with the exact
+   *  `findEnclosureCut` call buildRegion gates on, and returns the FIRST that
+   *  rings — tight also being the best points-per-piece (a 1×1 ring banks the
+   *  ~100pt square for ~2 pieces, where a padded rect adds sunk fat and often
+   *  leaks outright). Undefined when none rings: no ~100pts are on offer there,
+   *  whatever the square's presence suggests. */
+  function ringPlanFor(row: number, col: number): BonusTarget["ringPlan"] {
+    for (const pad of BONUS_RING_PADS) {
+      const rect = {
+        top: Math.max(0, row - pad),
+        bottom: Math.min(GRID_ROWS - 1, row + pad),
+        left: Math.max(0, col - pad),
+        right: Math.min(GRID_COLS - 1, col + pad),
+      };
+      const cut = findEnclosureCut(
+        [{ interior: rect }],
+        sc.state,
+        sc.state.players[agentSlot]?.walls ?? new Set(),
+        false,
+      );
+      if (cut !== null) {
+        return {
+          rect,
+          tilesNeeded: cut.size,
+          estSeconds: enclosureSeconds(cut.size),
+        };
+      }
+    }
+    return undefined;
+  }
+
   /** Bonus squares in my zone — the highest points-per-tile build target, and
    *  invisible on the raw board. For each: its value at the current territory,
    *  whether it's already banked (inside my interior), and which tower's pocket
@@ -2353,14 +2405,21 @@ export async function createMcpGame(
       const enclosed = player.interior.has(packTile(bonus.row, bonus.col));
       let capturedByTower: number | null = null;
       if (!enclosed) {
-        // Prefer home, then any tower whose pocket contains it.
+        // Prefer home, then any tower whose pocket contains it — but only towers
+        // with a seal left to make. An ALREADY-enclosed tower whose pocket rect
+        // (a bounding-box approximation) covers the square cannot capture it:
+        // the square is demonstrably outside the real interior, so "capture via
+        // tower N" pointed at a no-op and the agent burned build_region calls
+        // chasing it.
         const containing = zoneTowers
-          .filter((tower) =>
-            rectHas(
-              pocketRectFor(tower, tower.index === homeIdx, bounds),
-              bonus.row,
-              bonus.col,
-            ),
+          .filter(
+            (tower) =>
+              !player.enclosedTowers.some((enc) => enc.index === tower.index) &&
+              rectHas(
+                pocketRectFor(tower, tower.index === homeIdx, bounds),
+                bonus.row,
+                bonus.col,
+              ),
           )
           .sort(
             (a, b) => Number(b.index === homeIdx) - Number(a.index === homeIdx),
@@ -2373,6 +2432,9 @@ export async function createMcpGame(
         value,
         enclosed,
         capturedByTower,
+        ...(enclosed || capturedByTower !== null
+          ? {}
+          : { ringPlan: ringPlanFor(bonus.row, bonus.col) }),
       });
     }
     // Uncaptured first, then ones a tower pocket can grab, then by position.

@@ -1252,7 +1252,9 @@ function bonusTargetLines(obs: Observation): string[] {
       ? "BANKED (inside interior)"
       : bonus.capturedByTower != null
         ? `capture via tower ${bonus.capturedByTower}`
-        : "open grass — needs dedicated walls";
+        : bonus.ringPlan
+          ? `open grass — build_region({rect:{top:${bonus.ringPlan.rect.top},bottom:${bonus.ringPlan.rect.bottom},left:${bonus.ringPlan.rect.left},right:${bonus.ringPlan.rect.right}}) rings it in ${bonus.ringPlan.tilesNeeded} tiles (~${bonus.ringPlan.estSeconds.toFixed(0)}s) — verified wallable; a wider rect around it usually leaks and REJECTs`
+          : "UNREACHABLE — no wallable ring (every perimeter leaks to the map edge through water/pit); build_region will reject it, don't spend calls here";
     lines.push(`     (${bonus.row},${bonus.col}) ~${bonus.value}pts  [${tag}]`);
   }
   return lines;
