@@ -899,7 +899,7 @@ function cannonSkewLines(obs: Observation, tally?: CannonModeTally): string[] {
   if (
     balloon >= NONNORMAL_SKEW_THRESHOLD &&
     balloon > normal + superN + rampart &&
-    hasBatterySpot(obs)
+    safeBatterySpot(obs)
   ) {
     return [
       `  ⚖ MODE SKEW: balloon×${balloon} — more than every other cannon combined, yet a normal/super gun DOES fit right now. A balloon is SINGLE-USE (removed after battle, 3 slots), a capture tool for one enemy gun, NOT your battery — leaning on it keeps your cannon count flat. Default to NORMAL cannons (1 slot; they persist and compound into a standing battery). ${balloonPointer}`,
@@ -915,6 +915,18 @@ function cannonSkewLines(obs: Observation, tally?: CannonModeTally): string[] {
     ];
   }
   return [];
+}
+
+/** Is placing a permanent gun actually ADVISED right now — not merely legal?
+ *  `hasBatterySpot` answers "a routable footprint exists", which the measured
+ *  `cannonBudget` routinely overrides: with `safeNormals: 0` every such spot is
+ *  ring-adjacent or would crush the 3×3 dump pocket, and the idle-slot line says
+ *  so in the same observation. Nudges that push toward normals must read THIS,
+ *  or they contradict the budget verdict printed two lines above them. */
+function safeBatterySpot(obs: Observation): boolean {
+  return obs.cannonBudget
+    ? obs.cannonBudget.safeNormals > 0
+    : hasBatterySpot(obs);
 }
 
 /** Is there a routable spot for a STANDING BATTERY gun (normal/super) right now?
