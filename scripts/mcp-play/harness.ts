@@ -300,15 +300,22 @@ export interface EnclosureCandidate {
   /** Does enclosing this tower clear the "no alive tower enclosed → lose a life"
    *  check at THIS round's finalize? True when the tower is alive, OR it's dead
    *  but the player holds Restoration Crew (which revives one enclosed dead tower
-   *  immediately, before the life check). A freshly-dead tower WITHOUT that
-   *  upgrade only revives at the end of the NEXT build, so sealing it this round
-   *  still costs a life — the footgun this flag surfaces. Conservative on purpose:
-   *  it does NOT credit the delayed pending-revive (a dead tower enclosed the
-   *  PREVIOUS build), so it never reads "safe" off a not-yet-revived tower. The
-   *  honest, finalize-accurate survival gate (which DOES credit pending) is the
-   *  per-player `me.survivesRoundEnd`; this per-candidate flag is the conservative
-   *  "which tower should I seal to be sure" companion. */
+   *  immediately, before the life check), OR it's already flagged
+   *  `towerPendingRevive` (enclosed the PREVIOUS build → finalize revives it
+   *  BEFORE the life check this round). A freshly-dead tower with neither only
+   *  revives at the end of the NEXT build, so sealing it this round still costs
+   *  a life — the footgun this flag surfaces. Mirrors
+   *  `survivesRoundEndLifeCheck` exactly, so it can't contradict the per-player
+   *  `me.survivesRoundEnd`; `reviveSource` says which of the two credits it. */
   satisfiesSurvival: boolean;
+  /** Which revive credits a DEAD tower's `satisfiesSurvival` — set only when
+   *  `alive` is false and `satisfiesSurvival` is true. `"pending"` = the tower
+   *  was enclosed the PREVIOUS build, so the engine revives it at THIS round's
+   *  finalize, before the life check (any mode). `"restoration-crew"` = the
+   *  modern upgrade revives it on enclose. Naming the source keeps the ⚑DEAD tag
+   *  from citing a modern-only upgrade in a classic match, where `"pending"` is
+   *  the only path that can ever be true. */
+  reviveSource?: "pending" | "restoration-crew";
   /** "enclosed" = already sealed; "enclosable" = needs `tiles`; "unenclosable"
    *  = no piece-fillable ring this build (see `reason`). */
   status: "enclosed" | "enclosable" | "unenclosable";
@@ -2188,8 +2195,19 @@ export async function createMcpGame(
       // sealing it clears survival this round too — not just RC's revive.
       // Missing this made the ⚑DEAD tag contradict the ☠ SURVIVAL banner and
       // seal_survivor's own "already safe" text for the same tower.
-      const satisfiesSurvival =
-        alive || restorationRevive || state.towerPendingRevive.has(tower.index);
+      const pendingRevive = state.towerPendingRevive.has(tower.index);
+      const satisfiesSurvival = alive || restorationRevive || pendingRevive;
+      // Which revive to CITE for a dead-but-surviving tower. Pending wins when
+      // both hold: it's the engine's own unconditional finalize step, whereas RC
+      // is a modern-only upgrade — and citing RC in a classic match (where it
+      // can't exist) read as a harness bug.
+      const reviveSource = alive
+        ? undefined
+        : pendingRevive
+          ? ("pending" as const)
+          : restorationRevive
+            ? ("restoration-crew" as const)
+            : undefined;
       const pocket = pocketRectFor(tower, isHome, bounds);
       // Bonus squares this tower's pocket would bank (only meaningful while the
       // tower isn't yet enclosed — once enclosed, whatever it holds is already
@@ -2202,6 +2220,7 @@ export async function createMcpGame(
         isHome,
         alive,
         satisfiesSurvival,
+        reviveSource,
         bonusSquares,
         driftTiles: [] as EnclosureCandidate["driftTiles"],
         sealTiles: [] as EnclosureCandidate["sealTiles"],

@@ -1026,7 +1026,7 @@ function threatLines(obs: Observation): string[] {
  *  end. Gated on `survivesRoundEnd` (credits pending / Restoration-Crew
  *  revives), NOT the raw alive count, which false-alarmed while RC was held.
  *  Points at a tower whose seal actually CLEARS the loss — alive, or dead-but-
- *  revivable via Restoration Crew (`satisfiesSurvival`); enclosing a plain dead
+ *  revivable (`satisfiesSurvival`, with `reviveSource` naming which); a plain dead
  *  tower banks territory but still costs the life. When no candidate passes the
  *  strict `feasible` gate, checks for a LONG-ODDS one (walls fit the clock,
  *  only the expected small-piece bag-wait prices it out) before declaring the
@@ -1062,7 +1062,7 @@ function survivalLines(obs: Observation): string[] {
         .sort((a, b) => a.estSeconds - b.estSeconds)[0];
   let hint: string;
   if (saver) {
-    hint = ` → call seal_survivor() now — ONE call seals a compartment around ${saver.isHome ? "home" : `tower ${saver.towerIdx}`} (~${saver.estSeconds.toFixed(0)}s)${saver.alive ? "" : " — dead but Restoration Crew revives it on enclose"}, no coordinates. Passing forfeits the life; enclosing a DEAD tower does NOT count.`;
+    hint = ` → call seal_survivor() now — ONE call seals a compartment around ${saver.isHome ? "home" : `tower ${saver.towerIdx}`} (~${saver.estSeconds.toFixed(0)}s)${saver.alive ? "" : ` — dead, but ${reviveWhy(saver.reviveSource)}`}, no coordinates. Passing forfeits the life; enclosing a DEAD tower does NOT count.`;
   } else if (longOdds) {
     hint = ` → call seal_survivor() — LONG ODDS: ${longOdds.isHome ? "home" : `tower ${longOdds.towerIdx}`}'s walls fit (~${(longOdds.estSeconds - longOdds.waitSeconds).toFixed(0)}s) but it needs a small-piece draw (~${longOdds.waitSeconds.toFixed(0)}s expected bag-wait); it cycles the bag for you and a lucky draw saves the life. Passing forfeits it for sure.`;
   } else {
@@ -1118,7 +1118,7 @@ function enclosureLines(obs: Observation): string[] {
     // Flag it inline so a "SEAL NOW ★+BONUS" row can't be misread as survival-safe.
     if (candidate.alive === false) {
       line += candidate.satisfiesSurvival
-        ? "  ⚑DEAD (revives before the life check — pending revive or Restoration Crew)"
+        ? `  ⚑DEAD (${reviveWhy(candidate.reviveSource)} — counts for survival)`
         : "  ⚑DEAD (enclosing does NOT satisfy survival this round)";
     }
     if (candidate.status === "enclosable") {
@@ -1132,6 +1132,20 @@ function enclosureLines(obs: Observation): string[] {
     lines.push(line);
   }
   return lines;
+}
+
+/** Why a DEAD tower still counts for survival, named from the candidate's own
+ *  `reviveSource`. Pending revive is engine behaviour in every mode; Restoration
+ *  Crew is a modern-only upgrade — a classic game must never see it cited (the
+ *  old text listed both and read as a harness bug at a classic round's ⚑DEAD). */
+function reviveWhy(source: "pending" | "restoration-crew" | undefined): string {
+  if (source === "restoration-crew") {
+    return "Restoration Crew revives it on enclose, before the life check";
+  }
+  if (source === "pending") {
+    return "pending revive — finalize revives it before this round's life check";
+  }
+  return "revives before the life check";
 }
 
 /** The `enclosable`-status tail of one ENCLOSURE CANDIDATES row: tile list, fit
