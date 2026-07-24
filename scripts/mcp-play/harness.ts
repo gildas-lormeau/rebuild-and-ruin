@@ -4561,6 +4561,7 @@ export async function createMcpGame(
     }
     const goalIdx = towerIdx ?? sc.state.players[agentSlot]?.homeTower?.index;
     const startTimer = sc.state.timer;
+    const compactBefore = compactnessSnapshot();
     const pieceCap = Math.min(
       budget?.maxPieces ?? MAX_BUILD_PIECES,
       MAX_BUILD_PIECES,
@@ -4615,6 +4616,20 @@ export async function createMcpGame(
     // R12 pack-up that set up a bag-lock was reported as three plain successes).
     const detail =
       redirected > 0 ? ` (${onTarget} on-target, ${redirected} cycled)` : "";
+    // Zero on-target with pieces spent = the whole budget bought bag-cycling,
+    // not seal progress — and every cycled dud packs ~4 tiles of sunk fat in.
+    // Reported bare ("sec-budget: placed 3 (0 on-target, 3 cycled), 1 gaps
+    // left") it reads as work done; name the blocker that kept the cut untouched
+    // and price the fat, unless the outcome already carries a blocker diagnosis.
+    const diagnosed =
+      effectiveOutcome === "stuck" || effectiveOutcome === "blocked";
+    const noTargetWhy =
+      onTarget === 0 && placed > 0 && !goalEnclosed && !diagnosed
+        ? ` — NOTHING landed on the cut${
+            describeBlockers(finalCandidate?.blockers ?? []) ||
+            ": no rotation of the arriving pieces covered a gap tile"
+          }; the ${placed} piece(s) went onto the ring to cycle the bag${expansionDeltaNote(compactBefore)}`
+        : "";
     // Survival calls disable the cycle-risk brake on purpose (see the comment
     // above), so `why` never carries the "declutter next battle" advice that a
     // normal cycle-risk stop gets — the caller has no other signal that this
@@ -4631,7 +4646,7 @@ export async function createMcpGame(
       // the `outcome:` prefix carries whether the goal was reached.
       kind: "build",
       success: placed > 0 || effectiveOutcome === "done",
-      reason: `${opts?.note ?? ""}${label}: placed ${placed}${detail}, ${remaining} gaps left, ~${elapsed}s${why}${cycleWarning}`,
+      reason: `${opts?.note ?? ""}${label}: placed ${placed}${detail}, ${remaining} gaps left, ~${elapsed}s${why}${noTargetWhy}${cycleWarning}`,
     };
     return observe();
   }
