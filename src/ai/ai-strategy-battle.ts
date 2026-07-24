@@ -1010,7 +1010,8 @@ function collectEnemyTargets(
  *  `player.cannons`, so the rebuilt board hands indices 0..n to brand-new
  *  cannons. Folding the cannon's tile into the key gives those fresh cannons
  *  fresh counters instead of inheriting this index's destroyed-cannon history
- *  (which permanently blacklisted them once the old count hit cannonMaxHp).
+ *  (which blacklisted them for the rest of the battle once the old count hit
+ *  cannonMaxHp — the map itself expires at the next battle entry).
  *  Layout: tileKey (< TILE_COUNT < 2^11) << 18 | playerId << 16 | cannonIdx. */
 function shotCountKey(
   playerId: ValidPlayerId,

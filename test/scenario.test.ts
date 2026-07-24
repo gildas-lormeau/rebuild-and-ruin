@@ -746,14 +746,15 @@ Deno.test(
     // victim 2, after the battle-timer input lockout stopped the AI's
     // post-timer crosshair RNG draws → seed 23/r10, victim 2, after the
     // least-bad extension escape unstuck fat-vetoed builds → seed 7/r9,
-    // victim 1, after the blocked-cut rescue unstuck grunt-blocked seals.
+    // victim 1, after the blocked-cut rescue unstuck grunt-blocked seals →
+    // seed 12/r9, victim 1, after the per-battle shot-tally expiry.
     // Probe: tmp/probe-abandon-eviction.ts.) Cross-zone stragglers
     // are a mid-game phenomenon (grunts need several rounds to mass on the
     // frozen river), so the wait budget must reach the eliminating round.
     // If the precondition guard below fails after an AI/rules change,
     // re-probe for a new (seed, victim) pair.
     using sc = await createScenario({
-      seed: 7,
+      seed: 12,
       mode: "modern",
       rounds: 15,
       testHooks: {

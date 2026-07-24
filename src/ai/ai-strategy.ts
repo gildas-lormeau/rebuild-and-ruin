@@ -177,10 +177,17 @@ const TILE_BOOST_THRESHOLD_BY_CURSOR_SKILL = [8, 5, 3] as const;
 export const FINISH_IT_MIN_CANNONS = 14;
 
 export class DefaultStrategy implements AiStrategy {
-  /** Shot count per cannon — tracks hits to know when to stop targeting.
-   *  Keyed by (cannonTile, playerId, cannonIdx) — see `shotCountKey` — so it
-   *  survives checkpoint cannon replacement but rolls over when a life-loss
-   *  board reset reuses cannon indices for brand-new cannons. */
+  /** Shots aimed at each enemy cannon THIS battle — the overkill guard that
+   *  stops the picker re-firing at a cannon it has already spent
+   *  `cannonMaxHp` shots on. Keyed by (cannonTile, playerId, cannonIdx) — see
+   *  `shotCountKey` — so it survives checkpoint cannon replacement but rolls
+   *  over when a life-loss board reset reuses cannon indices for brand-new
+   *  cannons. Cleared at every battle entry (`planBattle`): the tally counts
+   *  AIMS, not landed damage, so a shot a Shield Battery absorbed or a dust
+   *  storm deflected off the tile still bumps it — carried across battles that
+   *  overcount permanently blacklisted a cannon that never took a scratch
+   *  (the key is stable for as long as the cannon lives). A human can't read
+   *  cannon HP either; they only remember the shots they just fired. */
   private shotCounts = new Map<ShotKey, number>();
   /** Focus fire on this player during battle. Exposed via the AiStrategy
    *  interface so the battle-diag emit path can distinguish a focus-fire
@@ -375,6 +382,9 @@ export class DefaultStrategy implements AiStrategy {
     // would thrash the per-shot fallback target and ping-pong the crosshair
     // between enemy castles.
     if (replanExcludedTactics === undefined) {
+      // Battle entry is also where the per-cannon shot tally expires — see
+      // `shotCounts`. Consumes no rng, so the draw sequence below is unchanged.
+      this.shotCounts.clear();
       this.rollBattleTargets(state, playerId);
     }
 

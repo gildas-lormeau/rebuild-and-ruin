@@ -83,14 +83,17 @@ const WIRE_DELAY_FRAMES = 5;
 // Re-probed after the finish_it perimeter-spray tactic (its per-player
 // rng.bool shifts the battle stream, changing which towers die): modern
 // 14-r8 stopped eliminating → modern 16-r8 (classic 1-r8 and 5-r8 survived).
+// Re-probed after the per-battle shot-tally expiry (surviving enemy cannons
+// become targetable again next battle): classic 1-r8 and modern 16-r8 stopped
+// eliminating → classic 6-r8, modern 4-r8 (classic 5-r8 survived).
 const TRIALS: {
   readonly seed: number;
   readonly mode: "classic" | "modern";
   readonly rounds: number;
 }[] = [
-  { seed: 1, mode: "classic", rounds: 8 },
   { seed: 5, mode: "classic", rounds: 8 },
-  { seed: 16, mode: "modern", rounds: 8 },
+  { seed: 6, mode: "classic", rounds: 8 },
+  { seed: 4, mode: "modern", rounds: 8 },
 ];
 
 void _forceScenarioFirst;
