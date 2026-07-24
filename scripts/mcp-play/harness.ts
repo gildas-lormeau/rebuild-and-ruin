@@ -4143,6 +4143,40 @@ export async function createMcpGame(
     return partial.sort((a, b) => a.tilesNeeded - b.tilesNeeded)[0]!;
   }
 
+  /** The REJECT text for a held idle-build pass: what the skip forfeits, how to
+   *  build it instead — and, when the min-cut is currently obstructed, WHAT the
+   *  quoted seconds are conditional on. Without that last clause a "~1s" hold
+   *  over a grunt-sat cut sends the agent into the build it was just told to
+   *  call, to watch it cycle duds and pack fat (seed-42 R7). */
+  function idleBuildHoldReason(
+    target: EnclosureCandidate,
+    atRisk: boolean,
+  ): string {
+    const who = target.isHome ? "home" : `tower ${target.towerIdx}`;
+    const bonus =
+      (target.bonusSquares ?? 0) > 0
+        ? ` + ★${target.bonusSquares} bonus square(s)`
+        : "";
+    const stakes = atRisk
+      ? "☠ NO alive tower enclosed — finalize like this and you LOSE A LIFE and your zone resets. "
+      : "";
+    const wait =
+      target.waitSeconds > 0
+        ? ` incl ~${target.waitSeconds.toFixed(0)}s expected bag-wait`
+        : "";
+    const gatedOn = describeBlockers(target.blockers ?? []);
+    const gate = gatedOn
+      ? ` NOTE — the cut is NOT clear right now${gatedOn}; the ~${target.estSeconds.toFixed(0)}s assumes that clears.`
+      : "";
+    return (
+      `HELD — ${stakes}${who} is still enclosable (~${target.estSeconds.toFixed(0)}s${wait}, ` +
+      `you have ${sc.state.timer.toFixed(0)}s) and idle build scores 0: ${who}'s ` +
+      `territory${bonus} banks THIS round only if you wall it. ` +
+      `build_out() to enclose it (and everything else that fits), ` +
+      `build_toward({ towerIdx: ${target.towerIdx} }) for just this one, or pass again to skip it anyway.${gate}`
+    );
+  }
+
   function pass(count = 1, seconds?: number): Observation {
     const startPhase = sc.state.phase;
     const wasCountdown = sc.state.battleCountdown > 0;
@@ -4181,27 +4215,10 @@ export async function createMcpGame(
         cheapestFeasibleEnclosure();
       if (target && skipSec >= target.estSeconds) {
         idleBuildPassWarned = true;
-        const who = target.isHome ? "home" : `tower ${target.towerIdx}`;
-        const bonus =
-          (target.bonusSquares ?? 0) > 0
-            ? ` + ★${target.bonusSquares} bonus square(s)`
-            : "";
-        const stakes = atRisk
-          ? `☠ NO alive tower enclosed — finalize like this and you LOSE A LIFE and your zone resets. `
-          : "";
-        const wait =
-          target.waitSeconds > 0
-            ? ` incl ~${target.waitSeconds.toFixed(0)}s expected bag-wait`
-            : "";
         bridge.lastResult = {
           kind: "build",
           success: false,
-          reason:
-            `HELD — ${stakes}${who} is still enclosable (~${target.estSeconds.toFixed(0)}s${wait}, ` +
-            `you have ${sc.state.timer.toFixed(0)}s) and idle build scores 0: ${who}'s ` +
-            `territory${bonus} banks THIS round only if you wall it. ` +
-            `build_out() to enclose it (and everything else that fits), ` +
-            `build_toward({ towerIdx: ${target.towerIdx} }) for just this one, or pass again to skip it anyway.`,
+          reason: idleBuildHoldReason(target, atRisk),
         };
         return observe();
       }
