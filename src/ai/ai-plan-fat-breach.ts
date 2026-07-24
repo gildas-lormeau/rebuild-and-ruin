@@ -8,6 +8,7 @@
 
 import type { TilePos } from "../shared/core/geometry-types.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
+import { orderByNearest } from "../shared/core/spatial.ts";
 import type { BattleViewState } from "../shared/core/system-interfaces.ts";
 import type { Rng } from "../shared/platform/rng.ts";
 import { filterActiveEnemies } from "../shared/sim/board-occupancy.ts";
@@ -21,8 +22,8 @@ const FAT_BREACH_MIN_WALLS = 9;
 const MAX_FAT_BREACH_TARGETS = 8;
 
 /** Plan a minimum-cut breach: the fewest enemy wall tiles to destroy so the
- *  8-dir flood breaches a large enclosure, ordered shell-first for chain
- *  execution. The scan leads with the battle's sticky victim
+ *  8-dir flood breaches a large enclosure, fired as a nearest-neighbour walk
+ *  from the shooter's crosshair. The scan leads with the battle's sticky victim
  *  (`preferredEnemyId` — keeps the crosshair on one castle), shuffled rest.
  *  Returns null when no enemy has an intact large enclosure breachable
  *  within the cannon budget. */
@@ -42,7 +43,14 @@ export function planFatBreach(
   for (const enemy of enemies) {
     if (enemy.walls.size < FAT_BREACH_MIN_WALLS) continue;
     const breach = findMinBreach(state, enemy, cap, rng, cursor);
-    if (breach) return breach;
+    // Fire the cut as a nearest-neighbour walk seeded at the live crosshair,
+    // like every other `findMinBreach` consumer (deny / pinch / max-repair /
+    // grunt-breach). `findMinBreach` returns each ring's cut shell-first and
+    // concatenates rings, so entering the list at index 0 can mean a cross-map
+    // glide to the far end of a staircase — and the crosshair glides at bounded
+    // speed, so that hop directly costs shots. Cut membership is unchanged;
+    // only the firing order is.
+    if (breach) return orderByNearest(breach, undefined, cursor);
   }
   return null;
 }
