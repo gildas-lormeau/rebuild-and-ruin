@@ -77,6 +77,11 @@ export type PickPath =
   // is concentrated on load-bearing walls so its 3×3 incendiary splash lands
   // there. (See `hasReadySuperGun` / `SUPER_GUN_STRATEGIC_PROBABILITY`.)
   | "super_strategic"
+  // a grunt standing in the shooter's OWN zone (the per-shot twin of the
+  // grunt_sweep chain): the only unit that kills towers, and the board's best
+  // points-per-shot at DESTROY_GRUNT_POINTS a kill. Ranked by how close the
+  // grunt already is to the tower it locked onto.
+  | "grunt_cull"
   | "grunt_wall"
   | "priority_cannon"
   | "fresh_cannon"

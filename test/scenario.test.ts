@@ -747,25 +747,26 @@ Deno.test(
     // post-timer crosshair RNG draws → seed 23/r10, victim 2, after the
     // least-bad extension escape unstuck fat-vetoed builds → seed 7/r9,
     // victim 1, after the blocked-cut rescue unstuck grunt-blocked seals →
-    // seed 12/r9, victim 1, after the per-battle shot-tally expiry.
+    // seed 12/r9, victim 1, after the per-battle shot-tally expiry →
+    // seed 17/r12, victim 2, after the own-zone grunt cull.
     // Probe: tmp/probe-abandon-eviction.ts.) Cross-zone stragglers
     // are a mid-game phenomenon (grunts need several rounds to mass on the
     // frozen river), so the wait budget must reach the eliminating round.
     // If the precondition guard below fails after an AI/rules change,
     // re-probe for a new (seed, victim) pair.
     using sc = await createScenario({
-      seed: 12,
+      seed: 17,
       mode: "modern",
       rounds: 15,
       testHooks: {
         forceModifier: MODIFIER_ID.FROZEN_RIVER,
         lifeLostChoices: [
-          { playerId: 1 as ValidPlayerId, choice: LifeLostChoice.ABANDON },
+          { playerId: 2 as ValidPlayerId, choice: LifeLostChoice.ABANDON },
         ],
       },
     });
 
-    const victimZone = sc.state.playerZones[1];
+    const victimZone = sc.state.playerZones[2];
     const countStragglers = () =>
       sc.state.grunts.filter(
         (grunt) =>
@@ -778,14 +779,14 @@ Deno.test(
     let stragglersAtNextRound = -1;
     sc.bus.on(GAME_EVENT.LIFE_LOST_DIALOG_SHOW, (ev) => {
       if (
-        ev.needsReselect.includes(1 as ValidPlayerId) &&
+        ev.needsReselect.includes(2 as ValidPlayerId) &&
         stragglersAtDialog < 0
       ) {
         stragglersAtDialog = countStragglers();
       }
     });
     sc.bus.on(GAME_EVENT.PLAYER_ELIMINATED, (ev) => {
-      if (ev.playerId === 1) eliminated = true;
+      if (ev.playerId === 2) eliminated = true;
     });
     sc.bus.on(GAME_EVENT.ROUND_START, () => {
       // First ROUND_START after the elimination: emitted by exitRoundEnd

@@ -319,8 +319,9 @@ const EFFECT_PROBES: Partial<Record<UpgradeId, EffectProbe>> = {
  *  Re-picked 1→0 when the cursor ping-pong fixes (sticky battle victim +
  *  cursor-nearest breach rotation) drifted seed-1; seed-0 un-masks again.
  *  Re-picked 0→1 when the per-battle shot-tally expiry drifted seed-0 into the
- *  masking case; seed-1 un-masks again. */
-const SEED = 1;
+ *  masking case; seed-1 un-masks again.
+ *  Re-picked 1→0 when the own-zone grunt cull drifted seed-1; seed-0 un-masks. */
+const SEED = 0;
 
 for (const upgradeId of UPGRADE_IDS) {
   Deno.test(`upgrades: ${upgradeId} is forced-picked + effect fires`, async () => {

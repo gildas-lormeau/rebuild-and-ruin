@@ -861,14 +861,15 @@ Deno.test(
 Deno.test(
   "watcher adopting an eliminated-only ROUND_END snapshot shows the notice",
   async () => {
-    // Probed seed: round 14 closes eliminated-only (P2 out, no reselect;
+    // Probed seed: round 18 closes eliminated-only (P0 out, no reselect;
     // game runs to r30 — probe: tmp/probe-adoption-seeds.ts part B. Was
     // seed 13 until the battle-timer input lockout shifted the AI RNG
     // streams, then seed 5 until the least-bad extension escape unstuck
     // fat-vetoed builds, then seed 24 until the per-battle shot-tally
-    // expiry shifted which cannons get finished off).
+    // expiry shifted which cannons get finished off, then seed 29 until the
+    // own-zone grunt cull shifted which towers survive).
     const pair = await createNetworkedPair({
-      seed: 29,
+      seed: 1,
       mode: "classic",
       rounds: 30,
     });
@@ -880,7 +881,7 @@ Deno.test(
       pair,
       () =>
         host.state.phase === Phase.WALL_BUILD &&
-        (host.state.round as number) === 14 &&
+        (host.state.round as number) === 18 &&
         host.state.timer < 1,
       "pair near the eliminated-only round close",
     );

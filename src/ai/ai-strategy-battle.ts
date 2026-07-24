@@ -7,6 +7,7 @@
  */
 
 import {
+  aimReachesTile,
   aimRedirectsOntoTower,
   canFireOwnCannon,
   getGruntTargetTower,
@@ -16,6 +17,7 @@ import {
 } from "../game/index.ts";
 import {
   type Cannon,
+  type Grunt,
   isBalloonCannon,
   isCannonAlive,
   isSuperCannon,
@@ -120,6 +122,21 @@ const SUPER_GUN_STRATEGIC_PROBABILITY = 3 / 10;
  *  concentrates the second shot. Still well below the strategic/cannon
  *  picks so ships don't dominate shot selection. */
 const SUPPLY_SHIP_TARGET_PROBABILITY = 3 / 16;
+/** Chance to cull a grunt standing in the shooter's OWN zone. The per-shot twin
+ *  of the `grunt_sweep` chain, which only engages above a 15-grunt mass — a
+ *  threshold a measured 78% of battles never reach (mean 9.6 own-zone grunts),
+ *  leaving the picker with no answer at all to the units that kill towers.
+ *  Worth a gate above the strategic/grunt-wall picks it sits beside: a grunt
+ *  kill banks DESTROY_GRUNT_POINTS (16 — eight walls' worth, and far more once
+ *  modern combos stack) in ONE shot, and grunts are the only tower killer, so
+ *  the shot is defence and score at once. Deliberately probabilistic rather
+ *  than a mass threshold: at any count the shot is worth more than the enemy
+ *  wall it displaces, so the rate is what needs tuning, not the trigger. */
+const OWN_GRUNT_CULL_PROBABILITY = 1 / 4;
+/** Most-threatening own-zone grunts eligible to be culled — the crosshair
+ *  breaks the tie among them (`pickNearCursorWeighted`), so threat stays the
+ *  primary filter while travel decides between comparably-threatening grunts. */
+const CULL_THREAT_CANDIDATES = 3;
 /** Chance to target a wall tile blocking a grunt's path to its tower. */
 const GRUNT_WALL_TARGET_PROBABILITY = 1 / 8;
 /** Chance to target a fresh (undamaged) enemy cannon before defaulting to
@@ -316,6 +333,30 @@ export function pickTarget(
       );
       if (shipTarget) {
         return { x: shipTarget.x, y: shipTarget.y, pickPath: "supply_ship" };
+      }
+    }
+  }
+
+  // Cull: kill a grunt standing in OUR OWN zone. Placed above the wall-siege
+  // gates because it is simultaneously the board's best points-per-shot and the
+  // only defence the per-shot loop has against the units that kill towers (the
+  // grunt_sweep chain covers the >15-grunt mass; nothing covered the ordinary
+  // 5-15 case). Gated on a grunt actually standing in our zone — a pure
+  // function of synced sim state — so the roll is skipped, and the rng stream
+  // unperturbed, on a clean board (same discipline as the supply-ship gate).
+  if (hasOwnZoneGrunt(state, playerId)) {
+    const cullProb = traitLookup(battleTactics, [
+      0,
+      OWN_GRUNT_CULL_PROBABILITY,
+      2 * OWN_GRUNT_CULL_PROBABILITY,
+    ] as const);
+    if (rand() < cullProb) {
+      const grunt = pickOwnZoneGruntTarget(state, playerId, crosshair, rng);
+      if (grunt) {
+        return tagPath(
+          jitterWithinTile(grunt.row, grunt.col, rand),
+          "grunt_cull",
+        );
       }
     }
   }
@@ -957,6 +998,83 @@ function collectGruntBlockingWallTargets(
     }
   }
   return gruntWalls;
+}
+
+/** True when at least one grunt stands in the player's OWN zone — the cheap
+ *  presence check that gates the cull roll (a pure function of synced sim
+ *  state, so every peer skips or takes the draw together). */
+function hasOwnZoneGrunt(
+  state: BattleViewState,
+  playerId: ValidPlayerId,
+): boolean {
+  const myZone = state.playerZones[playerId];
+  if (myZone === undefined) return false;
+  for (const grunt of state.grunts) {
+    if (zoneAt(state.map, grunt.row, grunt.col) === myZone) return true;
+  }
+  return false;
+}
+
+/** The own-zone grunt to cull: the ones already CLOSEST to the tower they
+ *  locked onto (the next tower kill, since grunts only advance during
+ *  WALL_BUILD), with the crosshair breaking the tie among the top few so the
+ *  shot doesn't cost a cross-map glide. Skips grunts a nearer obstacle hides —
+ *  `aimReachesTile`, not the wall-tolerant `aimRedirectsOntoTower` used for
+ *  enemy walls: inside our own castle the occluder would be OUR wall, so a
+ *  redirect isn't an imprecise hit but a self-inflicted breach — and grunts one
+ *  of our own balls is already heading at (the ball kills it; a second lands on
+ *  bare ground). Returns null when nothing is safely hittable. */
+function pickOwnZoneGruntTarget(
+  state: BattleViewState,
+  playerId: ValidPlayerId,
+  crosshair: PixelPos,
+  rng: Rng,
+): TilePos | null {
+  const myZone = state.playerZones[playerId];
+  if (myZone === undefined) return null;
+  const scored: { tile: TilePos; threat: number; key: TileKey }[] = [];
+  for (const grunt of state.grunts) {
+    if (zoneAt(state.map, grunt.row, grunt.col) !== myZone) continue;
+    if (!aimReachesTile(state, grunt.row, grunt.col)) continue;
+    if (isTileTargetedByInFlightBall(state, grunt.row, grunt.col, playerId))
+      continue;
+    scored.push({
+      tile: { row: grunt.row, col: grunt.col },
+      threat: gruntDistanceToTargetTower(state, grunt),
+      key: packTile(grunt.row, grunt.col),
+    });
+  }
+  if (scored.length === 0) return null;
+  scored.sort((a, b) => a.threat - b.threat || a.key - b.key);
+  const cursor: TilePos = {
+    row: pxToTile(crosshair.y),
+    col: pxToTile(crosshair.x),
+  };
+  return (
+    pickNearCursorWeighted(
+      scored.slice(0, CULL_THREAT_CANDIDATES),
+      cursor,
+      (entry) => entry.tile,
+      rng,
+    )?.tile ?? null
+  );
+}
+
+/** Manhattan distance from a grunt to the nearest tile of the tower it locked
+ *  onto — how close it is to landing the kill. Infinity for a grunt with no
+ *  live locked target (it threatens nothing yet, so it sorts last). */
+function gruntDistanceToTargetTower(
+  state: BattleViewState,
+  grunt: Grunt,
+): number {
+  const tower = getGruntTargetTower(state, grunt);
+  if (!tower) return Number.POSITIVE_INFINITY;
+  let best = Number.POSITIVE_INFINITY;
+  forEachTowerTile(tower, (tileRow, tileCol) => {
+    const dist = manhattanDistance(tileRow, tileCol, grunt.row, grunt.col);
+    if (dist < best) best = dist;
+  });
+  return best;
 }
 
 function collectEnemyTargets(
