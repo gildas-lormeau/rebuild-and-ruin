@@ -90,14 +90,16 @@ const WIRE_DELAY_FRAMES = 5;
 // the eliminating seeds moved): all three stopped eliminating → classic 1-r8,
 // classic 9-r8, modern 36-r8 (no modern seed under 30 qualified — scan went to
 // 80).
+// Re-probed after the battery-size cannon gates: classic 9-r8 and modern 36-r8
+// stopped eliminating → classic 2-r8, modern 12-r8 (classic 1-r8 survived).
 const TRIALS: {
   readonly seed: number;
   readonly mode: "classic" | "modern";
   readonly rounds: number;
 }[] = [
   { seed: 1, mode: "classic", rounds: 8 },
-  { seed: 9, mode: "classic", rounds: 8 },
-  { seed: 36, mode: "modern", rounds: 8 },
+  { seed: 2, mode: "classic", rounds: 8 },
+  { seed: 12, mode: "modern", rounds: 8 },
 ];
 
 void _forceScenarioFirst;

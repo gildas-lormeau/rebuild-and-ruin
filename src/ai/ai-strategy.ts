@@ -50,6 +50,7 @@ import { planSustainedPressure } from "./ai-plan-sustained-pressure.ts";
 import { planWallDemolition } from "./ai-plan-wall-demolition.ts";
 import {
   type BattleTargetMemory,
+  countBatteryCannons,
   countUsableCannons,
   pickTarget,
   type ShotKey,
@@ -77,17 +78,31 @@ import { secondsToTicks, traitLookup } from "./ai-utils.ts";
 const EMPTY_TACTICS: ReadonlySet<TacticId> = new Set();
 /** Chance to focus all fire on one uniformly-chosen enemy for the whole battle. */
 const FOCUS_FIRE_PROBABILITY = 0.5;
-/** Default minimum usable cannons to attempt a chain attack. Individual
- *  tactics override this with their own gate (see `FAT_BREACH_MIN_CANNONS`,
- *  `ICE_TRENCH_MIN_CANNONS`) when their cost/value profile differs. */
-const CHAIN_ATTACK_MIN_CANNONS = 6;
-/** Minimum usable cannons to attempt a fat-wall min-cut breach — lower than
+/** Default minimum BATTERY size (`countBatteryCannons` — firepower commanded,
+ *  ignoring reload) to attempt a chain attack. Individual tactics override this
+ *  with their own gate (see `FAT_BREACH_MIN_CANNONS`, `ICE_TRENCH_MIN_CANNONS`)
+ *  when their cost/value profile differs. Every min-cannon gate below measures
+ *  the battery; the chain LENGTH each planner returns is sized by the
+ *  ready-now count instead.
+ *
+ *  Each threshold was re-derived when the gates moved off the ready-now count so
+ *  the tactic's FREQUENCY is preserved — the fix is about which quantity is
+ *  measured, not about firing more. Over 15062 in-battle samples: ready>=6 =
+ *  53.9% of samples, battery>=7 = 52.4% (this gate: 6 → 7); ready>=4 = 72.8%,
+ *  battery>=5 = 66.2% (the low gates: 4 → 5); ready>=14 = 9.4%, battery>=15 =
+ *  8.2% (finish_it: 14 → 15). Leaving the old numbers on the new measure raised
+ *  chain share 58.9% → 62.7% of shots (classic, 300 seeds) and cost lives 2.081
+ *  → 2.000 with score -0.5%: a chain STARTED while few barrels are loaded is a
+ *  cut that doesn't get finished, which is exactly what the readiness gate had
+ *  been suppressing by accident. */
+const CHAIN_ATTACK_MIN_CANNONS = 7;
+/** Minimum battery to attempt a fat-wall min-cut breach — lower than
  *  the general chain threshold. The breach (`findMinBreach`) caps its own cost
  *  at the cannon budget, so 4–5 cannons can still open a thin or partly-damaged
  *  ring; and at 4–5 cannons `deny_enclosure` (gated at 6) is OFF, so this is the
  *  ONLY breach tactic firing there — making the any-player fat-breach the
  *  low-cannon enclosure-denial lever instead of leaving those battles passive. */
-const FAT_BREACH_MIN_CANNONS = 4;
+const FAT_BREACH_MIN_CANNONS = 5;
 /** Chance to help an overwhelmed enemy by sweeping grunts on their territory. */
 const CHARITY_SWEEP_PROBABILITY = 1 / 10;
 /** Chance to launch a connected-wall demolition chain attack. */
@@ -128,7 +143,7 @@ const MAX_REPAIR_COST_PROBABILITY = 0.4;
  *  `rng.bool` already consumes a draw at prob 0, so raising it preserves the
  *  RNG-stream alignment (structural / fat_breach skip their roll at tier 1, so
  *  enabling THOSE would shift every downstream draw). Naturally rate-limited by
- *  the ≥6-usable-cannon gate and planDenyEnclosure finding an affordable cut. */
+ *  the ≥6-battery gate and planDenyEnclosure finding an affordable cut. */
 const WEAK_DENY_ENCLOSURE_PROBABILITY = 0.15;
 /** Chance to take a guaranteed pinch kill this chain. A pinch breach is a pure
  *  function of the TARGET's geometry — the firing player's cannons/zone never
@@ -159,22 +174,28 @@ const GRUNT_BREACH_PROBABILITY: readonly [number, number, number] = [
   0.65,
   0.85,
 ];
-/** Minimum usable cannons for a grunt breach — the drill is capped at 4 walls,
- *  so like fat_breach it stays affordable below the general chain threshold. */
-const GRUNT_BREACH_MIN_CANNONS = 4;
-/** Minimum usable cannons to attempt an ice trench (lower than general chain threshold). */
-const ICE_TRENCH_MIN_CANNONS = 4;
+/** Minimum battery for a grunt breach — the drill is capped at 4 walls, so like
+ *  fat_breach it stays affordable below the general chain threshold. */
+const GRUNT_BREACH_MIN_CANNONS = 5;
+/** Minimum battery to attempt an ice trench (lower than general chain threshold). */
+const ICE_TRENCH_MIN_CANNONS = 5;
 /** Delay multiplier by thinkingSpeed (1=slow 1.4×, 2=normal 1×, 3=fast 0.65×). */
 const DELAY_SCALE_BY_THINKING_SPEED = [1.4, 1.0, 0.65] as const;
 /** Tile-cursor boost-distance threshold (tiles) by cursorSkill
  *  (1=8 rarely boosts, 2=5 default, 3=3 boosts early). */
 const TILE_BOOST_THRESHOLD_BY_CURSOR_SKILL = [8, 5, 3] as const;
-/** Minimum usable cannons to launch a "finish it" perimeter spray. Well above
- *  the general chain gate: the spray is a finishing move spent from a dominant
+/** Minimum battery to launch a "finish it" perimeter spray. Well above the
+ *  general chain gate: the spray is a finishing move spent from a dominant
  *  battery, not a staple. (Started at 17 = top ~7.3% of measured battle-states;
  *  lowered to 14 to surface the move more often — the cannon gate is the single
- *  biggest frequency lever, far more than the messy-wall threshold.) */
-export const FINISH_IT_MIN_CANNONS = 14;
+ *  biggest frequency lever, far more than the messy-wall threshold. Re-derived
+ *  14 → 15 when the gate moved from ready-now to battery size: ready>=14 was
+ *  9.35% of 15062 measured in-battle samples and battery>=15 is 8.19% — the
+ *  nearest battery threshold that preserves the tuned rarity, where battery>=14
+ *  would have been 12.04%. This is the ONE gate whose constant was calibrated
+ *  against the ready-now distribution; the others were always meant as
+ *  battery-size gates and keep their values.) */
+export const FINISH_IT_MIN_CANNONS = 15;
 
 export class DefaultStrategy implements AiStrategy {
   /** Shots aimed at each enemy cannon THIS battle — the overkill guard that
@@ -397,13 +418,21 @@ export class DefaultStrategy implements AiStrategy {
     // The granular tactic chosen — fed back to the next re-plan's exclusion set.
     let tacticId: TacticId | undefined;
 
+    // Two distinct measures, deliberately: `batteryCount` (firepower the player
+    // commands this battle) gates which tactics are worth a chain, while
+    // `usableCannonCount` (barrels loaded right now) sizes the chain each plan
+    // returns. Gating on readiness made a tactic's availability swing with how
+    // many balls happened to be airborne — and since a re-plan runs the instant
+    // a shot lands, re-plans read a lower count than the battle-entry plan ever
+    // does. See `countBatteryCannons`.
+    const batteryCount = countBatteryCannons(state, playerId);
     const usableCannonCount = countUsableCannons(state, playerId);
 
     // Ice trench — highest priority: block grunts crossing frozen river early
     const iceTrenchTargets = this.rollIceTrench(
       state,
       playerId,
-      usableCannonCount,
+      batteryCount,
       cursor,
     );
     if (iceTrenchTargets) {
@@ -413,7 +442,7 @@ export class DefaultStrategy implements AiStrategy {
     }
 
     // Grunt sweep: enough grunts targeting us and enough usable cannons
-    if (!chainTargets && usableCannonCount >= CHAIN_ATTACK_MIN_CANNONS) {
+    if (!chainTargets && batteryCount >= CHAIN_ATTACK_MIN_CANNONS) {
       const gruntTargets = planGruntSweep(
         state,
         playerId,
@@ -428,8 +457,9 @@ export class DefaultStrategy implements AiStrategy {
     }
 
     // Finish it — the perimeter spray, and the signature move of a dominant
-    // player. From a dominant battery (>=14 usable cannons — ramparts /
-    // balloons don't count, they can't fire) against a large messy castle,
+    // player. From a dominant battery (>=15 cannons that can fire this battle —
+    // ramparts / balloons don't count, they can't fire; reload does not count
+    // against it) against a large messy castle,
     // punch single holes spaced AROUND the outer wall: a demoralising repair
     // tax (every hole a separate refill) plus modern demolition combos. Placed
     // ABOVE pinch (but below defence: ice_trench / grunt_sweep still come
@@ -443,7 +473,7 @@ export class DefaultStrategy implements AiStrategy {
       const finishItTargets = this.rollFinishIt(
         state,
         playerId,
-        usableCannonCount,
+        batteryCount,
         excludedTactics,
       );
       if (finishItTargets) {
@@ -500,6 +530,7 @@ export class DefaultStrategy implements AiStrategy {
         state,
         playerId,
         usableCannonCount,
+        batteryCount,
         excludedTactics,
         cursor,
       );
@@ -522,6 +553,7 @@ export class DefaultStrategy implements AiStrategy {
         state,
         playerId,
         usableCannonCount,
+        batteryCount,
         excludedTactics,
         cursor,
       );
@@ -539,6 +571,7 @@ export class DefaultStrategy implements AiStrategy {
         state,
         playerId,
         usableCannonCount,
+        batteryCount,
         cursor,
       );
       if (charityTargets) {
@@ -558,6 +591,7 @@ export class DefaultStrategy implements AiStrategy {
         state,
         playerId,
         usableCannonCount,
+        batteryCount,
         cursor,
       );
       if (rubbleTargets) {
@@ -578,6 +612,7 @@ export class DefaultStrategy implements AiStrategy {
         state,
         playerId,
         usableCannonCount,
+        batteryCount,
         cursor,
       );
       if (denyTargets) {
@@ -614,6 +649,7 @@ export class DefaultStrategy implements AiStrategy {
         state,
         playerId,
         usableCannonCount,
+        batteryCount,
         excludedTactics,
         cursor,
       );
@@ -630,7 +666,7 @@ export class DefaultStrategy implements AiStrategy {
     // with <6 firing cannons don't spend their entire round on own-wall
     // cleanup. The 5-target chain dominates a 1-2 cannon round and
     // contributes nothing to immediate score or survival.
-    if (!chainTargets && usableCannonCount >= CHAIN_ATTACK_MIN_CANNONS) {
+    if (!chainTargets && batteryCount >= CHAIN_ATTACK_MIN_CANNONS) {
       const pocketTargets = planPocketDestruction(state, playerId, cursor);
       if (pocketTargets) {
         chainTargets = pocketTargets;
@@ -645,6 +681,7 @@ export class DefaultStrategy implements AiStrategy {
         state,
         playerId,
         usableCannonCount,
+        batteryCount,
         excludedTactics,
       );
       if (demolitionTargets) {
@@ -660,6 +697,7 @@ export class DefaultStrategy implements AiStrategy {
         state,
         playerId,
         usableCannonCount,
+        batteryCount,
         excludedTactics,
       );
       if (superTargets) {
@@ -684,6 +722,7 @@ export class DefaultStrategy implements AiStrategy {
         state,
         playerId,
         usableCannonCount,
+        batteryCount,
         cursor,
       );
       if (pressureTargets) {
@@ -735,10 +774,11 @@ export class DefaultStrategy implements AiStrategy {
     state: BattleViewState,
     playerId: ValidPlayerId,
     usableCannonCount: number,
+    batteryCount: number,
     excludedTactics: ReadonlySet<TacticId>,
     cursor: TilePos,
   ): TilePos[] | null {
-    if (usableCannonCount < CHAIN_ATTACK_MIN_CANNONS) return null;
+    if (batteryCount < CHAIN_ATTACK_MIN_CANNONS) return null;
     if (excludedTactics.has(TACTIC.DECLUTTER)) return null;
     return planDeclutter(state, playerId, usableCannonCount, cursor);
   }
@@ -750,9 +790,10 @@ export class DefaultStrategy implements AiStrategy {
     state: BattleViewState,
     playerId: ValidPlayerId,
     usableCannonCount: number,
+    batteryCount: number,
     cursor: TilePos,
   ): TilePos[] | null {
-    if (usableCannonCount < CHAIN_ATTACK_MIN_CANNONS) return null;
+    if (batteryCount < CHAIN_ATTACK_MIN_CANNONS) return null;
     const take = this.rng.bool(
       traitLookup(this.battleTactics, [
         WEAK_DENY_ENCLOSURE_PROBABILITY,
@@ -801,6 +842,7 @@ export class DefaultStrategy implements AiStrategy {
     state: BattleViewState,
     playerId: ValidPlayerId,
     usableCannonCount: number,
+    batteryCount: number,
     cursor: TilePos,
   ): TilePos[] | null {
     // Gated at the LOW fat-breach threshold, not the general chain one: the
@@ -808,7 +850,7 @@ export class DefaultStrategy implements AiStrategy {
     // and a 4–5 cannon battery grinding 8–10 walls is the difference between
     // a passive tail and visible pressure. Strong tier always grinds (a
     // single miss is permanent — the per-shot loop never re-enters chains).
-    if (usableCannonCount < FAT_BREACH_MIN_CANNONS) return null;
+    if (batteryCount < FAT_BREACH_MIN_CANNONS) return null;
     const prob = traitLookup(this.battleTactics, [
       0,
       SUSTAINED_PRESSURE_PROBABILITY,
@@ -834,12 +876,13 @@ export class DefaultStrategy implements AiStrategy {
     state: BattleViewState,
     playerId: ValidPlayerId,
     usableCannonCount: number,
+    batteryCount: number,
     excludedTactics: ReadonlySet<TacticId>,
     cursor: TilePos,
   ): TilePos[] | null {
     const maxAttempts = traitLookup(this.battleTactics, [0, 1, 1]);
     if (maxAttempts <= 0) return null;
-    if (usableCannonCount < FAT_BREACH_MIN_CANNONS) return null;
+    if (batteryCount < FAT_BREACH_MIN_CANNONS) return null;
     if (excludedTactics.has(TACTIC.FAT_BREACH)) return null;
     const prob = traitLookup(this.battleTactics, [
       0,
@@ -866,9 +909,10 @@ export class DefaultStrategy implements AiStrategy {
     state: BattleViewState,
     playerId: ValidPlayerId,
     usableCannonCount: number,
+    batteryCount: number,
     excludedTactics: ReadonlySet<TacticId>,
   ): TilePos[] | null {
-    if (usableCannonCount < CHAIN_ATTACK_MIN_CANNONS) return null;
+    if (batteryCount < CHAIN_ATTACK_MIN_CANNONS) return null;
     if (excludedTactics.has(TACTIC.WALL_DEMOLITION)) return null;
     const prob = traitLookup(this.battleTactics, [
       0,
@@ -891,9 +935,10 @@ export class DefaultStrategy implements AiStrategy {
     state: BattleViewState,
     playerId: ValidPlayerId,
     usableCannonCount: number,
+    batteryCount: number,
     excludedTactics: ReadonlySet<TacticId>,
   ): TilePos[] | null {
-    if (usableCannonCount < CHAIN_ATTACK_MIN_CANNONS) return null;
+    if (batteryCount < CHAIN_ATTACK_MIN_CANNONS) return null;
     if (excludedTactics.has(TACTIC.SUPER_ATTACK)) return null;
     const prob = traitLookup(this.battleTactics, [
       0,
@@ -906,7 +951,7 @@ export class DefaultStrategy implements AiStrategy {
     );
   }
 
-  /** Finish-it gate: the dominant-firepower threshold (>=14 cannons) and the
+  /** Finish-it gate: the dominant-firepower threshold (>=15 battery) and the
    *  once-per-battle exclusion, then the trait-scaled roll (0 at the weak tier —
    *  the gate skips the draw so that tier's rng stream is unperturbed, mirroring
    *  fat_breach), then the perimeter-spray plan (which itself returns null unless
@@ -915,10 +960,10 @@ export class DefaultStrategy implements AiStrategy {
   private rollFinishIt(
     state: BattleViewState,
     playerId: ValidPlayerId,
-    usableCannonCount: number,
+    batteryCount: number,
     excludedTactics: ReadonlySet<TacticId>,
   ): TilePos[] | null {
-    if (usableCannonCount < FINISH_IT_MIN_CANNONS) return null;
+    if (batteryCount < FINISH_IT_MIN_CANNONS) return null;
     if (excludedTactics.has(TACTIC.FINISH_IT)) return null;
     const prob = traitLookup(this.battleTactics, FINISH_IT_PROBABILITY);
     if (prob <= 0) return null;
@@ -933,9 +978,10 @@ export class DefaultStrategy implements AiStrategy {
     state: BattleViewState,
     playerId: ValidPlayerId,
     usableCannonCount: number,
+    batteryCount: number,
     cursor: TilePos,
   ): TilePos[] | null {
-    if (usableCannonCount < CHAIN_ATTACK_MIN_CANNONS) return null;
+    if (batteryCount < CHAIN_ATTACK_MIN_CANNONS) return null;
     const take = this.rng.bool(
       traitLookup(this.battleTactics, [
         0,
@@ -985,10 +1031,10 @@ export class DefaultStrategy implements AiStrategy {
   private rollIceTrench(
     state: BattleViewState,
     playerId: ValidPlayerId,
-    usableCannonCount: number,
+    batteryCount: number,
     cursor: TilePos,
   ): TilePos[] | null {
-    if (usableCannonCount < ICE_TRENCH_MIN_CANNONS) return null;
+    if (batteryCount < ICE_TRENCH_MIN_CANNONS) return null;
     const take = this.rng.bool(
       traitLookup(this.battleTactics, [1 / 3, 2 / 3, 1]),
     );
@@ -1002,9 +1048,10 @@ export class DefaultStrategy implements AiStrategy {
     state: BattleViewState,
     playerId: ValidPlayerId,
     usableCannonCount: number,
+    batteryCount: number,
     cursor: TilePos,
   ): TilePos[] | null {
-    if (usableCannonCount < CHAIN_ATTACK_MIN_CANNONS) return null;
+    if (batteryCount < CHAIN_ATTACK_MIN_CANNONS) return null;
     const take = this.rng.bool(
       traitLookup(this.battleTactics, [0, CHARITY_SWEEP_PROBABILITY, 1 / 5]),
     );
@@ -1026,10 +1073,11 @@ export class DefaultStrategy implements AiStrategy {
     state: BattleViewState,
     playerId: ValidPlayerId,
     usableCannonCount: number,
+    batteryCount: number,
     excludedTactics: ReadonlySet<TacticId>,
     cursor: TilePos,
   ): TilePos[] | null {
-    if (usableCannonCount < GRUNT_BREACH_MIN_CANNONS) return null;
+    if (batteryCount < GRUNT_BREACH_MIN_CANNONS) return null;
     if (excludedTactics.has(TACTIC.GRUNT_BREACH)) return null;
     const take = this.rng.bool(
       traitLookup(this.battleTactics, GRUNT_BREACH_PROBABILITY),

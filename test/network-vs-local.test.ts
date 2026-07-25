@@ -752,11 +752,12 @@ Deno.test(
   "adoption jumping a watcher out of ROUND_END clears the routing stash",
   async () => {
     // Probed seed (tmp/probe-adoption-seeds.ts part A over classic r15):
-    // round 2 closes with a life-lost dialog whose loser survives (reselect
-    // routing), and round 3 closes loss-free. (Was seed 9 until the
-    // battle-timer input lockout shifted the AI RNG streams.)
+    // round 3 closes with a life-lost dialog whose loser survives (reselect
+    // routing), and round 4 closes loss-free. (Was seed 9 until the
+    // battle-timer input lockout shifted the AI RNG streams, then seed 4 until
+    // the battery-size cannon gates did.)
     const pair = await createNetworkedPair({
-      seed: 4,
+      seed: 9,
       mode: "classic",
       rounds: 15,
     });

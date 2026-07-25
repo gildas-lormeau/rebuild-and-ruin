@@ -38,7 +38,7 @@ import {
   FINISH_IT_MIN_CANNONS,
 } from "../../src/ai/ai-strategy.ts";
 import {
-  countUsableCannons,
+  countBatteryCannons,
   findMinBreach,
   findTowerBreach,
 } from "../../src/ai/ai-strategy-battle.ts";
@@ -1000,8 +1000,9 @@ export interface Observation {
   };
   /** BATTLE: a nudge that `finish_it()` is worth calling RIGHT NOW — surfaced
    *  ONLY when you meet the SAME two-stage gate the tool itself (and the AI's
-   *  own `rollFinishIt`) require: `cannons >= FINISH_IT_MIN_CANNONS` (an
-   *  "overwhelming firepower" battery) AND at least one active enemy castle is
+   *  own `rollFinishIt`) require: `battery >= FINISH_IT_MIN_CANNONS` (an
+   *  "overwhelming firepower" battery — `countBatteryCannons`, so a barrel
+   *  mid-reload still counts toward it, exactly as the AI's gate reads it) AND at least one active enemy castle is
    *  large enough (`interior >= FINISH_IT_MIN_INTERIOR`) to be worth spraying.
    *  Among qualifying castles this reports the SAME target `finish_it()` would
    *  pick — the thinnest-walled one, not necessarily the biggest — since a
@@ -1021,6 +1022,8 @@ export interface Observation {
      *  1 = fully fat). Lower = easier to breach everywhere; this is the pick
      *  criterion among qualifying (large-enough) castles. */
     thickRatio: number;
+    /** Your battery size that cleared the gate (`countBatteryCannons` — every
+     *  cannon that can fire this battle, reloading or not). */
     cannons: number;
   };
   /** MODERN only: the environmental modifier in force this round (wildfire,
@@ -3176,8 +3179,8 @@ export async function createMcpGame(
   function finishItSuggestion(): NonNullable<
     Observation["finishItAvailable"]
   > | null {
-    const cannons = countUsableCannons(sc.state, agentSlot);
-    if (cannons < FINISH_IT_MIN_CANNONS) return null;
+    const battery = countBatteryCannons(sc.state, agentSlot);
+    if (battery < FINISH_IT_MIN_CANNONS) return null;
     const target: FinishItTarget | undefined = pickThinnestCastle(
       sc.state,
       agentSlot,
@@ -3188,7 +3191,7 @@ export async function createMcpGame(
       name: PLAYER_NAMES[target.slot] ?? `P${target.slot}`,
       interior: target.interior,
       thickRatio: target.thickRatio,
-      cannons,
+      cannons: battery,
     };
   }
 

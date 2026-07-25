@@ -10,11 +10,12 @@
  * staleness window (a neighbour destroyed by enemy fire mid-chain would make
  * the target load-bearing and the shot enclosure-opening).
  *
- * Probed seed (tmp/probe-declutter-seed.ts over classic to r8): seed 0
- * crosses the fat threshold from round 4 and fires declutter chains every
+ * Probed seed (tmp/probe-declutter-seed.ts over classic to r8): seed 6
+ * crosses the fat threshold from round 5 and fires declutter chains every
  * round after. (Was seed 8 until the battle-timer input lockout shifted the
  * AI RNG streams, then seed 11 until the per-battle shot-tally expiry did,
- * then seed 6 until the own-zone grunt cull did.)
+ * then seed 6 until the own-zone grunt cull did, then seed 0 until the
+ * battery-size cannon gates did — back to seed 6.)
  *
  * Run with: deno test --no-check test/ai-declutter.test.ts
  */
@@ -37,7 +38,7 @@ Deno.test(
   "AI declutter: fires at own fat walls once bloated, never at an enclosure-load-bearing tile",
   async () => {
     using sc = await createScenario({
-      seed: 0,
+      seed: 6,
       mode: "classic",
       rounds: Number.POSITIVE_INFINITY,
     });

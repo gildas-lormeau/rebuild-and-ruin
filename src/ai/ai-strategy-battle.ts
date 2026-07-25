@@ -20,6 +20,7 @@ import {
   type Grunt,
   isBalloonCannon,
   isCannonAlive,
+  isRampartCannon,
   isSuperCannon,
 } from "../shared/core/battle-types.ts";
 import type {
@@ -66,8 +67,12 @@ import {
   computeCardinalObstacleMask,
   filterActiveEnemies,
   getBattleInterior,
+  isCannonEnclosed,
 } from "../shared/sim/board-occupancy.ts";
-import { isCannonCapturedBy } from "../shared/sim/occupancy-queries.ts";
+import {
+  isCannonCapturedBy,
+  isCannonCapturedFrom,
+} from "../shared/sim/occupancy-queries.ts";
 import type { PickPath } from "./ai-battle-diag.ts";
 import { isTileTargetedByInFlightBall } from "./ai-in-flight-target.ts";
 import type { StrategicPixelPos } from "./ai-strategy-types.ts";
@@ -205,7 +210,12 @@ const GLIDE_TILES_PER_SHOT = 4;
  *  for the pocket-destruction and structural-hit tactic files. */
 export const DESTROY_POCKET_MAX_SIZE = 4;
 
-/** Count cannons that are alive and enclosed (usable for firing). */
+/** Count cannons READY TO FIRE THIS INSTANT: alive, enclosed, and with no ball
+ *  of their own in flight (`canFireOwnCannon`). The right measure for a chain's
+ *  BUDGET — how many shots the plan can put up promptly — but NOT for a tactic's
+ *  eligibility, since it dips by exactly the number of the player's airborne
+ *  balls: a re-plan runs immediately after a fire, so it reads a depressed
+ *  count the battle-entry plan never sees. Use `countBatteryCannons` for gates. */
 export function countUsableCannons(
   state: BattleViewState,
   playerId: ValidPlayerId,
@@ -214,6 +224,35 @@ export function countUsableCannons(
   let count = 0;
   for (let i = 0; i < player.cannons.length; i++) {
     if (canFireOwnCannon(state, playerId, i as CannonIdx)) count++;
+  }
+  return count;
+}
+
+/** Count the player's FIREPOWER: cannons that can fire at all this battle —
+ *  alive, enclosed, not a balloon/rampart, not captured from us — ignoring
+ *  reload (whether a ball of theirs is airborne right now). Same predicate as
+ *  `canFireOwnCannon` minus its in-flight / pending-fire clauses.
+ *
+ *  This is what a tactic's minimum-cannon gate means: "does this player command
+ *  a battery big enough for the tactic to be worth a chain", a property of the
+ *  board that holds for the whole battle — not "are that many barrels loaded in
+ *  this exact frame". Measured over 12312 in-battle samples: battery p50 8 vs
+ *  ready-now p50 5, with 27% of >=6-battery samples reading <6 ready and 57% of
+ *  >=14-battery samples reading <14 — so gating on readiness made a tactic's
+ *  availability depend on how many balls happened to be in the air. */
+export function countBatteryCannons(
+  state: BattleViewState,
+  playerId: ValidPlayerId,
+): number {
+  const player = state.players[playerId];
+  if (!player) return 0;
+  let count = 0;
+  for (const cannon of player.cannons) {
+    if (!isCannonAlive(cannon)) continue;
+    if (isBalloonCannon(cannon) || isRampartCannon(cannon)) continue;
+    if (isCannonCapturedFrom(state, cannon, playerId)) continue;
+    if (!isCannonEnclosed(cannon, player)) continue;
+    count++;
   }
   return count;
 }

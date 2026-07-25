@@ -1,6 +1,6 @@
 /**
- * AI tactic — finish it (perimeter spray). A dominant player (>=14 usable
- * cannons) glides the cursor around the LARGEST thin-walled enemy castle,
+ * AI tactic — finish it (perimeter spray). A dominant player (>=15-cannon
+ * battery) glides the cursor around the LARGEST thin-walled enemy castle,
  * spamming SPACED holes: single-layer spots open with one, two-thick spots
  * punch THROUGH, spur gaps bridge via inner-wall pivots. Such a castle is a
  * MERGED seal, so breaching it faster than the defender reseals de-encloses ALL
