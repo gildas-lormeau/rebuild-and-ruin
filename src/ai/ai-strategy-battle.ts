@@ -294,18 +294,21 @@ export function pickTarget(
     switchTarget,
     shotCounts,
   );
-  // "Switch to the other enemy" only makes sense when another enemy exists.
-  // In a 1v1 endgame the focus enemy is the sole target, so switching filters
-  // away every candidate — fall back to normal targeting rather than forfeiting
-  // the shot. The switchTarget rng draw above already happened and
-  // collectEnemyTargets consumes no rng, so this retry keeps the stream aligned
-  // across peers.
-  if (switchTarget && targets.length === 0) {
+  // Focus fire narrows the candidate set to ONE enemy, so an empty set doesn't
+  // mean "nothing to shoot at" — it means "nothing on that side of the focus
+  // split". Retry the complement rather than forfeiting the shot. Both
+  // directions happen: switching to "the other enemy" in a 1v1 endgame filters
+  // everything away (the focus enemy is the only one), and a focus victim can
+  // itself run dry — every candidate already shot at this battle, or its castle
+  // flattened — while a live opponent still has walls up. The switchTarget rng
+  // draw above already happened and collectEnemyTargets consumes no rng, so this
+  // retry keeps the stream aligned across peers.
+  if (targets.length === 0 && focusFirePlayerId != null) {
     targets = collectEnemyTargets(
       state,
       playerId,
       focusFirePlayerId,
-      false,
+      !switchTarget,
       shotCounts,
     );
   }
@@ -325,12 +328,14 @@ export function pickTarget(
   // tower: that wall is hidden behind a camera-near tower under the battle tilt,
   // so the crosshair snaps onto the (invulnerable) tower and the shot is wasted
   // no matter which cannon fires. Skipping it here steers ranking to a reachable
-  // wall instead of fixating on one we can never hit. Consumes no rng (pure,
-  // synced GameState), so peer parity holds — same shape as the in-flight dedup.
+  // wall instead of fixating on one we can never hit. That check reads the same
+  // fractional footprint centers, so it spans them the same way. Consumes no rng
+  // (pure, synced GameState), so peer parity holds — same shape as the in-flight
+  // dedup.
   const filtered = targets.filter(
     (tile) =>
       !isTargetAreaInFlight(state, tile.row, tile.col, playerId) &&
-      !aimRedirectsOntoTower(state, tile.row, tile.col),
+      !aimAreaRedirectsOntoTower(state, tile.row, tile.col),
   );
   if (filtered.length === 0) return null;
 
@@ -1534,6 +1539,27 @@ function isTargetAreaInFlight(
     }
   }
   return false;
+}
+
+/** True when EVERY tile a (possibly fractional) target coordinate resolves to
+ *  would only redirect the shot onto a tower — the aim is wasted wherever the
+ *  jitter lands it. `aimRedirectsOntoTower` alone silently mis-answered for
+ *  every even-size cannon candidate: those aim at the footprint CENTER (x.5 for
+ *  a 2×2), and packing an x.5 row yields a tile key that matches no wall / tower
+ *  set, so the occlusion walk read the tile as open ground. Span the coord the
+ *  same way `isTargetAreaInFlight` does — but require ALL, not ANY: one landable
+ *  tile in the span is enough to keep the candidate. */
+function aimAreaRedirectsOntoTower(
+  state: BattleViewState,
+  row: number,
+  col: number,
+): boolean {
+  for (const tileRow of tileSpan(row)) {
+    for (const tileCol of tileSpan(col)) {
+      if (!aimRedirectsOntoTower(state, tileRow, tileCol)) return false;
+    }
+  }
+  return true;
 }
 
 /** Tiles a (possibly fractional) target coordinate resolves to. */
