@@ -7,7 +7,7 @@
  * drill buys a corridor the greedily-pacing grunts will actually funnel through.
  */
 
-import { shouldAbsorbWallHit } from "../game/index.ts";
+import { aimReachesTile, shouldAbsorbWallHit } from "../game/index.ts";
 import type { TilePos } from "../shared/core/geometry-types.ts";
 import type { TileKey } from "../shared/core/grid.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
@@ -163,8 +163,13 @@ function drillSeam(
   let col = seam.col;
   while (inBounds(row, col) && enemy.walls.has(packTile(row, col))) {
     // Reinforced walls absorb the first hit — a drill through one silently
-    // costs double, so skip the seam (mirrors findBreachPath).
+    // costs double, so skip the seam (mirrors findBreachPath). Same for a wall
+    // a camera-near tower hides: the aim seam snaps that shot onto the tower and
+    // the chain drops it, leaving the corridor sealed one tile short. A drill is
+    // a fixed column, so there's nothing to route around — reject the seam and
+    // let the next-nearest one drill instead.
     if (shouldAbsorbWallHit(enemy, packTile(row, col))) return null;
+    if (!aimReachesTile(state, row, col)) return null;
     walls.push({ row, col });
     if (walls.length > cap) return null;
     row -= seam.inRow;

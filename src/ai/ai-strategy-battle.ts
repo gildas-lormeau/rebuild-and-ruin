@@ -199,6 +199,11 @@ const liveEnclosureCache = new WeakMap<
 const BREACH_FALLBACK_BOX_MARGIN = 8;
 /** Sentinel "unreached" distance for the breach-cut 0-1 BFS. */
 const BREACH_UNREACHED = 1 << 20;
+/** Tri-state memo for the breach search's per-wall aim-occlusion probe: not yet
+ *  walked / the shot lands on the wall / a tower hides it (impassable). */
+const SHOOTABLE_UNPROBED = 0;
+const SHOOTABLE_YES = 1;
+const SHOOTABLE_NO = 2;
 /** Crosshair glide tiles that cost the same battle time as one extra drilled
  *  wall: at the boosted 10 tiles/s glide, ~4 tiles ≈ one shot's dwell + the
  *  contiguous step to it. Prices ring DISTANCE into `findMinBreach`'s ring
@@ -1669,6 +1674,9 @@ function findBreachPath(
 
   const dist = new Int32Array(size).fill(BREACH_UNREACHED);
   const parent = new Int32Array(size).fill(-1);
+  // Memo for `breachStepCost`'s aim-occlusion walk (SHOOTABLE_*): a wall tile is
+  // relaxed from up to 8 neighbours and each walk probes 4 rows of the column.
+  const shootable = new Int8Array(size);
   // Dial's algorithm: one bucket per distance 0..cap. Distances never exceed
   // `cap` (paths costing more are pruned), so a fixed bucket array suffices and
   // processing buckets in order settles each tile at its minimum cost.
@@ -1708,16 +1716,11 @@ function findBreachPath(
         const nr = row + dr;
         const nc = col + dc;
         if (!inBox(nr, nc)) continue;
-        const nKey = packTile(nr, nc);
-        let step = 0;
-        if (walls.has(nKey)) {
-          // A reinforced wall can't be cleared by the chain's single shot.
-          if (shouldAbsorbWallHit(enemy, nKey)) continue;
-          step = 1;
-        }
+        const nId = localId(nr, nc);
+        const step = breachStepCost(state, enemy, nr, nc, shootable, nId);
+        if (step === null) continue;
         const nextCost = cost + step;
         if (nextCost > cap) continue;
-        const nId = localId(nr, nc);
         if (nextCost < dist[nId]!) {
           dist[nId] = nextCost;
           parent[nId] = id;
@@ -1789,6 +1792,39 @@ export function weightedPickByRank<T>(
     roll -= weight;
   }
   return sortedBestFirst[count - 1];
+}
+
+/** Shot cost of stepping onto `(row, col)` in the breach search: 0 for a free
+ *  non-wall tile, 1 for a wall one chain shot clears, and null for a wall it
+ *  can't clear — the search routes around those.
+ *
+ *  Two kinds are unbreakable by a single chain shot. A REINFORCED wall absorbs
+ *  the first hit, so drilling it silently costs double. And an aim-OCCLUDED wall
+ *  can't be hit at all: under the battle tilt a camera-near tower hides it, so
+ *  `occludeChainTargets` snaps the shot onto that tower and
+ *  `tickChainMoving`'s still-a-wall check drops it — the cut would sit one tile
+ *  short of breaching forever, wasting the whole plan. (For a wall target the
+ *  only possible occluder IS a tower: WALL_TOP_Y outranks every other modelled
+ *  top and equal-height neighbours don't occlude, so `aimReachesTile` and
+ *  `aimRedirectsOntoTower` coincide here.) `shootable` memoizes that walk per
+ *  local tile id. */
+function breachStepCost(
+  state: BattleViewState,
+  enemy: Player,
+  row: number,
+  col: number,
+  shootable: Int8Array,
+  localId: number,
+): number | null {
+  const key = packTile(row, col);
+  if (!enemy.walls.has(key)) return 0;
+  if (shouldAbsorbWallHit(enemy, key)) return null;
+  if (shootable[localId] === SHOOTABLE_UNPROBED) {
+    shootable[localId] = aimReachesTile(state, row, col)
+      ? SHOOTABLE_YES
+      : SHOOTABLE_NO;
+  }
+  return shootable[localId] === SHOOTABLE_NO ? null : 1;
 }
 
 /** Walk the BFS parent chain from the settled outside tile back to its interior

@@ -92,14 +92,17 @@ const WIRE_DELAY_FRAMES = 5;
 // 80).
 // Re-probed after the battery-size cannon gates: classic 9-r8 and modern 36-r8
 // stopped eliminating → classic 2-r8, modern 12-r8 (classic 1-r8 survived).
+// Re-probed after making the min-cut breach search aim-occlusion aware (cuts
+// route around walls a tower hides, so different rings open): all three stopped
+// eliminating → classic 5-r8, classic 7-r8, modern 15-r8.
 const TRIALS: {
   readonly seed: number;
   readonly mode: "classic" | "modern";
   readonly rounds: number;
 }[] = [
-  { seed: 1, mode: "classic", rounds: 8 },
-  { seed: 2, mode: "classic", rounds: 8 },
-  { seed: 12, mode: "modern", rounds: 8 },
+  { seed: 5, mode: "classic", rounds: 8 },
+  { seed: 7, mode: "classic", rounds: 8 },
+  { seed: 15, mode: "modern", rounds: 8 },
 ];
 
 void _forceScenarioFirst;

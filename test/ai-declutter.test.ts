@@ -132,9 +132,11 @@ Deno.test(
     // blocked-cut rescue shifted build streams (tmp/probe-declutter-
     // landing.ts): seed 1 now hits the post-launch window once in r7
     // (proven: flipping removal fired 8 ticks after our launch) → seed 8,
-    // 44 impacts, zero violations through round 8.
+    // 44 impacts, zero violations through round 8. Re-probed after the
+    // occlusion-aware breach cut (seed 8 landed zero declutter impacts) →
+    // seed 15, 20 impacts, zero violations through round 8.
     using sc = await createScenario({
-      seed: 8,
+      seed: 15,
       mode: "classic",
       rounds: Number.POSITIVE_INFINITY,
     });
