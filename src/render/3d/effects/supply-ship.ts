@@ -12,12 +12,12 @@ import { MODIFIER_ID } from "../../../shared/core/game-constants.ts";
 import { TILE_SIZE } from "../../../shared/core/grid.ts";
 import type { OverlaySupplyShip } from "../../../shared/ui/overlay-types.ts";
 import { Z_FIGHT_MARGIN } from "../elevation.ts";
-import type { FrameCtx } from "../frame-ctx.ts";
+import type { EffectManager, FrameCtx } from "../frame-ctx.ts";
 import {
   buildSupplyShip,
   getSupplyShipVariant,
 } from "../sprites/supply-ship-scene.ts";
-import { type EffectManager, getSharedSmokeTexture } from "./fire-burst.ts";
+import { getSharedSmokeTexture } from "./fire-burst.ts";
 import { createFlatDisc } from "./helpers.ts";
 
 interface BubbleSprite {

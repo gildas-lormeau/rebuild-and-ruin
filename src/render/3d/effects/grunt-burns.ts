@@ -8,9 +8,9 @@
 import type * as THREE from "three";
 import { GRUNT_KILL_DURATION } from "../../../shared/core/battle-types.ts";
 import { TILE_SIZE } from "../../../shared/core/grid.ts";
+import type { EffectManager } from "../frame-ctx.ts";
 import {
   createTileBurstManager,
-  type EffectManager,
   type FireBurstConfig,
   makeFlameLayers,
 } from "./fire-burst.ts";

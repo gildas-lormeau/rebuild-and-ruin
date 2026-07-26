@@ -14,8 +14,7 @@ import {
   type TileKey,
 } from "../../../shared/core/grid.ts";
 import { ELEVATION_STACK, Z_FIGHT_MARGIN } from "../elevation.ts";
-import type { FrameCtx } from "../frame-ctx.ts";
-import { type EffectManager } from "./fire-burst.ts";
+import type { EffectManager, FrameCtx } from "../frame-ctx.ts";
 import { createFlatDisc, tileSeed } from "./helpers.ts";
 
 interface ModifierRevealBurstConfig {

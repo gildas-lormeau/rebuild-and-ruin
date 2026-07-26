@@ -21,7 +21,6 @@ import {
   type CrosshairsManager,
   createCrosshairsManager,
 } from "./effects/crosshairs.ts";
-import { type EffectManager } from "./effects/fire-burst.ts";
 import {
   createGruntBurnsManager,
   type GruntBurnsManager,
@@ -80,6 +79,7 @@ import {
 } from "./entities/tower-labels.ts";
 import { createTowersManager, type TowersManager } from "./entities/towers.ts";
 import { createWallsManager, type WallsManager } from "./entities/walls.ts";
+import type { EffectManager } from "./frame-ctx.ts";
 import { createWorldLights } from "./lights.ts";
 import { createTerrain, type TerrainContext } from "./terrain.ts";
 

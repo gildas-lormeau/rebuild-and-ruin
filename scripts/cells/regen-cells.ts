@@ -185,7 +185,7 @@ const LABELS: Record<string, string> = {
     "server-message lifecycle, lockstep seat handoff & online client stores",
   "7::render": "entity renderers",
   "7::render/3d/effects":
-    "terrain tile-data texture, aim crosshairs & battle/terrain effect meshes",
+    "terrain tile-data texture, aim crosshairs & base effect meshes (fire, dust, impacts, fog, shield, reveal-burst)",
   "7::runtime":
     "main loop, castle-build, tick consumers, battle anim, local action surface, no-peer NetworkApi, wire senders & runtime/timing contracts",
   "7::runtime/subsystems":
@@ -206,7 +206,7 @@ const LABELS: Record<string, string> = {
   "8::online": "online runtime websocket",
   "8::render": "render UI (overlays, screens, settings)",
   "8::render/3d/effects":
-    "effect subsystems (burns, dust, supply-ship, modifier-reveal)",
+    "entity burn/dust effects & terrain element effects (emergence, collapse, ice, lightning, water surge, wildfire, supply-ship)",
   "8::runtime": "phase transition machine & UIContext adapter",
 
   // L9 — system implementations
@@ -215,8 +215,7 @@ const LABELS: Record<string, string> = {
   "9::game": "cannon, modifier, game-over & wall-impact systems",
   "9::online": "online runtime lobby",
   "9::render": "render UI entry",
-  "9::render/3d/effects":
-    "effect implementations (emergence, collapse, ice, lightning, water surge, wildfire)",
+  "9::render/3d/effects": "modifier-effect registry",
   "9::runtime": "match bootstrap — controllers & GameState from settings",
   "9::runtime/subsystems":
     "game-lifecycle & phase-ticks — phase-orchestrating subsystem factories",
@@ -226,8 +225,7 @@ const LABELS: Record<string, string> = {
     "build target selection & shared build infra, battle phase machine & battle tactic planners",
   "10::controllers": "AI controller (host wrapper around injected brain)",
   "10::game": "grunt system",
-  "10::render": "map renderer",
-  "10::render/3d/effects": "modifier-effect registry",
+  "10::render": "map renderer & 3D scene bootstrap",
   "10::runtime": "GameRuntime handle — composition return type",
 
   // L11 — system composition
@@ -236,7 +234,7 @@ const LABELS: Record<string, string> = {
   "11::controllers": "AI assisted-human controller variant",
   "11::game": "battle & build systems",
   "11::online": "online phase transitions",
-  "11::render": "Canvas2D frame renderer & 3D scene bootstrap",
+  "11::render": "Canvas2D frame renderer",
 
   // L12 — phase orchestration
   "12::ai": "AI build-phase placement orchestrator",

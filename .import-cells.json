@@ -633,13 +633,16 @@
     "layer": 7,
     "domain": "render",
     "subdomain": "3d/effects",
-    "role": "terrain tile-data texture, aim crosshairs & battle/terrain effect meshes",
+    "role": "terrain tile-data texture, aim crosshairs & base effect meshes (fire, dust, impacts, fog, shield, reveal-burst)",
     "files": [
       "src/render/3d/effects/bonus-squares.ts",
       "src/render/3d/effects/crosshairs.ts",
+      "src/render/3d/effects/dust-storm.ts",
       "src/render/3d/effects/fire-burst.ts",
       "src/render/3d/effects/fog.ts",
       "src/render/3d/effects/impacts.ts",
+      "src/render/3d/effects/modifier-reveal-burst.ts",
+      "src/render/3d/effects/shield-flash.ts",
       "src/render/3d/effects/terrain-tile-data.ts",
       "src/render/3d/effects/thawing.ts"
     ]
@@ -772,17 +775,20 @@
     "layer": 8,
     "domain": "render",
     "subdomain": "3d/effects",
-    "role": "effect subsystems (burns, dust, supply-ship, modifier-reveal)",
+    "role": "entity burn/dust effects & terrain element effects (emergence, collapse, ice, lightning, water surge, wildfire, supply-ship)",
     "files": [
       "src/render/3d/effects/cannon-burns.ts",
-      "src/render/3d/effects/dust-storm.ts",
+      "src/render/3d/effects/grass-emergence.ts",
+      "src/render/3d/effects/ground-collapse.ts",
       "src/render/3d/effects/grunt-burns.ts",
       "src/render/3d/effects/house-burns.ts",
-      "src/render/3d/effects/modifier-reveal-burst.ts",
-      "src/render/3d/effects/shield-flash.ts",
+      "src/render/3d/effects/ice-formation.ts",
+      "src/render/3d/effects/lightning-burst.ts",
       "src/render/3d/effects/supply-ship.ts",
       "src/render/3d/effects/wall-burns.ts",
-      "src/render/3d/effects/wall-dust.ts"
+      "src/render/3d/effects/wall-dust.ts",
+      "src/render/3d/effects/water-surge.ts",
+      "src/render/3d/effects/wildfire-burst.ts"
     ]
   },
   {
@@ -854,14 +860,9 @@
     "layer": 9,
     "domain": "render",
     "subdomain": "3d/effects",
-    "role": "effect implementations (emergence, collapse, ice, lightning, water surge, wildfire)",
+    "role": "modifier-effect registry",
     "files": [
-      "src/render/3d/effects/grass-emergence.ts",
-      "src/render/3d/effects/ground-collapse.ts",
-      "src/render/3d/effects/ice-formation.ts",
-      "src/render/3d/effects/lightning-burst.ts",
-      "src/render/3d/effects/water-surge.ts",
-      "src/render/3d/effects/wildfire-burst.ts"
+      "src/render/3d/effects/modifier-effect-registry.ts"
     ]
   },
   {
@@ -921,18 +922,10 @@
   {
     "layer": 10,
     "domain": "render",
-    "role": "map renderer",
+    "role": "map renderer & 3D scene bootstrap",
     "files": [
+      "src/render/3d/scene.ts",
       "src/render/render-map.ts"
-    ]
-  },
-  {
-    "layer": 10,
-    "domain": "render",
-    "subdomain": "3d/effects",
-    "role": "modifier-effect registry",
-    "files": [
-      "src/render/3d/effects/modifier-effect-registry.ts"
     ]
   },
   {
@@ -984,9 +977,8 @@
   {
     "layer": 11,
     "domain": "render",
-    "role": "Canvas2D frame renderer & 3D scene bootstrap",
+    "role": "Canvas2D frame renderer",
     "files": [
-      "src/render/3d/scene.ts",
       "src/render/render-canvas.ts"
     ]
   },

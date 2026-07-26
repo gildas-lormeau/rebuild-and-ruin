@@ -12,16 +12,9 @@ import type { TilePos } from "../../../shared/core/geometry-types.ts";
 import { GRID_COLS, TILE_SIZE } from "../../../shared/core/grid.ts";
 import { ELEVATION_STACK } from "../elevation.ts";
 import { attachInstanceOpacity } from "../entities/instance-modulation.ts";
-import type { FrameCtx } from "../frame-ctx.ts";
+import type { EffectManager, FrameCtx } from "../frame-ctx.ts";
 import { tileSeed } from "./helpers.ts";
 import { createReconciler } from "./reconciler.ts";
-
-/** Common shape every per-frame effect manager exposes — used by
- *  wall-burns, cannon-burns, and friends. */
-export interface EffectManager {
-  update(ctx: FrameCtx): void;
-  dispose(): void;
-}
 
 export interface FlameLayer {
   readonly color: number;

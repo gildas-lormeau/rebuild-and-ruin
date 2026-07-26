@@ -9,8 +9,7 @@
 
 import * as THREE from "three";
 import { MAP_PX_H, MAP_PX_W } from "../../../shared/core/grid.ts";
-import type { FrameCtx } from "../frame-ctx.ts";
-import type { EffectManager } from "./fire-burst.ts";
+import type { EffectManager, FrameCtx } from "../frame-ctx.ts";
 
 /** Y elevation of the dust sheet — between wall tops (~26) and tower
  *  tops (~56). Reads as airborne dust without burying ground entities

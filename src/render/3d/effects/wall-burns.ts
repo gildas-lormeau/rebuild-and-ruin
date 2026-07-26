@@ -13,9 +13,9 @@ import {
 } from "../../../shared/core/battle-types.ts";
 import { WALL_DESTROY_ANIM_DURATION } from "../../../shared/core/game-constants.ts";
 import { TILE_SIZE } from "../../../shared/core/grid.ts";
+import type { EffectManager } from "../frame-ctx.ts";
 import {
   createTileBurstManager,
-  type EffectManager,
   type FireBurstConfig,
   makeFlameLayers,
 } from "./fire-burst.ts";

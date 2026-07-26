@@ -14,8 +14,7 @@ import {
 } from "../../../shared/core/battle-types.ts";
 import { TILE_SIZE } from "../../../shared/core/grid.ts";
 import { ELEVATION_STACK } from "../elevation.ts";
-import type { FrameCtx } from "../frame-ctx.ts";
-import type { EffectManager } from "./fire-burst.ts";
+import type { EffectManager, FrameCtx } from "../frame-ctx.ts";
 import { createReconciler } from "./reconciler.ts";
 
 interface FlashHost {

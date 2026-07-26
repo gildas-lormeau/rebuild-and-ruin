@@ -8,8 +8,8 @@
  */
 
 import type * as THREE from "three";
+import type { EffectManager } from "../frame-ctx.ts";
 import { createDustStormManager } from "./dust-storm.ts";
-import type { EffectManager } from "./fire-burst.ts";
 import { createFogManager } from "./fog.ts";
 import { createGrassEmergenceManager } from "./grass-emergence.ts";
 import { createGroundCollapseManager } from "./ground-collapse.ts";

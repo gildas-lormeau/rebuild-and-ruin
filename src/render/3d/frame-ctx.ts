@@ -22,3 +22,13 @@ export interface FrameCtx {
    *  directional sun's arc — see `updateSunDirection` in `lights.ts`. */
   readonly sunT: number | undefined;
 }
+
+/** Common shape every per-frame effect manager exposes — used by
+ *  wall-burns, cannon-burns, and friends. Lives beside `FrameCtx` rather
+ *  than in any one effect module: it is the manager-side half of the same
+ *  per-frame contract, and homing it in an implementation module made
+ *  every effect depend on that module for a two-method interface. */
+export interface EffectManager {
+  update(ctx: FrameCtx): void;
+  dispose(): void;
+}

@@ -7,7 +7,7 @@
 import type * as THREE from "three";
 import { MODIFIER_ID } from "../../../shared/core/game-constants.ts";
 import { GRID_COLS, type TileKey } from "../../../shared/core/grid.ts";
-import { type EffectManager } from "./fire-burst.ts";
+import type { EffectManager } from "../frame-ctx.ts";
 import { createModifierRevealBurstManager } from "./modifier-reveal-burst.ts";
 
 export function createWildfireBurstManager(scene: THREE.Scene): EffectManager {

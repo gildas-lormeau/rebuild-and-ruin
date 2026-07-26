@@ -12,12 +12,12 @@ import {
 } from "../../../shared/core/battle-types.ts";
 import { TILE_SIZE } from "../../../shared/core/grid.ts";
 import { ELEVATION_STACK } from "../elevation.ts";
+import type { EffectManager } from "../frame-ctx.ts";
 import {
   animateFireBurst,
   createBurstPools,
   createFireBurstHost,
   disposeFireBurstHost,
-  type EffectManager,
   type FireBurstConfig,
   type FireBurstHost,
   makeFlameLayers,

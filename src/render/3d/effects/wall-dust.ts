@@ -12,9 +12,9 @@ import {
   TILE_SIZE,
   type TileKey,
 } from "../../../shared/core/grid.ts";
-import type { FrameCtx } from "../frame-ctx.ts";
+import type { EffectManager, FrameCtx } from "../frame-ctx.ts";
 import { wallDestroyAnimAt } from "../wall-destroy-anim.ts";
-import { type EffectManager, getSharedSmokeTexture } from "./fire-burst.ts";
+import { getSharedSmokeTexture } from "./fire-burst.ts";
 import { tileSeed } from "./helpers.ts";
 
 interface DustHost {
