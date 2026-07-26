@@ -157,7 +157,7 @@ export interface RuntimeCamera {
   centerCameraOnTap: (wx: number, wy: number) => void;
 
   // Zone queries
-  povPlayerId: () => number;
+  povPlayerId: () => ValidPlayerId;
   getEnemyZones: () => ZoneId[];
   /** The enemy zone the battle-start crosshair will occupy — the restored
    *  last-aimed enemy (if still alive), else the best enemy. Drives the

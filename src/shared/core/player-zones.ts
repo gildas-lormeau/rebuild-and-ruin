@@ -7,19 +7,27 @@
  * `spatial.ts` for tile↔zone geometry.
  */
 
-import { isPlayerEliminated } from "./player-slot.ts";
+import {
+  isPlayerEliminated,
+  type PlayerId,
+  type ValidPlayerId,
+} from "./player-slot.ts";
 import type { ZoneId } from "./zone-id.ts";
 
 /** Return the player slot whose zone matches `zone`, or `undefined` if no
  *  player is assigned to that zone. Encodes the data-model invariant that
  *  zones are exclusive: at most one player per zone (river isolation).
- *  Use this in place of `playerZones.indexOf(zone)`. */
+ *  Use this in place of `playerZones.indexOf(zone)`.
+ *
+ *  Returns `ValidPlayerId` (not `PlayerId`): the `>= 0` filter below is
+ *  exactly `isActivePlayer`'s check, so a non-undefined result is already
+ *  index-safe and callers need no cast to use it against `state.players`. */
 export function playerByZone(
   playerZones: readonly ZoneId[],
   zone: ZoneId,
-): number | undefined {
+): ValidPlayerId | undefined {
   const pid = playerZones.indexOf(zone);
-  return pid >= 0 ? pid : undefined;
+  return pid >= 0 ? (pid as ValidPlayerId) : undefined;
 }
 
 /** Return the zone owned by player `pid`, or `null` when state is absent or
@@ -27,7 +35,7 @@ export function playerByZone(
  *  to derive the local human's home zone from a frame snapshot. */
 export function zoneByPlayer(
   state: { readonly playerZones: readonly ZoneId[] } | null | undefined,
-  pid: number,
+  pid: PlayerId,
 ): ZoneId | null {
   if (!state) return null;
   return state.playerZones[pid] ?? null;
@@ -37,7 +45,7 @@ export function zoneByPlayer(
 export function enemyZones(
   players: readonly { eliminated: boolean }[],
   playerZones: readonly ZoneId[],
-  myPid: number,
+  myPid: PlayerId,
 ): ZoneId[] {
   const zones: ZoneId[] = [];
   for (let i = 0; i < players.length; i++) {
@@ -52,7 +60,7 @@ export function enemyZones(
 export function bestEnemyZone(
   players: readonly { eliminated: boolean; score: number }[],
   playerZones: readonly ZoneId[],
-  myPid: number,
+  myPid: PlayerId,
 ): ZoneId | null {
   let bestPid = -1;
   let bestScore = -1;

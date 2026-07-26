@@ -23,7 +23,7 @@ import {
 
 interface MapTextOptions {
   layer?: MapLayer;
-  zone?: number;
+  zone?: ZoneId;
   player?: number;
   coords?: boolean;
   legend?: boolean;

@@ -127,7 +127,7 @@ export interface ZoomButtonDeps {
    *  "next zone" preview on the actually-visible zone. */
   getViewedZone: () => ZoneId | undefined;
   setCameraZone: (zone: ZoneId) => void;
-  povPlayerId: () => number;
+  povPlayerId: () => ValidPlayerId;
   getEnemyZones: () => ZoneId[];
   /** The enemy zone the cycle should lead with each round — the restored
    *  last-aimed enemy, else the best enemy ("last opponent or default"). The

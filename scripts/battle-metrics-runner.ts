@@ -6,6 +6,7 @@
  */
 
 import { GAME_EVENT } from "../src/shared/core/game-event-bus.ts";
+import type { PlayerId } from "../src/shared/core/player-slot.ts";
 import {
   createBattleMetricsObserver,
   type PlayerBattleMetrics,
@@ -13,7 +14,7 @@ import {
 import { createScenario, waitForEvent } from "../test/scenario.ts";
 
 export interface PlayerGameMetrics {
-  playerId: number;
+  playerId: PlayerId;
   finalLives: number;
   finalScore: number;
   lastAliveRound: number;
@@ -98,7 +99,8 @@ export async function runSeed(
     const player = sc.state.players[pid];
     if (!player) continue;
     players.push({
-      playerId: pid,
+      // Loop index bounded by the slot count — the documented `as PlayerId` case.
+      playerId: pid as PlayerId,
       finalLives: player.lives,
       finalScore: player.score,
       lastAliveRound: lastAliveRound[pid] ?? 0,

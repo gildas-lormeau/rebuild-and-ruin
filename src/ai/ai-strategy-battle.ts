@@ -28,6 +28,7 @@ import type {
   PixelPos,
   TileBounds,
   TilePos,
+  TowerIdx,
 } from "../shared/core/geometry-types.ts";
 import {
   GRID_COLS,
@@ -744,7 +745,7 @@ export function findMinBreach(
 export function findTowerBreach(
   state: BattleViewState,
   enemy: Player,
-  towerIdx: number,
+  towerIdx: TowerIdx,
   cap: number,
 ): TilePos[] | null {
   if (cap < 1) return null;

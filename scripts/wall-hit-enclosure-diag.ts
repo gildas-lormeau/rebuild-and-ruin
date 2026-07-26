@@ -32,6 +32,7 @@
 import { BATTLE_MESSAGE } from "../src/shared/core/battle-events.ts";
 import { GAME_EVENT } from "../src/shared/core/game-event-bus.ts";
 import { Phase } from "../src/shared/core/game-phase.ts";
+import type { PlayerId } from "../src/shared/core/player-slot.ts";
 import { createNarrativeObserver } from "../test/narrative-observer.ts";
 import { createScenario, ScenarioTimeoutError } from "../test/scenario.ts";
 
@@ -207,7 +208,7 @@ async function main(): Promise<void> {
       `  ${PLAYER_NAMES[pid]}: ${archetypes[pid] ?? "?"}  tier ${tierOf(archetypes[pid])}`,
     );
   }
-  const archLabel = (pid: number): string =>
+  const archLabel = (pid: PlayerId): string =>
     `${archetypes[pid] ?? "?"}/t${tierOf(archetypes[pid]).charAt(0)}`;
 
   const ordered = [...records.values()].sort((a, b) => a.round - b.round);
@@ -229,7 +230,7 @@ async function main(): Promise<void> {
       const breakdown = [...record.enemyDestroyBy[pid]!.entries()]
         .map(
           ([shooter, n]) =>
-            `${PLAYER_NAMES[shooter]}(${archLabel(shooter)})×${n}`,
+            `${PLAYER_NAMES[shooter]}(${archLabel(shooter as PlayerId)})×${n}`,
         )
         .join(",");
       const line = `  r${record.round} ${PLAYER_NAMES[pid]}: ${enemy} wall(s) destroyed by [${breakdown}] | enclosures ${start}→${end}`;
@@ -288,7 +289,7 @@ async function emitViaAnalysis(opts: {
   lines: readonly string[];
   ordered: RoundRecord[];
   playerCount: number;
-  tierNum: (pid: number) => number;
+  tierNum: (pid: PlayerId) => number;
   archetypes: (string | undefined)[];
   gameEnded: boolean;
   lastRoundEnded: number;
@@ -338,7 +339,7 @@ async function emitViaAnalysis(opts: {
       const byShooterTier: Record<string, number> = {};
       for (const fire of fires) {
         grandVia[fire.origin] = (grandVia[fire.origin] ?? 0) + 1;
-        const tierKey = `t${tierNum(fire.shooter)}`;
+        const tierKey = `t${tierNum(fire.shooter as PlayerId)}`;
         byShooterTier[tierKey] = (byShooterTier[tierKey] ?? 0) + 1;
         (grandViaByTier[tierKey] ??= {})[fire.origin] =
           (grandViaByTier[tierKey]?.[fire.origin] ?? 0) + 1;
@@ -376,7 +377,7 @@ async function emitViaAnalysis(opts: {
         winner: opts.winnerId,
         archetypes: opts.archetypes.map((arch, pid) => ({
           name: arch ?? "?",
-          tier: tierNum(pid),
+          tier: tierNum(pid as PlayerId),
         })),
         heldVia,
         grandVia,
@@ -413,8 +414,10 @@ function parseFireOrigins(
     number,
     Array<{ shooter: number; victim: number; origin: string }>
   >();
-  const nameToPid = (name: string): number =>
-    PLAYER_NAMES.indexOf(name as never);
+  // `indexOf` yields -1 for an unknown name, which is exactly `SPECTATOR_SLOT`
+  // — a valid `PlayerId`, so the brand fits without a validity claim.
+  const nameToPid = (name: string): PlayerId =>
+    PLAYER_NAMES.indexOf(name as never) as PlayerId;
   let round = 0;
   let inBattle = false;
   const headerRe = /^── r(\d+) (\w+)/;

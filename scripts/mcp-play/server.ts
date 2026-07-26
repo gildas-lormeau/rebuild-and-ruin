@@ -16,6 +16,7 @@
  */
 
 import { toCannonMode } from "../../src/shared/core/cannon-mode-defs.ts";
+import type { TowerIdx } from "../../src/shared/core/geometry-types.ts";
 import type { ValidPlayerId } from "../../src/shared/core/player-slot.ts";
 import {
   type BuildBudget,
@@ -62,7 +63,7 @@ interface Journal {
     | { t: "pass"; n: number; seconds?: number }
     | {
         t: "build";
-        towerIdx?: number;
+        towerIdx?: TowerIdx;
         maxSeconds?: number;
         maxPieces?: number;
       }
@@ -82,7 +83,7 @@ interface Journal {
         maxPieces?: number;
       }
     | { t: "bombard"; slot: number; quanta?: number; mode?: "spread" | "choke" }
-    | { t: "breach"; slot: number; towerIdx?: number }
+    | { t: "breach"; slot: number; towerIdx?: TowerIdx }
     | {
         t: "pit_strike";
         slot: number;
@@ -513,7 +514,7 @@ const TOOLS: ToolDef[] = [
     },
     handler: (args) =>
       recordBuild(
-        args.towerIdx === undefined ? undefined : num(args, "towerIdx"),
+        args.towerIdx === undefined ? undefined : towerIdxArg(args),
         budgetArg(args),
       ),
   },
@@ -677,7 +678,7 @@ const TOOLS: ToolDef[] = [
     handler: (args) =>
       recordBreach(
         num(args, "slot"),
-        args.towerIdx === undefined ? undefined : num(args, "towerIdx"),
+        args.towerIdx === undefined ? undefined : towerIdxArg(args),
       ),
   },
   {
@@ -775,8 +776,8 @@ const TOOLS: ToolDef[] = [
       required: ["towerIdx"],
     },
     handler: (args) =>
-      requireGame().enclosurePlan(num(args, "towerIdx")) ?? {
-        towerIdx: num(args, "towerIdx"),
+      requireGame().enclosurePlan(towerIdxArg(args)) ?? {
+        towerIdx: towerIdxArg(args),
         status: "not-a-candidate",
       },
   },
@@ -961,7 +962,7 @@ function recordPass(n: number, seconds?: number): unknown {
 }
 
 /** Run the build-toward executor AND journal the goal (replay re-derives placements). */
-function recordBuild(towerIdx?: number, budget?: BuildBudget): unknown {
+function recordBuild(towerIdx?: TowerIdx, budget?: BuildBudget): unknown {
   const observation = requireGame().build(towerIdx, budget);
   journal?.moves.push({
     t: "build",
@@ -1038,7 +1039,7 @@ function recordBombard(
 }
 
 /** Run the breach executor AND journal the target (replay re-derives the volley). */
-function recordBreach(slot: number, towerIdx?: number): unknown {
+function recordBreach(slot: number, towerIdx?: TowerIdx): unknown {
   const observation = requireGame().breach(slot, towerIdx);
   journal?.moves.push({ t: "breach", slot, towerIdx });
   return observation;
@@ -1154,6 +1155,18 @@ function budgetArg(args: Record<string, unknown>): BuildBudget | undefined {
   return budget.maxSeconds === undefined && budget.maxPieces === undefined
     ? undefined
     : budget;
+}
+
+/** A tower index off the MCP JSON boundary. The cast is the documented
+ *  deserialization case for a branded index: `num` has already established a
+ *  finite number, and the harness rejects an index that addresses no tower.
+ *  Keeping it in one helper means the agent-facing tool handlers never hand-roll
+ *  the cast (and never silently pass a raw `number` again). */
+function towerIdxArg(
+  args: Record<string, unknown>,
+  key = "towerIdx",
+): TowerIdx {
+  return num(args, key) as TowerIdx;
 }
 
 function num(args: Record<string, unknown>, key: string): number {

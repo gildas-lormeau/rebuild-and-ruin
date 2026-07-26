@@ -18,8 +18,15 @@ import type {
 import { Phase } from "../src/shared/core/game-phase.ts";
 import type { Viewport } from "../src/shared/core/geometry-types.ts";
 import { TILE_SIZE } from "../src/shared/core/grid.ts";
-import type { ValidPlayerId } from "../src/shared/core/player-slot.ts";
-import { isPlayerEliminated } from "../src/shared/core/player-slot.ts";
+import type {
+  PlayerId,
+  ValidPlayerId,
+} from "../src/shared/core/player-slot.ts";
+import {
+  isActivePlayer,
+  isPlayerEliminated,
+  SPECTATOR_SLOT,
+} from "../src/shared/core/player-slot.ts";
 import { tileCenterPx, unpackTile } from "../src/shared/core/spatial.ts";
 import { type GameViewState } from "../src/shared/core/system-interfaces.ts";
 import type { GameState } from "../src/shared/core/types.ts";
@@ -120,7 +127,7 @@ export interface E2EBridgeSnapshot {
   /** This peer's seated slot (`network.myPlayerId()`), or -1 in local play /
    *  before seating. Pairs with `isHost` to verify host-migration outcomes:
    *  after the host quits, the survivors observe the new host's slot here. */
-  myPlayerId: number;
+  myPlayerId: PlayerId;
   /** Whether this peer is currently the authoritative host (`network.amHost()`).
    *  Flips to true on the promoted survivor after a host migration — the signal
    *  three-humans-online.ts asserts the promotion actually happened (a broken
@@ -410,7 +417,7 @@ function buildBridge(
     },
     controller: null,
     selection: [],
-    myPlayerId: -1,
+    myPlayerId: SPECTATOR_SLOT,
     amHost: false,
     worldToClient,
     tileToClient: makeTileToClient(worldToClient),
@@ -534,8 +541,10 @@ function updateBridgeSnapshots(ref: E2EBridge, deps: E2EBridgeDeps): void {
 
   // --- Controller ---
   // In local mode myPlayerId() returns -1; fall back to slot 0 (first human)
-  const myPid =
-    config.network.myPlayerId() >= 0 ? config.network.myPlayerId() : 0;
+  const localPid = config.network.myPlayerId();
+  const myPid: ValidPlayerId = isActivePlayer(localPid)
+    ? localPid
+    : (0 as ValidPlayerId);
   ref.controller = ready ? snapshotController(runtimeState, myPid) : null;
 
   // --- Selection (reselect queue) ---
@@ -651,7 +660,7 @@ function snapshotUI(runtimeState: RuntimeState): E2EUISnapshot {
 
 function snapshotController(
   runtimeState: RuntimeState,
-  myPid: number,
+  myPid: PlayerId,
 ): E2EControllerSnapshot | null {
   if (myPid < 0) return null;
   const ctrl = runtimeState.controllers[myPid];
@@ -672,7 +681,7 @@ function snapshotController(
 /** Collect enemy cannons and walls as pixel positions for E2E battle targeting. */
 function collectEnemyTargets(
   state: GameViewState,
-  myPid: number,
+  myPid: PlayerId,
 ): {
   enemyCannons: { x: number; y: number }[];
   enemyTargets: { x: number; y: number }[];

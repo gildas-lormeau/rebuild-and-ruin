@@ -552,7 +552,8 @@ export function zoneOwnerIdAt(
 ): ValidPlayerId {
   const zone = zoneAt(state.map, row, col);
   if (zone === undefined) return 0 as ValidPlayerId;
-  return (playerByZone(state.playerZones, zone) ?? 0) as ValidPlayerId;
+  // `playerByZone` is branded, so only the fall-back sentinel needs the cast.
+  return playerByZone(state.playerZones, zone) ?? (0 as ValidPlayerId);
 }
 
 /** Boundary helper: read a cell from `map.zones` and return it as a `ZoneId`,

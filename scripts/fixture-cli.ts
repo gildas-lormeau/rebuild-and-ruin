@@ -64,6 +64,7 @@ import { GRID_COLS, GRID_ROWS } from "../src/shared/core/grid.ts";
 import { IMPLEMENTED_MODIFIERS } from "../src/shared/core/modifier-defs.ts";
 import { isGrass } from "../src/shared/core/spatial.ts";
 import type { GameState, TestHooks } from "../src/shared/core/types.ts";
+import type { ZoneId } from "../src/shared/core/zone-id.ts";
 import { Rng } from "../src/shared/platform/rng.ts";
 import {
   createPhaseScenario,
@@ -458,7 +459,7 @@ function ringFits(map: GameMap, tower: Tower, castleSize: number): boolean {
  *  the runtime accepts this and grunts/cannons read tower state separately. */
 function wholeZoneWallTiles(
   map: GameMap,
-  zone: number,
+  zone: ZoneId,
 ): { row: number; col: number }[] {
   const result: { row: number; col: number }[] = [];
   for (let r = 0; r < GRID_ROWS; r++) {
@@ -477,7 +478,7 @@ function isZoneBoundaryTile(
   map: GameMap,
   r: number,
   c: number,
-  zone: number,
+  zone: ZoneId,
 ): boolean {
   for (let dr = -1; dr <= 1; dr++) {
     for (let dc = -1; dc <= 1; dc++) {

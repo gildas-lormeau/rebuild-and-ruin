@@ -84,7 +84,10 @@ import {
   TOWER_SIZE,
 } from "../../src/shared/core/game-constants.ts";
 import { Phase } from "../../src/shared/core/game-phase.ts";
-import type { TileRect } from "../../src/shared/core/geometry-types.ts";
+import type {
+  TileRect,
+  TowerIdx,
+} from "../../src/shared/core/geometry-types.ts";
 import {
   GRID_COLS,
   GRID_ROWS,
@@ -121,6 +124,7 @@ import {
 import type { ControllerFactory } from "../../src/shared/core/system-interfaces.ts";
 import { cannonSlotsFor } from "../../src/shared/core/types.ts";
 import { UID, UPGRADE_POOL } from "../../src/shared/core/upgrade-defs.ts";
+import type { ZoneId } from "../../src/shared/core/zone-id.ts";
 import {
   filterAliveEnclosedTowers,
   isCannonEnclosed,
@@ -288,7 +292,7 @@ export interface SealBlocker {
  *  min-cut tiles to do it. Computed via the engine's own `findEnclosureCut`, so
  *  `tiles` is a deterministic placement plan, not a heuristic. */
 export interface EnclosureCandidate {
-  towerIdx: number;
+  towerIdx: TowerIdx;
   isHome: boolean;
   /** Ground truth from `state.towerAlive`: is this tower alive right now? The
    *  round-end life penalty only clears when an ALIVE tower is enclosed at
@@ -433,7 +437,7 @@ export interface BonusTarget {
  *  pocket (open its outer ring) makes that pocket score zero next build unless
  *  they reseal it, and ejects any bonus squares it holds from their interior. */
 export interface OpponentTower {
-  towerIdx: number;
+  towerIdx: TowerIdx;
   row: number;
   col: number;
   /** Outer-ring (boundary) wall tiles guarding it within `BREACH_RADIUS` —
@@ -457,7 +461,7 @@ export interface PitTarget {
   choke: number;
   /** This tile guards an enclosed tower (within BREACH_RADIUS) — a load-bearing
    *  ring wall, so the pit also helps de-enclose the pocket. */
-  towerIdx: number | null;
+  towerIdx: TowerIdx | null;
 }
 
 /** A battle aim-assist entry: one opponent, a sample of their wall tiles, and
@@ -520,7 +524,7 @@ export interface CannonSuggestion {
  *  reseal); `byMode` counts the ALIVE cannons by type. A pocket that's mostly
  *  dead/inert is a weak rebuild — the walls would reseal few working guns. */
 export interface TowerCannons {
-  towerIdx: number;
+  towerIdx: TowerIdx;
   row: number;
   col: number;
   /** Is this tower currently enclosed (its pocket sealed)? */
@@ -555,7 +559,7 @@ export interface GruntCluster {
   /** Grunts in the blob. */
   count: number;
   /** River zone the blob sits in. */
-  zone: number;
+  zone: ZoneId;
   /** Slot whose castle owns that zone, or null for a neutral zone. */
   owner: number | null;
   /** Display name of the owner (null for a neutral zone). */
@@ -1093,7 +1097,7 @@ export interface McpGame {
    *  tile until it seals, time runs low, or it stalls. One call ≈ a whole build.
    *  Pass a `budget` (maxSeconds / maxPieces) to stop early and reserve the rest
    *  of the phase for a second build instead of gambling the whole timer. */
-  build(towerIdx?: number, budget?: BuildBudget): Observation;
+  build(towerIdx?: TowerIdx, budget?: BuildBudget): Observation;
   /** WALL_BUILD, survival escape: ONE call to avoid the "no alive tower enclosed
    *  → lose a life + zone reset" round-end penalty. Picks the cheapest tower whose
    *  seal actually CLEARS the life check (alive, or dead-but-Restoration-Crew;
@@ -1162,7 +1166,7 @@ export interface McpGame {
    *  opens every intact tower-ring it can afford (tower-rings first, cheapest
    *  first). Denies that pocket's territory + bonus squares next build, where
    *  bombard just spreads damage they reseal. One call ≈ a whole battle. */
-  breach(slot: number, towerIdx?: number): Observation;
+  breach(slot: number, towerIdx?: TowerIdx): Observation;
   /** BATTLE: drive the whole battle like bombard, but AIM your super cannon(s) at
    *  `targets` (enemy wall tiles) to plant burning PITS there while normal cannons
    *  spread-chip `slot`'s walls. A super ball only pits a tile it HITS AS A WALL,
@@ -1216,7 +1220,7 @@ export interface McpGame {
   /** Full min-cut plan (all tiles) to enclose one tower — the un-sampled form
    *  of an `enclosureCandidates` entry. Returns null if that tower isn't a
    *  candidate in your zone. */
-  enclosurePlan(towerIdx: number): EnclosureCandidate | null;
+  enclosurePlan(towerIdx: TowerIdx): EnclosureCandidate | null;
   /** Validate a placement at the current phase WITHOUT committing or advancing
    *  the clock. In WALL_BUILD checks the current piece at (row,col,rotation);
    *  in CANNON_PLACE checks a cannon at (row,col,mode). */
@@ -2239,7 +2243,7 @@ export async function createMcpGame(
         rectHas(pocket, bonus.row, bonus.col),
       ).length;
       const base = {
-        towerIdx: tower.index as number,
+        towerIdx: tower.index,
         isHome,
         alive,
         satisfiesSurvival,
@@ -2571,7 +2575,7 @@ export async function createMcpGame(
    *  else the nearest alive tower in `zone`. */
   function threatTarget(
     grunt: { row: number; col: number; targetTowerIdx?: number },
-    zone: number,
+    zone: ZoneId,
   ) {
     const towers = sc.state.map.towers;
     const locked = grunt.targetTowerIdx;
@@ -4247,7 +4251,7 @@ export async function createMcpGame(
     return observe();
   }
 
-  function enclosurePlan(towerIdx: number): EnclosureCandidate | null {
+  function enclosurePlan(towerIdx: TowerIdx): EnclosureCandidate | null {
     return (
       enclosureCandidatesFor().find((c) => c.towerIdx === towerIdx) ?? null
     );
@@ -4567,7 +4571,7 @@ export async function createMcpGame(
    *  the rest); with no explicit `maxSeconds` it self-caps (see `autoBuildCapSec`)
    *  so a big enclosure can't silently gamble the whole phase. */
   function buildToward(
-    towerIdx?: number,
+    towerIdx?: TowerIdx,
     budget?: BuildBudget,
     opts?: { survival?: boolean; note?: string },
   ): Observation {
@@ -4794,7 +4798,7 @@ export async function createMcpGame(
     const sealed: number[] = [];
     // Run one enclosure pass on `towerIdx`, bounded by the time/pieces still
     // budgeted across the whole call. Returns pieces placed this pass.
-    const runOne = (towerIdx: number): number => {
+    const runOne = (towerIdx: TowerIdx): number => {
       const { placed } = driveBuildLoop(towerIdx, sc.state.timer, piecesLeft, {
         maxSeconds: sc.state.timer - floorTimer,
         maxPieces: piecesLeft,
@@ -6082,7 +6086,7 @@ export async function createMcpGame(
           row,
           col,
           choke: chokeScore(row, col),
-          towerIdx: tower ? (tower.index as number) : null,
+          towerIdx: tower ? tower.index : null,
         });
       }
     }
@@ -6116,7 +6120,7 @@ export async function createMcpGame(
             near(bonus.row, bonus.col, tower.row, tower.col),
         ).length;
         return {
-          towerIdx: tower.index as number,
+          towerIdx: tower.index,
           row: tower.row,
           col: tower.col,
           ringWalls,
@@ -6163,7 +6167,7 @@ export async function createMcpGame(
    *  radius heuristic only when no min-cut is breachable (so the volley still
    *  chips walls for points). Same fairness as bombard — fires only while the
    *  battle is live, one ready cannon per shot, paced to reload. */
-  function breachSlot(targetSlot: number, towerIdx?: number): Observation {
+  function breachSlot(targetSlot: number, towerIdx?: TowerIdx): Observation {
     if (sc.state.phase !== Phase.BATTLE) {
       bridge.lastResult = {
         kind: "fire",

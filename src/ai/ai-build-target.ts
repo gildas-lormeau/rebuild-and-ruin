@@ -31,6 +31,7 @@ import {
   unpackTile,
 } from "../shared/core/spatial.ts";
 import type { BuildViewState } from "../shared/core/system-interfaces.ts";
+import type { ZoneId } from "../shared/core/zone-id.ts";
 import { hasAliveHouseAt, hasGruntAt } from "../shared/sim/board-occupancy.ts";
 import { hasCannonAt, hasTowerAt } from "../shared/sim/occupancy-queries.ts";
 import type { OccupancyCache } from "../shared/sim/occupancy-types.ts";
@@ -1083,7 +1084,7 @@ function tryEncloseCaptures(ctx: TargetContext): TargetResult {
 function pocketCaptureValue(
   rect: TileRect,
   state: BuildViewState,
-  homeZone: number,
+  homeZone: ZoneId,
 ): number {
   let value = 0;
   for (const house of state.map.houses) {

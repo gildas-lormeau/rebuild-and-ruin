@@ -17,6 +17,10 @@
  *     usually means two symbols sharing a name), prefer the deepest
  *     path (most segments). Ties throw with the candidate list so the
  *     caller can pass `--import-from` to disambiguate.
+ *  5. `--import-from` is a preference, not a mandate: it applies only to
+ *     names the target module actually exports, so an unrelated unresolved
+ *     reference elsewhere in the file can never be rewritten into a broken
+ *     import from it (see `importFromOverride`).
  *
  * Idempotent: a second pass over the same files is a no-op.
  */
@@ -29,10 +33,19 @@ export interface ImportResolution {
 }
 
 export interface ResolveOptions {
-  /** Optional override: if provided, every unresolved name found in the
-   *  files is imported from this module specifier instead of the
-   *  resolver's automatic choice. Pass as a relative path or absolute
-   *  file path — both are normalized to a `./…` / `../…` specifier. */
+  /** Optional preference: unresolved names that this module actually exports
+   *  are imported from here instead of the resolver's automatic choice. Pass
+   *  as a relative path or absolute file path — both are normalized to a
+   *  `./…` / `../…` specifier.
+   *
+   *  A name the override does NOT export falls back to automatic resolution
+   *  (and is skipped entirely if that finds nothing). The override used to
+   *  apply unconditionally to every unresolved name in the file, which meant
+   *  any pre-existing unresolved reference — ambient DOM types like
+   *  `HTMLElement`, or a type whose own import the file was missing — got
+   *  force-imported from the override target and produced a broken
+   *  `has no exported member` import. The override is a tie-breaker for the
+   *  name being introduced, not a redirect for the whole file. */
   importFromOverride?: string;
   /** When `true`, emit `import type { … }`. Defaults to `true` since the
    *  primary caller is `change type` (annotation-only edits). */
@@ -113,7 +126,14 @@ export function resolveImportsForFiles(
 
     const added: { name: string; from: string }[] = [];
     for (const name of unresolved) {
-      const target = overrideTarget ?? pickTarget(name, exportIndex);
+      // The override only wins for names it actually exports; anything else
+      // falls through to automatic resolution rather than being written as a
+      // broken import (see `importFromOverride`).
+      const preferred =
+        overrideTarget && exportsName(overrideTarget, name)
+          ? overrideTarget
+          : undefined;
+      const target = preferred ?? pickTarget(name, exportIndex);
       if (!target) continue;
       addTypeImport(sf, name, target, typeOnly);
       added.push({ name, from: target.getFilePath() });
@@ -228,6 +248,14 @@ function pickTarget(
 
 function pathDepth(filePath: string): number {
   return filePath.split("/").length;
+}
+
+/** True when `targetSf` exports `name` (directly or by re-export — both make
+ *  `import { name } from targetSf` valid). Gates the `importFromOverride`
+ *  preference so the resolver can never emit an import the target cannot
+ *  satisfy. */
+function exportsName(targetSf: SourceFile, name: string): boolean {
+  return targetSf.getExportedDeclarations().has(name);
 }
 
 function addTypeImport(

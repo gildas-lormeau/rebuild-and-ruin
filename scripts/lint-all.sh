@@ -81,6 +81,7 @@ echo "lint:all: parallel checks..."
   run dead-params       deno run -A scripts/lint-dead-params.ts --min-callers=1
   run unused-iface      deno run -A scripts/lint-unused-interface-fields.ts
   run union-drift       env AUDIT_EXIT_NONZERO=1 deno run -A scripts/audit-literal-union-drift.ts --report
+  run brand-leaks       deno run -A scripts/audit-brand-candidates.ts --check
 ) &
 
 # Lane 5 — deno type-check + lint

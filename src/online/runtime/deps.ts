@@ -19,6 +19,7 @@ import { DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS } from "../../shared/core/action-s
 import { MIGRATION_ANNOUNCEMENT_DURATION } from "../../shared/core/game-constants.ts";
 import type { TowerIdx } from "../../shared/core/geometry-types.ts";
 import {
+  type PlayerId,
   SPECTATOR_SLOT,
   type ValidPlayerId,
 } from "../../shared/core/player-slot.ts";
@@ -321,7 +322,7 @@ function warnIfStaleWireStamp(
   init: DepsInit,
   log: (msg: string) => void,
   applyAt: number,
-  playerId: number,
+  playerId: PlayerId,
 ): void {
   const { state } = init.runtime.runtimeState;
   if (applyAt > state.simTick) return;

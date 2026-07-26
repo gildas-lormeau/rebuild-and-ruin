@@ -7,7 +7,10 @@
  */
 
 import type { GameMap, TilePos } from "../shared/core/geometry-types.ts";
-import { isPlayerEliminated } from "../shared/core/player-slot.ts";
+import {
+  isPlayerEliminated,
+  type PlayerId,
+} from "../shared/core/player-slot.ts";
 import { bestEnemyZone, playerByZone } from "../shared/core/player-zones.ts";
 import { pxToTile, towerCenterPx, zoneAt } from "../shared/core/spatial.ts";
 import type { ZoneId } from "../shared/core/zone-id.ts";
@@ -24,7 +27,7 @@ export function battleTargetPosition(
   }[],
   playerZones: readonly ZoneId[],
   map: GameMap,
-  myPid: number,
+  myPid: PlayerId,
   lastPos: { x: number; y: number } | undefined,
 ): { x: number; y: number } | null {
   // Restore last position if targeted opponent is alive

@@ -63,8 +63,9 @@ import {
 import { TOWER_SIZE } from "../src/shared/core/game-constants.ts";
 import { GAME_EVENT } from "../src/shared/core/game-event-bus.ts";
 import { Phase } from "../src/shared/core/game-phase.ts";
-import type { Tower } from "../src/shared/core/geometry-types.ts";
+import type { Tower, TowerIdx } from "../src/shared/core/geometry-types.ts";
 import type { TileKey } from "../src/shared/core/grid.ts";
+import type { PlayerId } from "../src/shared/core/player-slot.ts";
 import { computeOutside, packTile } from "../src/shared/core/spatial.ts";
 import { getInterior } from "../src/shared/sim/player-interior.ts";
 import { createScenario, waitForEvent } from "../test/scenario.ts";
@@ -82,8 +83,8 @@ interface Buckets {
 
 interface CommitSnapshot {
   round: number;
-  pid: number;
-  towerIdx: number;
+  pid: PlayerId;
+  towerIdx: TowerIdx;
   pos: string;
   gapEncloses: boolean;
   cfgEncloses: boolean;
