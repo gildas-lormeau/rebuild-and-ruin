@@ -83,6 +83,7 @@ import {
 } from "../shared/sim/player-interior.ts";
 import { addScore } from "../shared/sim/player-rules.ts";
 import { addPlayerWalls } from "../shared/sim/player-walls.ts";
+import type { PlacementContext } from "./build-types.ts";
 import { getDeadZones } from "./grunt-movement.ts";
 import { spawnGruntAtTile, spawnGruntGroupOnZone } from "./grunt-system.ts";
 import { topZonesBySize } from "./map-generation.ts";
@@ -94,17 +95,6 @@ import {
   wallOverlapAllowance,
 } from "./upgrade-system.ts";
 import { restorationCrewInstantRevive } from "./upgrades/restoration-crew.ts";
-
-/** Per-player invariants used by `canPlacePiece`. Build once via
- *  `buildPlacementContext` outside a candidate loop and pass it into every
- *  iteration to skip the upgrade-registry walks done per call. */
-export interface PlacementContext {
-  readonly player: Player;
-  readonly zone: ZoneId | undefined;
-  readonly overlapAllowance: number;
-  readonly allowPitOverlap: boolean;
-  readonly allowGruntOverlap: boolean;
-}
 
 /** Validate + apply piece placement. Returns true if placed. */
 export function placePiece(

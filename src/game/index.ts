@@ -18,13 +18,13 @@ export {
   snapshotTerritory,
   tickBattlePhase,
 } from "./battle-system.ts";
-export type { PlacementContext } from "./build-system.ts";
 export {
   buildPlacementContext,
   canPlacePiece,
   recheckTerritory,
   recomputeAllTerritory,
 } from "./build-system.ts";
+export type { PlacementContext } from "./build-types.ts";
 export {
   allCannonPlaceDone,
   autoPlaceRound1Cannons,

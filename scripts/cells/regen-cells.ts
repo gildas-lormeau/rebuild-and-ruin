@@ -143,6 +143,7 @@ const LABELS: Record<string, string> = {
     "cannon-mode & modifier registry defs, Player struct, phantom payloads & banner content",
 
   // L5 — first logic
+  "5::game": "build-phase placement contracts",
   "5::protocol": "wire message unions & MESSAGE constants",
   "5::render": "3D instance bucketing",
   "5::runtime": "runtime banner state",
@@ -172,7 +173,7 @@ const LABELS: Record<string, string> = {
   "6::shared/sim": "sim internals — occupancy queries & wall mutators",
 
   // L7 — entity renderers & cross-domain handlers
-  "7::ai": "grunt-sweep tactic planner",
+  "7::ai": "AI build-pipeline shared types & the grunt-sweep tactic planner",
   "7::game": "match init & zone re-flood",
   "7::game/modifiers":
     "shared tile-eviction helper for terrain-mutating modifiers",
@@ -192,7 +193,7 @@ const LABELS: Record<string, string> = {
   "7::shared/sim": "sim internals — board occupancy & territory queries",
 
   // L8 — subsystems
-  "8::ai": "castle-rect geometry",
+  "8::ai": "AiStrategy contract & castle-rect geometry",
   "8::entry": "server entry",
   "8::runtime/subsystems":
     "input, render, lobby, options & cannon-animator subsystems",
@@ -207,13 +208,15 @@ const LABELS: Record<string, string> = {
   "8::runtime": "UIContext adapter",
 
   // L9 — system implementations
-  "9::ai": "min-cut wall planner",
+  "9::ai":
+    "AiBrain contract, min-cut wall planner, build scoring & the selection phase machine",
   "9::game": "cannon, modifier, game-over & wall-impact systems",
   "9::online": "online runtime lobby",
   "9::render": "render UI entry",
   "9::render/3d/effects": "modifier-effect registry",
 
   // L10 — mid-depth assembly
+  "10::ai": "shared build infra & the cannon phase machine/placement strategy",
   "10::game": "grunt system",
   "10::render": "map renderer & 3D scene bootstrap",
   "10::runtime": "main loop",
@@ -223,7 +226,7 @@ const LABELS: Record<string, string> = {
   "11::render": "Canvas2D frame renderer",
 
   // L12 — phase orchestration
-  "12::ai": "AI build-pipeline shared types",
+  "12::ai": "build target selection, build phase machine & battle strategy",
   "12::controllers": "BaseController abstraction",
   "12::game": "game actions, phase setup & scheduling",
   "12::online": "online server-event handlers & remote crosshair mirroring",
@@ -231,7 +234,8 @@ const LABELS: Record<string, string> = {
   "12::runtime": "battle animation driver",
 
   // L13 — wiring
-  "13::ai": "AiStrategy contract & build scoring",
+  "13::ai":
+    "battle phase machine, battle tactic planners & build desperation/lookahead",
   "13::controllers": "human controller & AI commit port",
   "13::game": "phase entry helpers",
   "13::online": "online state serialization & action send path",
@@ -239,36 +243,32 @@ const LABELS: Record<string, string> = {
   "13::runtime/subsystems": "score-delta subsystem factory",
 
   // L14 — brain contract & factories
-  "14::ai":
-    "AiBrain contract, phase state machines, cannon/battle strategy, build target selection & shared build infra",
-  "14::controllers": "controller factory",
+  "14::controllers":
+    "controller factory & AI controller (host wrapper around injected brain)",
   "14::online": "online host promotion",
   "14::runtime": "phase transition machine",
   "14::runtime/subsystems": "selection — castle-selection subsystem factory",
 
   // L15 — tactic planners & bootstrap
-  "15::ai":
-    "battle phase machine, battle tactic planners & build desperation/lookahead",
-  "15::controllers": "AI controller (host wrapper around injected brain)",
+  "15::controllers": "AI assisted-human controller variant",
   "15::online": "online lockstep seat takeover",
   "15::runtime": "match bootstrap — controllers & GameState from settings",
   "15::runtime/subsystems":
     "game-lifecycle & phase-ticks — phase-orchestrating subsystem factories",
 
   // L16 — brain assembly
-  "16::ai":
+  "14::ai":
     "AiBrain assembly, build-phase placement orchestrator & derived tactic planners (grunt breach, max-repair-cost, super-attack)",
-  "16::controllers": "AI assisted-human controller variant",
   "16::runtime": "GameRuntime handle — composition return type",
 
   // L17 — composition roots
-  "17::ai": "DefaultStrategy — production AiStrategy implementation",
+  "15::ai": "DefaultStrategy — production AiStrategy implementation",
   "17::online":
     "online phase transitions, rehydrate, resync defer & host promote",
   "17::runtime": "runtime composition",
 
   // L18 — entry assembly
-  "18::ai": "default AI bundle (strategy + brain assembly entrypoint)",
+  "16::ai": "default AI bundle (strategy + brain assembly entrypoint)",
   "18::entry": "local-game entry",
   "18::online": "online runtime deps & session",
 

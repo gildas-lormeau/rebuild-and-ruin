@@ -335,6 +335,14 @@
   },
   {
     "layer": 5,
+    "domain": "game",
+    "role": "build-phase placement contracts",
+    "files": [
+      "src/game/build-types.ts"
+    ]
+  },
+  {
+    "layer": 5,
     "domain": "protocol",
     "role": "wire message unions & MESSAGE constants",
     "files": [
@@ -535,8 +543,9 @@
   {
     "layer": 7,
     "domain": "ai",
-    "role": "grunt-sweep tactic planner",
+    "role": "AI build-pipeline shared types & the grunt-sweep tactic planner",
     "files": [
+      "src/ai/ai-build-types.ts",
       "src/ai/ai-plan-grunt-sweep.ts"
     ]
   },
@@ -672,9 +681,10 @@
   {
     "layer": 8,
     "domain": "ai",
-    "role": "castle-rect geometry",
+    "role": "AiStrategy contract & castle-rect geometry",
     "files": [
-      "src/ai/ai-castle-rect.ts"
+      "src/ai/ai-castle-rect.ts",
+      "src/ai/ai-strategy-types.ts"
     ]
   },
   {
@@ -780,9 +790,12 @@
   {
     "layer": 9,
     "domain": "ai",
-    "role": "min-cut wall planner",
+    "role": "AiBrain contract, min-cut wall planner, build scoring & the selection phase machine",
     "files": [
-      "src/ai/ai-min-cut.ts"
+      "src/ai/ai-brain-types.ts",
+      "src/ai/ai-build-score.ts",
+      "src/ai/ai-min-cut.ts",
+      "src/ai/ai-phase-select.ts"
     ]
   },
   {
@@ -819,6 +832,16 @@
     "role": "modifier-effect registry",
     "files": [
       "src/render/3d/effects/modifier-effect-registry.ts"
+    ]
+  },
+  {
+    "layer": 10,
+    "domain": "ai",
+    "role": "shared build infra & the cannon phase machine/placement strategy",
+    "files": [
+      "src/ai/ai-build-shared.ts",
+      "src/ai/ai-phase-cannon.ts",
+      "src/ai/ai-strategy-cannon.ts"
     ]
   },
   {
@@ -866,9 +889,11 @@
   {
     "layer": 12,
     "domain": "ai",
-    "role": "AI build-pipeline shared types",
+    "role": "build target selection, build phase machine & battle strategy",
     "files": [
-      "src/ai/ai-build-types.ts"
+      "src/ai/ai-build-target.ts",
+      "src/ai/ai-phase-build.ts",
+      "src/ai/ai-strategy-battle.ts"
     ]
   },
   {
@@ -917,10 +942,21 @@
   {
     "layer": 13,
     "domain": "ai",
-    "role": "AiStrategy contract & build scoring",
+    "role": "battle phase machine, battle tactic planners & build desperation/lookahead",
     "files": [
-      "src/ai/ai-build-score.ts",
-      "src/ai/ai-strategy-types.ts"
+      "src/ai/ai-build-desperate.ts",
+      "src/ai/ai-build-lookahead.ts",
+      "src/ai/ai-phase-battle.ts",
+      "src/ai/ai-plan-charity-sweep.ts",
+      "src/ai/ai-plan-declutter.ts",
+      "src/ai/ai-plan-deny-enclosure.ts",
+      "src/ai/ai-plan-fat-breach.ts",
+      "src/ai/ai-plan-finish-it.ts",
+      "src/ai/ai-plan-pinch-kill.ts",
+      "src/ai/ai-plan-pocket-destruction.ts",
+      "src/ai/ai-plan-structural-hit.ts",
+      "src/ai/ai-plan-sustained-pressure.ts",
+      "src/ai/ai-plan-wall-demolition.ts"
     ]
   },
   {
@@ -969,23 +1005,21 @@
   {
     "layer": 14,
     "domain": "ai",
-    "role": "AiBrain contract, phase state machines, cannon/battle strategy, build target selection & shared build infra",
+    "role": "AiBrain assembly, build-phase placement orchestrator & derived tactic planners (grunt breach, max-repair-cost, super-attack)",
     "files": [
-      "src/ai/ai-brain-types.ts",
-      "src/ai/ai-build-shared.ts",
-      "src/ai/ai-build-target.ts",
-      "src/ai/ai-phase-build.ts",
-      "src/ai/ai-phase-cannon.ts",
-      "src/ai/ai-phase-select.ts",
-      "src/ai/ai-strategy-battle.ts",
-      "src/ai/ai-strategy-cannon.ts"
+      "src/ai/ai-brain.ts",
+      "src/ai/ai-plan-grunt-breach.ts",
+      "src/ai/ai-plan-max-repair-cost.ts",
+      "src/ai/ai-plan-super-attack.ts",
+      "src/ai/ai-strategy-build.ts"
     ]
   },
   {
     "layer": 14,
     "domain": "controllers",
-    "role": "controller factory",
+    "role": "controller factory & AI controller (host wrapper around injected brain)",
     "files": [
+      "src/controllers/controller-ai.ts",
       "src/controllers/controller-factory.ts"
     ]
   },
@@ -1017,29 +1051,17 @@
   {
     "layer": 15,
     "domain": "ai",
-    "role": "battle phase machine, battle tactic planners & build desperation/lookahead",
+    "role": "DefaultStrategy — production AiStrategy implementation",
     "files": [
-      "src/ai/ai-build-desperate.ts",
-      "src/ai/ai-build-lookahead.ts",
-      "src/ai/ai-phase-battle.ts",
-      "src/ai/ai-plan-charity-sweep.ts",
-      "src/ai/ai-plan-declutter.ts",
-      "src/ai/ai-plan-deny-enclosure.ts",
-      "src/ai/ai-plan-fat-breach.ts",
-      "src/ai/ai-plan-finish-it.ts",
-      "src/ai/ai-plan-pinch-kill.ts",
-      "src/ai/ai-plan-pocket-destruction.ts",
-      "src/ai/ai-plan-structural-hit.ts",
-      "src/ai/ai-plan-sustained-pressure.ts",
-      "src/ai/ai-plan-wall-demolition.ts"
+      "src/ai/ai-strategy.ts"
     ]
   },
   {
     "layer": 15,
     "domain": "controllers",
-    "role": "AI controller (host wrapper around injected brain)",
+    "role": "AI assisted-human controller variant",
     "files": [
-      "src/controllers/controller-ai.ts"
+      "src/controllers/controller-ai-assisted-human.ts"
     ]
   },
   {
@@ -1071,21 +1093,9 @@
   {
     "layer": 16,
     "domain": "ai",
-    "role": "AiBrain assembly, build-phase placement orchestrator & derived tactic planners (grunt breach, max-repair-cost, super-attack)",
+    "role": "default AI bundle (strategy + brain assembly entrypoint)",
     "files": [
-      "src/ai/ai-brain.ts",
-      "src/ai/ai-plan-grunt-breach.ts",
-      "src/ai/ai-plan-max-repair-cost.ts",
-      "src/ai/ai-plan-super-attack.ts",
-      "src/ai/ai-strategy-build.ts"
-    ]
-  },
-  {
-    "layer": 16,
-    "domain": "controllers",
-    "role": "AI assisted-human controller variant",
-    "files": [
-      "src/controllers/controller-ai-assisted-human.ts"
+      "src/ai/ai-defaults.ts"
     ]
   },
   {
@@ -1094,14 +1104,6 @@
     "role": "GameRuntime handle — composition return type",
     "files": [
       "src/runtime/handle.ts"
-    ]
-  },
-  {
-    "layer": 17,
-    "domain": "ai",
-    "role": "DefaultStrategy — production AiStrategy implementation",
-    "files": [
-      "src/ai/ai-strategy.ts"
     ]
   },
   {
@@ -1121,14 +1123,6 @@
     "role": "runtime composition",
     "files": [
       "src/runtime/composition.ts"
-    ]
-  },
-  {
-    "layer": 18,
-    "domain": "ai",
-    "role": "default AI bundle (strategy + brain assembly entrypoint)",
-    "files": [
-      "src/ai/ai-defaults.ts"
     ]
   },
   {
