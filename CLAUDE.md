@@ -66,11 +66,13 @@ Workflow tools at `scripts/cells/`:
 - `regen-cells.ts` — regenerate the cell map after `generate-import-layers.ts`. `--check` mode fails if stale. The `LABELS` map inside the script is the source of truth for role names.
 File → domain is derived from path (`src/X/...` → `X`, `src/<root>.ts` → `entry`, `server/...` → `server`), with the `exceptions` block in `.domain-boundaries.json` for role-overrides like `server/server.ts → entry`. Full workflow reference in `docs/cell-system.md`.
 
-### Type file organization (L1–L4)
+### Type file organization (L0–L4 vocabulary, L5+ composite contracts)
 Type homes are discoverable via `cell-lookup.ts` and `npm run export-search`; the non-obvious splits:
 - `dialog-state.ts` (shared/core, L2) holds inter-round dialog *decision* state the AI + orchestrator mutate — not UI chrome (that's `interaction-types.ts` in shared/ui).
 - `FrameContext` is runtime-only — lives in `runtime/state.ts`, not `types.ts`.
-- `system-interfaces.ts` (L4) — Controller interfaces + per-phase state slices (`BuildViewState`, `CannonViewState`, `BattleViewState`) that decouple controllers/AI/input/online from types.ts. Controllers return intent objects (`FireIntent`, `PlacePieceIntent`) instead of mutating state — the orchestrator (runtime, online, AI tick) executes mutations against the real mutable GameState.
+- `system-interfaces.ts` (L5) — Controller interfaces + per-phase state slices (`BuildViewState`, `CannonViewState`, `BattleViewState`) that decouple controllers/AI/input/online from types.ts. Controllers return intent objects (`FireIntent`, `PlacePieceIntent`) instead of mutating state — the orchestrator (runtime, online, AI tick) executes mutations against the real mutable GameState.
+
+**L1–L4 is where the vocabulary lives, not where every type home can go.** L0–L4 is occupied by a genuine composition ladder — `zone-id` L0 → `geometry-types` L1 → `battle-events` L2 → `battle-types` L3 → `player-types` L4 — so any contract naming `Player` lands at L5 *by arithmetic*, values or no values. Strip every function from every module and recompute over type references alone: `system-interfaces` / `overlay-types` / `game/build-types` stay at L5, `runtime/types` / `input-deps` / `render/3d/frame-ctx` stay at L6. 75 of ~420 exported types have a type-only floor above L4. A composite contract at L5–L6 is correctly placed — don't "fix" it, and don't read `audit:type-pins` section A rows in that band as defects (see that script's header).
 
 ### Spatial algorithms (`docs/spatial-algorithms.md`)
 Read this before implementing features involving flood-fill, wall gaps, grunt movement, or territory detection. Key: `computeOutside` uses 8-dir (any 1-tile gap breaks enclosure); grunts move 4-dir only. Don't use `computeOutside` for chokepoint/gap detection — test cardinal barrier adjacency directly.

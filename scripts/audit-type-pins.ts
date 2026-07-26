@@ -9,10 +9,23 @@
  * A. STRANDED TYPE MODULE — a file whose every export is a type, sitting above
  *    the types tier (L0-L4). CLAUDE.md puts type homes at L1-L4; a pure-type
  *    module at L7+ got dragged up by its own type deps.
+ *    **L5-L6 hits are informational, and the L1-L4 remedy does not apply to
+ *    them.** Those layers are the floor, not slack: stripping every value from
+ *    every module and recomputing over type references alone leaves
+ *    `system-interfaces` / `overlay-types` / `build-types` at L5 and
+ *    `runtime/types` / `input-deps` / `frame-ctx` at L6 — zero movement. The
+ *    ladder below them (`zone-id` L0 -> `geometry-types` L1 -> `battle-events`
+ *    L2 -> `battle-types` L3 -> `player-types` L4) is pure type composition, so
+ *    any contract naming `Player` starts at L5 by arithmetic. 75 of ~420
+ *    exported types have a type-only floor above L4; six reach L8. No
+ *    relocation beats that — only splitting the contract does.
  *    FP class: composition return types (`runtime/handle.ts`) and phase-slice
  *    contracts necessarily reference what they compose, so they cannot drop to
- *    L1-L4 without splitting the contract. Treat L5-L6 hits as informational —
- *    those are usually forced by legitimately composing L4 type files.
+ *    L1-L4 without splitting the contract.
+ *    NB when re-deriving these floors: `interface X extends Y` is an
+ *    ExpressionWithTypeArguments, not a TypeReference. Walking only
+ *    TypeReference nodes silently drops every inheritance edge and reports a
+ *    uniform one-layer slack that isn't there.
  *
  * B. SIBLING TYPE-BORROW — an `import type` reaching sideways into a
  *    same-directory *implementation* module (one with value exports) for a
@@ -198,8 +211,10 @@ function reportStranded(findings: StrandedFinding[]): void {
     for (const pin of row.pins) console.log(`    pinned by: ${pin}`);
   }
   console.log(
-    `\n  Remedy: relocate the pinning type so the module lands in L1-L4.` +
-      `\n  Composition/return-type contracts are expected FPs — see header.\n`,
+    `\n  Remedy (L7+ only): relocate the pinning type so the module drops.` +
+      `\n  L5-L6 rows are the type-only floor, not slack — nothing to relocate,` +
+      `\n  they are listed for context. Composition/return-type contracts are` +
+      `\n  expected FPs even above L6 — see header.\n`,
   );
 }
 
