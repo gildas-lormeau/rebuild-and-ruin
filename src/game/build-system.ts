@@ -71,11 +71,8 @@ import {
   isCannonEnclosed,
   isTileOwnedByPlayer,
 } from "../shared/sim/board-occupancy.ts";
-import {
-  hasCannonAt,
-  hasTowerAt,
-  type OccupancyCache,
-} from "../shared/sim/occupancy-queries.ts";
+import { hasCannonAt, hasTowerAt } from "../shared/sim/occupancy-queries.ts";
+import type { OccupancyCache } from "../shared/sim/occupancy-types.ts";
 import { advancePlayerBag } from "../shared/sim/player-bag.ts";
 import {
   getInterior,

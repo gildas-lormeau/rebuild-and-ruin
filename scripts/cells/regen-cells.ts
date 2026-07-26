@@ -119,6 +119,7 @@ const LABELS: Record<string, string> = {
   "1::runtime/audio": "audio leaf infra (synth loader, sound modal)",
   "1::shared":
     "feature/upgrade registry defs, piece & geometry vocabulary, UI interaction types & theme",
+  "1::shared/sim": "sim internals — occupancy cache contract",
 
   // L2 — derived types & local entry
   "2::entry": "boot entry",
@@ -154,7 +155,7 @@ const LABELS: Record<string, string> = {
 
   // L6 — upgrades, modifiers & runtime contracts
   "6::ai":
-    "AI decision intents (life lost, upgrade pick), the ice-trench tactic planner & in-flight ball dedup",
+    "AI decision intents (life lost, upgrade pick), build-pipeline shared types, the ice-trench tactic planner & in-flight ball dedup",
   "6::game":
     "core game systems (combos, selection, map gen, elevation, aim occlusion)",
   "6::game/modifiers":
@@ -173,7 +174,7 @@ const LABELS: Record<string, string> = {
   "6::shared/sim": "sim internals — occupancy queries & wall mutators",
 
   // L7 — entity renderers & cross-domain handlers
-  "7::ai": "AI build-pipeline shared types & the grunt-sweep tactic planner",
+  "7::ai": "AiStrategy contract & the grunt-sweep tactic planner",
   "7::game": "match init & zone re-flood",
   "7::game/modifiers":
     "shared tile-eviction helper for terrain-mutating modifiers",
@@ -193,7 +194,8 @@ const LABELS: Record<string, string> = {
   "7::shared/sim": "sim internals — board occupancy & territory queries",
 
   // L8 — subsystems
-  "8::ai": "AiStrategy contract & castle-rect geometry",
+  "8::ai":
+    "AiBrain contract, castle-rect geometry & the selection phase machine",
   "8::entry": "server entry",
   "8::runtime/subsystems":
     "input, render, lobby, options & cannon-animator subsystems",
@@ -208,8 +210,7 @@ const LABELS: Record<string, string> = {
   "8::runtime": "UIContext adapter",
 
   // L9 — system implementations
-  "9::ai":
-    "AiBrain contract, min-cut wall planner, build scoring & the selection phase machine",
+  "9::ai": "min-cut wall planner & build scoring",
   "9::game": "cannon, modifier, game-over & wall-impact systems",
   "9::online": "online runtime lobby",
   "9::render": "render UI entry",

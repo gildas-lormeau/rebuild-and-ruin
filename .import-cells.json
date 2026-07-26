@@ -209,6 +209,15 @@
     ]
   },
   {
+    "layer": 1,
+    "domain": "shared",
+    "subdomain": "sim",
+    "role": "sim internals — occupancy cache contract",
+    "files": [
+      "src/shared/sim/occupancy-types.ts"
+    ]
+  },
+  {
     "layer": 2,
     "domain": "ai",
     "role": "AI build/battle diagnostic hooks & deterministic upgrade fallback",
@@ -390,8 +399,9 @@
   {
     "layer": 6,
     "domain": "ai",
-    "role": "AI decision intents (life lost, upgrade pick), the ice-trench tactic planner & in-flight ball dedup",
+    "role": "AI decision intents (life lost, upgrade pick), build-pipeline shared types, the ice-trench tactic planner & in-flight ball dedup",
     "files": [
+      "src/ai/ai-build-types.ts",
       "src/ai/ai-in-flight-target.ts",
       "src/ai/ai-life-lost.ts",
       "src/ai/ai-plan-ice-trench.ts",
@@ -543,10 +553,10 @@
   {
     "layer": 7,
     "domain": "ai",
-    "role": "AI build-pipeline shared types & the grunt-sweep tactic planner",
+    "role": "AiStrategy contract & the grunt-sweep tactic planner",
     "files": [
-      "src/ai/ai-build-types.ts",
-      "src/ai/ai-plan-grunt-sweep.ts"
+      "src/ai/ai-plan-grunt-sweep.ts",
+      "src/ai/ai-strategy-types.ts"
     ]
   },
   {
@@ -681,10 +691,11 @@
   {
     "layer": 8,
     "domain": "ai",
-    "role": "AiStrategy contract & castle-rect geometry",
+    "role": "AiBrain contract, castle-rect geometry & the selection phase machine",
     "files": [
+      "src/ai/ai-brain-types.ts",
       "src/ai/ai-castle-rect.ts",
-      "src/ai/ai-strategy-types.ts"
+      "src/ai/ai-phase-select.ts"
     ]
   },
   {
@@ -790,12 +801,10 @@
   {
     "layer": 9,
     "domain": "ai",
-    "role": "AiBrain contract, min-cut wall planner, build scoring & the selection phase machine",
+    "role": "min-cut wall planner & build scoring",
     "files": [
-      "src/ai/ai-brain-types.ts",
       "src/ai/ai-build-score.ts",
-      "src/ai/ai-min-cut.ts",
-      "src/ai/ai-phase-select.ts"
+      "src/ai/ai-min-cut.ts"
     ]
   },
   {

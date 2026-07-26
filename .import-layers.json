@@ -84,6 +84,7 @@
       "src/shared/core/pieces.ts",
       "src/shared/core/player-zones.ts",
       "src/shared/core/upgrade-defs.ts",
+      "src/shared/sim/occupancy-types.ts",
       "src/shared/ui/interaction-types.ts",
       "src/shared/ui/theme.ts"
     ]
@@ -155,6 +156,7 @@
     "name": "L6",
     "files": [
       "server/game-room.ts",
+      "src/ai/ai-build-types.ts",
       "src/ai/ai-in-flight-target.ts",
       "src/ai/ai-life-lost.ts",
       "src/ai/ai-plan-ice-trench.ts",
@@ -224,8 +226,8 @@
     "name": "L7",
     "files": [
       "server/room-manager.ts",
-      "src/ai/ai-build-types.ts",
       "src/ai/ai-plan-grunt-sweep.ts",
+      "src/ai/ai-strategy-types.ts",
       "src/game/game-init.ts",
       "src/game/modifiers/evict-tiles.ts",
       "src/game/upgrades/demolition.ts",
@@ -278,8 +280,9 @@
     "name": "L8",
     "files": [
       "server/server.ts",
+      "src/ai/ai-brain-types.ts",
       "src/ai/ai-castle-rect.ts",
-      "src/ai/ai-strategy-types.ts",
+      "src/ai/ai-phase-select.ts",
       "src/game/castle-generation.ts",
       "src/game/grunt-movement.ts",
       "src/game/modifiers/fire.ts",
@@ -318,10 +321,8 @@
   {
     "name": "L9",
     "files": [
-      "src/ai/ai-brain-types.ts",
       "src/ai/ai-build-score.ts",
       "src/ai/ai-min-cut.ts",
-      "src/ai/ai-phase-select.ts",
       "src/game/cannon-system.ts",
       "src/game/game-over.ts",
       "src/game/modifier-system.ts",

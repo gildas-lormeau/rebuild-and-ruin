@@ -20,11 +20,8 @@ import {
   packTile,
 } from "../core/spatial.ts";
 import type { GameViewState } from "../core/system-interfaces.ts";
-import {
-  hasCannonAt,
-  hasTowerAt,
-  type OccupancyCache,
-} from "./occupancy-queries.ts";
+import { hasCannonAt, hasTowerAt } from "./occupancy-queries.ts";
+import type { OccupancyCache } from "./occupancy-types.ts";
 import { assertInteriorFresh } from "./player-interior.ts";
 
 /** Preset: tiles that block bonus square placement.

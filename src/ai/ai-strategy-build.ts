@@ -48,7 +48,7 @@ import {
   filterAliveEnclosedTowers,
   hasAliveHouseAt,
 } from "../shared/sim/board-occupancy.ts";
-import type { OccupancyCache } from "../shared/sim/occupancy-queries.ts";
+import type { OccupancyCache } from "../shared/sim/occupancy-types.ts";
 import { getInterior } from "../shared/sim/player-interior.ts";
 import {
   hasFillableTowerHope,

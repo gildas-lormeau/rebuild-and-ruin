@@ -32,11 +32,8 @@ import {
 } from "../shared/core/spatial.ts";
 import type { BuildViewState } from "../shared/core/system-interfaces.ts";
 import { hasAliveHouseAt, hasGruntAt } from "../shared/sim/board-occupancy.ts";
-import {
-  hasCannonAt,
-  hasTowerAt,
-  type OccupancyCache,
-} from "../shared/sim/occupancy-queries.ts";
+import { hasCannonAt, hasTowerAt } from "../shared/sim/occupancy-queries.ts";
+import type { OccupancyCache } from "../shared/sim/occupancy-types.ts";
 import { getInterior } from "../shared/sim/player-interior.ts";
 import {
   emitTargetSelectedDiag,
