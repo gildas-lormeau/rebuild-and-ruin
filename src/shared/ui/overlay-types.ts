@@ -23,16 +23,11 @@ import type {
 } from "../core/geometry-types.ts";
 import type { TileKey } from "../core/grid.ts";
 import type { SupplyBonusId } from "../core/modifier-defs.ts";
-import type {
-  CannonPhantom as RenderCannonPhantom,
-  PiecePhantom as RenderPiecePhantom,
-} from "../core/phantom-types.ts";
+import type { CannonPhantom, PiecePhantom } from "../core/phantom-types.ts";
 import type { ValidPlayerId } from "../core/player-slot.ts";
 import type { BannerContent, SceneCapture } from "./banner-content.ts";
 import type { GameOverFocus } from "./interaction-types.ts";
 import type { RGB } from "./theme.ts";
-
-export type { RenderCannonPhantom, RenderPiecePhantom };
 
 /** A single row in the options screen. */
 export interface OptionEntry {
@@ -174,8 +169,8 @@ interface EntityOverlay {
  *  true = placement is legal (rendered at normal color/alpha).
  *  false = illegal placement (rendered dark gray at reduced alpha). */
 export interface PhantomOverlay {
-  piecePhantoms?: readonly RenderPiecePhantom[];
-  cannonPhantoms?: readonly RenderCannonPhantom[];
+  piecePhantoms?: readonly PiecePhantom[];
+  cannonPhantoms?: readonly CannonPhantom[];
   /** Default cannon facing per player — used by cannon phantom rendering. */
   defaultFacings?: ReadonlyMap<ValidPlayerId, number>;
   /** Current cannon tier per player — lets the 3D cannon-phantom picker

@@ -161,12 +161,6 @@ export interface PlaceCannonIntent {
   readonly mode: CannonMode;
 }
 
-/** Visual preview of a piece the player is about to place (not yet committed to game state). */
-export type PiecePlacementPreview = PiecePhantom;
-
-/** Visual preview of a cannon the player is about to place (not yet committed to game state). */
-export type CannonPlacementPreview = CannonPhantom;
-
 /** Identity and lifecycle — the minimal slice every consumer needs. */
 export interface ControllerIdentity {
   readonly playerId: ValidPlayerId;
@@ -235,7 +229,7 @@ export interface BuildController {
     state: BuildViewState,
     dt: number,
     canBuild: boolean,
-  ): PiecePlacementPreview[];
+  ): PiecePhantom[];
 
   finalizeBuildPhase(state: BuildViewState): void;
 
@@ -284,10 +278,7 @@ export interface CannonController {
    *  path reads the same snapshot between ticks.
    *  NOTE: Returns `undefined` (not empty array) because at most one cannon preview exists at a time.
    *  Contrast with buildTick() which returns an array (multiple piece previews possible). */
-  cannonTick(
-    state: CannonViewState,
-    dt: number,
-  ): CannonPlacementPreview | undefined;
+  cannonTick(state: CannonViewState, dt: number): CannonPhantom | undefined;
 
   /** Move cannon cursor one tile in a direction (keyboard). */
   moveCannonCursor(direction: Action): void;

@@ -8,10 +8,13 @@
 
 import { canPlaceCannon } from "../game/index.ts";
 import { CannonMode } from "../shared/core/battle-types.ts";
+import {
+  type CannonPhantom,
+  makeCannonPhantom,
+} from "../shared/core/phantom-types.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import { type Player } from "../shared/core/player-types.ts";
 import type {
-  CannonPlacementPreview,
   CannonViewState,
   PlaceCannonIntent,
 } from "../shared/core/system-interfaces.ts";
@@ -270,7 +273,7 @@ function tickMoving(
   phase: CannonPhase,
   state: CannonViewState,
   player: Player,
-): CannonPlacementPreview | null {
+): CannonPhantom | null {
   const target = phase.currentTarget;
   if (!target) return null;
   const targetMode = target.mode;
@@ -294,14 +297,13 @@ function tickMoving(
   const curRow = Math.round(host.cannonCursor.row);
   const curCol = Math.round(host.cannonCursor.col);
   const atTarget = curRow === target.row && curCol === target.col;
-  return {
-    row: curRow,
-    col: curCol,
-    valid:
-      atTarget && canPlaceCannon(player, curRow, curCol, targetMode, state),
-    mode: targetMode,
-    playerId: host.playerId,
-  };
+  return makeCannonPhantom(
+    host.playerId,
+    curRow,
+    curCol,
+    targetMode,
+    atTarget && canPlaceCannon(player, curRow, curCol, targetMode, state),
+  );
 }
 
 function phantomAt(
@@ -310,15 +312,8 @@ function phantomAt(
   row: number,
   col: number,
   valid: boolean,
-): CannonPlacementPreview | null {
+): CannonPhantom | null {
   const target = phase.currentTarget;
   if (!target) return null;
-  const targetMode = target.mode;
-  return {
-    row,
-    col,
-    valid,
-    mode: targetMode,
-    playerId,
-  };
+  return makeCannonPhantom(playerId, row, col, target.mode, valid);
 }

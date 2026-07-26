@@ -10,8 +10,8 @@ import type { GameMessage } from "../protocol/protocol.ts";
 import type { ResolvedChoice } from "../shared/core/dialog-state.ts";
 import type { TowerIdx } from "../shared/core/geometry-types.ts";
 import type {
-  CannonPhantomPayload,
-  PiecePhantomPayload,
+  CannonPhantom,
+  PiecePhantom,
 } from "../shared/core/phantom-types.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import type { UpgradeId } from "../shared/core/upgrade-defs.ts";
@@ -37,8 +37,8 @@ export interface WireSenders {
     choice: UpgradeId,
     applyAt: number,
   ) => void;
-  readonly sendOpponentCannonPhantom: (msg: CannonPhantomPayload) => void;
-  readonly sendOpponentPiecePhantom: (msg: PiecePhantomPayload) => void;
+  readonly sendOpponentCannonPhantom: (msg: CannonPhantom) => void;
+  readonly sendOpponentPiecePhantom: (msg: PiecePhantom) => void;
   readonly sendOpponentCannonPhaseDone: (
     playerId: ValidPlayerId,
     applyAt: number,

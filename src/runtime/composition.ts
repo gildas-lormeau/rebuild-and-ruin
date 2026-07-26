@@ -441,7 +441,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     logThrottled: config.logThrottled,
     scoreDeltaProgress: () => scoreDelta.progress(),
     upgradePickInteractiveSlots: () => upgradePick.interactiveSlots(),
-    syncCrosshairs: (expired, dt) => phaseTicks.syncCrosshairs(expired, dt),
+    syncCrosshairs: (dt) => phaseTicks.syncCrosshairs(dt),
     getLifeLostPanelPos: (pid) => lifeLost.panelPos(pid),
     getViewport: camera.getViewport,
     pointerPlayer,

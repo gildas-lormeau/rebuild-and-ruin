@@ -224,15 +224,6 @@ export function sendAimUpdate(
   });
 }
 
-/** Build a dedup-channel key for aim/crosshair sends. Pixel-rounded so
- *  sub-pixel jitter doesn't bust the dedup. Shared between sendAimUpdate
- *  (the input-driven path) and broadcastLocalCrosshair (the per-frame
- *  syncCrosshairs path, local human only — AI crosshairs never hit the
- *  wire) — both feed the same `dedup.aimTarget` channel. */
-export function formatAimDedupKey(x: number, y: number): string {
-  return `${Math.round(x)},${Math.round(y)}`;
-}
-
 export function sendMessage(session: OnlineSession, msg: GameMessage): void {
   if (isSocketOpen(session)) {
     session.socket!.send(JSON.stringify(msg));
@@ -275,6 +266,15 @@ export function connectWebSocket(
   session.socket.onerror = () => {
     handlers.onError();
   };
+}
+
+/** Build a dedup-channel key for aim/crosshair sends. Pixel-rounded so
+ *  sub-pixel jitter doesn't bust the dedup. `sendAimUpdate` is the single
+ *  AIM_UPDATE sender — reached from the input path and from the per-frame
+ *  `broadcastLocalCrosshair` hook (local human only; AI crosshairs never
+ *  hit the wire) — so one `dedup.aimTarget` channel covers both. */
+function formatAimDedupKey(x: number, y: number): string {
+  return `${Math.round(x)},${Math.round(y)}`;
 }
 
 /** True when the socket is fully connected and can transmit.

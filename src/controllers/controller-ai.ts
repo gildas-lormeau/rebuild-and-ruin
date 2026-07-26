@@ -32,14 +32,16 @@ import type {
   TilePos,
   WorldPos,
 } from "../shared/core/geometry-types.ts";
+import type {
+  CannonPhantom,
+  PiecePhantom,
+} from "../shared/core/phantom-types.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import {
   type BattleViewState,
   type BuildViewState,
-  type CannonPlacementPreview,
   type CannonViewState,
   type GameViewState,
-  type PiecePlacementPreview,
   type UpgradePickViewState,
 } from "../shared/core/system-interfaces.ts";
 import type { ZoneId } from "../shared/core/zone-id.ts";
@@ -138,7 +140,7 @@ export class AiController extends BaseController {
     state: BuildViewState,
     _dt: number,
     canBuild: boolean,
-  ): PiecePlacementPreview[] {
+  ): PiecePhantom[] {
     const result = this.brain.build.tick(this, state);
     // A Master Builder lockout holds this controller's commit undelivered:
     // keep showing the last dwelling-piece phantom (the tick that produces
@@ -178,10 +180,7 @@ export class AiController extends BaseController {
     return this.brain.cannon.isDone();
   }
 
-  cannonTick(
-    state: CannonViewState,
-    _dt: number,
-  ): CannonPlacementPreview | undefined {
+  cannonTick(state: CannonViewState, _dt: number): CannonPhantom | undefined {
     const result = this.brain.cannon.tick(this, state);
     if (result.commit) {
       // Validation rejection here is self-correcting: the brain has already

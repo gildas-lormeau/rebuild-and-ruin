@@ -24,6 +24,7 @@ import type {
   Cannonball,
   CapturedCannon,
   CombinedCannonResult,
+  Crosshair,
 } from "../shared/core/battle-types.ts";
 import {
   deadCannons,
@@ -231,6 +232,43 @@ export function canPlayerFire(
   return state.cannonballs.some(
     (b) => b.playerId === playerId || b.scoringPlayerId === playerId,
   );
+}
+
+/** Sole constructor for frame crosshair entries — the local
+ *  (syncCrosshairs) and remote (extendWithRemoteCrosshairs) paths both
+ *  build through this so the `cannonReady` blink derives identically on
+ *  every peer (a hand-rolled remote copy once shipped without the
+ *  weapons-active gate). */
+export function makeCrosshair(
+  state: GameViewState & {
+    readonly capturedCannons: readonly CapturedCannon[];
+    readonly cannonballs: readonly Cannonball[];
+    readonly pendingCannonFires: ReadonlySet<number>;
+    readonly battleCountdown: number;
+    readonly timer: number;
+  },
+  playerId: ValidPlayerId,
+  x: number,
+  y: number,
+): Crosshair {
+  return {
+    x,
+    y,
+    playerId,
+    cannonReady: areWeaponsActive(state) && !!nextReadyCannon(state, playerId),
+  };
+}
+
+/** Weapons-live gate for the battle phase: the Ready/Aim/Fire countdown
+ *  has finished and the battle timer is still running. Once the timer
+ *  expires weapons lock for everyone while in-flight balls land.
+ *  Canonical predicate — aiming/firing/crosshair gates derive from this
+ *  instead of re-deriving from timer/countdown fields. */
+export function areWeaponsActive(state: {
+  readonly battleCountdown: number;
+  readonly timer: number;
+}): boolean {
+  return state.battleCountdown <= 0 && state.timer > 0;
 }
 
 /**

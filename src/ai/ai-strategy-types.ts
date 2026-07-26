@@ -12,6 +12,10 @@ import type {
   TilePos,
   Tower,
 } from "../shared/core/geometry-types.ts";
+import type {
+  CannonPhantom,
+  PiecePhantom,
+} from "../shared/core/phantom-types.ts";
 import type { PieceShape } from "../shared/core/pieces.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import type { Player } from "../shared/core/player-types.ts";
@@ -21,11 +25,9 @@ import type {
   BuildController,
   BuildViewState,
   CannonController,
-  CannonPlacementPreview,
   CannonViewState,
   ControllerIdentity,
   FireIntent,
-  PiecePlacementPreview,
   PlaceCannonIntent,
   PlacePieceIntent,
 } from "../shared/core/system-interfaces.ts";
@@ -57,7 +59,7 @@ export interface CannonPlacement {
  *  immediately after producing the intent — the controller is expected
  *  to commit (or surface a failure) on the same frame. */
 export interface CannonTickResult {
-  readonly phantom: CannonPlacementPreview | null;
+  readonly phantom: CannonPhantom | null;
   readonly commit?: PlaceCannonIntent;
 }
 
@@ -70,7 +72,7 @@ export interface CannonTickResult {
  *  target once before giving up) survive moving the commit out of the
  *  brain. */
 export interface BuildTickResult {
-  readonly phantoms: PiecePlacementPreview[];
+  readonly phantoms: PiecePhantom[];
   readonly commit?: PlacePieceIntent;
 }
 

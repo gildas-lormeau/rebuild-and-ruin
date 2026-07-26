@@ -7,26 +7,15 @@
  * are the only remote-driven entity needing such smoothing.
  */
 
-import { canPlayerFire, nextReadyCannon } from "../game/index.ts";
-import { type GameMessage, MESSAGE } from "../protocol/protocol.ts";
+import { canPlayerFire, makeCrosshair } from "../game/index.ts";
 import type { Crosshair } from "../shared/core/battle-types.ts";
 import { CROSSHAIR_SPEED } from "../shared/core/game-constants.ts";
 import type { PixelPos } from "../shared/core/geometry-types.ts";
-import type { DedupChannel } from "../shared/core/phantom-types.ts";
 import {
   isPlayerEliminated,
   type ValidPlayerId,
 } from "../shared/core/player-slot.ts";
-import type {
-  BattleViewState,
-  ControllerIdentity,
-} from "../shared/core/system-interfaces.ts";
-import { formatAimDedupKey } from "./online-session.ts";
-
-interface BroadcastDeps {
-  lastSentAimTarget: DedupChannel;
-  send: (msg: GameMessage) => void;
-}
+import type { BattleViewState } from "../shared/core/system-interfaces.ts";
 
 interface ExtendDeps {
   state: BattleViewState;
@@ -43,23 +32,6 @@ interface ExtendDeps {
  *  at the dedup cadence. */
 const REMOTE_CROSSHAIR_MULTIPLIER = 2;
 const REMOTE_CROSSHAIR_SPEED = CROSSHAIR_SPEED * REMOTE_CROSSHAIR_MULTIPLIER;
-
-/** Send aim_update for the local human's crosshair — on any peer (host or
- *  watcher alike; the caller gates by ownership), deduped. */
-export function broadcastLocalCrosshair(
-  ctrl: ControllerIdentity,
-  ch: { x: number; y: number },
-  deps: BroadcastDeps,
-): void {
-  const key = formatAimDedupKey(ch.x, ch.y);
-  if (!deps.lastSentAimTarget.shouldSend(ctrl.playerId, key)) return;
-  deps.send({
-    type: MESSAGE.AIM_UPDATE,
-    playerId: ctrl.playerId,
-    x: ch.x,
-    y: ch.y,
-  });
-}
 
 /** Collect interpolated remote-human crosshairs and return them merged with local ones. */
 export function extendWithRemoteCrosshairs(
@@ -83,12 +55,7 @@ export function extendWithRemoteCrosshairs(
       presence.smoothedCrosshairPos,
     );
     if (!visualPos) continue;
-    remote.push({
-      x: visualPos.x,
-      y: visualPos.y,
-      playerId: pid,
-      cannonReady: !!nextReadyCannon(state, pid),
-    });
+    remote.push(makeCrosshair(state, pid, visualPos.x, visualPos.y));
   }
   return [...crosshairs, ...remote];
 }

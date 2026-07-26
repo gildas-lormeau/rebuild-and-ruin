@@ -31,9 +31,9 @@ import type {
   SupplyShip,
 } from "../shared/core/modifier-defs.ts";
 import type {
-  CannonPhantomPayload,
+  CannonPhantom,
   CannonPlacedPayload,
-  PiecePhantomPayload,
+  PiecePhantom,
   PiecePlacedPayload,
 } from "../shared/core/phantom-types.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
@@ -377,7 +377,7 @@ interface OpponentPiecePlacedMessage extends PiecePlacedPayload {
 }
 
 /** An opponent's phantom piece position (for rendering ghost). */
-interface OpponentPiecePhantomMessage extends PiecePhantomPayload {
+interface OpponentPiecePhantomMessage extends PiecePhantom {
   type: "opponentPiecePhantom";
 }
 
@@ -389,7 +389,7 @@ interface OpponentCannonPlacedMessage extends CannonPlacedPayload {
 }
 
 /** An opponent's phantom cannon position (for rendering ghost). */
-interface OpponentCannonPhantomMessage extends CannonPhantomPayload {
+interface OpponentCannonPhantomMessage extends CannonPhantom {
   type: "opponentCannonPhantom";
 }
 

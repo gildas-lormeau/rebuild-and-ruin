@@ -2,15 +2,17 @@ import type { GameOverOutcome } from "../../game/index.ts";
 import {
   advanceBattleCountdown,
   allCannonPlaceDone,
+  areWeaponsActive,
   canPlayerBuild,
+  canPlayerFire,
   eliminatePlayers,
   emitBattleCeaseIfTimerCrossed,
   emitRoundStart,
   tickBattlePhase as engineTickBattlePhase,
   enterBuildSkippingBattle,
+  makeCrosshair,
   markCannonPlaceDoneAtDrain,
   moveGrunts,
-  nextReadyCannon,
   peekGameOverOutcome,
   primeControllerForCannonPhase,
   resetCannonFacings,
@@ -41,10 +43,7 @@ import {
   cannonPhantomKey,
   piecePhantomKey,
 } from "../../shared/core/phantom-types.ts";
-import {
-  isPlayerEliminated,
-  type ValidPlayerId,
-} from "../../shared/core/player-slot.ts";
+import { type ValidPlayerId } from "../../shared/core/player-slot.ts";
 import { isPlayerAlive } from "../../shared/core/player-types.ts";
 import { type PlayerController } from "../../shared/core/system-interfaces.ts";
 import {
@@ -253,7 +252,7 @@ export interface PhaseTicksSystem extends ModePhaseTicks {
   tickBattleCountdown: (dt: number) => void;
   tickBattlePhase: (dt: number) => boolean;
   tickBuildPhase: (dt: number) => boolean;
-  syncCrosshairs: (weaponsActive: boolean, dt: number) => void;
+  syncCrosshairs: (dt: number) => void;
 }
 
 export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
@@ -264,7 +263,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
   // Crosshairs
   // -------------------------------------------------------------------------
 
-  function syncCrosshairs(weaponsActive: boolean, dt: number): void {
+  function syncCrosshairs(dt: number): void {
     const remotePlayerSlots = runtimeState.frameMeta.remotePlayerSlots;
     const { state, controllers } = runtimeState;
     const crosshairs: Crosshair[] = [];
@@ -274,22 +273,9 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       remotePlayerSlots,
       state.players,
     )) {
-      const readyCannon = nextReadyCannon(state, ctrl.playerId);
-      const anyReloading =
-        !readyCannon &&
-        state.cannonballs.some(
-          (ball) =>
-            ball.playerId === ctrl.playerId ||
-            ball.scoringPlayerId === ctrl.playerId,
-        );
-      if (!readyCannon && !anyReloading) continue;
+      if (!canPlayerFire(state, ctrl.playerId)) continue;
       const ch = ctrl.getCrosshair();
-      crosshairs.push({
-        x: ch.x,
-        y: ch.y,
-        playerId: ctrl.playerId,
-        cannonReady: weaponsActive && !!readyCannon,
-      });
+      crosshairs.push(makeCrosshair(state, ctrl.playerId, ch.x, ch.y));
       // Per-controller fan-out — the hook self-gates by ownership (only
       // emits for the local human, not for AIs which every peer recomputes).
       online?.broadcastLocalCrosshair?.(ctrl, ch);
@@ -476,7 +462,11 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
   function tickCannonPhase(dt: number): boolean {
     const remotePlayerSlots = runtimeState.frameMeta.remotePlayerSlots;
     const { state } = runtimeState;
-    const local = localControllers(runtimeState.controllers, remotePlayerSlots);
+    const local = localActiveControllers(
+      runtimeState.controllers,
+      remotePlayerSlots,
+      state.players,
+    );
 
     advancePhaseTimer(
       runtimeState.accum,
@@ -493,7 +483,6 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     // inside the placement callback, not here. The phantom hook self-gates
     // by ownership so only the local-human's cursor preview hits the wire.
     for (const ctrl of local) {
-      if (isPlayerEliminated(state.players[ctrl.playerId])) continue;
       const phantom = ctrl.cannonTick(state, dt);
       // Detect newly-done local controllers — mark in shared per-slot state
       // and broadcast for human-kind so remote peers (whose `local` excludes
@@ -547,18 +536,12 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       ) {
         continue;
       }
-      deps.sendOpponentCannonPhantom({
-        playerId: ctrl.playerId,
-        row: phantom.row,
-        col: phantom.col,
-        mode: phantom.mode,
-        valid: phantom.valid,
-      });
+      deps.sendOpponentCannonPhantom(phantom);
     }
 
     // Remote phantoms live on each remote-controlled slot's controller
     // (`currentCannonPhantom`), written by the inbound network handler.
-    // Render reads them via `buildCannonPhantomsUnion`.
+    // Render reads them via `collectPlacementPhantoms`.
 
     deps.requestRender();
 
@@ -669,14 +652,18 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     )) {
       ctrl.battleTick(runtimeState.state, dt);
     }
-    syncCrosshairs(/* weaponsActive */ false, dt);
+    syncCrosshairs(dt);
     deps.requestRender();
   }
 
   function tickBattlePhase(dt: number): boolean {
     const remotePlayerSlots = runtimeState.frameMeta.remotePlayerSlots;
-    const local = localControllers(runtimeState.controllers, remotePlayerSlots);
     const { state, battleAnim } = runtimeState;
+    const local = localActiveControllers(
+      runtimeState.controllers,
+      remotePlayerSlots,
+      state.players,
+    );
 
     const prevTimer = state.timer;
     advancePhaseTimer(
@@ -695,7 +682,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     // spectators for that tail. Controllers therefore skip their battleTick
     // (crosshair motion); the cannon-animator then computes the rest facing
     // once weapons go inactive.
-    const weaponsActive = state.timer > 0;
+    const weaponsActive = areWeaponsActive(state);
 
     // Controller ticks (pass 1) must precede engine combat (pass 2): new
     // cannonballs spawned during `battleTick` need to exist before the
@@ -712,7 +699,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
 
     // Haptics is handled by the haptics observer subsystem (bus subscriber).
 
-    syncCrosshairs(weaponsActive, dt);
+    syncCrosshairs(dt);
     deps.requestRender();
 
     if (state.timer > 0 || state.cannonballs.length > 0) return false;
@@ -821,19 +808,13 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
         ) {
           continue;
         }
-        deps.sendOpponentPiecePhantom({
-          playerId: phantom.playerId,
-          row: phantom.row,
-          col: phantom.col,
-          offsets: phantom.offsets,
-          valid: phantom.valid,
-        });
+        deps.sendOpponentPiecePhantom(phantom);
       }
     }
 
     // Remote phantoms live on each remote-controlled slot's controller
     // (`currentBuildPhantoms`), written by the inbound network handler.
-    // Render reads them via `buildPiecePhantomsUnion`.
+    // Render reads them via `collectPlacementPhantoms`.
 
     // Grunt movement runs AFTER local controllers place walls so host and
     // watcher see the same wall set when grunts step. Under the clone-
@@ -1069,7 +1050,8 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
   };
 }
 
-/** Pass 1 of the battle-phase tick: tick every local controller so any
+/** Pass 1 of the battle-phase tick: tick every local non-eliminated
+ *  controller (the caller pre-filters via `localActiveControllers`) so any
  *  cannonballs they fire this frame land in `state` (via the controller's
  *  fire-commit executor) before the engine step advances balls. AI-origin
  *  fires only — human-driven controllers (including AssistedHuman) fire
@@ -1083,7 +1065,6 @@ function tickLocalBattleControllers(
   dt: number,
 ): void {
   for (const ctrl of local) {
-    if (isPlayerEliminated(state.players[ctrl.playerId])) continue;
     ctrl.battleTick(state, dt);
   }
 }

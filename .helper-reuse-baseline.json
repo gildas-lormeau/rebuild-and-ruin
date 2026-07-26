@@ -1,6 +1,6 @@
 [
-  "src/ai/ai-phase-build.ts:380:candidateToPlacement",
-  "src/ai/ai-phase-build.ts:75:createSelectionPhase",
+  "src/ai/ai-phase-build.ts:364:candidateToPlacement",
+  "src/ai/ai-phase-build.ts:78:createSelectionPhase",
   "src/ai/ai-phase-select.ts:47:createBuildPhase",
-  "src/runtime/subsystems/camera.ts:1037:manhattanDistance"
+  "src/runtime/subsystems/camera.ts:1038:manhattanDistance"
 ]

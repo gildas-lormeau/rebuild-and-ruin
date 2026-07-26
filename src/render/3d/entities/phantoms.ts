@@ -10,11 +10,11 @@
 import * as THREE from "three";
 import { NORMAL_CANNON_SIZE } from "../../../shared/core/game-constants.ts";
 import { TILE_SIZE } from "../../../shared/core/grid.ts";
-import type { ValidPlayerId } from "../../../shared/core/player-slot.ts";
 import type {
-  RenderCannonPhantom,
-  RenderPiecePhantom,
-} from "../../../shared/ui/overlay-types.ts";
+  CannonPhantom,
+  PiecePhantom,
+} from "../../../shared/core/phantom-types.ts";
+import type { ValidPlayerId } from "../../../shared/core/player-slot.ts";
 import { getPlayerColor } from "../../../shared/ui/player-config.ts";
 import type { RGB } from "../../../shared/ui/theme.ts";
 import { ELEVATION_STACK, RENDER_ORDER } from "../elevation.ts";
@@ -70,11 +70,8 @@ interface PieceMaterialSet {
   texture: THREE.CanvasTexture;
 }
 
-// Piece-phantom styling — matches the 2D `drawPiecePhantom` feel.
-// `PHANTOM_PIECE_ALPHA` / `PHANTOM_PIECE_INVALID_ALPHA` in the 2D path
-// are 0.85 / 0.55; PHANTOM_SATURATION is 2.5; BEVEL_HIGHLIGHT_ADD is
-// 80; BEVEL_SHADOW_MULT is 0.45. Keep the same numbers so the 3D
-// phantom reads the same.
+// Piece-phantom styling — numbers inherited from the retired 2D
+// renderer's drawPiecePhantom so the look carried over unchanged.
 const PIECE_VALID_OPACITY = 0.85;
 const PIECE_INVALID_OPACITY = 0.55;
 const PIECE_SATURATION = 2.5;
@@ -86,10 +83,9 @@ const PIECE_BEVEL_W = 2;
  *  (2 px wide on a 16 px tile), so we bake at 1 canvas-pixel per
  *  world-unit. NearestFilter keeps the strips crisp at any zoom. */
 const PIECE_TEXTURE_SIZE = TILE_SIZE;
-// Cannon-phantom ghost styling — matches the 2D `PHANTOM_CANNON_ALPHA`
-// (valid) and `PHANTOM_CANNON_INVALID_ALPHA` (invalid). The invalid
-// case is additionally tinted red so the phantom reads as blocked at a
-// glance even on small targets.
+// Cannon-phantom ghost styling — opacities inherited from the retired
+// 2D renderer. The invalid case is additionally tinted red so the
+// phantom reads as blocked at a glance even on small targets.
 const CANNON_VALID_OPACITY = 0.7;
 const CANNON_INVALID_OPACITY = 0.5;
 // Per-channel multipliers blended with the authored diffuse color when
@@ -161,11 +157,7 @@ export function createPhantomsManager(scene: THREE.Scene): PhantomsManager {
     }
   }
 
-  function placePieceCell(
-    phantom: RenderPiecePhantom,
-    dr: number,
-    dc: number,
-  ): void {
+  function placePieceCell(phantom: PiecePhantom, dr: number, dc: number): void {
     const col = phantom.col + dc;
     const row = phantom.row + dr;
     const materials = ensurePieceMaterial(phantom.playerId, phantom.valid);
@@ -249,7 +241,7 @@ export function createPhantomsManager(scene: THREE.Scene): PhantomsManager {
   }
 
   function selectCannonVariant(
-    phantom: RenderCannonPhantom,
+    phantom: CannonPhantom,
     tier: 1 | 2 | 3,
   ): CannonVariantName {
     // Phantoms carry only `mode` — no mortar flag — so the "mortar"
@@ -272,7 +264,7 @@ export function createPhantomsManager(scene: THREE.Scene): PhantomsManager {
   }
 
   function placeCannon(
-    phantom: RenderCannonPhantom,
+    phantom: CannonPhantom,
     index: number,
     facings: ReadonlyMap<ValidPlayerId, number> | undefined,
     tiers: ReadonlyMap<ValidPlayerId, 1 | 2 | 3> | undefined,

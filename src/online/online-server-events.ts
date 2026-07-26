@@ -27,6 +27,10 @@ import {
 } from "../shared/core/dialog-state.ts";
 import type { TowerIdx } from "../shared/core/geometry-types.ts";
 import {
+  makeCannonPhantom,
+  makePiecePhantom,
+} from "../shared/core/phantom-types.ts";
+import {
   isPlayerEliminated,
   type ValidPlayerId,
 } from "../shared/core/player-slot.ts";
@@ -344,17 +348,12 @@ function handlePiecePhantom(
 ): HandleResult {
   if (state && !validPid(msg.playerId, state)) return DROPPED;
   if (!inBoundsStrict(msg.row, msg.col)) return DROPPED;
+  if (!Array.isArray(msg.offsets) || msg.offsets.length === 0) return DROPPED;
   if (!isRemoteHumanAction(msg.playerId, deps)) return DROPPED;
   const ctrl = deps.getControllers()[msg.playerId];
   if (!ctrl) return DROPPED;
   ctrl.currentBuildPhantoms = [
-    {
-      offsets: msg.offsets,
-      row: msg.row,
-      col: msg.col,
-      playerId: msg.playerId,
-      valid: msg.valid,
-    },
+    makePiecePhantom(msg.playerId, msg.row, msg.col, msg.offsets, msg.valid),
   ];
   return APPLIED;
 }
@@ -366,16 +365,17 @@ function handleCannonPhantom(
 ): HandleResult {
   if (state && !validPid(msg.playerId, state)) return DROPPED;
   if (!inBoundsStrict(msg.row, msg.col)) return DROPPED;
+  if (!CANNON_MODE_IDS.has(msg.mode)) return DROPPED;
   if (!isRemoteHumanAction(msg.playerId, deps)) return DROPPED;
   const ctrl = deps.getControllers()[msg.playerId];
   if (!ctrl) return DROPPED;
-  ctrl.currentCannonPhantom = {
-    row: msg.row,
-    col: msg.col,
-    valid: msg.valid,
-    mode: toCannonMode(msg.mode),
-    playerId: msg.playerId,
-  };
+  ctrl.currentCannonPhantom = makeCannonPhantom(
+    msg.playerId,
+    msg.row,
+    msg.col,
+    toCannonMode(msg.mode),
+    msg.valid,
+  );
   return APPLIED;
 }
 

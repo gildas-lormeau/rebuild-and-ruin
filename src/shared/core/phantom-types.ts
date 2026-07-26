@@ -25,9 +25,6 @@ export interface CannonPhantom extends CannonShapePayload {
   valid: boolean;
 }
 
-/** Wire alias — same shape as the in-memory phantom. */
-export type CannonPhantomPayload = CannonPhantom;
-
 /** Common positional fields shared between the placement event and the
  *  preview phantom. Split out because the placement event carries an
  *  `applyAt` lockstep stamp that the phantom (a render preview) does not. */
@@ -54,9 +51,6 @@ export interface PiecePhantom extends PieceShapePayload {
   valid: boolean;
 }
 
-/** Wire alias — same shape as the in-memory phantom. */
-export type PiecePhantomPayload = PiecePhantom;
-
 /** Opaque dedup tracker — wraps a per-player map of last-sent serialized keys.
  *  Use `shouldSend()` to check + update atomically; `clear()` on reset. */
 export interface DedupChannel {
@@ -65,6 +59,31 @@ export interface DedupChannel {
   shouldSend(playerId: ValidPlayerId, key: string): boolean;
   /** Clear all tracked values (call on phase transition or host promotion). */
   clear(): void;
+}
+
+/** Sole constructor for cannon phantoms. The human preview, both AI
+ *  preview paths, and the inbound network handler all build through this
+ *  so the shape cannot drift between producers. */
+export function makeCannonPhantom(
+  playerId: ValidPlayerId,
+  row: number,
+  col: number,
+  mode: CannonMode,
+  valid: boolean,
+): CannonPhantom {
+  return { playerId, row, col, mode, valid };
+}
+
+/** Sole constructor for piece phantoms — same contract as
+ *  `makeCannonPhantom`. */
+export function makePiecePhantom(
+  playerId: ValidPlayerId,
+  row: number,
+  col: number,
+  offsets: [number, number][],
+  valid: boolean,
+): PiecePhantom {
+  return { playerId, row, col, offsets, valid };
 }
 
 /** Create a new dedup channel (empty — all first sends will pass). */

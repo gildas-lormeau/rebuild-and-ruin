@@ -96,7 +96,7 @@ interface RenderSystemDeps {
   readonly logThrottled: (key: string, msg: string) => void;
   readonly scoreDeltaProgress: () => number;
   readonly upgradePickInteractiveSlots: () => ReadonlySet<ValidPlayerId>;
-  readonly syncCrosshairs: (weaponsActive: boolean, dt: number) => void;
+  readonly syncCrosshairs: (dt: number) => void;
   readonly getLifeLostPanelPos: (playerId: ValidPlayerId) => {
     px: number;
     py: number;
@@ -292,13 +292,7 @@ export function createRenderSystem(deps: RenderSystemDeps): RenderSystem {
 
     // Refresh crosshairs from controller state when paused
     if (runtimeState.frameMeta.inBattle && isPaused(runtimeState)) {
-      // Mirror the canonical weaponsActive gate (phase-ticks.ts): once the
-      // battle timer expires, weapons are locked for everyone while
-      // in-flight balls land — the paused crosshair must show that too.
-      deps.syncCrosshairs(
-        runtimeState.state.battleCountdown <= 0 && runtimeState.state.timer > 0,
-        0,
-      );
+      deps.syncCrosshairs(0);
     }
 
     refreshOverlay();

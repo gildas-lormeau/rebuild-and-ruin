@@ -11,26 +11,29 @@ import { cannonModesForGame } from "../shared/core/cannon-mode-defs.ts";
 import { CROSSHAIR_SPEED } from "../shared/core/game-constants.ts";
 import { Phase } from "../shared/core/game-phase.ts";
 import type { WorldPos } from "../shared/core/geometry-types.ts";
-import {
-  GRID_COLS,
-  GRID_ROWS,
-  MAP_PX_H,
-  MAP_PX_W,
-  TILE_SIZE,
-} from "../shared/core/grid.ts";
+import { MAP_PX_H, MAP_PX_W, TILE_SIZE } from "../shared/core/grid.ts";
 import { Action, type KeyBindings } from "../shared/core/input-action.ts";
+import {
+  type CannonPhantom,
+  makeCannonPhantom,
+  makePiecePhantom,
+  type PiecePhantom,
+} from "../shared/core/phantom-types.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import type { Player } from "../shared/core/player-types.ts";
-import { cannonSize, pxToTile } from "../shared/core/spatial.ts";
+import {
+  cannonSize,
+  clampAnchorCol,
+  clampAnchorRow,
+  pxToTile,
+} from "../shared/core/spatial.ts";
 import {
   type AimResolver,
   type BattleViewState,
   type BuildViewState,
-  type CannonPlacementPreview,
   type CannonViewState,
   type GameViewState,
   type InputReceiver,
-  type PiecePlacementPreview,
   type PlaceCannonIntent,
   type PlacePieceIntent,
   type WorldOccluder,
@@ -111,10 +114,7 @@ export class HumanController extends BaseController implements InputReceiver {
     );
   }
 
-  cannonTick(
-    state: CannonViewState,
-    _dt: number,
-  ): CannonPlacementPreview | undefined {
+  cannonTick(state: CannonViewState, _dt: number): CannonPhantom | undefined {
     const player = state.players[this.playerId]!;
     const maxSlots = cannonSlotsFor(state, this.playerId);
     // Once the player has no cannon left to place (all slots used OR no legal
@@ -129,13 +129,13 @@ export class HumanController extends BaseController implements InputReceiver {
     const remaining = maxSlots - cannonSlotsUsed(player);
     const valid =
       remaining > 0 && this.resolveCannonPlacement(remaining, player, state);
-    const result: CannonPlacementPreview = {
-      row: this.cannonCursor.row,
-      col: this.cannonCursor.col,
+    const result = makeCannonPhantom(
+      this.playerId,
+      this.cannonCursor.row,
+      this.cannonCursor.col,
+      this.cannonPlaceMode,
       valid,
-      mode: this.cannonPlaceMode,
-      playerId: this.playerId,
-    };
+    );
     this.currentCannonPhantom = result;
     return result;
   }
@@ -202,13 +202,13 @@ export class HumanController extends BaseController implements InputReceiver {
       return;
     }
 
-    this.cannonCursor.row = Math.max(
-      0,
-      Math.min(GRID_ROWS - sz, Math.round((worldY - halfPx) / TILE_SIZE)),
+    this.cannonCursor.row = clampAnchorRow(
+      Math.round((worldY - halfPx) / TILE_SIZE),
+      sz,
     );
-    this.cannonCursor.col = Math.max(
-      0,
-      Math.min(GRID_COLS - sz, Math.round((worldX - halfPx) / TILE_SIZE)),
+    this.cannonCursor.col = clampAnchorCol(
+      Math.round((worldX - halfPx) / TILE_SIZE),
+      sz,
     );
   }
 
@@ -246,7 +246,7 @@ export class HumanController extends BaseController implements InputReceiver {
     state: BuildViewState,
     _dt: number,
     _canBuild: boolean,
-  ): PiecePlacementPreview[] {
+  ): PiecePhantom[] {
     const piece = state.players[this.playerId]?.currentPiece;
     if (!piece) {
       this.currentBuildPhantoms = [];
@@ -259,14 +259,14 @@ export class HumanController extends BaseController implements InputReceiver {
       this.buildCursor.row,
       this.buildCursor.col,
     );
-    const result: PiecePlacementPreview[] = [
-      {
-        offsets: piece.offsets,
-        row: this.buildCursor.row,
-        col: this.buildCursor.col,
+    const result = [
+      makePiecePhantom(
+        this.playerId,
+        this.buildCursor.row,
+        this.buildCursor.col,
+        piece.offsets,
         valid,
-        playerId: this.playerId,
-      },
+      ),
     ];
     this.currentBuildPhantoms = result;
     return result;
@@ -389,9 +389,8 @@ export class HumanController extends BaseController implements InputReceiver {
   /** Clamp cannon cursor so the full cannon footprint (sz×sz) stays within the grid. */
   private clampCannonCursorToMode(): void {
     const sz = cannonSize(this.cannonPlaceMode);
-    // Top-left anchor must leave room for sz tiles: max row/col = GRID - sz
-    this.cannonCursor.row = Math.min(this.cannonCursor.row, GRID_ROWS - sz);
-    this.cannonCursor.col = Math.min(this.cannonCursor.col, GRID_COLS - sz);
+    this.cannonCursor.row = clampAnchorRow(this.cannonCursor.row, sz);
+    this.cannonCursor.col = clampAnchorCol(this.cannonCursor.col, sz);
   }
 
   /** Check if a key event matches one of this controller's bindings. */

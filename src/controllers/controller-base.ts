@@ -16,6 +16,8 @@ import type {
 import type { PieceShape } from "../shared/core/pieces.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import {
+  clampAnchorCol,
+  clampAnchorRow,
   pxToTile,
   towerCenter,
   towerCenterTile,
@@ -24,11 +26,9 @@ import type {
   AimResolver,
   BattleViewState,
   BuildViewState,
-  CannonPlacementPreview,
   CannonViewState,
   FireIntent,
   GameViewState,
-  PiecePlacementPreview,
   PlayerController,
   UpgradePickViewState,
 } from "../shared/core/system-interfaces.ts";
@@ -109,7 +109,7 @@ export abstract class BaseController implements PlayerController {
   abstract cannonTick(
     state: CannonViewState,
     dt: number,
-  ): CannonPlacementPreview | undefined;
+  ): CannonPhantom | undefined;
   /** Shared build-phase init: cursor on home tower.
    *  Private — only called as an internal step of the startBuildPhase() template method.
    *  Bag init lives in the engine's `prepareNextRound` (per-player loop)
@@ -144,7 +144,7 @@ export abstract class BaseController implements PlayerController {
     state: BuildViewState,
     dt: number,
     canBuild: boolean,
-  ): PiecePlacementPreview[];
+  ): PiecePhantom[];
 
   /** @final Template method — do NOT override. Override onFinalizeBuildPhase() instead.
    *  `currentBuildPhantoms` is deliberately NOT cleared here — same
@@ -261,14 +261,8 @@ export abstract class BaseController implements PlayerController {
   /** Clamp build cursor so the entire piece stays within the grid. */
   clampBuildCursor(piece: PieceShape | undefined): void {
     if (!piece) return;
-    this.buildCursor.row = Math.max(
-      0,
-      Math.min(GRID_ROWS - piece.height, this.buildCursor.row),
-    );
-    this.buildCursor.col = Math.max(
-      0,
-      Math.min(GRID_COLS - piece.width, this.buildCursor.col),
-    );
+    this.buildCursor.row = clampAnchorRow(this.buildCursor.row, piece.height);
+    this.buildCursor.col = clampAnchorCol(this.buildCursor.col, piece.width);
   }
 
   moveBuildCursor(state: BuildViewState, direction: Action): void {
@@ -276,32 +270,26 @@ export abstract class BaseController implements PlayerController {
     const h = piece ? piece.height : 1;
     const w = piece ? piece.width : 1;
     if (direction === Action.UP)
-      this.buildCursor.row = Math.max(0, this.buildCursor.row - 1);
+      this.buildCursor.row = clampAnchorRow(this.buildCursor.row - 1, h);
     else if (direction === Action.DOWN)
-      this.buildCursor.row = Math.min(GRID_ROWS - h, this.buildCursor.row + 1);
+      this.buildCursor.row = clampAnchorRow(this.buildCursor.row + 1, h);
     else if (direction === Action.LEFT)
-      this.buildCursor.col = Math.max(0, this.buildCursor.col - 1);
+      this.buildCursor.col = clampAnchorCol(this.buildCursor.col - 1, w);
     else if (direction === Action.RIGHT)
-      this.buildCursor.col = Math.min(GRID_COLS - w, this.buildCursor.col + 1);
+      this.buildCursor.col = clampAnchorCol(this.buildCursor.col + 1, w);
   }
 
   /** @param size — footprint size for grid-boundary clamping. Callers MUST
    *  compute from cannonSize(mode); the default (NORMAL) is a fallback only. */
   moveCannonCursor(direction: Action, size = NORMAL_CANNON_SIZE): void {
     if (direction === Action.UP)
-      this.cannonCursor.row = Math.max(0, this.cannonCursor.row - 1);
+      this.cannonCursor.row = clampAnchorRow(this.cannonCursor.row - 1, size);
     else if (direction === Action.DOWN)
-      this.cannonCursor.row = Math.min(
-        GRID_ROWS - size,
-        this.cannonCursor.row + 1,
-      );
+      this.cannonCursor.row = clampAnchorRow(this.cannonCursor.row + 1, size);
     else if (direction === Action.LEFT)
-      this.cannonCursor.col = Math.max(0, this.cannonCursor.col - 1);
+      this.cannonCursor.col = clampAnchorCol(this.cannonCursor.col - 1, size);
     else if (direction === Action.RIGHT)
-      this.cannonCursor.col = Math.min(
-        GRID_COLS - size,
-        this.cannonCursor.col + 1,
-      );
+      this.cannonCursor.col = clampAnchorCol(this.cannonCursor.col + 1, size);
   }
 
   setBuildCursor(state: BuildViewState, row: number, col: number): void {

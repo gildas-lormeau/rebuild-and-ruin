@@ -8,14 +8,17 @@
 
 import { canPlacePiece } from "../game/index.ts";
 import type { TilePos } from "../shared/core/geometry-types.ts";
-import { GRID_COLS, GRID_ROWS } from "../shared/core/grid.ts";
+import {
+  makePiecePhantom,
+  type PiecePhantom,
+} from "../shared/core/phantom-types.ts";
 import { type PieceShape, rotateCW, sameShape } from "../shared/core/pieces.ts";
-import type { ValidPlayerId } from "../shared/core/player-slot.ts";
-import { towerCenterTile } from "../shared/core/spatial.ts";
-import type {
-  BuildViewState,
-  PiecePlacementPreview,
-} from "../shared/core/system-interfaces.ts";
+import {
+  clampAnchorCol,
+  clampAnchorRow,
+  towerCenterTile,
+} from "../shared/core/spatial.ts";
+import type { BuildViewState } from "../shared/core/system-interfaces.ts";
 import {
   POST_PLACE_DELAY_SEC,
   POST_PLACE_SPREAD_SEC,
@@ -195,11 +198,11 @@ export function tickBuild(
       }
       return {
         phantoms: [
-          makePhantom(
+          makePiecePhantom(
             host.playerId,
-            phaseState.target.piece,
             phaseState.target.row,
             phaseState.target.col,
+            phaseState.target.piece.offsets,
             true,
           ),
         ],
@@ -241,7 +244,7 @@ function tickMoving(
   host: BuildHost,
   phase: BuildPhase,
   state: BuildViewState,
-): PiecePlacementPreview[] {
+): PiecePhantom[] {
   if (phase.state.step !== STEP.MOVING) return [];
   const phaseState = phase.state;
   const { target, rotation } = phaseState;
@@ -286,26 +289,20 @@ function tickMoving(
       : target.piece;
   const pivotDr = target.piece.pivot[0] - movingPiece.pivot[0];
   const pivotDc = target.piece.pivot[1] - movingPiece.pivot[1];
-  const curRow = Math.max(
-    0,
-    Math.min(
-      Math.round(host.buildCursor.row) + pivotDr,
-      GRID_ROWS - movingPiece.height,
-    ),
+  const curRow = clampAnchorRow(
+    Math.round(host.buildCursor.row) + pivotDr,
+    movingPiece.height,
   );
-  const curCol = Math.max(
-    0,
-    Math.min(
-      Math.round(host.buildCursor.col) + pivotDc,
-      GRID_COLS - movingPiece.width,
-    ),
+  const curCol = clampAnchorCol(
+    Math.round(host.buildCursor.col) + pivotDc,
+    movingPiece.width,
   );
   return [
-    makePhantom(
+    makePiecePhantom(
       host.playerId,
-      movingPiece,
       curRow,
       curCol,
+      movingPiece.offsets,
       canPlacePiece(state, host.playerId, movingPiece.offsets, curRow, curCol),
     ),
   ];
@@ -339,30 +336,17 @@ function buildRotationFor(
   };
 }
 
-function phantomAtCursor(
-  host: BuildHost,
-  state: BuildViewState,
-): PiecePlacementPreview {
+function phantomAtCursor(host: BuildHost, state: BuildViewState): PiecePhantom {
   const piece = state.players[host.playerId]!.currentPiece!;
   const row = Math.round(host.buildCursor.row);
   const col = Math.round(host.buildCursor.col);
-  return makePhantom(
+  return makePiecePhantom(
     host.playerId,
-    piece,
     row,
     col,
+    piece.offsets,
     canPlacePiece(state, host.playerId, piece.offsets, row, col),
   );
-}
-
-function makePhantom(
-  playerId: ValidPlayerId,
-  shape: PieceShape,
-  row: number,
-  col: number,
-  valid: boolean,
-): PiecePlacementPreview {
-  return { offsets: shape.offsets, row, col, valid, playerId };
 }
 
 function computeNextPlacement(

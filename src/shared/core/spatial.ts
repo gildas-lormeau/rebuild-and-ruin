@@ -634,9 +634,32 @@ export function towerCenterPx(tilePos: TilePos): PixelPos {
   };
 }
 
+/** World-pixel position → tile coordinates, clamped to the grid (points
+ *  outside the map snap to the nearest edge tile). */
+export function worldToTileClamped(wx: number, wy: number): TilePos {
+  return {
+    row: clampAnchorRow(pxToTile(wy), 1),
+    col: clampAnchorCol(pxToTile(wx), 1),
+  };
+}
+
 /** Convert a world-pixel coordinate to a tile index (floor division by TILE_SIZE). */
 export function pxToTile(px: number): number {
   return Math.floor(px / TILE_SIZE);
+}
+
+/** Clamp a top-left anchor row so an `height`-tall footprint stays fully
+ *  on the grid. Canonical anchor-clamp — every cursor/phantom placement
+ *  clamp goes through this pair; hand-rolled copies drift (one shipped
+ *  without the lower bound). */
+export function clampAnchorRow(row: number, height: number): number {
+  return Math.max(0, Math.min(GRID_ROWS - height, row));
+}
+
+/** Column twin of `clampAnchorRow` — clamps so a `width`-wide footprint
+ *  stays fully on the grid. */
+export function clampAnchorCol(col: number, width: number): number {
+  return Math.max(0, Math.min(GRID_COLS - width, col));
 }
 
 /** Flood one outside component from `seed`, stopping early once it proves

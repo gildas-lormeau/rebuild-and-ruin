@@ -21,10 +21,9 @@ import type {
   Tower,
   TowerIdx,
 } from "../shared/core/geometry-types.ts";
-import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "../shared/core/grid.ts";
 import { Action, isMovementAction } from "../shared/core/input-action.ts";
 import { isPlayerEliminated } from "../shared/core/player-slot.ts";
-import { pxToTile } from "../shared/core/spatial.ts";
+import { pxToTile, worldToTileClamped } from "../shared/core/spatial.ts";
 import {
   type InputReceiver,
   type PlayerController,
@@ -425,14 +424,7 @@ export function dispatchPointerMoveWorld(
   if (isSelectionPhase(state.phase)) return;
   deps.withPointerPlayer((human) => {
     if (state.phase === Phase.WALL_BUILD) {
-      const row = Math.max(
-        0,
-        Math.min(GRID_ROWS - 1, Math.floor(wy / TILE_SIZE)),
-      );
-      const col = Math.max(
-        0,
-        Math.min(GRID_COLS - 1, Math.floor(wx / TILE_SIZE)),
-      );
+      const { row, col } = worldToTileClamped(wx, wy);
       human.setBuildCursor(state, row, col);
     } else if (state.phase === Phase.CANNON_PLACE) {
       human.setCannonCursor(wx, wy);

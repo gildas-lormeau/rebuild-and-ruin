@@ -8,9 +8,11 @@ export {
 export type { BattleCombatResult } from "./battle-system.ts";
 export {
   advanceBattleCountdown,
+  areWeaponsActive,
   canFireOwnCannon,
   canPlayerFire,
   emitBattleCeaseIfTimerCrossed,
+  makeCrosshair,
   nextReadyCannon,
   setBattleCountdown,
   snapshotTerritory,

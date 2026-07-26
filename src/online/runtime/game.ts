@@ -40,10 +40,7 @@ import { createAwayWatchdog } from "../online-away-watchdog.ts";
 import { canvas, worldCanvas } from "../online-dom.ts";
 import { createHeartbeatMonitor } from "../online-heartbeat.ts";
 import { createLagDetector } from "../online-lag-detector.ts";
-import {
-  broadcastLocalCrosshair as broadcastLocalCrosshairImpl,
-  extendWithRemoteCrosshairs,
-} from "../online-remote-crosshairs.ts";
+import { extendWithRemoteCrosshairs } from "../online-remote-crosshairs.ts";
 import { pollDeferredResyncs } from "../online-resync-defer.ts";
 import { GAME_EXIT_EVENT } from "../online-router.ts";
 import { createOnlineSendActions } from "../online-send-actions.ts";
@@ -215,10 +212,7 @@ const runtime: GameRuntime = createGameRuntime({
     // every peer derives them locally — broadcasting would be redundant.
     broadcastLocalCrosshair: (ctrl, crosshair) => {
       if (!isHuman(ctrl) || ctrl.playerId !== ctx.session.myPlayerId) return;
-      broadcastLocalCrosshairImpl(ctrl, crosshair, {
-        lastSentAimTarget: ctx.dedup.aimTarget,
-        send,
-      });
+      maybeSendAimUpdate(crosshair.x, crosshair.y, ctrl.playerId);
     },
 
     // ── Per-frame phantom dedup ───────────────────────────────────────

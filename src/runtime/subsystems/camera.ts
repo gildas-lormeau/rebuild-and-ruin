@@ -48,6 +48,7 @@ import {
   cannonSize,
   castleCenterPx as castleCenterPxShared,
   pxToTile,
+  worldToTileClamped,
   zoneAt,
 } from "../../shared/core/spatial.ts";
 import type { GameState } from "../../shared/core/types.ts";
@@ -1084,10 +1085,7 @@ export function createCameraSystem(deps: CameraDeps): RuntimeCamera {
     // back-projected rect; snap to the nearest edge tile so phantom/hit
     // tests keep working at the map boundary.
     const { wx, wy } = screenToWorld(x, y);
-    return {
-      col: Math.max(0, Math.min(GRID_COLS - 1, pxToTile(wx))),
-      row: Math.max(0, Math.min(GRID_ROWS - 1, pxToTile(wy))),
-    };
+    return worldToTileClamped(wx, wy);
   }
 
   /** Like `screenToWorld` but ray-picks elevated geometry under battle tilt.
