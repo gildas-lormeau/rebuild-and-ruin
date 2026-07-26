@@ -38,7 +38,7 @@ export interface WireSenders {
     applyAt: number,
   ) => void;
   readonly sendOpponentCannonPhantom: (msg: CannonPhantomPayload) => void;
-  readonly sendOpponentPhantom: (msg: PiecePhantomPayload) => void;
+  readonly sendOpponentPiecePhantom: (msg: PiecePhantomPayload) => void;
   readonly sendOpponentCannonPhaseDone: (
     playerId: ValidPlayerId,
     applyAt: number,
@@ -77,7 +77,8 @@ export function createWireSenders(deps: {
       }),
     sendOpponentCannonPhantom: (msg) =>
       send({ type: "opponentCannonPhantom", ...msg }),
-    sendOpponentPhantom: (msg) => send({ type: "opponentPhantom", ...msg }),
+    sendOpponentPiecePhantom: (msg) =>
+      send({ type: "opponentPiecePhantom", ...msg }),
     sendOpponentCannonPhaseDone: (playerId, applyAt) =>
       send({
         type: "opponentCannonPhaseDone",

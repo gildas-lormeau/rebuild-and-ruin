@@ -377,8 +377,8 @@ interface OpponentPiecePlacedMessage extends PiecePlacedPayload {
 }
 
 /** An opponent's phantom piece position (for rendering ghost). */
-interface OpponentPhantomMessage extends PiecePhantomPayload {
-  type: "opponentPhantom";
+interface OpponentPiecePhantomMessage extends PiecePhantomPayload {
+  type: "opponentPiecePhantom";
 }
 
 /** An opponent (AI) placed a cannon. The inherited `applyAt` lockstep tick
@@ -574,7 +574,7 @@ export type ServerMessage =
   | GameOverMessage
   // Build/Cannon events
   | OpponentPiecePlacedMessage
-  | OpponentPhantomMessage
+  | OpponentPiecePhantomMessage
   | OpponentCannonPlacedMessage
   | OpponentCannonPhantomMessage
   | OpponentTowerSelectedMessage
@@ -647,7 +647,7 @@ export const MESSAGE = {
   FULL_STATE: "fullState",
   // Build/Cannon events
   OPPONENT_PIECE_PLACED: "opponentPiecePlaced",
-  OPPONENT_PHANTOM: "opponentPhantom",
+  OPPONENT_PIECE_PHANTOM: "opponentPiecePhantom",
   OPPONENT_CANNON_PLACED: "opponentCannonPlaced",
   OPPONENT_CANNON_PHANTOM: "opponentCannonPhantom",
   OPPONENT_TOWER_SELECTED: "opponentTowerSelected",

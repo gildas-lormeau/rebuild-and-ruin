@@ -211,7 +211,7 @@ export interface BuildController {
    *  right now". For local-controlled slots, populated by `startBuildPhase`
    *  (so the WALL_BUILD banner's B-snapshot captures previews even though
    *  no tick has run yet) and refreshed after every `buildTick`. For
-   *  remote-controlled slots, written by the inbound `OPPONENT_PHANTOM`
+   *  remote-controlled slots, written by the inbound `OPPONENT_PIECE_PHANTOM`
    *  network handler. Render and network-broadcast paths read from here.
    *  Empty array when the player is eliminated, not ready to place, or has
    *  no active preview. */

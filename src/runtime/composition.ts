@@ -579,7 +579,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     runtimeState,
     log: config.log,
     sendOpponentCannonPhantom: wire.sendOpponentCannonPhantom,
-    sendOpponentPhantom: wire.sendOpponentPhantom,
+    sendOpponentPiecePhantom: wire.sendOpponentPiecePhantom,
     sendOpponentCannonPhaseDone: wire.sendOpponentCannonPhaseDone,
     online: config.onlinePhaseTicks,
     requestRender,

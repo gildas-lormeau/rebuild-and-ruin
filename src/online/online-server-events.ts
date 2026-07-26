@@ -85,7 +85,7 @@ type CannonFiredMsg = Extract<ServerMessage, { type: "cannonFired" }>;
 
 type AimUpdateMsg = Extract<ServerMessage, { type: "aimUpdate" }>;
 
-type PiecePhantomMsg = Extract<ServerMessage, { type: "opponentPhantom" }>;
+type PiecePhantomMsg = Extract<ServerMessage, { type: "opponentPiecePhantom" }>;
 
 type CannonPhantomMsg = Extract<
   ServerMessage,
@@ -129,7 +129,7 @@ export function handleServerIncrementalMessage(
       return handleCannonFired(msg, state, deps);
     case MESSAGE.AIM_UPDATE:
       return handleAimUpdate(msg, state, deps);
-    case MESSAGE.OPPONENT_PHANTOM:
+    case MESSAGE.OPPONENT_PIECE_PHANTOM:
       return handlePiecePhantom(msg, state, deps);
     case MESSAGE.OPPONENT_CANNON_PHANTOM:
       return handleCannonPhantom(msg, state, deps);

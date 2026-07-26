@@ -104,7 +104,7 @@ interface PhaseTicksDeps
     Pick<
       WireSenders,
       | "sendOpponentCannonPhantom"
-      | "sendOpponentPhantom"
+      | "sendOpponentPiecePhantom"
       | "sendOpponentCannonPhaseDone"
     > {
   runtimeState: RuntimeState;
@@ -812,7 +812,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
         ) {
           continue;
         }
-        deps.sendOpponentPhantom({
+        deps.sendOpponentPiecePhantom({
           playerId: phantom.playerId,
           row: phantom.row,
           col: phantom.col,

@@ -93,7 +93,7 @@ const WALL_BUILD_PLACE_GRACE_MS = 1000;
  *  stays typed as ReadonlySet<string> so `has(type: string)` call sites at
  *  the untyped JSON boundary work without casts. */
 const RATE_LIMITED_TYPES: ReadonlySet<string> = new Set([
-  MESSAGE.OPPONENT_PHANTOM,
+  MESSAGE.OPPONENT_PIECE_PHANTOM,
   MESSAGE.OPPONENT_CANNON_PHANTOM,
   MESSAGE.AIM_UPDATE,
 ] as const satisfies readonly MessageType[]);
@@ -155,7 +155,7 @@ const MAX_PHANTOM_OFFSET = 4;
 const PHASE_GATES: Partial<Record<MessageType, Set<ServerPhase>>> = {
   [MESSAGE.CANNON_FIRED]: new Set([Phase.BATTLE]),
   [MESSAGE.OPPONENT_PIECE_PLACED]: new Set([Phase.WALL_BUILD]),
-  [MESSAGE.OPPONENT_PHANTOM]: new Set([Phase.WALL_BUILD]),
+  [MESSAGE.OPPONENT_PIECE_PHANTOM]: new Set([Phase.WALL_BUILD]),
   [MESSAGE.OPPONENT_CANNON_PLACED]: new Set([Phase.CANNON_PLACE]),
   [MESSAGE.OPPONENT_CANNON_PHANTOM]: new Set([Phase.CANNON_PLACE]),
   [MESSAGE.OPPONENT_CANNON_PHASE_DONE]: new Set([Phase.CANNON_PLACE]),
@@ -471,7 +471,7 @@ function validatePayload(msg: Record<string, unknown>): boolean {
       return hasValidPlayer(msg) && typeof msg.choice === "string";
     case MESSAGE.AIM_UPDATE:
       return hasValidPlayer(msg) && isFinite(msg.x) && isFinite(msg.y);
-    case MESSAGE.OPPONENT_PHANTOM:
+    case MESSAGE.OPPONENT_PIECE_PHANTOM:
       return (
         hasValidPlayer(msg) &&
         hasValidGridPos(msg) &&
