@@ -135,6 +135,23 @@ export function localActiveControllers<
   );
 }
 
+/** Filter controllers to non-eliminated slots regardless of locality —
+ *  the render-side sibling of `localActiveControllers`: placement previews
+ *  and overlays draw for every live slot (local AND remote, since remote
+ *  slots' preview fields are fed by the inbound network handler), but
+ *  never for an eliminated one. Structural param types keep it usable
+ *  from narrow render-side state slices. */
+export function activeControllers<
+  T extends { readonly playerId: ValidPlayerId },
+>(
+  controllers: readonly T[],
+  players: readonly { readonly eliminated?: boolean }[],
+): T[] {
+  return controllers.filter(
+    (ctrl) => !isPlayerEliminated(players[ctrl.playerId]),
+  );
+}
+
 /** True if this player slot is controlled by a remote human (not local).
  *  Use this instead of inline `remotePlayerSlots.has(pid)` to make intent explicit. */
 export function isRemotePlayer(

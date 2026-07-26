@@ -12,10 +12,7 @@ import type {
   CannonPhantom,
   PiecePhantom,
 } from "../../shared/core/phantom-types.ts";
-import {
-  isPlayerEliminated,
-  type ValidPlayerId,
-} from "../../shared/core/player-slot.ts";
+import type { ValidPlayerId } from "../../shared/core/player-slot.ts";
 import { selectRenderView } from "../../shared/core/render-view.ts";
 import type {
   InputReceiver,
@@ -39,6 +36,7 @@ import {
   tickModifierRevealClock,
 } from "../modifier-effects/reveal-time.ts";
 import { isPaused, isStateInstalled, type RuntimeState } from "../state.ts";
+import { activeControllers } from "../tick-context.ts";
 import type { TimingApi } from "../timing-api.ts";
 import type {
   CreateBannerUiFn,
@@ -133,6 +131,15 @@ interface RenderSystem {
   captureSceneOffscreen: () => HTMLCanvasElement | undefined;
 }
 
+/** Controller slice the phantom collector reads — the preview fields the
+ *  extractor callbacks pick from. Full `RuntimeState` satisfies this
+ *  structurally at the call sites. */
+interface PhantomControllerSlice {
+  playerId: ValidPlayerId;
+  currentCannonPhantom: CannonPhantom | undefined;
+  currentBuildPhantoms: readonly PiecePhantom[];
+}
+
 export function createRenderSystem(deps: RenderSystemDeps): RenderSystem {
   const { runtimeState } = deps;
 
@@ -163,12 +170,6 @@ export function createRenderSystem(deps: RenderSystemDeps): RenderSystem {
     // they see only what the render layer needs.
     const view = selectRenderView(runtimeState.state);
 
-    // Assemble the overlay's phantom payload from the controller-owned
-    // `currentBuildPhantoms` / `currentCannonPhantom`. Every slot has a
-    // controller (local or remote), and remote-controlled slots have
-    // their fields written by the inbound network handler — the
-    // controller is the sole source for both render and broadcast.
-    //
     // `defaultFacings` is derived live from `state.players[i].defaultFacing`
     // (rather than read from a tick-populated cache) for the same reason
     // as `inBattle` below: `refreshOverlay` runs inside the banner
@@ -185,8 +186,17 @@ export function createRenderSystem(deps: RenderSystemDeps): RenderSystem {
     const overlayFrame = {
       crosshairs: runtimeState.frame.crosshairs,
       phantoms: {
-        piecePhantoms: buildPiecePhantomsUnion(runtimeState),
-        cannonPhantoms: buildCannonPhantomsUnion(runtimeState),
+        piecePhantoms: collectPlacementPhantoms(
+          runtimeState,
+          Phase.WALL_BUILD,
+          (ctrl) => ctrl.currentBuildPhantoms,
+        ),
+        cannonPhantoms: collectPlacementPhantoms(
+          runtimeState,
+          Phase.CANNON_PLACE,
+          (ctrl) =>
+            ctrl.currentCannonPhantom ? [ctrl.currentCannonPhantom] : [],
+        ),
         defaultFacings,
         cannonTiers,
       },
@@ -355,61 +365,39 @@ export function createRenderSystem(deps: RenderSystemDeps): RenderSystem {
   return { render, captureSceneOffscreen };
 }
 
-/** Assemble the full piece-phantom set for the current frame: each
- *  controller's `currentBuildPhantoms`. Remote-controlled slots have
- *  their field written by the inbound network handler, so a single
- *  loop over controllers covers both local and remote previews.
- *  Eliminated players are skipped here so callers don't have to
- *  filter, and stale phantoms left on a just-eliminated controller
- *  don't render. Returns undefined when no phantoms exist.
+/** Assemble the per-frame union of one placement-preview kind across
+ *  every live slot. A single loop covers local AND remote previews —
+ *  remote-controlled slots have their preview fields written by the
+ *  inbound network handler, so the controller is the sole source for
+ *  both render and broadcast. Eliminated players are skipped so stale
+ *  previews on a just-eliminated controller don't render. Returns
+ *  undefined when no previews exist.
  *
- *  Phase gate: piece phantoms are a WALL_BUILD-only placement preview, so
- *  this returns undefined in every other phase. The gate is load-bearing,
- *  not belt-and-suspenders — a REMOTE controller's `currentBuildPhantoms`
- *  is written by the inbound network handler and only cleared for LOCAL
- *  controllers at build-finalize (`finalizeLocalControllersBuildPhase`),
- *  so without it a remote slot's last preview renders into BATTLE. (The
- *  cannon counterpart had this exact bug — a ghost cannon shown in battle.) */
-function buildPiecePhantomsUnion(runtimeState: {
-  controllers: ReadonlyArray<{
-    playerId: ValidPlayerId;
-    currentBuildPhantoms: readonly PiecePhantom[];
-  }>;
-  state: { phase: Phase; players: readonly { eliminated?: boolean }[] };
-}): readonly PiecePhantom[] | undefined {
-  if (runtimeState.state.phase !== Phase.WALL_BUILD) return undefined;
-  const out: PiecePhantom[] = [];
-  for (const ctrl of runtimeState.controllers) {
-    if (isPlayerEliminated(runtimeState.state.players[ctrl.playerId])) continue;
-    for (const phantom of ctrl.currentBuildPhantoms) out.push(phantom);
-  }
-  return out.length > 0 ? out : undefined;
-}
-
-/** Assemble the full cannon-phantom set for the current frame: each
- *  controller's `currentCannonPhantom` (at most one each). Remote-
- *  controlled slots have their field written by the inbound network
- *  handler. Eliminated players are skipped (see piece-phantom counterpart
- *  for rationale). Returns undefined when no phantoms exist.
- *
- *  Phase gate: cannon phantoms are a CANNON_PLACE-only placement preview.
- *  The gate is load-bearing — a REMOTE controller's `currentCannonPhantom`
- *  is written by the inbound network handler and only cleared for LOCAL
- *  controllers at `finalizeCannonPhase`; `finalizeRemoteCannonController`
- *  runs `initCannons` alone and leaves the field set. Without the gate
- *  that stale preview renders as a ghost cannon all through BATTLE. */
-function buildCannonPhantomsUnion(runtimeState: {
-  controllers: ReadonlyArray<{
-    playerId: ValidPlayerId;
-    currentCannonPhantom: CannonPhantom | undefined;
-  }>;
-  state: { phase: Phase; players: readonly { eliminated?: boolean }[] };
-}): readonly CannonPhantom[] | undefined {
-  if (runtimeState.state.phase !== Phase.CANNON_PLACE) return undefined;
-  const out: CannonPhantom[] = [];
-  for (const ctrl of runtimeState.controllers) {
-    if (isPlayerEliminated(runtimeState.state.players[ctrl.playerId])) continue;
-    if (ctrl.currentCannonPhantom) out.push(ctrl.currentCannonPhantom);
+ *  Phase gate: each preview kind renders ONLY in its own placement phase
+ *  (`gatePhase`), and the gate is load-bearing for EVERY slot — neither
+ *  `finalizeCannonPhase` nor `finalizeBuildPhase` clears preview fields.
+ *  That persistence is deliberate: an exit banner's old-scene capture is
+ *  primed after finalize while the phase is still the placement phase, so
+ *  live previews are baked into the snapshot and sweep out with the old
+ *  scene. Without the gate they'd render as ghosts through BATTLE (a real
+ *  historical bug). Stale values are reset for every slot at the next
+ *  placement phase's entry (`clearPlacementPhantoms`), before that
+ *  banner's B-snapshot. */
+function collectPlacementPhantoms<T>(
+  runtimeState: {
+    controllers: ReadonlyArray<PhantomControllerSlice>;
+    state: { phase: Phase; players: readonly { eliminated?: boolean }[] };
+  },
+  gatePhase: Phase,
+  extract: (ctrl: PhantomControllerSlice) => readonly T[],
+): readonly T[] | undefined {
+  if (runtimeState.state.phase !== gatePhase) return undefined;
+  const out: T[] = [];
+  for (const ctrl of activeControllers(
+    runtimeState.controllers,
+    runtimeState.state.players,
+  )) {
+    out.push(...extract(ctrl));
   }
   return out.length > 0 ? out : undefined;
 }
