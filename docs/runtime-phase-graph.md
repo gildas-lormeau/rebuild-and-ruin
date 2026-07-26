@@ -46,7 +46,7 @@ stateDiagram-v2
 - **broadcasts:** `buildEnd`
 - **display:** —
 - **dispatches:** —
-- **external dispatchers:** `phase-ticks.ts:845`
+- **external dispatchers:** `phase-ticks.ts:854`
 
 ### `battle-done`
 
@@ -56,7 +56,7 @@ stateDiagram-v2
 - **broadcasts:** `buildStart`
 - **display:** —
 - **dispatches:** `enter-upgrade-pick`, `enter-wall-build`
-- **external dispatchers:** `phase-ticks.ts:767`
+- **external dispatchers:** `phase-ticks.ts:776`
 
 ### `ceasefire`
 
@@ -86,7 +86,7 @@ stateDiagram-v2
 - **broadcasts:** —
 - **display:** `banner(build)`
 - **dispatches:** —
-- **external dispatchers:** `phase-ticks.ts:631 (via finishUpgradePick)`, `phase-ticks.ts:636 (via finishUpgradePick)`
+- **external dispatchers:** `phase-ticks.ts:640 (via finishUpgradePick)`, `phase-ticks.ts:645 (via finishUpgradePick)`
 
 ### `enter-cannon-place`
 
@@ -156,7 +156,7 @@ stateDiagram-v2
 - **broadcasts:** —
 - **display:** `banner(battle)`
 - **dispatches:** —
-- **external dispatchers:** `phase-ticks.ts:610`
+- **external dispatchers:** `phase-ticks.ts:619`
 
 ## Review hints (auto-derived)
 

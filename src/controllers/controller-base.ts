@@ -147,10 +147,12 @@ export abstract class BaseController implements PlayerController {
   ): PiecePlacementPreview[];
 
   /** @final Template method — do NOT override. Override onFinalizeBuildPhase() instead.
-   *  Calls the hook and drops any lingering build-phantom snapshot so the render
-   *  path doesn't keep drawing the last preview into the cannon/battle phases.
-   *  (Controller-owned state requires the clear to be explicit; symmetric to
-   *  finalizeCannonPhase.)
+   *  `currentBuildPhantoms` is deliberately NOT cleared here — same
+   *  invariant as `finalizeCannonPhase`: phantom fields survive the phase
+   *  exit (phase gates hide them the moment the phase flips, and any
+   *  banner primed at the exit sweeps them out with the old scene) and are
+   *  reset for EVERY slot by the next placement phase's entry transition,
+   *  before its banner B-snapshot (`clearPlacementPhantoms`).
    *
    *  NOTE: piece-bag clearing is NOT done here. Bags live on shared GameState
    *  (`player.bag`), so they must be cleared on every peer at the same logical
@@ -160,7 +162,6 @@ export abstract class BaseController implements PlayerController {
    *  other (advance + potential RNG shuffle), drifting `state.rng`. */
   finalizeBuildPhase(state: BuildViewState): void {
     this.onFinalizeBuildPhase(state);
-    this.currentBuildPhantoms = EMPTY_PIECE_PHANTOMS;
   }
 
   /** Subclass hook called before bag/piece are cleared. Override for AI cleanup etc. */
@@ -200,15 +201,20 @@ export abstract class BaseController implements PlayerController {
   protected flushCannons(_state: CannonViewState, _maxSlots: number): void {}
 
   /** End-of-cannon-phase finalization. `isLocal` carries the parity split:
-   *  - local: flush this peer's queued placements, run the round-1 safety
-   *    net, then drop the lingering cannon-phantom snapshot so the render
-   *    path doesn't draw the last preview into battle (symmetric to
-   *    `finalizeBuildPhase` clearing `currentBuildPhantoms`);
+   *  - local: flush this peer's queued placements, then run the round-1
+   *    safety net;
    *  - remote: run only the round-1 safety net. The slot's placements
    *    already arrived over the wire, so re-running the flush would
-   *    double-commit; the stale phantom is cleared by the render phase-gate
-   *    (`buildCannonPhantomsUnion`), matching the build path.
-   *  Flush must precede init so the safety net sees the flushed placements. */
+   *    double-commit.
+   *  Flush must precede init so the safety net sees the flushed placements.
+   *
+   *  `currentCannonPhantom` is deliberately NOT cleared here (for either
+   *  locality) — same invariant as `finalizeBuildPhase`: the banner's
+   *  pre-transition scene capture runs after this, while the phase is still
+   *  CANNON_PLACE, so a still-set phantom is baked into the old-scene
+   *  snapshot and sweeps out with it instead of popping off a frame early.
+   *  Hiding after the flip is owned by the render phase-gates; the reset is
+   *  owned by the next placement phase's entry (`clearPlacementPhantoms`). */
   finalizeCannonPhase(
     state: CannonViewState,
     maxSlots: number,
@@ -216,7 +222,6 @@ export abstract class BaseController implements PlayerController {
   ): void {
     if (isLocal) this.flushCannons(state, maxSlots);
     this.initCannons(state, maxSlots);
-    if (isLocal) this.currentCannonPhantom = undefined;
   }
 
   /** Round-1 safety net: auto-place cannons if none were manually placed.

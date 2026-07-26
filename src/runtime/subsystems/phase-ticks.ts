@@ -380,6 +380,12 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
           primeControllerForCannonPhase(ctrl, runtimeState.state);
         }
       },
+      clearPlacementPhantoms: () => {
+        for (const ctrl of runtimeState.controllers) {
+          ctrl.currentCannonPhantom = undefined;
+          ctrl.currentBuildPhantoms = [];
+        }
+      },
       upgradePick: deps.upgradePick,
       ceasefireSkipBattle: () => enterBuildSkippingBattle(runtimeState.state),
       startBuildPhaseLocal: startBuildPhase,
@@ -566,9 +572,12 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
 
     // PASS 2: finalize every controller for the phase transition. The
     // `isLocal` flag carries the parity split — local slots flush their
-    // planned placements and clear the phantom; remote slots run only the
-    // deterministic round-1 safety net (their placements already arrived
-    // over the wire). See `finalizeCannonPhase`.
+    // planned placements; remote slots run only the deterministic round-1
+    // safety net (their placements already arrived over the wire). Phantoms
+    // are left set so the banner's old-scene capture (primed at the
+    // `startBattle` dispatch below, phase still CANNON_PLACE) sweeps them
+    // out; the render phase-gate hides them once the phase flips. See
+    // `finalizeCannonPhase`.
     for (const ctrl of runtimeState.controllers) {
       const isLocal = !isRemotePlayer(ctrl.playerId, remotePlayerSlots);
       ctrl.finalizeCannonPhase(

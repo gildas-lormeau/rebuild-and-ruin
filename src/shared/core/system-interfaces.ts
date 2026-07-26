@@ -303,11 +303,13 @@ export interface CannonController {
 
   /** End-of-cannon-phase finalization. The single entry point for both
    *  localities — `isLocal` carries the parity split:
-   *  - local: flush this peer's planned placements, run the round-1 safety
-   *    net, and clear the cannon phantom;
+   *  - local: flush this peer's planned placements and run the round-1
+   *    safety net;
    *  - remote: run only the round-1 safety net (the slot's placements
-   *    already arrived over the wire; the render phase-gate clears the
-   *    stale phantom).
+   *    already arrived over the wire).
+   *  `currentCannonPhantom` is left set for every locality — the banner's
+   *  old-scene capture (taken post-finalize, still in CANNON_PLACE) sweeps
+   *  it out, and the render phase-gate hides it once the phase flips.
    *  The flush and the round-1 auto-place are controller-internal steps,
    *  not part of the public contract. */
   finalizeCannonPhase(

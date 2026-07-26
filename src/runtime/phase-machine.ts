@@ -257,6 +257,19 @@ export interface PhaseTransitionCtx {
    *  has already populated `state.cannonLimits` / facings, so no init
    *  data needs to thread through ctx. */
   readonly initLocalCannonControllers: () => void;
+  /** Drop every controller's placement previews (`currentCannonPhantom` +
+   *  `currentBuildPhantoms`, local AND remote slots). Called from both
+   *  placement-phase entry mutates (`enter-cannon-place`,
+   *  `enter-wall-build`) before the banner's B-snapshot: finalize never
+   *  clears phantoms (they persist so an exit banner's old-scene capture
+   *  sweeps them out), so without this the previous round's last preview —
+   *  remote slots included, whose only writer is the inbound network
+   *  handler — would be baked into the entry reveal at a stale position.
+   *  Local slots re-seed after the clear (cannon: postDisplay via
+   *  `initLocalCannonControllers`; build: same mutate via
+   *  `startBuildPhaseLocal`, deliberately landing in the reveal); remote
+   *  slots repopulate from the wire. */
+  readonly clearPlacementPhantoms: () => void;
   /** End-game side effects (set game-over frame, stop sound, switch to
    *  Mode.STOPPED, arm demo timer). Used by the `game-over` transition.
    *  Wired on every peer — watchers run it from their own local
@@ -527,6 +540,10 @@ const ENTER_WALL_BUILD: Transition = {
     // Phase flip + entry-time timer anchor (timer must reflect THIS round's
     // upgrade set — see `enterWallBuildPhase` JSDoc for the parity story).
     enterWallBuildPhase(ctx.state);
+    // Stale-preview reset BEFORE the local re-seed below, so the previous
+    // round's previews (remote slots included) can't land in the banner's
+    // B-snapshot while this round's local previews deliberately do.
+    ctx.clearPlacementPhantoms();
     // Per-controller startBuildPhase + clearImpacts + accumulator resets.
     // Same on every peer.
     ctx.startBuildPhaseLocal();
@@ -557,6 +574,10 @@ const ENTER_CANNON_PLACE: Transition = {
   from: [Phase.CASTLE_SELECT, Phase.ROUND_END],
   mutate: (ctx) => {
     enterCannonPhase(ctx.state);
+    // Before the banner's B-snapshot: drop stale previews from the previous
+    // round (see the ctx hook doc — finalize keeps phantoms for the exit
+    // banner's sweep-out, so entry owns the reset).
+    ctx.clearPlacementPhantoms();
     return EMPTY_TRANSITION_RESULT;
   },
   display: [
