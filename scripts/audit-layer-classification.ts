@@ -23,6 +23,7 @@ import path from "node:path";
 import process from "node:process";
 import { Project } from "ts-morph";
 import { type Tier, tierOfLayer } from "./cells/tier-of-layer.ts";
+import { buildImportGraph, type ImportGraph } from "./import-graph.ts";
 
 interface LayerGroup {
   name: string;
@@ -68,6 +69,10 @@ const project = new Project({
 const allFiles: string[] = [];
 const findings: Finding[] = [];
 
+// Lazily built: a top-level `const` would be hoisted by the formatter above
+// the loop that adds source files, leaving the graph empty.
+let cachedGraph: ImportGraph | undefined;
+
 for (let i = 0; i < layerGroups.length; i++) {
   for (const file of layerGroups[i]!.files) {
     fileToLayer.set(file, i);
@@ -94,7 +99,7 @@ for (const sf of project.getSourceFiles()) {
 
   const text = sf.getFullText();
   const header = extractHeader(text);
-  const importedDomains = collectImportedDomains(sf);
+  const importedDomains = collectImportedDomains(file);
   const onlyTypeExports = hasOnlyTypeExports(sf);
 
   const signals: Finding["signals"] = [];
@@ -285,18 +290,20 @@ function hasOnlyTypeExports(sf: import("ts-morph").SourceFile): boolean {
   return saw;
 }
 
-function collectImportedDomains(
-  sf: import("ts-morph").SourceFile,
-): Set<string> {
+function collectImportedDomains(file: string): Set<string> {
   const domains = new Set<string>();
-  for (const imp of sf.getImportDeclarations()) {
-    const resolved = imp.getModuleSpecifierSourceFile();
-    if (!resolved) continue;
-    const rel = path.relative(ROOT, resolved.getFilePath());
-    const segs = rel.split(path.sep);
+  // Forwarded edges, so a symbol taken through a barrel is attributed to the
+  // domain that declares it rather than the domain hosting the barrel.
+  for (const edge of graph().edgesFrom(file)) {
+    const segs = edge.to.split(path.sep);
     if (segs[0] === "src" && segs.length > 2) domains.add(segs[1]!);
   }
   return domains;
+}
+
+function graph(): ImportGraph {
+  cachedGraph ??= buildImportGraph(project, new Set(fileToLayer.keys()), ROOT);
+  return cachedGraph;
 }
 
 function importsSignal(

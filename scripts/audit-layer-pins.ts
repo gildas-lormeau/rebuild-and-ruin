@@ -13,6 +13,7 @@ import path from "node:path";
 import process from "node:process";
 import { Project } from "ts-morph";
 import { tierOfLayer } from "./cells/tier-of-layer.ts";
+import { buildImportGraph, type ImportGraph } from "./import-graph.ts";
 
 interface LayerGroup {
   name: string;
@@ -24,6 +25,8 @@ interface ImportInfo {
   layer: number;
   tier: string;
   typeOnly: boolean;
+  /** Barrel the import names, when the edge was forwarded past it. */
+  via: string | undefined;
 }
 
 const ROOT = path.resolve(import.meta.dirname!, "..");
@@ -44,6 +47,10 @@ const project = new Project({
   skipAddingFilesFromTsConfig: true,
 });
 
+// Lazily built: a top-level `const` would be hoisted by the formatter above
+// the loop that adds source files, leaving the graph empty.
+let cachedGraph: ImportGraph | undefined;
+
 for (let i = 0; i < layerGroups.length; i++) {
   for (const file of layerGroups[i]!.files) {
     fileToLayer.set(file, i);
@@ -62,8 +69,7 @@ for (const group of layerGroups) {
 }
 
 for (const target of targets) {
-  const sf = project.getSourceFile(path.join(ROOT, target));
-  if (!sf) {
+  if (project.getSourceFile(path.join(ROOT, target)) === undefined) {
     console.log(`SKIP ${target} — not found`);
     continue;
   }
@@ -73,18 +79,16 @@ for (const target of targets) {
   console.log(`\n=== ${target} (L${targetLayer} / ${targetTier}) ===`);
 
   const imports: ImportInfo[] = [];
-  for (const imp of sf.getImportDeclarations()) {
-    const resolved = imp.getModuleSpecifierSourceFile();
-    if (!resolved) continue;
-    const rel = path.relative(ROOT, resolved.getFilePath());
-    const layer = fileToLayer.get(rel);
+  for (const edge of graph().edgesFrom(target)) {
+    const layer = fileToLayer.get(edge.to);
     if (layer === undefined) continue;
     if (layer >= targetLayer) continue; // skip same-or-higher (shouldn't happen)
     imports.push({
-      file: rel,
+      file: edge.to,
       layer,
-      tier: fileToTier.get(rel)!,
-      typeOnly: imp.isTypeOnly(),
+      tier: fileToTier.get(edge.to)!,
+      typeOnly: edge.typeOnly,
+      via: edge.via,
     });
   }
   imports.sort((left, right) => right.layer - left.layer);
@@ -102,7 +106,8 @@ for (const target of targets) {
     `  PIN: L${pinLayer} (${pins[0]!.tier}) — ${pins.length} import(s) at this layer`,
   );
   for (const pin of pins) {
-    console.log(`    ${pin.typeOnly ? "type " : "value"}  ${pin.file}`);
+    const via = pin.via === undefined ? "" : `   (via ${pin.via})`;
+    console.log(`    ${pin.typeOnly ? "type " : "value"}  ${pin.file}${via}`);
   }
   if (rest.length > 0) {
     console.log(`  Other imports (deeper layers): ${rest.length}`);
@@ -116,4 +121,9 @@ for (const target of targets) {
       console.log(`    L${layer}: ${byLayer.get(layer)!.length}`);
     }
   }
+}
+
+function graph(): ImportGraph {
+  cachedGraph ??= buildImportGraph(project, new Set(fileToLayer.keys()), ROOT);
+  return cachedGraph;
 }

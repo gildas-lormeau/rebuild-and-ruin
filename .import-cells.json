@@ -382,22 +382,12 @@
   {
     "layer": 6,
     "domain": "ai",
-    "role": "AI decision intents (life lost, upgrade pick), base-layer tactic planners (grunt sweep, ice trench) & in-flight ball dedup",
+    "role": "AI decision intents (life lost, upgrade pick), the ice-trench tactic planner & in-flight ball dedup",
     "files": [
       "src/ai/ai-in-flight-target.ts",
       "src/ai/ai-life-lost.ts",
-      "src/ai/ai-plan-grunt-sweep.ts",
       "src/ai/ai-plan-ice-trench.ts",
       "src/ai/ai-upgrade-pick.ts"
-    ]
-  },
-  {
-    "layer": 6,
-    "domain": "controllers",
-    "role": "BaseController abstraction & AI commit port",
-    "files": [
-      "src/controllers/ai-commit-port.ts",
-      "src/controllers/controller-base.ts"
     ]
   },
   {
@@ -461,14 +451,11 @@
   {
     "layer": 6,
     "domain": "online",
-    "role": "online session core: lobby UI, session state, heartbeat desync detection, rejoin, host promotion, remote crosshairs & action senders",
+    "role": "online session core: lobby UI, session state, heartbeat desync detection & rejoin",
     "files": [
       "src/online/online-heartbeat.ts",
-      "src/online/online-host-promotion.ts",
       "src/online/online-lobby-ui.ts",
       "src/online/online-rejoin.ts",
-      "src/online/online-remote-crosshairs.ts",
-      "src/online/online-send-actions.ts",
       "src/online/online-session.ts"
     ]
   },
@@ -548,17 +535,9 @@
   {
     "layer": 7,
     "domain": "ai",
-    "role": "AI build-pipeline shared types",
+    "role": "grunt-sweep tactic planner",
     "files": [
-      "src/ai/ai-build-types.ts"
-    ]
-  },
-  {
-    "layer": 7,
-    "domain": "controllers",
-    "role": "human controller",
-    "files": [
-      "src/controllers/controller-human.ts"
+      "src/ai/ai-plan-grunt-sweep.ts"
     ]
   },
   {
@@ -602,10 +581,9 @@
   {
     "layer": 7,
     "domain": "online",
-    "role": "server-message lifecycle, lockstep seat handoff & online client stores",
+    "role": "server-message lifecycle, lockstep seat reclaim & online client stores",
     "files": [
       "src/online/online-seat-reclaim.ts",
-      "src/online/online-seat-takeover.ts",
       "src/online/online-server-lifecycle.ts",
       "src/online/online-stores.ts"
     ]
@@ -650,12 +628,9 @@
   {
     "layer": 7,
     "domain": "runtime",
-    "role": "main loop, castle-build, tick consumers, battle anim, local action surface, no-peer NetworkApi, wire senders & runtime/timing contracts",
+    "role": "castle-build, tick consumers, no-peer NetworkApi, wire senders, modifier reveal timing & runtime/UI contracts",
     "files": [
-      "src/runtime/battle-anim.ts",
       "src/runtime/castle-build.ts",
-      "src/runtime/input-actions.ts",
-      "src/runtime/main-loop.ts",
       "src/runtime/modifier-effects/reveal-time.ts",
       "src/runtime/network-local.ts",
       "src/runtime/tick-consumers.ts",
@@ -667,14 +642,13 @@
     "layer": 7,
     "domain": "runtime",
     "subdomain": "subsystems",
-    "role": "audio, banner, camera, dialog & score-delta subsystems",
+    "role": "audio, banner, camera, dialog & pointer-player subsystems",
     "files": [
       "src/runtime/subsystems/audio.ts",
       "src/runtime/subsystems/banner.ts",
       "src/runtime/subsystems/camera.ts",
       "src/runtime/subsystems/life-lost.ts",
       "src/runtime/subsystems/pointer-player.ts",
-      "src/runtime/subsystems/score-deltas.ts",
       "src/runtime/subsystems/upgrade-pick.ts"
     ]
   },
@@ -698,18 +672,9 @@
   {
     "layer": 8,
     "domain": "ai",
-    "role": "AiStrategy contract + castle-rect geometry",
+    "role": "castle-rect geometry",
     "files": [
-      "src/ai/ai-castle-rect.ts",
-      "src/ai/ai-strategy-types.ts"
-    ]
-  },
-  {
-    "layer": 8,
-    "domain": "controllers",
-    "role": "controller factory",
-    "files": [
-      "src/controllers/controller-factory.ts"
+      "src/ai/ai-castle-rect.ts"
     ]
   },
   {
@@ -794,9 +759,8 @@
   {
     "layer": 8,
     "domain": "runtime",
-    "role": "phase transition machine & UIContext adapter",
+    "role": "UIContext adapter",
     "files": [
-      "src/runtime/phase-machine.ts",
       "src/runtime/ui-context.ts"
     ]
   },
@@ -804,29 +768,21 @@
     "layer": 8,
     "domain": "runtime",
     "subdomain": "subsystems",
-    "role": "input, render, lobby, options, selection & cannon-animator subsystems",
+    "role": "input, render, lobby, options & cannon-animator subsystems",
     "files": [
       "src/runtime/subsystems/cannon-animator.ts",
       "src/runtime/subsystems/input.ts",
       "src/runtime/subsystems/lobby.ts",
       "src/runtime/subsystems/options.ts",
-      "src/runtime/subsystems/render.ts",
-      "src/runtime/subsystems/selection.ts"
+      "src/runtime/subsystems/render.ts"
     ]
   },
   {
     "layer": 9,
     "domain": "ai",
-    "role": "AiBrain contract, phase state machines, battle/cannon strategy, min-cut & build scoring",
+    "role": "min-cut wall planner",
     "files": [
-      "src/ai/ai-brain-types.ts",
-      "src/ai/ai-build-score.ts",
-      "src/ai/ai-min-cut.ts",
-      "src/ai/ai-phase-build.ts",
-      "src/ai/ai-phase-cannon.ts",
-      "src/ai/ai-phase-select.ts",
-      "src/ai/ai-strategy-battle.ts",
-      "src/ai/ai-strategy-cannon.ts"
+      "src/ai/ai-min-cut.ts"
     ]
   },
   {
@@ -866,52 +822,6 @@
     ]
   },
   {
-    "layer": 9,
-    "domain": "runtime",
-    "role": "match bootstrap — controllers & GameState from settings",
-    "files": [
-      "src/runtime/bootstrap.ts"
-    ]
-  },
-  {
-    "layer": 9,
-    "domain": "runtime",
-    "subdomain": "subsystems",
-    "role": "game-lifecycle & phase-ticks — phase-orchestrating subsystem factories",
-    "files": [
-      "src/runtime/subsystems/game-lifecycle.ts",
-      "src/runtime/subsystems/phase-ticks.ts"
-    ]
-  },
-  {
-    "layer": 10,
-    "domain": "ai",
-    "role": "build target selection & shared build infra, battle phase machine & battle tactic planners",
-    "files": [
-      "src/ai/ai-build-shared.ts",
-      "src/ai/ai-build-target.ts",
-      "src/ai/ai-phase-battle.ts",
-      "src/ai/ai-plan-charity-sweep.ts",
-      "src/ai/ai-plan-declutter.ts",
-      "src/ai/ai-plan-deny-enclosure.ts",
-      "src/ai/ai-plan-fat-breach.ts",
-      "src/ai/ai-plan-finish-it.ts",
-      "src/ai/ai-plan-pinch-kill.ts",
-      "src/ai/ai-plan-pocket-destruction.ts",
-      "src/ai/ai-plan-structural-hit.ts",
-      "src/ai/ai-plan-sustained-pressure.ts",
-      "src/ai/ai-plan-wall-demolition.ts"
-    ]
-  },
-  {
-    "layer": 10,
-    "domain": "controllers",
-    "role": "AI controller (host wrapper around injected brain)",
-    "files": [
-      "src/controllers/controller-ai.ts"
-    ]
-  },
-  {
     "layer": 10,
     "domain": "game",
     "role": "grunt system",
@@ -931,30 +841,9 @@
   {
     "layer": 10,
     "domain": "runtime",
-    "role": "GameRuntime handle — composition return type",
+    "role": "main loop",
     "files": [
-      "src/runtime/handle.ts"
-    ]
-  },
-  {
-    "layer": 11,
-    "domain": "ai",
-    "role": "AiBrain assembly, build desperation/lookahead & derived tactic planners (grunt breach, max-repair-cost, super-attack)",
-    "files": [
-      "src/ai/ai-brain.ts",
-      "src/ai/ai-build-desperate.ts",
-      "src/ai/ai-build-lookahead.ts",
-      "src/ai/ai-plan-grunt-breach.ts",
-      "src/ai/ai-plan-max-repair-cost.ts",
-      "src/ai/ai-plan-super-attack.ts"
-    ]
-  },
-  {
-    "layer": 11,
-    "domain": "controllers",
-    "role": "AI assisted-human controller variant",
-    "files": [
-      "src/controllers/controller-ai-assisted-human.ts"
+      "src/runtime/main-loop.ts"
     ]
   },
   {
@@ -968,14 +857,6 @@
   },
   {
     "layer": 11,
-    "domain": "online",
-    "role": "online phase transitions",
-    "files": [
-      "src/online/online-phase-transitions.ts"
-    ]
-  },
-  {
-    "layer": 11,
     "domain": "render",
     "role": "Canvas2D frame renderer",
     "files": [
@@ -985,9 +866,17 @@
   {
     "layer": 12,
     "domain": "ai",
-    "role": "AI build-phase placement orchestrator",
+    "role": "AI build-pipeline shared types",
     "files": [
-      "src/ai/ai-strategy-build.ts"
+      "src/ai/ai-build-types.ts"
+    ]
+  },
+  {
+    "layer": 12,
+    "domain": "controllers",
+    "role": "BaseController abstraction",
+    "files": [
+      "src/controllers/controller-base.ts"
     ]
   },
   {
@@ -1003,8 +892,9 @@
   {
     "layer": 12,
     "domain": "online",
-    "role": "online server-event handlers",
+    "role": "online server-event handlers & remote crosshair mirroring",
     "files": [
+      "src/online/online-remote-crosshairs.ts",
       "src/online/online-server-events.ts"
     ]
   },
@@ -1017,11 +907,29 @@
     ]
   },
   {
+    "layer": 12,
+    "domain": "runtime",
+    "role": "battle animation driver",
+    "files": [
+      "src/runtime/battle-anim.ts"
+    ]
+  },
+  {
     "layer": 13,
     "domain": "ai",
-    "role": "DefaultStrategy — production AiStrategy implementation",
+    "role": "AiStrategy contract & build scoring",
     "files": [
-      "src/ai/ai-strategy.ts"
+      "src/ai/ai-build-score.ts",
+      "src/ai/ai-strategy-types.ts"
+    ]
+  },
+  {
+    "layer": 13,
+    "domain": "controllers",
+    "role": "human controller & AI commit port",
+    "files": [
+      "src/controllers/ai-commit-port.ts",
+      "src/controllers/controller-human.ts"
     ]
   },
   {
@@ -1035,13 +943,180 @@
   {
     "layer": 13,
     "domain": "online",
-    "role": "online state serialization",
+    "role": "online state serialization & action send path",
     "files": [
+      "src/online/online-send-actions.ts",
       "src/online/online-serialize.ts"
     ]
   },
   {
     "layer": 13,
+    "domain": "runtime",
+    "role": "local action surface",
+    "files": [
+      "src/runtime/input-actions.ts"
+    ]
+  },
+  {
+    "layer": 13,
+    "domain": "runtime",
+    "subdomain": "subsystems",
+    "role": "score-delta subsystem factory",
+    "files": [
+      "src/runtime/subsystems/score-deltas.ts"
+    ]
+  },
+  {
+    "layer": 14,
+    "domain": "ai",
+    "role": "AiBrain contract, phase state machines, cannon/battle strategy, build target selection & shared build infra",
+    "files": [
+      "src/ai/ai-brain-types.ts",
+      "src/ai/ai-build-shared.ts",
+      "src/ai/ai-build-target.ts",
+      "src/ai/ai-phase-build.ts",
+      "src/ai/ai-phase-cannon.ts",
+      "src/ai/ai-phase-select.ts",
+      "src/ai/ai-strategy-battle.ts",
+      "src/ai/ai-strategy-cannon.ts"
+    ]
+  },
+  {
+    "layer": 14,
+    "domain": "controllers",
+    "role": "controller factory",
+    "files": [
+      "src/controllers/controller-factory.ts"
+    ]
+  },
+  {
+    "layer": 14,
+    "domain": "online",
+    "role": "online host promotion",
+    "files": [
+      "src/online/online-host-promotion.ts"
+    ]
+  },
+  {
+    "layer": 14,
+    "domain": "runtime",
+    "role": "phase transition machine",
+    "files": [
+      "src/runtime/phase-machine.ts"
+    ]
+  },
+  {
+    "layer": 14,
+    "domain": "runtime",
+    "subdomain": "subsystems",
+    "role": "selection — castle-selection subsystem factory",
+    "files": [
+      "src/runtime/subsystems/selection.ts"
+    ]
+  },
+  {
+    "layer": 15,
+    "domain": "ai",
+    "role": "battle phase machine, battle tactic planners & build desperation/lookahead",
+    "files": [
+      "src/ai/ai-build-desperate.ts",
+      "src/ai/ai-build-lookahead.ts",
+      "src/ai/ai-phase-battle.ts",
+      "src/ai/ai-plan-charity-sweep.ts",
+      "src/ai/ai-plan-declutter.ts",
+      "src/ai/ai-plan-deny-enclosure.ts",
+      "src/ai/ai-plan-fat-breach.ts",
+      "src/ai/ai-plan-finish-it.ts",
+      "src/ai/ai-plan-pinch-kill.ts",
+      "src/ai/ai-plan-pocket-destruction.ts",
+      "src/ai/ai-plan-structural-hit.ts",
+      "src/ai/ai-plan-sustained-pressure.ts",
+      "src/ai/ai-plan-wall-demolition.ts"
+    ]
+  },
+  {
+    "layer": 15,
+    "domain": "controllers",
+    "role": "AI controller (host wrapper around injected brain)",
+    "files": [
+      "src/controllers/controller-ai.ts"
+    ]
+  },
+  {
+    "layer": 15,
+    "domain": "online",
+    "role": "online lockstep seat takeover",
+    "files": [
+      "src/online/online-seat-takeover.ts"
+    ]
+  },
+  {
+    "layer": 15,
+    "domain": "runtime",
+    "role": "match bootstrap — controllers & GameState from settings",
+    "files": [
+      "src/runtime/bootstrap.ts"
+    ]
+  },
+  {
+    "layer": 15,
+    "domain": "runtime",
+    "subdomain": "subsystems",
+    "role": "game-lifecycle & phase-ticks — phase-orchestrating subsystem factories",
+    "files": [
+      "src/runtime/subsystems/game-lifecycle.ts",
+      "src/runtime/subsystems/phase-ticks.ts"
+    ]
+  },
+  {
+    "layer": 16,
+    "domain": "ai",
+    "role": "AiBrain assembly, build-phase placement orchestrator & derived tactic planners (grunt breach, max-repair-cost, super-attack)",
+    "files": [
+      "src/ai/ai-brain.ts",
+      "src/ai/ai-plan-grunt-breach.ts",
+      "src/ai/ai-plan-max-repair-cost.ts",
+      "src/ai/ai-plan-super-attack.ts",
+      "src/ai/ai-strategy-build.ts"
+    ]
+  },
+  {
+    "layer": 16,
+    "domain": "controllers",
+    "role": "AI assisted-human controller variant",
+    "files": [
+      "src/controllers/controller-ai-assisted-human.ts"
+    ]
+  },
+  {
+    "layer": 16,
+    "domain": "runtime",
+    "role": "GameRuntime handle — composition return type",
+    "files": [
+      "src/runtime/handle.ts"
+    ]
+  },
+  {
+    "layer": 17,
+    "domain": "ai",
+    "role": "DefaultStrategy — production AiStrategy implementation",
+    "files": [
+      "src/ai/ai-strategy.ts"
+    ]
+  },
+  {
+    "layer": 17,
+    "domain": "online",
+    "role": "online phase transitions, rehydrate, resync defer & host promote",
+    "files": [
+      "src/online/online-phase-transitions.ts",
+      "src/online/online-rehydrate.ts",
+      "src/online/online-resync-defer.ts",
+      "src/online/runtime/promote.ts"
+    ]
+  },
+  {
+    "layer": 17,
     "domain": "runtime",
     "role": "runtime composition",
     "files": [
@@ -1049,7 +1124,7 @@
     ]
   },
   {
-    "layer": 14,
+    "layer": 18,
     "domain": "ai",
     "role": "default AI bundle (strategy + brain assembly entrypoint)",
     "files": [
@@ -1057,7 +1132,7 @@
     ]
   },
   {
-    "layer": 14,
+    "layer": 18,
     "domain": "entry",
     "role": "local-game entry",
     "files": [
@@ -1065,17 +1140,7 @@
     ]
   },
   {
-    "layer": 14,
-    "domain": "online",
-    "role": "online rehydrate & host promotion",
-    "files": [
-      "src/online/online-rehydrate.ts",
-      "src/online/online-resync-defer.ts",
-      "src/online/runtime/promote.ts"
-    ]
-  },
-  {
-    "layer": 15,
+    "layer": 18,
     "domain": "online",
     "role": "online runtime deps & session",
     "files": [
@@ -1084,7 +1149,7 @@
     ]
   },
   {
-    "layer": 16,
+    "layer": 19,
     "domain": "online",
     "role": "online runtime composition",
     "files": [
@@ -1092,7 +1157,7 @@
     ]
   },
   {
-    "layer": 17,
+    "layer": 20,
     "domain": "entry",
     "role": "online client entry",
     "files": [

@@ -34,16 +34,11 @@ import path from "node:path";
 import process from "node:process";
 import { Project } from "ts-morph";
 import { tierOfLayer } from "./cells/tier-of-layer.ts";
+import { buildImportGraph, type ImportEdge } from "./import-graph.ts";
 
 interface LayerGroup {
   name: string;
   files: string[];
-}
-
-interface ImportEdge {
-  from: string;
-  to: string;
-  typeOnly: boolean;
 }
 
 const args = process.argv.slice(2);
@@ -86,33 +81,19 @@ for (const sf of project.getSourceFiles()) {
   allFiles.add(key);
 }
 
-for (const sf of project.getSourceFiles()) {
-  const from = fileKey(sf.getFilePath());
-  if (!edgesByFile.has(from)) edgesByFile.set(from, new Set());
+collectEdges();
 
-  for (const imp of sf.getImportDeclarations()) {
-    const spec = imp.getModuleSpecifierValue();
-    if (!spec.startsWith(".")) continue;
-    const to = resolveImport(sf.getFilePath(), spec);
-    if (!to || !allFiles.has(to)) continue;
-    edgesByFile.get(from)!.add(to);
-    edges.push({ from, to, typeOnly: imp.isTypeOnly() });
-  }
-
-  // Re-export edges (`export ... from "./foo.ts"`) are intentionally NOT
-  // tracked as architectural dependencies. They are aliases/routing — the
-  // real dependency runs from the consumer to the underlying source, not
-  // consumer → barrel → source. Treating them as edges would force barrel
-  // files to sit at the tier of their highest re-export source, which then
-  // makes consumer-of-barrel imports look upward. The fix is to recognize
-  // that re-exports belong to the file dependency graph (what TypeScript
-  // needs at compile time), not to the architectural dependency graph.
-}
-
-/** Resolve a relative import specifier to a file key. */
-function resolveImport(fromFile: string, specifier: string): string | null {
-  const dir = path.dirname(fromFile);
-  return fileKey(path.resolve(dir, specifier));
+/**
+ * Edges come from the shared graph builder so this map, the layer lints and
+ * the layer audits all apply the same re-export forwarding rule. Kept in a
+ * function rather than a top-level `const`: the formatter hoists module-level
+ * consts above the loops that populate `allFiles`, which would silently build
+ * the graph from an empty file set.
+ */
+function collectEdges(): void {
+  const graph = buildImportGraph(project, allFiles, process.cwd());
+  for (const file of allFiles) edgesByFile.set(file, graph.depsOf(file));
+  edges.push(...graph.edges);
 }
 
 /** Normalize a file path to a short key like "src/types.ts" */

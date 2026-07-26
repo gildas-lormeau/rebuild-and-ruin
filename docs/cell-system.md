@@ -12,9 +12,11 @@ The codebase has two complementary indices over its modules:
 - **Layers** (`.import-layers.json`) — mechanical depth. `layer(f) = 1 +
   max(layer(dep))`, or 0 if no intra-project imports. Used to enforce
   import-flow direction (higher layer imports lower). Names are pure
-  indices `L0`, `L1`, …, `L17` — no semantic content per layer, though
+  indices `L0`, `L1`, …, `L20` — no semantic content per layer, though
   layer index does roll up into one of 5 tiers (`types` / `logic` /
-  `systems` / `assembly` / `roots`, via `tierOfLayer()`).
+  `systems` / `assembly` / `roots`, via `tierOfLayer()`). Edges come from
+  `scripts/import-graph.ts`, which forwards an import of a re-exported
+  symbol past the barrel to the file that declares it.
 - **Cells** (`.import-cells.json`) — `(domain × layer)` intersections
   with hand-curated `role` labels. Where naming actually happens.
   A cell can additionally be split by **subdomain**: files under
@@ -31,7 +33,7 @@ gets a sharp role identity.
 
 ## Files in play
 
-- `.import-layers.json` — auto-generated. 18 layers, indexed `L0..L17`.
+- `.import-layers.json` — auto-generated. 21 layers, indexed `L0..L20`.
   Run `deno run -A scripts/generate-import-layers.ts` to regenerate.
   `--check` fails if any file is missing.
 - `.import-cells.json` — derived from layers + path-inferred domain +

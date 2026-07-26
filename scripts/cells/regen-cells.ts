@@ -153,15 +153,14 @@ const LABELS: Record<string, string> = {
 
   // L6 — upgrades, modifiers & runtime contracts
   "6::ai":
-    "AI decision intents (life lost, upgrade pick), base-layer tactic planners (grunt sweep, ice trench) & in-flight ball dedup",
-  "6::controllers": "BaseController abstraction & AI commit port",
+    "AI decision intents (life lost, upgrade pick), the ice-trench tactic planner & in-flight ball dedup",
   "6::game":
     "core game systems (combos, selection, map gen, elevation, aim occlusion)",
   "6::game/modifiers":
     "state-only modifier implementations & eligibility filter",
   "6::game/upgrades": "upgrade implementations",
   "6::online":
-    "online session core: lobby UI, session state, heartbeat desync detection, rejoin, host promotion, remote crosshairs & action senders",
+    "online session core: lobby UI, session state, heartbeat desync detection & rejoin",
   "6::render":
     "frame contract & overlay helpers, aim-elevation picks, shader warm-up fixture & touch loupe",
   "6::runtime":
@@ -173,8 +172,7 @@ const LABELS: Record<string, string> = {
   "6::shared/sim": "sim internals — occupancy queries & wall mutators",
 
   // L7 — entity renderers & cross-domain handlers
-  "7::ai": "AI build-pipeline shared types",
-  "7::controllers": "human controller",
+  "7::ai": "grunt-sweep tactic planner",
   "7::game": "match init & zone re-flood",
   "7::game/modifiers":
     "shared tile-eviction helper for terrain-mutating modifiers",
@@ -182,23 +180,22 @@ const LABELS: Record<string, string> = {
     "wall-mutating upgrade implementations (demolition, erosion)",
   "7::input": "pointer/tap → action dispatch, touch-control state & seed field",
   "7::online":
-    "server-message lifecycle, lockstep seat handoff & online client stores",
+    "server-message lifecycle, lockstep seat reclaim & online client stores",
   "7::render": "entity renderers",
   "7::render/3d/effects":
     "terrain tile-data texture, aim crosshairs & base effect meshes (fire, dust, impacts, fog, shield, reveal-burst)",
   "7::runtime":
-    "main loop, castle-build, tick consumers, battle anim, local action surface, no-peer NetworkApi, wire senders & runtime/timing contracts",
+    "castle-build, tick consumers, no-peer NetworkApi, wire senders, modifier reveal timing & runtime/UI contracts",
   "7::runtime/subsystems":
-    "audio, banner, camera, dialog & score-delta subsystems",
+    "audio, banner, camera, dialog & pointer-player subsystems",
   "7::server": "server room manager",
   "7::shared/sim": "sim internals — board occupancy & territory queries",
 
   // L8 — subsystems
-  "8::ai": "AiStrategy contract + castle-rect geometry",
-  "8::controllers": "controller factory",
+  "8::ai": "castle-rect geometry",
   "8::entry": "server entry",
   "8::runtime/subsystems":
-    "input, render, lobby, options, selection & cannon-animator subsystems",
+    "input, render, lobby, options & cannon-animator subsystems",
   "8::game": "core subsystems (castle gen, grunt movement, upgrade system)",
   "8::game/modifiers":
     "terrain-mutating modifier implementations (fire, tides, sinkhole)",
@@ -207,60 +204,79 @@ const LABELS: Record<string, string> = {
   "8::render": "render UI (overlays, screens, settings)",
   "8::render/3d/effects":
     "entity burn/dust effects & terrain element effects (emergence, collapse, ice, lightning, water surge, wildfire, supply-ship)",
-  "8::runtime": "phase transition machine & UIContext adapter",
+  "8::runtime": "UIContext adapter",
 
   // L9 — system implementations
-  "9::ai":
-    "AiBrain contract, phase state machines, battle/cannon strategy, min-cut & build scoring",
+  "9::ai": "min-cut wall planner",
   "9::game": "cannon, modifier, game-over & wall-impact systems",
   "9::online": "online runtime lobby",
   "9::render": "render UI entry",
   "9::render/3d/effects": "modifier-effect registry",
-  "9::runtime": "match bootstrap — controllers & GameState from settings",
-  "9::runtime/subsystems":
-    "game-lifecycle & phase-ticks — phase-orchestrating subsystem factories",
 
   // L10 — mid-depth assembly
-  "10::ai":
-    "build target selection & shared build infra, battle phase machine & battle tactic planners",
-  "10::controllers": "AI controller (host wrapper around injected brain)",
   "10::game": "grunt system",
   "10::render": "map renderer & 3D scene bootstrap",
-  "10::runtime": "GameRuntime handle — composition return type",
+  "10::runtime": "main loop",
 
   // L11 — system composition
-  "11::ai":
-    "AiBrain assembly, build desperation/lookahead & derived tactic planners (grunt breach, max-repair-cost, super-attack)",
-  "11::controllers": "AI assisted-human controller variant",
   "11::game": "battle & build systems",
-  "11::online": "online phase transitions",
   "11::render": "Canvas2D frame renderer",
 
   // L12 — phase orchestration
-  "12::ai": "AI build-phase placement orchestrator",
+  "12::ai": "AI build-pipeline shared types",
+  "12::controllers": "BaseController abstraction",
   "12::game": "game actions, phase setup & scheduling",
-  "12::online": "online server-event handlers",
+  "12::online": "online server-event handlers & remote crosshair mirroring",
   "12::render": "3D renderer entry",
+  "12::runtime": "battle animation driver",
 
   // L13 — wiring
-  "13::ai": "DefaultStrategy — production AiStrategy implementation",
+  "13::ai": "AiStrategy contract & build scoring",
+  "13::controllers": "human controller & AI commit port",
   "13::game": "phase entry helpers",
-  "13::online": "online state serialization",
-  "13::runtime": "runtime composition",
+  "13::online": "online state serialization & action send path",
+  "13::runtime": "local action surface",
+  "13::runtime/subsystems": "score-delta subsystem factory",
 
-  // L14 — composition roots
-  "14::ai": "default AI bundle (strategy + brain assembly entrypoint)",
-  "14::entry": "local-game entry",
-  "14::online": "online rehydrate & host promotion",
+  // L14 — brain contract & factories
+  "14::ai":
+    "AiBrain contract, phase state machines, cannon/battle strategy, build target selection & shared build infra",
+  "14::controllers": "controller factory",
+  "14::online": "online host promotion",
+  "14::runtime": "phase transition machine",
+  "14::runtime/subsystems": "selection — castle-selection subsystem factory",
 
-  // L15 — online session lifecycle
-  "15::online": "online runtime deps & session",
+  // L15 — tactic planners & bootstrap
+  "15::ai":
+    "battle phase machine, battle tactic planners & build desperation/lookahead",
+  "15::controllers": "AI controller (host wrapper around injected brain)",
+  "15::online": "online lockstep seat takeover",
+  "15::runtime": "match bootstrap — controllers & GameState from settings",
+  "15::runtime/subsystems":
+    "game-lifecycle & phase-ticks — phase-orchestrating subsystem factories",
 
-  // L16 — online deps wiring
-  "16::online": "online runtime composition",
+  // L16 — brain assembly
+  "16::ai":
+    "AiBrain assembly, build-phase placement orchestrator & derived tactic planners (grunt breach, max-repair-cost, super-attack)",
+  "16::controllers": "AI assisted-human controller variant",
+  "16::runtime": "GameRuntime handle — composition return type",
 
-  // L17 — online client entry
-  "17::entry": "online client entry",
+  // L17 — composition roots
+  "17::ai": "DefaultStrategy — production AiStrategy implementation",
+  "17::online":
+    "online phase transitions, rehydrate, resync defer & host promote",
+  "17::runtime": "runtime composition",
+
+  // L18 — entry assembly
+  "18::ai": "default AI bundle (strategy + brain assembly entrypoint)",
+  "18::entry": "local-game entry",
+  "18::online": "online runtime deps & session",
+
+  // L19 — online deps wiring
+  "19::online": "online runtime composition",
+
+  // L20 — online client entry
+  "20::entry": "online client entry",
 };
 
 main();

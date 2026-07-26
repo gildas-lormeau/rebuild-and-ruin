@@ -40,6 +40,7 @@ import path from "node:path";
 import process from "node:process";
 import { Project, type SourceFile, SyntaxKind } from "ts-morph";
 import { tierOfLayer } from "./cells/tier-of-layer.ts";
+import { buildImportGraph } from "./import-graph.ts";
 
 interface LayerGroup {
   name: string;
@@ -106,12 +107,12 @@ function main(): void {
 
   const stranded: StrandedFinding[] = [];
   const borrowsByTarget = new Map<string, BorrowFinding>();
+  const graph = buildImportGraph(project, new Set(fileToLayer.keys()), ROOT);
 
   for (const [file, layer] of fileToLayer) {
-    const sf = project.getSourceFile(path.join(ROOT, file));
-    if (sf === undefined) continue;
-
-    const deps = collectDeps(sf, fileToLayer);
+    const deps = graph
+      .edgesFrom(file)
+      .map((edge) => ({ ...edge, layer: fileToLayer.get(edge.to) ?? 0 }));
     if (deps.length === 0) continue;
 
     if (isPureType(file) && layer > TYPES_TIER_MAX) {
@@ -128,6 +129,10 @@ function main(): void {
 
     for (const dep of deps) {
       if (!dep.typeOnly) continue;
+      // Reached through a barrel, not named directly. The deep-import
+      // allowlist *mandates* going through `game/index.ts`, so the borrower
+      // has no misplaced-type decision to make.
+      if (dep.via !== undefined) continue;
       if (path.dirname(dep.to) !== path.dirname(file)) continue;
       if (isPureType(dep.to)) continue;
       // Target layer is the discriminator. A leaf/type-home module that also
@@ -158,38 +163,6 @@ function main(): void {
 
   if (!onlyBorrow) reportStranded(stranded);
   if (!onlyStranded) reportBorrows(borrows);
-}
-
-function collectDeps(
-  sf: SourceFile,
-  fileToLayer: Map<string, number>,
-): { to: string; layer: number; typeOnly: boolean; names: string[] }[] {
-  const deps: {
-    to: string;
-    layer: number;
-    typeOnly: boolean;
-    names: string[];
-  }[] = [];
-  for (const imp of sf.getImportDeclarations()) {
-    const resolved = imp.getModuleSpecifierSourceFile();
-    if (!resolved) continue;
-    const rel = path.relative(ROOT, resolved.getFilePath());
-    const layer = fileToLayer.get(rel);
-    if (layer === undefined) continue;
-    const named = imp.getNamedImports();
-    // `import type { X }` marks the declaration; `import { type X }` marks
-    // each specifier. Both mean "no runtime edge" — treat them alike.
-    const typeOnly =
-      imp.isTypeOnly() ||
-      (named.length > 0 && named.every((spec) => spec.isTypeOnly()));
-    deps.push({
-      to: rel,
-      layer,
-      typeOnly,
-      names: named.map((spec) => spec.getName()),
-    });
-  }
-  return deps;
 }
 
 /** True when every exported declaration is a type (no runtime value). */

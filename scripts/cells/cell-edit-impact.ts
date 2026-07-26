@@ -20,6 +20,7 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { Project } from "ts-morph";
+import { buildImportGraph } from "../import-graph.ts";
 
 interface Cell {
   layer: number;
@@ -57,7 +58,7 @@ function main(): void {
 
   const cells: Cell[] = JSON.parse(readFileSync(CELLS_PATH, "utf-8"));
   const fileToCell = buildFileToCell(cells);
-  const { depsByFile, consumersByFile } = buildImportGraph(fileToCell);
+  const { depsByFile, consumersByFile } = buildCellGraph(fileToCell);
   const testConsumersByFile = scanTestConsumers(fileToCell);
 
   const reports = args.targets.map((target) =>
@@ -97,7 +98,7 @@ function buildFileToCell(cells: Cell[]): Map<string, Cell> {
   return map;
 }
 
-function buildImportGraph(fileToCell: Map<string, Cell>): {
+function buildCellGraph(fileToCell: Map<string, Cell>): {
   depsByFile: Map<string, Set<string>>;
   consumersByFile: Map<string, Set<string>>;
 } {
@@ -113,25 +114,18 @@ function buildImportGraph(fileToCell: Map<string, Cell>): {
     }
   }
 
+  // Forwarded edges, so "who consumes this file" names the modules that take
+  // its symbols, not the barrel they route through.
+  const graph = buildImportGraph(project, new Set(fileToCell.keys()), ROOT);
   const depsByFile = new Map<string, Set<string>>();
   const consumersByFile = new Map<string, Set<string>>();
-  for (const sf of project.getSourceFiles()) {
-    const from = path.relative(ROOT, sf.getFilePath()).replace(/\\/g, "/");
-    if (!fileToCell.has(from)) continue;
-    const deps = depsByFile.get(from) ?? new Set<string>();
-    for (const imp of sf.getImportDeclarations()) {
-      const resolved = imp.getModuleSpecifierSourceFile();
-      if (!resolved) continue;
-      const to = path
-        .relative(ROOT, resolved.getFilePath())
-        .replace(/\\/g, "/");
-      if (!fileToCell.has(to)) continue;
-      deps.add(to);
-      const consumers = consumersByFile.get(to) ?? new Set<string>();
-      consumers.add(from);
-      consumersByFile.set(to, consumers);
-    }
-    depsByFile.set(from, deps);
+  for (const edge of graph.edges) {
+    const deps = depsByFile.get(edge.from) ?? new Set<string>();
+    deps.add(edge.to);
+    depsByFile.set(edge.from, deps);
+    const consumers = consumersByFile.get(edge.to) ?? new Set<string>();
+    consumers.add(edge.from);
+    consumersByFile.set(edge.to, consumers);
   }
 
   return { depsByFile, consumersByFile };
