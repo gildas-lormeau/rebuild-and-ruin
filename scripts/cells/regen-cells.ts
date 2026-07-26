@@ -13,10 +13,21 @@
  * `--allow-todo` mode so the agent can land code before settling the
  * label.
  *
+ * Three checks keep the labels honest, because a stale label is worse
+ * than a missing one — `cell-lookup.ts` sends you confidently to the
+ * wrong cell:
+ *   - orphan LABELS keys (a label matching no cell — the signature of a
+ *     cell shifting layer and leaving its label pinned to the old index)
+ *   - duplicate role strings (two cells sharing a role make lookup
+ *     ambiguous)
+ *   - label drift (a cell's file list changed while its role stayed
+ *     byte-identical — nobody re-read whether the label still fits)
+ *
  * Usage:
- *   deno run -A scripts/cells/regen-cells.ts               # write
- *   deno run -A scripts/cells/regen-cells.ts --check       # CI: fail if stale
- *   deno run -A scripts/cells/regen-cells.ts --allow-todo  # emit TODOs for new cells
+ *   deno run -A scripts/cells/regen-cells.ts                  # write
+ *   deno run -A scripts/cells/regen-cells.ts --check          # CI: fail if stale
+ *   deno run -A scripts/cells/regen-cells.ts --allow-todo     # emit TODOs for new cells
+ *   deno run -A scripts/cells/regen-cells.ts --accept-labels  # membership changed, label still fits
  */
 
 import { readFileSync, writeFileSync } from "node:fs";
@@ -84,26 +95,30 @@ const LABELS: Record<string, string> = {
   // L0 — leaf modules (no intra-project imports)
   "0::ai": "AI tuning data",
   "1::ai": "AI utilities (secondsToTicks, traitLookup) + personality roll",
-  "2::ai": "AI build-phase diagnostic hook (test-only event surface)",
+  "2::ai": "AI build/battle diagnostic hooks & deterministic upgrade fallback",
   "0::game": "domain barrel & dependency-free leaves",
-  "0::input": "input primitives & recorder",
+  "0::input": "tap-gesture thresholds",
   "0::online": "DOM lookup helpers",
   "0::protocol": "wire route constants",
-  "0::render": "render primitives & 3D helpers",
+  "0::render":
+    "instanced-shader modulation, procedural sprite textures, canvas letterbox math & dev perf HUD",
   "0::render/3d/effects": "3D effect infrastructure",
-  "0::runtime": "runtime leaf utilities & banner ramps",
+  "0::runtime":
+    "runtime leaves: banner copy, DOM/timing shims, camera pitch & modifier-effect ramp curves",
   "0::runtime/audio":
     "audio asset storage & retro format converters (AIL/XMI/snd)",
   "0::server": "wire send helpers",
   "0::shared": "shared constants, RNG & platform leaves",
 
   // L1 — foundational types
-  "1::online": "online wiring config",
+  "1::online": "online server config, SPA router & away watchdog",
   "1::render": "3D sprite scene builders, lights & wall-destroy anim curve",
   "1::render/3d/effects": "effect terrain pattern textures",
-  "1::runtime": "modifier reveal overlays & browser timing",
+  "1::runtime":
+    "modifier-effect overlays, mode/dialog tick dispatch & browser timing",
   "1::runtime/audio": "audio leaf infra (synth loader, sound modal)",
-  "1::shared": "shared foundational types & defs",
+  "1::shared":
+    "feature/upgrade registry defs, piece & geometry vocabulary, UI interaction types & theme",
 
   // L2 — derived types & local entry
   "2::entry": "boot entry",
@@ -111,37 +126,44 @@ const LABELS: Record<string, string> = {
   "2::protocol": "checkpoint payload types",
   "2::render": "3D camera, debug, sprite scenes & UI theme",
   "2::render/3d/effects": "effect terrain SDF texture",
-  "2::runtime": "camera projection math & dialog lockstep helpers",
-  "2::shared": "derived shared types & UI configs",
-  "2::shared/sim": "sim internals — piece shapes & bag generation",
+  "2::runtime": "camera projection math",
+  "2::shared":
+    "battle event registry, inter-round dialog state & player config",
+  "2::shared/sim": "sim internals — RNG-driven piece-bag draw",
 
   // L3 — wire payloads & shared definitions
-  "3::online": "presence wire payload",
-  "3::shared": "battle wire types & event bus",
+  "3::online":
+    "peer-local presence state (crosshair interpolation, host-migration banner)",
+  "3::shared":
+    "battle entity structs, game event bus & settings option helpers",
 
   // L4 — core state & adjacent types
   "4::render": "3D entity helpers",
-  "4::shared": "core state & adjacent types",
+  "4::shared":
+    "cannon-mode & modifier registry defs, Player struct, phantom payloads & banner content",
 
   // L5 — first logic
-  "5::protocol": "protocol message dispatch",
+  "5::protocol": "wire message unions & MESSAGE constants",
   "5::render": "3D instance bucketing",
   "5::runtime": "runtime banner state",
   "5::shared":
-    "first logic — spatial, interior, contracts, core state & rule producers",
+    "core GameState & spatial helpers, system contracts & overlay view types",
   "5::shared/sim":
-    "sim internals — interior freshness epochs & piece-bag lifecycle",
+    "sim internals — interior freshness epochs, piece-bag lifecycle & Player rule write-surface",
 
   // L6 — upgrades, modifiers & runtime contracts
   "6::ai":
-    "AI decision intents (life lost, upgrade pick) + base-layer tactic planners (grunt sweep, ice trench)",
-  "6::controllers": "BaseController abstraction",
-  "6::game": "core game systems (combos, selection, map gen, elevation)",
-  "6::game/modifiers": "modifier implementations",
+    "AI decision intents (life lost, upgrade pick), base-layer tactic planners (grunt sweep, ice trench) & in-flight ball dedup",
+  "6::controllers": "BaseController abstraction & AI commit port",
+  "6::game":
+    "core game systems (combos, selection, map gen, elevation, aim occlusion)",
+  "6::game/modifiers":
+    "state-only modifier implementations & eligibility filter",
   "6::game/upgrades": "upgrade implementations",
-  "6::input": "input-handler deps shapes",
-  "6::online": "online lobby UI & session state",
-  "6::render": "render contracts & overlay helpers",
+  "6::online":
+    "online session core: lobby UI, session state, heartbeat desync detection, rejoin, host promotion, remote crosshairs & action senders",
+  "6::render":
+    "frame contract & overlay helpers, aim-elevation picks, shader warm-up fixture & touch loupe",
   "6::runtime":
     "runtime cores: state, tick context, dialog cores, overlay registry & battle-aim targeting",
   "6::runtime/audio": "audio players (music + sfx)",
@@ -151,19 +173,23 @@ const LABELS: Record<string, string> = {
   "6::shared/sim": "sim internals — occupancy queries & wall mutators",
 
   // L7 — entity renderers & cross-domain handlers
-  "7::ai": "AI charity-sweep tactic planner (delegates to grunt sweep)",
+  "7::ai": "AI build-pipeline shared types",
   "7::controllers": "human controller",
-  "7::game": "game state setup",
-  "7::game/modifiers": "modifier implementations",
+  "7::game": "match init & zone re-flood",
+  "7::game/modifiers":
+    "shared tile-eviction helper for terrain-mutating modifiers",
   "7::game/upgrades":
     "wall-mutating upgrade implementations (demolition, erosion)",
-  "7::input": "pointer-event dispatch",
-  "7::online": "online server lifecycle, remote crosshairs & stores",
+  "7::input": "pointer/tap → action dispatch, touch-control state & seed field",
+  "7::online":
+    "server-message lifecycle, lockstep seat handoff & online client stores",
   "7::render": "entity renderers",
-  "7::render/3d/effects": "effect builders",
+  "7::render/3d/effects":
+    "terrain tile-data texture, aim crosshairs & battle/terrain effect meshes",
   "7::runtime":
-    "main loop, castle-build, tick-consumers, battle-anim & runtime/timing contracts",
-  "7::runtime/subsystems": "subsystem factories",
+    "main loop, castle-build, tick consumers, battle anim, local action surface, no-peer NetworkApi, wire senders & runtime/timing contracts",
+  "7::runtime/subsystems":
+    "audio, banner, camera, dialog & score-delta subsystems",
   "7::server": "server room manager",
   "7::shared/sim": "sim internals — board occupancy & territory queries",
 
@@ -171,52 +197,49 @@ const LABELS: Record<string, string> = {
   "8::ai": "AiStrategy contract + castle-rect geometry",
   "8::controllers": "controller factory",
   "8::entry": "server entry",
-  "8::runtime/subsystems": "mid-depth subsystem factories",
+  "8::runtime/subsystems":
+    "input, render, lobby, options, selection & cannon-animator subsystems",
   "8::game": "core subsystems (castle gen, grunt movement, upgrade system)",
-  "8::game/modifiers": "modifier implementations",
-  "8::game/upgrades": "upgrade implementation (erosion)",
-  "8::input": "input dispatch & touch update",
+  "8::game/modifiers":
+    "terrain-mutating modifier implementations (fire, tides, sinkhole)",
+  "8::input": "input device handlers (keyboard, mouse, touch canvas, touch UI)",
   "8::online": "online runtime websocket",
   "8::render": "render UI (overlays, screens, settings)",
   "8::render/3d/effects":
     "effect subsystems (burns, dust, supply-ship, modifier-reveal)",
-  "8::runtime": "phase machine",
+  "8::runtime": "phase transition machine & UIContext adapter",
 
   // L9 — system implementations
   "9::ai":
     "AiBrain contract, phase state machines, battle/cannon strategy, min-cut & build scoring",
   "9::game": "cannon, modifier, game-over & wall-impact systems",
-  "9::input": "input device handlers (kb, mouse, touch)",
   "9::online": "online runtime lobby",
   "9::render": "render UI entry",
   "9::render/3d/effects":
     "effect implementations (emergence, collapse, ice, lightning, water surge, wildfire)",
-  "9::runtime": "runtime types & main loop",
+  "9::runtime": "match bootstrap — controllers & GameState from settings",
   "9::runtime/subsystems":
     "game-lifecycle & phase-ticks — phase-orchestrating subsystem factories",
 
   // L10 — mid-depth assembly
   "10::ai":
-    "AI brain assembly, build target selection & battle tactic planners",
+    "build target selection & shared build infra, battle phase machine & battle tactic planners",
   "10::controllers": "AI controller (host wrapper around injected brain)",
   "10::game": "grunt system",
-  "10::online": "online phase transitions",
   "10::render": "map renderer",
   "10::render/3d/effects": "modifier-effect registry",
   "10::runtime": "GameRuntime handle — composition return type",
-  "10::runtime/subsystems": "game-lifecycle — top subsystem factory",
 
   // L11 — system composition
   "11::ai":
-    "build desperation/lookahead + derived tactic planners (max-repair-cost, super-attack)",
+    "AiBrain assembly, build desperation/lookahead & derived tactic planners (grunt breach, max-repair-cost, super-attack)",
   "11::controllers": "AI assisted-human controller variant",
   "11::game": "battle & build systems",
   "11::online": "online phase transitions",
-  "11::render": "frame renderers",
-  "11::runtime": "GameRuntime handle — composition return type",
+  "11::render": "Canvas2D frame renderer & 3D scene bootstrap",
 
   // L12 — phase orchestration
-  "12::ai": "AI strategy orchestrator",
+  "12::ai": "AI build-phase placement orchestrator",
   "12::game": "game actions, phase setup & scheduling",
   "12::online": "online server-event handlers",
   "12::render": "3D renderer entry",
@@ -229,24 +252,17 @@ const LABELS: Record<string, string> = {
 
   // L14 — composition roots
   "14::ai": "default AI bundle (strategy + brain assembly entrypoint)",
-  "14::controllers": "AI controller wrapper",
   "14::entry": "local-game entry",
-  "14::game": "phase entry helpers",
   "14::online": "online rehydrate & host promotion",
 
   // L15 — online session lifecycle
-  "15::controllers": "AI-assisted human controller",
   "15::online": "online runtime deps & session",
 
   // L16 — online deps wiring
   "16::online": "online runtime composition",
 
-  // L17 — online runtime composition
+  // L17 — online client entry
   "17::entry": "online client entry",
-  "17::online": "online runtime composition",
-
-  // L18 — online client entry
-  "18::entry": "online client entry",
 };
 
 main();
@@ -255,6 +271,7 @@ function main(): void {
   const args = new Set(Deno.args);
   const checkMode = args.has("--check");
   const allowTodo = args.has("--allow-todo");
+  const acceptLabels = args.has("--accept-labels");
 
   const layerGroups: LayerGroup[] = JSON.parse(
     readFileSync(path.join(ROOT, ".import-layers.json"), "utf-8"),
@@ -278,6 +295,11 @@ function main(): void {
     console.error(`  (Pass --allow-todo to emit placeholder labels for now.)`);
     Deno.exit(1);
   }
+
+  const previous = readPreviousCells();
+  if (!reportOrphanLabels(cells)) Deno.exit(1);
+  if (!reportDuplicateRoles(cells)) Deno.exit(1);
+  if (!acceptLabels && !reportLabelDrift(cells, previous)) Deno.exit(1);
 
   const json = `${JSON.stringify(cells, null, 2)}\n`;
 
@@ -366,6 +388,122 @@ function applyLabels(cells: Cell[], newCells: string[]): void {
     cell.role = `TODO: L${cell.layer} · ${displayDomain}`;
     newCells.push(key);
   }
+}
+
+/**
+ * The previously committed cell map, or null when it doesn't exist yet.
+ * `.import-cells.json` doubles as the label baseline: it records both the
+ * role and the file list as of the last approved regen, which is exactly
+ * what `reportLabelDrift` needs to tell "membership changed" from
+ * "membership changed and someone re-read the label".
+ */
+function readPreviousCells(): Map<string, Cell> | null {
+  let raw: string;
+  try {
+    raw = readFileSync(CELLS_PATH, "utf-8");
+  } catch {
+    return null;
+  }
+  const cells: Cell[] = JSON.parse(raw);
+  return new Map(
+    cells.map((cell) => [
+      cellKey(cell.layer, cell.domain, cell.subdomain),
+      cell,
+    ]),
+  );
+}
+
+/**
+ * LABELS keys that match no cell. These accumulate silently whenever a
+ * domain's layer indices shift — the vacated key keeps its label and the
+ * cell that moved inherits its new neighbour's label instead. Catching the
+ * vacated key is what makes that shift visible.
+ */
+function reportOrphanLabels(cells: Cell[]): boolean {
+  const live = new Set(
+    cells.map((cell) => cellKey(cell.layer, cell.domain, cell.subdomain)),
+  );
+  const orphans = Object.keys(LABELS).filter((key) => !live.has(key));
+  if (orphans.length === 0) return true;
+
+  console.error(
+    `✗ ${orphans.length} LABELS ${orphans.length === 1 ? "entry matches" : "entries match"} no cell:`,
+  );
+  for (const key of orphans) console.error(`    ${key} — "${LABELS[key]}"`);
+  console.error(
+    `\n  A label with no cell usually means the cell shifted layer. Check whether` +
+      `\n  its label followed it, then delete the stale key from LABELS in` +
+      `\n  scripts/cells/regen-cells.ts.`,
+  );
+  return false;
+}
+
+/**
+ * Two cells sharing a role string make `cell-lookup.ts` ambiguous — the
+ * whole point of the cell map is that a role names one place.
+ */
+function reportDuplicateRoles(cells: Cell[]): boolean {
+  const byRole = new Map<string, string[]>();
+  for (const cell of cells) {
+    if (cell.role.startsWith("TODO:")) continue;
+    const key = cellKey(cell.layer, cell.domain, cell.subdomain);
+    byRole.set(cell.role, [...(byRole.get(cell.role) ?? []), key]);
+  }
+  const duplicates = [...byRole].filter(([, keys]) => keys.length > 1);
+  if (duplicates.length === 0) return true;
+
+  console.error(`✗ ${duplicates.length} role label(s) used by several cells:`);
+  for (const [role, keys] of duplicates) {
+    console.error(`    "${role}" — ${keys.join(", ")}`);
+  }
+  console.error(
+    `\n  cell-lookup.ts can't disambiguate these. Differentiate the labels by` +
+      `\n  what actually splits the cells.`,
+  );
+  return false;
+}
+
+/**
+ * Cells whose membership changed while their role label stayed byte-identical.
+ * That is the signature of label-widening debt: a file joins a cell and nobody
+ * re-reads whether the role still describes what's in there. Revising the label
+ * in the same change clears it automatically; `--accept-labels` is the escape
+ * hatch for when the existing label genuinely already covers the new file.
+ */
+function reportLabelDrift(
+  cells: Cell[],
+  previous: Map<string, Cell> | null,
+): boolean {
+  if (previous === null) return true;
+
+  const drifted: { key: string; cell: Cell; before: Cell }[] = [];
+  for (const cell of cells) {
+    if (cell.role.startsWith("TODO:")) continue;
+    const key = cellKey(cell.layer, cell.domain, cell.subdomain);
+    const before = previous.get(key);
+    if (before === undefined) continue;
+    if (before.role !== cell.role) continue;
+    if (before.files.join("\n") === cell.files.join("\n")) continue;
+    drifted.push({ key, cell, before });
+  }
+  if (drifted.length === 0) return true;
+
+  console.error(
+    `✗ ${drifted.length} cell(s) changed membership without a label review:`,
+  );
+  for (const { key, cell, before } of drifted) {
+    const gained = cell.files.filter((file) => !before.files.includes(file));
+    const lost = before.files.filter((file) => !cell.files.includes(file));
+    console.error(`\n    ${key} — "${cell.role}"`);
+    for (const file of gained) console.error(`      + ${file}`);
+    for (const file of lost) console.error(`      - ${file}`);
+  }
+  console.error(
+    `\n  Re-read each role above against its new file list. Widen or rewrite the` +
+      `\n  label in LABELS (scripts/cells/regen-cells.ts) and re-run, or re-run with` +
+      `\n  --accept-labels if the existing label already covers the change.`,
+  );
+  return false;
 }
 
 function cellKey(

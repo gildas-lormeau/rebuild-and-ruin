@@ -20,7 +20,7 @@
   {
     "layer": 0,
     "domain": "input",
-    "role": "input primitives & recorder",
+    "role": "tap-gesture thresholds",
     "files": [
       "src/input/input.ts"
     ]
@@ -45,7 +45,7 @@
   {
     "layer": 0,
     "domain": "render",
-    "role": "render primitives & 3D helpers",
+    "role": "instanced-shader modulation, procedural sprite textures, canvas letterbox math & dev perf HUD",
     "files": [
       "src/render/3d/entities/instance-modulation.ts",
       "src/render/3d/perf-hud.ts",
@@ -67,7 +67,7 @@
   {
     "layer": 0,
     "domain": "runtime",
-    "role": "runtime leaf utilities & banner ramps",
+    "role": "runtime leaves: banner copy, DOM/timing shims, camera pitch & modifier-effect ramp curves",
     "files": [
       "src/runtime/banner-messages.ts",
       "src/runtime/browser/dom.ts",
@@ -132,7 +132,7 @@
   {
     "layer": 1,
     "domain": "online",
-    "role": "online wiring config",
+    "role": "online server config, SPA router & away watchdog",
     "files": [
       "src/online/online-away-watchdog.ts",
       "src/online/online-config.ts",
@@ -166,7 +166,7 @@
   {
     "layer": 1,
     "domain": "runtime",
-    "role": "modifier reveal overlays & browser timing",
+    "role": "modifier-effect overlays, mode/dialog tick dispatch & browser timing",
     "files": [
       "src/runtime/browser/timing.ts",
       "src/runtime/dialogs/dialog-tick.ts",
@@ -192,7 +192,7 @@
   {
     "layer": 1,
     "domain": "shared",
-    "role": "shared foundational types & defs",
+    "role": "feature/upgrade registry defs, piece & geometry vocabulary, UI interaction types & theme",
     "files": [
       "src/shared/core/action-schedule.ts",
       "src/shared/core/ai-seed.ts",
@@ -211,7 +211,7 @@
   {
     "layer": 2,
     "domain": "ai",
-    "role": "AI build-phase diagnostic hook (test-only event surface)",
+    "role": "AI build/battle diagnostic hooks & deterministic upgrade fallback",
     "files": [
       "src/ai/ai-battle-diag.ts",
       "src/ai/ai-build-diag.ts",
@@ -271,7 +271,7 @@
   {
     "layer": 2,
     "domain": "runtime",
-    "role": "camera projection math & dialog lockstep helpers",
+    "role": "camera projection math",
     "files": [
       "src/runtime/camera-projection.ts"
     ]
@@ -279,7 +279,7 @@
   {
     "layer": 2,
     "domain": "shared",
-    "role": "derived shared types & UI configs",
+    "role": "battle event registry, inter-round dialog state & player config",
     "files": [
       "src/shared/core/battle-events.ts",
       "src/shared/core/dialog-state.ts",
@@ -290,7 +290,7 @@
     "layer": 2,
     "domain": "shared",
     "subdomain": "sim",
-    "role": "sim internals — piece shapes & bag generation",
+    "role": "sim internals — RNG-driven piece-bag draw",
     "files": [
       "src/shared/sim/pieces.ts"
     ]
@@ -298,7 +298,7 @@
   {
     "layer": 3,
     "domain": "online",
-    "role": "presence wire payload",
+    "role": "peer-local presence state (crosshair interpolation, host-migration banner)",
     "files": [
       "src/online/online-presence-state.ts"
     ]
@@ -306,7 +306,7 @@
   {
     "layer": 3,
     "domain": "shared",
-    "role": "battle wire types & event bus",
+    "role": "battle entity structs, game event bus & settings option helpers",
     "files": [
       "src/shared/core/battle-types.ts",
       "src/shared/core/game-event-bus.ts",
@@ -324,7 +324,7 @@
   {
     "layer": 4,
     "domain": "shared",
-    "role": "core state & adjacent types",
+    "role": "cannon-mode & modifier registry defs, Player struct, phantom payloads & banner content",
     "files": [
       "src/shared/core/cannon-mode-defs.ts",
       "src/shared/core/modifier-defs.ts",
@@ -336,7 +336,7 @@
   {
     "layer": 5,
     "domain": "protocol",
-    "role": "protocol message dispatch",
+    "role": "wire message unions & MESSAGE constants",
     "files": [
       "src/protocol/protocol.ts"
     ]
@@ -360,7 +360,7 @@
   {
     "layer": 5,
     "domain": "shared",
-    "role": "first logic — spatial, interior, contracts, core state & rule producers",
+    "role": "core GameState & spatial helpers, system contracts & overlay view types",
     "files": [
       "src/shared/core/spatial.ts",
       "src/shared/core/system-interfaces.ts",
@@ -372,7 +372,7 @@
     "layer": 5,
     "domain": "shared",
     "subdomain": "sim",
-    "role": "sim internals — interior freshness epochs & piece-bag lifecycle",
+    "role": "sim internals — interior freshness epochs, piece-bag lifecycle & Player rule write-surface",
     "files": [
       "src/shared/sim/player-bag.ts",
       "src/shared/sim/player-interior.ts",
@@ -382,7 +382,7 @@
   {
     "layer": 6,
     "domain": "ai",
-    "role": "AI decision intents (life lost, upgrade pick) + base-layer tactic planners (grunt sweep, ice trench)",
+    "role": "AI decision intents (life lost, upgrade pick), base-layer tactic planners (grunt sweep, ice trench) & in-flight ball dedup",
     "files": [
       "src/ai/ai-in-flight-target.ts",
       "src/ai/ai-life-lost.ts",
@@ -394,7 +394,7 @@
   {
     "layer": 6,
     "domain": "controllers",
-    "role": "BaseController abstraction",
+    "role": "BaseController abstraction & AI commit port",
     "files": [
       "src/controllers/ai-commit-port.ts",
       "src/controllers/controller-base.ts"
@@ -403,7 +403,7 @@
   {
     "layer": 6,
     "domain": "game",
-    "role": "core game systems (combos, selection, map gen, elevation)",
+    "role": "core game systems (combos, selection, map gen, elevation, aim occlusion)",
     "files": [
       "src/game/aim-occlusion.ts",
       "src/game/combos.ts",
@@ -416,7 +416,7 @@
     "layer": 6,
     "domain": "game",
     "subdomain": "modifiers",
-    "role": "modifier implementations",
+    "role": "state-only modifier implementations & eligibility filter",
     "files": [
       "src/game/modifiers/dust-storm.ts",
       "src/game/modifiers/fog-of-war.ts",
@@ -461,7 +461,7 @@
   {
     "layer": 6,
     "domain": "online",
-    "role": "online lobby UI & session state",
+    "role": "online session core: lobby UI, session state, heartbeat desync detection, rejoin, host promotion, remote crosshairs & action senders",
     "files": [
       "src/online/online-heartbeat.ts",
       "src/online/online-host-promotion.ts",
@@ -475,7 +475,7 @@
   {
     "layer": 6,
     "domain": "render",
-    "role": "render contracts & overlay helpers",
+    "role": "frame contract & overlay helpers, aim-elevation picks, shader warm-up fixture & touch loupe",
     "files": [
       "src/render/3d/elevation.ts",
       "src/render/3d/frame-ctx.ts",
@@ -548,7 +548,7 @@
   {
     "layer": 7,
     "domain": "ai",
-    "role": "AI charity-sweep tactic planner (delegates to grunt sweep)",
+    "role": "AI build-pipeline shared types",
     "files": [
       "src/ai/ai-build-types.ts"
     ]
@@ -564,7 +564,7 @@
   {
     "layer": 7,
     "domain": "game",
-    "role": "game state setup",
+    "role": "match init & zone re-flood",
     "files": [
       "src/game/game-init.ts",
       "src/game/zone-recompute.ts"
@@ -574,7 +574,7 @@
     "layer": 7,
     "domain": "game",
     "subdomain": "modifiers",
-    "role": "modifier implementations",
+    "role": "shared tile-eviction helper for terrain-mutating modifiers",
     "files": [
       "src/game/modifiers/evict-tiles.ts"
     ]
@@ -592,7 +592,7 @@
   {
     "layer": 7,
     "domain": "input",
-    "role": "pointer-event dispatch",
+    "role": "pointer/tap → action dispatch, touch-control state & seed field",
     "files": [
       "src/input/input-dispatch.ts",
       "src/input/input-seed-field.ts",
@@ -602,7 +602,7 @@
   {
     "layer": 7,
     "domain": "online",
-    "role": "online server lifecycle, remote crosshairs & stores",
+    "role": "server-message lifecycle, lockstep seat handoff & online client stores",
     "files": [
       "src/online/online-seat-reclaim.ts",
       "src/online/online-seat-takeover.ts",
@@ -633,7 +633,7 @@
     "layer": 7,
     "domain": "render",
     "subdomain": "3d/effects",
-    "role": "effect builders",
+    "role": "terrain tile-data texture, aim crosshairs & battle/terrain effect meshes",
     "files": [
       "src/render/3d/effects/bonus-squares.ts",
       "src/render/3d/effects/crosshairs.ts",
@@ -647,7 +647,7 @@
   {
     "layer": 7,
     "domain": "runtime",
-    "role": "main loop, castle-build, tick-consumers, battle-anim & runtime/timing contracts",
+    "role": "main loop, castle-build, tick consumers, battle anim, local action surface, no-peer NetworkApi, wire senders & runtime/timing contracts",
     "files": [
       "src/runtime/battle-anim.ts",
       "src/runtime/castle-build.ts",
@@ -664,7 +664,7 @@
     "layer": 7,
     "domain": "runtime",
     "subdomain": "subsystems",
-    "role": "subsystem factories",
+    "role": "audio, banner, camera, dialog & score-delta subsystems",
     "files": [
       "src/runtime/subsystems/audio.ts",
       "src/runtime/subsystems/banner.ts",
@@ -731,7 +731,7 @@
     "layer": 8,
     "domain": "game",
     "subdomain": "modifiers",
-    "role": "modifier implementations",
+    "role": "terrain-mutating modifier implementations (fire, tides, sinkhole)",
     "files": [
       "src/game/modifiers/fire.ts",
       "src/game/modifiers/high-tide.ts",
@@ -742,7 +742,7 @@
   {
     "layer": 8,
     "domain": "input",
-    "role": "input dispatch & touch update",
+    "role": "input device handlers (keyboard, mouse, touch canvas, touch UI)",
     "files": [
       "src/input/input-keyboard.ts",
       "src/input/input-mouse.ts",
@@ -788,7 +788,7 @@
   {
     "layer": 8,
     "domain": "runtime",
-    "role": "phase machine",
+    "role": "phase transition machine & UIContext adapter",
     "files": [
       "src/runtime/phase-machine.ts",
       "src/runtime/ui-context.ts"
@@ -798,7 +798,7 @@
     "layer": 8,
     "domain": "runtime",
     "subdomain": "subsystems",
-    "role": "mid-depth subsystem factories",
+    "role": "input, render, lobby, options, selection & cannon-animator subsystems",
     "files": [
       "src/runtime/subsystems/cannon-animator.ts",
       "src/runtime/subsystems/input.ts",
@@ -867,7 +867,7 @@
   {
     "layer": 9,
     "domain": "runtime",
-    "role": "runtime types & main loop",
+    "role": "match bootstrap — controllers & GameState from settings",
     "files": [
       "src/runtime/bootstrap.ts"
     ]
@@ -885,7 +885,7 @@
   {
     "layer": 10,
     "domain": "ai",
-    "role": "AI brain assembly, build target selection & battle tactic planners",
+    "role": "build target selection & shared build infra, battle phase machine & battle tactic planners",
     "files": [
       "src/ai/ai-build-shared.ts",
       "src/ai/ai-build-target.ts",
@@ -946,7 +946,7 @@
   {
     "layer": 11,
     "domain": "ai",
-    "role": "build desperation/lookahead + derived tactic planners (max-repair-cost, super-attack)",
+    "role": "AiBrain assembly, build desperation/lookahead & derived tactic planners (grunt breach, max-repair-cost, super-attack)",
     "files": [
       "src/ai/ai-brain.ts",
       "src/ai/ai-build-desperate.ts",
@@ -984,7 +984,7 @@
   {
     "layer": 11,
     "domain": "render",
-    "role": "frame renderers",
+    "role": "Canvas2D frame renderer & 3D scene bootstrap",
     "files": [
       "src/render/3d/scene.ts",
       "src/render/render-canvas.ts"
@@ -993,7 +993,7 @@
   {
     "layer": 12,
     "domain": "ai",
-    "role": "AI strategy orchestrator",
+    "role": "AI build-phase placement orchestrator",
     "files": [
       "src/ai/ai-strategy-build.ts"
     ]

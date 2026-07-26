@@ -36,14 +36,18 @@ gets a sharp role identity.
   `--check` fails if any file is missing.
 - `.import-cells.json` — derived from layers + path-inferred domain +
   hand-curated labels. Run `deno run -A scripts/cells/regen-cells.ts`.
-  `--check` fails if stale.
+  `--check` fails if stale. Doubles as the label baseline: it records each
+  cell's role *and* file list as of the last approved regen, which is what
+  the label-drift check compares against (so there's no separate baseline
+  file to keep in sync).
 - `.domain-boundaries.json` — domain edge policy (`allowed`, `typeOnlyFrom`)
   and a tiny `exceptions` block for files whose role overrides their path
   (e.g. `server/server.ts → entry`).
 - `scripts/cells/` — four files: the three workflow tools (see below;
   `cell-lookup.ts` and `cell-edit-impact.ts` take `--json`,
   `regen-cells.ts` takes `--allow-todo` to emit placeholder labels for
-  new cells) plus `tier-of-layer.ts`, the tier helper — the 5-tier
+  new cells and `--accept-labels` to confirm an existing label still fits
+  a changed cell) plus `tier-of-layer.ts`, the tier helper — the 5-tier
   roll-up (`types` / `logic` / `systems` / `assembly` / `roots`)
   consumed by the lint scripts.
 
@@ -84,6 +88,12 @@ Domain is inferred from path:
    manually. If `regen-cells` says a new `(domain, layer)` cell appeared
    without a label, add an entry to the `LABELS` map in
    `scripts/cells/regen-cells.ts`.
+
+   Adding a file to an *existing* cell trips the label-drift check: the
+   cell's membership changed while its role stayed byte-identical, which
+   is how labels silently go stale. Widen the label in `LABELS` and re-run
+   (a changed role clears the check on its own), or re-run with
+   `--accept-labels` if the existing label already covers the new file.
 
 ## Workflow: editing a cross-cutting file
 
@@ -170,6 +180,23 @@ in `scripts/cells/regen-cells.ts`. The error message includes the
 
 **"`.import-cells.json` is stale" in pre-commit.** Run
 `deno run -A scripts/cells/regen-cells.ts` (no flags) to refresh.
+
+**"N LABELS entries match no cell" on regen.** A label with no cell almost
+always means that cell shifted layer — layer index is computed from import
+depth, so it moves whenever imports change. The label stays pinned to the
+old index while the cell that moved silently inherits its new neighbour's
+label. Check whether the orphaned label belongs to a cell one index away
+before deleting the key.
+
+**"N role label(s) used by several cells" on regen.** Two cells sharing a
+role string make `cell-lookup.ts` ambiguous. Differentiate them by whatever
+actually splits them (e.g. `game/modifiers` splits into state-only vs
+terrain-mutating implementations, not three identical labels).
+
+**"N cell(s) changed membership without a label review" on regen.** A file
+joined or left a cell and the role label wasn't touched — the slow way
+labels go stale. Re-read the role against its new file list, then widen it
+in `LABELS`, or pass `--accept-labels` if it already covers the change.
 
 **"File X is in .import-layers.json but its domain can't be inferred."**
 The file path doesn't match the domain heuristic. Either move it under a
