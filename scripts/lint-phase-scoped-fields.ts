@@ -45,6 +45,17 @@ const BYPASS_CALLERS = new Set([
   // This script names the export to check for it.
   "scripts/lint-phase-scoped-fields.ts",
 ]);
+/** WHICH FIELDS BELONG HERE. Only a **non-nullable** field whose out-of-phase
+ *  value is indistinguishable from a valid in-phase one. The three below hold
+ *  last round's limits / a stale countdown / last round's banked slots when
+ *  read off-phase — structurally perfect, silently wrong, and unrecognizable
+ *  to the type system.
+ *
+ *  A nullable field needs no entry: `null` already IS the out-of-phase value
+ *  and every reader is forced to handle it. `pendingUpgradeOffers` and
+ *  `masterBuilderOwners` (both `… | null` on ModernState) are phase-scoped in
+ *  exactly the same sense and are deliberately absent for that reason. Adding
+ *  them would be ceremony, not protection. */
 const PHASE_SCOPED_FIELDS: readonly PhaseScopedField[] = [
   {
     field: "cannonLimits",

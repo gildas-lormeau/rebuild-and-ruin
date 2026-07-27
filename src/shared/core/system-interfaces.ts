@@ -107,10 +107,20 @@ export interface CannonViewState extends GameViewState {
 
 /** Upgrade-pick dialog state slice.  5 fields on top of GameViewState.
  *  Deliberately carries NO `__phase` witness (unlike the build/cannon/battle
- *  views): every field here is phase-agnostic, so there is no prose obligation
- *  to convert — and the dialog tick gates on `dialogs.upgradePick` existing
- *  rather than on `state.phase`, so an asserting projection would be claiming
- *  a guarantee the call site doesn't actually establish.
+ *  views), and NOT because UPGRADE_PICK is somehow less of a phase — it is a
+ *  real phase, and `tickUpgradePickPhase` is properly gated (it runs only
+ *  under Mode.UPGRADE_PICK). A witness would simply protect nothing: all five
+ *  fields here mean the same thing in every phase.
+ *
+ *  The upgrade feature's genuinely phase-scoped state is not in this slice and
+ *  is already structural — `pendingUpgradeOffers` and `masterBuilderOwners` on
+ *  ModernState are both `| null`, and null IS the out-of-phase value, which
+ *  every reader is forced to handle. That is the general rule: a witness earns
+ *  its keep only for a NON-nullable field whose out-of-phase value is
+ *  indistinguishable from a valid in-phase one — `cannonLimits: number[]`
+ *  holding last round's limits, `battleCountdown: number` holding a stale
+ *  countdown. Nothing in the type system can tell those from live data.
+ *
  *  Used by UpgradePickController.tickUpgradePick and forceUpgradePick —
  *  covers the fields read by the AI decision heuristic (aiPickUpgrade)
  *  plus the rng + round needed for deriving the per-pick private Rng. */
