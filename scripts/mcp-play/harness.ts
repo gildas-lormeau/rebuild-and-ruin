@@ -95,6 +95,7 @@ import {
   type TileKey,
 } from "../../src/shared/core/grid.ts";
 import { modifierDef } from "../../src/shared/core/modifier-defs.ts";
+import { SPECULATIVE_VIEWS } from "../../src/shared/core/phase-views.ts";
 import {
   interpolatedCopies,
   PIECE_POOL_END_ROUND,
@@ -2270,7 +2271,7 @@ export async function createMcpGame(
         });
         continue;
       }
-      if (!isTowerEnclosable(tower, state, false)) {
+      if (!isTowerEnclosable(tower, SPECULATIVE_VIEWS.build(state), false)) {
         out.push({
           ...base,
           bonusSquares: 0,
@@ -2559,7 +2560,11 @@ export async function createMcpGame(
         towerEnclosed: enclosed,
         attacking:
           grunt.attackCountdown !== undefined && grunt.attackCountdown > 0,
-        hittable: aimReachesTile(state, grunt.row, grunt.col),
+        hittable: aimReachesTile(
+          SPECULATIVE_VIEWS.battle(state),
+          grunt.row,
+          grunt.col,
+        ),
         targetedWall: wall ? { row: wall.row, col: wall.col } : undefined,
       });
     }
@@ -3183,10 +3188,13 @@ export async function createMcpGame(
   function finishItSuggestion(): NonNullable<
     Observation["finishItAvailable"]
   > | null {
-    const battery = countBatteryCannons(sc.state, agentSlot);
+    const battery = countBatteryCannons(
+      SPECULATIVE_VIEWS.battle(sc.state),
+      agentSlot,
+    );
     if (battery < FINISH_IT_MIN_CANNONS) return null;
     const target: FinishItTarget | undefined = pickThinnestCastle(
-      sc.state,
+      SPECULATIVE_VIEWS.battle(sc.state),
       agentSlot,
     );
     if (!target) return null;
@@ -5769,7 +5777,7 @@ export async function createMcpGame(
    *  can't land on a tile hidden behind a taller tower. */
   function declutterFatTargets(): { row: number; col: number }[] {
     const reachable = fatWallsFor().filter((tile) =>
-      aimReachesTile(sc.state, tile.row, tile.col),
+      aimReachesTile(SPECULATIVE_VIEWS.battle(sc.state), tile.row, tile.col),
     );
     if (reachable.length === 0) return [];
     const fatSet = new Set(
@@ -5948,7 +5956,7 @@ export async function createMcpGame(
       };
       return observe();
     }
-    const spray = planFinishIt(sc.state, agentSlot);
+    const spray = planFinishIt(SPECULATIVE_VIEWS.battle(sc.state), agentSlot);
     if (!spray || spray.length === 0) {
       bridge.lastResult = {
         kind: "fire",
@@ -6075,7 +6083,11 @@ export async function createMcpGame(
       // The live min-cut against this opponent's CURRENT walls — only their
       // still-intact enclosures seed it, so once a ring is breached its tiles
       // drop out and re-aim moves to the next-cheapest cut (the shell beneath).
-      const cut = findMinBreach(sc.state, opponent, BREACH_MAX_TILES);
+      const cut = findMinBreach(
+        SPECULATIVE_VIEWS.battle(sc.state),
+        opponent,
+        BREACH_MAX_TILES,
+      );
       if (!cut || cut.length === 0) continue;
       for (const { row, col } of cut.slice(0, PIT_TARGETS_PER_OPPONENT)) {
         const tower = opponent.enclosedTowers.find((entry) =>
@@ -6214,12 +6226,16 @@ export async function createMcpGame(
           ? null
           : towerIdx !== undefined
             ? findTowerBreach(
-                sc.state,
+                SPECULATIVE_VIEWS.battle(sc.state),
                 target,
                 tower.towerIdx,
                 BREACH_MAX_TILES,
               )
-            : findMinBreach(sc.state, target, BREACH_MAX_TILES);
+            : findMinBreach(
+                SPECULATIVE_VIEWS.battle(sc.state),
+                target,
+                BREACH_MAX_TILES,
+              );
       if (minCut && minCut.length > 0) usedMinCut = true;
       const tiles = minCut ?? breachTilesFor(targetSlot, tower);
       const canFire =

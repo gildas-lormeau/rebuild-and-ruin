@@ -58,6 +58,7 @@ echo "lint:all: parallel checks..."
   run test-timeouts     deno run -A scripts/lint-test-timeouts.ts
   run raw-playwright    deno run -A scripts/lint-raw-playwright.ts
   run phase-transitions deno run -A scripts/lint-phase-transitions.ts
+  run phase-scoped      deno run -A scripts/lint-phase-scoped-fields.ts
   run typeof            deno run -A scripts/lint-typeof.ts
   run comment-refs      deno run -A scripts/lint-comment-refs.ts
   run repeated-ternary  deno run -A scripts/lint-repeated-ternary.ts

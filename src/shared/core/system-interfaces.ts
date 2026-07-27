@@ -37,10 +37,9 @@ import type { ZoneId } from "./zone-id.ts";
  *  transitively depend on types.ts (GameState). GameState satisfies this
  *  structurally — no casts needed at call sites.
  *
- *  BIVARIANCE NOTE: Controller implementations declare `state: GameState`
- *  while interfaces declare the per-phase view. TypeScript's method bivariance
- *  allows this. All real call sites pass GameState, so the gap is theoretical.
- *  The views document the actual field contract per phase — not a runtime guard. */
+ *  Phase-agnostic, so unlike the per-phase views below it carries no `__phase`
+ *  witness: every phase's fields are readable in every phase, and `GameState`
+ *  satisfies it directly. */
 export interface GameViewState {
   readonly phase: Phase;
   /** Monotonic simulation tick.  Universal across phases — used by
@@ -68,6 +67,8 @@ export interface GameViewState {
  *  Mirrors the BattleViewState pattern; keeps BuildViewState free of a
  *  ModernState import. */
 export interface BuildViewState extends GameViewState {
+  /** Phase witness — see `__phase` on CannonViewState. */
+  readonly __phase: Phase.WALL_BUILD;
   readonly round: number;
   readonly rng: Rng;
   readonly timer: number;
@@ -81,6 +82,18 @@ export interface BuildViewState extends GameViewState {
 
 /** Cannon-phase state slice.  8 fields. */
 export interface CannonViewState extends GameViewState {
+  /** Phantom phase witness. Never present at runtime, never read — its only
+   *  job is to make `GameState` NOT satisfy this slice structurally, so the
+   *  only way to obtain one is `cannonView(state)` in phase-views.ts, which
+   *  asserts the phase. That converts the per-field "only meaningful during
+   *  CANNON_PLACE" prose obligation (see `GameState.cannonLimits`) into a
+   *  checked one, and closes the method-bivariance gap that let a controller
+   *  implementation widen its parameter back to `GameState`.
+   *
+   *  Each slice witnesses a DIFFERENT phase member, so the slices are also
+   *  mutually non-assignable — a BattleViewState can't be passed where a
+   *  CannonViewState is expected. */
+  readonly __phase: Phase.CANNON_PLACE;
   readonly cannonLimits: readonly number[];
   readonly capturedCannons: readonly CapturedCannon[];
   readonly cannonMaxHp: number;
@@ -93,6 +106,11 @@ export interface CannonViewState extends GameViewState {
 }
 
 /** Upgrade-pick dialog state slice.  5 fields on top of GameViewState.
+ *  Deliberately carries NO `__phase` witness (unlike the build/cannon/battle
+ *  views): every field here is phase-agnostic, so there is no prose obligation
+ *  to convert — and the dialog tick gates on `dialogs.upgradePick` existing
+ *  rather than on `state.phase`, so an asserting projection would be claiming
+ *  a guarantee the call site doesn't actually establish.
  *  Used by UpgradePickController.tickUpgradePick and forceUpgradePick —
  *  covers the fields read by the AI decision heuristic (aiPickUpgrade)
  *  plus the rng + round needed for deriving the per-pick private Rng. */
@@ -108,6 +126,8 @@ export interface UpgradePickViewState extends GameViewState {
  *  controller reads (frozenTiles, activeModifier).  Avoids importing
  *  ModernState from types.ts, preserving the coupling break. */
 export interface BattleViewState extends GameViewState {
+  /** Phase witness — see `__phase` on CannonViewState. */
+  readonly __phase: Phase.BATTLE;
   readonly rng: Rng;
   readonly timer: number;
   readonly battleCountdown: number;

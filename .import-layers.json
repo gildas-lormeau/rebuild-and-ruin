@@ -216,6 +216,7 @@
       "src/runtime/tick-context.ts",
       "src/runtime/types.ts",
       "src/shared/core/controller-guards.ts",
+      "src/shared/core/phase-views.ts",
       "src/shared/core/render-view.ts",
       "src/shared/sim/occupancy-queries.ts",
       "src/shared/sim/player-walls.ts",

@@ -20,6 +20,7 @@
 import { assert } from "@std/assert";
 import { setAiBattleDiagHook } from "../src/ai/ai-battle-diag.ts";
 import { aimReachesTile } from "../src/game/index.ts";
+import { battleView } from "../src/shared/core/phase-views.ts";
 import { createScenario } from "./scenario.ts";
 
 // Origins emitted by CHAIN.GRUNT sweeps: self-defence ("grunt_sweep") and the
@@ -46,7 +47,7 @@ Deno.test(
       // wall right now), so the planner's avoidance is meaningful.
       if (!occlusionWasLive) {
         occlusionWasLive = sc.state.grunts.some(
-          (g) => !aimReachesTile(sc.state, g.row, g.col),
+          (g) => !aimReachesTile(battleView(sc.state), g.row, g.col),
         );
       }
 
@@ -59,7 +60,7 @@ Deno.test(
       // untouched — intended and aim agree and the aim tile takes no occluder.
       if (intended.row !== aim.row || intended.col !== aim.col) redirects++;
       assert(
-        aimReachesTile(sc.state, aim.row, aim.col),
+        aimReachesTile(battleView(sc.state), aim.row, aim.col),
         `grunt sweep fired at an occluded tile (${aim.row},${aim.col}) — the ` +
           `shot would snap onto the wall hiding it instead of the grunt`,
       );

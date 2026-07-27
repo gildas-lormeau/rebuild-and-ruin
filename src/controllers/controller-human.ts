@@ -19,6 +19,7 @@ import {
   makePiecePhantom,
   type PiecePhantom,
 } from "../shared/core/phantom-types.ts";
+import { widenToGameState } from "../shared/core/phase-views.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import type { Player } from "../shared/core/player-types.ts";
 import {
@@ -38,7 +39,7 @@ import {
   type PlacePieceIntent,
   type WorldOccluder,
 } from "../shared/core/system-interfaces.ts";
-import { cannonSlotsFor, type GameState } from "../shared/core/types.ts";
+import { cannonSlotsFor } from "../shared/core/types.ts";
 import { rotatePlayerPiece } from "../shared/sim/player-bag.ts";
 import { BaseController } from "./controller-base.ts";
 
@@ -324,13 +325,17 @@ export class HumanController extends BaseController implements InputReceiver {
   /** Compute a place-piece intent at the build cursor.
    *  Returns null if placement is invalid. The orchestrator executes the
    *  mutation via placePiece() then calls ctrl.advanceBag(true). */
-  // Signature widens to GameState (bivariance — see system-interfaces.ts):
-  // the Master Builder lockout gate is a placement precondition alongside
-  // `canPlacePiece`, and `canPlayerBuild` reads `activeFeatures` + modern
-  // internals the BuildViewState slice deliberately hides. Every real call
-  // site passes GameState, so this is the canonical human commit gate —
-  // input-dispatch no longer needs to know about the lockout.
-  tryPlacePiece(state: GameState): PlacePieceIntent | null {
+  // Takes the interface's BuildViewState and widens explicitly for the two
+  // calls that need more: the Master Builder lockout gate is a placement
+  // precondition alongside `canPlacePiece`, and `canPlayerBuild` fans out to
+  // the upgrade-impl registry, reading `activeFeatures` + modern internals the
+  // BuildViewState slice deliberately hides. This is the canonical human
+  // commit gate — input-dispatch doesn't need to know about the lockout.
+  // Previously this parameter just declared `GameState` and relied on method
+  // bivariance to accept the mismatch; `__phase` on BuildViewState makes that
+  // a hard error, so the widening is now visible.
+  tryPlacePiece(view: BuildViewState): PlacePieceIntent | null {
+    const state = widenToGameState(view);
     const player = state.players[this.playerId];
     if (!player?.currentPiece || !player.bag) return null;
     if (!canPlayerBuild(state, this.playerId)) return null;

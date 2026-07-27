@@ -170,7 +170,8 @@ const LABELS: Record<string, string> = {
   "6::runtime/audio": "audio players (music + sfx)",
   "6::runtime/subsystems": "haptics — leaf-depth subsystem factory",
   "6::server": "server game-room",
-  "6::shared": "shared controller guards, render-view & input deps",
+  "6::shared":
+    "shared controller guards, phase-view projections, render-view & input deps",
   "6::shared/sim": "sim internals — occupancy queries & wall mutators",
 
   // L7 — entity renderers & cross-domain handlers

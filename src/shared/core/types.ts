@@ -155,14 +155,20 @@ export interface GameState {
   /** Bonus squares on the map (3 per zone). */
   bonusSquares: BonusSquare[];
   /** Pre-battle countdown (Ready/Aim/Fire). Only meaningful during BATTLE phase.
-   *  Separate from timer. 0 = battle active. */
+   *  Separate from timer. 0 = battle active. Phase scoping is enforced the same
+   *  way as `cannonLimits` above — reach it via `battleView(state)` and see
+   *  `lint-phase-scoped-fields.ts` for the owner list. */
   battleCountdown: number;
   /** Zone index assigned to each player (indexed by player id). Set at game start. */
   playerZones: ZoneId[];
   /** Cannon slot limits per player for the current cannon phase.
    *  Computed by computeCannonLimitsForPhase at CANNON_PLACE start.
-   *  Phase-dependent: only meaningful when `state.phase === Phase.CANNON_PLACE`.
-   *  Always guard: `if (state.phase === Phase.CANNON_PLACE) { ... state.cannonLimits ... }` */
+   *  Phase-dependent: only meaningful when `state.phase === Phase.CANNON_PLACE`;
+   *  outside it this still holds the PREVIOUS round's limits.
+   *  That is enforced, not just documented — read it through `cannonSlotsFor`
+   *  on a `CannonViewState` (obtained from `cannonView(state)`, which asserts
+   *  the phase), and `lint-phase-scoped-fields.ts` fails the build if a file
+   *  outside the field's owner list names it. See "Phase views" in CLAUDE.md. */
   cannonLimits: number[];
   /** Per-slot done flag for CANNON_PLACE — populated by:
    *  (1) local controller's `isCannonPhaseDone` going true (mark + broadcast if human);

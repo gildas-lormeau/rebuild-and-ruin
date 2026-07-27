@@ -43,14 +43,18 @@ import {
   cannonPhantomKey,
   piecePhantomKey,
 } from "../../shared/core/phantom-types.ts";
+import {
+  battleView,
+  buildView,
+  cannonView,
+} from "../../shared/core/phase-views.ts";
 import { type ValidPlayerId } from "../../shared/core/player-slot.ts";
 import { isPlayerAlive } from "../../shared/core/player-types.ts";
-import { type PlayerController } from "../../shared/core/system-interfaces.ts";
 import {
-  advanceRound,
-  cannonSlotsFor,
-  type GameState,
-} from "../../shared/core/types.ts";
+  type BattleViewState,
+  type PlayerController,
+} from "../../shared/core/system-interfaces.ts";
+import { advanceRound, cannonSlotsFor } from "../../shared/core/types.ts";
 import { filterAliveEnclosedTowers } from "../../shared/sim/board-occupancy.ts";
 import { Mode } from "../../shared/ui/ui-mode.ts";
 import type { BannerShow } from "../banner-state.ts";
@@ -383,8 +387,11 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       beginTilt: deps.beginTilt,
       warmShadowPermutations: deps.warmShadowPermutations,
       finalizeLocalControllersBuildPhase: () => {
+        // `enter-round-end` is `from: Phase.WALL_BUILD` and calls this as the
+        // first statement of its mutate, before it enters ROUND_END.
+        const build = buildView(runtimeState.state);
         for (const ctrl of local) {
-          ctrl.finalizeBuildPhase(runtimeState.state);
+          ctrl.finalizeBuildPhase(build);
         }
       },
       endGame: deps.endGame,
@@ -416,12 +423,17 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
 
   function beginBattle() {
     const remotePlayerSlots = runtimeState.frameMeta.remotePlayerSlots;
+    // Every path in already requires BATTLE: the enter-battle transition's
+    // mutate ran `enterBattlePhase`, the balloon-flyover end is mid-BATTLE,
+    // and promote.ts's `skipBattleIntro` repair is phase-gated. Asserting
+    // here would catch a countdown being primed outside battle.
+    const battle = battleView(runtimeState.state);
     for (const ctrl of localActiveControllers(
       runtimeState.controllers,
       remotePlayerSlots,
       runtimeState.state.players,
     )) {
-      ctrl.initBattleState(runtimeState.state);
+      ctrl.initBattleState(battle);
     }
     // Go through setBattleCountdown so the jump from 0 → BATTLE_COUNTDOWN
     // emits the initial `battleReady` bus event — without this the voice
@@ -440,15 +452,18 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
   function startBuildPhase() {
     const remotePlayerSlots = runtimeState.frameMeta.remotePlayerSlots;
     deps.log(`startBuildPhase (round=${runtimeState.state.round})`);
+    // `buildView` carries this same check into the type system; the explicit
+    // throw stays for its call-site-specific message.
     if (runtimeState.state.phase !== Phase.WALL_BUILD) {
       throw new Error("startBuildPhase called outside WALL_BUILD");
     }
+    const build = buildView(runtimeState.state);
     for (const ctrl of localActiveControllers(
       runtimeState.controllers,
       remotePlayerSlots,
       runtimeState.state.players,
     )) {
-      ctrl.startBuildPhase(runtimeState.state);
+      ctrl.startBuildPhase(build);
     }
     clearImpacts(runtimeState.battleAnim);
     resetAccum(runtimeState.accum, ACCUM_GRUNT);
@@ -462,6 +477,10 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
   function tickCannonPhase(dt: number): boolean {
     const remotePlayerSlots = runtimeState.frameMeta.remotePlayerSlots;
     const { state } = runtimeState;
+    // Projected once: `tickGame` dispatches here on Phase.CANNON_PLACE, and
+    // every controller call below runs before the `startBattle` dispatch that
+    // flips the phase.
+    const cannon = cannonView(state);
     const local = localActiveControllers(
       runtimeState.controllers,
       remotePlayerSlots,
@@ -483,18 +502,18 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     // inside the placement callback, not here. The phantom hook self-gates
     // by ownership so only the local-human's cursor preview hits the wire.
     for (const ctrl of local) {
-      const phantom = ctrl.cannonTick(state, dt);
+      const phantom = ctrl.cannonTick(cannon, dt);
       // Detect newly-done local controllers — mark in shared per-slot state
       // and broadcast for human-kind so remote peers (whose `local` excludes
       // this slot and so never observes its `isCannonPhaseDone`) can mirror
       // the done flag and exit the phase in lockstep. AI controllers are
       // deterministic across peers; their done-ness is already mirrored
       // implicitly so no broadcast needed.
-      const max = cannonSlotsFor(state, ctrl.playerId);
+      const max = cannonSlotsFor(cannon, ctrl.playerId);
       if (
         !state.cannonPlaceDone.has(ctrl.playerId) &&
         !state.pendingCannonPlaceDone.has(ctrl.playerId) &&
-        ctrl.isCannonPhaseDone(state, max)
+        ctrl.isCannonPhaseDone(cannon, max)
       ) {
         if (isHuman(ctrl)) {
           // Lockstep: schedule the `cannonPlaceDone.add` for `applyAt` on
@@ -564,8 +583,8 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     for (const ctrl of runtimeState.controllers) {
       const isLocal = !isRemotePlayer(ctrl.playerId, remotePlayerSlots);
       ctrl.finalizeCannonPhase(
-        state,
-        cannonSlotsFor(state, ctrl.playerId),
+        cannon,
+        cannonSlotsFor(cannon, ctrl.playerId),
         isLocal,
       );
     }
@@ -645,12 +664,13 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       runtimeState.state,
       dt,
     );
+    const battle = battleView(runtimeState.state);
     for (const ctrl of localActiveControllers(
       runtimeState.controllers,
       remotePlayerSlots,
       runtimeState.state.players,
     )) {
-      ctrl.battleTick(runtimeState.state, dt);
+      ctrl.battleTick(battle, dt);
     }
     syncCrosshairs(dt);
     deps.requestRender();
@@ -689,7 +709,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     // engine advances them and resolves hits on the same frame. Both run
     // locally on every peer — AI fires are deterministic from strategy.rng
     // + state, human fires broadcast CANNON_FIRED via the human-input path.
-    if (weaponsActive) tickLocalBattleControllers(local, state, dt);
+    if (weaponsActive) tickLocalBattleControllers(local, battleView(state), dt);
     const result = engineTickBattlePhase(state, dt);
 
     // Record visuals from the same combat result, on every peer. The bus
@@ -794,7 +814,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       // locked-out player's phantom live and rotating instead of
       // freezing/blanking for the lockout window.
       const canBuild = canPlayerBuild(state, ctrl.playerId);
-      const phantoms = ctrl.buildTick(state, dt, canBuild);
+      const phantoms = ctrl.buildTick(buildView(state), dt, canBuild);
 
       if (!isHuman(ctrl)) continue;
       for (const phantom of phantoms) {
@@ -1061,7 +1081,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
  *  that. */
 function tickLocalBattleControllers(
   local: readonly PlayerController[],
-  state: GameState,
+  state: BattleViewState,
   dt: number,
 ): void {
   for (const ctrl of local) {

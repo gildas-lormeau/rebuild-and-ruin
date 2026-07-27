@@ -5,6 +5,7 @@ import {
 } from "../game/index.ts";
 import { type GameMessage, MESSAGE } from "../protocol/protocol.ts";
 import type { LockstepOriginatorDeps } from "../shared/core/action-schedule.ts";
+import { buildView } from "../shared/core/phase-views.ts";
 import {
   type BattleController,
   type BattleViewState,
@@ -44,7 +45,7 @@ export function createOnlineSendActions(deps: OnlineSendActionsDeps) {
     if (!intent) return false;
     const stamped = schedulePiecePlacement({
       schedule,
-      state: getState(),
+      state: buildView(getState()),
       intent,
       safetyTicks,
       clampBuildCursor: (piece) => ctrl.clampBuildCursor(piece),

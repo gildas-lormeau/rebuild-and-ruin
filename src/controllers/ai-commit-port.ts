@@ -2,9 +2,9 @@
  * AI commit port — apply-strategy seam for AiController's three mutating
  * commits (piece/cannon placement, fire). DIRECT_COMMIT_PORT mutates
  * GameState now; networkedCommitPort schedules + broadcasts. Only the port
- * swaps, so both controllers share AiController's tick logic verbatim. The
- * `state as GameState` casts are isolated here — every real call passes the
- * full state (ViewState params document the per-phase field contract).
+ * swaps, so both controllers share AiController's tick logic verbatim. Every
+ * method widens its read-side phase view for the executors via
+ * `widenToGameState` (shared/core/phase-views.ts), never a bare cast.
  */
 
 import {
@@ -21,6 +21,7 @@ import type {
   CannonPlacedPayload,
   PiecePlacedPayload,
 } from "../shared/core/phantom-types.ts";
+import { widenToGameState } from "../shared/core/phase-views.ts";
 import type {
   BattleViewState,
   BuildController,
@@ -63,11 +64,11 @@ export interface CommitSenders {
  *  The default for local play and the online host's own AI slots. */
 export const DIRECT_COMMIT_PORT: AiCommitPort = {
   placePiece: (state, intent, ctrl) =>
-    executePlacePiece(state as GameState, intent, ctrl),
+    executePlacePiece(widenToGameState(state), intent, ctrl),
   placeCannon: (state, intent, maxSlots) =>
-    executePlaceCannon(state as GameState, intent, maxSlots),
+    executePlaceCannon(widenToGameState(state), intent, maxSlots),
   fire: (state, intent) =>
-    executeCannonFire(state as GameState, intent) !== null,
+    executeCannonFire(widenToGameState(state), intent) !== null,
 };
 
 /** Deferred-apply port: schedule the apply on the lockstep queue with a
@@ -101,7 +102,7 @@ export function networkedCommitPort(opts: {
       if (isQuarantined()) return false;
       const stamped = scheduleCannonPlacement({
         schedule,
-        state: state as GameState,
+        state: widenToGameState(state),
         intent,
         maxSlots,
         safetyTicks,
@@ -114,7 +115,7 @@ export function networkedCommitPort(opts: {
       if (isQuarantined()) return false;
       const msg = scheduleCannonFire({
         schedule,
-        state: state as GameState,
+        state: widenToGameState(state),
         intent,
         safetyTicks,
       });

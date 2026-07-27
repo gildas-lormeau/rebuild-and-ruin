@@ -30,6 +30,7 @@ import {
   SELECT_TIMER,
 } from "../../shared/core/game-constants.ts";
 import { emitGameEvent, GAME_EVENT } from "../../shared/core/game-event-bus.ts";
+import { tryBattleView } from "../../shared/core/phase-views.ts";
 import {
   isActivePlayer,
   type ValidPlayerId,
@@ -227,13 +228,22 @@ const runtime: GameRuntime = createGameRuntime({
     },
 
     // ── Cross-machine merging ─────────────────────────────────────────
-    extendCrosshairs: (crosshairs, dt) =>
-      extendWithRemoteCrosshairs(crosshairs, dt, {
-        state: runtime.runtimeState.state,
+    extendCrosshairs: (crosshairs, dt) => {
+      // The one non-asserting projection in the codebase. `syncCrosshairs`
+      // has two battle-phase callers plus a render-path refresh gated on
+      // `frameMeta.inBattle`, which is snapshotted at tick start and so
+      // stays true through a frame in which battle ended. Remote crosshairs
+      // are a battle-only visual, so that window returns the local list
+      // untouched rather than asserting.
+      const battle = tryBattleView(runtime.runtimeState.state);
+      if (!battle) return [...crosshairs];
+      return extendWithRemoteCrosshairs(crosshairs, dt, {
+        state: battle,
         presence: ctx.presence,
         remotePlayerSlots: ctx.session.remotePlayerSlots,
         logThrottled: devLogThrottled,
-      }),
+      });
+    },
     tickMigrationAnnouncement: (dt) =>
       tickPersistentAnnouncement(
         ctx.presence.migrationBanner,

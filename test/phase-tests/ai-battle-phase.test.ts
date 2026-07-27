@@ -36,6 +36,7 @@ import {
   GRID_ROWS,
   type TileKey,
 } from "../../src/shared/core/grid.ts";
+import { battleView } from "../../src/shared/core/phase-views.ts";
 import { isActivePlayer } from "../../src/shared/core/player-slot.ts";
 import {
   computeOutside,
@@ -73,6 +74,9 @@ Deno.test(
     assertEquals(sc.state.round, 43);
     assertEquals(sc.state.phase, Phase.BATTLE);
     const state = sc.state;
+    // BATTLE-entry fixture — the projection also asserts that, so a
+    // re-recorded fixture landing in another phase fails loudly here.
+    const battle = battleView(state);
     const red = state.players[0]!;
     const blue = state.players[1]!;
     assert(isActivePlayer(red.id) && isActivePlayer(blue.id));
@@ -88,7 +92,7 @@ Deno.test(
       "RED has no intact large enclosure — fixture no longer exercises the deny siege, re-record",
     );
 
-    const usableCannons = countUsableCannons(state, blue.id);
+    const usableCannons = countUsableCannons(battle, blue.id);
     assert(usableCannons >= 4, "BLUE lost its siege battery — re-record");
 
     // The planner draws from its own controller RNG (ring choice + breach
@@ -103,7 +107,7 @@ Deno.test(
         col: (sample * 29) % GRID_COLS,
       };
       const plan = planDenyEnclosure(
-        state,
+        battle,
         blue.id,
         red.id,
         usableCannons,
@@ -235,6 +239,9 @@ Deno.test(
     assertEquals(sc.state.round, 43);
     assertEquals(sc.state.phase, Phase.BATTLE);
     const state = sc.state;
+    // BATTLE-entry fixture — the projection also asserts that, so a
+    // re-recorded fixture landing in another phase fails loudly here.
+    const battle = battleView(state);
     const red = state.players[0]!;
     const blue = state.players[1]!;
     assert(isActivePlayer(red.id) && isActivePlayer(blue.id));
@@ -256,13 +263,13 @@ Deno.test(
         `grunts=${redZoneGrunts.length} — re-record`,
     );
 
-    const usableCannons = countUsableCannons(state, blue.id);
+    const usableCannons = countUsableCannons(battle, blue.id);
     assert(usableCannons >= 4, "BLUE lost its siege battery — re-record");
 
     // Focused target → the planner is deterministic (the rng draw is only for
     // the unfocused uniform enemy pick), so one call IS the spec. The cursor
     // only rotates where the drill STARTS, never which tiles it contains.
-    const plan = planGruntBreach(state, blue.id, red.id, usableCannons, new Rng(1), {
+    const plan = planGruntBreach(battle, blue.id, red.id, usableCannons, new Rng(1), {
       row: 0,
       col: 0,
     });
@@ -321,10 +328,13 @@ Deno.test(
     assertEquals(sc.state.round, 43);
     assertEquals(sc.state.phase, Phase.BATTLE);
     const state = sc.state;
+    // BATTLE-entry fixture — the projection also asserts that, so a
+    // re-recorded fixture landing in another phase fails loudly here.
+    const battle = battleView(state);
     const red = state.players[0]!;
     assert(isActivePlayer(red.id));
 
-    const spray = planFinishIt(state, red.id);
+    const spray = planFinishIt(battle, red.id);
     assert(spray !== null && spray.length > 0, "planner produced no spray");
     // Substantial: a big castle's shell yields many spaced holes, not a token few.
     assert(spray.length >= 10, `spray only ${spray.length} holes — too small`);

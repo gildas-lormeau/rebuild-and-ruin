@@ -17,6 +17,11 @@ import { Phase } from "../shared/core/game-phase.ts";
 import type { CannonIdx, TilePos } from "../shared/core/geometry-types.ts";
 import type { TileKey } from "../shared/core/grid.ts";
 import {
+  battleView,
+  buildView,
+  cannonView,
+} from "../shared/core/phase-views.ts";
+import {
   isPlayerEliminated,
   type ValidPlayerId,
 } from "../shared/core/player-slot.ts";
@@ -314,11 +319,11 @@ export function primeControllerForPhase(
   ctrl: PlayerController,
 ): void {
   if (state.phase === Phase.WALL_BUILD) {
-    ctrl.startBuildPhase(state);
+    ctrl.startBuildPhase(buildView(state));
   } else if (state.phase === Phase.CANNON_PLACE) {
     primeControllerForCannonPhase(ctrl, state);
   } else if (state.phase === Phase.BATTLE) {
-    ctrl.initBattleState(state);
+    ctrl.initBattleState(battleView(state));
   }
 }
 
@@ -338,9 +343,10 @@ export function primeControllerForCannonPhase(
 ): boolean {
   const prep = prepareControllerCannonPhase(ctrl.playerId, state);
   if (!prep) return false;
-  ctrl.placeCannons(state, prep.maxSlots);
+  const cannon = cannonView(state);
+  ctrl.placeCannons(cannon, prep.maxSlots);
   ctrl.cannonCursor = prep.cursorPos;
-  ctrl.startCannonPhase(state);
+  ctrl.startCannonPhase(cannon);
   return true;
 }
 

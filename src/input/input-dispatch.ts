@@ -22,6 +22,11 @@ import type {
   TowerIdx,
 } from "../shared/core/geometry-types.ts";
 import { Action, isMovementAction } from "../shared/core/input-action.ts";
+import {
+  battleView,
+  buildView,
+  cannonView,
+} from "../shared/core/phase-views.ts";
 import { isPlayerEliminated } from "../shared/core/player-slot.ts";
 import { pxToTile, worldToTileClamped } from "../shared/core/spatial.ts";
 import {
@@ -253,9 +258,10 @@ export function dispatchBattleFire(
   // Timer expired: players are locked out for the ball-landing tail — the
   // tap must not even move the crosshair (fire() already self-gates).
   if (state.timer <= 0) return;
+  const battle = battleView(state);
   deps.withPointerPlayer((human) => {
-    human.aim(state, x, y);
-    deps.gameAction.fire(human, state);
+    human.aim(battle, x, y);
+    deps.gameAction.fire(human, battle);
   });
 }
 
@@ -359,7 +365,7 @@ export function dispatchGameAction(
       return true;
     }
     if (action === Action.CONFIRM) {
-      deps.fire(ctrl, state);
+      deps.fire(ctrl, battleView(state));
       return true;
     }
     return false;
@@ -396,14 +402,14 @@ export function dispatchPointerMove(
       }
     } else if (state.phase === Phase.WALL_BUILD) {
       const { row, col } = coords.pixelToTile(x, y);
-      human.setBuildCursor(state, row, col);
+      human.setBuildCursor(buildView(state), row, col);
     } else if (state.phase === Phase.CANNON_PLACE) {
       const w = coords.screenToWorld(x, y);
       human.setCannonCursor(w.wx, w.wy);
     } else if (state.phase === Phase.BATTLE && state.timer > 0) {
       // Timer gate: once the battle timer expires the crosshair is frozen
       // for every player (same rule the runtime applies to battleTick).
-      const w = human.aim(state, x, y);
+      const w = human.aim(battleView(state), x, y);
       maybeSendAimUpdate(w.wx, w.wy);
     }
   });
@@ -425,7 +431,7 @@ export function dispatchPointerMoveWorld(
   deps.withPointerPlayer((human) => {
     if (state.phase === Phase.WALL_BUILD) {
       const { row, col } = worldToTileClamped(wx, wy);
-      human.setBuildCursor(state, row, col);
+      human.setBuildCursor(buildView(state), row, col);
     } else if (state.phase === Phase.CANNON_PLACE) {
       human.setCannonCursor(wx, wy);
     }
@@ -552,11 +558,11 @@ function rotatePlacement(
   onPieceRotated?: () => void,
 ): void {
   if (state.phase === Phase.WALL_BUILD) {
-    ctrl.rotatePiece(state);
+    ctrl.rotatePiece(buildView(state));
     onPieceRotated?.();
   } else if (state.phase === Phase.CANNON_PLACE) {
-    const max = cannonSlotsFor(state, ctrl.playerId);
-    ctrl.cycleCannonMode(state, max);
+    const cannon = cannonView(state);
+    ctrl.cycleCannonMode(cannon, cannonSlotsFor(cannon, ctrl.playerId));
   }
 }
 
@@ -572,11 +578,12 @@ function dispatchPlacementConfirm(
   if (state.phase === Phase.WALL_BUILD) {
     // Master Builder lockout is gated inside HumanController.tryPlacePiece
     // (returns null under lockout), so no placement check is needed here.
-    const placed = deps.tryPlacePiece(ctrl, state);
+    const placed = deps.tryPlacePiece(ctrl, buildView(state));
     if (placed) deps.onPiecePlaced?.();
   } else if (state.phase === Phase.CANNON_PLACE) {
-    const max = cannonSlotsFor(state, ctrl.playerId);
-    const placed = deps.tryPlaceCannon(ctrl, state, max);
+    const cannon = cannonView(state);
+    const max = cannonSlotsFor(cannon, ctrl.playerId);
+    const placed = deps.tryPlaceCannon(ctrl, cannon, max);
     if (placed) deps.onCannonPlaced?.();
   }
 }
@@ -588,7 +595,7 @@ function dispatchMoveForCtrl(
   state: GameState,
 ): void {
   if (state.phase === Phase.WALL_BUILD) {
-    ctrl.moveBuildCursor(state, action);
+    ctrl.moveBuildCursor(buildView(state), action);
   } else if (state.phase === Phase.CANNON_PLACE) {
     ctrl.moveCannonCursor(action);
   }

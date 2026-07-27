@@ -533,9 +533,10 @@
   {
     "layer": 6,
     "domain": "shared",
-    "role": "shared controller guards, render-view & input deps",
+    "role": "shared controller guards, phase-view projections, render-view & input deps",
     "files": [
       "src/shared/core/controller-guards.ts",
+      "src/shared/core/phase-views.ts",
       "src/shared/core/render-view.ts",
       "src/shared/ui/input-deps.ts"
     ]

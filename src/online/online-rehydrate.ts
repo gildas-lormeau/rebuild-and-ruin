@@ -19,6 +19,7 @@ import type { GameRuntime } from "../runtime/handle.ts";
 import { setMode } from "../runtime/state.ts";
 import type { BalloonFlight } from "../shared/core/battle-types.ts";
 import { Phase } from "../shared/core/game-phase.ts";
+import { battleView } from "../shared/core/phase-views.ts";
 import type { PlayerId, ValidPlayerId } from "../shared/core/player-slot.ts";
 import { isPlayerAlive } from "../shared/core/player-types.ts";
 import { filterAliveEnclosedTowers } from "../shared/sim/board-occupancy.ts";
@@ -389,8 +390,11 @@ function primeSelfHumanControllersAfterAdoption(
     if (ctrl.kind !== "human") continue;
     const player = state.players[ctrl.playerId];
     if (!player || !isPlayerAlive(player)) continue;
+    // Either flag implies its own phase (see their derivations above), and
+    // the early return means one of them is set — so the else branch is
+    // BATTLE and `battleView` cannot assert here.
     if (missedCannonEntry) primeControllerForCannonPhase(ctrl, state);
-    else ctrl.initBattleState(state);
+    else ctrl.initBattleState(battleView(state));
   }
 }
 
